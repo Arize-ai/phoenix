@@ -4,35 +4,27 @@ description: Instrument LLM applications built with Haystack
 
 # Haystack
 
-### Quickstart
+Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai/)
 
-In this example we will instrument a small program that uses [Haystack](https://haystack.deepset.ai/) to make calls to GPT 3.5 turbo, and observe the traces via [`arize-phoenix`](https://github.com/Arize-ai/phoenix).
+## Install
 
+```bash
+pip install openinference-instrumentation-haystack haystack-ai
 ```
-pip install openinference-instrumentation-haystack haystack-ai arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
-```
 
-In a python file, setup the `HaystackInstrumentor` and configure the tracer to send traces to Phoenix.
+## Setup
+
+Set up [OpenTelemetry to point to a running Phoenix instance](https://docs.arize.com/phoenix/quickstart) and then initialize the HaystackInstrumentor before your application code.
 
 ```python
 from openinference.instrumentation.haystack import HaystackInstrumentor
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
-import phoenix as px
 
-endpoint = "http://127.0.0.1:6006/v1/traces"
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-trace_api.set_tracer_provider(tracer_provider)
-
-px.launch_app()
 HaystackInstrumentor().instrument()
-
 ```
 
-From there, you can set up your Haystack app as normal:
+## Run Haystack
+
+From here, you can set up your Haystack app as normal:
 
 ```python
 from haystack import Pipeline
@@ -60,3 +52,13 @@ pipeline.connect("prompt_builder", "llm")
 # Define the question
 question = "What is the location of the Hanging Gardens of Babylon?"
 ```
+
+## Observe
+
+Now that you have tracing setup, all invocations of pipelines will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources:
+
+* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack/examples/qa\_rag\_pipeline.py)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack)
+* [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack/examples)

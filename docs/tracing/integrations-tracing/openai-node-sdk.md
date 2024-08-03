@@ -4,13 +4,13 @@
 
 This module provides automatic instrumentation for the [OpenAI Node.js SDK](https://github.com/openai/openai-node). which may be used in conjunction with [@opentelemetry/sdk-trace-node](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node).
 
-## Installation
+## Install
 
 ```bash
 npm install --save @arizeai/openinference-instrumentation-openai
 ```
 
-## Usage
+## Setup
 
 To load the OpenAI instrumentation, specify it in the registerInstrumentations call along with any additional instrumentation you wish to enable.
 
@@ -28,5 +28,11 @@ registerInstrumentations({
   instrumentations: [new OpenAIInstrumentation()],
 });
 ```
+
+## Resources
+
+* [Example project](https://github.com/Arize-ai/openinference/tree/main/js/examples/openai)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-openai)
+* [Working examples](https://github.com/Arize-ai/openinference/blob/main/js/examples/openai)
 
 \

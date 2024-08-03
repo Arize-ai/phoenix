@@ -20,7 +20,13 @@ pip install openinference-instrumentation-openai openai
 
 ## Setup
 
-Setup OpenTelemetry to point to a running Phoenix and then initialize the OpenAIInstrumentor before your application code.
+Add your OpenAI API key as an environment variable
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+```
+
+Set up [OpenTelemetry to point to a running Phoenix Instance](https://docs.arize.com/phoenix/quickstart) and then initialize the OpenAIInstrumentor before your application code.
 
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor

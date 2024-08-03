@@ -4,62 +4,52 @@ description: Instrument LLM applications that use the Guardrails AI framework
 
 # Guardrails AI
 
-In this example we will instrument a small program that uses the Guardrails AI framework to protect their LLM calls.
+In this example we will instrument a small program that uses the [Guardrails AI](https://www.guardrailsai.com/) framework to protect their LLM calls.
 
-### Quickstart
+## Install
 
-In this example we will instrument a small program that uses the MistralAI chat completions API and observe the traces via [`arize-phoenix`](https://github.com/Arize-ai/phoenix).
-
-```
-pip install openinference-instrumentation-guardrails openinference-instrumentation-guardrails guardrails-ai arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
+```bash
+pip install openinference-instrumentation-guardrails guardrails-ai
 ```
 
-Start a Phoenix server to collect traces.
+## Setup
 
-```
-python -m phoenix.server.main serve
-```
-
-In a python file, setup the `GuardrailsAIInstrumentor` and configure the tracer to send traces to Phoenix.
+Set up [OpenTelemetry to point to a running Phoenix Instance](https://docs.arize.com/phoenix/quickstart) and then initialize the GuardrailsAIInstrumentor before your application code.
 
 ```python
 from openinference.instrumentation.guardrails import GuardrailsInstrumentor
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
-
-endpoint = "http://127.0.0.1:6006/v1/traces"
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-# Optionally, you can also print the spans to the console.
-tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-trace_api.set_tracer_provider(tracer_provider)
 
 GuardrailsInstrumentor().instrument()
+```
 
+## Run Guardrails
 
-if __name__ == "__main__":
-    from guardrails import Guard
-    from guardrails.hub import TwoWords
-    import openai
+From here, you can run Guardrails as normal:
 
-    guard = Guard().use(
-        TwoWords(),
-    )
-    response = guard(
-        llm_api=openai.chat.completions.create,
-        prompt="What is another name for America?",
-        model="gpt-3.5-turbo",
-        max_tokens=1024,
-    )
+```python
+from guardrails import Guard
+from guardrails.hub import TwoWords
+import openai
 
-    print(response)
+guard = Guard().use(
+    TwoWords(),
+)
+response = guard(
+    llm_api=openai.chat.completions.create,
+    prompt="What is another name for America?",
+    model="gpt-3.5-turbo",
+    max_tokens=1024,
+)
+
+print(response)
 
 ```
 
-Run the python file and observe the traces in Phoenix.
+## Observe
 
-```
-python your_file.py
-```
+Now that you have tracing setup, all invocations of underlying models used by Guardrails (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation. Additionally, Guards will be present as a new span kind in Phoenix.
+
+## Resources
+
+* [Example notebook](https://github.com/Arize-ai/dataset-embeddings-guardrails/blob/main/validator/arize\_demo\_dataset\_embeddings\_guard.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-guardrails)

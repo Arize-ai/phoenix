@@ -8,43 +8,76 @@ description: Instrument and observe your DSPy application via the DSPyInstrument
 
 Phoenix makes your DSPy applications observable by visualizing the underlying structure of each call to your compiled DSPy module.
 
-## Tracing
+## Install
 
-To trace your DSPy application, ensure that the following packages are installed in addition to DSPy:
-
-```
-pip install arize-phoenix openinference-instrumentation-dspy opentelemetry-exporter-otlp
+```bash
+pip install openinference-instrumentation-dspy dspy
 ```
 
-Launch Phoenix as a collector in the background.
+## Setup
 
-```python
-import phoenix as px
-
-px.launch_app()
-```
-
-Configure your OpenTelemetry exporter, which will export spans and traces to Phoenix, and run the DSPy instrumentor to wrap calls to the relevant DSPy components.
+Set up [OpenTelemetry to point to a running Phoenix instance](https://docs.arize.com/phoenix/quickstart) and then initialize the DSPyInstrumentor before your application code.
 
 ```python
 from openinference.instrumentation.dspy import DSPyInstrumentor
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-endpoint = "http://127.0.0.1:6006/v1/traces"
-resource = Resource(attributes={})
-tracer_provider = trace_sdk.TracerProvider(resource=resource)
-span_otlp_exporter = OTLPSpanExporter(endpoint=endpoint)
-tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter=span_otlp_exporter))
-trace_api.set_tracer_provider(tracer_provider=tracer_provider)
 DSPyInstrumentor().instrument()
 ```
 
+## Run DSPy
+
 Now run invoke your compiled DSPy module. Your traces should appear inside of Phoenix.
+
+```python
+class BasicQA(dspy.Signature):
+    """Answer questions with short factoid answers."""
+
+    question = dspy.InputField()
+    answer = dspy.OutputField(desc="often between 1 and 5 words")
+
+
+if __name__ == "__main__":
+    turbo = dspy.OpenAI(model="gpt-3.5-turbo")
+
+    dspy.settings.configure(lm=turbo)
+
+    with using_attributes(
+        session_id="my-test-session",
+        user_id="my-test-user",
+        metadata={
+            "test-int": 1,
+            "test-str": "string",
+            "test-list": [1, 2, 3],
+            "test-dict": {
+                "key-1": "val-1",
+                "key-2": "val-2",
+            },
+        },
+        tags=["tag-1", "tag-2"],
+        prompt_template_version="v1.0",
+        prompt_template_variables={
+            "city": "Johannesburg",
+            "date": "July 11th",
+        },
+    ):
+        # Define the predictor.
+        generate_answer = dspy.Predict(BasicQA)
+
+        # Call the predictor on a particular input.
+        pred = generate_answer(
+            question="What is the capital of the united states?"  # noqa: E501
+        )  # noqa: E501
+        print(f"Predicted Answer: {pred.answer}")
+```
+
+## Observe
+
+Now that you have tracing setup, all predictions will be streamed to your running Phoenix for observability and evaluation.
 
 ![Traces and spans from an instrumented DSPy custom module.](https://storage.googleapis.com/arize-phoenix-assets/assets/docs/notebooks/dspy-tracing-tutorial/dspy\_spans\_and\_traces.gif)
 
-For a full working example, check out the [Colab](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/dspy\_tracing\_tutorial.ipynb).
+## Resources
+
+* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/dspy\_tracing\_tutorial.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-dspy)
+* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/examples/dspy-rag-fastapi)

@@ -6,45 +6,41 @@ description: How to use the python LangChainInstrumentor to trace LangChain and 
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications.
 
-To begin, you will have to start a Phoenix server. You can do this by running:
+## Install
 
-```python
-import phoenix as px
-session = px.launch_app()
+```bash
+pip install openinference-instrumentation-langchain
 ```
 
-Once you have started a Phoenix server,  You will instrument LangChain via the `LangChainInstrumentor` so that spans are created whenever you run a chain.
+## Setup
 
-{% tabs %}
-{% tab title="Python" %}
+Set up [OpenTelemetry to point to a running Phoenix Instance](https://docs.arize.com/phoenix/quickstart) and then initialize the LangchainInstrumentor before your application code.
+
 ```python
-from phoenix.trace.langchain import LangChainInstrumentor
+from openinference.instrumentation.langchain import LangChainInstrumentor
 
-# By default, the traces will be exported to the locally running Phoenix 
-# server. If a different endpoint is desired, change the environment
-# variable os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = ...
 LangChainInstrumentor().instrument()
-
-# Initialize your LangChain application
-
-# Note that we do not have to pass in the tracer as a callback here
-# since the above instrumented LangChain in it's entirety.
-response = chain.run(query)
 ```
-{% endtab %}
-{% endtabs %}
 
-By instrumenting LangChain, spans will be created whenevera a chain is run and will be sent to the Phoenix server for collection.
+## Run LangChain
 
-To view the traces in Phoenix, simply open the UI in your browser.
+By instrumenting LangChain, spans will be created whenever a a chain is run and will be sent to the Phoenix server for collection.
 
 ```python
-px.active_session().url
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+
+prompt = ChatPromptTemplate.from_template("{x} {y} {z}?").partial(x="why is", z="blue")
+chain = prompt | ChatOpenAI(model_name="gpt-3.5-turbo")
+chain.invoke(dict(y="sky"))
 ```
 
-For a fully working example of tracing with LangChain, checkout our colab notebook.
+## Observe
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb" %}
-Troubleshooting an LLM application using the OpenInferenceTracer
-{% endembed %}
+Now that you have tracing setup, all invocations of chains will be streamed to your running Phoenix for observability and evaluation.
 
+## Resources
+
+* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain\_tracing\_tutorial.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain)
+* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain/examples)
