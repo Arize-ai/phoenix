@@ -2,6 +2,8 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/txt2sql.ipynb)
 
+{% embed url="https://www.youtube.com/watch?v=rzxN-YV_DbE" %}
+
 Let's work through a Text2SQL use case where we are starting from scratch without a nice and clean dataset of questions, SQL queries, or expected responses.
 
 ```shell
@@ -395,7 +397,11 @@ experiment = run_experiment(
 
 Interesting! It looks like the smaller model is able to do decently well but we might want to ensure it follows instructions as well as a larger model. We can actually grab all the LLM spans from our previous GPT40 runs and use them to generate a OpenAI fine-tuning JSONL file!
 
-![](https://storage.googleapis.com/arize-assets/phoenix/assets/images/fine\_tining\_nba.png) ![](https://storage.googleapis.com/arize-assets/phoenix/assets/images/openai\_ft.png)
+&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/openai_ft.png" alt=""><figcaption></figcaption></figure>
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/fine_tining_nba.png" alt=""><figcaption></figcaption></figure>
 
 ### Conclusion
 
