@@ -1,6 +1,6 @@
 ---
 description: >-
-  The easiest way to run Phoenix is locally in your own notebook. To launch
+  The easiest way to run Phoenix is locally in your own computer. To launch
   Phoenix, use the following steps.
 ---
 
@@ -22,7 +22,7 @@ conda install -c conda-forge arize-phoenix
 {% endtab %}
 
 {% tab title="Docker" %}
-Phoenix server images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix). The hosted phoenix server runs as a trace collector and can be used if you want observability for LLM traces via docker compose or simply want a long-running phoenix instance.
+Phoenix server images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be used via [docker compose ](deployment/docker.md)or if you simply want a long-running phoenix instance to share with your team.
 
 ```bash
 docker pull arizephoenix/phoenix:latest
@@ -37,6 +37,8 @@ For more details, see [hosted-phoenix.md](hosted-phoenix.md "mention")
 {% endtabs %}
 
 ## Launch Phoenix
+
+Launching phoenix can be done in many ways depending on your use-case.
 
 {% tabs %}
 {% tab title="Command Line" %}
@@ -79,10 +81,12 @@ Hosted Phoenix instances are always online. Nothing more to do here!
 {% endtab %}
 {% endtabs %}
 
-## Connect your application to Phoenix
+## Connect your App
+
+To collect traces from your application, you must setup traces to be send to your Phoenix instance.
 
 {% tabs %}
-{% tab title="Command Line / Docker" %}
+{% tab title="Python" %}
 Install packages:
 
 ```bash
