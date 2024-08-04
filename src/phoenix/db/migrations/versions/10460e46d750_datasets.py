@@ -6,11 +6,37 @@ Create Date: 2024-05-10 11:24:23.985834
 
 """
 
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from phoenix.db.migrations.types import JSON_
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
+
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")  # type: ignore
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),  # type: ignore
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
+)
 
 # revision identifiers, used by Alembic.
 revision: str = "10460e46d750"
