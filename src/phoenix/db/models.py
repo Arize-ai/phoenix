@@ -214,6 +214,8 @@ class Span(Base):
     cumulative_error_count: Mapped[int]
     cumulative_llm_token_count_prompt: Mapped[int]
     cumulative_llm_token_count_completion: Mapped[int]
+    llm_token_count_prompt: Mapped[Optional[int]]
+    llm_token_count_completion: Mapped[Optional[int]]
 
     @hybrid_property
     def latency_ms(self) -> float:
