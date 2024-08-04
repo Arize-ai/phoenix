@@ -71,6 +71,13 @@ async def insert_span(
     cumulative_llm_token_count_completion = cast(
         int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
     )
+    llm_token_count_prompt = cast(
+        Optional[int], get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT)
+    )
+    llm_token_count_completion = cast(
+        Optional[int],
+        get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION),
+    )
     if accumulation := (
         await session.execute(
             select(
@@ -100,6 +107,8 @@ async def insert_span(
                 cumulative_error_count=cumulative_error_count,
                 cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
                 cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+                llm_token_count_prompt=llm_token_count_prompt,
+                llm_token_count_completion=llm_token_count_completion,
             ),
             dialect=dialect,
             table=models.Span,
