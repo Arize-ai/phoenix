@@ -4,45 +4,174 @@ description: Create flows using Microsoft PromptFlow and send their traces to Ph
 
 # Prompt flow
 
-### Quickstart
+This integration will allow you to trace [Microsoft PromptFlow](https://github.com/microsoft/promptflow) flows and send their traces into[`arize-phoenix`](https://github.com/Arize-ai/phoenix).
 
-In this tutorial we will use [Microsoft Prompt flow](https://github.com/microsoft/promptflow) to create flows and send their traces in to[`arize-phoenix`](https://github.com/Arize-ai/phoenix). We will tweak this Prompt flow [notebook](https://github.com/microsoft/promptflow/blob/main/examples/flex-flows/chat-basic/chat-with-class-based-flow.ipynb) which currently sends traces to the Prompt flow collector.
+## Launch Phoenix
 
-First install Phoenix and Prompt flow.
+{% tabs %}
+{% tab title="Notebook" %}
+**Install packages:**
 
+```bash
+pip install arize-phoenix
 ```
-pip install arize-phoenix promptflow
-```
 
-In a python file or notebook, import and launch Phoenix.
+**Launch Phoenix:**
 
 ```python
 import phoenix as px
-session = px.launch_app()
+px.launch_app()
 ```
 
-Then set up the OpenTelemetry endpoint to be Phoenix and use Prompt flow's `setup_exporter_from_environ` to start tracing any further flows and LLM calls.
+{% hint style="info" %}
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [persistence.md](../../deployment/persistence.md "mention") or use one of the other deployment options to retain traces.
+{% endhint %}
+{% endtab %}
+
+{% tab title="Command Line" %}
+**Launch your local Phoenix instance:**
+
+```bash
+python3 -m phoenix.server.main serve
+```
+
+For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
+
+**Install packages:**
+
+```bash
+pip install opentelemetry-sdk opentelemetry-exporter-otlp
+```
+
+**Connect your application to your instance using:**
+
+```python
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+tracer_provider = trace_sdk.TracerProvider()
+span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(span_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace_api.set_tracer_provider(tracer_provider)
+```
+
+See [deploying-phoenix.md](../../deployment/deploying-phoenix.md "mention") for more details
+{% endtab %}
+
+{% tab title="Docker" %}
+**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+
+```bash
+docker pull arizephoenix/phoenix:latest
+```
+
+**Run your containerized instance:**
+
+```bash
+docker run -p 6006:6006 arizephoenix/phoenix:latest
+```
+
+This will expose the Phoenix on `localhost:6006`
+
+**Install packages:**
+
+```bash
+pip install opentelemetry-sdk opentelemetry-exporter-otlp
+```
+
+**Connect your application to your instance using:**
+
+```python
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+tracer_provider = trace_sdk.TracerProvider()
+span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(span_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace_api.set_tracer_provider(tracer_provider)
+```
+
+For more info on using Phoenix with Docker, see [#docker](prompt-flow.md#docker "mention")
+{% endtab %}
+
+{% tab title="app.phoenix.arize.com" %}
+If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at[https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+
+**Install packages:**
+
+```bash
+pip install opentelemetry-sdk opentelemetry-exporter-otlp
+```
+
+**Connect your application to your cloud instance:**
+
+```python
+import os
+from opentelemetry import trace as trace_api
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+    OTLPSpanExporter as GRPCSpanExporter,
+)
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    OTLPSpanExporter as HTTPSpanExporter,
+)
+
+# Add Phoenix API Key for tracing
+os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+
+# Add Phoenix
+span_phoenix_processor = SimpleSpanProcessor(HTTPSpanExporter(endpoint="https://app.phoenix.arize.com/v1/traces"))
+
+# Add them to the tracer
+tracer_provider = trace_sdk.TracerProvider()
+tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
+trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+```
+
+Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
+{% endtab %}
+{% endtabs %}
+
+## Install
+
+```bash
+pip install promptflow
+```
+
+## Setup
+
+Set up the OpenTelemetry endpoint to point to Phoenix and use Prompt flow's `setup_exporter_from_environ` to start tracing any further flows and LLM calls.
 
 ```python
 import os
 from opentelemetry.sdk.environment_variables import OTEL_EXPORTER_OTLP_ENDPOINT
 from promptflow.tracing._start_trace import setup_exporter_from_environ
 
-endpoint = f"http://127.0.0.1:6006/v1/traces"
+endpoint = f"http://127.0.0.1:6006/v1/traces" # replace with your Phoenix endpoint if self-hosting
 os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = endpoint
 setup_exporter_from_environ()
 ```
 
-Then proceed with creating Prompt flow flows as usual. In this example we use `flow.py`, `chat.prompty`, and a jupyter notebook, chat\_flow\_example.ipynb, that you can follow along with [here](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-promptflow/examples).
+## Run PromptFlow
 
-After you finish clicking through the notebook, you should see the spans render in Phoenix as shown in the below screenshots.
+Proceed with creating Prompt flow flows as usual. See this [example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example.ipynb) for inspiration.
 
-<div>
+## Observe
 
-<figure><img src="../../.gitbook/assets/Chat flow example 1.png" alt=""><figcaption></figcaption></figure>
-
- 
+You should see the spans render in Phoenix as shown in the below screenshots.
 
 <figure><img src="../../.gitbook/assets/Chat flow example 2.png" alt=""><figcaption></figcaption></figure>
 
-</div>
+<figure><img src="../../.gitbook/assets/Chat flow example 1.png" alt=""><figcaption></figcaption></figure>
+
+## Resources
+
+* [Example Notebook](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-promptflow/examples)

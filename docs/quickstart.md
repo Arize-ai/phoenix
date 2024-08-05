@@ -30,7 +30,7 @@ docker pull arizephoenix/phoenix:latest
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
-If you don't want to host an instance of Phoenix yourself, you can use one provided on our site. Sign up for an Arize Phoenix account [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
 For more details, see [hosted-phoenix.md](hosted-phoenix.md "mention")
 {% endtab %}
@@ -83,10 +83,10 @@ Hosted Phoenix instances are always online. Nothing more to do here!
 
 ## Connect your App
 
-To collect traces from your application, you must setup traces to be send to your Phoenix instance.
+To collect traces from your application, you must point your app to your Phoenix instance.
 
 {% tabs %}
-{% tab title="Python" %}
+{% tab title="Local Instance / Docker (Python)" %}
 Install packages:
 
 ```bash
@@ -102,7 +102,7 @@ from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://phoenix:6006/v1/traces")
+span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
 span_processor = SimpleSpanProcessor(span_exporter)
 tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
