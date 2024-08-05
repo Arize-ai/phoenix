@@ -30,7 +30,7 @@ from phoenix.utilities.project import get_project_name
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["traces"], include_in_schema=False)
+router = APIRouter(tags=["traces"])
 
 
 @router.post(
@@ -57,6 +57,7 @@ router = APIRouter(tags=["traces"], include_in_schema=False)
             },
         }
     },
+    include_in_schema=False,
 )
 async def post_traces(
     request: Request,
@@ -145,6 +146,7 @@ class AnnotateTracesResponseBody(ResponseBody[List[InsertedTraceAnnotation]]):
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Trace not found"}]
     ),
+    include_in_schema=False,
 )
 async def annotate_traces(
     request: Request,

@@ -23,7 +23,7 @@ from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
 
-router = APIRouter(tags=["traces"], include_in_schema=False)
+router = APIRouter(tags=["spans"])
 
 
 class SpanQuery(V1RoutesBaseModel):
@@ -65,6 +65,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     operation_id="querySpans",
     summary="Query spans with query DSL",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    include_in_schema=False,
 )
 async def query_spans_handler(
     request: Request,
@@ -189,6 +190,7 @@ class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
     ),
     response_description="Span annotations inserted successfully",
+    include_in_schema=True,
 )
 async def annotate_spans(
     request: Request,
