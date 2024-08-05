@@ -47,11 +47,11 @@ class SpanColumn(Enum):
         elif self is SpanColumn.latencyMs:
             expr = models.Span.latency_ms
         elif self is SpanColumn.tokenCountTotal:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float()
+            expr = models.Span.llm_token_count_total
         elif self is SpanColumn.tokenCountPrompt:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
+            expr = models.Span.llm_token_count_prompt
         elif self is SpanColumn.tokenCountCompletion:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
+            expr = models.Span.llm_token_count_completion
         elif self is SpanColumn.cumulativeTokenCountTotal:
             expr = (
                 models.Span.cumulative_llm_token_count_prompt

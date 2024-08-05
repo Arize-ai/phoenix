@@ -232,6 +232,10 @@ class Span(Base):
     def cumulative_llm_token_count_total(self) -> int:
         return self.cumulative_llm_token_count_prompt + self.cumulative_llm_token_count_completion
 
+    @hybrid_property
+    def llm_token_count_total(self) -> int:
+        return self.llm_token_count_prompt + self.llm_token_count_completion
+
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[List["DatasetExample"]] = relationship(back_populates="span")
