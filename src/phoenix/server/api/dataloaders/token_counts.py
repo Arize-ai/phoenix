@@ -107,8 +107,8 @@ def _get_stmt(
     *params: Param,
 ) -> Select[Any]:
     (start_time, end_time), filter_condition = segment
-    prompt = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_PROMPT].as_float())
-    completion = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_COMPLETION].as_float())
+    prompt = func.sum(models.Span.llm_token_count_prompt)
+    completion = func.sum(models.Span.llm_token_count_completion)
     total = coalesce(prompt, 0) + coalesce(completion, 0)
     pid = models.Trace.project_rowid
     stmt: Select[Any] = (
