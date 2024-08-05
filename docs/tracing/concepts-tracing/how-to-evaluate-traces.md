@@ -14,6 +14,6 @@ When you have large amounts of data it can be immensely efficient and valuble to
 
 ## Human Annotations
 
-Sometimes you need to rely on human annotators to attach feedback to specific traces of your application. Human annotations through the UI can be thought of as manual quality assurance. While it can be a bit more labor intensive, it can help in sharing insights within small teams, curating datasets of good/bad examples, and even in training an LLM judge.
+Sometimes you need to rely on human annotators to attach feedback to specific traces of your application. Human annotations through the UI can be thought of as manual quality assurance. While it can be a bit more labor intensive, it can help in sharing insights within a team, curating datasets of good/bad examples, and even in training an LLM judge.
 
 \
