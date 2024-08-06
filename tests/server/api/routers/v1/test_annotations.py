@@ -219,7 +219,7 @@ class TestSendingAnnotationsBeforeSpans:
                         json=dict(data=list(trace_annotations(s))),
                     ),
                 )
-                await sleep(0.01)
+                await sleep(0.1)
 
         return _
 
