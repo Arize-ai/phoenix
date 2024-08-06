@@ -236,7 +236,7 @@ class DmlEventHandler:
         db: DbSessionFactory,
         last_updated_at: CanSetLastUpdatedAt,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
-        sleep_seconds: float = 0.01,
+        sleep_seconds: float = 0.1,
     ) -> None:
         kwargs = _HandlerParams(
             db=db,
