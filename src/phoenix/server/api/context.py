@@ -54,6 +54,7 @@ class DataLoaders:
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     record_counts: RecordCountDataLoader
+    span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_evaluations: SpanEvaluationsDataLoader
@@ -62,7 +63,6 @@ class DataLoaders:
     trace_evaluations: TraceEvaluationsDataLoader
     trace_row_ids: TraceRowIdsDataLoader
     project_by_name: ProjectByNameDataLoader
-    span_annotations: SpanAnnotationsDataLoader
 
 
 ProjectRowId: TypeAlias = int
