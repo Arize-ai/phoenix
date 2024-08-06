@@ -10,6 +10,7 @@
 
 ### Bug Fixes
 
+* use dataloader for span annotations ([[#4060](https://github.com/Arize-ai/phoenix/issues/4060)]) ([ab53325](https://github.com/Arize-ai/phoenix/commit/ab53325622ae9e72942350f8a21d842513635cda))
 * ensure rest api urls include custom root path ([#4137](https://github.com/Arize-ai/phoenix/issues/4137)) ([9550a7e](https://github.com/Arize-ai/phoenix/commit/9550a7eafd1aa6ed5e003dd4fa84c85e45bee4da))
 
 
