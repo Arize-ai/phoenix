@@ -197,7 +197,7 @@ class Span(Base):
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
     )
-    span_id: Mapped[str]
+    span_id: Mapped[str] = mapped_column(index=True)
     parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     span_kind: Mapped[str]

@@ -1,6 +1,6 @@
 services:
   phoenix:
-    image: arizephoenix/phoenix:latest
+    image: arizephoenix/phoenix:nightly
     ports:
       - "6006:6006"
   chat-service:
