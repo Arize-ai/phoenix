@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import React, { Suspense, useCallback, useMemo } from "react";
+import { graphql, PreloadedQuery,useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet } from "react-router";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components/datetime";
 
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectPageSpansQuery } from "./__generated__/ProjectPageSpansQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import { SpansTable } from "./SpansTable";
 import { StreamToggle } from "./StreamToggle";
@@ -59,6 +60,14 @@ export function ProjectPage() {
   );
 }
 
+const projectPageSpansQuery = graphql`
+query ProjectPageSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  project: node(id: $id) {
+    ...SpansTable_spans
+  }
+}
+`;
+
 export function ProjectPageContent({
   projectId,
   timeRange,
@@ -73,11 +82,11 @@ export function ProjectPageContent({
     };
   }, [timeRange]);
 
+
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
       query ProjectPageQuery($id: GlobalID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
-          ...SpansTable_spans
           ...TracesTable_spans
           ...ProjectPageHeader_stats
           ...StreamToggle_data
@@ -92,6 +101,17 @@ export function ProjectPageContent({
       fetchPolicy: "store-and-network",
     }
   );
+  const [
+    spansQuery,
+    loadSpansQuery,
+    disposeSpansQuery,
+  ] = useQueryLoader<ProjectPageSpansQuery>(
+    projectPageSpansQuery 
+  );
+  const onTabChange = useCallback(() => (index: number) => { if ( index === 0 ) { loadSpansQuery({
+    id: projectId as string,
+    timeRange: timeRangeVariable,
+  })}}, [loadSpansQuery, projectId, timeRangeVariable]);
   return (
     <main css={mainCSS}>
       <ProjectPageHeader
@@ -103,7 +123,7 @@ export function ProjectPageContent({
           </Flex>
         }
       />
-      <Tabs>
+      <Tabs onChange={onTabChange}>
         <TabPane name="Traces">
           {({ isSelected }) => {
             return (
@@ -118,9 +138,9 @@ export function ProjectPageContent({
         <TabPane name="Spans" title="Spans">
           {({ isSelected }) => {
             return (
-              isSelected && (
+              isSelected && spansQuery && (
                 <Suspense>
-                  <SpansTable project={data.project} />
+                  <SpansTable project={spansQuery.project} />
                 </Suspense>
               )
             );
