@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.20.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.0...arize-phoenix-v4.20.1) (2024-08-06)
+
+
+### Bug Fixes
+
+* cache invalidation ([#4138](https://github.com/Arize-ai/phoenix/issues/4138)) ([d75dc8a](https://github.com/Arize-ai/phoenix/commit/d75dc8ab933e6daf2db7301b86069f85fb473647))
+* ensure span annotations appear in sorted order by name ([#4144](https://github.com/Arize-ai/phoenix/issues/4144)) ([ff2e4b9](https://github.com/Arize-ai/phoenix/commit/ff2e4b93c86bd0224ded9000292148349953dbf1))
+
 ## [4.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.19.0...arize-phoenix-v4.20.0) (2024-08-06)
 
 
