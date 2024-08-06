@@ -50,7 +50,7 @@ class TestSendingAnnotationsBeforeSpans:
         await assert_no_summaries()
         t = datetime.now(timezone.utc)
         await send_spans()
-        await sleep(0.2)
+        await sleep(1)
         await assert_last_updated_at(gt, t)
         await assert_eval_scores(0)
         await assert_mean_scores(0)
