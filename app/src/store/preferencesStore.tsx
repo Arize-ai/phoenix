@@ -9,6 +9,20 @@ export interface PreferencesProps {
    * @default "text"
    */
   markdownDisplayMode: MarkdownDisplayMode;
+  /**
+   * Whether or not streaming is enabled for a projects traces
+   * @default true
+   */
+  traceStreamingEnabled: boolean;
+  /**
+   * Whether or not to show the span aside that contains details about timing, status, etc.
+   * @default true
+   */
+  showSpanAside: boolean;
+  /**
+   * Whether or not the trace tree shows metrics
+   */
+  showMetricsInTraceTree: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -18,33 +32,27 @@ export interface PreferencesState extends PreferencesProps {
    */
   setMarkdownDisplayMode: (markdownDisplayMode: MarkdownDisplayMode) => void;
   /**
-   * Whether or not streaming is enabled for a projects traces
-   * @default true
-   */
-  traceStreamingEnabled: boolean;
-  /**
    * Setter for enabling/disabling trace streaming
    * @param traceStreamingEnabled
    * @returns
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
   /**
-   * Whether or not to show the span aside that contains details about timing, status, etc.
-   * @default true
-   */
-  showSpanAside: boolean;
-  /**
    * Setter for enabling/disabling the span aside
    * @param showSpanAside
    */
   setShowSpanAside: (showSpanAside: boolean) => void;
+  /**
+   * Setter for enabling/disabling metrics in the trace tree
+   * @param showMetricsInTraceTree
+   */
+  setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
 }
 
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
   const preferencesStore: StateCreator<PreferencesState> = (set) => ({
-    ...initialProps,
     markdownDisplayMode: "text",
     setMarkdownDisplayMode: (markdownDisplayMode) => {
       set({ markdownDisplayMode });
@@ -57,6 +65,11 @@ export const createPreferencesStore = (
     setShowSpanAside: (showSpanAside) => {
       set({ showSpanAside });
     },
+    showMetricsInTraceTree: true,
+    setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
+      set({ showMetricsInTraceTree });
+    },
+    ...initialProps,
   });
   return create<PreferencesState>()(
     persist(devtools(preferencesStore), {

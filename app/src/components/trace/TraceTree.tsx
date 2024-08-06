@@ -1,13 +1,29 @@
-import React, { PropsWithChildren, startTransition, useState } from "react";
+import React, {
+  PropsWithChildren,
+  startTransition,
+  useEffect,
+  useState,
+} from "react";
 import { css } from "@emotion/react";
 
-import { classNames, Flex, Icon, Icons } from "@arizeai/components";
+import {
+  Button,
+  classNames,
+  Flex,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@arizeai/components";
 
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
 import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
@@ -26,23 +42,110 @@ export function TraceTree(props: TraceTreeProps) {
   const { spans, onSpanClick, selectedSpanNodeId } = props;
   const spanTree = createSpanTree(spans);
   return (
-    <ul
-      css={css`
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        min-width: 300px;
-      `}
-    >
-      {spanTree.map((spanNode) => (
-        <SpanTreeItem
-          key={spanNode.span.id}
-          node={spanNode}
-          onSpanClick={onSpanClick}
-          selectedSpanNodeId={selectedSpanNodeId}
-        />
-      ))}
-    </ul>
+    <TraceTreeProvider>
+      <div
+        css={css`
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          height: 100%;
+          align-items: stretch;
+        `}
+      >
+        <TraceTreeToolbar />
+        <ul
+          css={css`
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            overflow: auto;
+          `}
+          data-testid="trace-tree"
+        >
+          {spanTree.map((spanNode) => (
+            <SpanTreeItem
+              key={spanNode.span.id}
+              node={spanNode}
+              onSpanClick={onSpanClick}
+              selectedSpanNodeId={selectedSpanNodeId}
+            />
+          ))}
+        </ul>
+      </div>
+    </TraceTreeProvider>
+  );
+}
+
+function TraceTreeToolbar() {
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+  const setShowMetricsInTraceTree = usePreferencesContext(
+    (state) => state.setShowMetricsInTraceTree
+  );
+  const { isCollapsed, setIsCollapsed } = useTraceTree();
+  return (
+    <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
+      <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
+        <TooltipTrigger offset={5}>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+            onClick={() => {
+              setIsCollapsed(!isCollapsed);
+            }}
+            icon={
+              <Icon
+                svg={
+                  isCollapsed ? (
+                    <Icons.RowCollapseOutline />
+                  ) : (
+                    <Icons.RowExpandOutline />
+                  )
+                }
+              />
+            }
+          />
+          <Tooltip>
+            {isCollapsed
+              ? "Expand all nested spans"
+              : "Collapse all nested spans"}
+          </Tooltip>
+        </TooltipTrigger>
+        <TooltipTrigger offset={5}>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label={
+              showMetricsInTraceTree
+                ? "Hide metrics in trace tree"
+                : "Show metrics in trace tree"
+            }
+            onClick={() => {
+              setShowMetricsInTraceTree(!showMetricsInTraceTree);
+            }}
+            icon={
+              <Icon
+                svg={
+                  showMetricsInTraceTree ? (
+                    <Icons.TimerOutline />
+                  ) : (
+                    <Icons.TimerOffOutline />
+                  )
+                }
+              />
+            }
+          />
+          <Tooltip>
+            {showMetricsInTraceTree
+              ? "Hide metrics in trace tree"
+              : "Show metrics in trace tree"}
+          </Tooltip>
+        </TooltipTrigger>
+      </Flex>
+    </View>
   );
 }
 
@@ -68,7 +171,17 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
   const { node, selectedSpanNodeId, onSpanClick, nestingLevel = 0 } = props;
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed: treeIsCollapsed } = useTraceTree();
   const hasChildren = childNodes.length > 0;
+  const showMetricsInTraceTree = usePreferencesContext(
+    (state) => state.showMetricsInTraceTree
+  );
+
+  // React to global changes to the trace tree state and change local state
+  useEffect(() => {
+    setIsCollapsed(treeIsCollapsed);
+  }, [treeIsCollapsed]);
+
   const {
     name,
     latencyMs,
@@ -83,6 +196,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         className="button--reset"
         css={css`
           width: 100%;
+          min-width: 200px;
           cursor: pointer;
         `}
         onClick={() => {
@@ -110,16 +224,16 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             {statusCode === "ERROR" ? (
               <SpanStatusCodeIcon statusCode="ERROR" />
             ) : null}
-            {typeof tokenCountTotal === "number" ? (
+            {typeof tokenCountTotal === "number" && showMetricsInTraceTree ? (
               <TokenCount
                 tokenCountTotal={tokenCountTotal}
                 tokenCountPrompt={tokenCountPrompt ?? 0}
                 tokenCountCompletion={tokenCountCompletion ?? 0}
               />
             ) : null}
-            {latencyMs === null ? null : (
+            {latencyMs != null && showMetricsInTraceTree ? (
               <LatencyText latencyMs={latencyMs} showIcon={false} />
-            )}
+            ) : null}
           </Flex>
           <div css={spanControlsCSS} data-testid="span-controls">
             {hasChildren ? (

@@ -9,8 +9,8 @@ overrides:
 
 dependencies:
   '@arizeai/components':
-    specifier: ^1.7.0
-    version: 1.7.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0)(react@18.2.0)
+    specifier: ^1.8.0
+    version: 1.8.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0)(react@18.2.0)
   '@arizeai/openinference-semantic-conventions':
     specifier: ^0.8.0
     version: 0.8.0
@@ -234,8 +234,8 @@ packages:
       '@jridgewell/trace-mapping': 0.3.25
     dev: true
 
-  /@arizeai/components@1.7.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-825UkeDQB8NhuZNJ+jNTJJOzQJOuPFEPvrhBT11ooBwRVJ4UhzzN0QOxtkuM1AjtnHGlW7sAY5cIlpqTHZOX4g==}
+  /@arizeai/components@1.8.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-taBLtaUo+0Dc1Q7FnS6hdLAqbzlJumFqIYGAHtONHGb4BWyNUa4vC0CUNvUlrIRIpumQQeBbmMqqloCxJLqutQ==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=18'
