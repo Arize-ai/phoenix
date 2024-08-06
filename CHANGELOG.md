@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.19.0...arize-phoenix-v4.20.0) (2024-08-06)
+
+
+### Features
+
+* Add span annotations to dataset example metadata ([#4123](https://github.com/Arize-ai/phoenix/issues/4123)) ([a16dd57](https://github.com/Arize-ai/phoenix/commit/a16dd57fd3dabd2cb61566377ba33723df72d482))
+
+
+### Bug Fixes
+
+* ensure rest api urls include custom root path ([#4137](https://github.com/Arize-ai/phoenix/issues/4137)) ([9550a7e](https://github.com/Arize-ai/phoenix/commit/9550a7eafd1aa6ed5e003dd4fa84c85e45bee4da))
+
+
+### Documentation
+
+* add more videos to docs (GITBOOK-787) ([cb9ee71](https://github.com/Arize-ai/phoenix/commit/cb9ee7175b2407bcf9ad46a9d8ad89fb19138866))
+* Added Prompt flow documentation with example (GITBOOK-781) ([2772397](https://github.com/Arize-ai/phoenix/commit/277239718d95d850d0eb01e7cf3d1d68db66fcc9))
+* minor fixes to the quickstart (GITBOOK-786) ([04a8ea0](https://github.com/Arize-ai/phoenix/commit/04a8ea01e3a397a2d28a21f958d5d9569d30f255))
+* Update Tracing Integrations to match standard format (GITBOOK-784) ([dedf969](https://github.com/Arize-ai/phoenix/commit/dedf969346f172cf0fa4fe3128b3149e5479df9a))
+
 ## [4.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.18.0...arize-phoenix-v4.19.0) (2024-08-02)
 
 
