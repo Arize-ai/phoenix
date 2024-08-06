@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncIterable, List, Optional, Tuple, cast
+from typing import AsyncIterable, ClassVar, List, Optional, Tuple, Type, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
@@ -27,6 +27,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 @strawberry.type
 class Dataset(Node):
+    _table: ClassVar[Type[models.Base]] = models.Experiment
     id_attr: NodeID[int]
     name: str
     description: Optional[str]
@@ -283,6 +284,10 @@ class Dataset(Node):
                     error_count,
                 ) in await session.stream(query)
             ]
+
+    @strawberry.field
+    def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(self._table, self.id_attr)
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:

@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import json
 import logging
-from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from typing import (
@@ -87,9 +86,16 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.types import (
+    CanGetLastUpdatedAt,
+    CanPutItem,
+    DbSessionFactory,
+    LastUpdatedAt,
+)
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
@@ -220,6 +226,7 @@ def _lifespan(
     *,
     dialect: SupportedSQLDialect,
     bulk_inserter: BulkInserter,
+    dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
@@ -239,8 +246,9 @@ def _lifespan(
             disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-        ):
+        ), dml_event_handler:
             yield {
+                "event_queue": dml_event_handler,
                 "enqueue": enqueue,
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
@@ -263,9 +271,10 @@ def create_graphql_router(
     db: DbSessionFactory,
     model: Model,
     export_path: Path,
+    last_updated_at: CanGetLastUpdatedAt,
     corpus: Optional[Model] = None,
-    streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
+    event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
     def get_context() -> Context:
@@ -274,7 +283,8 @@ def create_graphql_router(
             model=model,
             corpus=corpus,
             export_path=export_path,
-            streaming_last_updated_at=streaming_last_updated_at,
+            last_updated_at=last_updated_at,
+            event_queue=event_queue,
             data_loaders=DataLoaders(
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
@@ -420,11 +430,16 @@ def create_app(
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
-
+    last_updated_at = LastUpdatedAt()
+    dml_event_handler = DmlEventHandler(
+        db=db,
+        cache_for_dataloaders=cache_for_dataloaders,
+        last_updated_at=last_updated_at,
+    )
     bulk_inserter = BulkInserter(
         db,
         enable_prometheus=enable_prometheus,
-        cache_for_dataloaders=cache_for_dataloaders,
+        event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
@@ -460,7 +475,8 @@ def create_app(
         model=model,
         corpus=corpus,
         export_path=export_path,
-        streaming_last_updated_at=bulk_inserter.last_updated_at,
+        last_updated_at=last_updated_at,
+        event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
     )
@@ -477,6 +493,7 @@ def create_app(
             dialect=db.dialect,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
+            dml_event_handler=dml_event_handler,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
             clean_ups=clean_ups,

@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.dml_event import ExperimentRunInsertEvent
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
@@ -102,6 +103,7 @@ async def create_experiment_run(
         )
         session.add(exp_run)
         await session.flush()
+    request.state.event_queue.put(ExperimentRunInsertEvent((exp_run.id,)))
     run_gid = GlobalID("ExperimentRun", str(exp_run.id))
     return CreateExperimentResponseBody(data=CreateExperimentRunResponseBodyData(id=str(run_gid)))
 

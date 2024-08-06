@@ -33,6 +33,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 
 @strawberry.type
@@ -62,6 +63,7 @@ class DatasetMutationMixin:
                 .returning(models.Dataset)
             )
             assert dataset is not None
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -90,6 +92,7 @@ class DatasetMutationMixin:
                 .values(**patch)
             )
             assert dataset is not None
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -218,6 +221,7 @@ class DatasetMutationMixin:
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
                 ],
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -303,6 +307,7 @@ class DatasetMutationMixin:
                     )
                 ],
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -333,6 +338,7 @@ class DatasetMutationMixin:
             delete_traces(info.context.db, *eval_trace_ids),
             return_exceptions=True,
         )
+        info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -424,7 +430,7 @@ class DatasetMutationMixin:
                     for revision, patch, example_id in zip(revisions, patches, example_ids)
                 ],
             )
-
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -507,8 +513,8 @@ class DatasetMutationMixin:
                     for dataset_example_rowid in example_db_ids
                 ],
             )
-
-            return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
 
 def _span_attribute(semconv: str) -> Any:

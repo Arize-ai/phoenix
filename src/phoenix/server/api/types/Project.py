@@ -2,8 +2,10 @@ import operator
 from datetime import datetime
 from typing import (
     Any,
+    ClassVar,
     List,
     Optional,
+    Type,
 )
 
 import strawberry
@@ -38,6 +40,7 @@ from phoenix.trace.dsl import SpanFilter
 
 @strawberry.type
 class Project(Node):
+    _table: ClassVar[Type[models.Base]] = models.Project
     id_attr: NodeID[int]
     name: str
     gradient_start_color: str
@@ -397,7 +400,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        return info.context.streaming_last_updated_at(self.id_attr)
+        return info.context.last_updated_at.get(self._table, self.id_attr)
 
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:

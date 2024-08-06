@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import ClassVar, List, Optional, Type
 
 import strawberry
 from sqlalchemy import select
@@ -23,6 +23,7 @@ from phoenix.server.api.types.Project import Project
 
 @strawberry.type
 class Experiment(Node):
+    _table: ClassVar[Type[models.Base]] = models.Experiment
     cached_sequence_number: Private[Optional[int]] = None
     id_attr: NodeID[int]
     name: str
@@ -126,6 +127,10 @@ class Experiment(Node):
             gradient_start_color=db_project.gradient_start_color,
             gradient_end_color=db_project.gradient_end_color,
         )
+
+    @strawberry.field
+    def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(self._table, self.id_attr)
 
 
 def to_gql_experiment(

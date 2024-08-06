@@ -60,6 +60,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExa
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.dml_event import DatasetInsertEvent
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import (
@@ -481,6 +482,7 @@ async def upload_dataset(
     if sync:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
+        request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
             data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
         )

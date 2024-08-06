@@ -154,6 +154,7 @@ type Dataset implements Node {
   experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
+  lastUpdatedAt: DateTime
 }
 
 enum DatasetColumn {
@@ -626,6 +627,7 @@ type Experiment implements Node {
   errorRate: Float
   averageRunLatencyMs: Float
   project: Project
+  lastUpdatedAt: DateTime
 }
 
 type ExperimentAnnotationSummary {
@@ -1036,7 +1038,9 @@ type PromptResponse {
 
 type Query {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
+  datasetsLastUpdatedAt: DateTime
   compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
   functionality: Functionality!
   model: Model!

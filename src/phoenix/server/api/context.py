@@ -1,10 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Optional
 
 from strawberry.fastapi import BaseContext
-from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
@@ -34,7 +32,8 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory
 
 
 @dataclass
@@ -65,7 +64,9 @@ class DataLoaders:
     span_annotations: SpanAnnotationsDataLoader
 
 
-ProjectRowId: TypeAlias = int
+class _NoOp:
+    def get(self, *args: Any, **kwargs: Any) -> Any: ...
+    def put(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 @dataclass
@@ -75,6 +76,7 @@ class Context(BaseContext):
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model
     export_path: Path
+    last_updated_at: CanGetLastUpdatedAt = _NoOp()
+    event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
-    streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None
     read_only: bool = False

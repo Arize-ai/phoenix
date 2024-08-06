@@ -24,6 +24,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.dml_event import TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -153,6 +154,8 @@ async def annotate_traces(
     request_body: AnnotateTracesRequestBody,
     sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateTracesResponseBody:
+    if not request_body.data:
+        return AnnotateTracesResponseBody(data=[])
     precursors = [d.as_precursor() for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
@@ -173,9 +176,7 @@ async def annotate_traces(
                 detail=f"Traces with IDs {', '.join(missing_trace_ids)} do not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
-
-        inserted_annotations = []
-
+        inserted_ids = []
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
@@ -187,13 +188,14 @@ async def annotate_traces(
                     unique_by=("name", "trace_rowid"),
                 ).returning(models.TraceAnnotation.id)
             )
-            inserted_annotations.append(
-                InsertedTraceAnnotation(
-                    id=str(GlobalID("TraceAnnotation", str(trace_annotation_id)))
-                )
-            )
-
-    return AnnotateTracesResponseBody(data=inserted_annotations)
+            inserted_ids.append(trace_annotation_id)
+    request.state.event_queue.put(TraceAnnotationInsertEvent(tuple(inserted_ids)))
+    return AnnotateTracesResponseBody(
+        data=[
+            InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(id_))))
+            for id_ in inserted_ids
+        ]
+    )
 
 
 async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:

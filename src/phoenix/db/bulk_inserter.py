@@ -1,38 +1,29 @@
 import asyncio
 import logging
 from asyncio import Queue, as_completed
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from functools import singledispatchmethod
 from itertools import islice
 from time import perf_counter
 from typing import (
     Any,
+    AsyncIterator,
     Awaitable,
     Callable,
-    DefaultDict,
-    Dict,
     Iterable,
     List,
-    Mapping,
     Optional,
     Set,
     Tuple,
-    Type,
     cast,
 )
 
-from cachetools import LRUCache
-from sqlalchemy import Select, select
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
-from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
-    EvaluationInsertionEvent,
     InsertEvaluationError,
     insert_evaluation,
 )
@@ -41,8 +32,8 @@ from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
-from phoenix.server.api.dataloaders import CacheForDataLoaders
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -60,8 +51,7 @@ class BulkInserter:
         self,
         db: DbSessionFactory,
         *,
-        cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
-        initial_batch_of_operations: Iterable[DataManipulation] = (),
+        event_queue: CanPutItem[DmlEvent],
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
@@ -93,17 +83,11 @@ class BulkInserter:
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
-        self._last_updated_at_by_project: LRUCache[ProjectRowId, datetime] = LRUCache(maxsize=100)
-        self._cache_for_dataloaders = cache_for_dataloaders
+        self._event_queue = event_queue
         self._enable_prometheus = enable_prometheus
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
-
-    def last_updated_at(self, project_rowid: Optional[ProjectRowId] = None) -> Optional[datetime]:
-        if isinstance(project_rowid, ProjectRowId):
-            return self._last_updated_at_by_project.get(project_rowid)
-        return max(self._last_updated_at_by_project.values(), default=None)
 
     async def __aenter__(
         self,
@@ -162,21 +146,20 @@ class BulkInserter:
             ):
                 await asyncio.sleep(self._sleep)
                 continue
-            ops_remaining, events = self._max_ops_per_transaction, []
+            ops_remaining = self._max_ops_per_transaction
             async with self._db() as session:
                 while ops_remaining and not self._operations.empty():
                     ops_remaining -= 1
                     op = await self._operations.get()
                     try:
                         async with session.begin_nested():
-                            events.append(await op(session))
+                            await op(session)
                     except Exception as e:
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
 
                             BULK_LOADER_EXCEPTIONS.inc()
                         logger.exception(str(e))
-            await self._process_events(events)
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
             # it references doesn't exist. Grabbing the eval buffer later may
@@ -190,25 +173,18 @@ class BulkInserter:
                 self._evaluations = []
             # Spans should be inserted before the evaluations, since an evaluation
             # insertion will fail if the span it references doesn't exist.
-            transaction_result = TransactionResult()
             if spans_buffer:
-                result = await self._insert_spans(spans_buffer)
-                transaction_result.updated_project_rowids.update(result.updated_project_rowids)
+                await self._insert_spans(spans_buffer)
                 spans_buffer = None
             if evaluations_buffer:
-                result = await self._insert_evaluations(evaluations_buffer)
-                transaction_result.updated_project_rowids.update(result.updated_project_rowids)
+                await self._insert_evaluations(evaluations_buffer)
                 evaluations_buffer = None
-            for project_rowid in transaction_result.updated_project_rowids:
-                self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
-            if not self._queue_inserters.empty:
-                if inserted_ids := await self._queue_inserters.insert():
-                    for project_rowid in await self._get_project_rowids(inserted_ids):
-                        self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
+            async for event in self._queue_inserters.insert():
+                self._event_queue.put(event)
             await asyncio.sleep(self._sleep)
 
-    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
-        transaction_result = TransactionResult()
+    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
+        project_ids = set()
         for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -231,9 +207,7 @@ class BulkInserter:
                                 f"Failed to insert span with span_id={span.context.span_id}"
                             )
                         if result is not None:
-                            transaction_result.updated_project_rowids.add(result.project_rowid)
-                            if (cache := self._cache_for_dataloaders) is not None:
-                                cache.invalidate(result)
+                            project_ids.add(result.project_rowid)
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -244,10 +218,9 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
-        return transaction_result
+        self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
 
-    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> TransactionResult:
-        transaction_result = TransactionResult()
+    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -257,20 +230,15 @@ class BulkInserter:
                             from phoenix.server.prometheus import BULK_LOADER_EVALUATION_INSERTIONS
 
                             BULK_LOADER_EVALUATION_INSERTIONS.inc()
-                        result: Optional[EvaluationInsertionEvent] = None
                         try:
                             async with session.begin_nested():
-                                result = await insert_evaluation(session, evaluation)
+                                await insert_evaluation(session, evaluation)
                         except InsertEvaluationError as error:
                             if self._enable_prometheus:
                                 from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
 
                                 BULK_LOADER_EXCEPTIONS.inc()
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
-                        if result is not None:
-                            transaction_result.updated_project_rowids.add(result.project_rowid)
-                            if (cache := self._cache_for_dataloaders) is not None:
-                                cache.invalidate(result)
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -281,48 +249,6 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert evaluations")
-        return transaction_result
-
-    async def _get_project_rowids(
-        self,
-        inserted_ids: Mapping[Type[models.Base], List[int]],
-    ) -> Set[int]:
-        ans: Set[int] = set()
-        if not inserted_ids:
-            return ans
-        stmt: Select[Tuple[int]]
-        for table, ids in inserted_ids.items():
-            if not ids:
-                continue
-            if issubclass(table, models.SpanAnnotation):
-                stmt = (
-                    select(models.Project.id)
-                    .join(models.Trace)
-                    .join_from(models.Trace, models.Span)
-                    .join_from(models.Span, models.SpanAnnotation)
-                    .where(models.SpanAnnotation.id.in_(ids))
-                )
-            elif issubclass(table, models.DocumentAnnotation):
-                stmt = (
-                    select(models.Project.id)
-                    .join(models.Trace)
-                    .join_from(models.Trace, models.Span)
-                    .join_from(models.Span, models.DocumentAnnotation)
-                    .where(models.DocumentAnnotation.id.in_(ids))
-                )
-            elif issubclass(table, models.TraceAnnotation):
-                stmt = (
-                    select(models.Project.id)
-                    .join(models.Trace)
-                    .join_from(models.Trace, models.TraceAnnotation)
-                    .where(models.TraceAnnotation.id.in_(ids))
-                )
-            else:
-                continue
-            async with self._db() as session:
-                project_rowids = [_ async for _ in await session.stream_scalars(stmt)]
-                ans.update(project_rowids)
-        return ans
 
 
 class _QueueInserters:
@@ -343,13 +269,13 @@ class _QueueInserters:
             self._document_annotations,
         )
 
-    async def insert(self) -> Dict[Type[models.Base], List[int]]:
-        ans: DefaultDict[Type[models.Base], List[int]] = defaultdict(list)
-        for coro in as_completed([q.insert() for q in self._queues]):
-            table, inserted_ids = await coro
-            if inserted_ids:
-                ans[table].extend(inserted_ids)
-        return ans
+    async def insert(self) -> AsyncIterator[DmlEvent]:
+        if self.empty:
+            return
+        for coro in as_completed([q.insert() for q in self._queues if not q.empty]):
+            if events := cast(Optional[List[DmlEvent]], await coro):
+                for event in events:
+                    yield event
 
     @property
     def empty(self) -> bool:
