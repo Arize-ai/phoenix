@@ -149,7 +149,7 @@ async def app(
     db: DbSessionFactory,
 ) -> AsyncIterator[ASGIApp]:
     async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_sleepy_service())
+        await stack.enter_async_context(patch_batched_caller())
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
@@ -250,7 +250,7 @@ async def patch_bulk_inserter() -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def patch_sleepy_service() -> AsyncIterator[None]:
+async def patch_batched_caller() -> AsyncIterator[None]:
     cls = BatchedCaller
     original = cls.__init__
     name = original.__name__
