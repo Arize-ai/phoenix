@@ -23,7 +23,7 @@ for message in st.session_state.messages:
     with st.chat_message(message.role):
         st.markdown(message.content)
         if message.role == "assistant":
-            col1, col2 = st.columns(2, gap="small")
+            col1, col2, col3, col4, col5, col6 = st.columns(6, gap="small")
             col1.button(
                 "👍",
                 key=f"thumbs_up_{message.uuid}",
@@ -61,7 +61,7 @@ if user_message_content := st.chat_input("Message"):
         assistant_message = messages_response.message
         with st.chat_message(assistant_message.role):
             st.markdown(assistant_message.content)
-            col1, col2 = st.columns(2, gap="small")
+            col1, col2, col3, col4, col5, col6 = st.columns(6, gap="small")
             col1.button(
                 "👍",
                 key=f"thumbs_up_{assistant_message.uuid}",

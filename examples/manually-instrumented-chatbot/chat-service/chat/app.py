@@ -114,9 +114,9 @@ async def post_feedback(feedback_request: FeedbackRequest) -> None:
         "data": [
             {
                 "span_id": feedback_request.span_id,
-                "name": "feedback",
+                "name": "correctness",
                 "annotator_kind": "HUMAN",
-                "result": {"label": label},
+                "result": {"label": label, "score": feedback_request.feedback},
                 "metadata": {},
             }
         ]
