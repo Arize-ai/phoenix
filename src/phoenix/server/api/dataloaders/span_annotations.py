@@ -8,12 +8,11 @@ from sqlalchemy import select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.db import models
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.db.models import SpanAnnotation as ORMSpanAnnotation
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int
-Result: TypeAlias = List[SpanAnnotation]
+Result: TypeAlias = List[ORMSpanAnnotation]
 
 
 class SpanAnnotationsDataLoader(DataLoader[Key, Result]):
@@ -23,11 +22,9 @@ class SpanAnnotationsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         span_annotations_by_id: DefaultDict[Key, Result] = defaultdict(list)
-        msa = models.SpanAnnotation
         async with self._db() as session:
-            data = await session.stream_scalars(select(msa).where(msa.span_rowid.in_(keys)))
-            async for span_annotation in data:
-                span_annotations_by_id[span_annotation.span_rowid].append(
-                    to_gql_span_annotation(span_annotation)
-                )
+            async for span_annotation in await session.stream_scalars(
+                select(ORMSpanAnnotation).where(ORMSpanAnnotation.span_rowid.in_(keys))
+            ):
+                span_annotations_by_id[span_annotation.span_rowid].append(span_annotation)
         return [span_annotations_by_id[key] for key in keys]
