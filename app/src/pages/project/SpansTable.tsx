@@ -83,7 +83,7 @@ export function SpansTable(props: SpansTableProps) {
         @refetchable(queryName: "SpansTableSpansQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 100 }
+          first: { type: "Int", defaultValue: 50 }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
