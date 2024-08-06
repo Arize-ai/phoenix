@@ -43,7 +43,7 @@ async function chat(req, res) {
 }
 ```
 
-Once the span has been sent to phoenix, can use the span ID to send your annotation.&#x20;
+Once the span has been sent to phoenix, you can use the span ID to send your annotation.&#x20;
 
 ```typescript
 async function postFeedback(spanId: string) {
