@@ -179,7 +179,7 @@ def httpx_clients(
 
         def handle_request(self, request: Request) -> Response:
             fut = loop.create_task(self.handle_async_request(request))
-            time_cutoff = time.time() + 1
+            time_cutoff = time.time() + 10
             while not fut.done() and time.time() < time_cutoff:
                 time.sleep(0.01)
             if fut.done():

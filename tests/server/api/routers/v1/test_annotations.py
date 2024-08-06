@@ -209,7 +209,6 @@ class TestSendingAnnotationsBeforeSpans:
             for i in range(size - 1, -1, -1):
                 s = i * fake.pyfloat() + score_offset
                 await gather(
-                    sleep(0.01),
                     acall(px_client.log_evaluations, *evaluations(s)),
                     httpx_client.post(
                         "v1/span_annotations?sync=false",
@@ -220,6 +219,7 @@ class TestSendingAnnotationsBeforeSpans:
                         json=dict(data=list(trace_annotations(s))),
                     ),
                 )
+                await sleep(0.01)
 
         return _
 

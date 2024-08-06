@@ -41,7 +41,7 @@ _AnyT = TypeVar("_AnyT")
 _PrecursorT = TypeVar("_PrecursorT")
 _InsertableT = TypeVar("_InsertableT", bound=Insertable)
 _RowT = TypeVar("_RowT", bound=models.Base)
-_InsertionEventT = TypeVar("_InsertionEventT", bound=DmlEvent)
+_DmlEventT = TypeVar("_DmlEventT", bound=DmlEvent)
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class Postponed(Received[_AnyT]):
     retries_left: int = field(default=DEFAULT_RETRY_ALLOWANCE)
 
 
-class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _InsertionEventT]):
+class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     table: Type[_RowT]
     unique_by: Sequence[str]
 
@@ -99,11 +99,11 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _InsertionEve
         List[Received[_PrecursorT]],
     ]: ...
 
-    async def insert(self) -> Optional[List[_InsertionEventT]]:
+    async def insert(self) -> Optional[List[_DmlEventT]]:
         if not self._queue:
             return None
         self._queue, parcels = [], self._queue
-        events: List[_InsertionEventT] = []
+        events: List[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
             if to_insert:
@@ -128,20 +128,20 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _InsertionEve
         self,
         session: AsyncSession,
         *insertions: _InsertableT,
-    ) -> List[_InsertionEventT]: ...
+    ) -> List[_DmlEventT]: ...
 
     async def _insert(
         self,
         session: AsyncSession,
         *parcels: Received[_InsertableT],
     ) -> Tuple[
-        List[_InsertionEventT],
+        List[_DmlEventT],
         List[Postponed[_PrecursorT]],
         List[Received[_InsertableT]],
     ]:
         to_retry: List[Postponed[_PrecursorT]] = []
         failures: List[Received[_InsertableT]] = []
-        events: List[_InsertionEventT] = []
+        events: List[_DmlEventT] = []
         try:
             async with session.begin_nested():
                 events.extend(await self._events(session, *(p.item for p in parcels)))
