@@ -1,5 +1,11 @@
 import React, { Suspense, useCallback, useMemo } from "react";
-import { graphql, PreloadedQuery,useLazyLoadQuery, useQueryLoader } from "react-relay";
+import {
+  graphql,
+  PreloadedQuery,
+  useLazyLoadQuery,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import { Outlet } from "react-router";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -13,7 +19,7 @@ import {
 } from "@phoenix/components/datetime";
 
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
-import { ProjectPageSpansQuery } from "./__generated__/ProjectPageSpansQuery.graphql";
+import { ProjectPageSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageSpansQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import { SpansTable } from "./SpansTable";
 import { StreamToggle } from "./StreamToggle";
@@ -60,12 +66,12 @@ export function ProjectPage() {
   );
 }
 
-const projectPageSpansQuery = graphql`
-query ProjectPageSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
-  project: node(id: $id) {
-    ...SpansTable_spans
+const ProjectPageSpansQuery = graphql`
+  query ProjectPageSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
+    project: node(id: $id) {
+      ...SpansTable_spans
+    }
   }
-}
 `;
 
 export function ProjectPageContent({
@@ -81,7 +87,6 @@ export function ProjectPageContent({
       end: timeRange.end.toISOString(),
     };
   }, [timeRange]);
-
 
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
@@ -101,17 +106,21 @@ export function ProjectPageContent({
       fetchPolicy: "store-and-network",
     }
   );
-  const [
-    spansQuery,
-    loadSpansQuery,
-    disposeSpansQuery,
-  ] = useQueryLoader<ProjectPageSpansQuery>(
-    projectPageSpansQuery 
+  const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
+    useQueryLoader<ProjectPageSpansQueryType>(ProjectPageSpansQuery);
+  const onTabChange = useCallback(
+    (index: number) => {
+      if (index === 1) {
+        loadSpansQuery({
+          id: projectId as string,
+          timeRange: timeRangeVariable,
+        });
+      } else {
+        disposeSpansQuery();
+      }
+    },
+    [disposeSpansQuery, loadSpansQuery, projectId, timeRangeVariable]
   );
-  const onTabChange = useCallback(() => (index: number) => { if ( index === 0 ) { loadSpansQuery({
-    id: projectId as string,
-    timeRange: timeRangeVariable,
-  })}}, [loadSpansQuery, projectId, timeRangeVariable]);
   return (
     <main css={mainCSS}>
       <ProjectPageHeader
@@ -138,9 +147,10 @@ export function ProjectPageContent({
         <TabPane name="Spans" title="Spans">
           {({ isSelected }) => {
             return (
-              isSelected && spansQuery && (
-                <Suspense>
-                  <SpansTable project={spansQuery.project} />
+              isSelected &&
+              spansQueryReference && (
+                <Suspense fallback={<Loading />}>
+                  <SpansTabContent queryReference={spansQueryReference} />
                 </Suspense>
               )
             );
@@ -152,4 +162,13 @@ export function ProjectPageContent({
       </Suspense>
     </main>
   );
+}
+
+function SpansTabContent({
+  queryReference,
+}: {
+  queryReference: PreloadedQuery<ProjectPageSpansQueryType>;
+}) {
+  const data = usePreloadedQuery(ProjectPageSpansQuery, queryReference);
+  return <SpansTable project={data.project} />;
 }
