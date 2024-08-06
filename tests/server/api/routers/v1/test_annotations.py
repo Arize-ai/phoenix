@@ -29,7 +29,7 @@ from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations, Tra
 from typing_extensions import TypeAlias, assert_never
 
 
-@pytest.mark.skipif(sys.platform.startswith("win"), reason="unknown")
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="CI fails for unknown reason")
 class TestSendingAnnotationsBeforeSpans:
     async def test_sending_annotations_before_spans(
         self,
