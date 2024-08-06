@@ -23,7 +23,7 @@ Phoenix expects feedback to be in the simple form of an **annotation** which con
 
 Note that you can provide  **label**, a **score**, or both. With Phoenix an annotation has a name (like **correctness**), is associated with  an **annotator** (either an **LLM** or a **HUMAN**) and can be attached to the **spans** you have logged to Phoenix.\
 \
-To log annotatons for spans to phoenix, you will need the following information:
+To log annotations for spans to phoenix, you will need the following information:
 
 <table><thead><tr><th width="202">span_id</th><th>name</th><th width="158">label</th><th>score</th><th>explanation</th></tr></thead><tbody><tr><td>67f6740bbe1ddc3f</td><td>correctness</td><td>thumbs_up</td><td>1</td><td>good answer</td></tr><tr><td>fc0bdc5af949699f</td><td>correctness</td><td>thumbs_down</td><td>0</td><td>bad code</td></tr><tr><td>6a5311f99f73c328</td><td>correctness</td><td>thumbs_down</td><td>0</td><td>wrong link</td></tr></tbody></table>
 
