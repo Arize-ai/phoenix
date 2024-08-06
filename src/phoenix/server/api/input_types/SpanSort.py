@@ -3,7 +3,6 @@ from enum import Enum, auto
 from typing import Any, Optional, Protocol
 
 import strawberry
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, desc, nulls_last
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import Select
@@ -15,10 +14,6 @@ from phoenix.db import models
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
-
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 
 
 @strawberry.enum

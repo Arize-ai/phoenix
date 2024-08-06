@@ -40,9 +40,6 @@ EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
@@ -308,18 +305,9 @@ def to_gql_span(span: models.Span) -> Span:
         attributes=json.dumps(_hide_embedding_vectors(span.attributes), cls=_JSONEncoder),
         metadata=_convert_metadata_to_string(get_attribute_value(span.attributes, METADATA)),
         num_documents=num_documents,
-        token_count_total=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_TOTAL),
-        ),
-        token_count_prompt=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
-        ),
-        token_count_completion=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION),
-        ),
+        token_count_total=span.llm_token_count_total,
+        token_count_prompt=span.llm_token_count_prompt,
+        token_count_completion=span.llm_token_count_completion,
         cumulative_token_count_total=span.cumulative_llm_token_count_prompt
         + span.cumulative_llm_token_count_completion,
         cumulative_token_count_prompt=span.cumulative_llm_token_count_prompt,
