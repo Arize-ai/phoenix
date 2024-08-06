@@ -324,7 +324,7 @@ class Client(TraceDataExtractor):
              Dataset: The dataset object.
         """
         response = self._client.get(
-            urljoin(self._base_url, "/v1/datasets"),
+            urljoin(self._base_url, "v1/datasets"),
             params={"name": name},
         )
         response.raise_for_status()
@@ -366,7 +366,7 @@ class Client(TraceDataExtractor):
             raise ValueError("Dataset id or name must be provided.")
 
         response = self._client.get(
-            urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
+            urljoin(self._base_url, f"v1/datasets/{quote(id)}/examples"),
             params={"version_id": version_id} if version_id else None,
         )
         response.raise_for_status()
