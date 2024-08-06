@@ -24,6 +24,7 @@
   * [LlamaIndex](tracing/integrations-tracing/llamaindex.md)
   * [LangChain](tracing/integrations-tracing/langchain.md)
   * [Haystack](tracing/integrations-tracing/haystack.md)
+  * [Groq](tracing/integrations-tracing/groq.md)
   * [DSPy](tracing/integrations-tracing/dspy.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
