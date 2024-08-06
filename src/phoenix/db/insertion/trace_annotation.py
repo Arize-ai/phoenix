@@ -7,6 +7,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import dedup
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import (
     Insertables,
     Postponed,
@@ -14,6 +15,7 @@ from phoenix.db.insertion.types import (
     QueueInserter,
     Received,
 )
+from phoenix.server.dml_event import TraceAnnotationDmlEvent
 
 _Name: TypeAlias = str
 _TraceId: TypeAlias = str
@@ -36,10 +38,21 @@ class TraceAnnotationQueueInserter(
         Precursors.TraceAnnotation,
         Insertables.TraceAnnotation,
         models.TraceAnnotation,
+        TraceAnnotationDmlEvent,
     ],
     table=models.TraceAnnotation,
     unique_by=("name", "trace_rowid"),
 ):
+    async def _events(
+        self,
+        session: AsyncSession,
+        *insertions: Insertables.TraceAnnotation,
+    ) -> List[TraceAnnotationDmlEvent]:
+        records = [dict(as_kv(ins.row)) for ins in insertions]
+        stmt = self._insert_on_conflict(*records).returning(self.table.id)
+        ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
+        return [TraceAnnotationDmlEvent(ids)]
+
     async def _partition(
         self,
         session: AsyncSession,

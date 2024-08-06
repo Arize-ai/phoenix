@@ -14,6 +14,7 @@ from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
 
 
 @strawberry.type
@@ -47,7 +48,10 @@ class SpanAnnotationMutationMixin:
             )
             result = await session.scalars(stmt)
             inserted_annotations = result.all()
-
+        if inserted_annotations:
+            info.context.event_queue.put(
+                SpanAnnotationInsertEvent(tuple(anno.id for anno in inserted_annotations))
+            )
         return SpanAnnotationMutationPayload(
             span_annotations=[
                 to_gql_span_annotation(annotation) for annotation in inserted_annotations
@@ -92,7 +96,7 @@ class SpanAnnotationMutationMixin:
                 )
                 if span_annotation is not None:
                     patched_annotations.append(to_gql_span_annotation(span_annotation))
-
+                    info.context.event_queue.put(SpanAnnotationInsertEvent((span_annotation.id,)))
         return SpanAnnotationMutationPayload(span_annotations=patched_annotations, query=Query())
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -115,6 +119,10 @@ class SpanAnnotationMutationMixin:
             deleted_annotations_gql = [
                 to_gql_span_annotation(annotation) for annotation in deleted_annotations
             ]
+        if deleted_annotations:
+            info.context.event_queue.put(
+                SpanAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations))
+            )
         return SpanAnnotationMutationPayload(
             span_annotations=deleted_annotations_gql, query=Query()
         )

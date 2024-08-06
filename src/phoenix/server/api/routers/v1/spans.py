@@ -16,6 +16,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 
 from .pydantic_compat import V1RoutesBaseModel
@@ -197,6 +198,8 @@ async def annotate_spans(
     request_body: AnnotateSpansRequestBody,
     sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateSpansResponseBody:
+    if not request_body.data:
+        return AnnotateSpansResponseBody(data=[])
     precursors = [d.as_precursor() for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
@@ -217,9 +220,7 @@ async def annotate_spans(
                 detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
-
-        inserted_annotations = []
-
+        inserted_ids = []
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
@@ -231,8 +232,11 @@ async def annotate_spans(
                     unique_by=("name", "span_rowid"),
                 ).returning(models.SpanAnnotation.id)
             )
-            inserted_annotations.append(
-                InsertedSpanAnnotation(id=str(GlobalID("SpanAnnotation", str(span_annotation_id))))
-            )
-
-    return AnnotateSpansResponseBody(data=inserted_annotations)
+            inserted_ids.append(span_annotation_id)
+    request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
+    return AnnotateSpansResponseBody(
+        data=[
+            InsertedSpanAnnotation(id=str(GlobalID("SpanAnnotation", str(id_))))
+            for id_ in inserted_ids
+        ]
+    )

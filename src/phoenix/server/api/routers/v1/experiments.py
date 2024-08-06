@@ -13,6 +13,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.dml_event import ExperimentInsertEvent
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
@@ -188,6 +189,7 @@ async def create_experiment(
             dataset_version_globalid = GlobalID(
                 "DatasetVersion", str(experiment.dataset_version_id)
             )
+    request.state.event_queue.put(ExperimentInsertEvent((experiment.id,)))
     return CreateExperimentResponseBody(
         data=Experiment(
             id=str(experiment_globalid),

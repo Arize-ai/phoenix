@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
@@ -108,6 +109,7 @@ async def upsert_experiment_evaluation(
             ).returning(models.ExperimentRunAnnotation)
         )
     evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run.id))
+    request.state.event_queue.put(ExperimentRunAnnotationInsertEvent((exp_eval_run.id,)))
     return UpsertExperimentEvaluationResponseBody(
         data=UpsertExperimentEvaluationResponseBodyData(id=str(evaluation_gid))
     )

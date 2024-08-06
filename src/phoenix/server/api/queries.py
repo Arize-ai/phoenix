@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -108,6 +109,10 @@ class Query:
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
+    def projects_last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(models.Project)
+
+    @strawberry.field
     async def datasets(
         self,
         info: Info[Context, None],
@@ -132,6 +137,10 @@ class Query:
         return connection_from_list(
             data=[to_gql_dataset(dataset) for dataset in datasets], args=args
         )
+
+    @strawberry.field
+    def datasets_last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(models.Dataset)
 
     @strawberry.field
     async def compare_experiments(

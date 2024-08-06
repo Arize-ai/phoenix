@@ -21,11 +21,12 @@ from typing import (
 )
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.dml import ReturningInsert
+from sqlalchemy.sql.dml import Insert
 
 from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger("__name__")
@@ -40,6 +41,7 @@ _AnyT = TypeVar("_AnyT")
 _PrecursorT = TypeVar("_PrecursorT")
 _InsertableT = TypeVar("_InsertableT", bound=Insertable)
 _RowT = TypeVar("_RowT", bound=models.Base)
+_DmlEventT = TypeVar("_DmlEventT", bound=DmlEvent)
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,7 @@ class Postponed(Received[_AnyT]):
     retries_left: int = field(default=DEFAULT_RETRY_ALLOWANCE)
 
 
-class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
+class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     table: Type[_RowT]
     unique_by: Sequence[str]
 
@@ -97,59 +99,63 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
         List[Received[_PrecursorT]],
     ]: ...
 
-    async def insert(self) -> Tuple[Type[_RowT], List[int]]:
+    async def insert(self) -> Optional[List[_DmlEventT]]:
         if not self._queue:
-            return self.table, []
-        parcels = self._queue
-        self._queue = []
-        inserted_ids: List[int] = []
+            return None
+        self._queue, parcels = [], self._queue
+        events: List[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
             if to_insert:
-                inserted_ids, to_retry, _ = await self._insert(session, *to_insert)
-                to_postpone.extend(to_retry)
+                events, to_retry, _ = await self._insert(session, *to_insert)
+                if to_retry:
+                    to_postpone.extend(to_retry)
         if to_postpone:
             loop = asyncio.get_running_loop()
             loop.call_later(self._retry_delay_sec, self._queue.extend, to_postpone)
-        return self.table, inserted_ids
+        return events
 
-    def _stmt(self, *records: Mapping[str, Any]) -> ReturningInsert[Tuple[int]]:
-        pk = next(c for c in self.table.__table__.c if c.primary_key)
+    def _insert_on_conflict(self, *records: Mapping[str, Any]) -> Insert:
         return insert_on_conflict(
             *records,
             table=self.table,
             unique_by=self.unique_by,
             dialect=self._db.dialect,
-        ).returning(pk)
+        )
+
+    @abstractmethod
+    async def _events(
+        self,
+        session: AsyncSession,
+        *insertions: _InsertableT,
+    ) -> List[_DmlEventT]: ...
 
     async def _insert(
         self,
         session: AsyncSession,
-        *insertions: Received[_InsertableT],
-    ) -> Tuple[List[int], List[Postponed[_PrecursorT]], List[Received[_InsertableT]]]:
-        records = [dict(as_kv(ins.item.row)) for ins in insertions]
-        inserted_ids: List[int] = []
+        *parcels: Received[_InsertableT],
+    ) -> Tuple[
+        List[_DmlEventT],
+        List[Postponed[_PrecursorT]],
+        List[Received[_InsertableT]],
+    ]:
         to_retry: List[Postponed[_PrecursorT]] = []
         failures: List[Received[_InsertableT]] = []
-        stmt = self._stmt(*records)
+        events: List[_DmlEventT] = []
         try:
             async with session.begin_nested():
-                ids = [id_ async for id_ in await session.stream_scalars(stmt)]
-                inserted_ids.extend(ids)
+                events.extend(await self._events(session, *(p.item for p in parcels)))
         except BaseException:
             logger.exception(
                 f"Failed to bulk insert for {self.table.__name__}. "
-                f"Will try to insert ({len(records)} records) individually instead."
+                f"Will try to insert ({len(parcels)} records) individually instead."
             )
-            for i, record in enumerate(records):
-                stmt = self._stmt(record)
+            for p in parcels:
                 try:
                     async with session.begin_nested():
-                        ids = [id_ async for id_ in await session.stream_scalars(stmt)]
-                        inserted_ids.extend(ids)
+                        events.extend(await self._events(session, p.item))
                 except BaseException:
                     logger.exception(f"Failed to insert for {self.table.__name__}.")
-                    p = insertions[i]
                     if isinstance(p, Postponed) and p.retries_left == 1:
                         failures.append(p)
                     else:
@@ -162,7 +168,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
                                 else self._retry_allowance,
                             )
                         )
-        return inserted_ids, to_retry, failures
+        return events, to_retry, failures
 
 
 class Precursors(ABC):

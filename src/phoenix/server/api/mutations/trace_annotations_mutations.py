@@ -14,6 +14,7 @@ from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
+from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotationInsertEvent
 
 
 @strawberry.type
@@ -47,7 +48,10 @@ class TraceAnnotationMutationMixin:
             )
             result = await session.scalars(stmt)
             inserted_annotations = result.all()
-
+        if inserted_annotations:
+            info.context.event_queue.put(
+                TraceAnnotationInsertEvent(tuple(anno.id for anno in inserted_annotations))
+            )
         return TraceAnnotationMutationPayload(
             trace_annotations=[
                 to_gql_trace_annotation(annotation) for annotation in inserted_annotations
@@ -91,7 +95,7 @@ class TraceAnnotationMutationMixin:
                 )
                 if trace_annotation:
                     patched_annotations.append(to_gql_trace_annotation(trace_annotation))
-
+                    info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
         return TraceAnnotationMutationPayload(trace_annotations=patched_annotations, query=Query())
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -114,6 +118,10 @@ class TraceAnnotationMutationMixin:
             deleted_annotations_gql = [
                 to_gql_trace_annotation(annotation) for annotation in deleted_annotations
             ]
+        if deleted_annotations:
+            info.context.event_queue.put(
+                TraceAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations))
+            )
         return TraceAnnotationMutationPayload(
             trace_annotations=deleted_annotations_gql, query=Query()
         )

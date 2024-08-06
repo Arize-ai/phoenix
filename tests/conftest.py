@@ -33,7 +33,7 @@ from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from psycopg import Connection
 from pytest_postgresql import factories
@@ -96,7 +96,6 @@ async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
-    engine.echo = True
     yield engine
     await engine.dispose()
 
@@ -111,7 +110,6 @@ async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
-    engine.echo = True
     yield engine
     await engine.dispose()
 
@@ -151,6 +149,7 @@ async def app(
     db: DbSessionFactory,
 ) -> AsyncIterator[ASGIApp]:
     async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
@@ -180,7 +179,7 @@ def httpx_clients(
 
         def handle_request(self, request: Request) -> Response:
             fut = loop.create_task(self.handle_async_request(request))
-            time_cutoff = time.time() + 1
+            time_cutoff = time.time() + 10
             while not fut.done() and time.time() < time_cutoff:
                 time.sleep(0.01)
             if fut.done():
@@ -245,6 +244,17 @@ async def patch_bulk_inserter() -> AsyncIterator[None]:
     original = cls.__init__
     name = original.__name__
     changes = {"sleep": 0.001, "retry_delay_sec": 0.001, "retry_allowance": 1000}
+    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
+    yield
+    setattr(cls, name, original)
+
+
+@contextlib.asynccontextmanager
+async def patch_batched_caller() -> AsyncIterator[None]:
+    cls = BatchedCaller
+    original = cls.__init__
+    name = original.__name__
+    changes = {"sleep_seconds": 0.001}
     setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
     yield
     setattr(cls, name, original)

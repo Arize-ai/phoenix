@@ -94,6 +94,7 @@ dev = [
   "prometheus_client",
   "asgi-lifespan",
   "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 evals = []
 experimental = []
@@ -173,6 +174,7 @@ dependencies = [
   "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
   "asgi-lifespan",
   "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [tool.hatch.envs.type]
