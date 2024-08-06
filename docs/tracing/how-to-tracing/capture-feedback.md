@@ -4,6 +4,8 @@
 feedback and annotations are available for arize-phoenix>=4.20.0 and in beta
 {% endhint %}
 
+<figure><img src="../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
+
 In LLM applications it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have feedback, you can send those examples for further review, automatic evaluation, or datasets.&#x20;
 
 Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to send feedback for a span.&#x20;
