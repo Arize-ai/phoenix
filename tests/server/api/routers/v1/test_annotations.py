@@ -280,8 +280,8 @@ class TestSendingAnnotationsBeforeSpans:
     def assert_no_evals(
         self,
         assert_evals: Callable[[bool, float], Awaitable[None]],
-    ) -> Callable[[float], Awaitable[None]]:
-        return partial(assert_evals, False)
+    ) -> Callable[[], Awaitable[None]]:
+        return partial(assert_evals, False, 0)
 
     @pytest.fixture
     def assert_eval_scores(
@@ -334,8 +334,8 @@ class TestSendingAnnotationsBeforeSpans:
     def assert_no_summaries(
         self,
         assert_summaries: Callable[[bool, int], Awaitable[None]],
-    ) -> Callable[[float], Awaitable[None]]:
-        return partial(assert_summaries, False)
+    ) -> Callable[[], Awaitable[None]]:
+        return partial(assert_summaries, False, 0)
 
     @pytest.fixture
     def rand_str(self, fake: Faker) -> Iterator[str]:
