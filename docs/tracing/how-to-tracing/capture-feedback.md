@@ -30,6 +30,50 @@ To log annotatons for spans to phoenix, you will need the following information:
 \
 Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
 
+{% tabs %}
+{% tab title="TypeScript" %}
+Get a span ID
+
+```typescript
+import { trace } from "@opentelemetry/api";
+
+async function chat(req, res) {
+  // ...
+  const spanId = trace.getActiveSpan()?.spanContext().spanId;
+}
+```
+
+Once the span has been sent to phoenix, can use the span ID to send your annotation.&#x20;
+
+```typescript
+async function postFeedback(spanId: string) {
+  // ...
+  await fetch("http://localhost:6006/v1/span_annotations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      data: [
+        {
+          span_id: spanId,
+          annotator_kind: "HUMAN",
+          name: "feedback",
+          result: {
+            label: "thumbs_up",
+            score: 1,
+            explanation: "A good response",
+          },
+        },
+      ],
+    }),
+  });
+}
+```
+{% endtab %}
+
+{% tab title="curl" %}
 ```bash
 curl -X 'POST' \
   'http://localhost:6006/v1/span_annotations?sync=true' \
@@ -51,6 +95,10 @@ curl -X 'POST' \
   ]
 }'
 ```
+{% endtab %}
+{% endtabs %}
+
+
 
 ## Annotate Traces in the UI
 
