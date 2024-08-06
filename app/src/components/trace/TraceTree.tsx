@@ -12,6 +12,8 @@ import {
   Flex,
   Icon,
   Icons,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@arizeai/components";
 
@@ -86,48 +88,62 @@ function TraceTreeToolbar() {
   return (
     <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
       <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
-        <Button
-          variant="default"
-          size="compact"
-          aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-          onClick={() => {
-            setIsCollapsed(!isCollapsed);
-          }}
-          icon={
-            <Icon
-              svg={
-                isCollapsed ? (
-                  <Icons.RowCollapseOutline />
-                ) : (
-                  <Icons.RowExpandOutline />
-                )
-              }
-            />
-          }
-        />
-        <Button
-          variant="default"
-          size="compact"
-          aria-label={
-            showMetricsInTraceTree
+        <TooltipTrigger offset={5}>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+            onClick={() => {
+              setIsCollapsed(!isCollapsed);
+            }}
+            icon={
+              <Icon
+                svg={
+                  isCollapsed ? (
+                    <Icons.RowCollapseOutline />
+                  ) : (
+                    <Icons.RowExpandOutline />
+                  )
+                }
+              />
+            }
+          />
+          <Tooltip>
+            {isCollapsed
+              ? "Expand all nested spans"
+              : "Collapse all nested spans"}
+          </Tooltip>
+        </TooltipTrigger>
+        <TooltipTrigger offset={5}>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label={
+              showMetricsInTraceTree
+                ? "Hide metrics in trace tree"
+                : "Show metrics in trace tree"
+            }
+            onClick={() => {
+              setShowMetricsInTraceTree(!showMetricsInTraceTree);
+            }}
+            icon={
+              <Icon
+                svg={
+                  showMetricsInTraceTree ? (
+                    <Icons.TimerOutline />
+                  ) : (
+                    <Icons.TimerOffOutline />
+                  )
+                }
+              />
+            }
+          />
+          <Tooltip>
+            {showMetricsInTraceTree
               ? "Hide metrics in trace tree"
-              : "Show metrics in trace tree"
-          }
-          onClick={() => {
-            setShowMetricsInTraceTree(!showMetricsInTraceTree);
-          }}
-          icon={
-            <Icon
-              svg={
-                showMetricsInTraceTree ? (
-                  <Icons.TimerOutline />
-                ) : (
-                  <Icons.TimerOffOutline />
-                )
-              }
-            />
-          }
-        />
+              : "Show metrics in trace tree"}
+          </Tooltip>
+        </TooltipTrigger>
       </Flex>
     </View>
   );
