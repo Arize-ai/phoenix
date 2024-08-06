@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.7.0",
+    "@arizeai/components": "^1.8.0",
     "@arizeai/openinference-semantic-conventions": "^0.8.0",
     "@arizeai/point-cloud": "^3.0.6",
     "@codemirror/autocomplete": "6.12.0",
@@ -86,7 +86,7 @@
     "build:static": "cpy ./static ../src/phoenix/server",
     "build:relay": "relay-compiler",
     "test": "jest --config ./jest.config.js",
-    "dev": "pnpm run dev:server & pnpm run build:static && pnpm run build:relay && vite",
+    "dev": "pnpm run dev:server:demo & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "pnpm run build:static && pnpm run build:relay && vite",
     "dev:server:mnist": "python3 -m phoenix.server.main --dev --umap_params 0,30,550 fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main --dev fixture fashion_mnist --primary-only true",
