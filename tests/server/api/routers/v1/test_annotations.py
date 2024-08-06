@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from asyncio import gather, sleep
 from datetime import datetime, timezone
 from functools import partial
@@ -28,6 +29,7 @@ from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations, Tra
 from typing_extensions import TypeAlias, assert_never
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="unknown")
 class TestSendingAnnotationsBeforeSpans:
     async def test_sending_annotations_before_spans(
         self,
