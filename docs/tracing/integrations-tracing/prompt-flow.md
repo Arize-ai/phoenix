@@ -162,7 +162,7 @@ setup_exporter_from_environ()
 
 ## Run PromptFlow
 
-Proceed with creating Prompt flow flows as usual. See this [example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example.ipynb) for inspiration.
+Proceed with creating Prompt flow flows as usual. See this [example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example\_to\_phoenix.ipynb) for inspiration.
 
 ## Observe
 
@@ -174,4 +174,4 @@ You should see the spans render in Phoenix as shown in the below screenshots.
 
 ## Resources
 
-* [Example Notebook](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-promptflow/examples)
+* [Example Notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example\_to\_phoenix.ipynb)
