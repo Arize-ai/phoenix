@@ -194,8 +194,8 @@ class Span(Node):
     ) -> List[SpanAnnotation]:
         span_id = self.id_attr
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
-        sort_key = SpanAnnotationColumn.createdAt.value
-        sort_descending = True
+        sort_key = SpanAnnotationColumn.name.value
+        sort_descending = False
         if sort:
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc
