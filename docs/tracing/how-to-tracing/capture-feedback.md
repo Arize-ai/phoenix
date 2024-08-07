@@ -65,7 +65,7 @@ annotation_payload = {
 }
 
 client.post(
-    "http://PHOENIX_HOST:PHOENIX_PORT/v1/span_annotations",
+    "http://PHOENIX_HOST:PHOENIX_PORT/v1/span_annotations?sync=false",
     json=annotation_payload,
 )
 ```
@@ -88,7 +88,7 @@ You can use the SpanID to send an annotation associated with that span.
 ```typescript
 async function postFeedback(spanId: string) {
   // ...
-  await fetch("http://localhost:6006/v1/span_annotations", {
+  await fetch("http://localhost:6006/v1/span_annotations?sync=false", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
