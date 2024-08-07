@@ -16,6 +16,7 @@ import {
   SpanFeedback_annotations$data,
   SpanFeedback_annotations$key,
 } from "./__generated__/SpanFeedback_annotations.graphql";
+import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
 const columns = [
   {
@@ -125,7 +126,8 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
       (annotation) => annotation.annotatorKind === "LLM"
     );
   }, [data.spanAnnotations]);
-  return (
+  const hasAnnotations = data.spanAnnotations.length > 0;
+  return hasAnnotations ? (
     <Accordion>
       <AccordionItem id={"evaluations"} title={"Evaluations"}>
         <SpanAnnotationsTable annotations={llmAnnotations} />
@@ -134,5 +136,7 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
         <SpanAnnotationsTable annotations={humanAnnotations} />
       </AccordionItem>
     </Accordion>
+  ) : (
+    <SpanAnnotationsEmpty />
   );
 }

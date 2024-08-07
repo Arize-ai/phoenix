@@ -29,7 +29,6 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -45,6 +44,7 @@ import { EditSpanAnnotationsDialogSpanAnnotationsQuery } from "./__generated__/E
 import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
 import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
 import { AnnotationFormData, SpanAnnotationForm } from "./SpanAnnotationForm";
+import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
 type EditSpanAnnotationsDialogProps = {
   spanNodeId: string;
@@ -227,9 +227,7 @@ function SpanAnnotationsList(props: {
   const hasAnnotations = annotations.length > 0;
   return (
     <div>
-      {!hasAnnotations && (
-        <Empty graphicKey="documents" message="No annotations for this span" />
-      )}
+      {!hasAnnotations && <SpanAnnotationsEmpty />}
       <ul
         css={css`
           display: flex;
