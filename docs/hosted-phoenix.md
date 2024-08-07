@@ -41,21 +41,28 @@ Install the following libraries
 ```
 !pip install opentelemetry-sdk opentelemetry-exporter-otlp
 !pip install "arize-phoenix[evals,llama-index]" "openai>=1" gcsfs nest-asyncio "openinference-instrumentation-llama-index>=2.0.0"
-!pip install -U llama-index-callbacks-arize-phoenix
 ```
 
-Use the following python code to start instrumentation. LlamaIndex has also added a helper function with `llama_index.core.set_global_handler()`.
+Use the following python code to start instrumentation.
 
 ```python
-import llama_index.core
-import os
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
-PHOENIX_API_KEY = "<PHOENIX_API_KEY>"
+# Setup authentication and endpoint
 os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-llama_index.core.set_global_handler(
-    "arize_phoenix",
-    endpoint="https://app.phoenix.arize.com/v1/traces"
-)
+endpoint = "https://app.phoenix.arize.com/v1/traces"
+
+# Setup tracing with OpenTelemetry
+span_phoenix_processor = SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+tracer_provider = trace_sdk.TracerProvider()
+tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
+
+# Start instrumentation
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_check=True)
 ```
 
 Checkout our colab tutorial here:
