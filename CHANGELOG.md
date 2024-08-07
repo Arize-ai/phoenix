@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.20.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.1...arize-phoenix-v4.20.2) (2024-08-07)
+
+
+### Bug Fixes
+
+* add token count columns to spans table to improve projects page query performance ([#4135](https://github.com/Arize-ai/phoenix/issues/4135)) ([8c713e3](https://github.com/Arize-ai/phoenix/commit/8c713e3115ca654998be64802bab87c15b9c35d3))
+
+
+### Documentation
+
+* **examples:** add feedback to manually-instrumented-chatbot example ([#4020](https://github.com/Arize-ai/phoenix/issues/4020)) ([86b299f](https://github.com/Arize-ai/phoenix/commit/86b299ff6977a3c57172772fed5d9ad52daa4f83))
+
 ## [4.20.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.0...arize-phoenix-v4.20.1) (2024-08-06)
 
 
