@@ -37,6 +37,7 @@ def upgrade() -> None:
         sa.Column("email_address", sa.String, nullable=False, unique=True, index=True),
         sa.Column("auth_method", sa.String, nullable=False),
         sa.Column("password_hash", sa.String, nullable=True),
+        sa.Column("reset_password", sa.Boolean, nullable=False, server_default=sa.sql.true()),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -66,16 +67,8 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "created_by",
-            sa.Integer,
-            sa.ForeignKey("users.id"),
-            nullable=False,
-            index=True,
-        ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("trailing_characters", sa.String, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -89,28 +82,28 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "access_tokens",
+        "api_keys_logs",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
+            "api_key_id",
+            sa.Integer,
+            sa.ForeignKey("api_keys.id"),
             nullable=False,
-            server_default=sa.func.now(),
+            index=True,
         ),
-    )
-    op.create_table(
-        "refresh_tokens",
-        sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id"),
             nullable=False,
-            server_default=sa.func.now(),
+            index=True,
         ),
-    )
-    op.create_table(
-        "password_reset_tokens",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "action",
+            sa.String,
+            sa.CheckConstraint("action IN ('CREATE', 'DELETE')", "valid_action"),
+            nullable=False,
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -121,9 +114,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("password_reset_tokens")
-    op.drop_table("refresh_tokens")
-    op.drop_table("access_tokens")
+    op.drop_table("api_keys_logs")
     op.drop_table("api_keys")
     op.drop_table("users")
     op.drop_table("user_roles")

@@ -32,7 +32,7 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import expression, true
 
 from phoenix.datetime_utils import normalize_datetime
 
@@ -634,6 +634,7 @@ class User(Base):
     email_address: Mapped[str] = mapped_column(unique=True, index=True)
     auth_method: Mapped[str]
     password_hash: Mapped[Optional[str]]
+    reset_password: Mapped[bool] = mapped_column(server_default=true())
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -648,30 +649,26 @@ class APIKey(Base):
         ForeignKey("users.id"),
         index=True,
     )
-    created_by: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
-        index=True,
-    )
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    trailing_characters: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
 
-class AccessToken(Base):
-    __tablename__ = "access_tokens"
+class APIKeysLog(Base):
+    __tablename__ = "api_keys_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-
-
-class RefreshToken(Base):
-    __tablename__ = "refresh_tokens"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-
-
-class PasswordResetToken(Base):
-    __tablename__ = "password_reset_tokens"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    api_key_id: Mapped[int] = mapped_column(
+        ForeignKey("api_keys.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(
+        CheckConstraint("action IN ('CREATE', 'DELETE')", name="valid_action")
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
