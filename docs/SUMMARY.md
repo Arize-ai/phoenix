@@ -39,7 +39,7 @@
 * [Concepts: Tracing](tracing/concepts-tracing.md)
   * [What are Traces?](tracing/concepts-tracing/what-are-traces.md)
   * [How does Tracing Work?](tracing/concepts-tracing/how-does-tracing-work.md)
-  * [How to evaluate Traces?](tracing/concepts-tracing/how-to-evaluate-traces.md)
+  * [How to annotate Traces?](tracing/concepts-tracing/how-to-annotate-traces.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
