@@ -106,15 +106,15 @@ async def messages(messages_payload: MessagesPayload) -> MessagesResponse:
 @app.post("/feedback/")
 async def post_feedback(feedback_request: FeedbackRequest) -> None:
     if feedback_request.feedback == 1:
-        label = "thumbs_up"
+        label = "👍"
     elif feedback_request.feedback == 0:
-        label = "thumbs_down"
+        label = "👎"
 
     request_body = {
         "data": [
             {
                 "span_id": feedback_request.span_id,
-                "name": "correctness",
+                "name": "user_feedback",
                 "annotator_kind": "HUMAN",
                 "result": {"label": label, "score": feedback_request.feedback},
                 "metadata": {},
