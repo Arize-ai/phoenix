@@ -1,40 +1,40 @@
 # Capture Feedback
 
 {% hint style="info" %}
-feedback and annotations are available for arize-phoenix>=4.20.0 and in beta
+feedback and annotations are available for arize-phoenix>=4.20.0 and are in beta
 {% endhint %}
 
 <figure><img src="../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
 
-In LLM applications it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have feedback, you can send those examples for further review, automatic evaluation, or datasets.&#x20;
+When building LLM applications, it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have identified these example, you can share them for further review, automatic evaluation, or fine-tuning.&#x20;
 
-Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to send feedback for a span.&#x20;
+Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to attach feedback to a span.&#x20;
 
-Phoenix expects feedback to be in the simple form of an **annotation** which consists of three fields:\
+Phoenix expects feedback to be in the form of an **annotation.** Annotations consist of these fields:
 
-
-```typescript
+```json
 {
-  "label": "good", // A human-readable category for the feedback
-  "score": 1, // a numeric score, can be 0 or 1, or a range like 0 to 100
-  "explanation": "The response answered the question I asked",
+  "span_id": "67f6740bbe1ddc3f", // the id of the span to annotate
+  "name": "correctness", // the name of your annotator
+  "annotator_kind": "HUMAN", // HUMAN or LLM
+  "result": {
+    "label": "correct", // A human-readable category for the feedback
+    "score": 1, // a numeric score, can be 0 or 1, or a range like 0 to 100
+    "explanation": "The response answered the question I asked"
+   }
 }
 ```
 
-Note that you can provide  **label**, a **score**, or both. With Phoenix an annotation has a name (like **correctness**), is associated with  an **annotator** (either an **LLM** or a **HUMAN**) and can be attached to the **spans** you have logged to Phoenix.\
-\
-To log annotations for spans to phoenix, you will need the following information:
+Note that you can provide a **label**, a **score**, or both. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (either an **LLM** or a **HUMAN**) and can be attached to the **spans** you have logged to Phoenix.
 
-<table><thead><tr><th width="202">span_id</th><th>name</th><th width="158">label</th><th>score</th><th>explanation</th></tr></thead><tbody><tr><td>67f6740bbe1ddc3f</td><td>correctness</td><td>thumbs_up</td><td>1</td><td>good answer</td></tr><tr><td>fc0bdc5af949699f</td><td>correctness</td><td>thumbs_down</td><td>0</td><td>bad code</td></tr><tr><td>6a5311f99f73c328</td><td>correctness</td><td>thumbs_down</td><td>0</td><td>wrong link</td></tr></tbody></table>
-
-## Feedback from a User
+## Send Annotations to Phoenix&#x20;
 
 \
 Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
 
 {% tabs %}
 {% tab title="Python" %}
-Get a SpanID
+**Retrieve the current span\_id**
 
 If you'd like to collect feedback on currently instrumented code, you can get the current span using the `opentelemetry` SDK.
 
@@ -45,7 +45,7 @@ span = trace.get_current_span()
 span_id = span.get_span_context().span_id.to_bytes(8, "big").hex()
 ```
 
-You can use the SpanID to send an annotation associated with that span.
+You can use the span\_id to send an annotation associated with that span.
 
 ```python
 import httpx
@@ -72,7 +72,7 @@ client.post(
 {% endtab %}
 
 {% tab title="TypeScript" %}
-Get a SpanID
+**Retrieve the current spanId**
 
 ```typescript
 import { trace } from "@opentelemetry/api";
@@ -83,7 +83,7 @@ async function chat(req, res) {
 }
 ```
 
-You can use the SpanID to send an annotation associated with that span.
+You can use the spanId to send an annotation associated with that span.
 
 ```typescript
 async function postFeedback(spanId: string) {
@@ -140,6 +140,6 @@ curl -X 'POST' \
 
 ## Annotate Traces in the UI
 
-Phoenix allows you to manually annotate traces with feedback within the application. This can be useful for adding context to a trace, such as a user's comment or a note about a specific issue. You can annotate a span directly from the span details view.
+Phoenix also allows you to manually annotate traces with feedback within the application. This can be useful for adding context to a trace, such as a user's comment or a note about a specific issue. You can annotate a span directly from the span details view.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/annotation_flow.gif" alt=""><figcaption></figcaption></figure>
