@@ -7,6 +7,8 @@ import {
   DialogContainer,
   EmptyGraphic,
   Flex,
+  Icon,
+  Icons,
   Text,
   View,
 } from "@arizeai/components";
@@ -40,8 +42,13 @@ export function SpanAnnotationsEmpty() {
       <Flex direction="column" gap="size-100" alignItems="center">
         <EmptyGraphic graphicKey="documents" />
         <Text>No annotations for this span</Text>
-        <Button variant="default" onClick={onGettingStartedClick}>
-          Add Annotations
+        <Button
+          variant="default"
+          size={"compact"}
+          onClick={onGettingStartedClick}
+          icon={<Icon svg={<Icons.Edit2Outline />} />}
+        >
+          How to Annotate
         </Button>
       </Flex>
       <DialogContainer onDismiss={() => setDialog(null)} isDismissable>
