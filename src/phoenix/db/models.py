@@ -214,6 +214,8 @@ class Span(Base):
     cumulative_error_count: Mapped[int]
     cumulative_llm_token_count_prompt: Mapped[int]
     cumulative_llm_token_count_completion: Mapped[int]
+    llm_token_count_prompt: Mapped[Optional[int]]
+    llm_token_count_completion: Mapped[Optional[int]]
 
     @hybrid_property
     def latency_ms(self) -> float:
@@ -229,6 +231,12 @@ class Span(Base):
     @hybrid_property
     def cumulative_llm_token_count_total(self) -> int:
         return self.cumulative_llm_token_count_prompt + self.cumulative_llm_token_count_completion
+
+    @hybrid_property
+    def llm_token_count_total(self) -> Optional[int]:
+        if self.llm_token_count_prompt is None and self.llm_token_count_completion is None:
+            return None
+        return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
