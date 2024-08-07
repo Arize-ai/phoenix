@@ -275,7 +275,9 @@ export function SpanDetails({
         <TabPane name={"Info"}>
           <Flex direction="row" height="100%">
             <SpanInfoWrap>
-              <SpanInfo span={span} />
+              <ErrorBoundary>
+                <SpanInfo span={span} />
+              </ErrorBoundary>
             </SpanInfoWrap>
             {showSpanAside ? <SpanAside span={span} /> : null}
           </Flex>
