@@ -119,7 +119,10 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
             <ul css={annotationListCSS}>
               {annotations.map((annotation) => (
                 <li key={annotation.id}>
-                  <AnnotationLabel annotation={annotation} />
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplayPreference="label"
+                  />
                 </li>
               ))}
             </ul>
