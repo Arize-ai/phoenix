@@ -13,7 +13,7 @@ Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai
 **Install packages:**
 
 ```bash
-pip install arize-phoenix
+pip install arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
 ```
 
 **Launch Phoenix:**
@@ -21,6 +21,21 @@ pip install arize-phoenix
 ```python
 import phoenix as px
 px.launch_app()
+```
+
+**Connect your notebook to Phoenix:**
+
+```python
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+tracer_provider = trace_sdk.TracerProvider()
+span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(span_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace_api.set_tracer_provider(tracer_provider)
 ```
 
 {% hint style="info" %}
@@ -153,7 +168,7 @@ Initialize the HaystackInstrumentor before your application code.
 ```python
 from openinference.instrumentation.haystack import HaystackInstrumentor
 
-HaystackInstrumentor().instrument()
+HaystackInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 ## Run Haystack

@@ -112,7 +112,20 @@ See [deploying-phoenix.md](deployment/deploying-phoenix.md "mention") for more d
 {% endtab %}
 
 {% tab title="Notebook" %}
-Notebook instances are connected automatically, nothing to do here!
+Connect your notebook to Phoenix:
+
+```python
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+tracer_provider = trace_sdk.TracerProvider()
+span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(span_exporter)
+tracer_provider.add_span_processor(span_processor)
+trace_api.set_tracer_provider(tracer_provider)
+```
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}

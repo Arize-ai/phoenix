@@ -33,7 +33,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in you jupyter notebook!
+The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in your jupyter notebook!
 
 ```markup
 🌍 To view the Phoenix app in your browser, visit https://z8rwookkcle1-496ff2e9c6d22116-6060-colab.googleusercontent.com/
