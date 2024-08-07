@@ -35,7 +35,12 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("email_address", sa.String, nullable=False, unique=True, index=True),
-        sa.Column("auth_method", sa.String, nullable=False),
+        sa.Column(
+            "auth_method",
+            sa.String,
+            sa.CheckConstraint("auth_method IN ('LOCAL')", "valid_auth_method"),
+            nullable=False,
+        ),
         sa.Column("password_hash", sa.String, nullable=True),
         sa.Column("reset_password", sa.Boolean, nullable=False, server_default=sa.sql.true()),
         sa.Column(

@@ -632,7 +632,9 @@ class User(Base):
         index=True,
     )
     email_address: Mapped[str] = mapped_column(unique=True, index=True)
-    auth_method: Mapped[str]
+    auth_method: Mapped[str] = mapped_column(
+        CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
+    )
     password_hash: Mapped[Optional[str]]
     reset_password: Mapped[bool] = mapped_column(server_default=true())
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
