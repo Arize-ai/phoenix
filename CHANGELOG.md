@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.2...arize-phoenix-v4.21.0) (2024-08-08)
+
+
+### Features
+
+* **annotations:** add cta for span annotations ([#4160](https://github.com/Arize-ai/phoenix/issues/4160)) ([ce22de5](https://github.com/Arize-ai/phoenix/commit/ce22de517f2938e524748be818e9a5349ab1426f))
+
 ## [4.20.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.1...arize-phoenix-v4.20.2) (2024-08-07)
 
 
