@@ -137,7 +137,7 @@ def get_env_phoenix_secret() -> Optional[str]:
     return phoenix_secret
 
 
-def get_auth_settings() -> Tuple[bool, str]:
+def get_auth_settings() -> Tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
