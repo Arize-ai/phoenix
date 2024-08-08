@@ -56,6 +56,7 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -293,6 +294,10 @@ export function TracesTable(props: TracesTableProps) {
                 <AnnotationTooltip
                   key={annotation.name}
                   annotation={annotation}
+                  layout="horizontal"
+                  extra={
+                    <AnnotationTooltipFilterActions annotation={annotation} />
+                  }
                 >
                   <AnnotationLabel
                     annotation={annotation}

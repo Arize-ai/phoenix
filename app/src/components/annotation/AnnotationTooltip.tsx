@@ -20,53 +20,71 @@ export function AnnotationTooltip({
   annotation,
   children,
   extra,
+  layout = "vertical",
 }: {
   annotation: Annotation;
   children: ReactNode;
+  layout?: "horizontal" | "vertical";
   extra?: ReactNode;
 }) {
   return (
-    <TooltipTrigger delay={500} offset={3}>
+    <TooltipTrigger delay={200} offset={3}>
       <TriggerWrap>{children}</TriggerWrap>
       <HelpTooltip>
-        <Text weight="heavy" color="inherit" textSize="large" elementType="h3">
-          {annotation.name}
-        </Text>
-        <View paddingTop="size-50" minWidth="150px">
-          <Flex direction="row" justifyContent="space-between">
-            <Text weight="heavy" color="inherit">
-              score
+        <Flex
+          direction={layout === "horizontal" ? "row" : "column"}
+          alignItems="center"
+        >
+          <View>
+            <Text
+              weight="heavy"
+              color="inherit"
+              textSize="large"
+              elementType="h3"
+            >
+              {annotation.name}
             </Text>
-            <Text color="inherit">{floatFormatter(annotation.score)}</Text>
-          </Flex>
-          <Flex direction="row" justifyContent="space-between">
-            <Text weight="heavy" color="inherit">
-              label
-            </Text>
-            <Text color="inherit">{annotation.label || "--"}</Text>
-          </Flex>
-          {annotation.annotatorKind ? (
-            <Flex direction="row" justifyContent="space-between">
-              <Text weight="heavy" color="inherit">
-                annotator kind
-              </Text>
-              <Text color="inherit">{annotation.annotatorKind}</Text>
-            </Flex>
-          ) : null}
-        </View>
-        {annotation.explanation ? (
-          <View paddingTop="size-50">
-            <Flex direction="column">
-              <Text weight="heavy" color="inherit">
-                explanation
-              </Text>
-              <View maxHeight="300px" overflow="auto">
-                <Text color="inherit">{annotation.explanation}</Text>
+            <View paddingTop="size-50" minWidth="150px">
+              <Flex direction="row" justifyContent="space-between">
+                <Text textSize="small" weight="heavy" color="inherit">
+                  label
+                </Text>
+                <Text color="inherit">{annotation.label || "--"}</Text>
+              </Flex>
+              <Flex direction="row" justifyContent="space-between">
+                <Text textSize="small" weight="heavy" color="inherit">
+                  score
+                </Text>
+                <Text textSize="small" color="inherit">
+                  {floatFormatter(annotation.score)}
+                </Text>
+              </Flex>
+              {annotation.annotatorKind ? (
+                <Flex direction="row" justifyContent="space-between">
+                  <Text textSize="small" weight="heavy" color="inherit">
+                    annotator kind
+                  </Text>
+                  <Text textSize="small" color="inherit">
+                    {annotation.annotatorKind}
+                  </Text>
+                </Flex>
+              ) : null}
+            </View>
+            {annotation.explanation ? (
+              <View paddingTop="size-50">
+                <Flex direction="column">
+                  <Text weight="heavy" color="inherit">
+                    explanation
+                  </Text>
+                  <View maxHeight="300px" overflow="auto">
+                    <Text color="inherit">{annotation.explanation}</Text>
+                  </View>
+                </Flex>
               </View>
-            </Flex>
+            ) : null}
           </View>
-        ) : null}
-        {extra}
+          {extra}
+        </Flex>
       </HelpTooltip>
     </TooltipTrigger>
   );
