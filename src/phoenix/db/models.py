@@ -34,6 +34,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
+from phoenix.config import ENABLE_AUTH
 from phoenix.datetime_utils import normalize_datetime
 
 
@@ -616,3 +617,63 @@ class ExperimentRunAnnotation(Base):
             "name",
         ),
     )
+
+
+# todo: unnest the following models when auth is released (https://github.com/Arize-ai/phoenix/issues/4183)
+if ENABLE_AUTH:
+
+    class UserRole(Base):
+        __tablename__ = "user_roles"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        role: Mapped[str] = mapped_column(unique=True)
+
+    class User(Base):
+        __tablename__ = "users"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        user_role_id: Mapped[int] = mapped_column(
+            ForeignKey("user_roles.id"),
+            index=True,
+        )
+        username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+        email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+        auth_method: Mapped[str] = mapped_column(
+            CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
+        )
+        password_hash: Mapped[Optional[str]]
+        reset_password: Mapped[bool]
+        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+        updated_at: Mapped[datetime] = mapped_column(
+            UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+        )
+        deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    class APIKey(Base):
+        __tablename__ = "api_keys"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        user_id: Mapped[int] = mapped_column(
+            ForeignKey("users.id"),
+            index=True,
+        )
+        name: Mapped[str]
+        description: Mapped[Optional[str]]
+        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    # todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
+    class AuditAPIKey(Base):
+        __tablename__ = "audit_api_keys"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        api_key_id: Mapped[int] = mapped_column(
+            ForeignKey("api_keys.id"),
+            nullable=False,
+            index=True,
+        )
+        user_id: Mapped[int] = mapped_column(
+            ForeignKey("users.id"),
+            nullable=False,
+            index=True,
+        )
+        action: Mapped[str] = mapped_column(
+            CheckConstraint("action IN ('CREATE', 'DELETE')", name="valid_action")
+        )
+        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
