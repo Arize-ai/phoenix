@@ -621,10 +621,7 @@ class ExperimentRunAnnotation(Base):
 class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
-    role: Mapped[str] = mapped_column(
-        CheckConstraint("role IN ('SYSTEM', 'ADMIN', 'MEMBER')", name="valid_role"),
-        unique=True,
-    )
+    role: Mapped[str] = mapped_column(unique=True)
 
 
 class User(Base):
