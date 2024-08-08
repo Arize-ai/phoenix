@@ -621,7 +621,10 @@ class ExperimentRunAnnotation(Base):
 class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
-    role: Mapped[str] = mapped_column(unique=True)
+    role: Mapped[str] = mapped_column(
+        CheckConstraint("action IN ('SYSTEM', 'ADMIN', 'GENERAL')", name="valid_role"),
+        unique=True,
+    )
 
 
 class User(Base):
@@ -631,7 +634,8 @@ class User(Base):
         ForeignKey("user_roles.id"),
         index=True,
     )
-    email_address: Mapped[str] = mapped_column(unique=True, index=True)
+    username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    email_address: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
     auth_method: Mapped[str] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )
