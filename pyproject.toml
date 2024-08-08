@@ -292,7 +292,7 @@ clean = [
 link = "cd src/phoenix/db/migrations/versions && ln -s ../future_versions/cd164e83824f_users_and_tokens.py cd164e83824f_users_and_tokens.py && echo 'created auth migration symlink'"
 unlink = "rm src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py && echo 'removed auth migration symlink'"
 upgrade = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
-downgrade = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
+down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
 
 [tool.hatch.envs.publish]
 dependencies = [
