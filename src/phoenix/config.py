@@ -2,7 +2,7 @@ import os
 import tempfile
 from logging import getLogger
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .utilities.re import parse_env_headers
 
@@ -60,6 +60,11 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
+# Auth is under active development. Phoenix users are strongly advised not to
+# set these environment variables until the feature is officially released.
+ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+ENV_DANGEROUSLY_SET_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
+
 
 def server_instrumentation_is_enabled() -> bool:
     return bool(
@@ -100,6 +105,57 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
+def get_boolean_env_var(env_var: str) -> Optional[bool]:
+    """
+    Parses a boolean environment variable, returning None if the variable is not set.
+    """
+    if (value := os.environ.get(env_var)) is None:
+        return None
+    assert (lower := value.lower()) in (
+        "true",
+        "false",
+    ), f"{env_var} must be set to TRUE or FALSE (case-insensitive)"
+    return lower == "true"
+
+
+def get_env_enable_auth() -> bool:
+    """
+    Gets the value of the DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH environment variable.
+    """
+    return get_boolean_env_var(ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH) is True
+
+
+def get_env_phoenix_secret() -> Optional[str]:
+    """
+    Gets the value of the DANGEROUSLY_SET_PHOENIX_SECRET environment variable
+    and performs validation.
+    """
+    phoenix_secret = os.environ.get(ENV_DANGEROUSLY_SET_PHOENIX_SECRET)
+    if phoenix_secret is None:
+        return None
+    # todo: add validation for the phoenix secret
+    return phoenix_secret
+
+
+def get_auth_settings() -> Tuple[bool, str]:
+    """
+    Gets auth settings and performs validation.
+    """
+    enable_auth = get_env_enable_auth()
+    phoenix_secret = get_env_phoenix_secret()
+    if enable_auth:
+        assert phoenix_secret, (
+            "DANGEROUSLY_SET_PHOENIX_SECRET must be set "
+            "when auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+        )
+    else:
+        assert not phoenix_secret, (
+            "DANGEROUSLY_SET_PHOENIX_SECRET cannot be set "
+            "unless auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+        )
+    return enable_auth, phoenix_secret
+
+
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
@@ -122,6 +178,8 @@ ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
 INFERENCES_DIR = ROOT_DIR / "inferences"
 TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
+
+ENABLE_AUTH, PHOENIX_SECRET = get_auth_settings()
 
 
 def ensure_working_dir() -> None:
