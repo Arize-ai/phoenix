@@ -635,7 +635,7 @@ class User(Base):
         index=True,
     )
     username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
-    email_address: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
     auth_method: Mapped[str] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )

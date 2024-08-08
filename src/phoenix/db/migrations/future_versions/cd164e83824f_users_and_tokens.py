@@ -127,7 +127,7 @@ class User(Base):
         index=True,
     )
     username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
-    email_address: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
     auth_method: Mapped[str] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )
@@ -163,7 +163,7 @@ async def insert_roles_and_users(connection: AsyncConnection) -> None:
                 {
                     "user_role_id": system_user_role_id,
                     "username": None,
-                    "email_address": None,
+                    "email": "system@localhost",
                     "auth_method": "LOCAL",
                     "password_hash": None,
                     "reset_password": False,
@@ -171,7 +171,7 @@ async def insert_roles_and_users(connection: AsyncConnection) -> None:
                 {
                     "user_role_id": admin_user_role_id,
                     "username": "admin",
-                    "email_address": None,
+                    "email": "admin@localhost",
                     "auth_method": "LOCAL",
                     "password_hash": None,  # todo: replace this with the hashed PHOENIX_SECRET
                     "reset_password": True,
@@ -207,7 +207,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("username", sa.String, nullable=True, unique=True, index=True),
-        sa.Column("email_address", sa.String, nullable=True, unique=True, index=True),
+        sa.Column("email", sa.String, nullable=False, unique=True, index=True),
         sa.Column(
             "auth_method",
             sa.String,
