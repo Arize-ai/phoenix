@@ -658,8 +658,8 @@ class APIKey(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
 
-class APIKeysAction(Base):
-    __tablename__ = "api_keys_actions"
+class AuditAPIKey(Base):
+    __tablename__ = "audit_api_keys"
     id: Mapped[int] = mapped_column(primary_key=True)
     api_key_id: Mapped[int] = mapped_column(
         ForeignKey("api_keys.id"),
