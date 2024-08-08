@@ -31,7 +31,6 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
-from sqlalchemy.sql import true
 
 
 class JSONB(JSON):
@@ -133,7 +132,7 @@ class User(Base):
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )
     password_hash: Mapped[Optional[str]]
-    reset_password: Mapped[bool] = mapped_column(server_default=true())
+    reset_password: Mapped[bool]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -216,7 +215,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("password_hash", sa.String, nullable=True),
-        sa.Column("reset_password", sa.Boolean, nullable=False, server_default=sa.sql.true()),
+        sa.Column("reset_password", sa.Boolean, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

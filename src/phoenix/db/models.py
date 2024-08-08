@@ -32,7 +32,7 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import expression, true
+from sqlalchemy.sql import expression
 
 from phoenix.datetime_utils import normalize_datetime
 
@@ -640,7 +640,7 @@ class User(Base):
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )
     password_hash: Mapped[Optional[str]]
-    reset_password: Mapped[bool] = mapped_column(server_default=true())
+    reset_password: Mapped[bool]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
