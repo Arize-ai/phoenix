@@ -1,5 +1,6 @@
 import inspect
-from urllib.parse import urlparse
+from typing import Optional
+from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
@@ -19,8 +20,7 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
 
 class TracerProvider(_TracerProvider):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, endpoint: Optional[str] = None, **kwargs):
         sig = inspect.signature(TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
@@ -28,18 +28,19 @@ class TracerProvider(_TracerProvider):
             bound_args.arguments["resource"] = Resource.create(
                 {PROJECT_NAME: get_env_project_name()}
             )
+        super().__init__(**bound_args.arguments)
+
         self._default_processors = True
-        endpoint = get_env_collector_endpoint()
+        endpoint = endpoint or get_env_collector_endpoint()
         parsed_url = urlparse(endpoint)
-        if parsed_url.port == 6006:
+        if _maybe_http_endpoint(parsed_url):
             print("Exporting spans via HTTP.")
             self.add_span_processor(SimpleSpanProcessor(HTTPSpanExporter(endpoint=endpoint)))
-        elif parsed_url.port == 4317:
+        elif _maybe_grpc_endpoint(parsed_url):
             print("Exporting spans via GRPC.")
             self.add_span_processor(SimpleSpanProcessor(GRPCSpanExporter(endpoint=endpoint)))
         else:
-            # cannot infer exporter to use
-            print("Could not infer exporter to use")
+            print("Could not infer exporter to use.")
             self._default_processors = False
 
     def add_span_processor(self, *args, **kwargs):
@@ -56,14 +57,14 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         if exporter is None:
             endpoint = get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
-            if parsed_url.port == 6006:
+            if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
                 exporter = HTTPSpanExporter(endpoint=endpoint)
-            elif parsed_url.port == 4317:
+            elif _maybe_grpc_endpoint(parsed_url):
                 print("Exporting spans via GRPC.")
                 exporter = GRPCSpanExporter(endpoint=endpoint)
             else:
-                raise ValueError("Could not infer exporter to use")
+                raise ValueError("Could not infer exporter to use.")
         super().__init__(exporter)
 
 
@@ -72,14 +73,14 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         if exporter is None:
             endpoint = get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
-            if parsed_url.port == 6006:
+            if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
                 exporter = HTTPSpanExporter(endpoint=endpoint)
-            elif parsed_url.port == 4317:
+            elif _maybe_grpc_endpoint(parsed_url):
                 print("Exporting spans via GRPC.")
                 exporter = GRPCSpanExporter(endpoint=endpoint)
             else:
-                raise ValueError("Could not infer exporter to use")
+                raise ValueError("Could not infer exporter to use.")
         super().__init__(exporter)
 
 
@@ -90,7 +91,7 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         bound_args.apply_defaults()
         if bound_args.arguments.get("endpoint") is None:
             bound_args.arguments["endpoint"] = get_env_collector_endpoint()
-        super().__init__(*args, **kwargs)
+        super().__init__(**bound_args.arguments)
 
 
 class GRPCSpanExporter(_GRPCSpanExporter):
@@ -101,3 +102,15 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         if bound_args.arguments.get("endpoint") is None:
             bound_args.arguments["endpoint"] = get_env_collector_endpoint()
         super().__init__(*args, **kwargs)
+
+
+def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
+    if parsed_endpoint.path == "/v1/traces":
+        return True
+    return False
+
+
+def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
+    if not parsed_endpoint.path and parsed_endpoint.port:
+        return True
+    return False
