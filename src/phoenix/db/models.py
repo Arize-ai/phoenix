@@ -659,6 +659,7 @@ if ENABLE_AUTH:
         created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
         expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
+    # todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
     class AuditAPIKey(Base):
         __tablename__ = "audit_api_keys"
         id: Mapped[int] = mapped_column(primary_key=True)
