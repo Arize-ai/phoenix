@@ -168,6 +168,6 @@ Your Phoenix API key can be found on the Keys section of your dashboard.
 
 ## Next Steps
 
-* [Trace](tracing/quckstart-tracing.md) a running application
+* [Trace](tracing/llm-traces-1.md) a running application
 * Run [evaluations](quickstart/evals.md) on traces
 * Test changes to you prompts, models, and application via [experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)

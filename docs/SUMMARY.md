@@ -18,7 +18,7 @@
 ## 🔭 Tracing
 
 * [Overview: Tracing](concepts/llm-traces.md)
-* [Quickstart: Tracing](tracing/quckstart-tracing.md)
+* [Quickstart: Tracing](tracing/llm-traces-1.md)
 * [Integrations: Tracing](tracing/integrations-tracing/README.md)
   * [OpenAI](tracing/integrations-tracing/openai.md)
   * [LlamaIndex](tracing/integrations-tracing/llamaindex.md)

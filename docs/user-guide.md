@@ -18,7 +18,7 @@ During the development phase, Phoenix offers essential tools for debugging, expe
 
 Phoenix's tracing and span analysis capabilities are invaluable during the prototyping and debugging stages. By instrumenting application code with Phoenix, teams gain detailed insights into the execution flow, making it easier to identify and resolve issues. Developers can drill down into specific spans, analyze performance metrics, and access relevant logs and metadata to streamline debugging efforts.
 
-* [quckstart-tracing.md](tracing/quckstart-tracing.md "mention")
+* [llm-traces-1.md](tracing/llm-traces-1.md "mention")
 
 ### Experimentation
 
