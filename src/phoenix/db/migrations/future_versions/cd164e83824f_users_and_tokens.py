@@ -260,7 +260,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "api_keys_logs",
+        "api_keys_actions",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "api_key_id",
@@ -293,7 +293,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("api_keys_logs")
+    op.drop_table("api_keys_actions")
     op.drop_table("api_keys")
     op.drop_table("users")
     op.drop_table("user_roles")

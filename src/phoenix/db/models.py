@@ -661,8 +661,8 @@ class APIKey(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
 
-class APIKeysLog(Base):
-    __tablename__ = "api_keys_logs"
+class APIKeysAction(Base):
+    __tablename__ = "api_keys_actions"
     id: Mapped[int] = mapped_column(primary_key=True)
     api_key_id: Mapped[int] = mapped_column(
         ForeignKey("api_keys.id"),
