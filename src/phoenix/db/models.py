@@ -622,7 +622,7 @@ class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[str] = mapped_column(
-        CheckConstraint("action IN ('SYSTEM', 'ADMIN', 'GENERAL')", name="valid_role"),
+        CheckConstraint("role IN ('SYSTEM', 'ADMIN', 'GENERAL')", name="valid_role"),
         unique=True,
     )
 
