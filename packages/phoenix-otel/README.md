@@ -2,6 +2,8 @@
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
+Our defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_PROJECT_NAME` settings
+
 # Examples
 
 Our wrappers can be used as drop-in replacements for the default OTel primitives:
@@ -17,7 +19,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-However, we supply Phoenix-aware defaults to simplify the OTel configuration process.
+However, we supply Phoenix-aware defaults to greatly simplify the OTel configuration process.
 
 ```
 # export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
