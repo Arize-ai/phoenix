@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.21.0...arize-phoenix-v4.22.0) (2024-08-09)
+
+
+### Features
+
+* **UI:** annotation filter actions on span/trace tables ([#4194](https://github.com/Arize-ai/phoenix/issues/4194)) ([0301696](https://github.com/Arize-ai/phoenix/commit/03016963cc5e45ce817ae69f0eeb3f6a48d8306c))
+
 ## [4.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.20.2...arize-phoenix-v4.21.0) (2024-08-08)
 
 
