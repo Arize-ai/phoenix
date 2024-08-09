@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import httpx
 from phoenix.db import models
-from phoenix.experiments import run_experiment
+from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
@@ -16,6 +16,7 @@ from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
     Example,
+    Experiment,
     ExperimentRun,
     JSONSerializable,
 )
@@ -244,6 +245,29 @@ async def test_run_experiment_with_llm_eval(
             assert len(evaluations) == 2
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
+
+
+@patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
+async def test_run_evaluation(
+    _,
+    db: DbSessionFactory,
+    httpx_clients: httpx.AsyncClient,
+    simple_dataset: Any,
+    acall: Callable[..., Awaitable[Any]],
+) -> None:
+    experiment = Experiment(
+        id=str(GlobalID("Experiment", "0")),
+        dataset_id=str(GlobalID("Dataset", "0")),
+        dataset_version_id=str(GlobalID("DatasetVersion", "0")),
+        repetitions=1,
+        project_name="test",
+    )
+    with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
+        await acall(evaluate_experiment, experiment, evaluators=[lambda _: _])
+        async with db() as session:
+            evaluations = list(await session.scalars(select(models.ExperimentRunAnnotation)))
+        assert len(evaluations) == 1
+        assert evaluations[0].score
 
 
 def test_evaluator_decorator() -> None:

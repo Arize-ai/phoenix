@@ -20,6 +20,8 @@ router = APIRouter(tags=["experiments"], include_in_schema=False)
 
 
 class ExperimentRun(V1RoutesBaseModel):
+    id: str = Field(description="The ID of the experiment run")
+    experiment_id: str = Field(description="The ID of the experiment")
     dataset_example_id: str = Field(
         description="The ID of the dataset example used in the experiment run"
     )

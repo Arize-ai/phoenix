@@ -447,14 +447,14 @@ def evaluate_experiment(
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
-        experiment_runs = tuple(
-            ExperimentRun.from_dict(exp_run)
+        experiment_runs = {
+            exp_run["id"]: ExperimentRun.from_dict(exp_run)
             for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
-        )
+        }
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
         params = ExperimentParameters(n_examples=len(dataset.examples))
-        task_summary = TaskSummary.from_task_runs(params, experiment_runs)
+        task_summary = TaskSummary.from_task_runs(params, experiment_runs.values())
         ran_experiment = object.__new__(RanExperiment)
         ran_experiment.__init__(  # type: ignore[misc]
             dataset=dataset,

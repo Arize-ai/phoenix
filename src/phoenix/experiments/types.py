@@ -126,6 +126,7 @@ class Dataset:
     examples: Mapping[ExampleId, Example] = field(repr=False, default_factory=dict)
 
     def __post_init__(self) -> None:
+        assert isinstance(self.id, DatasetId)
         object.__setattr__(self, "examples", _ReadOnly(self.examples))
 
     def __len__(self) -> int:
@@ -167,7 +168,7 @@ class Dataset:
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
         examples = tuple(map(Example.from_dict, obj.get("examples") or ()))
         return cls(
-            id=obj["id"],
+            id=(obj.get("dataset_id") or obj.get("id")),
             version_id=obj["version_id"],
             examples={ex.id: ex for ex in examples},
         )
@@ -225,7 +226,7 @@ class ExperimentRun:
         )
 
     def __post_init__(self) -> None:
-        if bool(self.output) == bool(self.error):
+        if self.output is None and self.error is None:
             raise ValueError("Must specify exactly one of experiment_run_output or error")
 
 
@@ -284,7 +285,7 @@ class ExperimentEvaluationRun:
         )
 
     def __post_init__(self) -> None:
-        if bool(self.result) == bool(self.error):
+        if self.result is None and self.error is None:
             raise ValueError("Must specify either result or error")
 
 
