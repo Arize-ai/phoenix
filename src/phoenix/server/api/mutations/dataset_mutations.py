@@ -230,7 +230,7 @@ class DatasetMutationMixin:
     ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
         # Extract the span rowids from the input examples if they exist
-        span_ids = span_ids = [example.span_id for example in input.examples if example.span_id]
+        span_ids = [example.span_id for example in input.examples if example.span_id]
         span_rowids = {
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
@@ -260,6 +260,8 @@ class DatasetMutationMixin:
                 )
                 .returning(models.DatasetVersion.id)
             )
+
+            # Fetch spans and span annotations
             spans = (
                 await session.execute(
                     select(models.Span.id)
@@ -267,9 +269,36 @@ class DatasetMutationMixin:
                     .where(models.Span.id.in_(span_rowids))
                 )
             ).all()
-            # Just validate that the number of spans matches the number of span_ids
-            # to ensure that the span_ids are valid
-            assert len(spans) == len(span_rowids)
+
+            span_annotations = (
+                await session.execute(
+                    select(
+                        models.SpanAnnotation.span_rowid,
+                        models.SpanAnnotation.name,
+                        models.SpanAnnotation.label,
+                        models.SpanAnnotation.score,
+                        models.SpanAnnotation.explanation,
+                        models.SpanAnnotation.metadata_,
+                        models.SpanAnnotation.annotator_kind,
+                    )
+                    .select_from(models.SpanAnnotation)
+                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                )
+            ).all()
+
+            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            for annotation in span_annotations:
+                span_id = annotation.span_rowid
+                if span_id not in span_annotations_by_span:
+                    span_annotations_by_span[span_id] = dict()
+                span_annotations_by_span[span_id][annotation.name] = {
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "metadata": annotation.metadata_,
+                    "annotator_kind": annotation.annotator_kind,
+                }
+
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
                 await session.scalars(
@@ -299,7 +328,16 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
                         DatasetExampleRevision.input.key: example.input,
                         DatasetExampleRevision.output.key: example.output,
-                        DatasetExampleRevision.metadata_.key: example.metadata,
+                        DatasetExampleRevision.metadata_.key: {
+                            **(example.metadata or {}),
+                            "annotations": span_annotations_by_span.get(
+                                from_global_id_with_expected_type(
+                                    global_id=example.span_id,
+                                    expected_type_name=Span.__name__,
+                                ),
+                                {}
+                            ),
+                        },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                     for dataset_example_rowid, example in zip(
