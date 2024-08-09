@@ -10,7 +10,6 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
-from .evaluation_summaries import EvaluationSummaryCache, EvaluationSummaryDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_run_counts import ExperimentRunCountsDataLoader
@@ -35,7 +34,6 @@ __all__ = [
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "AnnotationSummaryDataLoader",
-    "EvaluationSummaryDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunCountsDataLoader",
@@ -60,9 +58,6 @@ class CacheForDataLoaders:
     )
     annotation_summary: AnnotationSummaryCache = field(
         default_factory=AnnotationSummaryCache,
-    )
-    evaluation_summary: EvaluationSummaryCache = field(
-        default_factory=EvaluationSummaryCache,
     )
     latency_ms_quantile: LatencyMsQuantileCache = field(
         default_factory=LatencyMsQuantileCache,
