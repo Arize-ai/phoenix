@@ -19,7 +19,7 @@ export const TraceTreeConnext = createContext<TraceTreeContextType | null>(
 export function useTraceTree() {
   const context = useContext(TraceTreeConnext);
   if (context === null) {
-    throw new Error("useTheme must be used within a TraceTreeProvider");
+    throw new Error("useTraceTree must be used within a TraceTreeProvider");
   }
   return context;
 }

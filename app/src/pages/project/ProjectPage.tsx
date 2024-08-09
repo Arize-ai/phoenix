@@ -21,6 +21,7 @@ import {
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageSpansQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
+import { SpanFilterConditionProvider } from "./SpanFilterConditionContext";
 import { SpansTable } from "./SpansTable";
 import { StreamToggle } from "./StreamToggle";
 import { TracesTable } from "./TracesTable";
@@ -137,9 +138,11 @@ export function ProjectPageContent({
           {({ isSelected }) => {
             return (
               isSelected && (
-                <Suspense>
-                  <TracesTable project={data.project} />
-                </Suspense>
+                <SpanFilterConditionProvider>
+                  <Suspense>
+                    <TracesTable project={data.project} />
+                  </Suspense>
+                </SpanFilterConditionProvider>
               )
             );
           }}
@@ -149,9 +152,11 @@ export function ProjectPageContent({
             return (
               isSelected &&
               spansQueryReference && (
-                <Suspense fallback={<Loading />}>
-                  <SpansTabContent queryReference={spansQueryReference} />
-                </Suspense>
+                <SpanFilterConditionProvider>
+                  <Suspense fallback={<Loading />}>
+                    <SpansTabContent queryReference={spansQueryReference} />
+                  </Suspense>
+                </SpanFilterConditionProvider>
               )
             );
           }}
