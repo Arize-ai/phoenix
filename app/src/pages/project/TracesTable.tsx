@@ -295,6 +295,7 @@ export function TracesTable(props: TracesTableProps) {
                   key={annotation.name}
                   annotation={annotation}
                   layout="horizontal"
+                  width="500px"
                   extra={
                     <AnnotationTooltipFilterActions annotation={annotation} />
                   }

@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import { Text, View } from "@arizeai/components";
 
 type AnnotationTooltipFilterActionsProps = {
   annotation: {
@@ -12,7 +12,7 @@ type AnnotationTooltipFilterActionsProps = {
 };
 
 export function AnnotationTooltipFilterActions(
-  props: AnnotationTooltipFilterActionsProps
+  _props: AnnotationTooltipFilterActionsProps
 ) {
   return (
     <View
@@ -21,36 +21,36 @@ export function AnnotationTooltipFilterActions(
       paddingStart="size-200"
       paddingEnd="size-100"
       marginStart="size-200"
-      width={150}
+      width={300}
     >
-      <Flex direction="row" gap="size-50">
-        <Icon svg={<Icons.SearchOutline />} />
-        <Text textSize="large" weight="heavy">
-          filters
-        </Text>
-      </Flex>
+      <Text textSize="large" weight="heavy">
+        Filters
+      </Text>
+
       <ul
         css={css`
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           gap: var(--ac-global-dimension-size-100);
           color: var(--ac-global-color-primary);
+          padding: var(--ac-global-dimension-size-100) 0;
+          flex-wrap: wrap;
         `}
       >
         <li>
-          <FilterItem onClick={() => {}}>Include label</FilterItem>
+          <FilterItem onClick={() => {}}>Match label</FilterItem>
         </li>
         <li>
           <FilterItem onClick={() => {}}>Exclude label</FilterItem>
         </li>
         <li>
-          <FilterItem onClick={() => {}}>Greater than</FilterItem>
+          <FilterItem onClick={() => {}}>Greater than score</FilterItem>
         </li>
         <li>
-          <FilterItem onClick={() => {}}>Less than</FilterItem>
+          <FilterItem onClick={() => {}}>Less than score</FilterItem>
         </li>
         <li>
-          <FilterItem onClick={() => {}}>Equals</FilterItem>
+          <FilterItem onClick={() => {}}>Equals score</FilterItem>
         </li>
       </ul>
     </View>
@@ -59,17 +59,23 @@ export function AnnotationTooltipFilterActions(
 
 function FilterItem(props: PropsWithChildren<{ onClick: () => void }>) {
   return (
-    <a
+    <button
       onClick={props.onClick}
+      className="button--reset"
       css={css`
-        padding: var(--ac-global-dimension-size-50);
-        border-radius: var(--ac-global-dimension-size-50);
-        :hover {
-          background-color: var(--ac-global-color-gray-200);
+        color: var(--ac-global-text-color-900);
+        border: 1px solid var(--ac-global-color-gray-200);
+        border-radius: 4px;
+        padding: var(--ac-global-dimension-size-50)
+          var(--ac-global-dimension-size-100);
+        cursor: pointer;
+        transition: background-color 0.2s;
+        &:hover {
+          background-color: var(--ac-global-color-gray-300);
         }
       `}
     >
       {props.children}
-    </a>
+    </button>
   );
 }

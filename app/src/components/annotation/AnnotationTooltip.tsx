@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { CSSProperties, ReactNode } from "react";
 
 import {
   Flex,
@@ -21,16 +21,18 @@ export function AnnotationTooltip({
   children,
   extra,
   layout = "vertical",
+  width,
 }: {
   annotation: Annotation;
   children: ReactNode;
   layout?: "horizontal" | "vertical";
   extra?: ReactNode;
+  width?: CSSProperties["width"];
 }) {
   return (
     <TooltipTrigger delay={200} offset={3}>
       <TriggerWrap>{children}</TriggerWrap>
-      <HelpTooltip>
+      <HelpTooltip UNSAFE_style={{ minWidth: width }}>
         <Flex
           direction={layout === "horizontal" ? "row" : "column"}
           alignItems="center"
@@ -46,27 +48,23 @@ export function AnnotationTooltip({
             </Text>
             <View paddingTop="size-50" minWidth="150px">
               <Flex direction="row" justifyContent="space-between">
-                <Text textSize="small" weight="heavy" color="inherit">
+                <Text weight="heavy" color="inherit">
                   label
                 </Text>
                 <Text color="inherit">{annotation.label || "--"}</Text>
               </Flex>
               <Flex direction="row" justifyContent="space-between">
-                <Text textSize="small" weight="heavy" color="inherit">
+                <Text weight="heavy" color="inherit">
                   score
                 </Text>
-                <Text textSize="small" color="inherit">
-                  {floatFormatter(annotation.score)}
-                </Text>
+                <Text color="inherit">{floatFormatter(annotation.score)}</Text>
               </Flex>
               {annotation.annotatorKind ? (
                 <Flex direction="row" justifyContent="space-between">
-                  <Text textSize="small" weight="heavy" color="inherit">
+                  <Text weight="heavy" color="inherit">
                     annotator kind
                   </Text>
-                  <Text textSize="small" color="inherit">
-                    {annotation.annotatorKind}
-                  </Text>
+                  <Text color="inherit">{annotation.annotatorKind}</Text>
                 </Flex>
               ) : null}
             </View>
