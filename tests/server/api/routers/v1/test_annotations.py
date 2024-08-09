@@ -308,7 +308,7 @@ class TestSendingAnnotationsBeforeSpans:
     ) -> Callable[[bool, float], Awaitable[None]]:
         async def _(exist: bool, score_offset: float = 0) -> None:
             expected = mean_score + score_offset
-            for summaries, names in ((anno_summaries, anno_names), (_, eval_names)):
+            for summaries, names in ((anno_summaries, anno_names), ([], eval_names)):
                 for summary in summaries:
                     mean_scores = await self._mean_scores(
                         httpx_client, summary, project_names, *names
