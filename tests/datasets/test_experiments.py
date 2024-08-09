@@ -253,7 +253,7 @@ async def test_run_evaluation(
     _,
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
-    simple_dataset_with_experiment_run: Any,
+    simple_dataset_with_one_experiment_run: Any,
     acall: Callable[..., Awaitable[Any]],
 ) -> None:
     experiment = Experiment(
