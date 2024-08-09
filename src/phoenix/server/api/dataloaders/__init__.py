@@ -22,7 +22,6 @@ from .record_counts import RecordCountCache, RecordCountDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
-from .span_evaluations import SpanEvaluationsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_evaluations import TraceEvaluationsDataLoader
@@ -47,7 +46,6 @@ __all__ = [
     "RecordCountDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
-    "SpanEvaluationsDataLoader",
     "SpanProjectsDataLoader",
     "TokenCountDataLoader",
     "TraceEvaluationsDataLoader",

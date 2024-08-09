@@ -990,11 +990,6 @@ type Project implements Node {
   traceAnnotationsNames: [String!]!
 
   """
-  Names of all available evaluations for spans. (The list contains no duplicates.)
-  """
-  spanEvaluationNames: [String!]!
-
-  """
   Names of all available annotations for spans. (The list contains no duplicates.)
   """
   spanAnnotationNames: [String!]!
@@ -1002,7 +997,6 @@ type Project implements Node {
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
-  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
   traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
@@ -1154,11 +1148,6 @@ type Span implements Node {
   propagatedStatusCode: SpanStatusCode!
 
   """
-  Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may assess the helpfulness of its response with respect to its input.
-  """
-  spanEvaluations: [SpanEvaluation!]!
-
-  """
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
   spanAnnotations(sort: SpanAnnotationSort): [SpanAnnotation!]!
@@ -1265,24 +1254,6 @@ type SpanEdge {
 
   """The item at the end of the edge"""
   node: Span!
-}
-
-type SpanEvaluation implements Annotation {
-  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
-  name: String!
-
-  """Value of the annotation in the form of a numeric score."""
-  score: Float
-
-  """
-  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
-  label: String
-
-  """
-  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
-  """
-  explanation: String
 }
 
 type SpanEvent {

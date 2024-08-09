@@ -283,24 +283,6 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field(
-        description="Names of all available evaluations for spans. "
-        "(The list contains no duplicates.)"
-    )  # type: ignore
-    async def span_evaluation_names(
-        self,
-        info: Info[Context, None],
-    ) -> List[str]:
-        stmt = (
-            select(distinct(models.SpanAnnotation.name))
-            .join(models.Span)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.SpanAnnotation.annotator_kind == "LLM")
-        )
-        async with info.context.db() as session:
-            return list(await session.scalars(stmt))
-
-    @strawberry.field(
         description="Names of all available annotations for spans. "
         "(The list contains no duplicates.)"
     )  # type: ignore
@@ -346,18 +328,6 @@ class Project(Node):
     ) -> Optional[EvaluationSummary]:
         return await info.context.data_loaders.evaluation_summaries.load(
             ("trace", self.id_attr, time_range, None, evaluation_name),
-        )
-
-    @strawberry.field
-    async def span_evaluation_summary(
-        self,
-        info: Info[Context, None],
-        evaluation_name: str,
-        time_range: Optional[TimeRange] = UNSET,
-        filter_condition: Optional[str] = UNSET,
-    ) -> Optional[EvaluationSummary]:
-        return await info.context.data_loaders.evaluation_summaries.load(
-            ("span", self.id_attr, time_range, filter_condition, evaluation_name),
         )
 
     @strawberry.field

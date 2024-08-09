@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<96098d0f874bb55df24c3a83a4d0a53b>>
+ * @generated SignedSource<<fc6484b0ac55d58aecbf8501bb3721ba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type TraceDetailsQuery$variables = {
@@ -29,7 +30,8 @@ export type TraceDetailsQuery$data = {
             readonly latencyMs: number | null;
             readonly name: string;
             readonly parentId: string | null;
-            readonly spanEvaluations: ReadonlyArray<{
+            readonly spanAnnotations: ReadonlyArray<{
+              readonly annotatorKind: AnnotatorKind;
               readonly label: string | null;
               readonly name: string;
               readonly score: number | null;
@@ -216,9 +218,9 @@ v5 = {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "SpanEvaluation",
+                      "concreteType": "SpanAnnotation",
                       "kind": "LinkedField",
-                      "name": "spanEvaluations",
+                      "name": "spanAnnotations",
                       "plural": true,
                       "selections": [
                         (v4/*: any*/),
@@ -234,6 +236,13 @@ v5 = {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotatorKind",
                           "storageKey": null
                         }
                       ],
@@ -317,16 +326,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "872e8d6e17fb1b6cf51bae98d6767208",
+    "cacheID": "22103e9bb1f983529081ca93d60e76ef",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanEvaluations {\n                name\n                label\n                score\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotations {\n                name\n                label\n                score\n                annotatorKind\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "73a6eacf0bb44e37ed4963cb27883c51";
+(node as any).hash = "8b568616f23f7d349cac5a31807463fb";
 
 export default node;

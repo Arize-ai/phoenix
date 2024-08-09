@@ -26,7 +26,6 @@ from phoenix.server.api.dataloaders import (
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
-    SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
@@ -56,7 +55,6 @@ class DataLoaders:
     span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
-    span_evaluations: SpanEvaluationsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_evaluations: TraceEvaluationsDataLoader

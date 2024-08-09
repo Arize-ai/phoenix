@@ -77,7 +77,6 @@ from phoenix.server.api.dataloaders import (
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
-    SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
@@ -332,7 +331,6 @@ def create_graphql_router(
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
-                span_evaluations=SpanEvaluationsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
                 token_counts=TokenCountDataLoader(
                     db,
