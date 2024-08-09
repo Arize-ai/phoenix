@@ -1,6 +1,5 @@
 import React, {
   startTransition,
-  useCallback,
   useDeferredValue,
   useEffect,
   useState,
@@ -37,6 +36,7 @@ import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
 import { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
+import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
 const codeMirrorCSS = css`
   flex: 1 1 auto;
@@ -264,20 +264,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [filterCondition, setFilterCondition] = useState<string>("");
+  const { filterCondition, setFilterCondition, appendFilterCondition } =
+    useSpanFilterCondition();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "dark" ? nord : undefined;
-  const onAddFilterConditionSnippet = useCallback(
-    (additionalCondition: string) => {
-      if (filterCondition.length > 0) {
-        setFilterCondition(`${filterCondition} and ${additionalCondition}`);
-      } else {
-        setFilterCondition(additionalCondition);
-      }
-    },
-    [filterCondition, setFilterCondition]
-  );
+
   const { projectId } = useParams();
 
   useEffect(() => {
@@ -357,7 +349,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             </button>
           </TriggerWrap>
           <FilterConditionBuilder
-            onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+            onAddFilterConditionSnippet={appendFilterCondition}
           />
         </PopoverTrigger>
       </Flex>

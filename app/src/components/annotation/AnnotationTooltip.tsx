@@ -30,7 +30,7 @@ export function AnnotationTooltip({
   width?: CSSProperties["width"];
 }) {
   return (
-    <TooltipTrigger delay={200} offset={3}>
+    <TooltipTrigger delay={500} offset={3}>
       <TriggerWrap>{children}</TriggerWrap>
       <HelpTooltip UNSAFE_style={{ minWidth: width }}>
         <Flex

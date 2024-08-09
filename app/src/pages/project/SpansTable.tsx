@@ -49,6 +49,7 @@ import {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -218,6 +219,11 @@ export function SpansTable(props: SpansTableProps) {
                 <AnnotationTooltip
                   key={annotation.name}
                   annotation={annotation}
+                  layout="horizontal"
+                  width="500px"
+                  extra={
+                    <AnnotationTooltipFilterActions annotation={annotation} />
+                  }
                 >
                   <AnnotationLabel
                     annotation={annotation}

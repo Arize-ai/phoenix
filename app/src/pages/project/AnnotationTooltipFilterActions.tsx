@@ -1,7 +1,9 @@
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, useMemo } from "react";
 import { css } from "@emotion/react";
 
 import { Text, View } from "@arizeai/components";
+
+import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
 type AnnotationTooltipFilterActionsProps = {
   annotation: {
@@ -11,9 +13,52 @@ type AnnotationTooltipFilterActionsProps = {
   };
 };
 
+type FilterDefinition = {
+  /**
+   * The human-readable name of the filter.
+   */
+  filterName: string;
+  /**
+   * The condition that the filter represents using DSL
+   */
+  filterCondition: string;
+};
+
 export function AnnotationTooltipFilterActions(
-  _props: AnnotationTooltipFilterActionsProps
+  props: AnnotationTooltipFilterActionsProps
 ) {
+  const { appendFilterCondition } = useSpanFilterCondition();
+  const { annotation } = props;
+  const { name, label, score } = annotation;
+
+  const filters = useMemo(() => {
+    const filters: FilterDefinition[] = [];
+    if (label != null) {
+      filters.push({
+        filterName: "Match label",
+        filterCondition: `annotations['${name}'].label == "${label}"`,
+      });
+      filters.push({
+        filterName: "Exclude label",
+        filterCondition: `annotations['${name}'].label != "${label}"`,
+      });
+    }
+    if (typeof score === "number") {
+      filters.push({
+        filterName: "Greater than score",
+        filterCondition: `annotations['${name}'].score > ${score}`,
+      });
+      filters.push({
+        filterName: "Less than score",
+        filterCondition: `annotations['${name}'].score < ${score}`,
+      });
+      filters.push({
+        filterName: "Equals score",
+        filterCondition: `annotations['${name}'].score == ${score}`,
+      });
+    }
+    return filters;
+  }, [name, label, score]);
   return (
     <View
       borderStartWidth="thin"
@@ -37,30 +82,33 @@ export function AnnotationTooltipFilterActions(
           flex-wrap: wrap;
         `}
       >
-        <li>
-          <FilterItem onClick={() => {}}>Match label</FilterItem>
-        </li>
-        <li>
-          <FilterItem onClick={() => {}}>Exclude label</FilterItem>
-        </li>
-        <li>
-          <FilterItem onClick={() => {}}>Greater than score</FilterItem>
-        </li>
-        <li>
-          <FilterItem onClick={() => {}}>Less than score</FilterItem>
-        </li>
-        <li>
-          <FilterItem onClick={() => {}}>Equals score</FilterItem>
-        </li>
+        {filters.map((filter) => (
+          <li key={filter.filterName}>
+            <FilterItem
+              onClick={() => {
+                appendFilterCondition(filter.filterCondition);
+              }}
+            >
+              {filter.filterName}
+            </FilterItem>
+          </li>
+        ))}
       </ul>
     </View>
   );
 }
 
-function FilterItem(props: PropsWithChildren<{ onClick: () => void }>) {
+function FilterItem({
+  onClick,
+  children,
+}: PropsWithChildren<{ onClick: () => void }>) {
   return (
     <button
-      onClick={props.onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       className="button--reset"
       css={css`
         color: var(--ac-global-text-color-900);
@@ -75,7 +123,7 @@ function FilterItem(props: PropsWithChildren<{ onClick: () => void }>) {
         }
       `}
     >
-      {props.children}
+      {children}
     </button>
   );
 }
