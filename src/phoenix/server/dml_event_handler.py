@@ -142,7 +142,6 @@ class _SpanDeleteEventHandler(_SpanDmlEventHandler):
     @staticmethod
     def _clear(cache: CacheForDataLoaders, project_id: int) -> None:
         cache.annotation_summary.invalidate_project(project_id)
-        cache.evaluation_summary.invalidate_project(project_id)
         cache.document_evaluation_summary.invalidate_project(project_id)
 
 
@@ -201,7 +200,6 @@ class _SpanAnnotationDmlEventHandler(_AnnotationDmlEventHandler[SpanAnnotationDm
     @staticmethod
     def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
         cache.annotation_summary.invalidate((project_id, name, "span"))
-        cache.evaluation_summary.invalidate((project_id, name, "span"))
 
 
 class _TraceAnnotationDmlEventHandler(_AnnotationDmlEventHandler[TraceAnnotationDmlEvent]):
@@ -214,7 +212,6 @@ class _TraceAnnotationDmlEventHandler(_AnnotationDmlEventHandler[TraceAnnotation
     @staticmethod
     def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
         cache.annotation_summary.invalidate((project_id, name, "trace"))
-        cache.evaluation_summary.invalidate((project_id, name, "trace"))
 
 
 class _DocumentAnnotationDmlEventHandler(_AnnotationDmlEventHandler[DocumentAnnotationDmlEvent]):

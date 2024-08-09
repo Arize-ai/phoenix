@@ -28,7 +28,7 @@ from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
 
 from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from .Evaluation import DocumentEvaluation, SpanEvaluation
+from .Evaluation import DocumentEvaluation
 from .ExampleRevisionInterface import ExampleRevision
 from .MimeType import MimeType
 from .SpanAnnotation import SpanAnnotation
@@ -169,14 +169,6 @@ class Span(Node):
         description="Propagated status code that percolates up error status "
         "codes from descendant spans (children, grandchildren, etc.)",
     )
-
-    @strawberry.field(
-        description="Evaluations associated with the span, e.g. if the span is "
-        "an LLM, an evaluation may assess the helpfulness of its response with "
-        "respect to its input."
-    )  # type: ignore
-    async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
-        return await info.context.data_loaders.span_evaluations.load(self.id_attr)
 
     @strawberry.field(
         description=(

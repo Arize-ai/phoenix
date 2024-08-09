@@ -1,7 +1,7 @@
 import strawberry
 
 import phoenix.trace.v1 as pb
-from phoenix.db.models import DocumentAnnotation, SpanAnnotation, TraceAnnotation
+from phoenix.db.models import DocumentAnnotation, TraceAnnotation
 
 from .Annotation import Annotation
 
@@ -24,31 +24,6 @@ class TraceEvaluation(Annotation):
     @staticmethod
     def from_sql_trace_annotation(annotation: TraceAnnotation) -> "TraceEvaluation":
         return TraceEvaluation(
-            name=annotation.name,
-            score=annotation.score,
-            label=annotation.label,
-            explanation=annotation.explanation,
-        )
-
-
-@strawberry.type
-class SpanEvaluation(Annotation):
-    @staticmethod
-    def from_pb_evaluation(evaluation: pb.Evaluation) -> "SpanEvaluation":
-        result = evaluation.result
-        score = result.score.value if result.HasField("score") else None
-        label = result.label.value if result.HasField("label") else None
-        explanation = result.explanation.value if result.HasField("explanation") else None
-        return SpanEvaluation(
-            name=evaluation.name,
-            score=score,
-            label=label,
-            explanation=explanation,
-        )
-
-    @staticmethod
-    def from_sql_span_annotation(annotation: SpanAnnotation) -> "SpanEvaluation":
-        return SpanEvaluation(
             name=annotation.name,
             score=annotation.score,
             label=annotation.label,

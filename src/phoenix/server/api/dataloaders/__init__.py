@@ -10,7 +10,6 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
-from .evaluation_summaries import EvaluationSummaryCache, EvaluationSummaryDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_run_counts import ExperimentRunCountsDataLoader
@@ -22,10 +21,8 @@ from .record_counts import RecordCountCache, RecordCountDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
-from .span_evaluations import SpanEvaluationsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
-from .trace_evaluations import TraceEvaluationsDataLoader
 from .trace_row_ids import TraceRowIdsDataLoader
 
 __all__ = [
@@ -37,7 +34,6 @@ __all__ = [
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "AnnotationSummaryDataLoader",
-    "EvaluationSummaryDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentRunCountsDataLoader",
@@ -47,10 +43,8 @@ __all__ = [
     "RecordCountDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
-    "SpanEvaluationsDataLoader",
     "SpanProjectsDataLoader",
     "TokenCountDataLoader",
-    "TraceEvaluationsDataLoader",
     "TraceRowIdsDataLoader",
     "ProjectByNameDataLoader",
     "SpanAnnotationsDataLoader",
@@ -64,9 +58,6 @@ class CacheForDataLoaders:
     )
     annotation_summary: AnnotationSummaryCache = field(
         default_factory=AnnotationSummaryCache,
-    )
-    evaluation_summary: EvaluationSummaryCache = field(
-        default_factory=EvaluationSummaryCache,
     )
     latency_ms_quantile: LatencyMsQuantileCache = field(
         default_factory=LatencyMsQuantileCache,

@@ -308,20 +308,18 @@ class TestSendingAnnotationsBeforeSpans:
     ) -> Callable[[bool, float], Awaitable[None]]:
         async def _(exist: bool, score_offset: float = 0) -> None:
             expected = mean_score + score_offset
-            for summaries, names in ((anno_summaries, anno_names), (eval_summaries, eval_names)):
-                for summary in summaries:
-                    mean_scores = await self._mean_scores(
-                        httpx_client, summary, project_names, *names
-                    )
-                    for name in names:
-                        if not exist:
-                            assert not mean_scores.get(name)
-                            continue
-                        assert (projects := mean_scores.get(name))
-                        assert len(projects) == len(project_names)
-                        for project_name in project_names:
-                            actual = projects[project_name]
-                            assert actual == expected
+            summaries, names = anno_summaries, anno_names + eval_names
+            for summary in summaries:
+                mean_scores = await self._mean_scores(httpx_client, summary, project_names, *names)
+                for name in names:
+                    if not exist:
+                        assert not mean_scores.get(name)
+                        continue
+                    assert (projects := mean_scores.get(name))
+                    assert len(projects) == len(project_names)
+                    for project_name in project_names:
+                        actual = projects[project_name]
+                        assert actual == expected
 
         return _
 
@@ -431,12 +429,6 @@ _Evals: TypeAlias = Union[SpanEvaluations, TraceEvaluations, DocumentEvaluations
 _Summary: TypeAlias = Literal[
     "spanAnnotationSummary(annotation",
     "traceAnnotationSummary(annotation",
-    "spanEvaluationSummary(evaluation",
-    "traceEvaluationSummary(evaluation",
-]
-eval_summaries: List[_Summary] = [
-    "spanEvaluationSummary(evaluation",
-    "traceEvaluationSummary(evaluation",
 ]
 anno_summaries: List[_Summary] = [
     "spanAnnotationSummary(annotation",

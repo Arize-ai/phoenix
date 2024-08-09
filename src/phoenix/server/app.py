@@ -65,7 +65,6 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
-    EvaluationSummaryDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentRunCountsDataLoader,
@@ -77,10 +76,8 @@ from phoenix.server.api.dataloaders import (
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
-    SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
-    TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
@@ -303,12 +300,6 @@ def create_graphql_router(
                     if cache_for_dataloaders
                     else None,
                 ),
-                evaluation_summaries=EvaluationSummaryDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.evaluation_summary
-                    if cache_for_dataloaders
-                    else None,
-                ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
@@ -332,13 +323,11 @@ def create_graphql_router(
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
-                span_evaluations=SpanEvaluationsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
                 token_counts=TokenCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
-                trace_evaluations=TraceEvaluationsDataLoader(db),
                 trace_row_ids=TraceRowIdsDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
             ),
