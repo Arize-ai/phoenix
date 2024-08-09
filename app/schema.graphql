@@ -574,15 +574,6 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
-type EvaluationSummary {
-  count: Int!
-  labels: [String!]!
-  labelFractions: [LabelFraction!]!
-  meanScore: Float
-  scoreCount: Int!
-  labelCount: Int!
-}
-
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -980,11 +971,6 @@ type Project implements Node {
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
-  Names of all available evaluations for traces. (The list contains no duplicates.)
-  """
-  traceEvaluationNames: [String!]!
-
-  """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
   traceAnnotationsNames: [String!]!
@@ -996,7 +982,6 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
   traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary

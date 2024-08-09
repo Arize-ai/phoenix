@@ -28,7 +28,6 @@ from phoenix.server.api.dataloaders import (
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
-    TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
 from phoenix.server.dml_event import DmlEvent
@@ -57,7 +56,6 @@ class DataLoaders:
     span_descendants: SpanDescendantsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
-    trace_evaluations: TraceEvaluationsDataLoader
     trace_row_ids: TraceRowIdsDataLoader
     project_by_name: ProjectByNameDataLoader
 

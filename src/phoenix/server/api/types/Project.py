@@ -24,7 +24,6 @@ from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
@@ -250,23 +249,6 @@ class Project(Node):
         )
 
     @strawberry.field(
-        description="Names of all available evaluations for traces. "
-        "(The list contains no duplicates.)"
-    )  # type: ignore
-    async def trace_evaluation_names(
-        self,
-        info: Info[Context, None],
-    ) -> List[str]:
-        stmt = (
-            select(distinct(models.TraceAnnotation.name))
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.TraceAnnotation.annotator_kind == "LLM")
-        )
-        async with info.context.db() as session:
-            return list(await session.scalars(stmt))
-
-    @strawberry.field(
         description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
     )  # type: ignore
@@ -320,17 +302,6 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field
-    async def trace_evaluation_summary(
-        self,
-        info: Info[Context, None],
-        evaluation_name: str,
-        time_range: Optional[TimeRange] = UNSET,
-    ) -> Optional[EvaluationSummary]:
-        return await info.context.data_loaders.evaluation_summaries.load(
-            ("trace", self.id_attr, time_range, None, evaluation_name),
-        )
-
-    @strawberry.field
     async def trace_annotation_summary(
         self,
         info: Info[Context, None],
@@ -375,7 +346,7 @@ class Project(Node):
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
         # This query is too expensive to run on every validation
-        # valid_eval_names = await self.span_evaluation_names()
+        # valid_eval_names = await self.span_annotation_names()
         try:
             SpanFilter(
                 condition=condition,

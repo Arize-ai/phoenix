@@ -283,7 +283,7 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "spanAnnotations",
       enableSorting: false,
       cell: ({ row }) => {
-        const hasNoEvaluations =
+        const hasNoFeedback =
           row.original.spanAnnotations.length === 0 &&
           row.original.documentRetrievalMetrics.length === 0;
         return (
@@ -325,7 +325,7 @@ export function TracesTable(props: TracesTableProps) {
                 </Fragment>
               );
             })}
-            {hasNoEvaluations ? "--" : null}
+            {hasNoFeedback ? "--" : null}
           </Flex>
         );
       },

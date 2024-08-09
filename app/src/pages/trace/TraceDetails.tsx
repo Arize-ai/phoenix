@@ -180,7 +180,7 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
     statusCode: "UNSET",
     spanAnnotations: [],
   };
-  const hasEvaluations = spanAnnotations.length > 0;
+  const hasAnnotations = spanAnnotations.length > 0;
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
@@ -210,7 +210,7 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
             )}
           </Text>
         </Flex>
-        {hasEvaluations ? (
+        {hasAnnotations ? (
           <Flex direction="column" gap="size-50">
             <Text elementType="h3" textSize="medium" color="text-700">
               Feedback
