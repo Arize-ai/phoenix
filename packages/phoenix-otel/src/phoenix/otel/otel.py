@@ -55,9 +55,9 @@ class TracerProvider(_TracerProvider):
 
 
 class SimpleSpanProcessor(_SimpleSpanProcessor):
-    def __init__(self, exporter=None):
+    def __init__(self, endpoint: Optional[str] = None, exporter=None):
         if exporter is None:
-            endpoint = get_env_collector_endpoint()
+            endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
             if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
@@ -71,9 +71,9 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
 
 
 class BatchSpanProcessor(_BatchSpanProcessor):
-    def __init__(self, exporter=None):
+    def __init__(self, endpoint: Optional[str] = None, exporter=None):
         if exporter is None:
-            endpoint = get_env_collector_endpoint()
+            endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
             if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
