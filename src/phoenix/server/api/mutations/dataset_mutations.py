@@ -320,9 +320,17 @@ class DatasetMutationMixin:
             assert len(dataset_example_rowids) == len(input.examples)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
-            await session.execute(
-                insert(DatasetExampleRevision),
-                [
+
+            dataset_example_revisions = []
+            for dataset_example_rowid, example in zip(dataset_example_rowids, input.examples):
+                span_annotation = {}
+                if example.span_id:
+                    span_id = from_global_id_with_expected_type(
+                        global_id=example.span_id,
+                        expected_type_name=Span.__name__,
+                    )
+                    span_annotation = span_annotations_by_span.get(span_id, {})
+                dataset_example_revisions.append(
                     {
                         DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
@@ -330,20 +338,14 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.output.key: example.output,
                         DatasetExampleRevision.metadata_.key: {
                             **(example.metadata or {}),
-                            "annotations": span_annotations_by_span.get(
-                                from_global_id_with_expected_type(
-                                    global_id=example.span_id,
-                                    expected_type_name=Span.__name__,
-                                ),
-                                {}
-                            ),
+                            "annotations": span_annotation,
                         },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
-                    for dataset_example_rowid, example in zip(
-                        dataset_example_rowids, input.examples
-                    )
-                ],
+                )
+            await session.execute(
+                insert(DatasetExampleRevision),
+                dataset_example_revisions,
             )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
