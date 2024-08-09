@@ -126,7 +126,6 @@ class Dataset:
     examples: Mapping[ExampleId, Example] = field(repr=False, default_factory=dict)
 
     def __post_init__(self) -> None:
-        assert isinstance(self.id, DatasetId)
         object.__setattr__(self, "examples", _ReadOnly(self.examples))
 
     def __len__(self) -> int:
@@ -167,8 +166,10 @@ class Dataset:
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
         examples = tuple(map(Example.from_dict, obj.get("examples") or ()))
+        id_ = obj.get("dataset_id") or obj.get("id")
+        assert isinstance(id_, DatasetId)
         return cls(
-            id=(obj.get("dataset_id") or obj.get("id")),
+            id=id_,
             version_id=obj["version_id"],
             examples={ex.id: ex for ex in examples},
         )
