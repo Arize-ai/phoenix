@@ -21,7 +21,7 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
 class TracerProvider(_TracerProvider):
     def __init__(self, *args, endpoint: Optional[str] = None, **kwargs):
-        sig = inspect.signature(TracerProvider)
+        sig = inspect.signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
         if bound_args.arguments.get("resource") is None:
@@ -30,25 +30,27 @@ class TracerProvider(_TracerProvider):
             )
         super().__init__(**bound_args.arguments)
 
-        self._default_processors = True
         endpoint = endpoint or get_env_collector_endpoint()
         parsed_url = urlparse(endpoint)
+        self._default_processor = False
+
         if _maybe_http_endpoint(parsed_url):
             print("Exporting spans via HTTP.")
             self.add_span_processor(SimpleSpanProcessor(HTTPSpanExporter(endpoint=endpoint)))
+            self._default_processor = True
         elif _maybe_grpc_endpoint(parsed_url):
             print("Exporting spans via GRPC.")
             self.add_span_processor(SimpleSpanProcessor(GRPCSpanExporter(endpoint=endpoint)))
+            self._default_processor = True
         else:
             print("Could not infer exporter to use.")
-            self._default_processors = False
 
     def add_span_processor(self, *args, **kwargs):
-        if self._default_processors:
+        if self._default_processor:
             print("Overriding default span processor.")
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
-            self._default_processors = False
+            self._default_processor = False
         return super().add_span_processor(*args, **kwargs)
 
 
