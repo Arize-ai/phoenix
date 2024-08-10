@@ -1,5 +1,5 @@
 import inspect
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -14,6 +14,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider as _TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SpanExporter
 
 from .settings import get_env_collector_endpoint, get_env_project_name
 
@@ -22,16 +23,17 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
 def register(
         endpoint: Optional[str] = None, project_name: Optional[str] = None, batch: bool = False
-    ):
+    ) -> _TracerProvider:
     project_name = project_name or get_env_project_name()
     resource = Resource.create({PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource, endpoint=endpoint)
+    tracer_provider = _TracerProvider(resource=resource)
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint)
     else:
         span_processor = SimpleSpanProcessor(endpoint=endpoint)
     tracer_provider.add_span_processor(span_processor)
     trace_api.set_tracer_provider(tracer_provider)
+    return tracer_provider
 
 
 class TracerProvider(_TracerProvider):
@@ -60,7 +62,7 @@ class TracerProvider(_TracerProvider):
         else:
             print("Could not infer exporter to use.")
 
-    def add_span_processor(self, *args, **kwargs):
+    def add_span_processor(self, *args: Any, **kwargs: Any):
         if self._default_processor:
             print("Overriding default span processor.")
             self._active_span_processor.shutdown()
@@ -70,7 +72,7 @@ class TracerProvider(_TracerProvider):
 
 
 class SimpleSpanProcessor(_SimpleSpanProcessor):
-    def __init__(self, endpoint: Optional[str] = None, exporter=None):
+    def __init__(self, endpoint: Optional[str] = None, exporter: Optional[SpanExporter] = None):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
@@ -86,7 +88,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
 
 
 class BatchSpanProcessor(_BatchSpanProcessor):
-    def __init__(self, endpoint: Optional[str] = None, exporter=None):
+    def __init__(self, endpoint: Optional[str] = None, exporter: Optional[SpanExporter] = None):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
