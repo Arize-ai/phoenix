@@ -3,6 +3,7 @@ from typing import Optional
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
+from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
     OTLPSpanExporter as _GRPCSpanExporter,
 )
@@ -17,6 +18,20 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanPro
 from .settings import get_env_collector_endpoint, get_env_project_name
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
+
+
+def register(
+        endpoint: Optional[str] = None, project_name: Optional[str] = None, batch: bool = False
+    ):
+    project_name = project_name or get_env_project_name()
+    resource = Resource.create({PROJECT_NAME: project_name})
+    tracer_provider = TracerProvider(resource=resource, endpoint=endpoint)
+    if batch:
+        span_processor = BatchSpanProcessor(endpoint=endpoint)
+    else:
+        span_processor = SimpleSpanProcessor(endpoint=endpoint)
+    tracer_provider.add_span_processor(span_processor)
+    trace_api.set_tracer_provider(tracer_provider)
 
 
 class TracerProvider(_TracerProvider):
