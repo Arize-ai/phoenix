@@ -972,7 +972,9 @@ function EmbeddingSpanInfo(props: {
             </ul>
           }
         </Card>
-      ) : null}
+      ) : (
+        <SpanIO span={props.span} />
+      )}
     </Flex>
   );
 }
