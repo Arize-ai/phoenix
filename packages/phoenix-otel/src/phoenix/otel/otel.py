@@ -11,6 +11,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace import TracerProvider as _TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
@@ -22,11 +23,12 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
 
 def register(
-        endpoint: Optional[str] = None, project_name: Optional[str] = None, batch: bool = False
-    ) -> _TracerProvider:
+    endpoint: Optional[str] = None, project_name: Optional[str] = None, batch: bool = False
+) -> _TracerProvider:
     project_name = project_name or get_env_project_name()
     resource = Resource.create({PROJECT_NAME: project_name})
     tracer_provider = _TracerProvider(resource=resource)
+    span_processor: SpanProcessor
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint)
     else:
@@ -37,7 +39,7 @@ def register(
 
 
 class TracerProvider(_TracerProvider):
-    def __init__(self, *args, endpoint: Optional[str] = None, **kwargs):
+    def __init__(self, *args: Any, endpoint: Optional[str] = None, **kwargs: Any):
         sig = inspect.signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
@@ -49,20 +51,23 @@ class TracerProvider(_TracerProvider):
 
         endpoint = endpoint or get_env_collector_endpoint()
         parsed_url = urlparse(endpoint)
+        assert isinstance(parsed_url, ParseResult)
         self._default_processor = False
 
         if _maybe_http_endpoint(parsed_url):
             print("Exporting spans via HTTP.")
-            self.add_span_processor(SimpleSpanProcessor(HTTPSpanExporter(endpoint=endpoint)))
+            http_exporter: SpanExporter = HTTPSpanExporter(endpoint=endpoint)
+            self.add_span_processor(SimpleSpanProcessor(exporter=http_exporter))
             self._default_processor = True
         elif _maybe_grpc_endpoint(parsed_url):
             print("Exporting spans via GRPC.")
-            self.add_span_processor(SimpleSpanProcessor(GRPCSpanExporter(endpoint=endpoint)))
+            grpc_exporter: SpanExporter = GRPCSpanExporter(endpoint=endpoint)
+            self.add_span_processor(SimpleSpanProcessor(exporter=grpc_exporter))
             self._default_processor = True
         else:
             print("Could not infer exporter to use.")
 
-    def add_span_processor(self, *args: Any, **kwargs: Any):
+    def add_span_processor(self, *args: Any, **kwargs: Any) -> None:
         if self._default_processor:
             print("Overriding default span processor.")
             self._active_span_processor.shutdown()
@@ -76,6 +81,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
+            assert isinstance(parsed_url, ParseResult)
             if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
                 exporter = HTTPSpanExporter(endpoint=endpoint)
@@ -92,6 +98,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
+            assert isinstance(parsed_url, ParseResult)
             if _maybe_http_endpoint(parsed_url):
                 print("Exporting spans via HTTP.")
                 exporter = HTTPSpanExporter(endpoint=endpoint)
@@ -104,7 +111,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
 
 
 class HTTPSpanExporter(_HTTPSpanExporter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         sig = inspect.signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
@@ -114,7 +121,7 @@ class HTTPSpanExporter(_HTTPSpanExporter):
 
 
 class GRPCSpanExporter(_GRPCSpanExporter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         sig = inspect.signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()

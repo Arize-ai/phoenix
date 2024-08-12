@@ -34,6 +34,7 @@ dependencies = [
 test = [
   "pytest==7.4.4",
   "pytest-asyncio",
+  "mypy",
 ]
 
 [project.urls]

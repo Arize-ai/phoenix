@@ -1,9 +1,10 @@
+from opentelemetry.sdk.resources import Resource
+
 from .otel import (
     PROJECT_NAME,
     BatchSpanProcessor,
     GRPCSpanExporter,
     HTTPSpanExporter,
-    Resource,
     SimpleSpanProcessor,
     TracerProvider,
 )
