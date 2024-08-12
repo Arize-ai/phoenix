@@ -240,7 +240,7 @@ class Span(Node):
     @strawberry.field(
         description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
-    def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
+    async def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
         db_span = self.db_span
         attributes = db_span.attributes
         span_io = _SpanIO(
@@ -258,7 +258,7 @@ class Span(Node):
         )
 
         # Fetch annotations associated with this span
-        span_annotations = self.span_annotations(info)
+        span_annotations = await self.span_annotations(info)
         annotations = dict()
         for annotation in span_annotations:
             annotations[annotation.name] = {
