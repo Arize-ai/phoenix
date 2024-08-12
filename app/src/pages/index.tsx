@@ -16,4 +16,5 @@ export * from "./example";
 export * from "./examples";
 export * from "./experiments";
 export * from "./experiment";
+export * from "./settings";
 export * from "./apis";

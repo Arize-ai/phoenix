@@ -30,6 +30,7 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  SettingsPage,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -131,6 +132,13 @@ const router = createBrowserRouter(
         element={<APIsPage />}
         handle={{
           crumb: () => "APIs",
+        }}
+      />
+      <Route
+        path="/settings"
+        element={<SettingsPage />}
+        handle={{
+          crumb: () => "Settings",
         }}
       />
     </Route>

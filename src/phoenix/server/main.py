@@ -19,6 +19,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_port,
+    get_auth_settings,
     get_pids_path,
     get_working_dir,
 )
@@ -212,6 +213,8 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
+    authentication_enabled, auth_secret = get_auth_settings()
+
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
@@ -251,6 +254,7 @@ if __name__ == "__main__":
         db=factory,
         export_path=export_path,
         model=model,
+        authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=None
         if corpus_inferences is None
