@@ -13,6 +13,7 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
+    get_auth_settings,
     get_env_database_connection_str,
     get_env_enable_prometheus,
     get_env_grpc_port,
@@ -78,6 +79,11 @@ _WELCOME_MESSAGE = """
 |    - gRPC: {grpc_path}
 |    - HTTP: {http_path}
 |  Storage: {storage}
+"""
+
+_EXPERIMENTAL_WARNING = """
+🚨 WARNING: Phoenix is running in experimental mode. 🚨
+|  Authentication enabled: {auth_enabled}
 """
 
 
@@ -212,6 +218,8 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
+    authentication_enabled, auth_secret = get_auth_settings()
+
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
@@ -251,6 +259,7 @@ if __name__ == "__main__":
         db=factory,
         export_path=export_path,
         model=model,
+        authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=None
         if corpus_inferences is None
@@ -277,6 +286,9 @@ if __name__ == "__main__":
             storage=get_printable_db_url(db_connection_str),
         )
     )
+
+    if authentication_enabled:
+        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()

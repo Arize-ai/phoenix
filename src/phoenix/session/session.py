@@ -383,6 +383,7 @@ class ThreadSession(Session):
             db=factory,
             export_path=self.export_path,
             model=self.model,
+            authentication_enabled=False,
             corpus=self.corpus,
             umap_params=self.umap_parameters,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,

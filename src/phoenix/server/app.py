@@ -115,6 +115,8 @@ class AppConfig(NamedTuple):
     n_samples: int
     is_development: bool
     web_manifest_path: Path
+    authentication_enabled: bool
+    """ Whether authentication is enabled """
 
 
 class Static(StaticFiles):
@@ -162,6 +164,7 @@ class Static(StaticFiles):
                     "request": request,
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
+                    "authentication_enabled": self._app_config.authentication_enabled,
                 },
             )
         except Exception as e:
@@ -395,6 +398,7 @@ def create_app(
     db: DbSessionFactory,
     export_path: Path,
     model: Model,
+    authentication_enabled: bool,
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     debug: bool = False,
@@ -515,6 +519,7 @@ def create_app(
                     n_neighbors=umap_params.n_neighbors,
                     n_samples=umap_params.n_samples,
                     is_development=dev,
+                    authentication_enabled=authentication_enabled,
                     web_manifest_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
                 ),
             ),

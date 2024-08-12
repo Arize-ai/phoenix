@@ -155,6 +155,7 @@ async def app(
         app = create_app(
             db=db,
             model=create_model_from_inferences(EMPTY_INFERENCES, None),
+            authentication_enabled=False,
             export_path=EXPORT_DIR,
             umap_params=get_umap_parameters(None),
             serve_ui=False,
