@@ -29,7 +29,7 @@ export function SettingsPage() {
   return (
     <main css={settingsPageCSS}>
       <Flex direction="column" gap="size-200" width="100%">
-        <Card title="Platform Settings">
+        <Card title="Platform Settings" variant="compact">
           <form css={formCSS}>
             <Flex direction="row" gap="size-100" alignItems="end">
               <TextField
@@ -61,9 +61,15 @@ export function SettingsPage() {
           </form>
         </Card>
         {authenticationEnabled && (
-          <Card title="API Keys">API settings go here</Card>
+          <Card title="API Keys" variant="compact">
+            API settings go here
+          </Card>
         )}
-        {authenticationEnabled && <Card title="Users">Users go here</Card>}
+        {authenticationEnabled && (
+          <Card title="Users" variant="compact">
+            Users go here
+          </Card>
+        )}
       </Flex>
     </main>
   );
