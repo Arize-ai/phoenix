@@ -159,8 +159,8 @@ def run_experiment(
             examples of the given size. Defaults to False.
         print_summary (bool): Whether to print a summary of the experiment and evaluation results.
             Defaults to True.
-        concurrency (int): concurrency for task execution. The task must be an async coroutine
-            for concurrency support.
+        concurrency (int): Specifies the concurrency for task execution. In order to enable 
+            concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3
 
     Returns:
