@@ -148,8 +148,8 @@ release = phoenix.__version__
 # If it's "latest" → change to "dev" (that's what we want the switcher to call it)
 if not version_match or version_match.isdigit() or version_match == "latest":
     # For local development, infer the version to match from the package.
-    if "dev" in release or "rc" in release:
-        version_match = "dev"
+    if "dev" in release or "latest" in release:
+        version_match = "latest"
         # We want to keep the relative reference if we are in dev mode
         # but we want the whole url if we are effectively in a released version
         json_url = "_static/switcher.json"
