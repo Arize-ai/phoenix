@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.22.0...arize-phoenix-v4.22.1) (2024-08-12)
+
+
+### Bug Fixes
+
+* **experiments:** `evaluate_experiment` on existing experiment runs ([#4204](https://github.com/Arize-ai/phoenix/issues/4204)) ([515e195](https://github.com/Arize-ai/phoenix/commit/515e1952b06b61d94ab1a6e084812064783e319d))
+* remove skep_deps_check param on phoenix.instrumentors ([#4205](https://github.com/Arize-ai/phoenix/issues/4205)) ([7a9ad5e](https://github.com/Arize-ai/phoenix/commit/7a9ad5e7abd1a49514f73d8c12d1e628a6c8ad25))
+
 ## [4.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.21.0...arize-phoenix-v4.22.0) (2024-08-09)
 
 
