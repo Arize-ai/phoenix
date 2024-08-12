@@ -5,6 +5,7 @@ import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 import { Provider, theme } from "@arizeai/components";
 
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
+import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
@@ -15,9 +16,11 @@ import "normalize.css";
 
 export function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <FunctionalityProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </FunctionalityProvider>
   );
 }
 

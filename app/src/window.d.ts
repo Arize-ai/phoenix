@@ -14,6 +14,7 @@ declare global {
         nNeighbors: number;
         nSamples: number;
       };
+      authenticationEnabled: boolean;
     };
   }
 }

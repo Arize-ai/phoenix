@@ -13,13 +13,13 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
+    get_auth_settings,
     get_env_database_connection_str,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
     get_env_port,
-    get_auth_settings,
     get_pids_path,
     get_working_dir,
 )
@@ -79,6 +79,11 @@ _WELCOME_MESSAGE = """
 |    - gRPC: {grpc_path}
 |    - HTTP: {http_path}
 |  Storage: {storage}
+"""
+
+_EXPERIMENTAL_WARNING = """
+🚨 WARNING: Phoenix is running in experimental mode. 🚨
+|  Authentication: {auth_enabled}
 """
 
 
@@ -281,6 +286,9 @@ if __name__ == "__main__":
             storage=get_printable_db_url(db_connection_str),
         )
     )
+
+    if authentication_enabled:
+        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()
