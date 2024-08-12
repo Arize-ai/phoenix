@@ -43,6 +43,7 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.User import User
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -71,6 +72,35 @@ from phoenix.server.api.types.Trace import Trace
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    async def users(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[User]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.User).order_by(models.User.email)
+        async with info.context.db() as session:
+            users = await session.stream_scalars(stmt)
+            data = [
+                User(
+                    id_attr=user.id,
+                    email=user.email,
+                    username=user.username,
+                    created_at=user.created_at,
+                )
+                async for user in users
+            ]
+        return connection_from_list(data=data, args=args)
+
     @strawberry.field
     async def projects(
         self,
