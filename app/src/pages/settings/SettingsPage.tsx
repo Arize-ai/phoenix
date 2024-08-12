@@ -28,7 +28,7 @@ export function SettingsPage() {
   const { authenticationEnabled } = useFunctionality();
   return (
     <main css={settingsPageCSS}>
-      <Flex direction="column" gap="size-100" width="100%">
+      <Flex direction="column" gap="size-200" width="100%">
         <Card title="Platform Settings">
           <form css={formCSS}>
             <Flex direction="row" gap="size-100" alignItems="end">

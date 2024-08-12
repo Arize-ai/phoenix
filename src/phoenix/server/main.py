@@ -83,7 +83,7 @@ _WELCOME_MESSAGE = """
 
 _EXPERIMENTAL_WARNING = """
 🚨 WARNING: Phoenix is running in experimental mode. 🚨
-|  Authentication: {auth_enabled}
+|  Authentication enabled: {auth_enabled}
 """
 
 

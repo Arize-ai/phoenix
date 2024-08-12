@@ -164,6 +164,7 @@ class Static(StaticFiles):
                     "request": request,
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
+                    "authentication_enabled": self._app_config.authentication_enabled,
                 },
             )
         except Exception as e:
@@ -506,6 +507,7 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
+    print(f"Authentication enabled: {authentication_enabled}")
     if serve_ui:
         app.mount(
             "/",
