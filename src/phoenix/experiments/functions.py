@@ -159,7 +159,8 @@ def run_experiment(
             examples of the given size. Defaults to False.
         print_summary (bool): Whether to print a summary of the experiment and evaluation results.
             Defaults to True.
-        concurrency (int): concurrency for task execution.
+        concurrency (int): concurrency for task execution. The task must be an async routine for
+           concurrency support.
             Defaults to 3
 
     Returns:
@@ -430,7 +431,7 @@ def evaluate_experiment(
     *,
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
-    rate_limit_errors: Optional[RateLimitErrors] = None,,
+    rate_limit_errors: Optional[RateLimitErrors] = None,
     concurrency: int = 3
 ) -> RanExperiment:
     if not dry_run and _is_dry_run(experiment):
