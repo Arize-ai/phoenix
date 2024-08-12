@@ -166,10 +166,8 @@ class Dataset:
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
         examples = tuple(map(Example.from_dict, obj.get("examples") or ()))
-        id_ = obj.get("dataset_id") or obj.get("id")
-        assert isinstance(id_, DatasetId)
         return cls(
-            id=id_,
+            id=obj["dataset_id"],
             version_id=obj["version_id"],
             examples={ex.id: ex for ex in examples},
         )
