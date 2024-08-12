@@ -16,7 +16,7 @@ jobs:
       phoenix_path: ${{ steps.parse.outputs.phoenix_path }}
       package_path: ${{ steps.parse.outputs.package_path }}
     steps:
-      - uses: google-github-actions/release-please-action@v4
+      - uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         id: release-please
@@ -28,7 +28,7 @@ jobs:
         # We assume that only one path is released at a time
         run: |
           echo $PATHS_RELEASED | jq -r '.[0]' | while read -r PATH; do
-            case $PATH in 
+            case $PATH in
               packages/*)
                 echo "package_path=$PATH" >> $GITHUB_OUTPUT ;;
               *)
