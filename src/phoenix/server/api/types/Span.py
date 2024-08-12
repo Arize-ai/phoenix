@@ -266,7 +266,7 @@ class Span(Node):
                 "score": annotation.score,
                 "explanation": annotation.explanation,
                 "metadata": annotation.metadata,
-                "annotator_kind": annotation.annotator_kind,
+                "annotator_kind": annotation.annotator_kind.value,
             }
         # Merge annotations into the metadata
         metadata = {
