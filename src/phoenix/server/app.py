@@ -507,7 +507,6 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
-    print(f"Authentication enabled: {authentication_enabled}")
     if serve_ui:
         app.mount(
             "/",
