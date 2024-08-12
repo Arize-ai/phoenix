@@ -108,7 +108,12 @@ async def create_experiment_run(
     return CreateExperimentResponseBody(data=CreateExperimentRunResponseBodyData(id=str(run_gid)))
 
 
-class ListExperimentRunsResponseBody(ResponseBody[List[ExperimentRun]]):
+class ExperimentRunResponse(ExperimentRun):
+    id: str = Field(description="The ID of the experiment run")
+    experiment_id: str = Field(description="The ID of the experiment")
+
+
+class ListExperimentRunsResponseBody(ResponseBody[List[ExperimentRunResponse]]):
     pass
 
 
@@ -147,7 +152,7 @@ async def list_experiment_runs(
             experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
             example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
             runs.append(
-                ExperimentRun(
+                ExperimentRunResponse(
                     start_time=exp_run.start_time,
                     end_time=exp_run.end_time,
                     experiment_id=str(experiment_gid),
