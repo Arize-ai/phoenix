@@ -67,10 +67,40 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.User import User
 
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    async def users(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[User]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.User).order_by(models.User.email)
+        async with info.context.db() as session:
+            users = await session.stream_scalars(stmt)
+            data = [
+                User(
+                    id_attr=user.id,
+                    email=user.email,
+                    username=user.username,
+                    created_at=user.created_at,
+                )
+                async for user in users
+            ]
+        return connection_from_list(data=data, args=args)
+
     @strawberry.field
     async def projects(
         self,
