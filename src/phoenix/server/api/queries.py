@@ -162,7 +162,6 @@ class Query:
             .join(models.UserRole)
             .where(models.UserRole.role == "SYSTEM")
         )
-        print(str(stmt))
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
         return [
