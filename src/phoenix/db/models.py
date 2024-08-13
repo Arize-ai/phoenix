@@ -648,6 +648,7 @@ if ENABLE_AUTH:
             UtcTimeStamp, server_default=func.now(), onupdate=func.now()
         )
         deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+        api_keys: Mapped[List["APIKey"]] = relationship("APIKey", back_populates="user")
 
     class APIKey(Base):
         __tablename__ = "api_keys"
@@ -656,6 +657,7 @@ if ENABLE_AUTH:
             ForeignKey("users.id"),
             index=True,
         )
+        user: Mapped["User"] = relationship("User", back_populates="api_keys")
         name: Mapped[str]
         description: Mapped[Optional[str]]
         created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())

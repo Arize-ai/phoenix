@@ -44,6 +44,20 @@ enum AnnotatorKind {
   HUMAN
 }
 
+interface ApiKey {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+}
+
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
@@ -1018,6 +1032,8 @@ type PromptResponse {
 type Query {
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
+  userApiKeys: [UserApiKey!]!
+  systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
@@ -1285,6 +1301,23 @@ enum SpanStatusCode {
   UNSET
 }
 
+type SystemApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1366,6 +1399,23 @@ type User implements Node {
   username: String
   createdAt: DateTime!
   role: UserRole!
+}
+
+type UserApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
 }
 
 """A connection to a list of items."""
