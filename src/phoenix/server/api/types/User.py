@@ -4,6 +4,8 @@ from typing import Optional
 import strawberry
 from strawberry.relay import Node, NodeID
 
+from .UserRole import UserRole
+
 
 @strawberry.type
 class User(Node):
@@ -11,3 +13,4 @@ class User(Node):
     email: str
     username: Optional[str]
     created_at: datetime
+    role: UserRole

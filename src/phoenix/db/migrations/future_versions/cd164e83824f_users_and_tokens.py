@@ -150,7 +150,7 @@ async def insert_roles_and_users(connection: AsyncConnection) -> None:
     user to the `users` table.
     """
     await connection.execute(
-        insert(UserRole).values([{"role": "SYSTEM"}, {"role": "ADMIN"}, {"role": "GENERAL"}])
+        insert(UserRole).values([{"role": "SYSTEM"}, {"role": "ADMIN"}, {"role": "MEMBER"}])
     )
     system_user_role_id = sa.select(UserRole.id).where(UserRole.role == "SYSTEM").scalar_subquery()
     admin_user_role_id = sa.select(UserRole.id).where(UserRole.role == "ADMIN").scalar_subquery()
