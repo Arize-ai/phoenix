@@ -90,7 +90,6 @@ class Query:
         )
         stmt = (
             select(models.User)
-            .join(models.UserRole)
             .where(models.UserRole.role != "SYSTEM")
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
