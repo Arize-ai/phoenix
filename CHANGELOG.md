@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.22.1...arize-phoenix-v4.23.0) (2024-08-13)
+
+
+### Features
+
+* **auth:** plumb auth_enabled flag, add a settings page ([#4213](https://github.com/Arize-ai/phoenix/issues/4213)) ([7f66f0b](https://github.com/Arize-ai/phoenix/commit/7f66f0b5d7478e26fe5149ff8579a9c4a3ddf7e6))
+* **auth:** user gql query ([#4219](https://github.com/Arize-ai/phoenix/issues/4219)) ([46543be](https://github.com/Arize-ai/phoenix/commit/46543bee779393b7c541f09cd8472d630f3a480e))
+* **auth:** users table in settings ([#4221](https://github.com/Arize-ai/phoenix/issues/4221)) ([803399f](https://github.com/Arize-ai/phoenix/commit/803399f88968e2101a53d0c9cbe3fceb8a8005a1))
+
+
+### Bug Fixes
+
+* Propagate span annotation metadata to examples on all mutations ([#4195](https://github.com/Arize-ai/phoenix/issues/4195)) ([181e021](https://github.com/Arize-ai/phoenix/commit/181e0210a11eadd788e8da5e3a684a09ac5ad019))
+* **UI:** show IO if embedding span is missing embeddings ([#4218](https://github.com/Arize-ai/phoenix/issues/4218)) ([5bc97ff](https://github.com/Arize-ai/phoenix/commit/5bc97fff952252d2a160111503a37d5f95ec182f))
+
 ## [4.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.22.0...arize-phoenix-v4.22.1) (2024-08-12)
 
 
