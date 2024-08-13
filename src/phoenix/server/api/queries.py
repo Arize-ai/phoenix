@@ -66,8 +66,10 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.User import User
+from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 
 
@@ -126,6 +128,52 @@ class Query:
                 role=role.role,
             )
             for role in roles
+        ]
+
+    @strawberry.field
+    async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
+        # TODO(auth): add access control
+        stmt = (
+            select(models.APIKey)
+            .join(models.User)
+            .join(models.UserRole)
+            .where(models.UserRole.role != "SYSTEM")
+        )
+        async with info.context.db() as session:
+            api_keys = await session.scalars(stmt)
+        return [
+            UserApiKey(
+                id_attr=api_key.id,
+                user_id=api_key.user_id,
+                name=api_key.name,
+                description=api_key.description,
+                created_at=api_key.created_at,
+                expires_at=api_key.expires_at,
+            )
+            for api_key in api_keys
+        ]
+
+    @strawberry.field
+    async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
+        # TODO(auth): add access control
+        stmt = (
+            select(models.APIKey)
+            .join(models.User)
+            .join(models.UserRole)
+            .where(models.UserRole.role == "SYSTEM")
+        )
+        print(str(stmt))
+        async with info.context.db() as session:
+            api_keys = await session.scalars(stmt)
+        return [
+            SystemApiKey(
+                id_attr=api_key.id,
+                name=api_key.name,
+                description=api_key.description,
+                created_at=api_key.created_at,
+                expires_at=api_key.expires_at,
+            )
+            for api_key in api_keys
         ]
 
     @strawberry.field
