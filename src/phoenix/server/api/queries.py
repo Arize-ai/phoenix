@@ -43,7 +43,6 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.User import User
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -68,6 +67,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.User import User
 
 
 @strawberry.type
