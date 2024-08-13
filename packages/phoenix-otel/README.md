@@ -2,11 +2,21 @@
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
-Our defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_PROJECT_NAME` settings
+These defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_PROJECT_NAME` settings.
 
 # Examples
 
-Our wrappers can be used as drop-in replacements for the default OTel primitives:
+The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry
+tracing by setting a global `TracerProvider`.
+
+```
+from phoenix.otel import register
+
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces", project_name="test")
+```
+
+For more granular tracing configuration, these wrappers can be used as drop-in replacements for
+OTel primitives:
 
 ```
 from opentelemetry import trace as trace_api
@@ -19,7 +29,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-However, we supply Phoenix-aware defaults to greatly simplify the OTel configuration process.
+Wrappers have Phoenix-aware defaults to greatly simplify the OTel configuration process.
 
 ```
 # export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
@@ -30,8 +40,9 @@ tracer_provider = TracerProvider()
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-This is aware of the different kinds of endpoints that are available, an endpoint that isn't
-pointing to our rest router will be assumed to be a gRPC endpoint.
+Phoenix supports sending traces via either an HTTP or gRPC protocol, if possible, the exporter
+will be inferred from the endpoint URL. In the following example, tracing is configured to
+export traces via the gRPC protocol based on the `PHOENIX_COLLECTOR_ENDPOINT` URL.
 
 ```
 # export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:4317
@@ -42,7 +53,7 @@ tracer_provider = TracerProvider()
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-Alternatively, the endpoint can be passed directly to the tracer provider.
+The collector endpoint can be passed directly to the tracer provider.
 
 ```
 from opentelemetry import trace as trace_api

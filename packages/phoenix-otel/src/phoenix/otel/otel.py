@@ -1,4 +1,5 @@
 import inspect
+import warnings
 from typing import Any, Optional
 from urllib.parse import ParseResult, urlparse
 
@@ -25,6 +26,24 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 def register(
     endpoint: Optional[str] = None, project_name: Optional[str] = None, batch: bool = False
 ) -> _TracerProvider:
+    """
+    Globally sets an OpenTelemetry TracerProvider for enabling OpenInference tracing.
+
+    For futher configuration, the `phoenix.otel` module provides drop-in replacements for
+    OpenTelemetry TracerProvider, SimpleSpanProcessor, BatchSpanProcessor, HTTPSpanExporter, and
+    GRPCSpanExporter objects with Phoenix-aware defaults. Documentation on how to configure tracing
+    can be found at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
+
+    Args:
+        endpoint: The collector endpoint to which spans will be exported. If not provided, the
+            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used. The export
+            protocol will be inferred from the endpoint.
+        project_name: The name of the project to which spans will be associated. If not provided,
+            the `PHOENIX_PROJECT_NAME` environment variable will be used.
+        batch: If True, spans will be processed using a BatchSpanprocessor. If False, spans will be
+            processed one at a time using a SimpleSpanProcessor.
+    """
+
     project_name = project_name or get_env_project_name()
     resource = Resource.create({PROJECT_NAME: project_name})
     tracer_provider = _TracerProvider(resource=resource)
@@ -65,7 +84,10 @@ class TracerProvider(_TracerProvider):
             self.add_span_processor(SimpleSpanProcessor(exporter=grpc_exporter))
             self._default_processor = True
         else:
-            print("Could not infer exporter to use.")
+            warnings.warn(
+                "Could not infer exporter to use. Use `add_span_processor` to configure span "
+                "processing and export."
+            )
 
     def add_span_processor(self, *args: Any, **kwargs: Any) -> None:
         if self._default_processor:
@@ -89,7 +111,8 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
                 print("Exporting spans via GRPC.")
                 exporter = GRPCSpanExporter(endpoint=endpoint)
             else:
-                raise ValueError("Could not infer exporter to use.")
+                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
+                exporter = HTTPSpanExporter(endpoint=endpoint)
         super().__init__(exporter)
 
 
@@ -106,7 +129,8 @@ class BatchSpanProcessor(_BatchSpanProcessor):
                 print("Exporting spans via GRPC.")
                 exporter = GRPCSpanExporter(endpoint=endpoint)
             else:
-                raise ValueError("Could not infer exporter to use.")
+                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
+                exporter = HTTPSpanExporter(endpoint=endpoint)
         super().__init__(exporter)
 
 
@@ -137,6 +161,6 @@ def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
 
 
 def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if not parsed_endpoint.path and parsed_endpoint.port:
+    if not parsed_endpoint.path and parsed_endpoint.port == 4317:
         return True
     return False
