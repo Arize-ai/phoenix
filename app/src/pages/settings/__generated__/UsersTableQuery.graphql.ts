@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<96972128813200007b3c171b91458cc9>>
+ * @generated SignedSource<<c07c5f84d587b8b1a7e6918e393f5d0b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,9 @@ export type UsersTableQuery$data = {
       readonly user: {
         readonly createdAt: string;
         readonly email: string;
+        readonly role: {
+          readonly role: string;
+        };
         readonly username: string | null;
       };
     }>;
@@ -72,6 +75,24 @@ var v0 = [
                 "kind": "ScalarField",
                 "name": "createdAt",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "UserRole",
+                "kind": "LinkedField",
+                "name": "role",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "role",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -101,16 +122,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "0d0f6d7ad268e8b6864dadfaaf7fdb6f",
+    "cacheID": "5cefb7e1fadaa4daf3273449329b9a8f",
     "id": null,
     "metadata": {},
     "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersTableQuery {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n      }\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n        role {\n          role\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e3433be9d599897d186757122a0dc5a8";
+(node as any).hash = "87a865d148c113262b821aeeb24b30c3";
 
 export default node;

@@ -71,7 +71,7 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.5.4",
-  "mypy==1.11.0",
+  "mypy==1.11.1",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",

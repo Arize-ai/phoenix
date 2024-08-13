@@ -626,6 +626,7 @@ if ENABLE_AUTH:
         __tablename__ = "user_roles"
         id: Mapped[int] = mapped_column(primary_key=True)
         role: Mapped[str] = mapped_column(unique=True)
+        users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
     class User(Base):
         __tablename__ = "users"
@@ -634,6 +635,7 @@ if ENABLE_AUTH:
             ForeignKey("user_roles.id"),
             index=True,
         )
+        role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
         username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
         email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
         auth_method: Mapped[str] = mapped_column(

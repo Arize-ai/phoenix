@@ -68,6 +68,7 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.User import User
+from phoenix.server.api.types.UserRole import UserRole
 
 
 @strawberry.type
@@ -87,7 +88,12 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.User).order_by(models.User.email)
+        stmt = (
+            select(models.User)
+            .where(models.UserRole.role != "SYSTEM")
+            .order_by(models.User.email)
+            .options(joinedload(models.User.role))
+        )
         async with info.context.db() as session:
             users = await session.stream_scalars(stmt)
             data = [
@@ -96,10 +102,31 @@ class Query:
                     email=user.email,
                     username=user.username,
                     created_at=user.created_at,
+                    role=UserRole(
+                        id_attr=user.role.id,
+                        role=user.role.role,
+                    ),
                 )
                 async for user in users
             ]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def user_roles(
+        self,
+        info: Info[Context, None],
+    ) -> List[UserRole]:
+        async with info.context.db() as session:
+            roles = await session.scalars(
+                select(models.UserRole).where(models.UserRole.role != "SYSTEM")
+            )
+        return [
+            UserRole(
+                id_attr=role.id,
+                role=role.role,
+            )
+            for role in roles
+        ]
 
     @strawberry.field
     async def projects(

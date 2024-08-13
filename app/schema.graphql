@@ -1017,6 +1017,7 @@ type PromptResponse {
 
 type Query {
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
+  userRoles: [UserRole!]!
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
@@ -1364,6 +1365,7 @@ type User implements Node {
   email: String!
   username: String
   createdAt: DateTime!
+  role: UserRole!
 }
 
 """A connection to a list of items."""
@@ -1382,6 +1384,12 @@ type UserEdge {
 
   """The item at the end of the edge"""
   node: User!
+}
+
+type UserRole implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  role: String!
 }
 
 type ValidationResult {
