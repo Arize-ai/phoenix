@@ -393,7 +393,7 @@ def run_experiment(
         exit_on_error=False,
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
-        concurrency=concurrency
+        concurrency=concurrency,
     )
 
     test_cases = [
@@ -419,6 +419,7 @@ def run_experiment(
             dry_run=dry_run,
             print_summary=print_summary,
             rate_limit_errors=rate_limit_errors,
+            concurrency=concurrency,
         )
     if print_summary:
         print(ran_experiment)
