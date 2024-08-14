@@ -81,6 +81,25 @@ class TracesFixture:
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
+demo_llama_index_cohesive_rag_fixture = TracesFixture(
+    name="demo_llama_index_cohesive_rag",
+    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
+    file_name="llama_index_cohesive_rag.parquet",
+    evaluation_fixtures=(
+        EvaluationFixture(
+            evaluation_name="Q&A Correctness",
+            file_name="demo_llama_index_rag_qa_correctness_eval.parquet",
+        ),
+        EvaluationFixture(
+            evaluation_name="Hallucination",
+            file_name="demo_llama_index_rag_hallucination_eval.parquet",
+        ),
+        DocumentEvaluationFixture(
+            evaluation_name="Relevance",
+            file_name="demo_llama_index_rag_doc_relevance_eval.parquet",
+        ),
+    ),
+)
 
 demo_llama_index_rag_fixture = TracesFixture(
     name="demo_llama_index_rag",
@@ -154,26 +173,6 @@ llama_index_rag_fixture = TracesFixture(
             output_keys=("answers",),
             name="ChatQA-Train: Synthetic ConvQA (samples)",
             description="https://huggingface.co/datasets/nvidia/ChatQA-Training-Data/viewer/synthetic_convqa",
-        ),
-    ),
-)
-
-llama_index_cohesive_rag_fixture = TracesFixture(
-    name="llama_index_cohesive_rag",
-    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="llama_index_cohesive_rag.parquet",
-    evaluation_fixtures=(
-        EvaluationFixture(
-            evaluation_name="Q&A Correctness",
-            file_name="llama_index_cohesive_rag_qa_correctness_eval.parquet",
-        ),
-        EvaluationFixture(
-            evaluation_name="Hallucination",
-            file_name="llama_index_cohesive_rag_hallucination_eval.parquet",
-        ),
-        DocumentEvaluationFixture(
-            evaluation_name="Relevance",
-            file_name="llama_index_cohesive_rag_doc_relevance_eval.parquet",
         ),
     ),
 )
