@@ -81,6 +81,7 @@ class TracesFixture:
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
+
 demo_llama_index_cohesive_rag_fixture = TracesFixture(
     name="demo_llama_index_cohesive_rag",
     description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
@@ -223,7 +224,6 @@ TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
     llama_index_rag_fixture,
-    llama_index_cohesive_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
     langchain_titanic_csv_agent_evaluator_fixture,
