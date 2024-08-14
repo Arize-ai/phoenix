@@ -152,6 +152,26 @@ llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+llama_index_cohesive_rag_fixture = TracesFixture(
+    name="llama_index_cohesive_rag",
+    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
+    file_name="llama_index_cohesive_rag.parquet",
+    evaluation_fixtures=(
+        EvaluationFixture(
+            evaluation_name="Q&A Correctness",
+            file_name="llama_index_cohesive_rag_qa_correctness_eval.parquet",
+        ),
+        EvaluationFixture(
+            evaluation_name="Hallucination",
+            file_name="llama_index_cohesive_rag_hallucination_eval.parquet",
+        ),
+        DocumentEvaluationFixture(
+            evaluation_name="Relevance",
+            file_name="llama_index_cohesive_rag_doc_relevance_eval.parquet",
+        ),
+    ),
+)
+
 llama_index_calculator_agent_fixture = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
@@ -197,6 +217,7 @@ random_fixture = TracesFixture(
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     llama_index_rag_fixture,
+    llama_index_cohesive_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
     langchain_titanic_csv_agent_evaluator_fixture,
