@@ -188,8 +188,8 @@ random_fixture = TracesFixture(
 )
 
 TRACES_FIXTURES: List[TracesFixture] = [
+    demo_llama_index_cohesive_rag_fixture,
     llama_index_rag_fixture,
-    llama_index_cohesive_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
     langchain_titanic_csv_agent_evaluator_fixture,
