@@ -18,6 +18,7 @@ sdist
 !tests/**/fixtures/*.csv
 *.hdf
 *.hdf5
+!tutorials/internal/**/*.json
 
 # Testing
 coverage.xml
