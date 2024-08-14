@@ -99,7 +99,7 @@ class TracerProvider(_TracerProvider):
 
 
 class SimpleSpanProcessor(_SimpleSpanProcessor):
-    def __init__(self, endpoint: Optional[str] = None, exporter: Optional[SpanExporter] = None):
+    def __init__(self, exporter: Optional[SpanExporter] = None, endpoint: Optional[str] = None):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)
@@ -117,7 +117,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
 
 
 class BatchSpanProcessor(_BatchSpanProcessor):
-    def __init__(self, endpoint: Optional[str] = None, exporter: Optional[SpanExporter] = None):
+    def __init__(self, exporter: Optional[SpanExporter] = None, endpoint: Optional[str] = None):
         if exporter is None:
             endpoint = endpoint or get_env_collector_endpoint()
             parsed_url = urlparse(endpoint)

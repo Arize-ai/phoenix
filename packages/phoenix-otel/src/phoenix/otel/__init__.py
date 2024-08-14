@@ -7,6 +7,7 @@ from .otel import (
     HTTPSpanExporter,
     SimpleSpanProcessor,
     TracerProvider,
+    register,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "GRPCSpanExporter",
     "Resource",
     "PROJECT_NAME",
+    register,
 ]

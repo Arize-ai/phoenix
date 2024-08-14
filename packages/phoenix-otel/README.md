@@ -23,8 +23,8 @@ from opentelemetry import trace as trace_api
 from phoenix.otel import HTTPSpanExporter, TracerProvider, SimpleSpanProcessor
 
 tracer_provider = TracerProvider()
-span_exporter = HTTPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
+span_exporter = HTTPSpanExporter(endpoint="http://localhost:6006/v1/traces")
+span_processor = SimpleSpanProcessor(exporter=span_exporter)
 tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
