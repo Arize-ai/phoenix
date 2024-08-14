@@ -96,6 +96,11 @@ input ClusterInput {
   id: ID
 }
 
+input CreateApiKeyInput {
+  name: String!
+  description: String
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -110,6 +115,12 @@ input CreateSpanAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
+}
+
+type CreateSystemApiKeyMutationPayload {
+  jwt: String!
+  apiKey: SystemApiKey!
+  query: Query!
 }
 
 input CreateTraceAnnotationInput {
@@ -886,6 +897,7 @@ type Mutation {
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
+  createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
