@@ -45,22 +45,23 @@ class ApiKeyMutationMixin:
             # Get the system user - note this could be pushed into a dataloader
             system_user = await session.scalar(
                 select(models.User)
-                .join(models.User.role)  # Join User with UserRole
+                .join(models.UserRole)  # Join User with UserRole
                 .where(models.UserRole.role == "SYSTEM")  # Filter where role is SYSTEM
                 .limit(1)
             )
             if system_user is None:
                 raise ValueError("System user not found")
 
-            api_key = await session.scalar(
+            insert_stmt = (
                 insert(models.APIKey)
                 .values(
                     user_id=system_user.id,
                     name=input.name or "System API Key",
-                    description=input.description,
+                    description=input.description or "System API Key",
                 )
                 .returning(models.APIKey)
             )
+            api_key = await session.scalar(insert_stmt)
             assert api_key is not None
 
         encoded_jwt = create_jwt(
