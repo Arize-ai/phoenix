@@ -81,6 +81,7 @@ class TracesFixture:
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
+
 demo_llama_index_cohesive_rag_fixture = TracesFixture(
     name="demo_llama_index_cohesive_rag",
     description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
