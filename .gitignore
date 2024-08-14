@@ -18,7 +18,6 @@ sdist
 !tests/**/fixtures/*.csv
 *.hdf
 *.hdf5
-!tutorials/internal/**/*.json
 
 # Testing
 coverage.xml
@@ -26,3 +25,6 @@ coverage.xml
 
 # devtools
 pyrightconfig.json
+
+# Demo data
+tutorials/internal/demo_llama_index/*.json
