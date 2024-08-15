@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.23.0...arize-phoenix-v4.24.0) (2024-08-15)
+
+
+### Features
+
+* **auth:** add user role, exclude system in user lists ([#4229](https://github.com/Arize-ai/phoenix/issues/4229)) ([fb18ab6](https://github.com/Arize-ai/phoenix/commit/fb18ab65a05265b08b2a2b228773fd2498efa861))
+* **auth:** user / system api key resolvers ([#4232](https://github.com/Arize-ai/phoenix/issues/4232)) ([c7b939e](https://github.com/Arize-ai/phoenix/commit/c7b939e9ebd60cd0aff5441760f330e2c621d987))
+* **experiments:** ability to specify concurrency in run_experiment and evaluate_experiment ([#4189](https://github.com/Arize-ai/phoenix/issues/4189)) ([8239d3a](https://github.com/Arize-ai/phoenix/commit/8239d3a495dcee365263751f587ebc5f5c0c598c))
+
+
+### Documentation
+
+* Add multimodal image reasoning tutorial with llama index ([#4210](https://github.com/Arize-ai/phoenix/issues/4210)) ([d24712e](https://github.com/Arize-ai/phoenix/commit/d24712e54181c4def6e719acbb8748a7882986e3))
+
 ## [4.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.22.1...arize-phoenix-v4.23.0) (2024-08-13)
 
 
