@@ -2,7 +2,8 @@
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
-These defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_PROJECT_NAME` settings.
+These defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_PROJECT_NAME`, and
+``PHOENIX_CLIENT_HEADERS` environment variables.
 
 # Examples
 

@@ -18,7 +18,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProce
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from .settings import get_env_collector_endpoint, get_env_project_name
+from .settings import get_env_client_headers, get_env_collector_endpoint, get_env_project_name
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
@@ -139,6 +139,11 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         sig = inspect.signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+
+        phoenix_headers = get_env_client_headers()
+        if phoenix_headers:
+            bound_args.arguments["headers"] = phoenix_headers
+
         if bound_args.arguments.get("endpoint") is None:
             bound_args.arguments["endpoint"] = get_env_collector_endpoint()
         super().__init__(**bound_args.arguments)
@@ -149,6 +154,11 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         sig = inspect.signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+
+        phoenix_headers = get_env_client_headers()
+        if phoenix_headers:
+            bound_args.arguments["headers"] = phoenix_headers
+
         if bound_args.arguments.get("endpoint") is None:
             bound_args.arguments["endpoint"] = get_env_collector_endpoint()
         super().__init__(*args, **kwargs)
