@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.1...arize-phoenix-evals-v0.15.0) (2024-08-15)
+
+
+### Features
+
+* Expose configuration for initial rate limit ([#4087](https://github.com/Arize-ai/phoenix/issues/4087)) ([194a66d](https://github.com/Arize-ai/phoenix/commit/194a66d6315ffd93275e1a8e19560a435701ddc8))
+
+
+### Bug Fixes
+
+* use dataloader for span annotations ([#4139](https://github.com/Arize-ai/phoenix/issues/4139)) ([2456ad4](https://github.com/Arize-ai/phoenix/commit/2456ad47c6cb73901152bec5b4bfed8c77c96933))
+
+
+### Documentation
+
+* api ref updates and docstring fixes ([e089f99](https://github.com/Arize-ai/phoenix/commit/e089f99fa2e63cdf9cb342bc3810361947c28e61))
+* Fix docstring ([#3969](https://github.com/Arize-ai/phoenix/issues/3969)) ([f6a5b62](https://github.com/Arize-ai/phoenix/commit/f6a5b62a1f53ba34d22c678e7bbb314693641993))
+* Update LiteLLM and OpenAI docstrings ([#3910](https://github.com/Arize-ai/phoenix/issues/3910)) ([be57127](https://github.com/Arize-ai/phoenix/commit/be5712761a1eb59c73ca38bc207f9e6078bf60f6))
+
 ## [0.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.0...arize-phoenix-evals-v0.14.1) (2024-07-16)
 
 
