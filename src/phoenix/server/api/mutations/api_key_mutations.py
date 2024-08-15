@@ -25,6 +25,7 @@ class CreateSystemApiKeyMutationPayload:
 class CreateApiKeyInput:
     name: str
     description: Optional[str] = UNSET
+    expires_at: Optional[datetime] = UNSET
 
 
 @strawberry.type
@@ -51,6 +52,7 @@ class ApiKeyMutationMixin:
                     user_id=system_user.id,
                     name=input.name,
                     description=input.description or None,
+                    expires_at=input.expires_at or None,
                 )
                 .returning(models.APIKey)
             )
