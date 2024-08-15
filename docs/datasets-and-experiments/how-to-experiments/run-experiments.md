@@ -176,7 +176,7 @@ Running an experiment is as easy as calling `run_experiment` with the components
 ```python
 from phoenix.experiments import run_experiment
 
-run_experiment(ds, task=task, evaluators=[no_error, has_results])
+run_experiment(df, task=task, evaluators=[no_error, has_results])
 ```
 
 ### Dry Run
