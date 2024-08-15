@@ -99,6 +99,7 @@ input ClusterInput {
 input CreateApiKeyInput {
   name: String!
   description: String
+  expiresAt: DateTime
 }
 
 input CreateDatasetInput {
