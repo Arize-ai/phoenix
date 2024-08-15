@@ -54,8 +54,8 @@ class ApiKeyMutationMixin:
                 insert(models.APIKey)
                 .values(
                     user_id=system_user.id,
-                    name=input.name or "System API Key",
-                    description=input.description or "System API Key",
+                    name=input.name,
+                    description=input.description or None,
                 )
                 .returning(models.APIKey)
             )
