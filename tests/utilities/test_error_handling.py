@@ -2,7 +2,7 @@ import pytest
 from phoenix.utilities.error_handling import graceful_fallback
 
 
-def test_graceful_fallback_forwards_call_to_fallback_function():
+def test_graceful_fallback_forwards_call_to_fallback_function() -> None:
     def fallback(v) -> int:
         return v - 1
 
@@ -15,9 +15,9 @@ def test_graceful_fallback_forwards_call_to_fallback_function():
     assert check_the_answer(42) == 41
 
 
-def test_graceful_fallback_logs_errors(caplog):
+def test_graceful_fallback_logs_errors(caplog) -> None:
     @graceful_fallback(fallback_method=lambda *args, **kwargs: None)
-    def failing_function(*args, **kwargs):
+    def failing_function(*args, **kwargs) -> None:
         raise ValueError("This is a test error.")
 
     failing_function("foo", bar="baz")  # graceful_fallback suppresses the error
@@ -32,9 +32,9 @@ def test_graceful_fallback_logs_errors(caplog):
     ), "Traceback should be logged"
 
 
-def test_graceful_fallback_only_suppresses_specified_errors():
+def test_graceful_fallback_only_suppresses_specified_errors() -> None:
     @graceful_fallback(fallback_method=lambda *args, **kwargs: None, exceptions=(ValueError,))
-    def bad_division():
+    def bad_division() -> float:
         return 1 / 0
 
     with pytest.raises(ZeroDivisionError):

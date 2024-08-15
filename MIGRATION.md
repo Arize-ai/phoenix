@@ -1,28 +1,5 @@
 # Migrations
 
-## v3.x to v4.0
-
-For parquet files saved from the previous Phoenix versions, use the code snippet below to transform it before loading into Phoenix. Change the `file_name` accordingly.
-
-```python
-from dataclasses import replace
-
-import pandas as pd
-
-import phoenix as px
-from phoenix.trace.attributes import flatten
-from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
-from phoenix.trace.trace_dataset import TraceDataset
-
-file_name = "./old_trace_dataset.parquet"
-
-ds = TraceDataset.from_spans(
-    decode_otlp_span(encode_span_to_otlp(replace(span, attributes=dict(flatten(span.attributes)))))
-    for span in TraceDataset(pd.read_parquet(file_name)).to_spans()
-)
-px.launch_app(trace=ds)
-```
-
 ## Migrating from legacy `phoenix.Dataset` to `phoenix.Inferences`
 
 - `phoenix.Dataset` has been renamed to `phoenix.Inferences`

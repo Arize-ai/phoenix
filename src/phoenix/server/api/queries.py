@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -65,11 +66,115 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.User import User
+from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.api.types.UserRole import UserRole
 
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    async def users(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[User]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = (
+            select(models.User)
+            .where(models.UserRole.role != "SYSTEM")
+            .order_by(models.User.email)
+            .options(joinedload(models.User.role))
+        )
+        async with info.context.db() as session:
+            users = await session.stream_scalars(stmt)
+            data = [
+                User(
+                    id_attr=user.id,
+                    email=user.email,
+                    username=user.username,
+                    created_at=user.created_at,
+                    role=UserRole(
+                        id_attr=user.role.id,
+                        role=user.role.role,
+                    ),
+                )
+                async for user in users
+            ]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def user_roles(
+        self,
+        info: Info[Context, None],
+    ) -> List[UserRole]:
+        async with info.context.db() as session:
+            roles = await session.scalars(
+                select(models.UserRole).where(models.UserRole.role != "SYSTEM")
+            )
+        return [
+            UserRole(
+                id_attr=role.id,
+                role=role.role,
+            )
+            for role in roles
+        ]
+
+    @strawberry.field
+    async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
+        # TODO(auth): add access control
+        stmt = (
+            select(models.APIKey)
+            .join(models.User)
+            .join(models.UserRole)
+            .where(models.UserRole.role != "SYSTEM")
+        )
+        async with info.context.db() as session:
+            api_keys = await session.scalars(stmt)
+        return [
+            UserApiKey(
+                id_attr=api_key.id,
+                user_id=api_key.user_id,
+                name=api_key.name,
+                description=api_key.description,
+                created_at=api_key.created_at,
+                expires_at=api_key.expires_at,
+            )
+            for api_key in api_keys
+        ]
+
+    @strawberry.field
+    async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
+        # TODO(auth): add access control
+        stmt = (
+            select(models.APIKey)
+            .join(models.User)
+            .join(models.UserRole)
+            .where(models.UserRole.role == "SYSTEM")
+        )
+        async with info.context.db() as session:
+            api_keys = await session.scalars(stmt)
+        return [
+            SystemApiKey(
+                id_attr=api_key.id,
+                name=api_key.name,
+                description=api_key.description,
+                created_at=api_key.created_at,
+                expires_at=api_key.expires_at,
+            )
+            for api_key in api_keys
+        ]
+
     @strawberry.field
     async def projects(
         self,
@@ -92,6 +197,7 @@ class Query:
                 models.Project.name == models.Experiment.project_name,
             )
             .where(models.Experiment.project_name.is_(None))
+            .order_by(models.Project.id)
         )
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
@@ -105,6 +211,10 @@ class Query:
                 async for project in projects
             ]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    def projects_last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(models.Project)
 
     @strawberry.field
     async def datasets(
@@ -131,6 +241,10 @@ class Query:
         return connection_from_list(
             data=[to_gql_dataset(dataset) for dataset in datasets], args=args
         )
+
+    @strawberry.field
+    def datasets_last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
+        return info.context.last_updated_at.get(models.Dataset)
 
     @strawberry.field
     async def compare_experiments(

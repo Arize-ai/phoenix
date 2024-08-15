@@ -19,11 +19,19 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
-from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
-from phoenix.server.api.types.MimeType import MimeType
+from phoenix.server.api.input_types.SpanAnnotationSort import (
+    SpanAnnotationColumn,
+    SpanAnnotationSort,
+)
+from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
+
+from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from .Evaluation import DocumentEvaluation
+from .ExampleRevisionInterface import ExampleRevision
+from .MimeType import MimeType
+from .SpanAnnotation import SpanAnnotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -32,9 +40,6 @@ EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
@@ -60,6 +65,7 @@ class SpanKind(Enum):
     agent = "AGENT"
     reranker = "RERANKER"
     evaluator = "EVALUATOR"
+    guardrail = "GUARDRAIL"
     unknown = "UNKNOWN"
 
     @classmethod
@@ -165,12 +171,27 @@ class Span(Node):
     )
 
     @strawberry.field(
-        description="Evaluations associated with the span, e.g. if the span is "
-        "an LLM, an evaluation may assess the helpfulness of its response with "
-        "respect to its input."
+        description=(
+            "Annotations associated with the span. This encompasses both "
+            "LLM and human annotations."
+        )
     )  # type: ignore
-    async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
-        return await info.context.data_loaders.span_evaluations.load(self.id_attr)
+    async def span_annotations(
+        self,
+        info: Info[Context, None],
+        sort: Optional[SpanAnnotationSort] = UNSET,
+    ) -> List[SpanAnnotation]:
+        span_id = self.id_attr
+        annotations = await info.context.data_loaders.span_annotations.load(span_id)
+        sort_key = SpanAnnotationColumn.name.value
+        sort_descending = False
+        if sort:
+            sort_key = sort.col.value
+            sort_descending = sort.dir is SortDir.desc
+        annotations.sort(
+            key=lambda annotation: getattr(annotation, sort_key), reverse=sort_descending
+        )
+        return [to_gql_span_annotation(annotation) for annotation in annotations]
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "
@@ -211,7 +232,7 @@ class Span(Node):
     @strawberry.field(
         description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
-    def as_example_revision(self) -> SpanAsExampleRevision:
+    async def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
         db_span = self.db_span
         attributes = db_span.attributes
         span_io = _SpanIO(
@@ -227,10 +248,28 @@ class Span(Node):
             llm_output_messages=get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
             retrieval_documents=get_attribute_value(attributes, RETRIEVAL_DOCUMENTS),
         )
+
+        # Fetch annotations associated with this span
+        span_annotations = await self.span_annotations(info)
+        annotations = dict()
+        for annotation in span_annotations:
+            annotations[annotation.name] = {
+                "label": annotation.label,
+                "score": annotation.score,
+                "explanation": annotation.explanation,
+                "metadata": annotation.metadata,
+                "annotator_kind": annotation.annotator_kind.value,
+            }
+        # Merge annotations into the metadata
+        metadata = {
+            **attributes,
+            "annotations": annotations,
+        }
+
         return SpanAsExampleRevision(
             input=get_dataset_example_input(span_io),
             output=get_dataset_example_output(span_io),
-            metadata=attributes,
+            metadata=metadata,
         )
 
     @strawberry.field(description="The project that this span belongs to.")  # type: ignore
@@ -245,6 +284,11 @@ class Span(Node):
         span_id = self.id_attr
         project = await info.context.data_loaders.span_projects.load(span_id)
         return to_gql_project(project)
+
+    @strawberry.field(description="Indicates if the span is contained in any dataset")  # type: ignore
+    async def contained_in_dataset(self, info: Info[Context, None]) -> bool:
+        examples = await info.context.data_loaders.span_dataset_examples.load(self.id_attr)
+        return bool(examples)
 
 
 def to_gql_span(span: models.Span) -> Span:
@@ -271,18 +315,9 @@ def to_gql_span(span: models.Span) -> Span:
         attributes=json.dumps(_hide_embedding_vectors(span.attributes), cls=_JSONEncoder),
         metadata=_convert_metadata_to_string(get_attribute_value(span.attributes, METADATA)),
         num_documents=num_documents,
-        token_count_total=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_TOTAL),
-        ),
-        token_count_prompt=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
-        ),
-        token_count_completion=cast(
-            Optional[int],
-            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION),
-        ),
+        token_count_total=span.llm_token_count_total,
+        token_count_prompt=span.llm_token_count_prompt,
+        token_count_completion=span.llm_token_count_completion,
         cumulative_token_count_total=span.cumulative_llm_token_count_prompt
         + span.cumulative_llm_token_count_completion,
         cumulative_token_count_prompt=span.cumulative_llm_token_count_prompt,

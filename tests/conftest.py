@@ -1,38 +1,56 @@
 import asyncio
 import contextlib
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable, Tuple
+import time
+from asyncio import AbstractEventLoop, get_running_loop
+from functools import partial
+from importlib.metadata import version
+from random import getrandbits
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterator,
+    List,
+    Literal,
+    Set,
+    Tuple,
+)
 
 import httpx
 import pytest
-from httpx import Request, Response
+from _pytest.config import Config, Parser
+from _pytest.fixtures import SubRequest
+from asgi_lifespan import LifespanManager
+from faker import Faker
+from httpx import URL, Request, Response
 from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
-from phoenix.db.engines import aio_sqlite_engine
+from phoenix.db.bulk_inserter import BulkInserter
+from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
-from phoenix.server.app import SessionFactory, create_app
+from phoenix.server.app import _db, create_app
+from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.types import BatchedCaller, DbSessionFactory
+from phoenix.session.client import Client
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from starlette.types import ASGIApp
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--run-postgres",
         action="store_true",
-        default=False,
         help="Run tests that require Postgres",
     )
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:
@@ -42,29 +60,40 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture
+def pydantic_version() -> Literal["v1", "v2"]:
+    raw_version = version("pydantic")
+    major_version = int(raw_version.split(".")[0])
+    if major_version == 1:
+        return "v1"
+    if major_version == 2:
+        return "v2"
+    raise ValueError(f"Cannot parse pydantic version: {raw_version}")
+
+
+@pytest.fixture
 def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     api_key = "sk-0123456789"
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     return api_key
 
 
-phoenix_postgresql = factories.postgresql("postgresql_proc")
+postgresql_connection = factories.postgresql("postgresql_proc")
 
 
-def create_async_postgres_engine(psycopg_connection: Connection) -> AsyncEngine:
-    connection = psycopg_connection.cursor().connection
+@pytest.fixture()
+async def postgresql_url(postgresql_connection: Connection) -> AsyncIterator[URL]:
+    connection = postgresql_connection
     user = connection.info.user
     password = connection.info.password
     database = connection.info.dbname
     host = connection.info.host
     port = connection.info.port
-    async_database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-    return create_async_engine(async_database_url)
+    yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
 
 
 @pytest.fixture
-async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[AsyncEngine, None]:
-    engine = create_async_postgres_engine(phoenix_postgresql)
+async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
+    engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
@@ -72,161 +101,199 @@ async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[Asyn
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])
-def dialect(request):
+def dialect(request: SubRequest) -> str:
     return request.param
 
 
 @pytest.fixture
-async def sqlite_engine() -> AsyncEngine:
+async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
-    return engine
+    yield engine
+    await engine.dispose()
 
 
 @pytest.fixture
-def session(request, dialect) -> AsyncSession:
+def db(
+    request: SubRequest,
+    dialect: str,
+) -> DbSessionFactory:
     if dialect == "sqlite":
-        return request.getfixturevalue("sqlite_session")
+        return _db_with_lock(request.getfixturevalue("sqlite_engine"))
     elif dialect == "postgresql":
-        return request.getfixturevalue("postgres_session")
-    raise ValueError(f"Unknown session fixture: {dialect}")
-
-
-@pytest.fixture
-def db(request, dialect) -> async_sessionmaker:
-    if dialect == "sqlite":
-        return request.getfixturevalue("sqlite_db")
-    elif dialect == "postgresql":
-        return request.getfixturevalue("postgres_db")
+        return _db_with_lock(request.getfixturevalue("postgresql_engine"))
     raise ValueError(f"Unknown db fixture: {dialect}")
 
 
-@pytest.fixture
-async def sqlite_db(
-    sqlite_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
+def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
+    lock, db = asyncio.Lock(), _db(engine)
 
-    async with Session.begin() as session:
-
-        @contextlib.asynccontextmanager
-        async def factory() -> AsyncIterator[AsyncSession]:
+    @contextlib.asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with lock, db() as session:
             yield session
 
-        yield factory
+    return DbSessionFactory(db=factory, dialect=engine.dialect.name)
 
 
 @pytest.fixture
-async def postgres_db(
-    postgres_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
-    async with Session.begin() as session:
-
-        @contextlib.asynccontextmanager
-        async def factory() -> AsyncIterator[AsyncSession]:
-            yield session
-
-        yield factory
-
-
-@pytest.fixture
-async def sqlite_session(
-    sqlite_db: Callable[[], AsyncContextManager[AsyncSession]],
-) -> AsyncGenerator[AsyncSession, None]:
-    async with sqlite_db() as session:
-        yield session
-
-
-@pytest.fixture
-async def postgres_session(
-    postgres_db: Callable[[], AsyncContextManager[AsyncSession]],
-) -> AsyncGenerator[AsyncSession, None]:
-    async with postgres_db() as session:
-        yield session
-
-
-@pytest.fixture
-async def project(session: AsyncSession) -> None:
+async def project(db: DbSessionFactory) -> None:
     project = models.Project(name="test_project")
-    session.add(project)
+    async with db() as session:
+        session.add(project)
 
 
 @pytest.fixture
-async def test_client(dialect, db):
-    factory = SessionFactory(session_factory=db, dialect=dialect)
-    app = create_app(
-        db=factory,
-        model=create_model_from_inferences(EMPTY_INFERENCES, None),
-        export_path=EXPORT_DIR,
-        umap_params=get_umap_parameters(None),
-        serve_ui=False,
-    )
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        yield client
+async def app(
+    db: DbSessionFactory,
+) -> AsyncIterator[ASGIApp]:
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_bulk_inserter())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            model=create_model_from_inferences(EMPTY_INFERENCES, None),
+            authentication_enabled=False,
+            export_path=EXPORT_DIR,
+            umap_params=get_umap_parameters(None),
+            serve_ui=False,
+        )
+        manager = await stack.enter_async_context(LifespanManager(app))
+        yield manager.app
+
+
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    try:
+        import uvloop
+    except ImportError:
+        return asyncio.DefaultEventLoopPolicy()
+    return uvloop.EventLoopPolicy()
 
 
 @pytest.fixture
-def test_phoenix_clients(dialect, db) -> Tuple[httpx.Client, httpx.AsyncClient]:
-    factory = SessionFactory(session_factory=db, dialect=dialect)
-    app = create_app(
-        db=factory,
-        model=create_model_from_inferences(EMPTY_INFERENCES, None),
-        export_path=EXPORT_DIR,
-        umap_params=get_umap_parameters(None),
-        serve_ui=False,
-    )
+async def loop() -> AbstractEventLoop:
+    return get_running_loop()
 
-    class SyncTransport(httpx.BaseTransport):
-        def __init__(self, app, asgi_transport):
-            self.app = app
-            self.asgi_transport = asgi_transport
+
+@pytest.fixture
+def httpx_clients(
+    app: ASGIApp,
+    loop: AbstractEventLoop,
+) -> Tuple[httpx.Client, httpx.AsyncClient]:
+    class Transport(httpx.BaseTransport, httpx.AsyncBaseTransport):
+        def __init__(self, transport: httpx.ASGITransport) -> None:
+            self.transport = transport
 
         def handle_request(self, request: Request) -> Response:
-            response = asyncio.run(self.asgi_transport.handle_async_request(request))
-
-            async def read_stream():
-                content = b""
-                async for chunk in response.stream:
-                    content += chunk
-                return content
-
-            content = asyncio.run(read_stream())
-            return Response(
-                status_code=response.status_code,
-                headers=response.headers,
-                content=content,
-                request=request,
-            )
-
-    class AsyncTransport(httpx.AsyncBaseTransport):
-        def __init__(self, app, asgi_transport):
-            self.app = app
-            self.asgi_transport = asgi_transport
+            fut = loop.create_task(self.handle_async_request(request))
+            time_cutoff = time.time() + 10
+            while not fut.done() and time.time() < time_cutoff:
+                time.sleep(0.01)
+            if fut.done():
+                return fut.result()
+            raise TimeoutError
 
         async def handle_async_request(self, request: Request) -> Response:
-            response = await self.asgi_transport.handle_async_request(request)
-
-            async def read_stream():
-                content = b""
-                async for chunk in response.stream:
-                    content += chunk
-                return content
-
-            content = await read_stream()
+            response = await self.transport.handle_async_request(request)
             return Response(
                 status_code=response.status_code,
                 headers=response.headers,
-                content=content,
+                content=b"".join([_ async for _ in response.stream]),
                 request=request,
             )
 
-    asgi_transport = httpx.ASGITransport(app=app)
-    sync_transport = SyncTransport(app, asgi_transport=asgi_transport)
-    sync_client = httpx.Client(transport=sync_transport, base_url="http://test")
-    async_transport = AsyncTransport(app, asgi_transport=asgi_transport)
-    async_client = httpx.AsyncClient(transport=async_transport, base_url="http://test")
-    return sync_client, async_client
+    transport = Transport(httpx.ASGITransport(app))
+    base_url = "http://test"
+    return (
+        httpx.Client(transport=transport, base_url=base_url),
+        httpx.AsyncClient(transport=transport, base_url=base_url),
+    )
+
+
+@pytest.fixture
+def httpx_client(
+    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+) -> httpx.AsyncClient:
+    return httpx_clients[1]
+
+
+@pytest.fixture
+def px_client(
+    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+) -> Client:
+    sync_client, _ = httpx_clients
+    client = Client(warn_if_server_not_running=False)
+    client._client = sync_client
+    client._base_url = str(sync_client.base_url)
+    sync_client._base_url = URL("")
+    return client
+
+
+@pytest.fixture
+def acall(loop: AbstractEventLoop) -> Callable[..., Awaitable[Any]]:
+    return lambda f, *_, **__: loop.run_in_executor(None, partial(f, *_, **__))
+
+
+@contextlib.asynccontextmanager
+async def patch_grpc_server() -> AsyncIterator[None]:
+    cls = GrpcServer
+    original = cls.__init__
+    name = original.__name__
+    changes = {"disabled": True}
+    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
+    yield
+    setattr(cls, name, original)
+
+
+@contextlib.asynccontextmanager
+async def patch_bulk_inserter() -> AsyncIterator[None]:
+    cls = BulkInserter
+    original = cls.__init__
+    name = original.__name__
+    changes = {"sleep": 0.001, "retry_delay_sec": 0.001, "retry_allowance": 1000}
+    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
+    yield
+    setattr(cls, name, original)
+
+
+@contextlib.asynccontextmanager
+async def patch_batched_caller() -> AsyncIterator[None]:
+    cls = BatchedCaller
+    original = cls.__init__
+    name = original.__name__
+    changes = {"sleep_seconds": 0.001}
+    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
+    yield
+    setattr(cls, name, original)
+
+
+@pytest.fixture
+def fake() -> Faker:
+    return Faker()
+
+
+@pytest.fixture
+def rand_span_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(64).to_bytes(8, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())
+
+
+@pytest.fixture
+def rand_trace_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(128).to_bytes(16, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())

@@ -12,9 +12,11 @@ export function ErrorRateCell<TData extends object, TValue>({
   getValue,
 }: CellContext<TData, TValue>) {
   const value = getValue() as number;
-  const percent = value * 100;
+  const percent = value !== null ? value * 100 : null;
   const color = useMemo(() => {
-    if (percent >= 80) {
+    if (percent === null) {
+      return undefined;
+    } else if (percent >= 80) {
       return "red-1100";
     } else if (percent > 0) {
       return "orange-1100";

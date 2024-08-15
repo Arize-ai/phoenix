@@ -134,7 +134,7 @@ def test_get_attribute_value(
         ),
     ],
 )
-def test_unflatten(key_value_pairs, desired):
+def test_unflatten(key_value_pairs, desired) -> None:
     actual = dict(unflatten(key_value_pairs))
     assert actual == desired
     actual = dict(unflatten(reversed(key_value_pairs)))
@@ -157,7 +157,7 @@ def test_unflatten(key_value_pairs, desired):
         ),
     ],
 )
-def test_unflatten_separator(separator, key_value_pairs, desired):
+def test_unflatten_separator(separator, key_value_pairs, desired) -> None:
     actual = dict(unflatten(key_value_pairs, separator=separator))
     assert actual == desired
     actual = dict(unflatten(reversed(key_value_pairs), separator=separator))

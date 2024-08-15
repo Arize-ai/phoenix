@@ -2,8 +2,10 @@ import operator
 from datetime import datetime
 from typing import (
     Any,
+    ClassVar,
     List,
     Optional,
+    Type,
 )
 
 import strawberry
@@ -20,8 +22,8 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
@@ -37,6 +39,7 @@ from phoenix.trace.dsl import SpanFilter
 
 @strawberry.type
 class Project(Node):
+    _table: ClassVar[Type[models.Base]] = models.Project
     id_attr: NodeID[int]
     name: str
     gradient_start_color: str
@@ -246,10 +249,10 @@ class Project(Node):
         )
 
     @strawberry.field(
-        description="Names of all available evaluations for traces. "
+        description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    async def trace_evaluation_names(
+    async def trace_annotations_names(
         self,
         info: Info[Context, None],
     ) -> List[str]:
@@ -257,16 +260,15 @@ class Project(Node):
             select(distinct(models.TraceAnnotation.name))
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.TraceAnnotation.annotator_kind == "LLM")
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
-        description="Names of all available evaluations for spans. "
+        description="Names of all available annotations for spans. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    async def span_evaluation_names(
+    async def span_annotation_names(
         self,
         info: Info[Context, None],
     ) -> List[str]:
@@ -275,7 +277,6 @@ class Project(Node):
             .join(models.Span)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.SpanAnnotation.annotator_kind == "LLM")
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))
@@ -301,26 +302,26 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field
-    async def trace_evaluation_summary(
+    async def trace_annotation_summary(
         self,
         info: Info[Context, None],
-        evaluation_name: str,
+        annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
-    ) -> Optional[EvaluationSummary]:
-        return await info.context.data_loaders.evaluation_summaries.load(
-            ("trace", self.id_attr, time_range, None, evaluation_name),
+    ) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(
+            ("trace", self.id_attr, time_range, None, annotation_name),
         )
 
     @strawberry.field
-    async def span_evaluation_summary(
+    async def span_annotation_summary(
         self,
         info: Info[Context, None],
-        evaluation_name: str,
+        annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> Optional[EvaluationSummary]:
-        return await info.context.data_loaders.evaluation_summaries.load(
-            ("span", self.id_attr, time_range, filter_condition, evaluation_name),
+    ) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(
+            ("span", self.id_attr, time_range, filter_condition, annotation_name),
         )
 
     @strawberry.field
@@ -340,12 +341,12 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        return info.context.streaming_last_updated_at(self.id_attr)
+        return info.context.last_updated_at.get(self._table, self.id_attr)
 
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
         # This query is too expensive to run on every validation
-        # valid_eval_names = await self.span_evaluation_names()
+        # valid_eval_names = await self.span_annotation_names()
         try:
             SpanFilter(
                 condition=condition,

@@ -38,9 +38,12 @@ import {
 } from "@arizeai/components";
 
 import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { AnnotationLabel } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
@@ -132,6 +135,14 @@ const cellControlsCSS = css`
   display: flex;
   flex-direction: row;
   gap: var(--ac-global-dimension-static-size-100);
+`;
+
+const annotationTooltipExtraCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: var(--ac-global-color-primary);
+  gap: var(--ac-global-dimension-size-50);
 `;
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
@@ -613,23 +624,37 @@ function ExperimentRunOutput(
         </li>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
-            <AnnotationLabel
+            <AnnotationTooltip
               annotation={annotation}
-              onClick={() => {
-                const trace = annotation.trace;
-                if (trace) {
-                  startTransition(() => {
-                    setDialog(
-                      <TraceDetailsDialog
-                        traceId={trace.traceId}
-                        projectId={trace.projectId}
-                        title={`Evaluator Trace: ${annotation.name}`}
-                      />
-                    );
-                  });
-                }
-              }}
-            />
+              extra={
+                annotation.trace && (
+                  <View paddingTop="size-100">
+                    <div css={annotationTooltipExtraCSS}>
+                      <Icon svg={<Icons.InfoOutline />} />
+                      <span>Click to view evaluator trace</span>
+                    </div>
+                  </View>
+                )
+              }
+            >
+              <AnnotationLabel
+                annotation={annotation}
+                onClick={() => {
+                  const trace = annotation.trace;
+                  if (trace) {
+                    startTransition(() => {
+                      setDialog(
+                        <TraceDetailsDialog
+                          traceId={trace.traceId}
+                          projectId={trace.projectId}
+                          title={`Evaluator Trace: ${annotation.name}`}
+                        />
+                      );
+                    });
+                  }
+                }}
+              />
+            </AnnotationTooltip>
           </li>
         ))}
       </ul>

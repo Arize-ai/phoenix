@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3170440e95ab809c6cba17ecdc42c496>>
+ * @generated SignedSource<<f10fbd896f47cd64471075f4f1f24f48>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type DatasetsTable_datasets$data = {
         readonly exampleCount: number;
         readonly experimentCount: number;
         readonly id: string;
+        readonly metadata: any;
         readonly name: string;
       };
     }>;
@@ -29,6 +30,8 @@ export type DatasetsTable_datasets$key = {
   readonly " $data"?: DatasetsTable_datasets$data;
   readonly " $fragmentSpreads": FragmentRefs<"DatasetsTable_datasets">;
 };
+
+import DatasetsTableDatasetsQuery_graphql from './DatasetsTableDatasetsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -75,7 +78,7 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": require('./DatasetsTableDatasetsQuery.graphql')
+      "operation": DatasetsTableDatasetsQuery_graphql
     }
   },
   "name": "DatasetsTable_datasets",
@@ -129,6 +132,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "description",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
                   "storageKey": null
                 },
                 {
@@ -206,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "ead09294d86188dc9d76825bdef37fbf";
+(node as any).hash = "fa378bc7ec26f5e877e6cf90e5ee553d";
 
 export default node;

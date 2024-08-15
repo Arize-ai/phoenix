@@ -1,2 +1,1 @@
-export * from "./AnnotationLabel";
-export * from "./AnnotationColorSwatch";
+export * from "./SequenceNumberLabel";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1b34d98217158347d69e559a07d77e8>>
+ * @generated SignedSource<<07e283462624a27f2b246588bfbb7765>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,8 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
+export type AnnotatorKind = "HUMAN" | "LLM";
+export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
@@ -37,7 +38,8 @@ export type SpansTable_spans$data = {
         readonly output: {
           readonly value: string;
         } | null;
-        readonly spanEvaluations: ReadonlyArray<{
+        readonly spanAnnotations: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -51,13 +53,15 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
   readonly " $data"?: SpansTable_spans$data;
   readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
 };
+
+import SpansTableSpansQuery_graphql from './SpansTableSpansQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -99,7 +103,7 @@ return {
       "name": "filterCondition"
     },
     {
-      "defaultValue": 100,
+      "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
     },
@@ -138,7 +142,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./SpansTableSpansQuery.graphql'),
+      "operation": SpansTableSpansQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
@@ -150,7 +154,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_evaluations"
+      "name": "SpanColumnSelector_annotations"
     },
     {
       "alias": "spans",
@@ -298,9 +302,9 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanEvaluation",
+                  "concreteType": "SpanAnnotation",
                   "kind": "LinkedField",
-                  "name": "spanEvaluations",
+                  "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
                     (v2/*: any*/),
@@ -316,6 +320,13 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "score",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotatorKind",
                       "storageKey": null
                     }
                   ],
@@ -426,6 +437,6 @@ return {
 };
 })();
 
-(node as any).hash = "78738e3d457d0b4140c9bb4f4dc1180a";
+(node as any).hash = "ce0f0cd1dc09d507f1e3ec37a76403a8";
 
 export default node;

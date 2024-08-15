@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<31ebed06492b7a61c472a7beb0be14a9>>
+ * @generated SignedSource<<bd80b6efb4b67da91ba9add83415d3f7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ProjectPageHeader_stats$data = {
   readonly id: string;
   readonly latencyMsP50: number | null;
   readonly latencyMsP99: number | null;
-  readonly spanEvaluationNames: ReadonlyArray<string>;
+  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly tokenCountTotal: number;
   readonly traceCount: number;
   readonly " $fragmentType": "ProjectPageHeader_stats";
@@ -24,6 +24,8 @@ export type ProjectPageHeader_stats$key = {
   readonly " $data"?: ProjectPageHeader_stats$data;
   readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
+
+import ProjectPageHeaderQuery_graphql from './ProjectPageHeaderQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -48,7 +50,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./ProjectPageHeaderQuery.graphql'),
+      "operation": ProjectPageHeaderQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
@@ -103,7 +105,7 @@ return {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "spanEvaluationNames",
+      "name": "spanAnnotationNames",
       "storageKey": null
     },
     {
@@ -126,6 +128,6 @@ return {
 };
 })();
 
-(node as any).hash = "22a98df993a4375f85851e92f6844c09";
+(node as any).hash = "dcce9d160db90e2b5c51eef9971101a4";
 
 export default node;

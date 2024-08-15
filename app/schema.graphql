@@ -12,10 +12,50 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+interface Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+}
+
+type AnnotationSummary {
+  count: Int!
+  labels: [String!]!
+  labelFractions: [LabelFraction!]!
+  meanScore: Float
+  scoreCount: Int!
+  labelCount: Int!
+}
+
 enum AnnotatorKind {
   LLM
   HUMAN
-  CODE
+}
+
+interface ApiKey {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
@@ -60,6 +100,26 @@ input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreateSpanAnnotationInput {
+  spanId: GlobalID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
+}
+
+input CreateTraceAnnotationInput {
+  traceId: GlobalID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String = null
+  score: Float = null
+  explanation: String = null
+  metadata: JSON! = {}
 }
 
 enum DataQualityMetric {
@@ -108,6 +168,7 @@ type Dataset implements Node {
   experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
+  lastUpdatedAt: DateTime
 }
 
 enum DatasetColumn {
@@ -236,6 +297,10 @@ input DatasetVersionSort {
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DeleteAnnotationsInput {
+  annotationIds: [GlobalID!]!
+}
+
 input DeleteDatasetExamplesInput {
   exampleIds: [GlobalID!]!
   datasetVersionDescription: String
@@ -357,20 +422,20 @@ type DimensionWithValue {
   value: String
 }
 
-type DocumentEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+type DocumentEvaluation implements Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Result of the evaluation in the form of a numeric score."""
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
   """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
 
@@ -523,33 +588,6 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
-interface Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
-  name: String!
-
-  """Result of the evaluation in the form of a numeric score."""
-  score: Float
-
-  """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
-  label: String
-
-  """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
-  """
-  explanation: String
-}
-
-type EvaluationSummary {
-  count: Int!
-  labels: [String!]!
-  labelFractions: [LabelFraction!]!
-  meanScore: Float
-  scoreCount: Int!
-  labelCount: Int!
-}
-
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -592,8 +630,9 @@ type Experiment implements Node {
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
-  averageRunLatencyMs: Float!
+  averageRunLatencyMs: Float
   project: Project
+  lastUpdatedAt: DateTime
 }
 
 type ExperimentAnnotationSummary {
@@ -649,7 +688,7 @@ type ExperimentRunAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
-  annotatorKind: AnnotatorKind!
+  annotatorKind: ExperimentRunAnnotatorKind!
   label: String
   score: Float
   explanation: String
@@ -677,6 +716,12 @@ type ExperimentRunAnnotationEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRunAnnotation!
+}
+
+enum ExperimentRunAnnotatorKind {
+  LLM
+  HUMAN
+  CODE
 }
 
 """A connection to a list of items."""
@@ -835,6 +880,12 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
+  patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -865,6 +916,16 @@ type PageInfo {
 
   """When paginating forwards, the cursor to continue."""
   endCursor: String
+}
+
+input PatchAnnotationInput {
+  annotationId: GlobalID!
+  name: String
+  annotatorKind: AnnotatorKind
+  label: String
+  score: Float
+  explanation: String
+  metadata: JSON
 }
 
 input PatchDatasetExamplesInput {
@@ -924,19 +985,19 @@ type Project implements Node {
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
-  Names of all available evaluations for traces. (The list contains no duplicates.)
+  Names of all available annotations for traces. (The list contains no duplicates.)
   """
-  traceEvaluationNames: [String!]!
+  traceAnnotationsNames: [String!]!
 
   """
-  Names of all available evaluations for spans. (The list contains no duplicates.)
+  Names of all available annotations for spans. (The list contains no duplicates.)
   """
-  spanEvaluationNames: [String!]!
+  spanAnnotationNames: [String!]!
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
-  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  traceAnnotationSummary(annotationName: String!, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -969,8 +1030,14 @@ type PromptResponse {
 }
 
 type Query {
+  users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
+  userRoles: [UserRole!]!
+  userApiKeys: [UserApiKey!]!
+  systemApiKeys: [SystemApiKey!]!
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
+  datasetsLastUpdatedAt: DateTime
   compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
   functionality: Functionality!
   model: Model!
@@ -1084,9 +1151,9 @@ type Span implements Node {
   propagatedStatusCode: SpanStatusCode!
 
   """
-  Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may assess the helpfulness of its response with respect to its input.
+  Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanEvaluations: [SpanEvaluation!]!
+  spanAnnotations(sort: SpanAnnotationSort): [SpanAnnotation!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
@@ -1106,6 +1173,49 @@ type Span implements Node {
 
   """The project that this span belongs to."""
   project: Project!
+
+  """Indicates if the span is contained in any dataset"""
+  containedInDataset: Boolean!
+}
+
+type SpanAnnotation implements Node & Annotation {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+  annotatorKind: AnnotatorKind!
+  metadata: JSON!
+  spanId: GlobalID!
+}
+
+enum SpanAnnotationColumn {
+  createdAt
+  name
+}
+
+type SpanAnnotationMutationPayload {
+  spanAnnotations: [SpanAnnotation!]!
+  query: Query!
+}
+
+"""The sort key and direction for SpanAnnotation connections"""
+input SpanAnnotationSort {
+  col: SpanAnnotationColumn!
+  dir: SortDir!
 }
 
 type SpanAsExampleRevision implements ExampleRevision {
@@ -1149,24 +1259,6 @@ type SpanEdge {
   node: Span!
 }
 
-type SpanEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
-  name: String!
-
-  """Result of the evaluation in the form of a numeric score."""
-  score: Float
-
-  """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
-  label: String
-
-  """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
-  """
-  explanation: String
-}
-
 type SpanEvent {
   name: String!
   message: String!
@@ -1190,6 +1282,7 @@ enum SpanKind {
   agent
   reranker
   evaluator
+  guardrail
   unknown
 }
 
@@ -1206,6 +1299,23 @@ enum SpanStatusCode {
   OK
   ERROR
   UNSET
+}
+
+type SystemApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
 }
 
 input TimeRange {
@@ -1232,26 +1342,36 @@ type Trace implements Node {
   projectId: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
-  """Evaluations associated with the trace"""
-  traceEvaluations: [TraceEvaluation!]!
+  """Annotations associated with the trace."""
+  spanAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
 }
 
-type TraceEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+type TraceAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
   name: String!
-
-  """Result of the evaluation in the form of a numeric score."""
-  score: Float
-
-  """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
+  annotatorKind: AnnotatorKind!
   label: String
-
-  """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
-  """
+  score: Float
   explanation: String
+  metadata: JSON!
+  traceId: GlobalID!
+}
+
+enum TraceAnnotationColumn {
+  createdAt
+  name
+}
+
+type TraceAnnotationMutationPayload {
+  traceAnnotations: [TraceAnnotation!]!
+  query: Query!
+}
+
+"""The sort key and direction for TraceAnnotation connections"""
+input TraceAnnotationSort {
+  col: TraceAnnotationColumn!
+  dir: SortDir!
 }
 
 type UMAPPoint {
@@ -1270,6 +1390,56 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+type User implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  email: String!
+  username: String
+  createdAt: DateTime!
+  role: UserRole!
+}
+
+type UserApiKey implements ApiKey & Node {
+  """Name of the API key."""
+  name: String!
+
+  """Description of the API key."""
+  description: String
+
+  """The date and time the API key was created."""
+  createdAt: DateTime!
+
+  """The date and time the API key will expire."""
+  expiresAt: DateTime
+
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+}
+
+"""A connection to a list of items."""
+type UserConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [UserEdge!]!
+}
+
+"""An edge in a connection."""
+type UserEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: User!
+}
+
+type UserRole implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  role: String!
 }
 
 type ValidationResult {

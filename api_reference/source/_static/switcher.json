@@ -1,17 +1,36 @@
 [
     {
-        "version": "dev",
-        "url": "https://arize-phoenix.readthedocs.io/en/latest/"
-    },
-    {
-        "name": "4.6.2 (stable)",
-        "version": "v4.6.2",
-        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.6.2/",
+        "version": "latest",
+        "url": "https://arize-phoenix.readthedocs.io/en/latest/",
         "preferred": true
     },
     {
-        "name": "4.6.1",
-        "version": "v4.6.1",
-        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.6.1/"
+        "version": "v4.12.0",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.12.0/"
+    },
+    {
+        "name": "4.11.0",
+        "version": "v4.11.0",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.11.0/"
+    },
+    {
+        "name": "4.10.1",
+        "version": "v4.10.1",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.10.1/"
+    },
+    {
+        "name": "4.9.0",
+        "version": "v4.9.0",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.9.0/"
+    },
+    {
+        "name": "4.8.1",
+        "version": "v4.8.1",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.8.1/"
+    },
+    {
+        "name": "4.7.2",
+        "version": "v4.7.2",
+        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.7.2/"
     }
 ]

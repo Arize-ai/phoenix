@@ -14,7 +14,7 @@ blinker==1.7.0
     # via streamlit
 cachetools==5.3.3
     # via streamlit
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -103,7 +103,7 @@ sniffio==1.3.1
     # via
     #   anyio
     #   httpx
-streamlit==1.33.0
+streamlit==1.37.0
 tenacity==8.2.3
     # via streamlit
 toml==0.10.2

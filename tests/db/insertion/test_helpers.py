@@ -1,16 +1,12 @@
-import contextlib
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
+from asyncio import sleep
+from datetime import datetime
 
 import pytest
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-)
 
 
 class Test_insert_on_conflict:
@@ -27,123 +23,151 @@ class Test_insert_on_conflict:
             ),
         ],
     )
-    async def test_inserts_new_tuple_when_no_conflict_is_present(self, on_conflict, session):
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
-        values = dict(
-            name="name",
-            description="description",
-        )
-        await session.execute(
-            insert_on_conflict(
-                dialect=dialect,
-                table=models.Project,
-                values=values,
-                constraint="uq_projects_name",
-                column_names=("name",),
-                on_conflict=on_conflict,
-                set_=values,
+    async def test_inserts_new_tuple_when_no_conflict_is_present(
+        self,
+        on_conflict: OnConflict,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            values = dict(
+                name="name",
+                description="description",
             )
-        )
+            await session.execute(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.Project,
+                    unique_by=("name",),
+                    on_conflict=on_conflict,
+                )
+            )
         projects = (await session.scalars(select(models.Project))).all()
         assert len(projects) == 1
         assert projects[0].name == "name"
         assert projects[0].description == "description"
 
     @pytest.mark.parametrize(
-        "on_conflict, expected_description",
+        "on_conflict",
         [
             pytest.param(
                 OnConflict.DO_NOTHING,
-                "original-description",
                 id="do-nothing",
             ),
             pytest.param(
                 OnConflict.DO_UPDATE,
-                "updated-description",
-                id="update",
+                id="do-update",
             ),
         ],
     )
     async def test_handles_conflicts_in_expected_manner(
         self,
-        on_conflict,
-        expected_description,
-        prod_db,  # the insert_on_conflict function is sensitive to the way the DB is set up
-    ):
-        async with prod_db() as session:
-            await session.execute(
-                insert(models.Project).values(dict(name="name", description="original-description"))
+        on_conflict: OnConflict,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project_rowid = await session.scalar(
+                insert(models.Project).values(dict(name="abc")).returning(models.Project.id)
             )
-            projects = (await session.scalars(select(models.Project))).all()
-            assert len(projects) == 1
-            assert projects[0].name == "name"
-            assert projects[0].description == "original-description"
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    dict(
+                        project_rowid=project_rowid,
+                        trace_id="xyz",
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                    )
+                )
+                .returning(models.Trace.id)
+            )
+            record = await session.scalar(
+                insert(models.TraceAnnotation)
+                .values(
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=12,
+                        label="ijk",
+                        metadata_={"1": "2"},
+                    )
+                )
+                .returning(models.TraceAnnotation)
+            )
+            anno = await session.scalar(
+                select(models.TraceAnnotation)
+                .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+                .order_by(models.TraceAnnotation.created_at)
+            )
+        assert anno.id == record.id
+        assert anno.created_at == record.created_at
+        assert anno.name == record.name
+        assert anno.trace_rowid == record.trace_rowid
+        assert anno.updated_at == record.updated_at
+        assert anno.score == record.score
+        assert anno.label == record.label
+        assert anno.explanation == record.explanation
+        assert anno.metadata_ == record.metadata_
 
-        async with prod_db() as session:
+        await sleep(1)  # increment `updated_at` by 1 second
+
+        async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            values = dict(
-                name="name",
-                description="updated-description",
-            )
             await session.execute(
                 insert_on_conflict(
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=None,
+                        metadata_={},
+                    ),
+                    dict(
+                        name="rst",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=12,
+                        metadata_={"1": "2"},
+                    ),
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="HUMAN",
+                        score=21,
+                        metadata_={"2": "1"},
+                    ),
                     dialect=dialect,
-                    table=models.Project,
-                    values=values,
-                    constraint="uq_projects_name",
-                    column_names=("name",),
+                    table=models.TraceAnnotation,
+                    unique_by=("name", "trace_rowid"),
                     on_conflict=on_conflict,
-                    set_=values,
                 )
             )
-
-            projects = (await session.scalars(select(models.Project))).all()
-            assert len(projects) == 1
-            assert projects[0].name == "name"
-            assert projects[0].description == expected_description
-
-
-@pytest.fixture
-def prod_db(request, dialect) -> async_sessionmaker:
-    """
-    Instantiates DB in a manner similar to production.
-    """
-    if dialect == "sqlite":
-        return request.getfixturevalue("prod_sqlite_db")
-    elif dialect == "postgresql":
-        return request.getfixturevalue("prod_postgres_db")
-    raise ValueError(f"Unknown db fixture: {dialect}")
-
-
-@pytest.fixture
-async def prod_sqlite_db(
-    sqlite_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    """
-    Instantiates SQLite in a manner similar to production.
-    """
-    Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
-            yield session
-
-    return factory
-
-
-@pytest.fixture
-async def prod_postgres_db(
-    postgres_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    """
-    Instantiates Postgres in a manner similar to production.
-    """
-    Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
-            yield session
-
-    return factory
+            annos = list(
+                await session.scalars(
+                    select(models.TraceAnnotation)
+                    .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+                    .order_by(models.TraceAnnotation.created_at)
+                )
+            )
+        assert len(annos) == 2
+        anno = annos[0]
+        assert anno.id == record.id
+        assert anno.created_at == record.created_at
+        assert anno.name == record.name
+        assert anno.trace_rowid == record.trace_rowid
+        if on_conflict is OnConflict.DO_NOTHING:
+            assert anno.updated_at == record.updated_at
+            assert anno.annotator_kind == record.annotator_kind
+            assert anno.score == record.score
+            assert anno.label == record.label
+            assert anno.explanation == record.explanation
+            assert anno.metadata_ == record.metadata_
+        else:
+            assert anno.updated_at > record.updated_at
+            assert anno.annotator_kind != record.annotator_kind
+            assert anno.score == 21
+            assert anno.label is None
+            assert anno.explanation is None
+            assert anno.metadata_ == {"2": "1"}

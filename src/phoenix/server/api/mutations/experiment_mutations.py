@@ -14,6 +14,7 @@ from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.dml_event import ExperimentDeleteEvent
 
 
 @strawberry.type
@@ -66,6 +67,7 @@ class ExperimentMutationMixin:
             delete_traces(info.context.db, *eval_trace_ids),
             return_exceptions=True,
         )
+        info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         return ExperimentMutationPayload(
             experiments=[
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids

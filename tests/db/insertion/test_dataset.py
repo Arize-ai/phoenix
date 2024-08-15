@@ -1,13 +1,11 @@
-from typing import AsyncContextManager, Callable
-
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent, add_dataset_examples
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_create_dataset(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     async with db() as session:
         await add_dataset_examples(

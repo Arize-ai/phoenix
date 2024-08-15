@@ -101,6 +101,14 @@ class TraceDataset:
     """
     A TraceDataset is a wrapper around a dataframe which is a flattened representation
     of Spans. The collection of spans trace the LLM application's execution.
+
+    Typical usage example::
+
+        from phoenix.trace.utils import json_lines_to_df
+
+        with open("trace.jsonl", "r") as f:
+            trace_ds = TraceDataset(json_lines_to_df(f.readlines()))
+        px.launch_app(trace=trace_ds)
     """
 
     name: str
@@ -122,15 +130,15 @@ class TraceDataset:
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in
         evaluations for the spans in the dataset.
 
-        Parameters
-        __________
-        dataframe: pandas.DataFrame
-            the pandas dataframe containing the tracing data. Each row
-            represents a span.
-        evaluations: Optional[Iterable[SpanEvaluations]]
-            an optional list of evaluations for the spans in the dataset. If
-            provided, the evaluations can be materialized into a unified
-            dataframe as annotations.
+        Args:
+            dataframe (pandas.DataFrame): The pandas dataframe containing the
+                tracing data. Each row of which is a flattened representation
+                of a span.
+            name (str): The name used to identify the dataset in the application.
+                If not provided, a random name will be generated.
+            evaluations (Optional[Iterable[SpanEvaluations]]): An optional list of
+                evaluations for the spans in the dataset. If provided, the evaluations
+                can be materialized into a unified dataframe as annotations.
         """
         # Validate the the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
@@ -225,12 +233,12 @@ class TraceDataset:
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
-            to a directory where the data will be written. If not provided, the
-            data will be written to a default location.
+                to a directory where the data will be written. If not provided, the
+                data will be written to a default location.
 
         Returns:
             UUID: The id of the trace dataset, which can be used as key to load
-            the dataset from disk using `load`.
+                the dataset from disk using `load`.
         """
         directory = Path(directory or TRACE_DATASETS_DIR)
         for evals in self.evaluations:
@@ -273,9 +281,9 @@ class TraceDataset:
             id (Union[str, UUID]): The ID of the trace dataset to be loaded.
 
             directory (Optional[Union[str, Path]], optional): The path to the
-            directory containing the persisted trace dataset parquet file. If
-            not provided, the parquet file will be loaded from the same default
-            location used by `save`.
+                directory containing the persisted trace dataset parquet file. If
+                not provided, the parquet file will be loaded from the same default
+                location used by `save`.
 
         Returns:
             TraceDataset: The loaded trace dataset.

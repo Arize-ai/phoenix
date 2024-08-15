@@ -22,18 +22,30 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, View } from "@arizeai/components";
+import {
+  Content,
+  ContextualHelp,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -44,24 +56,24 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { EvaluationLabel } from "./EvaluationLabel";
+import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
+import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import {
+  ANNOTATIONS_COLUMN_PREFIX,
+  ANNOTATIONS_KEY_SEPARATOR,
   DEFAULT_SORT,
-  EVALS_COLUMN_PREFIX,
-  EVALS_KEY_SEPARATOR,
   getGqlSort,
 } from "./tableUtils";
-import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 /**
  * A nested table row is a span with a children that recursively
@@ -104,14 +116,14 @@ export function TracesTable(props: TracesTableProps) {
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 100 }
+          first: { type: "Int", defaultValue: 50 }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          ...SpanColumnSelector_evaluations
+          ...SpanColumnSelector_annotations
           rootSpans: spans(
             first: $first
             after: $after
@@ -143,10 +155,11 @@ export function TracesTable(props: TracesTableProps) {
                   spanId
                   traceId
                 }
-                spanEvaluations {
+                spanAnnotations {
                   name
                   label
                   score
+                  annotatorKind
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -175,10 +188,11 @@ export function TracesTable(props: TracesTableProps) {
                     spanId
                     traceId
                   }
-                  spanEvaluations {
+                  spanAnnotations {
                     name
                     label
                     score
+                    annotatorKind
                   }
                   documentRetrievalMetrics {
                     evaluationName
@@ -195,14 +209,14 @@ export function TracesTable(props: TracesTableProps) {
       props.project
     );
 
-  const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
   );
-  const visibleEvaluationColumnNames = useMemo(() => {
-    return Object.keys(evaluationVisibility).filter(
-      (name) => evaluationVisibility[name]
+  const visibleAnnotationColumnNames = useMemo(() => {
+    return Object.keys(annotationColumnVisibility).filter(
+      (name) => annotationColumnVisibility[name]
     );
-  }, [evaluationVisibility]);
+  }, [annotationColumnVisibility]);
   const tableData = useMemo(() => {
     const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
@@ -216,58 +230,81 @@ export function TracesTable(props: TracesTableProps) {
   }, [data]);
   type TableRow = (typeof tableData)[number];
 
-  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
-    visibleEvaluationColumnNames.map((name) => {
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
+    visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
         columns: [
           {
             header: `label`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
+            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.label;
+              return annotation.label;
             },
           } as ColumnDef<TableRow>,
           {
             header: `score`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
+            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.score;
+              return annotation.score;
             },
           } as ColumnDef<TableRow>,
         ],
       };
     });
 
-  const evaluationColumns: ColumnDef<TableRow>[] = [
+  const annotationColumns: ColumnDef<TableRow>[] = [
     {
-      header: "evaluations",
-      accessorKey: "spanEvaluations",
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>feedback</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Feedback
+            </Heading>
+            <Content>
+              Feedback includes evaluations and human annotations logged via the
+              API or set via the UI.
+            </Content>
+          </ContextualHelp>
+        </Flex>
+      ),
+      accessorKey: "spanAnnotations",
       enableSorting: false,
       cell: ({ row }) => {
-        const hasNoEvaluations =
-          row.original.spanEvaluations.length === 0 &&
+        const hasNoFeedback =
+          row.original.spanAnnotations.length === 0 &&
           row.original.documentRetrievalMetrics.length === 0;
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanEvaluations.map((evaluation) => {
+            {row.original.spanAnnotations.map((annotation) => {
               return (
-                <EvaluationLabel
-                  key={evaluation.name}
-                  evaluation={evaluation}
-                />
+                <AnnotationTooltip
+                  key={annotation.name}
+                  annotation={annotation}
+                  layout="horizontal"
+                  width="500px"
+                  extra={
+                    <AnnotationTooltipFilterActions annotation={annotation} />
+                  }
+                >
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplayPreference="label"
+                  />
+                </AnnotationTooltip>
               );
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
@@ -294,12 +331,12 @@ export function TracesTable(props: TracesTableProps) {
                 </Fragment>
               );
             })}
-            {hasNoEvaluations ? "--" : null}
+            {hasNoFeedback ? "--" : null}
           </Flex>
         );
       },
     },
-    ...dynamicEvaluationColumns,
+    ...dynamicAnnotationColumns,
   ];
 
   const columns: ColumnDef<TableRow>[] = [
@@ -372,9 +409,9 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "name",
       enableSorting: false,
       cell: ({ getValue, row }) => {
-        const { spanId, traceId } = row.original.context;
+        const { traceId } = row.original.context;
         return (
-          <Link to={`traces/${traceId}?selectedSpanId=${spanId}`}>
+          <Link to={`traces/${traceId}?selectedSpanNodeId=${row.original.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -398,7 +435,7 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
-    ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
+    ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",
@@ -582,7 +619,7 @@ export function TracesTable(props: TracesTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <ProjectTableEmpty />
           ) : (
             <tbody>
               {rows.map((row) => {

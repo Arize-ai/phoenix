@@ -72,15 +72,16 @@ from phoenix.experiments.types import (
 )
 from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url, get_func_name
 from phoenix.trace.attributes import flatten
+from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify
 
 
 def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
     headers = get_env_client_headers()
-    return httpx.Client(
+    return VersionedClient(
         base_url=get_base_url(),
         headers=headers,
-    ), httpx.AsyncClient(
+    ), VersionedAsyncClient(
         base_url=get_base_url(),
         headers=headers,
     )
@@ -107,6 +108,7 @@ def run_experiment(
     rate_limit_errors: Optional[RateLimitErrors] = None,
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
+    concurrency: int = 3,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -120,21 +122,23 @@ def run_experiment(
     output. If the `task` is a function of one argument then that argument will be bound to the
     `input` field of the dataset example. Alternatively, the `task` can be a function of any
     combination of specific argument names that will be bound to special values:
-        `input`: The input field of the dataset example
-        `expected`: The expected or reference output of the dataset example
-        `reference`: An alias for `expected`
-        `metadata`: Metadata associated with the dataset example
-        `example`: The dataset `Example` object with all associated fields
+
+    - `input`: The input field of the dataset example
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
     or numeric "score". If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
-        `input`: The input field of the dataset example
-        `output`: The output of the task
-        `expected`: The expected or reference output of the dataset example
-        `reference`: An alias for `expected`
-        `metadata`: Metadata associated with the dataset example
+
+    - `input`: The input field of the dataset example
+    - `output`: The output of the task
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
 
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
@@ -155,6 +159,9 @@ def run_experiment(
             examples of the given size. Defaults to False.
         print_summary (bool): Whether to print a summary of the experiment and evaluation results.
             Defaults to True.
+        concurrency (int): Specifies the concurrency for task execution. In order to enable
+            concurrent task execution, the task callable must be a coroutine function.
+            Defaults to 3.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -366,10 +373,9 @@ def run_experiment(
         return exp_run
 
     _errors: Tuple[Type[BaseException], ...]
-    if not hasattr(rate_limit_errors, "__iter__"):
+    if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
-        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
         _errors = tuple(filter(None, rate_limit_errors))
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
 
@@ -387,6 +393,7 @@ def run_experiment(
         exit_on_error=False,
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
+        concurrency=concurrency,
     )
 
     test_cases = [
@@ -412,6 +419,7 @@ def run_experiment(
             dry_run=dry_run,
             print_summary=print_summary,
             rate_limit_errors=rate_limit_errors,
+            concurrency=concurrency,
         )
     if print_summary:
         print(ran_experiment)
@@ -425,6 +433,7 @@ def evaluate_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     rate_limit_errors: Optional[RateLimitErrors] = None,
+    concurrency: int = 3,
 ) -> RanExperiment:
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
@@ -445,14 +454,14 @@ def evaluate_experiment(
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
-        experiment_runs = tuple(
-            ExperimentRun.from_dict(exp_run)
+        experiment_runs = {
+            exp_run["id"]: ExperimentRun.from_dict(exp_run)
             for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
-        )
+        }
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
         params = ExperimentParameters(n_examples=len(dataset.examples))
-        task_summary = TaskSummary.from_task_runs(params, experiment_runs)
+        task_summary = TaskSummary.from_task_runs(params, experiment_runs.values())
         ran_experiment = object.__new__(RanExperiment)
         ran_experiment.__init__(  # type: ignore[misc]
             dataset=dataset,
@@ -606,10 +615,9 @@ def evaluate_experiment(
         return eval_run
 
     _errors: Tuple[Type[BaseException], ...]
-    if not hasattr(rate_limit_errors, "__iter__"):
+    if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
-        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
         _errors = tuple(filter(None, rate_limit_errors))
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
 
@@ -627,6 +635,7 @@ def evaluate_experiment(
         exit_on_error=False,
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
+        concurrency=concurrency,
     )
     eval_runs, _execution_details = executor.run(evaluation_input)
     eval_summary = EvaluationSummary.from_eval_runs(

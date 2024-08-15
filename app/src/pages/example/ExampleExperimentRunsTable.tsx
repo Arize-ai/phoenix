@@ -9,9 +9,12 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@arizeai/components";
 
-import { AnnotationLabel } from "@phoenix/components/experiment";
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -39,6 +42,14 @@ export function ExampleExperimentsTableEmpty() {
     </tbody>
   );
 }
+
+const annotationTooltipExtraCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: var(--ac-global-color-primary);
+  gap: var(--ac-global-dimension-size-50);
+`;
 
 export function ExampleExperimentRunsTable({
   example,
@@ -151,17 +162,32 @@ export function ExampleExperimentRunsTable({
             {row.original.annotations.edges.map((annotationEdge, index) => {
               const annotation = annotationEdge.annotation;
               return (
-                <AnnotationLabel
+                <AnnotationTooltip
                   key={index}
                   annotation={annotation}
-                  onClick={() => {
-                    if (annotation.trace) {
-                      navigate(
-                        `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
-                      );
-                    }
-                  }}
-                />
+                  extra={
+                    annotation.trace && (
+                      <View paddingTop="size-100">
+                        <div css={annotationTooltipExtraCSS}>
+                          <Icon svg={<Icons.InfoOutline />} />
+                          <span>Click to view evaluator trace</span>
+                        </div>
+                      </View>
+                    )
+                  }
+                >
+                  <AnnotationLabel
+                    key={index}
+                    annotation={annotation}
+                    onClick={() => {
+                      if (annotation.trace) {
+                        navigate(
+                          `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                        );
+                      }
+                    }}
+                  />
+                </AnnotationTooltip>
               );
             })}
           </Flex>

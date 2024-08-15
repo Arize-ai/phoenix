@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.1...arize-phoenix-evals-v0.15.0) (2024-08-15)
+
+
+### Features
+
+* Expose configuration for initial rate limit ([#4087](https://github.com/Arize-ai/phoenix/issues/4087)) ([194a66d](https://github.com/Arize-ai/phoenix/commit/194a66d6315ffd93275e1a8e19560a435701ddc8))
+
+
+### Bug Fixes
+
+* use dataloader for span annotations ([#4139](https://github.com/Arize-ai/phoenix/issues/4139)) ([2456ad4](https://github.com/Arize-ai/phoenix/commit/2456ad47c6cb73901152bec5b4bfed8c77c96933))
+
+
+### Documentation
+
+* api ref updates and docstring fixes ([e089f99](https://github.com/Arize-ai/phoenix/commit/e089f99fa2e63cdf9cb342bc3810361947c28e61))
+* Fix docstring ([#3969](https://github.com/Arize-ai/phoenix/issues/3969)) ([f6a5b62](https://github.com/Arize-ai/phoenix/commit/f6a5b62a1f53ba34d22c678e7bbb314693641993))
+* Update LiteLLM and OpenAI docstrings ([#3910](https://github.com/Arize-ai/phoenix/issues/3910)) ([be57127](https://github.com/Arize-ai/phoenix/commit/be5712761a1eb59c73ca38bc207f9e6078bf60f6))
+
+## [0.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.0...arize-phoenix-evals-v0.14.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* Run Bedrock calls in executor for async ([#3884](https://github.com/Arize-ai/phoenix/issues/3884)) ([46e3b1c](https://github.com/Arize-ai/phoenix/commit/46e3b1c7c705e6fd6df7cdcc10f1ec0f14efb03c))
+
+## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.2...arize-phoenix-evals-v0.14.0) (2024-07-12)
+
+### Features
+
+* Add function call evaluator template to span_templates.py & tutorial notebook
+
+### Bug Fixes
+
+* ensure experiment errors messages work on python 3.8 and 3.9 ([#3840](https://github.com/Arize-ai/phoenix/issues/3840)) ([25a7fb9](https://github.com/Arize-ai/phoenix/commit/25a7fb93fe7512a0ac2da9a59915c9e145c58ae2))
+
+
+### Documentation
+
+* Update model wrapper docstrings ([#3834](https://github.com/Arize-ai/phoenix/issues/3834)) ([531360b](https://github.com/Arize-ai/phoenix/commit/531360b4f1a7180c892504ffbc567d78503283f2))
+
 ## [0.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.1...arize-phoenix-evals-v0.13.2) (2024-07-03)
 
 

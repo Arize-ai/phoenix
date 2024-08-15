@@ -3,7 +3,6 @@ from enum import Enum, auto
 from typing import Any, Optional, Protocol
 
 import strawberry
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, desc, nulls_last
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import Select
@@ -15,10 +14,6 @@ from phoenix.db import models
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
-
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 
 
 @strawberry.enum
@@ -47,11 +42,11 @@ class SpanColumn(Enum):
         elif self is SpanColumn.latencyMs:
             expr = models.Span.latency_ms
         elif self is SpanColumn.tokenCountTotal:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float()
+            expr = models.Span.llm_token_count_total
         elif self is SpanColumn.tokenCountPrompt:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
+            expr = models.Span.llm_token_count_prompt
         elif self is SpanColumn.tokenCountCompletion:
-            expr = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
+            expr = models.Span.llm_token_count_completion
         elif self is SpanColumn.cumulativeTokenCountTotal:
             expr = (
                 models.Span.cumulative_llm_token_count_prompt

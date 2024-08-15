@@ -5,7 +5,7 @@ from phoenix.inferences.schema import (
 )
 
 
-def test_json_serialization():
+def test_json_serialization() -> None:
     s = Schema(
         feature_column_names=["feature_1"],
         embedding_feature_column_names={
@@ -25,7 +25,7 @@ def test_json_serialization():
     )
 
 
-def test_json_serialization_with_LLM():
+def test_json_serialization_with_LLM() -> None:
     s = Schema(
         feature_column_names=["feature_1"],
         prompt_column_names=EmbeddingColumnNames(
@@ -48,7 +48,7 @@ def test_json_serialization_with_LLM():
     assert schema_from_json.response_column_names.vector_column_name == "response_vector"
 
 
-def test_json_serialization_with_relationships():
+def test_json_serialization_with_relationships() -> None:
     s = Schema(
         prompt_column_names=RetrievalEmbeddingColumnNames(
             vector_column_name="vec_1",
@@ -64,7 +64,7 @@ def test_json_serialization_with_relationships():
     assert schema_from_json.prompt_column_names.context_retrieval_ids_column_name == "ids_1"
 
 
-def test_corpus_schema_normalization():
+def test_corpus_schema_normalization() -> None:
     s = Schema(
         id_column_name="id_1",
         document_column_names=EmbeddingColumnNames(

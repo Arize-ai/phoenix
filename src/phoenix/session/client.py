@@ -22,6 +22,7 @@ from typing import (
     cast,
 )
 from urllib.parse import quote, urljoin
+from warnings import warn
 
 import httpx
 import pandas as pd
@@ -48,8 +49,12 @@ from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtracto
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
+from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 DatasetAction: TypeAlias = Literal["create", "append"]
 
@@ -68,12 +73,12 @@ class Client(TraceDataExtractor):
 
         Args:
             endpoint (str, optional): Phoenix server endpoint, e.g.
-            http://localhost:6006. If not provided, the endpoint will be
-            inferred from the environment variables.
+                http://localhost:6006. If not provided, the endpoint will be
+                inferred from the environment variables.
 
             headers (Mapping[str, str], optional): Headers to include in each
-            network request. If not provided, the headers will be inferred from
-            the environment variables (if present).
+                network request. If not provided, the headers will be inferred from
+                the environment variables (if present).
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
@@ -88,7 +93,7 @@ class Client(TraceDataExtractor):
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-        self._client = httpx.Client(headers=headers)
+        self._client = VersionedClient(headers=headers)
         weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
@@ -120,6 +125,7 @@ class Client(TraceDataExtractor):
         project_name: Optional[str] = None,
         # Deprecated
         stop_time: Optional[datetime] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -133,7 +139,8 @@ class Client(TraceDataExtractor):
                 using environment variables. If not provided, falls back to the default project.
 
         Returns:
-            Union[pd.DataFrame, List[pd.DataFrame]]: A pandas DataFrame or a list of pandas
+            Union[pd.DataFrame, List[pd.DataFrame]]:
+                A pandas DataFrame or a list of pandas.
                 DataFrames containing the queried span data, or None if no spans are found.
         """
         project_name = project_name or get_env_project_name()
@@ -158,6 +165,7 @@ class Client(TraceDataExtractor):
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },
+            timeout=timeout,
         )
         if response.status_code == 404:
             logger.info("No spans found.")
@@ -191,7 +199,8 @@ class Client(TraceDataExtractor):
                 default project.
 
         Returns:
-            List[Evaluations]: A list of Evaluations objects containing evaluation data. Returns an
+            List[Evaluations]:
+                A list of Evaluations objects containing evaluation data. Returns an
                 empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
@@ -293,14 +302,15 @@ class Client(TraceDataExtractor):
         for otlp_span in otlp_spans:
             serialized = otlp_span.SerializeToString()
             content = gzip.compress(serialized)
-            self._client.post(
+            response = self._client.post(
                 url=urljoin(self._base_url, "v1/traces"),
                 content=content,
                 headers={
                     "content-type": "application/x-protobuf",
                     "content-encoding": "gzip",
                 },
-            ).raise_for_status()
+            )
+            response.raise_for_status()
 
     def _get_dataset_id_by_name(self, name: str) -> str:
         """
@@ -314,7 +324,7 @@ class Client(TraceDataExtractor):
              Dataset: The dataset object.
         """
         response = self._client.get(
-            urljoin(self._base_url, "/v1/datasets"),
+            urljoin(self._base_url, "v1/datasets"),
             params={"name": name},
         )
         response.raise_for_status()
@@ -341,10 +351,10 @@ class Client(TraceDataExtractor):
             id (Optional[str]): An ID for the dataset.
 
             name (Optional[str]): the name for the dataset. If provided, the ID
-            is ignored and the dataset is retrieved by name.
+                is ignored and the dataset is retrieved by name.
 
             version_id (Optional[str]): An ID for the version of the dataset, or
-            None.
+                None.
 
         Returns:
             A dataset object.
@@ -356,7 +366,7 @@ class Client(TraceDataExtractor):
             raise ValueError("Dataset id or name must be provided.")
 
         response = self._client.get(
-            urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
+            urljoin(self._base_url, f"v1/datasets/{quote(id)}/examples"),
             params={"version_id": version_id} if version_id else None,
         )
         response.raise_for_status()
@@ -382,7 +392,6 @@ class Client(TraceDataExtractor):
     def get_dataset_versions(
         self,
         dataset_id: str,
-        /,
         *,
         limit: Optional[int] = 100,
     ) -> pd.DataFrame:
@@ -403,7 +412,7 @@ class Client(TraceDataExtractor):
         if not (records := response.json()["data"]):
             return pd.DataFrame()
         df = pd.DataFrame.from_records(records, index="version_id")
-        df["created_at"] = pd.to_datetime(df.created_at)
+        df["created_at"] = df["created_at"].apply(datetime.fromisoformat)
         return df
 
     def upload_dataset(
@@ -524,11 +533,15 @@ class Client(TraceDataExtractor):
                 corresponding to an example in the dataset.
             metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
                 corresponding to an example in the dataset.
-            dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
             A Dataset object with its examples.
         """
+        if dataset_description is not None:
+            warn(
+                "The `dataset_description` parameter has been deprecated "
+                "and will be removed in a future release."
+            )
         if dataframe is not None or csv_file_path is not None:
             if dataframe is not None and csv_file_path is not None:
                 raise ValueError(
@@ -548,7 +561,6 @@ class Client(TraceDataExtractor):
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
-                dataset_description=dataset_description,
                 action="append",
             )
         return self._upload_json_dataset(
@@ -556,7 +568,6 @@ class Client(TraceDataExtractor):
             inputs=inputs,
             outputs=outputs,
             metadata=metadata,
-            dataset_description=dataset_description,
             action="append",
         )
 

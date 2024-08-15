@@ -1,5 +1,5 @@
-server:
-	streamlit run app.py
+frontend:
+	streamlit run ./src/app.py
 
 format:
 	ruff check --fix . && ruff format .

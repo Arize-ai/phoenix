@@ -33,6 +33,7 @@ from typing import (
     cast,
 )
 
+import numpy as np
 from openinference.semconv import trace
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from typing_extensions import assert_never
@@ -307,7 +308,7 @@ def _flatten_mapping(
                     json_string_attributes=json_string_attributes,
                     separator=separator,
                 )
-        elif isinstance(value, Sequence) and recurse_on_sequence:
+        elif (isinstance(value, Sequence) or isinstance(value, np.ndarray)) and recurse_on_sequence:
             yield from _flatten_sequence(
                 value,
                 prefix=prefixed_key,

@@ -1,14 +1,14 @@
 from phoenix.db.engines import get_async_db_url
 
 
-def test_get_async_sqlite_db_url():
+def test_get_async_sqlite_db_url() -> None:
     connection_str = "sqlite:///phoenix.db"
     url = get_async_db_url(connection_str)
     assert url.drivername == "sqlite+aiosqlite"
     assert url.database == "phoenix.db"
 
 
-def test_get_async_postgresql_db_url():
+def test_get_async_postgresql_db_url() -> None:
     # Test credentials as url params
     connection_str = "postgresql://@localhost:5432/phoenix?user=user&password=password"
     url = get_async_db_url(connection_str)

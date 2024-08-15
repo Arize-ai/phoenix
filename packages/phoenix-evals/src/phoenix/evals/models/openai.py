@@ -73,9 +73,8 @@ class OpenAIModel(BaseModel):
         model (str, optional): Model name to use. In of azure, this is the deployment name such as
             gpt-35-instant. Defaults to "gpt-4".
         temperature (float, optional): What sampling temperature to use. Defaults to 0.0.
-        max_tokens (int, optional): The maximum number of tokens to generate in the completion.
-            -1 returns as many tokens as possible given the prompt and the models maximal context
-            size. Defaults to 256.
+        max_tokens (int | None, optional): The maximum number of tokens to generate in the
+            completion. To unset this limit, set `max_tokens` to `None`. Defaults to 256.
         top_p (float, optional): Total probability mass of tokens to consider at each step.
             Defaults to 1.
         frequency_penalty (float, optional): Penalizes repeated tokens according to frequency.
@@ -97,18 +96,21 @@ class OpenAIModel(BaseModel):
             token to use for azure openai. Defaults to None.
         default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
             Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 10.
 
     Examples:
+        After setting the OPENAI_API_KEY environment variable:
         .. code-block:: python
-
-            # Set the OPENAI_API_KEY environment variable
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(model="gpt-4o")
 
-        Using OpenAI models via Azure is similar:
+        Using OpenAI models via Azure is similar (after setting the AZURE_OPENAI_API_KEY
+        environment variable):
+
         .. code-block:: python
-            # Set the AZURE_OPENAI_API_KEY environment variable
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(
@@ -123,7 +125,7 @@ class OpenAIModel(BaseModel):
     base_url: Optional[str] = field(repr=False, default=None)
     model: str = "gpt-4"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: Optional[int] = 256
     top_p: float = 1
     frequency_penalty: float = 0
     presence_penalty: float = 0
@@ -138,6 +140,7 @@ class OpenAIModel(BaseModel):
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
     default_headers: Optional[Mapping[str, str]] = field(default=None)
+    initial_rate_limit: int = 10
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -276,8 +279,7 @@ class OpenAIModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._openai.RateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=5,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 

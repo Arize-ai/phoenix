@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5f7cb042516e798d0a5abb7256a20683>>
+ * @generated SignedSource<<ef70df27b154d179725b1e5dc47d9cd4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,6 +31,8 @@ export type ProjectsPageProjectsFragment$key = {
   readonly " $data"?: ProjectsPageProjectsFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
 };
+
+import ProjectsPageProjectsQuery_graphql from './ProjectsPageProjectsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -81,7 +83,7 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": require('./ProjectsPageProjectsQuery.graphql')
+      "operation": ProjectsPageProjectsQuery_graphql
     }
   },
   "name": "ProjectsPageProjectsFragment",

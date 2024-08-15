@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a64e2f9d71b5494e45a95504e5c2015d>>
+ * @generated SignedSource<<7f686e63ad3a443d2925f6f2ffe5ec31>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableFragment$data = {
   readonly experimentRuns: {
@@ -18,7 +18,7 @@ export type ExampleExperimentRunsTableFragment$data = {
         readonly annotations: {
           readonly edges: ReadonlyArray<{
             readonly annotation: {
-              readonly annotatorKind: AnnotatorKind;
+              readonly annotatorKind: ExperimentRunAnnotatorKind;
               readonly explanation: string | null;
               readonly id: string;
               readonly label: string | null;
@@ -50,6 +50,8 @@ export type ExampleExperimentRunsTableFragment$key = {
   readonly " $data"?: ExampleExperimentRunsTableFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"ExampleExperimentRunsTableFragment">;
 };
+
+import ExampleExperimentRunsTableQuery_graphql from './ExampleExperimentRunsTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -122,7 +124,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./ExampleExperimentRunsTableQuery.graphql'),
+      "operation": ExampleExperimentRunsTableQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

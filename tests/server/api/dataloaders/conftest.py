@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta
 from random import randint, random, seed
-from typing import AsyncContextManager, Callable
 
 import pytest
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
 async def data_for_testing_dataloaders(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     seed(42)
     orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
@@ -46,6 +45,8 @@ async def data_for_testing_dataloaders(
                         )
                     )
                 for k in range(K):
+                    llm_token_count_prompt = randint(1, 1000)
+                    llm_token_count_completion = randint(1, 1000)
                     seconds = randint(1, 1000)
                     start_time = orig_time + timedelta(seconds=seconds)
                     end_time = orig_time + timedelta(seconds=seconds * 2)
@@ -62,8 +63,8 @@ async def data_for_testing_dataloaders(
                             attributes={
                                 "llm": {
                                     "token_count": {
-                                        "prompt": randint(1, 1000),
-                                        "completion": randint(1, 1000),
+                                        "prompt": llm_token_count_prompt,
+                                        "completion": llm_token_count_completion,
                                     }
                                 }
                             },
@@ -73,6 +74,8 @@ async def data_for_testing_dataloaders(
                             cumulative_error_count=0,
                             cumulative_llm_token_count_prompt=0,
                             cumulative_llm_token_count_completion=0,
+                            llm_token_count_prompt=llm_token_count_prompt,
+                            llm_token_count_completion=llm_token_count_completion,
                         )
                         .returning(models.Span.id)
                     )

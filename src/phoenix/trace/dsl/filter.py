@@ -5,8 +5,8 @@ import typing
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from itertools import chain
-from random import randint
 from types import MappingProxyType
+from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy.orm import Mapped, aliased
@@ -22,11 +22,14 @@ _VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
 )
 
 
-EvalAttribute: TypeAlias = typing.Literal["label", "score"]
-EvalExpression: TypeAlias = str
-EvalName: TypeAlias = str
+AnnotationType: TypeAlias = typing.Literal["annotations", "evals"]
+AnnotationAttribute: TypeAlias = typing.Literal["label", "score"]
+AnnotationExpression: TypeAlias = str
+AnnotationName: TypeAlias = str
 
-EVAL_EXPRESSION_PATTERN = re.compile(r"""\b(evals\[(".*?"|'.*?')\][.](label|score))\b""")
+EVAL_EXPRESSION_PATTERN = re.compile(
+    r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
+)
 
 
 @dataclass(frozen=True)
@@ -46,17 +49,14 @@ class AliasedAnnotationRelation:
 
     def __post_init__(self) -> None:
         table_alias = f"span_annotation_{self.index}"
-        alias_id = f"{randint(0, 10**6):06d}"  # prevent conflicts with user-defined attributes
+        alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
+
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
-        object.__setattr__(
-            self,
-            "table",
-            table,
-        )
+        object.__setattr__(self, "table", table)
 
     @property
     def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
@@ -67,7 +67,7 @@ class AliasedAnnotationRelation:
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
 
-    def attribute_alias(self, attribute: EvalAttribute) -> str:
+    def attribute_alias(self, attribute: AnnotationAttribute) -> str:
         """
         Returns an alias for the given attribute (i.e., column).
         """
@@ -232,7 +232,7 @@ class SpanFilter:
         for eval_alias in self._aliased_annotation_relations:
             eval_name = eval_alias.name
             AliasedSpanAnnotation = eval_alias.table
-            stmt = stmt.join(
+            stmt = stmt.outerjoin(
                 AliasedSpanAnnotation,
                 onclause=(
                     sqlalchemy.and_(
@@ -579,7 +579,7 @@ def _validate_expression(
             _is_subscript(node, "metadata") or _is_subscript(node, "attributes")
         ) and _get_attribute_keys_list(node) is not None:
             continue
-        elif _is_eval(node) and _get_subscript_key(node) is not None:
+        elif _is_annotation(node) and _get_subscript_key(node) is not None:
             # e.g. `evals["name"]`
             if not (eval_name := _get_subscript_key(node)) or (
                 valid_eval_names is not None and eval_name not in valid_eval_names
@@ -601,7 +601,7 @@ def _validate_expression(
                     else ""
                 )
             continue
-        elif isinstance(node, ast.Attribute) and _is_eval(node.value):
+        elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
                 source_segment = typing.cast(str, ast.get_source_segment(source, node))
@@ -662,19 +662,19 @@ def _as_attribute(
 ) -> ast.Subscript:
     return ast.Subscript(
         value=ast.Name(id="attributes", ctx=ast.Load()),
-        slice=ast.List(elts=keys, ctx=ast.Load())
+        slice=ast.List(elts=keys, ctx=ast.Load())  # type: ignore[arg-type]
         if sys.version_info >= (3, 9)
-        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),
+        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),  # type: ignore
         ctx=ast.Load(),
     )
 
 
-def _is_eval(node: typing.Any) -> TypeGuard[ast.Subscript]:
+def _is_annotation(node: typing.Any) -> TypeGuard[ast.Subscript]:
     # e.g. `evals["name"]`
     return (
         isinstance(node, ast.Subscript)
         and isinstance(value := node.value, ast.Name)
-        and value.id == "evals"
+        and value.id in ["evals", "annotations"]
     )
 
 
@@ -817,34 +817,45 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-    eval_aliases: typing.Dict[EvalName, AliasedAnnotationRelation] = {}
-    for eval_expression, eval_name, eval_attribute in _parse_eval_expressions_and_names(source):
-        if (eval_alias := eval_aliases.get(eval_name)) is None:
-            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=eval_name)
-            eval_aliases[eval_name] = eval_alias
-        alias_name = eval_alias.attribute_alias(eval_attribute)
-        source = source.replace(eval_expression, alias_name)
+    eval_aliases: typing.Dict[AnnotationName, AliasedAnnotationRelation] = {}
+    for (
+        annotation_expression,
+        annotation_type,
+        annotation_name,
+        annotation_attribute,
+    ) in _parse_annotation_expressions_and_names(source):
+        if (eval_alias := eval_aliases.get(annotation_name)) is None:
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
+            eval_aliases[annotation_name] = eval_alias
+        alias_name = eval_alias.attribute_alias(annotation_attribute)
+        source = source.replace(annotation_expression, alias_name)
     return source, tuple(eval_aliases.values())
 
 
-def _parse_eval_expressions_and_names(
+def _parse_annotation_expressions_and_names(
     source: str,
-) -> typing.Iterator[typing.Tuple[EvalExpression, EvalName, EvalAttribute]]:
+) -> typing.Iterator[
+    typing.Tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
+]:
     """
     Parses filter conditions for evaluation expressions of the form:
 
     ```
     evals["<eval-name>"].<attribute>
+    annotations["eval-name"].<attribute>
     ```
     """
     for match in EVAL_EXPRESSION_PATTERN.finditer(source):
         (
-            eval_expression,
+            annotation_expression,
+            annotation_type,
             quoted_eval_name,
             evaluation_attribute_name,
         ) = match.groups()
+        annotation_type = typing.cast(AnnotationType, annotation_type)
         yield (
-            eval_expression,
+            annotation_expression,
+            annotation_type,
             quoted_eval_name[1:-1],
-            typing.cast(EvalAttribute, evaluation_attribute_name),
+            typing.cast(AnnotationAttribute, evaluation_attribute_name),
         )

@@ -22,7 +22,7 @@ from phoenix.trace.trace_dataset import TraceDataset, _parse_schema_metadata
 from pyarrow import parquet
 
 
-def test_trace_dataset_construction():
+def test_trace_dataset_construction() -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -42,7 +42,7 @@ def test_trace_dataset_construction():
     assert isinstance(ds.dataframe, pd.DataFrame)
 
 
-def test_trace_dataset_validation():
+def test_trace_dataset_validation() -> None:
     num_records = 5
     # DataFrame with no span_kind
     traces_df = pd.DataFrame(
@@ -62,7 +62,7 @@ def test_trace_dataset_validation():
         _ = TraceDataset(traces_df)
 
 
-def test_trace_dataset_construction_from_spans():
+def test_trace_dataset_construction_from_spans() -> None:
     spans = [
         Span(
             name="name-0",
@@ -150,7 +150,7 @@ def test_trace_dataset_construction_from_spans():
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
 
 
-def test_trace_dataset_construction_with_evaluations():
+def test_trace_dataset_construction_with_evaluations() -> None:
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
     traces_df = pd.DataFrame(
@@ -261,7 +261,7 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path) -> None:
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
 
 
-def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path):
+def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -312,7 +312,7 @@ def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp
     assert read_ds.evaluations == []
 
 
-def test_trace_dataset_load_raises_error_when_input_id_does_not_match_metadata(tmp_path):
+def test_trace_dataset_load_raises_error_when_input_id_does_not_match_metadata(tmp_path) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {

@@ -20,7 +20,7 @@ const SET_BASE_URL_PYTHON =
   `# Set the phoenix collector endpoint. Commonly http://localhost:6060 \n` +
   `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
 const TASK_PYTHON =
-  `from phoenix.datasets.types import Example\n` +
+  `from phoenix.experiments.types import Example\n` +
   `# Define your task\n` +
   `# Typically should be an LLM call or a call to your application\n` +
   `def my_task(example: Example) -> str:\n` +
@@ -36,7 +36,7 @@ const EVALUATOR_PYTHON =
 
 const RUN_EXPERIMENT_PYTHON =
   `# Run an experiment\n` +
-  `from phoenix.datasets.experiments import run_experiment\n\n` +
+  `from phoenix.experiments import run_experiment\n\n` +
   `experiment = run_experiment(dataset, my_task, evaluators=evaluators)`;
 
 export function RunExperimentButton() {

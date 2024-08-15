@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-version = "0.13.2"
+version = "0.15.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -35,7 +35,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
-  "mistralai",
+  "mistralai<1",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -46,7 +46,7 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
-  "mistralai",
+  "mistralai<1",
   "vertexai",
   "respx",
   "nest_asyncio",
@@ -102,6 +102,9 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+
+[tool.ruff.format]
+line-ending = "lf"
 
 [tool.mypy]
 explicit_package_bases = true

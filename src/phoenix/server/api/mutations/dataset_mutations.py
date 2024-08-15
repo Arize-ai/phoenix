@@ -33,6 +33,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 
 @strawberry.type
@@ -62,6 +63,7 @@ class DatasetMutationMixin:
                 .returning(models.Dataset)
             )
             assert dataset is not None
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -90,6 +92,7 @@ class DatasetMutationMixin:
                 .values(**patch)
             )
             assert dataset is not None
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -154,6 +157,36 @@ class DatasetMutationMixin:
                 raise ValueError(
                     f"Could not find spans with rowids: {', '.join(map(str, missing_span_rowids))}"
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
+
+            span_annotations = (
+                await session.execute(
+                    select(
+                        models.SpanAnnotation.span_rowid,
+                        models.SpanAnnotation.name,
+                        models.SpanAnnotation.label,
+                        models.SpanAnnotation.score,
+                        models.SpanAnnotation.explanation,
+                        models.SpanAnnotation.metadata_,
+                        models.SpanAnnotation.annotator_kind,
+                    )
+                    .select_from(models.SpanAnnotation)
+                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                )
+            ).all()
+
+            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            for annotation in span_annotations:
+                span_id = annotation.span_rowid
+                if span_id not in span_annotations_by_span:
+                    span_annotations_by_span[span_id] = dict()
+                span_annotations_by_span[span_id][annotation.name] = {
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "metadata": annotation.metadata_,
+                    "annotator_kind": annotation.annotator_kind,
+                }
+
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
                 await session.scalars(
@@ -170,6 +203,7 @@ class DatasetMutationMixin:
             assert len(dataset_example_rowids) == len(spans)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
+
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -178,12 +212,16 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: span.attributes,
+                        DatasetExampleRevision.metadata_.key: {
+                            **span.attributes,
+                            "annotations": span_annotations_by_span[span.id],
+                        },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
                 ],
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -192,7 +230,7 @@ class DatasetMutationMixin:
     ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
         # Extract the span rowids from the input examples if they exist
-        span_ids = span_ids = [example.span_id for example in input.examples if example.span_id]
+        span_ids = [example.span_id for example in input.examples if example.span_id]
         span_rowids = {
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
@@ -222,6 +260,8 @@ class DatasetMutationMixin:
                 )
                 .returning(models.DatasetVersion.id)
             )
+
+            # Fetch spans and span annotations
             spans = (
                 await session.execute(
                     select(models.Span.id)
@@ -229,9 +269,36 @@ class DatasetMutationMixin:
                     .where(models.Span.id.in_(span_rowids))
                 )
             ).all()
-            # Just validate that the number of spans matches the number of span_ids
-            # to ensure that the span_ids are valid
-            assert len(spans) == len(span_rowids)
+
+            span_annotations = (
+                await session.execute(
+                    select(
+                        models.SpanAnnotation.span_rowid,
+                        models.SpanAnnotation.name,
+                        models.SpanAnnotation.label,
+                        models.SpanAnnotation.score,
+                        models.SpanAnnotation.explanation,
+                        models.SpanAnnotation.metadata_,
+                        models.SpanAnnotation.annotator_kind,
+                    )
+                    .select_from(models.SpanAnnotation)
+                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                )
+            ).all()
+
+            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            for annotation in span_annotations:
+                span_id = annotation.span_rowid
+                if span_id not in span_annotations_by_span:
+                    span_annotations_by_span[span_id] = dict()
+                span_annotations_by_span[span_id][annotation.name] = {
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "metadata": annotation.metadata_,
+                    "annotator_kind": annotation.annotator_kind,
+                }
+
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
                 await session.scalars(
@@ -253,22 +320,34 @@ class DatasetMutationMixin:
             assert len(dataset_example_rowids) == len(input.examples)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
-            await session.execute(
-                insert(DatasetExampleRevision),
-                [
+
+            dataset_example_revisions = []
+            for dataset_example_rowid, example in zip(dataset_example_rowids, input.examples):
+                span_annotation = {}
+                if example.span_id:
+                    span_id = from_global_id_with_expected_type(
+                        global_id=example.span_id,
+                        expected_type_name=Span.__name__,
+                    )
+                    span_annotation = span_annotations_by_span.get(span_id, {})
+                dataset_example_revisions.append(
                     {
                         DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
                         DatasetExampleRevision.input.key: example.input,
                         DatasetExampleRevision.output.key: example.output,
-                        DatasetExampleRevision.metadata_.key: example.metadata,
+                        DatasetExampleRevision.metadata_.key: {
+                            **(example.metadata or {}),
+                            "annotations": span_annotation,
+                        },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
-                    for dataset_example_rowid, example in zip(
-                        dataset_example_rowids, input.examples
-                    )
-                ],
+                )
+            await session.execute(
+                insert(DatasetExampleRevision),
+                dataset_example_revisions,
             )
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -299,6 +378,7 @@ class DatasetMutationMixin:
             delete_traces(info.context.db, *eval_trace_ids),
             return_exceptions=True,
         )
+        info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -390,7 +470,7 @@ class DatasetMutationMixin:
                     for revision, patch, example_id in zip(revisions, patches, example_ids)
                 ],
             )
-
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -473,8 +553,8 @@ class DatasetMutationMixin:
                     for dataset_example_rowid in example_db_ids
                 ],
             )
-
-            return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
 
 def _span_attribute(semconv: str) -> Any:

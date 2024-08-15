@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27f74232582510149934e574a7ebc5e0>>
+ * @generated SignedSource<<86ba9c736e9305c4603f8126a0c93ffc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,8 +17,12 @@ export type CreateDatasetFormMutation$variables = {
 export type CreateDatasetFormMutation$data = {
   readonly createDataset: {
     readonly dataset: {
+      readonly createdAt: string;
       readonly description: string | null;
+      readonly exampleCount: number;
+      readonly experimentCount: number;
       readonly id: string;
+      readonly metadata: any;
       readonly name: string;
     };
   };
@@ -103,6 +107,34 @@ v3 = [
             "kind": "ScalarField",
             "name": "description",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "metadata",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "createdAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleCount",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "experimentCount",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -137,16 +169,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "d2aeec21cead6fee265f4e80c330cf18",
+    "cacheID": "6aa615e27e1ccaa5431ba481842b43d0",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      description\n    }\n  }\n}\n"
+    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      description\n      metadata\n      createdAt\n      exampleCount\n      experimentCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "06eeac5ef68e9533c4881faad4b4e07d";
+(node as any).hash = "5921369d33cc0fb1dffb5d943469a378";
 
 export default node;

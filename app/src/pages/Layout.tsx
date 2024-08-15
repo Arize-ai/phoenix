@@ -114,6 +114,13 @@ function SideNav() {
         </ul>
         <ul css={bottomLinksCSS}>
           <li>
+            <NavLink
+              to="/settings"
+              text="Settings"
+              icon={<Icon svg={<Icons.SettingsOutline />} />}
+            />
+          </li>
+          <li>
             <DocsLink />
           </li>
           <li>

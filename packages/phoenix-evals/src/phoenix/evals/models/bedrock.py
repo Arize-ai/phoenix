@@ -1,3 +1,5 @@
+import asyncio
+import functools
 import json
 import logging
 from dataclasses import dataclass, field
@@ -21,8 +23,8 @@ class BedrockModel(BaseModel):
     AWS API are dynamically throttled when encountering rate limit errors. Requires the `boto3`
     package to be installed.
 
-    Supports Async: ❌
-        `boto3` does not support async calls
+    Supports Async: 🟡
+        `boto3` does not support async calls, so it's wrapped in an executor.
 
     Args:
         model_id (str): The model name to use.
@@ -43,6 +45,9 @@ class BedrockModel(BaseModel):
             maximum content size. Defaults to None.
         extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
             body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -64,6 +69,7 @@ class BedrockModel(BaseModel):
     client: Any = None
     max_content_size: Optional[int] = None
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -92,8 +98,7 @@ class BedrockModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self.client.exceptions.ThrottlingException,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=2,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 
@@ -109,7 +114,17 @@ class BedrockModel(BaseModel):
         return self._parse_output(response) or ""
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        return self._generate(prompt, **kwargs)
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            functools.partial(
+                self._generate,
+                **{
+                    "prompt": prompt,
+                    **kwargs,
+                },
+            ),
+        )
 
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

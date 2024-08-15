@@ -31,7 +31,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.236.0",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
@@ -47,10 +47,10 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.9",
-  "openinference-instrumentation",
-  "openinference-instrumentation-langchain>=0.1.12",
-  "openinference-instrumentation-llama-index>=1.2.0",
-  "openinference-instrumentation-openai>=0.1.4",
+  "openinference-instrumentation>=0.1.12",
+  "openinference-instrumentation-langchain>=0.1.26",
+  "openinference-instrumentation-llama-index>=2.2.1",
+  "openinference-instrumentation-openai>=0.1.11",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
@@ -59,7 +59,8 @@ dependencies = [
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
-  "pyyaml", # for OpenAPI
+  "fastapi",
+  "pydantic>=1.0,!=2.0.*,<3,", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
 ]
 dynamic = ["version"]
 
@@ -69,19 +70,20 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.4.9",
+  "ruff==0.5.4",
+  "mypy==1.11.1",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
-  "pytest==8.2.2",
+  "pytest==8.3.1",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -90,6 +92,9 @@ dev = [
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
+  "asgi-lifespan",
+  "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 evals = []
 experimental = []
@@ -109,11 +114,11 @@ container = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
 ]
 
@@ -146,7 +151,7 @@ dependencies = [
   "numpy",
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
-  "pytest==8.2.2",
+  "pytest==8.3.1",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -159,17 +164,22 @@ dependencies = [
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  "typing-extensions==4.5.0; python_version<'3.12'",
-  "typing-extensions==4.6.0; python_version>='3.12'",
+  "typing-extensions==4.5.0; python_version=='3.8'",
+  "typing-extensions==4.6.0; python_version=='3.9'",
+  "pydantic==1.9.0; python_version<='3.9'",  # minimum version of pydantic compatible with openai
+  "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
   "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
+  "asgi-lifespan",
+  "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.10.0",
+  "mypy==1.11.0",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
@@ -187,12 +197,15 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "requests",  # this is needed to type-check third-party packages
+  "pydantic==1.10.17; python_version=='3.8'",  # lower minor versions of pydantic break strawberry mypy plugin
+  "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
+  "pydantic==2.8.2; python_version=='3.12'",
 ]
 
 [[tool.hatch.envs.type.matrix]]
@@ -201,7 +214,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.4.9",
+  "ruff==0.5.4",
 ]
 
 [[tool.hatch.envs.style.matrix]]
@@ -275,6 +288,12 @@ clean = [
   "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
+[tool.hatch.envs.auth.scripts]
+link = "cd src/phoenix/db/migrations/versions && ln -s ../future_versions/cd164e83824f_users_and_tokens.py cd164e83824f_users_and_tokens.py && echo 'created auth migration symlink'"
+unlink = "rm src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py && echo 'removed auth migration symlink'"
+up = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
+down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
+
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
@@ -287,6 +306,7 @@ testpypi = [
   "twine upload  --verbose --repository testpypi dist/*",
 ]
 pypi = [
+  "if [ -L src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py ]; then echo 'remove auth migration symlink before publishing with `hatch run auth:unlink`'; exit 1; fi",
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
@@ -298,7 +318,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[cli]==0.236.0",  # need to pin version because we're monkey-patching
   "requests",
 ]
 
@@ -307,11 +327,12 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 
 [tool.hatch.envs.openapi]
 dependencies = [
-  "pyyaml",
+  "pydantic==2.8.2",
+  "fastapi==0.111.0",
 ]
 
 [tool.hatch.envs.openapi.scripts]
-build = 'python -m phoenix.server.api.openapi.main > schemas/openapi.yaml'
+build = "python -m phoenix.server.api.openapi.main > schemas/openapi.json"
 
 [tool.hatch.envs.proto]
 detached = true
@@ -376,6 +397,7 @@ module = [
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
+  "orjson",  # suppress fastapi internal type errors
 ]
 ignore_missing_imports = true
 
@@ -403,3 +425,6 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+
+[tool.ruff.format]
+line-ending = "lf"

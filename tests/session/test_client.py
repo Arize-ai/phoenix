@@ -17,11 +17,12 @@ from phoenix.session.client import Client
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
+from pytz import UTC
 from respx import MockRouter
 from strawberry.relay import GlobalID
 
 
-def test_base_path(monkeypatch: pytest.MonkeyPatch):
+def test_base_path(monkeypatch: pytest.MonkeyPatch) -> None:
     # Reset environment variables
     monkeypatch.delenv("PHOENIX_HOST", False)
     monkeypatch.delenv("PHOENIX_PORT", False)
@@ -46,7 +47,7 @@ def test_base_path(monkeypatch: pytest.MonkeyPatch):
 
 def test_get_spans_dataframe(
     client: Client, endpoint: str, dataframe: pd.DataFrame, respx_mock: MockRouter
-):
+) -> None:
     url = urljoin(endpoint, "v1/spans")
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(dataframe)))
@@ -62,7 +63,7 @@ def test_query_spans(
     endpoint: str,
     dataframe: pd.DataFrame,
     respx_mock: MockRouter,
-):
+) -> None:
     df0, df1 = dataframe.iloc[:1, :], dataframe.iloc[1:, :]
     url = urljoin(endpoint, "v1/spans")
 
@@ -90,7 +91,7 @@ def test_get_evaluations(
     endpoint: str,
     evaluations: SpanEvaluations,
     respx_mock: MockRouter,
-):
+) -> None:
     url = urljoin(endpoint, "v1/evaluations")
 
     table = evaluations.to_pyarrow_table()
@@ -110,10 +111,10 @@ def test_log_traces_sends_oltp_spans(
     endpoint: str,
     trace_ds: TraceDataset,
     respx_mock: MockRouter,
-):
+) -> None:
     span_counter = 0
 
-    def request_callback(request):
+    def request_callback(request) -> None:
         assert request.headers["content-type"] == "application/x-protobuf"
         assert request.headers["content-encoding"] == "gzip"
         content = gzip.decompress(request.content)
@@ -134,7 +135,7 @@ def test_log_traces_to_project(
     endpoint: str,
     trace_ds: TraceDataset,
     respx_mock: MockRouter,
-):
+) -> None:
     span_counter = 0
 
     def request_callback(request: httpx.Request) -> httpx.Response:
@@ -165,7 +166,18 @@ def test_get_dataset_versions(
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(999))
     url = urljoin(endpoint, f"v1/datasets/{dataset_global_id}/versions")
-    data = [{"version_id": "abc", "description": "xyz", "created_at": "2024-05-28T00:00:00+00:00"}]
+    data = [
+        {
+            "version_id": "version-id-1",
+            "description": "description-1",
+            "created_at": "2024-07-23T17:32:06.646881+00:00",  # more precise timestamp
+        },
+        {
+            "version_id": "version-id-2",
+            "description": "description-2",
+            "created_at": "2024-07-23T17:32:01+00:00",  # less precise timestamp
+        },
+    ]
     respx_mock.get(url).mock(
         Response(
             200,
@@ -173,8 +185,23 @@ def test_get_dataset_versions(
             json={"next_cursor": "123", "data": data},
         )
     )
-    expected = pd.DataFrame.from_records(data, index="version_id")
-    expected["created_at"] = pd.to_datetime(expected.created_at)
+
+    # create a dataframe from the data
+    expected = pd.DataFrame.from_records(
+        [
+            {
+                "version_id": "version-id-1",
+                "description": "description-1",
+                "created_at": datetime(2024, 7, 23, 17, 32, 6, 646881, tzinfo=UTC),
+            },
+            {
+                "version_id": "version-id-2",
+                "description": "description-2",
+                "created_at": datetime(2024, 7, 23, 17, 32, 1, tzinfo=UTC),
+            },
+        ],
+        index="version_id",
+    )
     actual = client.get_dataset_versions(str(dataset_global_id))
     assert_frame_equal(actual, expected)
 
@@ -244,7 +271,7 @@ def test_get_dataset_returns_expected_dataset(
     assert example.updated_at == datetime.fromisoformat("2024-06-12T22:46:31+00:00")
 
 
-def test_client_headers(endpoint: str, respx_mock: MockRouter):
+def test_client_headers(endpoint: str, respx_mock: MockRouter) -> None:
     client = Client(endpoint=endpoint, headers={"x-api-key": "my-api-key"})
     dataset_id = str(GlobalID("Dataset", str(1)))
     respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/examples")).mock(

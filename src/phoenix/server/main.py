@@ -13,6 +13,7 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
+    get_auth_settings,
     get_env_database_connection_str,
     get_env_enable_prometheus,
     get_env_grpc_port,
@@ -33,25 +34,23 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import (
-    SessionFactory,
     _db,
     create_app,
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
-    download_traces_fixture,
     get_dataset_fixtures,
     get_evals_from_fixture,
-    get_trace_fixture_by_name,
+    load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +79,11 @@ _WELCOME_MESSAGE = """
 |    - gRPC: {grpc_path}
 |    - HTTP: {http_path}
 |  Storage: {storage}
+"""
+
+_EXPERIMENTAL_WARNING = """
+🚨 WARNING: Phoenix is running in experimental mode. 🚨
+|  Authentication enabled: {auth_enabled}
 """
 
 
@@ -130,7 +134,9 @@ if __name__ == "__main__":
     parser.add_argument("--read-only", type=bool, default=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
-    parser.add_argument("--debug", action="store_false")
+    parser.add_argument("--debug", action="store_true")
+    # Whether the app is running in a development environment
+    parser.add_argument("--dev", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
@@ -212,6 +218,8 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
+    authentication_enabled, auth_secret = get_auth_settings()
+
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
@@ -219,10 +227,8 @@ if __name__ == "__main__":
             (
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                 # `encode` removes the hyphens in the UUIDs.
-                decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
-                for json_span in download_traces_fixture(
-                    get_trace_fixture_by_name(trace_dataset_name)
-                )
+                decode_otlp_span(encode_span_to_otlp(span))
+                for span in load_example_traces(trace_dataset_name).to_spans()
             ),
             get_evals_from_fixture(trace_dataset_name),
         )
@@ -248,16 +254,18 @@ if __name__ == "__main__":
     working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
-    factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
+    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
+        authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=None
         if corpus_inferences is None
         else create_model_from_inferences(corpus_inferences),
         debug=args.debug,
+        dev=args.dev,
         read_only=read_only,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
@@ -278,6 +286,9 @@ if __name__ == "__main__":
             storage=get_printable_db_url(db_connection_str),
         )
     )
+
+    if authentication_enabled:
+        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3de3f205a7abb59698283b0fa88571c9>>
+ * @generated SignedSource<<81996d0999fb3e4527b08ee6051d3ac7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,8 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
+export type AnnotatorKind = "HUMAN" | "LLM";
+export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
@@ -48,7 +49,8 @@ export type TracesTable_spans$data = {
             readonly value: string;
           } | null;
           readonly parentId: string | null;
-          readonly spanEvaluations: ReadonlyArray<{
+          readonly spanAnnotations: ReadonlyArray<{
+            readonly annotatorKind: AnnotatorKind;
             readonly label: string | null;
             readonly name: string;
             readonly score: number | null;
@@ -74,7 +76,8 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
-        readonly spanEvaluations: ReadonlyArray<{
+        readonly spanAnnotations: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -85,13 +88,15 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
   readonly " $data"?: TracesTable_spans$data;
   readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
 };
+
+import TracesTableQuery_graphql from './TracesTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -183,9 +188,9 @@ v9 = {
 v10 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanEvaluation",
+  "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
-  "name": "spanEvaluations",
+  "name": "spanAnnotations",
   "plural": true,
   "selections": [
     (v3/*: any*/),
@@ -201,6 +206,13 @@ v10 = {
       "args": null,
       "kind": "ScalarField",
       "name": "score",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotatorKind",
       "storageKey": null
     }
   ],
@@ -267,7 +279,7 @@ return {
       "name": "filterCondition"
     },
     {
-      "defaultValue": 100,
+      "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
     },
@@ -306,7 +318,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./TracesTableQuery.graphql'),
+      "operation": TracesTableQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
@@ -318,7 +330,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_evaluations"
+      "name": "SpanColumnSelector_annotations"
     },
     {
       "alias": "rootSpans",
@@ -551,6 +563,6 @@ return {
 };
 })();
 
-(node as any).hash = "b8e7c42b9731568c7e348cf191017d06";
+(node as any).hash = "cdce1686ed383bdf21cbcc8bdcefe6e0";
 
 export default node;

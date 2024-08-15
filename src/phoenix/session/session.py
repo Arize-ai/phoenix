@@ -22,6 +22,7 @@ from typing import (
     Set,
     Union,
 )
+from urllib.parse import urljoin
 
 import pandas as pd
 
@@ -41,13 +42,13 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import (
-    SessionFactory,
     _db,
     create_app,
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
 from phoenix.server.thread_server import ThreadServer
+from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
 from phoenix.session.client import Client
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
@@ -73,6 +74,9 @@ else:
 # Temporary directory for the duration of the session
 global _session_working_dir
 _session_working_dir: Optional["TemporaryDirectory[str]"] = None
+
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
 class NotebookEnvironment(Enum):
@@ -152,6 +156,7 @@ class Session(TraceDataExtractor, ABC):
         project_name: Optional[str] = None,
         # Deprecated fields
         stop_time: Optional[datetime] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries the spans in the project based on the provided parameters.
@@ -241,17 +246,19 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data.add(files)
         return self.exported_data
 
-    def view(self, height: int = 1000) -> "IFrame":
-        """
-        Returns an IFrame that can be displayed in a notebook to view the app.
+    def view(self, *, height: int = 1000, slug: str = "") -> "IFrame":
+        """View the session in a notebook embedded iFrame.
 
-        Parameters
-        ----------
-        height : int, optional
-            The height of the IFrame in pixels. Defaults to 1000.
+        Args:
+            slug (str, optional): the path of the app to view
+            height (int, optional): the height of the iFrame in px. Defaults to 1000.
+
+        Returns:
+            IFrame: the iFrame will be rendered in the notebook
         """
+        url_to_view = urljoin(self.url, slug)
         print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
-        return IFrame(src=self.url, width="100%", height=height)
+        return IFrame(src=url_to_view, width="100%", height=height)
 
     @property
     def url(self) -> str:
@@ -371,11 +378,12 @@ class ThreadSession(Session):
         # Initialize an app service that keeps the server running
         engine = create_engine_and_run_migrations(database_url)
         instrumentation_cleanups = instrument_engine_if_enabled(engine)
-        factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
+        factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
             export_path=self.export_path,
             model=self.model,
+            authentication_enabled=False,
             corpus=self.corpus,
             umap_params=self.umap_parameters,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
