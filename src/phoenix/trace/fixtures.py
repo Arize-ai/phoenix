@@ -1,6 +1,7 @@
 import logging
 import shutil
 from binascii import hexlify
+from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from io import StringIO
@@ -80,10 +81,12 @@ class TracesFixture:
     file_name: str
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
     dataset_fixtures: Iterable[DatasetFixture] = ()
+    project_name: Optional[str] = None
 
 
 demo_llama_index_cohesive_rag_fixture = TracesFixture(
     name="demo_llama_index_cohesive_rag",
+    project_name="demo_llama_index",
     description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
     file_name="llama_index_cohesive_rag.parquet",
     evaluation_fixtures=(
@@ -233,7 +236,13 @@ TRACES_FIXTURES: List[TracesFixture] = [
     vision_fixture,
 ]
 
-NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
+NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = {
+    fixture.name: fixture for fixture in TRACES_FIXTURES
+}
+PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(List)
+for fixture in TRACES_FIXTURES:
+    if fixture.project_name:
+        PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
 
 
 def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
@@ -251,6 +260,24 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
+def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
+    """
+    Returns a dictionary of project name (key) and set of TracesFixtures (value)
+    whose project name matches the input name.
+
+    Raises
+    ------
+    ValueError
+        if the input fixture name does not match any known project names.
+    """
+    if proj_name not in PROJ_NAME_TO_TRACES_FIXTURE:
+        valid_fixture_proj_names = ", ".join(PROJ_NAME_TO_TRACES_FIXTURE.keys())
+        raise ValueError(
+            f'"{proj_name}" is invalid. Valid project names are: {valid_fixture_proj_names}'
+        )
+    return PROJ_NAME_TO_TRACES_FIXTURE[proj_name]
+
+
 def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
@@ -266,6 +293,19 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
     return TraceDataset(pd.read_parquet(url))
+
+
+def load_example_traces_by_project(proj_name: str) -> Dict[str, List[TraceDataset]]:
+    """
+    Loads a trace dataframe by name.
+    """
+    proj_fixtures = get_trace_fixtures_by_project_name(proj_name)
+
+    fixtures = set()
+    for fixture in proj_fixtures.get(proj_name):
+        fixtures.add(load_example_traces(fixture.name))
+
+    return {proj_name: fixtures}
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
