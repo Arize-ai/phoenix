@@ -1,10 +1,10 @@
 ---
-description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
+description: Instrument LLM applications that use the Guardrails AI framework
 ---
 
-# MistralAI
+# Guardrails AI
 
-MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+In this example we will instrument a small program that uses the [Guardrails AI](https://www.guardrailsai.com/) framework to protect their LLM calls.
 
 ## Launch Phoenix
 
@@ -112,7 +112,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](guardrails-ai.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -158,51 +158,47 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mistralai mistralai
+pip install openinference-instrumentation-guardrails guardrails-ai
 ```
 
 ## Setup
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
-
-```
-export MISTRAL_API_KEY=[your_key_here]
-```
-
-Initialize the MistralAIInstrumentor before your application code.
+Initialize the GuardrailsAIInstrumentor before your application code.
 
 ```python
-from openinference.instrumentation.mistralai import MistralAIInstrumentor
+from openinference.instrumentation.guardrails import GuardrailsInstrumentor
 
-MistralAIInstrumentor().instrument()
+GuardrailsInstrumentor().instrument()
 ```
 
-## Run Mistral
+## Run Guardrails
+
+From here, you can run Guardrails as normal:
 
 ```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
+from guardrails import Guard
+from guardrails.hub import TwoWords
+import openai
 
-client = MistralClient()
-response = client.chat(
-    model="mistral-large-latest",
-    messages=[
-        ChatMessage(
-            content="Who won the World Cup in 2018?",
-            role="user",
-        )
-    ],
+guard = Guard().use(
+    TwoWords(),
 )
-print(response.choices[0].message.content)
+response = guard(
+    llm_api=openai.chat.completions.create,
+    prompt="What is another name for America?",
+    model="gpt-3.5-turbo",
+    max_tokens=1024,
+)
+
+print(response)
 
 ```
 
 ## Observe
 
-Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all invocations of underlying models used by Guardrails (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation. Additionally, Guards will be present as a new span kind in Phoenix.
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+* [Example notebook](https://github.com/Arize-ai/dataset-embeddings-guardrails/blob/main/validator/arize\_demo\_dataset\_embeddings\_guard.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-guardrails)

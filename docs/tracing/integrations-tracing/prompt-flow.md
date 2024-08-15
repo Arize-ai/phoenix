@@ -1,10 +1,10 @@
 ---
-description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
+description: Create flows using Microsoft PromptFlow and send their traces to Phoenix
 ---
 
-# MistralAI
+# Prompt flow
 
-MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+This integration will allow you to trace [Microsoft PromptFlow](https://github.com/microsoft/promptflow) flows and send their traces into[`arize-phoenix`](https://github.com/Arize-ai/phoenix).
 
 ## Launch Phoenix
 
@@ -112,7 +112,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](prompt-flow.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -158,51 +158,35 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mistralai mistralai
+pip install promptflow
 ```
 
 ## Setup
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
-
-```
-export MISTRAL_API_KEY=[your_key_here]
-```
-
-Initialize the MistralAIInstrumentor before your application code.
+Set up the OpenTelemetry endpoint to point to Phoenix and use Prompt flow's `setup_exporter_from_environ` to start tracing any further flows and LLM calls.
 
 ```python
-from openinference.instrumentation.mistralai import MistralAIInstrumentor
+import os
+from opentelemetry.sdk.environment_variables import OTEL_EXPORTER_OTLP_ENDPOINT
+from promptflow.tracing._start_trace import setup_exporter_from_environ
 
-MistralAIInstrumentor().instrument()
+endpoint = f"http://127.0.0.1:6006/v1/traces" # replace with your Phoenix endpoint if self-hosting
+os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = endpoint
+setup_exporter_from_environ()
 ```
 
-## Run Mistral
+## Run PromptFlow
 
-```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-
-client = MistralClient()
-response = client.chat(
-    model="mistral-large-latest",
-    messages=[
-        ChatMessage(
-            content="Who won the World Cup in 2018?",
-            role="user",
-        )
-    ],
-)
-print(response.choices[0].message.content)
-
-```
+Proceed with creating Prompt flow flows as usual. See this [example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example\_to\_phoenix.ipynb) for inspiration.
 
 ## Observe
 
-Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+You should see the spans render in Phoenix as shown in the below screenshots.
+
+<figure><img src="../../.gitbook/assets/Chat flow example 2.png" alt=""><figcaption></figcaption></figure>
+
+<figure><img src="../../.gitbook/assets/Chat flow example 1.png" alt=""><figcaption></figcaption></figure>
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+* [Example Notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat\_flow\_example\_to\_phoenix.ipynb)

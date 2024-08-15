@@ -1,10 +1,4 @@
----
-description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
----
-
-# MistralAI
-
-MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+# Instructor
 
 ## Launch Phoenix
 
@@ -112,7 +106,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](instructor.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -158,51 +152,70 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mistralai mistralai
+pip install openinference-instrumentation-instructor instructor
 ```
 
 ## Setup
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
-
-```
-export MISTRAL_API_KEY=[your_key_here]
-```
-
-Initialize the MistralAIInstrumentor before your application code.
+Initialize the InstructorInstrumentor before your application code.
 
 ```python
-from openinference.instrumentation.mistralai import MistralAIInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-MistralAIInstrumentor().instrument()
+endpoint = "http://127.0.0.1:6006/v1/traces"
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+from openinference.instrumentation.instructor import InstructorInstrumentor
+InstructorInstrumentor().instrument(tracer_provider=tracer_provider)
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-## Run Mistral
+Be sure you also instrument the underlying model you're using along with Instructor. For example, if you're using OpenAI calls directly, you would also add:
 
 ```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
-client = MistralClient()
-response = client.chat(
-    model="mistral-large-latest",
-    messages=[
-        ChatMessage(
-            content="Who won the World Cup in 2018?",
-            role="user",
-        )
-    ],
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+## Run Instructor
+
+From here you can use instructor as normal.
+
+```python
+import instructor
+from pydantic import BaseModel
+from openai import OpenAI
+
+
+# Define your desired output structure
+class UserInfo(BaseModel):
+    name: str
+    age: int
+
+
+# Patch the OpenAI client
+client = instructor.from_openai(OpenAI())
+
+# Extract structured data from natural language
+user_info = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    response_model=UserInfo,
+    messages=[{"role": "user", "content": "John Doe is 30 years old."}],
 )
-print(response.choices[0].message.content)
 
+print(user_info.name)
+#> John Doe
+print(user_info.age)
+#> 30
 ```
 
 ## Observe
 
-Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all invocations of your underlying model (completions, chat completions, embeddings) and instructor triggers will be streamed to your running Phoenix for observability and evaluation.
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+*

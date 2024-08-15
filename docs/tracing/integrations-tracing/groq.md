@@ -1,10 +1,10 @@
 ---
-description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
+description: Instrument LLM applications built with Groq
 ---
 
-# MistralAI
+# Groq
 
-MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+Phoenix provides auto-instrumentation for [Groq](https://github.com/groq/groq-python)
 
 ## Launch Phoenix
 
@@ -112,7 +112,7 @@ tracer_provider.add_span_processor(span_processor)
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](groq.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -158,51 +158,50 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mistralai mistralai
+pip install openinference-instrumentation-groq groq 
 ```
 
 ## Setup
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
-
-```
-export MISTRAL_API_KEY=[your_key_here]
-```
-
-Initialize the MistralAIInstrumentor before your application code.
+Initialize the GroqInstrumentor before your application code.
 
 ```python
-from openinference.instrumentation.mistralai import MistralAIInstrumentor
+from openinference.instrumentation.groq import GroqInstrumentor
 
-MistralAIInstrumentor().instrument()
+GroqInstrumentor().instrument()
 ```
 
-## Run Mistral
+## Run Groq
+
+A simple Groq application that is now instrumented
 
 ```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
+import os
+from groq import Groq
 
-client = MistralClient()
-response = client.chat(
-    model="mistral-large-latest",
-    messages=[
-        ChatMessage(
-            content="Who won the World Cup in 2018?",
-            role="user",
-        )
-    ],
+client = Groq(
+    # This is the default and can be omitted
+    api_key=os.environ.get("GROQ_API_KEY"),
 )
-print(response.choices[0].message.content)
 
+chat_completion = client.chat.completions.create(
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain the importance of low latency LLMs",
+        }
+    ],
+    model="mixtral-8x7b-32768",
+)
+print(chat_completion.choices[0].message.content)
 ```
 
 ## Observe
 
-Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all invocations of pipelines will be streamed to your running Phoenix for observability and evaluation.
 
-## Resources
+## Resources:
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+* [Example Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/chat\_completions.py)
+* [Example Async Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/async\_chat\_completions.py)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack)

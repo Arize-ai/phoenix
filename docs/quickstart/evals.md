@@ -30,7 +30,7 @@ Export a dataframe from your Phoenix session that contains traces from your LLM 
 If you are interested in a subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
 {% endhint %}
 
-For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](../tracing/quckstart-tracing.md) with an OpenInference-compatible tracer).
+For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](../tracing/llm-traces-1.md) with an OpenInference-compatible tracer).
 
 ```python
 from urllib.request import urlopen
