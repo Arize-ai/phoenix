@@ -65,7 +65,7 @@ class ApiKeyMutationMixin:
         encoded_jwt = create_jwt(
             secret=info.context.get_secret(),
             name=api_key.name,
-            user_id=api_key.user_id,
+            id=api_key.id,
             description=api_key.description,
             iat=api_key.created_at,
             exp=api_key.expires_at,
@@ -91,7 +91,7 @@ def create_jwt(
     description: Optional[str],
     iat: datetime,
     exp: Optional[datetime],
-    user_id: int,
+    id: int,
 ) -> str:
     """Create a signed JSON Web Token for authentication
 
@@ -101,7 +101,7 @@ def create_jwt(
         description (Optional[str]): description of the token
         iat (datetime): the issued at time
         exp (Optional[datetime]): the expiry, if set
-        user_id (int): the system / end-user id
+        id (int): the id of the key
         algorithm (str, optional): the algorithm to use. Defaults to "HS256".
 
     Returns:
@@ -111,7 +111,7 @@ def create_jwt(
         "name": name,
         "description": description,
         "iat": iat.utcnow(),
-        "user_id": user_id,
+        "id": id,
     }
     if exp is not None:
         payload["exp"] = exp.utcnow()
