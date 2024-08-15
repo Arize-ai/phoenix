@@ -108,6 +108,7 @@ def run_experiment(
     rate_limit_errors: Optional[RateLimitErrors] = None,
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
+    concurrency: int = 3,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -158,6 +159,9 @@ def run_experiment(
             examples of the given size. Defaults to False.
         print_summary (bool): Whether to print a summary of the experiment and evaluation results.
             Defaults to True.
+        concurrency (int): Specifies the concurrency for task execution. In order to enable
+            concurrent task execution, the task callable must be a coroutine function.
+            Defaults to 3.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -389,6 +393,7 @@ def run_experiment(
         exit_on_error=False,
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
+        concurrency=concurrency,
     )
 
     test_cases = [
@@ -414,6 +419,7 @@ def run_experiment(
             dry_run=dry_run,
             print_summary=print_summary,
             rate_limit_errors=rate_limit_errors,
+            concurrency=concurrency,
         )
     if print_summary:
         print(ran_experiment)
@@ -427,6 +433,7 @@ def evaluate_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     rate_limit_errors: Optional[RateLimitErrors] = None,
+    concurrency: int = 3,
 ) -> RanExperiment:
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
@@ -628,6 +635,7 @@ def evaluate_experiment(
         exit_on_error=False,
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
+        concurrency=concurrency,
     )
     eval_runs, _execution_details = executor.run(evaluation_input)
     eval_summary = EvaluationSummary.from_eval_runs(
