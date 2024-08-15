@@ -10,7 +10,7 @@ from strawberry.types import Info
 from phoenix.config import get_auth_settings
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.mutations.auth import IsAuthenticated
+from phoenix.server.api.mutations.auth import IsAuthenticated, HasSecret
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 
@@ -34,14 +34,11 @@ _, secret = get_auth_settings()
 
 @strawberry.type
 class ApiKeyMutationMixin:
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
     async def create_system_api_key(
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
         # TODO(auth): safe guard against auth being disabled and secret not being set
-        secret: str = info.get_secret()
-        if secret is None:
-            raise ValueError("Cannot create keys without a secret")
         async with info.context.db() as session:
             # Get the system user - note this could be pushed into a dataloader
             system_user = await session.scalar(
@@ -66,7 +63,7 @@ class ApiKeyMutationMixin:
             assert api_key is not None
 
         encoded_jwt = create_jwt(
-            secret=secret,
+            secret=info.context.get_secret(),
             name=api_key.name,
             user_id=api_key.user_id,
             description=api_key.description,

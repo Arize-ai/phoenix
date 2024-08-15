@@ -218,7 +218,7 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
-    authentication_enabled, auth_secret = get_auth_settings()
+    authentication_enabled, secret = get_auth_settings()
 
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
@@ -271,6 +271,7 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
         clean_up_callbacks=instrumentation_cleanups,
+        secret=secret,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

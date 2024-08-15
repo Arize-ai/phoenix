@@ -276,7 +276,26 @@ def create_graphql_router(
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
+    secret: Optional[str] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
+    """Creates the GraphQL router.
+
+    Args:
+        schema (BaseSchema): The GraphQL schema.
+        db (DbSessionFactory): The database session factory pointing to a SQL database.
+        model (Model): The Model representing inferences (legacy)
+        export_path (Path): the file path to export data to for download (legacy)
+        last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
+        event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
+        corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
+        cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
+        read_only (bool, optional): Marks the app as read-only. Defaults to False.
+        secret (Optional[str], optional): The application secret for auth. Defaults to None.
+
+    Returns:
+        GraphQLRouter: _description_
+    """
+
     def get_context() -> Context:
         return Context(
             db=db,
@@ -336,6 +355,7 @@ def create_graphql_router(
             ),
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
+            secret=secret,
         )
 
     return GraphQLRouter(
@@ -409,6 +429,7 @@ def create_app(
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     clean_up_callbacks: List[Callable[[], None]] = [],
+    secret: Optional[str] = None,
 ) -> FastAPI:
     clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
@@ -472,6 +493,7 @@ def create_app(
         event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
+        secret=secret,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware

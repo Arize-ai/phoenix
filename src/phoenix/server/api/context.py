@@ -74,3 +74,17 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    secret: Optional[str] = None
+
+    def get_secret(self) -> str:
+        """A type safe way to get the application secret. Throws an error if the secret is not set.
+
+        Returns:
+            str: the phoenix secret
+        """
+        if self.secret is None:
+            raise ValueError(
+                "Application secret not set."
+                " Please set the PHOENIX_SECRET environment variable and re-deploy the application."
+            )
+        return self.secret
