@@ -7,10 +7,9 @@ from sqlalchemy import insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
-from phoenix.config import get_auth_settings
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.mutations.auth import IsAuthenticated, HasSecret
+from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 
@@ -26,10 +25,6 @@ class CreateSystemApiKeyMutationPayload:
 class CreateApiKeyInput:
     name: str
     description: Optional[str] = UNSET
-
-
-# TODO(auth): mount this centrally
-_, secret = get_auth_settings()
 
 
 @strawberry.type
