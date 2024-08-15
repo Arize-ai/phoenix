@@ -100,7 +100,7 @@ def create_jwt(
         algorithm (str, optional): the algorithm to use. Defaults to "HS256".
 
     Returns:
-        str: _description_
+        str: The encoded JWT
     """
     payload: Dict[str, Any] = {
         "name": name,
