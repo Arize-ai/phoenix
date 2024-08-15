@@ -162,6 +162,12 @@ langchain_qa_with_sources_fixture = TracesFixture(
     file_name="langchain_qa_with_sources_chain.parquet",
 )
 
+vision_fixture = TracesFixture(
+    name="vision",
+    description="Vision LLM Requests",
+    file_name="vision_fixture_trace_datasets.parquet",
+)
+
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
@@ -176,6 +182,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
     random_fixture,
     langchain_qa_with_sources_fixture,
     llama_index_calculator_agent_fixture,
+    vision_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
