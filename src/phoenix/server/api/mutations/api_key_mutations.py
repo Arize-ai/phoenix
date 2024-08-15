@@ -39,6 +39,7 @@ class ApiKeyMutationMixin:
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
         # TODO(auth): safe guard against auth being disabled and secret not being set
+        secret: str = info.get_secret()
         if secret is None:
             raise ValueError("Cannot create keys without a secret")
         async with info.context.db() as session:
