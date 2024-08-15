@@ -293,7 +293,7 @@ def create_graphql_router(
         secret (Optional[str], optional): The application secret for auth. Defaults to None.
 
     Returns:
-        GraphQLRouter: _description_
+        GraphQLRouter: The router mounted at /graphql
     """
 
     def get_context() -> Context:
