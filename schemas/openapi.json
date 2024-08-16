@@ -786,7 +786,7 @@
             "schema": {
               "type": "boolean",
               "description": "If true, fulfill request synchronously.",
-              "default": true,
+              "default": false,
               "title": "Sync"
             },
             "description": "If true, fulfill request synchronously."
