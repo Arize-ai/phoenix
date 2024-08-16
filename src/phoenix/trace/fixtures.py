@@ -82,10 +82,10 @@ class TracesFixture:
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
 
-demo_llama_index_cohesive_rag_fixture = TracesFixture(
-    name="demo_llama_index_cohesive_rag",
-    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="llama_index_cohesive_rag.parquet",
+demo_llama_index_rag_fixture = TracesFixture(
+    name="demo_llama_index_rag",
+    description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
+    file_name="demo_llama_index_rag.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
