@@ -10,6 +10,13 @@
         "packages/phoenix-evals": {
             "package-name": "arize-phoenix-evals",
             "release-type": "python"
+        },
+        "packages/phoenix-otel": {
+            "package-name": "arize-phoenix-otel",
+            "release-type": "python",
+            "prerelease-type": "alpha",
+            "prerelease": true,
+            "skip-github-release": true
         }
     }
 }
