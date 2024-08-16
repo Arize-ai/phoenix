@@ -239,10 +239,10 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(List)
-# for fixture in TRACES_FIXTURES:
-    # if fixture.project_name:
-    #     PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
+PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(list)
+for fixture in TRACES_FIXTURES:
+    if fixture.project_name:
+        PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
 
 
 def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
