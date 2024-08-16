@@ -816,12 +816,11 @@ function RerankerSpanInfo(props: {
     () => spanAttributes[SemanticAttributePrefixes.reranker] || null,
     [spanAttributes]
   );
-  const query = useMemo<string>(() => {
+  const query = useMemo<string | null>(() => {
     if (rerankerAttributes == null) {
-      return "";
+      return null;
     }
-    return (rerankerAttributes[RerankerAttributePostfixes.query] ||
-      "") as string;
+    return rerankerAttributes[RerankerAttributePostfixes.query] || null;
   }, [rerankerAttributes]);
   const input_documents = useMemo<AttributeDocument[]>(() => {
     if (rerankerAttributes == null) {
@@ -845,15 +844,18 @@ function RerankerSpanInfo(props: {
   return (
     <Flex direction="column" gap="size-200">
       <MarkdownDisplayProvider>
-        <Card title="Query" {...defaultCardProps}>
-          <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
-        </Card>
+        {query && (
+          <Card title="Query" {...defaultCardProps}>
+            <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+          </Card>
+        )}
       </MarkdownDisplayProvider>
       <Card
         title={"Input Documents"}
         titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
+        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -883,6 +885,7 @@ function RerankerSpanInfo(props: {
         title={"Output Documents"}
         titleExtra={<Counter variant="light">{numOutputDocuments}</Counter>}
         {...defaultCardProps}
+        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
