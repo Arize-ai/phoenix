@@ -141,3 +141,9 @@ Currently accounts are setup to be used specifically for one developer. We will 
 ### Pricing
 
 Hosted Phoenix is free for all developers. We will add a paid tier in the future which increases your data retention and also give you access to more storage.
+
+### Are there other demos available?
+
+Yes. This demo and [accompanying blog](https://arize.com/blog/how-to-host-phoenix-persistence/) show how to deploy Phoenix via Docker/Kubernetes:
+
+{% embed url="https://www.youtube.com/watch?v=9hNrosMqirQ" %}
