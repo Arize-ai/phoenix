@@ -82,10 +82,10 @@ class TracesFixture:
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
 
-demo_llama_index_cohesive_rag_fixture = TracesFixture(
-    name="demo_llama_index_cohesive_rag",
-    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="llama_index_cohesive_rag.parquet",
+demo_llama_index_rag_fixture = TracesFixture(
+    name="demo_llama_index_rag",
+    description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
+    file_name="demo_llama_index_rag.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -189,7 +189,7 @@ random_fixture = TracesFixture(
 )
 
 TRACES_FIXTURES: List[TracesFixture] = [
-    demo_llama_index_cohesive_rag_fixture,
+    demo_llama_index_rag_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
@@ -290,6 +290,7 @@ def send_dataset_fixtures(
 def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
     fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
+        print(eval_fixture)
         yield from _read_eval_fixture(eval_fixture)
 
 
