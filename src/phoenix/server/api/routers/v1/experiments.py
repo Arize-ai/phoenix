@@ -1,6 +1,6 @@
 from datetime import datetime
 from random import getrandbits
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
@@ -252,3 +252,44 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             updated_at=experiment.updated_at,
         )
     )
+
+
+class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
+    pass
+
+
+@router.get(
+    "/experiments",
+    operation_id="listExperiments",
+    summary="List all experiments",
+    response_description="List of experiments retrieved successfully",
+)
+async def list_experiments(
+    request: Request,
+) -> ListExperimentsResponseBody:
+    async with request.app.state.db() as session:
+        query = select(models.Experiment).order_by(models.Experiment.id.desc())
+
+        result = await session.execute(query)
+        experiments = result.scalars().all()
+
+        if not experiments:
+            return ListExperimentsResponseBody(data=[])
+
+        data = [
+            Experiment(
+                id=str(GlobalID("Experiment", str(experiment.id))),
+                dataset_id=str(GlobalID("Dataset", str(experiment.dataset_id))),
+                dataset_version_id=str(
+                    GlobalID("DatasetVersion", str(experiment.dataset_version_id))
+                ),
+                repetitions=experiment.repetitions,
+                metadata=experiment.metadata_,
+                project_name=experiment.project_name,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+            )
+            for experiment in experiments
+        ]
+
+        return ListExperimentsResponseBody(data=data)
