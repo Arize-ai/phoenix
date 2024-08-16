@@ -1,10 +1,12 @@
 import asyncio
+from phoenix.server.types import DaemonTask
 import contextlib
 import json
 import logging
 from functools import cached_property
 from pathlib import Path
 from typing import (
+Awaitable,
     TYPE_CHECKING,
     Any,
     AsyncContextManager,
@@ -95,6 +97,12 @@ from phoenix.server.types import (
 )
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
+from phoenix.trace.fixtures import (
+    get_evals_from_fixture,
+    load_example_traces,
+    reset_fixture_span_ids_and_timestamps,
+)
+from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -106,6 +114,7 @@ router = APIRouter(include_in_schema=False)
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
+ProjectName: TypeAlias = str
 class AppConfig(NamedTuple):
     has_inferences: bool
     """ Whether the model has inferences (e.g. a primary dataset) """
@@ -222,6 +231,29 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     return factory
 
 
+class Scaffolder(DaemonTask):
+    def __init__(self, queue_span:Callable[[Span, ProjectName], Awaitable[None]]):
+        super().__init__()
+        self._queue_span = queue_span
+
+    async def __aenter__(self) -> None:
+        await self.start()
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        await self.stop()
+    async def _run(self) -> None:
+        trace_dataset_name="vision"
+        fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
+            (
+                # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                # `encode` removes the hyphens in the UUIDs.
+                decode_otlp_span(encode_span_to_otlp(span))
+                for span in load_example_traces(trace_dataset_name).to_spans()
+            ),
+            get_evals_from_fixture(trace_dataset_name),
+        )
+        for span in fixture_spans:
+            await self._queue_span(span, trace_dataset_name)
+
 def _lifespan(
     *,
     dialect: SupportedSQLDialect,
@@ -236,7 +268,7 @@ def _lifespan(
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
-        async with bulk_inserter as (
+        async with (bulk_inserter as (
             enqueue,
             queue_span,
             queue_evaluation,
@@ -246,7 +278,9 @@ def _lifespan(
             disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-        ), dml_event_handler:
+        ), dml_event_handler, Scaffolder(
+            queue_span=queue_span
+        )):
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
