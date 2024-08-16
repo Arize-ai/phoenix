@@ -2,7 +2,7 @@ from datetime import datetime
 from random import getrandbits
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -266,9 +266,14 @@ class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
 )
 async def list_experiments(
     request: Request,
+    project_name: Optional[str] = Query(
+        default=None, description="The project name to get experiments from"
+    ),
 ) -> ListExperimentsResponseBody:
     async with request.app.state.db() as session:
         query = select(models.Experiment).order_by(models.Experiment.id.desc())
+        if project_name:
+            query = query.where(models.Experiment.project_name == project_name)
 
         result = await session.execute(query)
         experiments = result.scalars().all()

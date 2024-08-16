@@ -148,6 +148,20 @@ async def test_listing_experiments(
     assert str(experiment_gid_0) == experiment_gids[1], "experiments are listed newest first"
 
 
+async def test_listing_experiments_by_project_name(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_without_runs: Any,
+) -> None:
+    experiment_gid_1 = GlobalID("Experiment", "1")
+
+    response = await httpx_client.get("/v1/experiments?project_name=random")
+    assert response.status_code == 200
+    experiments = response.json()["data"]
+    experiment_gids = [experiment["id"] for experiment in experiments]
+    assert len(experiments) == 1
+    assert str(experiment_gid_1) == experiment_gids[0], "Only one experiment should be returned"
+
+
 async def test_reading_experiment_404s_with_missing_experiment(
     httpx_client: httpx.AsyncClient,
 ) -> None:
