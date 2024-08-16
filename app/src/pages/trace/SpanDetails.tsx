@@ -855,6 +855,7 @@ function RerankerSpanInfo(props: {
         titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
+        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
@@ -884,6 +885,7 @@ function RerankerSpanInfo(props: {
         title={"Output Documents"}
         titleExtra={<Counter variant="light">{numOutputDocuments}</Counter>}
         {...defaultCardProps}
+        bodyStyle={{ padding: 0 }}
       >
         {
           <ul
