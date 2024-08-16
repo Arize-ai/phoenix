@@ -196,7 +196,7 @@ class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
 async def annotate_spans(
     request: Request,
     request_body: AnnotateSpansRequestBody,
-    sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
+    sync: bool = Query(default=False, description="If true, fulfill request synchronously."),
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
