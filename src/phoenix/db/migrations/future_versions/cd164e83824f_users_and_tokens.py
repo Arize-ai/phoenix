@@ -113,7 +113,7 @@ class Base(DeclarativeBase):
 class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
-    role: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True)
 
 
 class User(Base):
@@ -150,10 +150,10 @@ async def insert_roles_and_users(connection: AsyncConnection) -> None:
     user to the `users` table.
     """
     await connection.execute(
-        insert(UserRole).values([{"role": "SYSTEM"}, {"role": "ADMIN"}, {"role": "MEMBER"}])
+        insert(UserRole).values([{"name": "SYSTEM"}, {"name": "ADMIN"}, {"name": "MEMBER"}])
     )
-    system_user_role_id = sa.select(UserRole.id).where(UserRole.role == "SYSTEM").scalar_subquery()
-    admin_user_role_id = sa.select(UserRole.id).where(UserRole.role == "ADMIN").scalar_subquery()
+    system_user_role_id = sa.select(UserRole.id).where(UserRole.name == "SYSTEM").scalar_subquery()
+    admin_user_role_id = sa.select(UserRole.id).where(UserRole.name == "ADMIN").scalar_subquery()
     await connection.execute(
         insert(User).values(
             [
@@ -183,7 +183,7 @@ def upgrade() -> None:
         "user_roles",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "role",
+            "name",
             sa.String,
             nullable=False,
             unique=True,

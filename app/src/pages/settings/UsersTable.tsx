@@ -25,7 +25,7 @@ export function UsersTable() {
               username
               createdAt
               role {
-                role
+                name
               }
             }
           }
@@ -40,7 +40,7 @@ export function UsersTable() {
       email: user.email,
       username: user.username,
       createdAt: user.createdAt,
-      role: user.role.role,
+      roleName: user.role.name,
     }));
   }, [data]);
 
@@ -57,7 +57,7 @@ export function UsersTable() {
       },
       {
         header: "role",
-        accessorKey: "role",
+        accessorKey: "roleName",
       },
       {
         header: "created at",

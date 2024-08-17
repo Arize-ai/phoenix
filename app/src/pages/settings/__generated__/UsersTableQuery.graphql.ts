@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c07c5f84d587b8b1a7e6918e393f5d0b>>
+ * @generated SignedSource<<83f7e6d47fae194913c897d5da42be67>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type UsersTableQuery$data = {
         readonly createdAt: string;
         readonly email: string;
         readonly role: {
-          readonly role: string;
+          readonly name: string;
         };
         readonly username: string | null;
       };
@@ -88,7 +88,7 @@ var v0 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "role",
+                    "name": "name",
                     "storageKey": null
                   }
                 ],
@@ -122,16 +122,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "5cefb7e1fadaa4daf3273449329b9a8f",
+    "cacheID": "3771d6178f1ad5275a38f8c9052a0508",
     "id": null,
     "metadata": {},
     "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersTableQuery {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n        role {\n          role\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "87a865d148c113262b821aeeb24b30c3";
+(node as any).hash = "0a975e18bb54ce2fb35993eb6dcfe029";
 
 export default node;

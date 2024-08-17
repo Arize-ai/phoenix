@@ -40,7 +40,7 @@ class ApiKeyMutationMixin:
             system_user = await session.scalar(
                 select(models.User)
                 .join(models.UserRole)  # Join User with UserRole
-                .where(models.UserRole.role == "SYSTEM")  # Filter where role is SYSTEM
+                .where(models.UserRole.name == "SYSTEM")  # Filter where role is SYSTEM
                 .limit(1)
             )
             if system_user is None:

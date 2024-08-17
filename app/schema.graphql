@@ -1452,7 +1452,7 @@ type UserEdge {
 type UserRole implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  role: String!
+  name: String!
 }
 
 type ValidationResult {
