@@ -82,6 +82,26 @@ class TracesFixture:
     dataset_fixtures: Iterable[DatasetFixture] = ()
 
 
+demo_llama_index_rag_fixture = TracesFixture(
+    name="demo_llama_index_rag",
+    description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
+    file_name="demo_llama_index_rag.parquet",
+    evaluation_fixtures=(
+        EvaluationFixture(
+            evaluation_name="Q&A Correctness",
+            file_name="demo_llama_index_rag_qa_correctness_eval.parquet",
+        ),
+        EvaluationFixture(
+            evaluation_name="Hallucination",
+            file_name="demo_llama_index_rag_hallucination_eval.parquet",
+        ),
+        DocumentEvaluationFixture(
+            evaluation_name="Relevance",
+            file_name="demo_llama_index_rag_doc_relevance_eval.parquet",
+        ),
+    ),
+)
+
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
@@ -175,6 +195,7 @@ random_fixture = TracesFixture(
 )
 
 TRACES_FIXTURES: List[TracesFixture] = [
+    demo_llama_index_rag_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
@@ -276,6 +297,7 @@ def send_dataset_fixtures(
 def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
     fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
+        print(eval_fixture)
         yield from _read_eval_fixture(eval_fixture)
 
 
