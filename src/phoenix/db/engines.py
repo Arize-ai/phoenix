@@ -16,6 +16,7 @@ from typing_extensions import assert_never
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
+from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
 
@@ -122,7 +123,7 @@ def aio_sqlite_engine(
         migrate_in_thread(
             sqlalchemy.create_engine(
                 url=url.set(drivername="sqlite"),
-                echo=echo,
+                echo=Settings.log_migrations,
                 json_serializer=_dumps,
                 creator=lambda: sqlean.connect(f"file:{database}", uri=True),
             )
@@ -141,7 +142,7 @@ def aio_postgresql_engine(
     migrate_in_thread(
         sqlalchemy.create_engine(
             url=url.set(drivername="postgresql"),
-            echo=echo,
+            echo=Settings.log_migrations,
             json_serializer=_dumps,
         )
     )
