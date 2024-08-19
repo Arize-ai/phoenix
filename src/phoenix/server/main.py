@@ -2,7 +2,7 @@ import atexit
 import logging
 import os
 from argparse import ArgumentParser
-from pathlib import Path, PosixPath
+from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
@@ -286,7 +286,7 @@ if __name__ == "__main__":
             version=phoenix_version,
             ui_path=Path(f"http://{host}:{port}", host_root_path),
             grpc_path=f"http://{host}:{get_env_grpc_port()}",
-            http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
+            http_path=Path(f"http://{host}:{port}", host_root_path, "v1/traces"),
             storage=get_printable_db_url(db_connection_str),
         )
     )
