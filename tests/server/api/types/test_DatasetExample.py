@@ -4,11 +4,12 @@ from typing import Any, Mapping
 import httpx
 import pytest
 import pytz
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
 
 
 @pytest.mark.parametrize(

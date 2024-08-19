@@ -7,13 +7,14 @@ import pandas as pd
 import pyarrow
 import pytest
 from pandas.testing import assert_frame_equal
+from pyarrow import parquet
+
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 from phoenix.trace.span_evaluations import (
     EVAL_NAME_COLUMN_PREFIX,
     InvalidParquetMetadataError,
     _parse_schema_metadata,
 )
-from pyarrow import parquet
 
 
 def test_span_evaluations_construction() -> None:

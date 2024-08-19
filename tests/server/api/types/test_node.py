@@ -1,6 +1,7 @@
 import pytest
-from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from strawberry.relay import GlobalID
+
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 
 
 def test_from_global_id_returns_type_name_and_node_id() -> None:

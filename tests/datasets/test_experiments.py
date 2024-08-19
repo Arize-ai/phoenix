@@ -5,6 +5,9 @@ from typing import Any, Awaitable, Callable, Dict
 from unittest.mock import patch
 
 import httpx
+from sqlalchemy import select
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
@@ -23,8 +26,6 @@ from phoenix.experiments.types import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import select
-from strawberry.relay import GlobalID
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")

@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 
 import numpy as np
+
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.span_json_encoder import span_to_json
 

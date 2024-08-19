@@ -11,6 +11,8 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
+from pytest import approx
+
 from phoenix.trace.otel import (
     _decode_identifier,
     _encode_identifier,
@@ -29,7 +31,6 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
-from pytest import approx
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 

@@ -1,6 +1,7 @@
 import math
 
 import pytest
+
 from phoenix.evals import RAG_RELEVANCY_PROMPT_TEMPLATE, ClassificationTemplate
 from phoenix.evals.templates import InvalidClassificationTemplateError
 

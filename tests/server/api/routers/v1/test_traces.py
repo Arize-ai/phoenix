@@ -5,9 +5,10 @@ from typing import Any
 import httpx
 import pytest
 from faker import Faker
+from sqlalchemy import insert, select
+
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert, select
 
 
 @pytest.fixture

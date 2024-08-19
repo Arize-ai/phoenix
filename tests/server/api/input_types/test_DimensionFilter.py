@@ -2,6 +2,8 @@ from typing import List, Optional
 
 import pytest
 from numpy.testing import assert_almost_equal
+from strawberry import UNSET
+
 from phoenix.core.model_schema import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
@@ -14,7 +16,6 @@ from phoenix.core.model_schema import (
 from phoenix.server.api.input_types.DimensionFilter import DimensionFilter
 from phoenix.server.api.types.DimensionShape import DimensionShape
 from phoenix.server.api.types.DimensionType import DimensionType
-from strawberry import UNSET
 
 
 @pytest.mark.parametrize(

@@ -13,13 +13,14 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from pandas.testing import assert_frame_equal
+from pytz import UTC
+from respx import MockRouter
+from strawberry.relay import GlobalID
+
 from phoenix.session.client import Client
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
-from pytz import UTC
-from respx import MockRouter
-from strawberry.relay import GlobalID
 
 
 def test_base_path(monkeypatch: pytest.MonkeyPatch) -> None:

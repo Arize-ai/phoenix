@@ -8,9 +8,10 @@ import numpy as np
 import pandas as pd
 import pytest
 import respx
+from respx.patterns import M
+
 from phoenix.evals import OpenAIModel, llm_generate
 from phoenix.evals.models.litellm import LiteLLMModel
-from respx.patterns import M
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 

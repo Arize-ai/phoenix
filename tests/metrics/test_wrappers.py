@@ -8,11 +8,12 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 from pandas.core.dtypes.common import is_object_dtype
+from sklearn import metrics as sk
+
 from phoenix.core.model_schema import Column
 from phoenix.metrics.mixins import EvaluationMetric, EvaluationMetricKeywordParameters
 from phoenix.metrics.wrappers import Eval
 from phoenix.metrics.wrappers import SkEval as ev
-from sklearn import metrics as sk
 
 N = 32
 NA_PCT = 0.25

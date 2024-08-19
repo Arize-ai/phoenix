@@ -24,6 +24,12 @@ from _pytest.fixtures import SubRequest
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import URL, Request, Response
+from psycopg import Connection
+from pytest_postgresql import factories
+from sqlalchemy import make_url
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from starlette.types import ASGIApp
+
 from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
@@ -35,11 +41,6 @@ from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
-from psycopg import Connection
-from pytest_postgresql import factories
-from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
-from starlette.types import ASGIApp
 
 
 def pytest_addoption(parser: Parser) -> None:

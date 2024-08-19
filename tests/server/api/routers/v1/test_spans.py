@@ -7,11 +7,12 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
+from sqlalchemy import insert, select
+
 from phoenix import Client, TraceDataset
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
-from sqlalchemy import insert, select
 
 
 async def test_span_round_tripping_with_docs(

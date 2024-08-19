@@ -1,10 +1,11 @@
 from datetime import datetime
 
 import pytest
+from sqlalchemy import insert
+
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
 
 
 @pytest.fixture

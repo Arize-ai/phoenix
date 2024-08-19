@@ -4,6 +4,10 @@ from typing import Callable, List, Optional
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import insert
+from strawberry.schema import Schema as StrawberrySchema
+from strawberry.types.info import Info
+
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
@@ -11,9 +15,6 @@ from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
-from strawberry.schema import Schema as StrawberrySchema
-from strawberry.types.info import Info
 
 
 @pytest.fixture

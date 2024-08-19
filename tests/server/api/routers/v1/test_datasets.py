@@ -11,12 +11,13 @@ import pyarrow as pa
 import pytest
 from httpx import HTTPStatusError
 from pandas.testing import assert_frame_equal
+from sqlalchemy import select
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import select
-from strawberry.relay import GlobalID
 
 
 async def test_get_simple_dataset(
