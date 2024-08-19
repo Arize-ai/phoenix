@@ -22,6 +22,7 @@ from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class EvaluationResultSchema(NamedTuple):

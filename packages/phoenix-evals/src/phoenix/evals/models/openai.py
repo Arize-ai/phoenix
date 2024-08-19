@@ -36,6 +36,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 @dataclass

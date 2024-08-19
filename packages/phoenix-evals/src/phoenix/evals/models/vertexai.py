@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from google.auth.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 MINIMUM_VERTEX_AI_VERSION = "1.33.0"
 

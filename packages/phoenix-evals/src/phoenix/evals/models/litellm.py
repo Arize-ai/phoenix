@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from phoenix.evals.models.base import BaseModel
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 @dataclass

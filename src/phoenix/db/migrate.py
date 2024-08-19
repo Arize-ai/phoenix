@@ -1,3 +1,4 @@
+import codecs
 import logging
 from pathlib import Path
 from queue import Empty, Queue
@@ -12,11 +13,16 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.settings import Settings
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def printif(condition: bool, text: str) -> None:
     if condition:
-        print(text)
+        try:
+            print(text)
+        except UnicodeDecodeError:
+            text = codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()
+            print(text)
 
 
 def migrate(url: URL, error_queue: Optional["Queue[Exception]"] = None) -> None:

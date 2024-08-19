@@ -100,6 +100,7 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
 

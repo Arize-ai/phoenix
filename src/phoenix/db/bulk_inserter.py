@@ -37,6 +37,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 ProjectRowId: TypeAlias = int
 
