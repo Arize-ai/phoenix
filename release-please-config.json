@@ -15,7 +15,7 @@
             "package-name": "arize-phoenix-otel",
             "release-type": "python",
             "prerelease-type": "alpha",
-            "prerelease": true,
+            "prerelease": true
         }
     }
 }
