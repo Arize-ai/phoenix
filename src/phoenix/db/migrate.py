@@ -1,5 +1,6 @@
 import codecs
 import logging
+import sys
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
@@ -17,12 +18,11 @@ logger.addHandler(logging.NullHandler())
 
 
 def printif(condition: bool, text: str) -> None:
-    if condition:
-        try:
-            print(text)
-        except UnicodeDecodeError:
-            text = codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()
-            print(text)
+    if not condition:
+        return
+    if sys.platform.startswith("win"):
+        text = codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()
+    print(text)
 
 
 def migrate(url: URL, error_queue: Optional["Queue[Exception]"] = None) -> None:
