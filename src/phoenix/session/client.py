@@ -44,7 +44,7 @@ from phoenix.config import (
 )
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
-from phoenix.experiments.types import Dataset, Example
+from phoenix.experiments.types import Dataset, Example, Experiment
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -570,6 +570,14 @@ class Client(TraceDataExtractor):
             metadata=metadata,
             action="append",
         )
+
+    def list_experiments(self, project_name: Optional[str] = None) -> List[Experiment]:
+        response = self._client.get(
+            url=urljoin(self._base_url, "v1/experiments"),
+            params={"project_name": project_name or get_env_project_name()},
+        )
+        experiment_data = response.json()["data"]
+        return [Experiment.from_dict(experiment) for experiment in experiment_data]
 
     def _upload_tabular_dataset(
         self,
