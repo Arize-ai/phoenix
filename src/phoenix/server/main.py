@@ -1,6 +1,8 @@
 import atexit
+import codecs
 import logging
 import os
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
@@ -282,15 +284,16 @@ if __name__ == "__main__":
 
     # Print information about the server
     phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
-    print(
-        _WELCOME_MESSAGE.format(
-            version=phoenix_version,
-            ui_path=urljoin(f"http://{host}:{port}", host_root_path),
-            grpc_path=f"http://{host}:{get_env_grpc_port()}",
-            http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
-            storage=get_printable_db_url(db_connection_str),
-        )
+    msg = _WELCOME_MESSAGE.format(
+        version=phoenix_version,
+        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        grpc_path=f"http://{host}:{get_env_grpc_port()}",
+        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        storage=get_printable_db_url(db_connection_str),
     )
+    if sys.platform.startswith("win"):
+        msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
+    print(msg)
 
     if authentication_enabled:
         print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
