@@ -7,6 +7,7 @@ from typing import Any
 
 import aiosqlite
 import numpy as np
+import sqlalchemy
 import sqlean
 from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -118,7 +119,14 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        migrate_in_thread(engine.url)
+        migrate_in_thread(
+            sqlalchemy.create_engine(
+                url=url.set(drivername="sqlite"),
+                echo=echo,
+                json_serializer=_dumps,
+                creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+            )
+        )
     return engine
 
 
@@ -130,7 +138,13 @@ def aio_postgresql_engine(
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     if not migrate:
         return engine
-    migrate_in_thread(engine.url)
+    migrate_in_thread(
+        sqlalchemy.create_engine(
+            url=url.set(drivername="postgresql"),
+            echo=echo,
+            json_serializer=_dumps,
+        )
+    )
     return engine
 
 
