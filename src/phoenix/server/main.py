@@ -284,7 +284,7 @@ if __name__ == "__main__":
     print(
         _WELCOME_MESSAGE.format(
             version=phoenix_version,
-            ui_path=PosixPath(f"http://{host}:{port}", host_root_path),
+            ui_path=Path(f"http://{host}:{port}", host_root_path),
             grpc_path=f"http://{host}:{get_env_grpc_port()}",
             http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
             storage=get_printable_db_url(db_connection_str),
