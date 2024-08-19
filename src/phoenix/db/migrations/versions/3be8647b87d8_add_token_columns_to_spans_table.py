@@ -16,7 +16,6 @@ from sqlalchemy import (
     Dialect,
     MetaData,
     TypeDecorator,
-    update,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio.engine import AsyncConnection
@@ -115,12 +114,12 @@ async def get_token_counts_from_attributes(connection: AsyncConnection) -> None:
     """
     Gets token counts from attributes if present.
     """
-    await connection.execute(
-        update(Span).values(
-            llm_token_count_prompt=Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
-            llm_token_count_completion=Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
-        )
-    )
+    # await connection.execute(
+    #     update(Span).values(
+    #         llm_token_count_prompt=Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
+    #         llm_token_count_completion=Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
+    #     )
+    # )
 
 
 def upgrade() -> None:
