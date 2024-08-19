@@ -2,7 +2,7 @@ import codecs
 import logging
 import sys
 from pathlib import Path
-from queue import Empty, Queue, SimpleQueue
+from queue import Empty, SimpleQueue
 from threading import Thread
 from typing import Optional
 
@@ -27,7 +27,7 @@ def printif(condition: bool, text: str) -> None:
 
 def migrate(
     engine: Engine,
-    error_queue: Optional["Queue[BaseException]"] = None,
+    error_queue: Optional["SimpleQueue[BaseException]"] = None,
 ) -> None:
     """
     Runs migrations on the database.
@@ -64,7 +64,7 @@ def migrate_in_thread(engine: Engine) -> None:
     This is needed because depending on the context (notebook)
     the migration process can fail to execute in the main thread.
     """
-    error_queue: Queue[BaseException] = SimpleQueue()
+    error_queue: SimpleQueue[BaseException] = SimpleQueue()
     t = Thread(target=migrate, args=(engine, error_queue))
     t.start()
     t.join()
