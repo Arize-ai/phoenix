@@ -291,12 +291,11 @@ if __name__ == "__main__":
         http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
     )
+    if authentication_enabled:
+        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     print(msg)
-
-    if authentication_enabled:
-        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()
