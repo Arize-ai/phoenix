@@ -50,8 +50,6 @@ test = [
   "vertexai",
   "respx",
   "nest_asyncio",
-  "pytest==7.4.4",
-  "pytest-asyncio",
   "pandas-stubs<=2.0.2.230605",
   "types-tqdm",
 ]
@@ -94,7 +92,6 @@ line-length = 100
 target-version = "py38"
 
 [tool.ruff.lint]
-ignore-init-module-imports = true
 select = ["E", "F", "W", "I"]
 
 [tool.ruff.lint.isort]
@@ -108,9 +105,6 @@ line-ending = "lf"
 
 [tool.mypy]
 explicit_package_bases = true
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs  = true
 strict = true
 exclude = [
   "dist/",

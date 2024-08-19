@@ -1,8 +1,8 @@
 import asyncio
-import functools
 import json
 import logging
 from dataclasses import dataclass, field
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
@@ -115,16 +115,7 @@ class BedrockModel(BaseModel):
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            functools.partial(
-                self._generate,
-                **{
-                    "prompt": prompt,
-                    **kwargs,
-                },
-            ),
-        )
+        return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
 
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

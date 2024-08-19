@@ -2,6 +2,7 @@ import math
 from unittest.mock import MagicMock
 
 import pytest
+
 from phoenix.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,

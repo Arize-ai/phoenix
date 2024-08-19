@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
+
 from phoenix.evals.exceptions import PhoenixException
 from phoenix.evals.utils import NOT_PARSABLE
 

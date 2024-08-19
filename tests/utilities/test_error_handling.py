@@ -1,4 +1,5 @@
 import pytest
+
 from phoenix.utilities.error_handling import graceful_fallback
 
 

@@ -2,11 +2,12 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
+from strawberry.schema import Schema as StrawberrySchema
+from typing_extensions import TypeAlias
+
 from phoenix.inferences.inferences import Inferences as InternalInferences
 from phoenix.inferences.inferences import Schema
 from phoenix.server.api.context import Context
-from strawberry.schema import Schema as StrawberrySchema
-from typing_extensions import TypeAlias
 
 ContextFactory: TypeAlias = Callable[[InternalInferences, Optional[InternalInferences]], Context]
 

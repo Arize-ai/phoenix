@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+
 from phoenix.inferences import errors as err
 from phoenix.inferences.inferences import EmbeddingColumnNames, Schema, validate_inferences_inputs
 

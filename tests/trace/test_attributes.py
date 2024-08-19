@@ -1,6 +1,7 @@
 from typing import Any, Mapping
 
 import pytest
+
 from phoenix.trace.attributes import get_attribute_value, unflatten
 
 
