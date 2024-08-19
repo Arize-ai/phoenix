@@ -137,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     # Whether the app is running in a development environment
     parser.add_argument("--dev", action="store_true")
+    parser.add_argument("--no-ui", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
@@ -266,6 +267,7 @@ if __name__ == "__main__":
         else create_model_from_inferences(corpus_inferences),
         debug=args.debug,
         dev=args.dev,
+        serve_ui=not args.no_ui,
         read_only=read_only,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
