@@ -8,7 +8,8 @@ These defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_PROJECT_N
 # Examples
 
 The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry
-tracing by setting a global `TracerProvider`.
+tracing by setting a global `TracerProvider`. The register function can also configure headers
+and whether or not to process spans one by one or by batch.
 
 ```
 from phoenix.otel import register

@@ -16,7 +16,6 @@
             "release-type": "python",
             "prerelease-type": "alpha",
             "prerelease": true,
-            "skip-github-release": true
         }
     }
 }
