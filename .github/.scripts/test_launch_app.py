@@ -16,9 +16,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from phoenix.config import ENV_PHOENIX_GRPC_PORT, ENV_PHOENIX_PORT
 from portpicker import pick_unused_port
 from psutil import Popen
+
+from phoenix.config import ENV_PHOENIX_GRPC_PORT, ENV_PHOENIX_PORT
 
 host = "127.0.0.1"
 env = {
