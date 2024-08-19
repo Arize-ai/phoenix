@@ -14,7 +14,6 @@ import {
   TabPane,
   Tabs,
   TextField,
-  View,
 } from "@arizeai/components";
 
 import { CopyToClipboardButton, Loading } from "@phoenix/components";

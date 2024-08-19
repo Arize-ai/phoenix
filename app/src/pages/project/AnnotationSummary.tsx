@@ -74,7 +74,7 @@ function AnnotationSummaryValue(props: {
 }) {
   const { project, annotationName } = props;
   const { fetchKey } = useStreamState();
-  const [data, refetch] = chableFragment<
+  const [data, refetch] = useRefetchableFragment<
     AnnotationSummaryQuery,
     AnnotationSummaryValueFragment$key
   >(
