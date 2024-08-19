@@ -24,9 +24,10 @@ import pandas as pd
 import pytest
 from faker import Faker
 from httpx import AsyncClient
+from typing_extensions import TypeAlias, assert_never
+
 from phoenix import Client, TraceDataset
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations, TraceEvaluations
-from typing_extensions import TypeAlias, assert_never
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="CI fails for unknown reason")

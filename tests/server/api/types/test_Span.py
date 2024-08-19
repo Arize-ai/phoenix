@@ -3,12 +3,13 @@ from typing import Any
 
 import httpx
 import pytest
+from sqlalchemy import insert
+from strawberry.relay import GlobalID
+
 from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
-from strawberry.relay import GlobalID
 
 
 async def test_project_resolver_returns_correct_project(

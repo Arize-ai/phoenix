@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import streamlit as st
 from httpx import Client
+
 from request_types import Message, MessagesPayload, MessagesResponse
 
 http_client = Client()

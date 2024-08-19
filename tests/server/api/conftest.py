@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Any, Tuple
 
 import pytest
+from sqlalchemy import insert
+
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import insert
 
 
 @pytest.fixture

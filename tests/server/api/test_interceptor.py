@@ -2,6 +2,7 @@ from typing import Optional
 
 import numpy as np
 import strawberry
+
 from phoenix.server.api.interceptor import GqlValueMediator
 
 

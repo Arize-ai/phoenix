@@ -1,5 +1,6 @@
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import ReadableSpan
+
 from phoenix.trace import using_project
 
 

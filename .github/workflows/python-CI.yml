@@ -57,7 +57,7 @@ jobs:
           python-version: |
             3.8
             3.12
-      - run: pip install tox==4.12.1
+      - run: pip install tox-uv==1.11.2
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-phoenix_evals,py311-ci-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 

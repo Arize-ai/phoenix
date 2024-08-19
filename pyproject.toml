@@ -60,7 +60,7 @@ dependencies = [
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
   "fastapi",
-  "pydantic>=1.0,!=2.0.*,<3,", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pyjwt",
 ]
 dynamic = ["version"]
@@ -71,14 +71,15 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.5.4",
+  "ruff==0.6.1",
   "mypy==1.11.1",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
-  "pytest==8.3.1",
+  "pytest==8.3.2",
+  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -152,7 +153,8 @@ dependencies = [
   "numpy",
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
-  "pytest==8.3.1",
+  "pytest==8.3.2",
+  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -215,7 +217,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.5.4",
+  "ruff==0.6.1",
 ]
 
 [[tool.hatch.envs.style.matrix]]
@@ -235,7 +237,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
-tests = "pytest {args}"
+tests = "pytest -n auto {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
@@ -364,9 +366,6 @@ ignore-setters = false
 
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs  = true
 strict = true
 exclude = [
   "api_reference",
@@ -414,7 +413,6 @@ exclude = [
   "*.pyi",
   "docs/",
 ]
-extend-include = ["*.ipynb"]
 line-length = 100
 target-version = "py38"
 

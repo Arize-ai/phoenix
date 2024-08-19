@@ -12,10 +12,12 @@ from typing import Optional, Type
 
 import numpy as np
 import pandas as pd
-import phoenix.inferences.errors as err
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
+from pytest import LogCaptureFixture, raises
+
+import phoenix.inferences.errors as err
 from phoenix.inferences.errors import DatasetError
 from phoenix.inferences.inferences import (
     Inferences,
@@ -27,7 +29,6 @@ from phoenix.inferences.schema import (
     RetrievalEmbeddingColumnNames,
     Schema,
 )
-from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:

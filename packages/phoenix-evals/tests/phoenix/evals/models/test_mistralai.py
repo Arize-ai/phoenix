@@ -1,4 +1,5 @@
 from mistralai.client import MistralClient
+
 from phoenix.evals.models.mistralai import MistralAIModel
 
 

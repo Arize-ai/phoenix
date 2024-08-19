@@ -1,4 +1,5 @@
 import pytest
+
 from phoenix.config import PORT
 from phoenix.trace.exporter import HttpExporter
 

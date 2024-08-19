@@ -6,6 +6,9 @@ import pytest
 import pytz
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
+from strawberry.types.info import Info
+from typing_extensions import TypeAlias
+
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import EmbeddingColumnNames, Inferences, Schema
@@ -14,8 +17,6 @@ from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
-from strawberry.types.info import Info
-from typing_extensions import TypeAlias
 
 InfoMockFactory: TypeAlias = Callable[[Model], Info[Context, None]]
 

@@ -19,6 +19,8 @@ from typing import (
 
 import pandas as pd
 from pandas import DataFrame
+from typing_extensions import TypeAlias
+
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
 from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
@@ -37,7 +39,6 @@ from phoenix.evals.utils import (
     printif,
     snap_to_rail,
 )
-from typing_extensions import TypeAlias
 
 logger = logging.getLogger(__name__)
 

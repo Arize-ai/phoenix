@@ -4,10 +4,11 @@ from typing import Any
 import httpx
 import pytest
 import pytz
-from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 
 async def test_annotations_resolver_returns_annotations_for_run(
