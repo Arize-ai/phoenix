@@ -40,13 +40,16 @@ def register(
     can be found at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
 
     Args:
-        endpoint: The collector endpoint to which spans will be exported. If not provided, the
-            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used. The export
-            protocol will be inferred from the endpoint.
-        project_name: The name of the project to which spans will be associated. If not provided,
-            the `PHOENIX_PROJECT_NAME` environment variable will be used.
-        batch: If True, spans will be processed using a BatchSpanprocessor. If False, spans will be
-            processed one at a time using a SimpleSpanProcessor.
+        endpoint (str, optional): The collector endpoint to which spans will be exported. If not
+            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used. The
+            export protocol will be inferred from the endpoint.
+        project_name (str, optional): The name of the project to which spans will be associated. If
+            not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
+        batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
+            will be processed one at a time using a SimpleSpanProcessor.
+        set_global (bool): If False, the TracerProvider will not be set as the global provider.
+            Defaults to True.
+        headers (dict): Optional headers to include in the HTTP request to the collector.
     """
 
     project_name = project_name or get_env_project_name()
