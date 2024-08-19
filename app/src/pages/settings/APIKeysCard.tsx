@@ -1,8 +1,9 @@
-import React, { Suspense } from "react";
+import React, { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Button,
+  DialogContainer,
   Icon,
   Icons,
   TabbedCard,
@@ -13,6 +14,7 @@ import {
 import { Loading } from "@phoenix/components";
 
 import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
+import { CreateSystemAPIKeyDialog } from "./CreateSystemAPIKeyDialog";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
 
 function APIKeysCardContent() {
@@ -38,23 +40,33 @@ function APIKeysCardContent() {
 }
 
 export function APIKeysCard() {
+  const [dialog, setDialog] = useState<ReactNode>(null);
+  const showCreateSystemAPIKeyDialog = () => {
+    setDialog(<CreateSystemAPIKeyDialog />);
+  };
   return (
-    <TabbedCard
-      title="API Keys"
-      variant="compact"
-      extra={
-        <Button
-          variant="default"
-          size="compact"
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        >
-          System Key
-        </Button>
-      }
-    >
-      <Suspense fallback={<Loading />}>
-        <APIKeysCardContent />
-      </Suspense>
-    </TabbedCard>
+    <div>
+      <TabbedCard
+        title="API Keys"
+        variant="compact"
+        extra={
+          <Button
+            variant="default"
+            size="compact"
+            icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+            onClick={showCreateSystemAPIKeyDialog}
+          >
+            System Key
+          </Button>
+        }
+      >
+        <Suspense fallback={<Loading />}>
+          <APIKeysCardContent />
+        </Suspense>
+      </TabbedCard>
+      <DialogContainer onDismiss={() => setDialog(null)}>
+        {dialog}
+      </DialogContainer>
+    </div>
   );
 }
