@@ -49,7 +49,7 @@ def register(
             will be processed one at a time using a SimpleSpanProcessor.
         set_global (bool): If False, the TracerProvider will not be set as the global provider.
             Defaults to True.
-        headers (dict): Optional headers to include in the HTTP request to the collector.
+        headers (dict, optional): Optional headers to include in the HTTP request to the collector.
     """
 
     project_name = project_name or get_env_project_name()
