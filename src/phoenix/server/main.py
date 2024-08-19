@@ -291,7 +291,7 @@ if __name__ == "__main__":
         storage=get_printable_db_url(db_connection_str),
     )
     if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled)
+        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     print(msg)
