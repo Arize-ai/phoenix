@@ -4,13 +4,13 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser
+from importlib.metadata import version
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
-import pkg_resources
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
@@ -283,9 +283,8 @@ if __name__ == "__main__":
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server
-    phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
     msg = _WELCOME_MESSAGE.format(
-        version=phoenix_version,
+        version=version("arize-phoenix"),
         ui_path=urljoin(f"http://{host}:{port}", host_root_path),
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
