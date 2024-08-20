@@ -6,8 +6,7 @@ from random import random
 from subprocess import PIPE, STDOUT
 from threading import Thread
 from time import sleep, time
-from typing import Tuple
-from urllib.error import URLError
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
@@ -23,14 +22,16 @@ from psutil import Popen
 from phoenix.config import ENV_PHOENIX_GRPC_PORT, ENV_PHOENIX_PORT
 
 host = "127.0.0.1"
+http_port = str(pick_unused_port())
+grpc_port = str(pick_unused_port())
 env = {
     **os.environ,
-    ENV_PHOENIX_PORT: str(pick_unused_port()),
-    ENV_PHOENIX_GRPC_PORT: str(pick_unused_port()),
+    ENV_PHOENIX_PORT: http_port,
+    ENV_PHOENIX_GRPC_PORT: grpc_port,
 }
-base_url = f"http://{host}:{env[ENV_PHOENIX_PORT]}"
+base_url = f"http://{host}:{http_port}"
 http_endpoint = urljoin(base_url, "v1/traces")
-grpc_endpoint = f"http://{host}:{env[ENV_PHOENIX_GRPC_PORT]}"
+grpc_endpoint = f"http://{host}:{grpc_port}"
 
 
 def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
@@ -52,7 +53,7 @@ def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
         try:
             urlopen(url)
             break
-        except URLError:
+        except BaseException:
             timed_out = time() > time_limit
     while not log.empty():
         print(log.get(), end="")
@@ -70,7 +71,7 @@ for exporter in (HTTPExporter(http_endpoint), GRPCExporter(grpc_endpoint)):
     tracers.append(tracer_provider.get_tracer(__name__))
 
 query = dict(query="query{projects{edges{node{name spans{edges{node{name}}}}}}}")
-req = Request(
+request = Request(
     method="POST",
     url=urljoin(base_url, "graphql"),
     data=json.dumps(query).encode("utf-8"),
@@ -78,7 +79,8 @@ req = Request(
 )
 
 CYCLES = 2
-span_names = []
+span_names: List[str] = []
+response: Optional[Dict[str, Any]] = None
 for _ in range(CYCLES):
     process, stdout = launch()
     for tracer in tracers:
@@ -86,12 +88,11 @@ for _ in range(CYCLES):
         tracer.start_span(span_names[-1]).end()
     sleep(2)
     try:
-        resp = urlopen(req)
-        resp_dict = json.loads(resp.read().decode("utf-8"))
-        assert not resp_dict.get("errors")
+        response = json.loads(urlopen(request).read().decode("utf-8"))
+        assert not response.get("errors")
         assert sorted(
             span["node"]["name"]
-            for project in resp_dict["data"]["projects"]["edges"]
+            for project in response["data"]["projects"]["edges"]
             for span in project["node"]["spans"]["edges"]
             if project["node"]["name"] == project_name
         ) == sorted(span_names)
@@ -100,3 +101,4 @@ for _ in range(CYCLES):
     finally:
         while not stdout.empty():
             print(stdout.get(), end="")
+        print(f"{response=}")
