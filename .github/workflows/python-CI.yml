@@ -135,7 +135,7 @@ jobs:
         run: |
           hatch run test:tests
 
-  test-launch-app:
+  integration-test:
     runs-on: ${{ matrix.os }}
 #    needs: changes
 #    if: ${{ needs.changes.outputs.phoenix == 'true' }}
@@ -147,13 +147,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.8
-      - run: |
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            echo "DIR=integration-tests\\scripts\\" >> $GITHUB_ENV
-          else
-            echo "DIR=integration-tests/scripts/" >> $GITHUB_ENV
-          fi
-      - run: pip install tox-uv==1.11.2
-      - run: |
-          tox run -e ci -- ${{ env.DIR }}
+      - uses: yezz123/setup-uv@v4
+        with:
+          uv-venv: ${{ github.job }}-${{ github.run_number }}
+      - run: uv pip install tox-uv==1.11.2
+      - run: tox run -e ci-integration_tests -- server
         timeout-minutes: 5

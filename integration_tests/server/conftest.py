@@ -65,7 +65,7 @@ def launch(base_url: str) -> Iterator[None]:
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
     log: "SimpleQueue[str]" = SimpleQueue()
     Thread(target=capture_stdout, args=(process, log), daemon=True).start()
-    t = 10
+    t = 60
     time_limit = time() + t
     timed_out = False
     url = urljoin(base_url, "healthz")
@@ -81,14 +81,15 @@ def launch(base_url: str) -> Iterator[None]:
             raise TimeoutError(f"Server did not start within {t} seconds.")
         assert is_alive(process)
         yield
-    finally:
         process.terminate()
-        try:
-            process.wait(10)
-        finally:
-            logs = []
-            while not log.empty():
-                logs.append(log.get())
+        process.wait(10)
+    finally:
+        logs = []
+        while not log.empty():
+            # For unknown reasons, this hangs if we try to print immediately
+            # after `get()`, so we collect the lines and print them later.
+            logs.append(log.get())
+        if logs:
             for line in logs:
                 print(line, end="")
 

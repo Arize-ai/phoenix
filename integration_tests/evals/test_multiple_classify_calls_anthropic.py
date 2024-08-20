@@ -1,6 +1,5 @@
 import pandas as pd
-
-from phoenix.evals import OpenAIModel, llm_classify
+from phoenix.evals import AnthropicModel, llm_classify
 from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
 )
@@ -16,7 +15,7 @@ def test_multiple_classify_calls():
         ]
     )
 
-    model = OpenAIModel(max_retries=0)
+    model = AnthropicModel(max_retries=0)
     llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,

@@ -7,5 +7,9 @@ select = ["E", "F", "W", "I", "NPY201"]
 [lint.isort]
 force-single-line = false
 
+[lint.per-file-ignores]
+"*.ipynb" = ["E402", "E501"]
+
 [format]
 line-ending = "lf"
+
