@@ -100,4 +100,4 @@ for _ in range(CYCLES):
         if project["node"]["name"] == project_name
     ) == sorted(span_names)
     process.terminate()
-    process.wait(1)
+    process.wait(5)
