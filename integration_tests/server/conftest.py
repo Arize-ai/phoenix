@@ -89,9 +89,8 @@ def launch(base_url: str) -> Iterator[None]:
             # For unknown reasons, this hangs if we try to print immediately
             # after `get()`, so we collect the lines and print them later.
             logs.append(log.get())
-        if logs:
-            for line in logs:
-                print(line, end="")
+        for line in logs:
+            print(line, end="")
 
 
 @pytest.fixture
