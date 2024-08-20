@@ -14,6 +14,7 @@ def compute_password_hash(password: str) -> str:
     Salts and hashes a password using PBKDF2, HMAC, and SHA256.
     """
     password_bytes = password.encode("utf-8")
+    assert PHOENIX_SECRET is not None
     salt_bytes = PHOENIX_SECRET.encode("utf-8")
     password_hash_bytes = pbkdf2_hmac("sha256", password_bytes, salt_bytes, NUM_ITERATIONS)
     password_hash = password_hash_bytes.hex()
@@ -35,7 +36,7 @@ async def validate_login_credentials(*, session: AsyncSession, email: str, passw
         raise FailedLoginError
 
 
-def validate_email_format(email: str) -> bool:
+def validate_email_format(email: str) -> None:
     """
     Checks that the email has a valid format.
     """
@@ -43,7 +44,7 @@ def validate_email_format(email: str) -> bool:
         raise ValueError("Invalid email address")
 
 
-def validate_password_format(password: str) -> bool:
+def validate_password_format(password: str) -> None:
     """
     Checks that the password is valid.
     """

@@ -2,7 +2,7 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import insert, select
-from sqlean.dbapi2 import IntegrityError
+from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry.types import Info
 
 from phoenix.auth import compute_password_hash, validate_email_format, validate_password_format
@@ -41,8 +41,8 @@ class UserMutationMixin:
             select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
         )
         password_hash = compute_password_hash(input.password)
-        async with info.context.db() as session:
-            try:
+        try:
+            async with info.context.db() as session:
                 user = await session.scalar(
                     insert(models.User)
                     .values(
@@ -55,31 +55,29 @@ class UserMutationMixin:
                     )
                     .returning(models.User)
                 )
-            except IntegrityError as error:
-                _handle_integrity_error(error)
-            return UserMutationPayload(
-                user=User(
-                    id_attr=user.id,
-                    email=user.email,
-                    username=user.username,
-                    created_at=user.created_at,
-                    role=UserRole(id_attr=user.user_role_id, name=role_name),
-                )
+            assert user is not None
+        except IntegrityError as error:
+            raise ValueError(_get_user_create_message(error))
+        return UserMutationPayload(
+            user=User(
+                id_attr=user.id,
+                email=user.email,
+                username=user.username,
+                created_at=user.created_at,
+                role=UserRole(id_attr=user.user_role_id, name=role_name),
             )
+        )
 
 
-def _handle_integrity_error(error: IntegrityError) -> None:
+def _get_user_create_message(error: IntegrityError) -> str:
     """
-    Raise an error to report which unique constraint has been violated when
-    creating a user.
+    Gets a user-facing error message to explain why user creation failed.
     """
     original_error_message = str(error)
     username_already_exists = "users.username" in original_error_message
     email_already_exists = "users.email" in original_error_message
     if username_already_exists:
-        error_message = "Username already exists"
+        return "Username already exists"
     elif email_already_exists:
-        error_message = "Email already exists"
-    else:
-        error_message = "Failed to create user"
-    raise ValueError(error_message)
+        return "Email already exists"
+    return "Failed to create user"

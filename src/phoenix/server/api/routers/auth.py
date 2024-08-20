@@ -12,7 +12,7 @@ from phoenix.auth import (
 router = APIRouter(include_in_schema=False)
 
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
-PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE_IN_SECONDS = timedelta(days=31).total_seconds()
+PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE_IN_SECONDS = int(timedelta(days=31).total_seconds())
 
 
 @router.post("/login")
