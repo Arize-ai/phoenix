@@ -1,12 +1,6 @@
 import re
 from hashlib import pbkdf2_hmac
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from phoenix.db import models
-from phoenix.exceptions import PhoenixException
-
 
 def compute_password_hash(*, password: str, salt: str) -> str:
     """
@@ -19,21 +13,12 @@ def compute_password_hash(*, password: str, salt: str) -> str:
     return password_hash
 
 
-async def validate_login_credentials(
-    *, session: AsyncSession, email: str, password: str, salt: str
-) -> None:
+def is_valid_password(*, password: str, salt: str, password_hash: str) -> bool:
     """
-    Validates login credentials by computing the password hash and comparing
-    against the password hash stored in the database.
+    Determines whether the password is valid by salting and hashing the password
+    and comparing against the existing hash value.
     """
-    if (
-        user := await session.scalar(select(models.User).where(models.User.email == email))
-    ) is None:
-        raise FailedLoginError
-    assert user.email == email
-    password_hash = compute_password_hash(password=password, salt=salt)
-    if user.password_hash != password_hash:
-        raise FailedLoginError
+    return password_hash == compute_password_hash(password=password, salt=salt)
 
 
 def validate_email_format(email: str) -> None:
@@ -54,12 +39,6 @@ def validate_password_format(password: str) -> None:
         raise ValueError("Password cannot contain whitespace characters")
     if not password.isascii():
         raise ValueError("Password can contain only ASCII characters")
-
-
-class FailedLoginError(PhoenixException):
-    """
-    Exception raised when login fails.
-    """
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
