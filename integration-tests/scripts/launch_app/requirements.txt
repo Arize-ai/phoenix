@@ -1,0 +1,5 @@
+arize-phoenix
+openinference-semantic-conventions
+opentelemetry-sdk
+portpicker
+psutil

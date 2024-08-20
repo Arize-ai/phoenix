@@ -87,7 +87,7 @@ CYCLES = 2
 span_names: List[str] = []
 response_dict: Dict[str, Any] = {}
 for _ in range(CYCLES):
-    process, stdout = launch()
+    process, log = launch()
     for tracer in tracers:
         span_names.append(str(random()))
         tracer.start_span(span_names[-1]).end()
@@ -106,8 +106,8 @@ for _ in range(CYCLES):
         process.terminate()
         process.wait(10)
     finally:
-        while not stdout.empty():
-            print(stdout.get(), end="")
+        while not log.empty():
+            print(log.get(), end="")
         if response_dict:
             print(f"{response_dict=}")
             response_dict.clear()
