@@ -123,6 +123,8 @@ container = [
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
 ]
+test = [
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
@@ -182,7 +184,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.11.0",
+  "mypy==1.11.1",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
@@ -249,6 +251,7 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  "--new-first",
 ]
 testpaths = [
   "tests",
