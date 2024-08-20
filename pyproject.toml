@@ -184,7 +184,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.11.0",
+  "mypy==1.11.1",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
