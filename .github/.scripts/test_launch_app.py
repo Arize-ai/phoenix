@@ -101,4 +101,5 @@ for _ in range(CYCLES):
     finally:
         while not stdout.empty():
             print(stdout.get(), end="")
-        print(f"{response=}")
+        if response:
+            print(f"{response=}")
