@@ -552,6 +552,8 @@ def create_app(
         )
 
     app.state.db = db
+    app.state.secret = secret
+
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 

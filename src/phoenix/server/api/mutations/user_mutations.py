@@ -34,13 +34,13 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: CreateUserInput,
     ) -> UserMutationPayload:
-        validate_email_format(input.email)
-        validate_password_format(input.password)
+        validate_email_format(email := input.email)
+        validate_password_format(password := input.password)
         role_name = input.role.value
         user_role_id = (
             select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
         )
-        password_hash = compute_password_hash(input.password)
+        password_hash = compute_password_hash(password=password, salt=info.context.get_secret())
         try:
             async with info.context.db() as session:
                 user = await session.scalar(
@@ -48,7 +48,7 @@ class UserMutationMixin:
                     .values(
                         user_role_id=user_role_id,
                         username=input.username,
-                        email=input.email,
+                        email=email,
                         auth_method="LOCAL",
                         password_hash=password_hash,
                         reset_password=True,
