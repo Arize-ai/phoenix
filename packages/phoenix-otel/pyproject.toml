@@ -32,9 +32,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-  "pytest==7.4.4",
-  "pytest-asyncio",
-  "mypy",
 ]
 
 [project.urls]
@@ -95,4 +92,10 @@ strict = true
 exclude = [
   "dist/",
   "tests/",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = [
+  "tests",
 ]

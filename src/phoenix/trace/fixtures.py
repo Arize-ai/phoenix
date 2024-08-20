@@ -86,7 +86,7 @@ class TracesFixture:
 demo_llama_index_rag_fixture = TracesFixture(
     name="demo_llama_index_rag",
     description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
-    file_name="demo_llama_index_rag.parquet",
+    file_name="demo_llama_index_rag_traces.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -101,6 +101,12 @@ demo_llama_index_rag_fixture = TracesFixture(
             file_name="demo_llama_index_rag_doc_relevance_eval.parquet",
         ),
     ),
+)
+
+demo_llama_index_rag_llm_fixture = TracesFixture(
+    name="demo_llama_index_rag_llm",
+    description="LLM traces for RAG chatbot using LlamaIndex.",
+    file_name="demo_llama_index_llm_all_spans.parquet",
 )
 
 llama_index_rag_fixture = TracesFixture(
@@ -197,6 +203,7 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
+    demo_llama_index_rag_llm_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
