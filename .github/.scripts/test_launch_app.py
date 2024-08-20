@@ -39,7 +39,7 @@ def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     command = f"{sys.executable} -m phoenix.server.main --no-ui serve"
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: "SimpleQueue[str]" = SimpleQueue()
-    Thread(target=capture_stdout, args=(process, stdout), daemon=True).start()
+    Thread(target=capture_stdout, args=(process, log), daemon=True).start()
     t = 60
     time_limit = time() + t
     timed_out = False
