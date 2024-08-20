@@ -31,8 +31,8 @@ def register(
     endpoint: Optional[str] = None,
     project_name: Optional[str] = None,
     batch: bool = False,
-    set_global_tracer=True,
-    headers=None,
+    set_global_tracer: bool = True,
+    headers: Optional[Dict[str, str]] = None,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -50,8 +50,8 @@ def register(
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
             will be processed one at a time using a SimpleSpanProcessor.
-        set_global_tracer (bool): If False, the TracerProvider will not be set as the global provider.
-            Defaults to True.
+        set_global_tracer (bool): If False, the TracerProvider will not be set as the global
+            tracer provider. Defaults to True.
         headers (dict, optional): Optional headers to include in the HTTP request to the collector.
     """
 
@@ -77,15 +77,14 @@ def register(
         global_provider_msg = ""
 
     details = tracer_provider._tracing_details()
-    print(
-        f"{details}"
-        f"{global_provider_msg}"
-    )
+    print(f"{details}" f"{global_provider_msg}")
     return tracer_provider
 
 
 class TracerProvider(_TracerProvider):
-    def __init__(self, *args: Any, endpoint: Optional[str] = None, verbose=True, **kwargs: Any):
+    def __init__(
+        self, *args: Any, endpoint: Optional[str] = None, verbose: bool = True, **kwargs: Any
+    ):
         sig = inspect.signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
@@ -116,25 +115,24 @@ class TracerProvider(_TracerProvider):
             self._default_processor = False
         return super().add_span_processor(*args, **kwargs)
 
-    def _tracing_details(self):
+    def _tracing_details(self) -> str:
         project = self.resource.attributes.get(PROJECT_NAME)
-        span_processor: Optional[str] = None
+        processor_name: Optional[str] = None
         endpoint: Optional[str] = None
         transport: Optional[str] = None
-        headers: Optional[str] = None
+        headers: Optional[Union[Dict[str, str], str]] = None
 
         if self._active_span_processor:
             if processors := self._active_span_processor._span_processors:
                 if len(processors) == 1:
                     span_processor = self._active_span_processor._span_processors[0]
-                    exporter = span_processor.span_exporter
-
-                    span_processor = span_processor.__class__.__name__
-                    endpoint = exporter._endpoint
-                    transport = _exporter_transport(exporter)
-                    headers = _normalize_headers(exporter._headers)
+                    if exporter := getattr(span_processor, "span_exporter"):
+                        processor_name = span_processor.__class__.__name__
+                        endpoint = exporter._endpoint
+                        transport = _exporter_transport(exporter)
+                        headers = _normalize_headers(exporter._headers)
                 else:
-                    span_processor = "Multiple Span Processors"
+                    processor_name = "Multiple Span Processors"
                     endpoint = "Multiple Span Exporters"
                     transport = "Multiple Span Exporters"
                     headers = "Multiple Span Exporters"
@@ -151,7 +149,7 @@ class TracerProvider(_TracerProvider):
         details_msg = (
             f"{details_header}\n"
             f"|  Phoenix Project: {project}\n"
-            f"|  Span Processor: {span_processor}\n"
+            f"|  Span Processor: {processor_name}\n"
             f"|  Collector Endpoint: {endpoint}\n"
             f"|  Transport: {transport}\n"
             f"|  Transport Headers: {headers}\n"
