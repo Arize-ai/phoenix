@@ -46,7 +46,7 @@ def validate_email_format(email: str) -> None:
 
 def validate_password_format(password: str) -> None:
     """
-    Checks that the password is valid.
+    Checks that the password has a valid format.
     """
     if not password:
         raise ValueError("Password must be non-empty")

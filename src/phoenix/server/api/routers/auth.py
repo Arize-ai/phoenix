@@ -21,12 +21,10 @@ async def login(
     email: Annotated[str, Form()],
     password: Annotated[str, Form()],
 ) -> Response:
-    secret = request.app.state.secret
-    assert secret is not None
     async with request.app.state.db() as session:
         try:
             await validate_login_credentials(
-                session=session, email=email, password=password, salt=secret
+                session=session, email=email, password=password, salt=request.app.state.get_secret()
             )
         except FailedLoginError:
             return Response(status_code=HTTP_401_UNAUTHORIZED)
