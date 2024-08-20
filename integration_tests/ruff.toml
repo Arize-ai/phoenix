@@ -11,5 +11,4 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [format]
-line-ending = "lf"
-
+line-ending = "native"
