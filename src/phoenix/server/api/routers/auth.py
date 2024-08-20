@@ -26,12 +26,11 @@ async def login(
             user := await session.scalar(select(models.User).where(models.User.email == email))
         ) is None or (password_hash := user.password_hash) is None:
             return Response(status_code=HTTP_401_UNAUTHORIZED)
+    secret = request.app.state.get_secret()
     loop = asyncio.get_running_loop()
     if not await loop.run_in_executor(
         executor=None,
-        func=lambda: is_valid_password(
-            password=password, salt=request.app.state.get_secret(), password_hash=password_hash
-        ),
+        func=lambda: is_valid_password(password=password, salt=secret, password_hash=password_hash),
     ):
         return Response(status_code=HTTP_401_UNAUTHORIZED)
     response = Response(status_code=HTTP_204_NO_CONTENT)

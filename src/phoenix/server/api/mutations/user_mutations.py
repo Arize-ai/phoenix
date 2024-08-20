@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 import strawberry
@@ -40,7 +41,12 @@ class UserMutationMixin:
         user_role_id = (
             select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
         )
-        password_hash = compute_password_hash(password=password, salt=info.context.get_secret())
+        secret = info.context.get_secret()
+        loop = asyncio.get_running_loop()
+        password_hash = await loop.run_in_executor(
+            executor=None,
+            func=lambda: compute_password_hash(password=password, salt=secret),
+        )
         try:
             async with info.context.db() as session:
                 user = await session.scalar(
