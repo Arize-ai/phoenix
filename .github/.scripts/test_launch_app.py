@@ -30,15 +30,15 @@ env = {
 base_url = f"http://{host}:{env[ENV_PHOENIX_PORT]}"
 
 
-def capture_stdout(process: Popen, stdout: "SimpleQueue[str]") -> None:
+def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
     while True:
-        stdout.put(process.stdout.readline())
+        log.put(process.stdout.readline())
 
 
 def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     command = f"{sys.executable} -m phoenix.server.main --no-ui serve"
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
-    stdout: "SimpleQueue[str]" = SimpleQueue()
+    log: "SimpleQueue[str]" = SimpleQueue()
     Thread(target=capture_stdout, args=(process, stdout), daemon=True).start()
     t = 60
     time_limit = time() + t
@@ -51,11 +51,11 @@ def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
             break
         except URLError:
             timed_out = time() > time_limit
-    while not stdout.empty():
-        print(stdout.get(), end="")
+    while not log.empty():
+        print(log.get(), end="")
     if timed_out:
         raise TimeoutError(f"Server did not start within {t} seconds.")
-    return process, stdout
+    return process, log
 
 
 endpoint = urljoin(base_url, "v1/traces")
