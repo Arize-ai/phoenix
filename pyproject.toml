@@ -123,6 +123,8 @@ container = [
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
 ]
+test = [
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"

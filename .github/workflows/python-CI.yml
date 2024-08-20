@@ -54,11 +54,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: |
-            3.8
-            3.12
+          python-version: 3.8
       - run: pip install tox-uv==1.11.2
-      - run: tox run-parallel --parallel-no-spinner -e py38-ci-phoenix_evals,py311-ci-phoenix_evals
+      - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
   lint:
