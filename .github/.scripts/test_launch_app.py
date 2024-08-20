@@ -3,7 +3,7 @@ import os
 import sys
 from queue import SimpleQueue
 from random import random
-from subprocess import PIPE
+from subprocess import PIPE, STDOUT
 from threading import Thread
 from time import sleep, time
 from typing import Any, Dict, List, Tuple
@@ -17,7 +17,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
-from psutil import Popen
+from psutil import STATUS_ZOMBIE, Popen
 
 from phoenix.config import ENV_PHOENIX_GRPC_PORT, ENV_PHOENIX_PORT
 
@@ -34,6 +34,10 @@ http_endpoint = urljoin(base_url, "v1/traces")
 grpc_endpoint = f"http://{host}:{grpc_port}"
 
 
+def is_alive(process: Popen) -> bool:
+    return process.is_running() and process.status() != STATUS_ZOMBIE
+
+
 def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
     while True:
         log.put(process.stdout.readline())
@@ -41,14 +45,14 @@ def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
 
 def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     command = f"{sys.executable} -m phoenix.server.main --no-ui serve"
-    process = Popen(command.split(), stdout=PIPE, stderr=PIPE, text=True, env=env)
+    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: "SimpleQueue[str]" = SimpleQueue()
     Thread(target=capture_stdout, args=(process, log), daemon=True).start()
     t = 60
     time_limit = time() + t
     timed_out = False
     url = urljoin(base_url, "healthz")
-    while not timed_out:
+    while not timed_out and is_alive(process):
         sleep(0.1)
         try:
             urlopen(url)
@@ -59,6 +63,7 @@ def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
         print(log.get(), end="")
     if timed_out:
         raise TimeoutError(f"Server did not start within {t} seconds.")
+    assert is_alive(process)
     return process, log
 
 
