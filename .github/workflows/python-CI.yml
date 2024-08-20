@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  pip-version: 23.1.2
+  pip-version: 24.2
   OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
@@ -54,7 +54,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: |
+            3.8
+            3.12
       - run: pip install tox-uv==1.11.2
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
@@ -70,7 +72,7 @@ jobs:
       - name: Set up python 3.8
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: 3.8
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip==${{ env.pip-version }}
@@ -114,27 +116,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip==${{ env.pip-version }}
           pip install hatch
-
       - name: Install PostgreSQL (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get -yqq install postgresql
-
       - name: Run tests (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           hatch run test:tests --run-postgres
-
       - name: Run tests (macOS)
         if: runner.os == 'macOS'
         run: |
           hatch run test:tests
-
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         run: |
