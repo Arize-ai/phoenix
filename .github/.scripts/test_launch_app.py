@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from queue import Queue, SimpleQueue
+from queue import SimpleQueue
 from random import random
 from subprocess import PIPE, STDOUT
 from threading import Thread
@@ -30,7 +30,7 @@ env = {
 base_url = f"http://{host}:{env[ENV_PHOENIX_PORT]}"
 
 
-def capture_stdout(process: Popen, stdout: "Queue[str]") -> None:
+def capture_stdout(process: Popen, stdout: "SimpleQueue[str]") -> None:
     while True:
         stdout.put(process.stdout.readline())
 
