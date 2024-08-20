@@ -45,10 +45,10 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     get_dataset_fixtures,
     get_evals_from_fixture,
+    get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
-    get_trace_fixtures_by_project_name,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -145,28 +145,21 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="",
-        help=(
-            "Comma separated list of fixture names, without spaces. Example: 'fixture1,fixture2'"
-        ),
+        help=("Comma separated list of fixture names. Example: 'fixture1, fixture2'"),
     )
     serve_parser.add_argument(
-        "--with-tracing-fixtures",
+        "--with-trace-fixtures",
         type=str,
         required=False,
         default="",
-        help=(
-            "Comma separated list of tracing fixture names, without spaces. "
-            "Example: 'fixture1,fixture2'"
-        ),
+        help=("Comma separated list of tracing fixture names. Example: 'fixture1, fixture2'"),
     )
     serve_parser.add_argument(
         "--with-projects",
         type=str,
         required=False,
         default="",
-        help=(
-            "Comma separated list of project names, without spaces. Example: 'project1,project2'"
-        ),
+        help=("Comma separated list of project names. Example: 'project1, project2'"),
     )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
@@ -232,11 +225,13 @@ if __name__ == "__main__":
         fixture_names = set()
         tracing_fixture_names = set()
         if args.with_fixtures:
-            fixture_names.update(args.with_fixtures.split(","))
-        if args.with_tracing_fixtures:
-            tracing_fixture_names.update(args.with_tracing_fixtures.split(","))
+            fixture_names.update([name.strip() for name in args.with_fixtures.split(",")])
+        if args.with_trace_fixtures:
+            tracing_fixture_names.update(
+                [name.strip() for name in args.with_trace_fixtures.split(",")]
+            )
         if args.with_projects:
-            project_names = args.with_projects.split(",")
+            project_names = [name.strip() for name in args.with_projects.split(",")]
             tracing_fixture_names.update(
                 fixture.name
                 for name in project_names

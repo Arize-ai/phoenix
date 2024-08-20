@@ -23,6 +23,7 @@ from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class EvaluationResultSchema(NamedTuple):
@@ -133,6 +134,7 @@ demo_llama_index_rag_llm_fixture = TracesFixture(
 
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
+    project_name="test",
     description="Traces from running the llama_index on a RAG use case.",
     file_name="llama_index_rag_v8.parquet",
     evaluation_fixtures=(
@@ -195,6 +197,7 @@ llama_index_rag_fixture_with_davinci = TracesFixture(
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
+    project_name="demo_langchain_rag",
     description="LangChain RAG data",
     file_name="langchain_rag.parquet",
 )
@@ -213,13 +216,14 @@ langchain_qa_with_sources_fixture = TracesFixture(
 
 vision_fixture = TracesFixture(
     name="vision",
-    project_name="Demo_MultiModal",
+    project_name="demo_multimodal",
     description="Vision LLM Requests",
     file_name="vision_fixture_trace_datasets.parquet",
 )
 
 random_fixture = TracesFixture(
     name="random",
+    project_name="demo_random",
     description="Randomly generated traces",
     file_name="random.jsonl",
 )
@@ -373,7 +377,9 @@ def send_dataset_fixtures(
 def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
     fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
-        print(eval_fixture)
+        logger.info(
+            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
+        )
         yield from _read_eval_fixture(eval_fixture)
 
 

@@ -1,16 +1,15 @@
 import asyncio
-from phoenix.server.types import DaemonTask
 import contextlib
 import json
 import logging
-from functools import cached_property,partial
+from functools import cached_property
 from pathlib import Path
 from typing import (
-    Awaitable,
     TYPE_CHECKING,
     Any,
     AsyncContextManager,
     AsyncIterator,
+    Awaitable,
     Callable,
     Dict,
     Iterable,
@@ -92,23 +91,25 @@ from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
+    DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
 )
-from phoenix.trace.schemas import Span
-from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.trace.fixtures import (
     get_evals_from_fixture,
+    get_trace_fixture_by_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
-    get_trace_fixture_by_name,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
+from phoenix.trace.schemas import Span
+from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 router = APIRouter(include_in_schema=False)
 
@@ -247,9 +248,7 @@ class Scaffolder(DaemonTask):
         # self._fixtures = [
         #     get_trace_fixture_by_name(name) for name in fixture_names
         # ]
-        self._tracing_fixtures = [
-            get_trace_fixture_by_name(name) for name in tracing_fixture_names
-        ]
+        self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -257,7 +256,7 @@ class Scaffolder(DaemonTask):
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await self.stop()
 
-    async def _load_tracing_fixture(self,fixture_spans,fixture_evals, project_name):
+    async def _load_tracing_fixture(self, fixture_spans, fixture_evals, project_name):
         for span in fixture_spans:
             await self._queue_span(span, project_name)
         for evaluation in fixture_evals:
@@ -268,11 +267,15 @@ class Scaffolder(DaemonTask):
 
     async def _handle_tracing_fixtures(self):
         for fixture in self._tracing_fixtures:
-            trace_ds = load_example_traces(fixture.name)
+            trace_ds = await asyncio.get_running_loop().run_in_executor(
+                None, load_example_traces, fixture.name
+            )
             if not trace_ds:
                 continue
 
-            fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
+            fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
+                None,
+                reset_fixture_span_ids_and_timestamps,
                 (
                     # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                     # `encode` removes the hyphens in the UUIDs.
@@ -282,25 +285,16 @@ class Scaffolder(DaemonTask):
                 get_evals_from_fixture(fixture.name),
             )
             project_name = fixture.project_name or fixture.name
-            is_async=False
-            if is_async:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(
-                    None,
-                    self._load_tracing_fixture,
-                    fixture_spans,
-                    fixture_evals,
-                    project_name,
-                )
-            else:
-                for span in fixture_spans:
-                    await self._queue_span(span, project_name)
-                for evaluation in fixture_evals:
-                    await self._queue_evaluation(evaluation)
+            logger.info(f"Loading '{project_name}' fixtures...")
+            for span in fixture_spans:
+                await self._queue_span(span, project_name)
+            for evaluation in fixture_evals:
+                await self._queue_evaluation(evaluation)
 
     async def _run(self) -> None:
         await self._handle_fixtures()
         await self._handle_tracing_fixtures()
+        logger.info("Finished loading fixtures. You may have to refresh.")
 
 
 def _lifespan(
@@ -319,22 +313,27 @@ def _lifespan(
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
-        async with (bulk_inserter as (
-            enqueue,
-            queue_span,
-            queue_evaluation,
-            enqueue_operation,
-        ), GrpcServer(
-            queue_span,
-            disabled=read_only,
-            tracer_provider=tracer_provider,
-            enable_prometheus=enable_prometheus,
-        ), dml_event_handler, Scaffolder(
-            queue_span=queue_span,
-            queue_evaluation=queue_evaluation,
-            fixture_names=fixture_names,
-            tracing_fixture_names=tracing_fixture_names,
-        )):
+        async with (
+            bulk_inserter as (
+                enqueue,
+                queue_span,
+                queue_evaluation,
+                enqueue_operation,
+            ),
+            GrpcServer(
+                queue_span,
+                disabled=read_only,
+                tracer_provider=tracer_provider,
+                enable_prometheus=enable_prometheus,
+            ),
+            dml_event_handler,
+            Scaffolder(
+                queue_span=queue_span,
+                queue_evaluation=queue_evaluation,
+                fixture_names=fixture_names,
+                tracing_fixture_names=tracing_fixture_names,
+            ),
+        ):
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
