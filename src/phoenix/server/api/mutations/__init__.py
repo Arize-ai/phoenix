@@ -7,6 +7,7 @@ from phoenix.server.api.mutations.export_events_mutations import ExportEventsMut
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotationMutationMixin
 from phoenix.server.api.mutations.trace_annotations_mutations import TraceAnnotationMutationMixin
+from phoenix.server.api.mutations.user_mutations import UserMutationMixin
 
 
 @strawberry.type
@@ -18,5 +19,6 @@ class Mutation(
     SpanAnnotationMutationMixin,
     TraceAnnotationMutationMixin,
     ApiKeyMutationMixin,
+    UserMutationMixin,
 ):
     pass
