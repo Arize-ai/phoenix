@@ -288,8 +288,8 @@ if __name__ == "__main__":
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
-        clean_up_callbacks=instrumentation_cleanups,
-        start_up_callbacks=[lambda: print(msg)],
+        startup_callbacks=[lambda: print(msg)],
+        shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
