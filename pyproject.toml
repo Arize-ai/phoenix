@@ -251,6 +251,7 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  "--new-first",
 ]
 testpaths = [
   "tests",
