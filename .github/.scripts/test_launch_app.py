@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from queue import SimpleQueue
+from queue import Queue, SimpleQueue
 from random import random
 from subprocess import PIPE, STDOUT
 from threading import Thread
@@ -16,7 +16,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from portpicker import pick_unused_port
+from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from psutil import Popen
 
 from phoenix.config import ENV_PHOENIX_GRPC_PORT, ENV_PHOENIX_PORT
@@ -30,16 +30,16 @@ env = {
 base_url = f"http://{host}:{env[ENV_PHOENIX_PORT]}"
 
 
-def capture_stdout(p, q) -> None:
+def capture_stdout(process: Popen, stdout: "Queue[str]") -> None:
     while True:
-        q.put(p.stdout.readline())
+        stdout.put(process.stdout.readline())
 
 
-def launch() -> Tuple[Popen, SimpleQueue]:
+def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     command = f"{sys.executable} -m phoenix.server.main --no-ui serve"
-    p = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
-    q = SimpleQueue()
-    Thread(target=capture_stdout, args=(p, q), daemon=True).start()
+    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    stdout: "SimpleQueue[str]" = SimpleQueue()
+    Thread(target=capture_stdout, args=(process, stdout), daemon=True).start()
     t = 60
     time_limit = time() + t
     timed_out = False
@@ -51,11 +51,11 @@ def launch() -> Tuple[Popen, SimpleQueue]:
             break
         except URLError:
             timed_out = time() > time_limit
-    while not q.empty():
-        print(q.get(), end="")
+    while not stdout.empty():
+        print(stdout.get(), end="")
     if timed_out:
         raise TimeoutError(f"Server did not start within {t} seconds.")
-    return p, q
+    return process, stdout
 
 
 endpoint = urljoin(base_url, "v1/traces")
@@ -77,14 +77,14 @@ CYCLES = 2
 span_names = []
 for _ in range(CYCLES):
     span_names.append(str(random()))
-    process, queue = launch()
+    process, stdout = launch()
     try:
         tracer.start_span(span_names[-1]).end()
         sleep(2)
         resp = urlopen(req)
     finally:
-        while not queue.empty():
-            print(queue.get(), end="")
+        while not stdout.empty():
+            print(stdout.get(), end="")
     resp_dict = json.loads(resp.read().decode("utf-8"))
     assert not resp_dict.get("errors")
     print(resp_dict)
