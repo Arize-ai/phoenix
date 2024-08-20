@@ -144,8 +144,8 @@ jobs:
 
   test-launch-app:
     runs-on: ${{ matrix.os }}
-#    needs: changes
-#    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
