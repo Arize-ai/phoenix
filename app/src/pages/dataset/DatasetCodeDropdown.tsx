@@ -65,7 +65,12 @@ export function DatasetCodeDropdown() {
           >
             <View padding="size-200">
               <Form>
-                <Flex direction="row" gap="size-100" alignItems="end">
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="end"
+                  width="100%"
+                >
                   <TextField label="Dataset ID" isReadOnly value={datasetId} />
                   <CopyToClipboardButton text={datasetId} size="normal" />
                 </Flex>

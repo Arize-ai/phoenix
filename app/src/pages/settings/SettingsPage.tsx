@@ -7,6 +7,7 @@ import { CopyToClipboardButton, Loading } from "@phoenix/components";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
+import { APIKeysCard } from "./APIKeysCard";
 import { UsersTable } from "./UsersTable";
 
 const settingsPageCSS = css`
@@ -62,11 +63,7 @@ export function SettingsPage() {
             </Flex>
           </form>
         </Card>
-        {authenticationEnabled && (
-          <Card title="API Keys" variant="compact">
-            API settings go here
-          </Card>
-        )}
+        {authenticationEnabled && <APIKeysCard />}
         {authenticationEnabled && (
           <Card title="Users" variant="compact" bodyStyle={{ padding: 0 }}>
             <Suspense fallback={<Loading />}>
