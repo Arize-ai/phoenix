@@ -3,10 +3,10 @@ from phoenix.server.types import DaemonTask
 import contextlib
 import json
 import logging
-from functools import cached_property
+from functools import cached_property,partial
 from pathlib import Path
 from typing import (
-Awaitable,
+    Awaitable,
     TYPE_CHECKING,
     Any,
     AsyncContextManager,
@@ -101,6 +101,7 @@ from phoenix.trace.fixtures import (
     get_evals_from_fixture,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
+    get_trace_fixture_by_name,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 
@@ -113,8 +114,9 @@ router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
-
 ProjectName: TypeAlias = str
+
+
 class AppConfig(NamedTuple):
     has_inferences: bool
     """ Whether the model has inferences (e.g. a primary dataset) """
@@ -232,27 +234,75 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 
 
 class Scaffolder(DaemonTask):
-    def __init__(self, queue_span:Callable[[Span, ProjectName], Awaitable[None]]):
+    def __init__(
+        self,
+        queue_span: Callable[[Span, ProjectName], Awaitable[None]],
+        queue_evaluation=Callable[[pb.Evaluation], Awaitable[None]],
+        fixture_names: List[str] = [],
+        tracing_fixture_names: List[str] = [],
+    ):
         super().__init__()
         self._queue_span = queue_span
+        self._queue_evaluation = queue_evaluation
+        # self._fixtures = [
+        #     get_trace_fixture_by_name(name) for name in fixture_names
+        # ]
+        self._tracing_fixtures = [
+            get_trace_fixture_by_name(name) for name in tracing_fixture_names
+        ]
 
     async def __aenter__(self) -> None:
         await self.start()
+
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await self.stop()
-    async def _run(self) -> None:
-        trace_dataset_name="vision"
-        fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
-            (
-                # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
-                # `encode` removes the hyphens in the UUIDs.
-                decode_otlp_span(encode_span_to_otlp(span))
-                for span in load_example_traces(trace_dataset_name).to_spans()
-            ),
-            get_evals_from_fixture(trace_dataset_name),
-        )
+
+    async def _load_tracing_fixture(self,fixture_spans,fixture_evals, project_name):
         for span in fixture_spans:
-            await self._queue_span(span, trace_dataset_name)
+            await self._queue_span(span, project_name)
+        for evaluation in fixture_evals:
+            await self._queue_evaluation(evaluation)
+
+    async def _handle_fixtures(self):
+        pass
+
+    async def _handle_tracing_fixtures(self):
+        for fixture in self._tracing_fixtures:
+            print(fixture.name)
+            trace_ds = load_example_traces(fixture.name)
+            if not trace_ds:
+                continue
+
+            fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
+                (
+                    # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                    # `encode` removes the hyphens in the UUIDs.
+                    decode_otlp_span(encode_span_to_otlp(span))
+                    for span in trace_ds.to_spans()
+                ),
+                get_evals_from_fixture(fixture.name),
+            )
+            project_name = fixture.project_name or fixture.name
+            is_async=False
+            if is_async:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(
+                    None,
+                    self._load_tracing_fixture,
+                    fixture_spans,
+                    fixture_evals,
+                    project_name,
+                )
+            else:
+                for span in fixture_spans:
+                    await self._queue_span(span, project_name)
+                for evaluation in fixture_evals:
+                    await self._queue_evaluation(evaluation)
+
+    async def _run(self) -> None:
+        self._handle_fixtures()
+        self._handle_tracing_fixtures()
+
 
 def _lifespan(
     *,
@@ -263,6 +313,8 @@ def _lifespan(
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
+    fixture_names: List[str] = [],
+    tracing_fixture_names: List[str] = [],
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -279,7 +331,10 @@ def _lifespan(
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ), dml_event_handler, Scaffolder(
-            queue_span=queue_span
+            queue_span=queue_span,
+            queue_evaluation=queue_evaluation,
+            fixture_names=fixture_names,
+            tracing_fixture_names=tracing_fixture_names,
         )):
             yield {
                 "event_queue": dml_event_handler,
@@ -464,6 +519,8 @@ def create_app(
     serve_ui: bool = True,
     clean_up_callbacks: List[Callable[[], None]] = [],
     secret: Optional[str] = None,
+    fixture_names: List[str] = [],
+    tracing_fixture_names: List[str] = [],
 ) -> FastAPI:
     clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
@@ -546,6 +603,8 @@ def create_app(
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
             clean_ups=clean_ups,
+            fixture_names=fixture_names,
+            tracing_fixture_names=tracing_fixture_names,
         ),
         middleware=[
             Middleware(HeadersMiddleware),

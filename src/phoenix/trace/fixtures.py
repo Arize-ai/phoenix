@@ -88,7 +88,7 @@ demo_llama_index_cohesive_rag_fixture = TracesFixture(
     name="demo_llama_index_cohesive_rag",
     project_name="demo_llama_index",
     description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="llama_index_cohesive_rag.parquet",
+    file_name="demo_llama_index_rag_traces_caca.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -213,6 +213,7 @@ langchain_qa_with_sources_fixture = TracesFixture(
 
 vision_fixture = TracesFixture(
     name="vision",
+    project_name="Demo MultiModal Vision LLM",
     description="Vision LLM Requests",
     file_name="vision_fixture_trace_datasets.parquet",
 )
@@ -278,7 +279,7 @@ def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
     return PROJ_NAME_TO_TRACES_FIXTURE[proj_name]
 
 
-def load_example_traces(fixture_name: str) -> TraceDataset:
+def load_example_traces(fixture_name: str) -> Optional[TraceDataset]:
     """
     Loads a trace dataframe by name.
     """
@@ -292,7 +293,13 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     if is_jsonl_file(fixture.file_name):
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
-    return TraceDataset(pd.read_parquet(url))
+    try:
+        pq = pd.read_parquet(url)
+    except Exception as e:
+        logger.warning(f"Failed to download example traces from {url=} due to exception {e=}. Skipping")
+        return
+
+    return TraceDataset(pq)
 
 
 def load_example_traces_by_project(proj_name: str) -> Dict[str, List[TraceDataset]]:

@@ -159,6 +159,19 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
+    # TODO(Kiko): These fixture names should be added as CLI arguments of the serve command, e.g.,
+    # python -m phoenix.server.main [other-opts] serve --with-fixtures=<fixtures_names> --with-tracing-fixtures=<tracing_fixture_names>
+    if args.command == "demo":
+        fixture_names=[]
+        tracing_fixture_names=[]
+    else:
+        fixture_names=[]
+        tracing_fixture_names=[
+            # "vision",
+            # "llama_index_rag",
+            "demo_llama_index_cohesive_rag",
+        ]
+
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
@@ -255,15 +268,18 @@ if __name__ == "__main__":
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    corpus_model = (
+        None
+        if corpus_inferences is None
+        else create_model_from_inferences(corpus_inferences)
+    )
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
-        corpus=None
-        if corpus_inferences is None
-        else create_model_from_inferences(corpus_inferences),
+        corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
         read_only=read_only,
@@ -272,6 +288,8 @@ if __name__ == "__main__":
         initial_evaluations=fixture_evals,
         clean_up_callbacks=instrumentation_cleanups,
         secret=secret,
+        fixture_names=fixture_names,
+        tracing_fixture_names=tracing_fixture_names,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
