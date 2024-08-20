@@ -268,7 +268,6 @@ class Scaffolder(DaemonTask):
 
     async def _handle_tracing_fixtures(self):
         for fixture in self._tracing_fixtures:
-            print(fixture.name)
             trace_ds = load_example_traces(fixture.name)
             if not trace_ds:
                 continue
@@ -300,8 +299,8 @@ class Scaffolder(DaemonTask):
                     await self._queue_evaluation(evaluation)
 
     async def _run(self) -> None:
-        self._handle_fixtures()
-        self._handle_tracing_fixtures()
+        await self._handle_fixtures()
+        await self._handle_tracing_fixtures()
 
 
 def _lifespan(

@@ -88,7 +88,7 @@ demo_llama_index_cohesive_rag_fixture = TracesFixture(
     name="demo_llama_index_cohesive_rag",
     project_name="demo_llama_index",
     description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="demo_llama_index_rag_traces_caca.parquet",
+    file_name="demo_llama_index_rag_traces.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -213,7 +213,7 @@ langchain_qa_with_sources_fixture = TracesFixture(
 
 vision_fixture = TracesFixture(
     name="vision",
-    project_name="Demo MultiModal Vision LLM",
+    project_name="Demo_MultiModal",
     description="Vision LLM Requests",
     file_name="vision_fixture_trace_datasets.parquet",
 )
@@ -296,7 +296,9 @@ def load_example_traces(fixture_name: str) -> Optional[TraceDataset]:
     try:
         pq = pd.read_parquet(url)
     except Exception as e:
-        logger.warning(f"Failed to download example traces from {url=} due to exception {e=}. Skipping")
+        logger.warning(
+            f"Failed to download example traces from {url=} due to exception {e=}. Skipping"
+        )
         return
 
     return TraceDataset(pq)

@@ -48,6 +48,7 @@ from phoenix.trace.fixtures import (
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
+    get_trace_fixtures_by_project_name,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -139,6 +140,34 @@ if __name__ == "__main__":
     parser.add_argument("--dev", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
+    serve_parser.add_argument(
+        "--with-fixtures",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of fixture names, without spaces. Example: 'fixture1,fixture2'"
+        ),
+    )
+    serve_parser.add_argument(
+        "--with-tracing-fixtures",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of tracing fixture names, without spaces. "
+            "Example: 'fixture1,fixture2'"
+        ),
+    )
+    serve_parser.add_argument(
+        "--with-projects",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of project names, without spaces. Example: 'project1,project2'"
+        ),
+    )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -159,18 +188,6 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
-    # TODO(Kiko): These fixture names should be added as CLI arguments of the serve command, e.g.,
-    # python -m phoenix.server.main [other-opts] serve --with-fixtures=<fixtures_names> --with-tracing-fixtures=<tracing_fixture_names>
-    if args.command == "demo":
-        fixture_names=[]
-        tracing_fixture_names=[]
-    else:
-        fixture_names=[]
-        tracing_fixture_names=[
-            # "vision",
-            # "llama_index_rag",
-            "demo_llama_index_cohesive_rag",
-        ]
 
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
@@ -210,7 +227,21 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
-
+    elif args.command == "serve":
+        # We use sets to avoid duplicates
+        fixture_names = set()
+        tracing_fixture_names = set()
+        if args.with_fixtures:
+            fixture_names.update(args.with_fixtures.split(","))
+        if args.with_tracing_fixtures:
+            tracing_fixture_names.update(args.with_tracing_fixtures.split(","))
+        if args.with_projects:
+            project_names = args.with_projects.split(",")
+            tracing_fixture_names.update(
+                fixture.name
+                for name in project_names
+                for fixture in get_trace_fixtures_by_project_name(name)
+            )
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -269,9 +300,7 @@ if __name__ == "__main__":
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
     corpus_model = (
-        None
-        if corpus_inferences is None
-        else create_model_from_inferences(corpus_inferences)
+        None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
     app = create_app(
         db=factory,
