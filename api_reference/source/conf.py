@@ -200,7 +200,7 @@ html_theme_options = {
     "footer_start": [],
     "footer_end": ["copyright"],
     "navigation_depth": 3,
-    "collapse_navigation": True,
+    "collapse_navigation": True
 }
 
 html_sidebars = {

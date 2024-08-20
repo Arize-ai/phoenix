@@ -5,14 +5,17 @@
         ".": {
             "package-name": "arize-phoenix",
             "release-type": "python",
-            "exclude-paths": ["packages"],
+            "exclude-paths": ["packages"]
         },
-        "packages/phoenix-evals": {"package-name": "arize-phoenix-evals", "release-type": "python"},
+        "packages/phoenix-evals": {
+            "package-name": "arize-phoenix-evals",
+            "release-type": "python"
+        },
         "packages/phoenix-otel": {
             "package-name": "arize-phoenix-otel",
             "release-type": "python",
             "prerelease-type": "alpha",
-            "prerelease": true,
-        },
-    },
+            "prerelease": true
+        }
+    }
 }
