@@ -1,7 +1,5 @@
 from hashlib import pbkdf2_hmac
 
-NUM_ITERATIONS = 1_000_000
-
 
 def compute_password_hash(password: str, salt: str) -> str:
     """
@@ -12,3 +10,6 @@ def compute_password_hash(password: str, salt: str) -> str:
     password_hash_bytes = pbkdf2_hmac("sha256", password_bytes, salt_bytes, NUM_ITERATIONS)
     password_hash = password_hash_bytes.hex()
     return password_hash
+
+
+NUM_ITERATIONS = 1_000_000
