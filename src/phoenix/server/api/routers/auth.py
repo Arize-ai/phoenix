@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 
 from fastapi import APIRouter, Form, Request, Response
@@ -23,10 +24,14 @@ async def login(
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(select(models.User).where(models.User.email == email))
-        ) is None:
+        ) is None or (password_hash := user.password_hash) is None:
             return Response(status_code=HTTP_401_UNAUTHORIZED)
-    if (password_hash := user.password_hash) is None or not is_valid_password(
-        password=password, salt=request.app.state.get_secret(), password_hash=password_hash
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(
+        executor=None,
+        func=lambda: is_valid_password(
+            password=password, salt=request.app.state.get_secret(), password_hash=password_hash
+        ),
     ):
         return Response(status_code=HTTP_401_UNAUTHORIZED)
     response = Response(status_code=HTTP_204_NO_CONTENT)
