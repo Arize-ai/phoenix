@@ -3,10 +3,10 @@ import os
 import sys
 from queue import SimpleQueue
 from random import random
-from subprocess import PIPE, STDOUT
+from subprocess import PIPE
 from threading import Thread
 from time import sleep, time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
@@ -41,7 +41,7 @@ def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
 
 def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     command = f"{sys.executable} -m phoenix.server.main --no-ui serve"
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    process = Popen(command.split(), stdout=PIPE, stderr=PIPE, text=True, env=env)
     log: "SimpleQueue[str]" = SimpleQueue()
     Thread(target=capture_stdout, args=(process, log), daemon=True).start()
     t = 60
@@ -80,7 +80,7 @@ request = Request(
 
 CYCLES = 2
 span_names: List[str] = []
-response: Optional[Dict[str, Any]] = None
+response: Dict[str, Any] = {}
 for _ in range(CYCLES):
     process, stdout = launch()
     for tracer in tracers:
