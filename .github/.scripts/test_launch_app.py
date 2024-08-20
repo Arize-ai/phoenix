@@ -81,27 +81,22 @@ CYCLES = 2
 span_names = []
 for _ in range(CYCLES):
     process, stdout = launch()
+    for tracer in tracers:
+        span_names.append(str(random()))
+        tracer.start_span(span_names[-1]).end()
+    sleep(2)
     try:
-        for tracer in tracers:
-            span_names.append(str(random()))
-            tracer.start_span(span_names[-1]).end()
-        sleep(2)
         resp = urlopen(req)
-    finally:
-        while not stdout.empty():
-            print(stdout.get(), end="")
-    resp_dict = json.loads(resp.read().decode("utf-8"))
-    assert not resp_dict.get("errors")
-    print(resp_dict)
-    assert sorted(
-        span["node"]["name"]
-        for project in resp_dict["data"]["projects"]["edges"]
-        for span in project["node"]["spans"]["edges"]
-        if project["node"]["name"] == project_name
-    ) == sorted(span_names)
-    process.terminate()
-    try:
-        process.wait(5)
+        resp_dict = json.loads(resp.read().decode("utf-8"))
+        assert not resp_dict.get("errors")
+        assert sorted(
+            span["node"]["name"]
+            for project in resp_dict["data"]["projects"]["edges"]
+            for span in project["node"]["spans"]["edges"]
+            if project["node"]["name"] == project_name
+        ) == sorted(span_names)
+        process.terminate()
+        process.wait(10)
     finally:
         while not stdout.empty():
             print(stdout.get(), end="")
