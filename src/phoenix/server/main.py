@@ -260,6 +260,18 @@ if __name__ == "__main__":
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    # Print information about the server
+    msg = _WELCOME_MESSAGE.format(
+        version=version("arize-phoenix"),
+        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        grpc_path=f"http://{host}:{get_env_grpc_port()}",
+        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        storage=get_printable_db_url(db_connection_str),
+    )
+    if authentication_enabled:
+        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
+    if sys.platform.startswith("win"):
+        msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -277,24 +289,11 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
         clean_up_callbacks=instrumentation_cleanups,
+        start_up_callbacks=[lambda: print(msg)],
         secret=secret,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
-
-    # Print information about the server
-    msg = _WELCOME_MESSAGE.format(
-        version=version("arize-phoenix"),
-        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
-        grpc_path=f"http://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
-        storage=get_printable_db_url(db_connection_str),
-    )
-    if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
-    if sys.platform.startswith("win"):
-        msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
-    print(msg)
 
     # Start the server
     server.run()

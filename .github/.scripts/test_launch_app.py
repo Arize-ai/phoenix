@@ -85,7 +85,7 @@ request = Request(
 
 CYCLES = 2
 span_names: List[str] = []
-response: Dict[str, Any] = {}
+response_dict: Dict[str, Any] = {}
 for _ in range(CYCLES):
     process, stdout = launch()
     for tracer in tracers:
@@ -93,11 +93,13 @@ for _ in range(CYCLES):
         tracer.start_span(span_names[-1]).end()
     sleep(2)
     try:
-        response = json.loads(urlopen(request).read().decode("utf-8"))
-        assert not response.get("errors")
+        response = urlopen(request)
+        response_dict = json.loads(response.read().decode("utf-8"))
+        assert response_dict
+        assert not response_dict.get("errors")
         assert sorted(
             span["node"]["name"]
-            for project in response["data"]["projects"]["edges"]
+            for project in response_dict["data"]["projects"]["edges"]
             for span in project["node"]["spans"]["edges"]
             if project["node"]["name"] == project_name
         ) == sorted(span_names)
@@ -106,5 +108,6 @@ for _ in range(CYCLES):
     finally:
         while not stdout.empty():
             print(stdout.get(), end="")
-        if response:
-            print(f"{response=}")
+        if response_dict:
+            print(f"{response_dict=}")
+            response_dict.clear()
