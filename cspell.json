@@ -65,9 +65,7 @@
         "vertexai",
         "websockets",
         "xlarge",
-        "Zustand"
+        "Zustand",
     ],
-    "flagWords": [
-        "hte"
-    ]
+    "flagWords": ["hte"],
 }

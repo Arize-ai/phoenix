@@ -1,0 +1,11 @@
+line-length = 100
+target-version = "py38"
+
+[lint]
+select = ["E", "F", "W", "I", "NPY201"]
+
+[lint.isort]
+force-single-line = false
+
+[format]
+line-ending = "lf"
