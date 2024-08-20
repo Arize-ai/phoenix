@@ -1,11 +1,11 @@
 import json
-from random import random
 from time import sleep
 from typing import Callable, ContextManager, List
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 import pytest
+from faker import Faker
 from opentelemetry.trace import Tracer
 
 
@@ -26,13 +26,14 @@ def test_launch_app(
     project_name: str,
     base_url: str,
     req: Request,
+    fake: Faker,
 ) -> None:
-    CYCLES = 2
+    cycles = 2
     span_names: List[str] = []
-    for _ in range(CYCLES):
+    for _ in range(cycles):
         with app():
             for tracer in tracers:
-                span_names.append(str(random()))
+                span_names.append(fake.pystr())
                 tracer.start_span(span_names[-1]).end()
             sleep(2)
             response = urlopen(req)

@@ -95,11 +95,12 @@ def launch(base_url: str) -> Iterator[None]:
 
 @pytest.fixture
 def tracers(
-    fake: Faker,
+    base_url: str,
     project_name: str,
-    http_endpoint: str,
-    grpc_endpoint: str,
+    fake: Faker,
 ) -> List[Tracer]:
+    http_endpoint = urljoin(base_url, "v1/traces")
+    grpc_endpoint = f"http://{get_env_host()}:{get_env_grpc_port()}"
     tracers = []
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
     for exporter in (HTTPExporter(http_endpoint), GRPCExporter(grpc_endpoint)):
@@ -112,16 +113,6 @@ def tracers(
 @pytest.fixture
 def base_url() -> str:
     return get_base_url()
-
-
-@pytest.fixture
-def http_endpoint(base_url: str) -> str:
-    return urljoin(base_url, "v1/traces")
-
-
-@pytest.fixture
-def grpc_endpoint(base_url: str) -> str:
-    return f"http://{get_env_host()}:{get_env_grpc_port()}"
 
 
 @pytest.fixture
