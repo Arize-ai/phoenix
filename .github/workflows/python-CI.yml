@@ -157,7 +157,7 @@ jobs:
       - uses: yezz123/setup-uv@v4
         with:
           uv-venv: test-launch-app
-      - run: uv pip install . opentelemetry-sdk portpicker
+      - run: uv pip install . opentelemetry-sdk portpicker psutil
       - run: python -Xutf8 .github\.scripts\test_launch_app.py
         if: runner.os == 'Windows'
         timeout-minutes: 5

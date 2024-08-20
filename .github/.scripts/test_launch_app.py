@@ -12,7 +12,8 @@ from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
 from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter as GRPCExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -28,6 +29,8 @@ env = {
     ENV_PHOENIX_GRPC_PORT: str(pick_unused_port()),
 }
 base_url = f"http://{host}:{env[ENV_PHOENIX_PORT]}"
+http_endpoint = urljoin(base_url, "v1/traces")
+grpc_endpoint = f"http://{host}:{env[ENV_PHOENIX_GRPC_PORT]}"
 
 
 def capture_stdout(process: Popen, log: "SimpleQueue[str]") -> None:
@@ -58,12 +61,13 @@ def launch() -> Tuple[Popen, "SimpleQueue[str]"]:
     return process, log
 
 
-endpoint = urljoin(base_url, "v1/traces")
+tracers = []
 project_name = str(random())
 resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
-tracer_provider = TracerProvider(resource=resource)
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-tracer = tracer_provider.get_tracer(__name__)
+for exporter in (HTTPExporter(http_endpoint), GRPCExporter(grpc_endpoint)):
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracers.append(tracer_provider.get_tracer(__name__))
 
 query = dict(query="query{projects{edges{node{name spans{edges{node{name}}}}}}}")
 req = Request(
@@ -76,10 +80,11 @@ req = Request(
 CYCLES = 2
 span_names = []
 for _ in range(CYCLES):
-    span_names.append(str(random()))
     process, stdout = launch()
     try:
-        tracer.start_span(span_names[-1]).end()
+        for tracer in tracers:
+            span_names.append(str(random()))
+            tracer.start_span(span_names[-1]).end()
         sleep(2)
         resp = urlopen(req)
     finally:
