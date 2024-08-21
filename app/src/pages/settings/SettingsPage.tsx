@@ -1,13 +1,14 @@
-import React, { Suspense } from "react";
+import React from "react";
 import { css } from "@emotion/react";
 
 import { Card, Flex, TextField, View } from "@arizeai/components";
 
-import { CopyToClipboardButton, Loading } from "@phoenix/components";
+import { CopyToClipboardButton } from "@phoenix/components";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import { APIKeysCard } from "./APIKeysCard";
+import { UsersCard } from "./UsersCard";
 import { UsersTable } from "./UsersTable";
 
 const settingsPageCSS = css`
@@ -64,13 +65,7 @@ export function SettingsPage() {
           </form>
         </Card>
         {authenticationEnabled && <APIKeysCard />}
-        {authenticationEnabled && (
-          <Card title="Users" variant="compact" bodyStyle={{ padding: 0 }}>
-            <Suspense fallback={<Loading />}>
-              <UsersTable />
-            </Suspense>
-          </Card>
-        )}
+        {authenticationEnabled && <UsersCard />}
       </Flex>
     </main>
   );
