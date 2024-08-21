@@ -10,12 +10,14 @@ from typing import (
     Any,
     AsyncContextManager,
     AsyncIterator,
+    Awaitable,
     Callable,
     Dict,
     Iterable,
     List,
     NamedTuple,
     Optional,
+    Set,
     Tuple,
     Union,
     cast,
@@ -26,11 +28,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-)
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -46,11 +44,7 @@ from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.config import (
-    DEFAULT_PROJECT_NAME,
-    SERVER_DIR,
-    server_instrumentation_is_enabled,
-)
+from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR, server_instrumentation_is_enabled
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
@@ -93,9 +87,17 @@ from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
+    DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
 )
+from phoenix.trace.fixtures import (
+    get_evals_from_fixture,
+    get_trace_fixture_by_name,
+    load_example_traces,
+    reset_fixture_span_ids_and_timestamps,
+)
+from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
@@ -103,11 +105,14 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+ProjectName: TypeAlias = str
 
 
 class AppConfig(NamedTuple):
@@ -226,6 +231,54 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     return factory
 
 
+class Scaffolder(DaemonTask):
+    def __init__(
+        self,
+        queue_span: Callable[[Span, ProjectName], Awaitable[None]],
+        queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        tracing_fixture_names: Set[str] = set(),
+    ) -> None:
+        super().__init__()
+        self._queue_span = queue_span
+        self._queue_evaluation = queue_evaluation
+        self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
+
+    async def __aenter__(self) -> None:
+        await self.start()
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        await self.stop()
+
+    async def _run(self) -> None:
+        logger.info("Loading Trace Fixtures.")
+        await self._handle_tracing_fixtures()
+        logger.info("Finished loading fixtures. You may have to refresh.")
+
+    async def _handle_tracing_fixtures(self) -> None:
+        for fixture in self._tracing_fixtures:
+            trace_ds = await asyncio.get_running_loop().run_in_executor(
+                None, load_example_traces, fixture.name
+            )
+
+            fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
+                None,
+                reset_fixture_span_ids_and_timestamps,
+                (
+                    # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                    # `encode` removes the hyphens in the UUIDs.
+                    decode_otlp_span(encode_span_to_otlp(span))
+                    for span in trace_ds.to_spans()
+                ),
+                get_evals_from_fixture(fixture.name),
+            )
+            project_name = fixture.project_name or fixture.name
+            logger.info(f"Loading '{project_name}' fixtures...")
+            for span in fixture_spans:
+                await self._queue_span(span, project_name)
+            for evaluation in fixture_evals:
+                await self._queue_evaluation(evaluation)
+
+
 def _lifespan(
     *,
     dialect: SupportedSQLDialect,
@@ -236,6 +289,7 @@ def _lifespan(
     startup_callbacks: Iterable[Callable[[], None]] = (),
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
+    tracing_fixture_names: Set[str] = set(),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -251,7 +305,11 @@ def _lifespan(
             disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-        ), dml_event_handler:
+        ), dml_event_handler, Scaffolder(
+            queue_span=queue_span,
+            queue_evaluation=queue_evaluation,
+            tracing_fixture_names=tracing_fixture_names,
+        ):
             for callback in startup_callbacks:
                 callback()
             yield {
@@ -317,17 +375,19 @@ def create_graphql_router(
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.document_evaluation_summary
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.document_evaluation_summary
+                        if cache_for_dataloaders
+                        else None
+                    ),
                 ),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
                 annotation_summaries=AnnotationSummaryDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.annotation_summary
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None
+                    ),
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
@@ -335,15 +395,17 @@ def create_graphql_router(
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.latency_ms_quantile
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
+                    ),
                 ),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.min_start_or_max_end_time
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.min_start_or_max_end_time
+                        if cache_for_dataloaders
+                        else None
+                    ),
                 ),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -438,6 +500,7 @@ def create_app(
     startup_callbacks: Iterable[Callable[[], None]] = (),
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     secret: Optional[str] = None,
+    tracing_fixture_names: Set[str] = set(),
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -522,6 +585,7 @@ def create_app(
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
+            tracing_fixture_names=tracing_fixture_names,
         ),
         middleware=[
             Middleware(HeadersMiddleware),

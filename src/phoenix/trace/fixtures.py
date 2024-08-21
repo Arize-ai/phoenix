@@ -1,6 +1,7 @@
 import logging
 import shutil
 from binascii import hexlify
+from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from io import StringIO
@@ -22,6 +23,7 @@ from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 logger.addHandler(logging.NullHandler())
 
 
@@ -81,10 +83,12 @@ class TracesFixture:
     file_name: str
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
     dataset_fixtures: Iterable[DatasetFixture] = ()
+    project_name: Optional[str] = None
 
 
 demo_llama_index_rag_fixture = TracesFixture(
     name="demo_llama_index_rag",
+    project_name="demo_llama_index",
     description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
     file_name="demo_llama_index_rag_traces.parquet",
     evaluation_fixtures=(
@@ -105,6 +109,7 @@ demo_llama_index_rag_fixture = TracesFixture(
 
 demo_llama_index_rag_llm_fixture = TracesFixture(
     name="demo_llama_index_rag_llm",
+    project_name="demo_llama_index_rag_llm",
     description="LLM traces for RAG chatbot using LlamaIndex.",
     file_name="demo_llama_index_llm_all_spans.parquet",
 )
@@ -173,6 +178,7 @@ llama_index_rag_fixture_with_davinci = TracesFixture(
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
+    project_name="demo_langchain_rag",
     description="LangChain RAG data",
     file_name="langchain_rag.parquet",
 )
@@ -191,12 +197,14 @@ langchain_qa_with_sources_fixture = TracesFixture(
 
 vision_fixture = TracesFixture(
     name="vision",
+    project_name="demo_multimodal",
     description="Vision LLM Requests",
     file_name="vision_fixture_trace_datasets.parquet",
 )
 
 random_fixture = TracesFixture(
     name="random",
+    project_name="demo_random",
     description="Randomly generated traces",
     file_name="random.jsonl",
 )
@@ -214,12 +222,18 @@ TRACES_FIXTURES: List[TracesFixture] = [
     vision_fixture,
 ]
 
-NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
+NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
+    fixture.name: fixture for fixture in TRACES_FIXTURES
+}
+PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(list)
+for fixture in TRACES_FIXTURES:
+    if fixture.project_name:
+        PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
 
 
 def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     """
-    Returns the fixture whose name matches the input name.
+    Returns the trace fixture whose name matches the input name.
 
     Raises
     ------
@@ -230,6 +244,24 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
         valid_fixture_names = ", ".join(NAME_TO_TRACES_FIXTURE.keys())
         raise ValueError(f'"{fixture_name}" is invalid. Valid names are: {valid_fixture_names}')
     return NAME_TO_TRACES_FIXTURE[fixture_name]
+
+
+def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
+    """
+    Returns a dictionary of project name (key) and set of TracesFixtures (value)
+    whose project name matches the input name.
+
+    Raises
+    ------
+    ValueError
+        if the input fixture name does not match any known project names.
+    """
+    if proj_name not in PROJ_NAME_TO_TRACES_FIXTURE:
+        valid_fixture_proj_names = ", ".join(PROJ_NAME_TO_TRACES_FIXTURE.keys())
+        raise ValueError(
+            f'"{proj_name}" is invalid. Valid project names are: {valid_fixture_proj_names}'
+        )
+    return PROJ_NAME_TO_TRACES_FIXTURE[proj_name]
 
 
 def load_example_traces(fixture_name: str) -> TraceDataset:
@@ -246,7 +278,16 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     if is_jsonl_file(fixture.file_name):
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
-    return TraceDataset(pd.read_parquet(url))
+    try:
+        df = pd.read_parquet(url)
+    except Exception as e:
+        logger.warning(
+            f"Failed to download example traces from {url=} due to exception {e=}. "
+            "Returning empty TraceDataset"
+        )
+        df = pd.DataFrame()
+
+    return TraceDataset(df)
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
@@ -305,7 +346,9 @@ def send_dataset_fixtures(
 def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
     fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
-        print(eval_fixture)
+        logger.info(
+            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
+        )
         yield from _read_eval_fixture(eval_fixture)
 
 

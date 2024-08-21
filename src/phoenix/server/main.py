@@ -48,6 +48,7 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     get_dataset_fixtures,
     get_evals_from_fixture,
+    get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
@@ -144,6 +145,33 @@ if __name__ == "__main__":
     parser.add_argument("--no-ui", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
+    serve_parser.add_argument(
+        "--with-fixture",
+        type=str,
+        required=False,
+        default="",
+        help=("Name of an inference fixture. Example: 'fixture1'"),
+    )
+    serve_parser.add_argument(
+        "--with-trace-fixtures",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of tracing fixture names (spaces are ignored). "
+            "Example: 'fixture1, fixture2'"
+        ),
+    )
+    serve_parser.add_argument(
+        "--with-projects",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of project names (spaces are ignored). "
+            "Example: 'project1, project2'"
+        ),
+    )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -164,6 +192,7 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
+
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
@@ -202,7 +231,25 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
-
+    elif args.command == "serve":
+        # We use sets to avoid duplicates
+        if args.with_fixture:
+            primary_inferences, reference_inferences, corpus_inferences = get_inferences(
+                str(args.with_fixture),
+                args.no_internet,
+            )
+        tracing_fixture_names = set()
+        if args.with_trace_fixtures:
+            tracing_fixture_names.update(
+                [name.strip() for name in args.with_trace_fixtures.split(",")]
+            )
+        if args.with_projects:
+            project_names = [name.strip() for name in args.with_projects.split(",")]
+            tracing_fixture_names.update(
+                fixture.name
+                for name in project_names
+                for fixture in get_trace_fixtures_by_project_name(name)
+            )
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -260,6 +307,9 @@ if __name__ == "__main__":
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    corpus_model = (
+        None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
+    )
     # Print information about the server
     msg = _WELCOME_MESSAGE.format(
         version=version("arize-phoenix"),
@@ -278,9 +328,7 @@ if __name__ == "__main__":
         model=model,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
-        corpus=None
-        if corpus_inferences is None
-        else create_model_from_inferences(corpus_inferences),
+        corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
         serve_ui=not args.no_ui,
@@ -291,6 +339,7 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        tracing_fixture_names=tracing_fixture_names,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
