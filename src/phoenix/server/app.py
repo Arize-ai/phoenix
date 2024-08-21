@@ -4,6 +4,7 @@ import json
 import logging
 from functools import cached_property
 from pathlib import Path
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,6 +31,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
 )
+from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -80,6 +82,7 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceRowIdsDataLoader,
 )
+from phoenix.server.api.routers.auth import router as auth_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
@@ -536,6 +539,8 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
+    if authentication_enabled:
+        app.include_router(auth_router)
     if serve_ui:
         app.mount(
             "/",
@@ -554,12 +559,30 @@ def create_app(
             ),
             name="static",
         )
-
-    app.state.db = db
+    app = _update_app_state(app, db=db, secret=secret)
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
         shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
+    return app
+
+
+def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional[str]) -> FastAPI:
+    """
+    Dynamically updates the app's `state` to include useful fields and methods
+    (at the time of this writing, FastAPI does not support setting this state
+    during the creation of the app).
+    """
+    app.state.db = db
+    app.state._secret = secret
+
+    def get_secret(self: StarletteState) -> str:
+        if (secret := self._secret) is None:
+            raise ValueError("app secret is not set")
+        assert isinstance(secret, str)
+        return secret
+
+    app.state.get_secret = MethodType(get_secret, app.state)
     return app
