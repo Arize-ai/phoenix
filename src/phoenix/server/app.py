@@ -18,6 +18,7 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
+    Set,
     Union,
     cast,
 )
@@ -89,6 +90,9 @@ from phoenix.server.types import (
     DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
+)
+from phoenix.inferences.fixtures import (
+    get_fixture_by_name,
 )
 from phoenix.trace.fixtures import (
     get_evals_from_fixture,
@@ -234,16 +238,12 @@ class Scaffolder(DaemonTask):
     def __init__(
         self,
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
-        queue_evaluation=Callable[[pb.Evaluation], Awaitable[None]],
-        fixture_names: List[str] = [],
-        tracing_fixture_names: List[str] = [],
-    ):
+        queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        tracing_fixture_names: Set[str] = set(),
+    ) -> None:
         super().__init__()
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
-        # self._fixtures = [
-        #     get_trace_fixture_by_name(name) for name in fixture_names
-        # ]
         self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
 
     async def __aenter__(self) -> None:
@@ -252,22 +252,16 @@ class Scaffolder(DaemonTask):
     async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
         await self.stop()
 
-    async def _load_tracing_fixture(self, fixture_spans, fixture_evals, project_name):
-        for span in fixture_spans:
-            await self._queue_span(span, project_name)
-        for evaluation in fixture_evals:
-            await self._queue_evaluation(evaluation)
+    async def _run(self) -> None:
+        logger.info("Loading Trace Fixtures.")
+        await self._handle_tracing_fixtures()
+        logger.info("Finished loading fixtures. You may have to refresh.")
 
-    async def _handle_fixtures(self):
-        pass
-
-    async def _handle_tracing_fixtures(self):
+    async def _handle_tracing_fixtures(self) -> None:
         for fixture in self._tracing_fixtures:
             trace_ds = await asyncio.get_running_loop().run_in_executor(
                 None, load_example_traces, fixture.name
             )
-            if not trace_ds:
-                continue
 
             fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
                 None,
@@ -287,11 +281,6 @@ class Scaffolder(DaemonTask):
             for evaluation in fixture_evals:
                 await self._queue_evaluation(evaluation)
 
-    async def _run(self) -> None:
-        await self._handle_fixtures()
-        await self._handle_tracing_fixtures()
-        logger.info("Finished loading fixtures. You may have to refresh.")
-
 
 def _lifespan(
     *,
@@ -303,8 +292,7 @@ def _lifespan(
     startup_callbacks: Iterable[Callable[[], None]] = (),
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
-    fixture_names: List[str] = [],
-    tracing_fixture_names: List[str] = [],
+    tracing_fixture_names: Set[str] = set(),
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -320,7 +308,11 @@ def _lifespan(
             disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-        ), dml_event_handler:
+        ), dml_event_handler, Scaffolder(
+            queue_span=queue_span,
+            queue_evaluation=queue_evaluation,
+            tracing_fixture_names=tracing_fixture_names,
+        ):
             for callback in startup_callbacks:
                 callback()
             yield {
@@ -511,8 +503,7 @@ def create_app(
     startup_callbacks: Iterable[Callable[[], None]] = (),
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     secret: Optional[str] = None,
-    fixture_names: List[str] = [],
-    tracing_fixture_names: List[str] = [],
+    tracing_fixture_names: Set[str] = set(),
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -597,7 +588,6 @@ def create_app(
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
-            fixture_names=fixture_names,
             tracing_fixture_names=tracing_fixture_names,
         ),
         middleware=[

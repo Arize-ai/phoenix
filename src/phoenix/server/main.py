@@ -146,11 +146,11 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
-        "--with-fixtures",
+        "--with-fixture",
         type=str,
         required=False,
         default="",
-        help=("Comma separated list of fixture names. Example: 'fixture1, fixture2'"),
+        help=("Name of an inference fixture. Example: 'fixture1'"),
     )
     serve_parser.add_argument(
         "--with-trace-fixtures",
@@ -227,10 +227,12 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
-        fixture_names = set()
+        if args.with_fixture:
+            primary_inferences, reference_inferences, corpus_inferences = get_inferences(
+                str(args.with_fixture),
+                args.no_internet,
+            )
         tracing_fixture_names = set()
-        if args.with_fixtures:
-            fixture_names.update([name.strip() for name in args.with_fixtures.split(",")])
         if args.with_trace_fixtures:
             tracing_fixture_names.update(
                 [name.strip() for name in args.with_trace_fixtures.split(",")]
@@ -331,7 +333,6 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
-        fixture_names=fixture_names,
         tracing_fixture_names=tracing_fixture_names,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore

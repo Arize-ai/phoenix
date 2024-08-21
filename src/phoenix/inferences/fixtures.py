@@ -422,7 +422,7 @@ def get_inferences(
     Downloads primary and reference inferences for a fixture if they are not found
     locally.
     """
-    fixture = _get_fixture_by_name(fixture_name=fixture_name)
+    fixture = get_fixture_by_name(fixture_name=fixture_name)
     if no_internet:
         paths = {role: INFERENCES_DIR / path for role, path in fixture.paths()}
     else:
@@ -436,9 +436,11 @@ def get_inferences(
     if fixture.reference_file_name is not None:
         reference_inferences = Inferences(
             read_parquet(paths[InferencesRole.REFERENCE]),
-            fixture.reference_schema
-            if fixture.reference_schema is not None
-            else fixture.primary_schema,
+            (
+                fixture.reference_schema
+                if fixture.reference_schema is not None
+                else fixture.primary_schema
+            ),
             "training",
         )
     corpus_inferences = None
@@ -451,10 +453,14 @@ def get_inferences(
     return primary_inferences, reference_inferences, corpus_inferences
 
 
-def _get_fixture_by_name(fixture_name: str) -> Fixture:
+def get_fixture_by_name(fixture_name: str) -> Fixture:
     """
-    Returns the fixture whose name matches the input name. Raises a ValueError
-    if the input fixture name does not match any known fixture names.
+    Returns the fixture whose name matches the input name.
+
+    Raises
+    ------
+    ValueError
+        if the input fixture name does not match any known fixture names.
     """
     if fixture_name not in NAME_TO_FIXTURE:
         valid_fixture_names = ", ".join(NAME_TO_FIXTURE.keys())
@@ -496,7 +502,7 @@ def load_example(use_case: str) -> ExampleInferences:
             reference).
 
     """
-    fixture = _get_fixture_by_name(use_case)
+    fixture = get_fixture_by_name(use_case)
     primary_inferences, reference_inferences, corpus_inferences = get_inferences(use_case)
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")

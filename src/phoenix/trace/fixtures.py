@@ -222,7 +222,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
     vision_fixture,
 ]
 
-NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = {
+NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
 PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(list)
@@ -233,7 +233,7 @@ for fixture in TRACES_FIXTURES:
 
 def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     """
-    Returns the fixture whose name matches the input name.
+    Returns the trace fixture whose name matches the input name.
 
     Raises
     ------
@@ -264,7 +264,7 @@ def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
     return PROJ_NAME_TO_TRACES_FIXTURE[proj_name]
 
 
-def load_example_traces(fixture_name: str) -> Optional[TraceDataset]:
+def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
@@ -279,27 +279,15 @@ def load_example_traces(fixture_name: str) -> Optional[TraceDataset]:
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
     try:
-        pq = pd.read_parquet(url)
+        df = pd.read_parquet(url)
     except Exception as e:
         logger.warning(
-            f"Failed to download example traces from {url=} due to exception {e=}. Skipping"
+            f"Failed to download example traces from {url=} due to exception {e=}. "
+            "Returning empty TraceDataset"
         )
-        return
+        df = pd.DataFrame()
 
-    return TraceDataset(pq)
-
-
-def load_example_traces_by_project(proj_name: str) -> Dict[str, List[TraceDataset]]:
-    """
-    Loads a trace dataframe by name.
-    """
-    proj_fixtures = get_trace_fixtures_by_project_name(proj_name)
-
-    fixtures = set()
-    for fixture in proj_fixtures.get(proj_name):
-        fixtures.add(load_example_traces(fixture.name))
-
-    return {proj_name: fixtures}
+    return TraceDataset(df)
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
