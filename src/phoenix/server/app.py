@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
 from types import MethodType
@@ -28,6 +29,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -46,6 +48,7 @@ import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR, server_instrumentation_is_enabled
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.helpers import SupportedSQLDialect
@@ -100,11 +103,6 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
-from datetime import datetime, timedelta, timezone
-
-from sqlalchemy import select
-
-from phoenix.db import models
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
