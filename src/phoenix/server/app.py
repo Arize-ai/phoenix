@@ -264,9 +264,12 @@ class Scaffolder(DaemonTask):
             created_at = await session.scalar(
                 select(models.Project.created_at).where(models.Project.name == "default")
             )
-            is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
-                minutes=NEW_DB_AGE_THRESHOLD_MINUTES
-            )
+            if created_at is None:
+                is_new_db = True
+            else:
+                is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
+                    minutes=NEW_DB_AGE_THRESHOLD_MINUTES
+                )
         if self._force_fixture_ingestion or is_new_db:
             logger.info("Loading Trace Fixtures.")
             await self._handle_tracing_fixtures()
