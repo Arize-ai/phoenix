@@ -23,7 +23,6 @@ from phoenix.experiments.types import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
-from phoenix.session.client import Client
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
