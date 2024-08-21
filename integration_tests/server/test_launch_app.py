@@ -80,13 +80,13 @@ def launch() -> Iterator[None]:
         process.terminate()
         process.wait(10)
     finally:
-        logs: List[str] = []
+        lines: List[str] = []
         while not log.empty():
             # For unknown reasons, this hangs if we try to print immediately
             # after `get()`, so we collect the lines and print them later.
-            if (line := log.get()) or (logs and logs[-1].rstrip() != line.rstrip()):
-                logs.append(line)
-        for line in logs:
+            if (line := log.get()) or (lines and lines[-1].rstrip() != line.rstrip()):
+                lines.append(line)
+        for line in lines:
             print(line, end="")
 
 
