@@ -72,17 +72,12 @@ def server_instrumentation_is_enabled() -> bool:
     ) or bool(os.getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
 
 
-def _get_temp_path() -> Path:
-    """Get path to  directory in which to store temp phoenix server files."""
-    return Path(tempfile.gettempdir()) / ".arize-phoenix"
-
-
 def get_pids_path() -> Path:
-    """Get path to directory in which to store temp phoenix instance pid files.
+    """Get path to directory in which to store phoenix instance pid files.
     This directory is used to track any currently running instances of Arize Phoenix
     on the host machine. The directory will be created if it does not exist.
     """
-    path = _get_temp_path() / "pids"
+    path = get_working_dir() / ".pids"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
