@@ -8,7 +8,7 @@ Anthropic is a leading provider for state-of-the-art LLMs. The Anthropic SDK can
 
 {% tabs %}
 {% tab title="Python" %}
-In this example we will instrument a small program that uses the MistralAI chat completions API and observe the traces in Arize.
+In this example we will instrument a small program that uses the Anthropic chat completions API and observe the traces in Arize.
 
 Copy
 
@@ -16,7 +16,7 @@ Copy
 pip install openinference-instrumentation-anthropic anthropic arize-otel opentelemetry-sdk opentelemetry-exporter-grpc
 ```
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
+Set the `ANTHROPIC_API_KEY` environment variable to authenticate calls made using the SDK.
 
 Copy
 
@@ -40,7 +40,7 @@ register_otel(
     model_id = "your-model-id", # name this to whatever you would like
 )
 
-# Import openinference instrumentor to map Mistral traces to a standard format
+# Import openinference instrumentor to map Anthropic traces to a standard format
 from openinference.instrumentation.anthropic import AnthropicInstrumentor
 
 # Turn on the instrumentor
