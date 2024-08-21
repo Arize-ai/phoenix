@@ -6,7 +6,7 @@ from queue import SimpleQueue
 from subprocess import PIPE, STDOUT
 from threading import Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, List, Optional, Set
+from typing import Iterator, List, Set
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
@@ -34,27 +34,41 @@ def test_launch_app(
     req: Request,
     fake: Faker,
 ) -> None:
-    cycles = 2
     span_names: Set[str] = set()
-    for _ in range(cycles):
-        response_dict: Optional[Dict[str, Any]] = None
-        with launch():
-            for tracer in tracers:
-                name = fake.pystr()
-                span_names.add(name)
-                tracer.start_span(name).end()
-            sleep(2)
-            response = urlopen(req)
-            response_dict = json.loads(response.read().decode("utf-8"))
-            assert response_dict
-            assert not response_dict.get("errors")
-            assert {
-                span["node"]["name"]
-                for project in response_dict["data"]["projects"]["edges"]
-                for span in project["node"]["spans"]["edges"]
-                if project["node"]["name"] == project_name
-            } == span_names
-        print(f"{response_dict=}")
+    with launch():
+        for tracer in tracers:
+            name = fake.pystr()
+            span_names.add(name)
+            tracer.start_span(name).end()
+        sleep(2)
+        response = urlopen(req)
+        response_dict = json.loads(response.read().decode("utf-8"))
+        assert response_dict
+        assert not response_dict.get("errors")
+        assert {
+            span["node"]["name"]
+            for project in response_dict["data"]["projects"]["edges"]
+            for span in project["node"]["spans"]["edges"]
+            if project["node"]["name"] == project_name
+        } == span_names
+    print(f"{response_dict=}")
+    with launch():
+        for tracer in tracers:
+            name = fake.pystr()
+            span_names.add(name)
+            tracer.start_span(name).end()
+        sleep(2)
+        response = urlopen(req)
+        response_dict = json.loads(response.read().decode("utf-8"))
+        assert response_dict
+        assert not response_dict.get("errors")
+        assert {
+            span["node"]["name"]
+            for project in response_dict["data"]["projects"]["edges"]
+            for span in project["node"]["spans"]["edges"]
+            if project["node"]["name"] == project_name
+        } == span_names
+    print(f"{response_dict=}")
 
 
 @contextmanager
