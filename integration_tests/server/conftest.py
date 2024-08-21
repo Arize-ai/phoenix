@@ -1,6 +1,5 @@
 import os
 import tempfile
-from contextlib import ExitStack
 from typing import Iterator, List
 from unittest import mock
 from urllib.parse import urljoin
@@ -28,18 +27,25 @@ from portpicker import pick_unused_port  # type: ignore[import-untyped]
 
 @pytest.fixture(autouse=True)
 def set_env_var(monkeypatch: Iterator[MonkeyPatch]) -> Iterator[None]:
-    with ExitStack() as stack:
-        tmp = stack.enter_context(tempfile.TemporaryDirectory())
-        patch_env = mock.patch.dict(
-            os.environ,
-            (
-                (ENV_PHOENIX_PORT, str(pick_unused_port())),
-                (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
-                (ENV_PHOENIX_WORKING_DIR, tmp),
-            ),
-        )
-        stack.enter_context(patch_env)
-        yield
+    tmp = tempfile.TemporaryDirectory()
+    patch_env = mock.patch.dict(
+        os.environ,
+        (
+            (ENV_PHOENIX_PORT, str(pick_unused_port())),
+            (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
+            (ENV_PHOENIX_WORKING_DIR, tmp.name),
+        ),
+    )
+    try:
+        with patch_env:
+            yield
+    finally:
+        try:
+            # This is for Windows. In Python 3.10+, it's cleaner to use
+            # `TemporaryDirectory(ignore_cleanup_errors=True)` instead.
+            tmp.cleanup()
+        except PermissionError:
+            pass
 
 
 @pytest.fixture
