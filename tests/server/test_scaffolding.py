@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
+
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import select
 
 
 @pytest.fixture
