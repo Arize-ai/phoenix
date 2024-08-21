@@ -273,7 +273,7 @@ class Scaffolder(DaemonTask):
             await self._handle_tracing_fixtures()
             logger.info("Finished loading fixtures. You may have to refresh.")
         else:
-            logger.info("DB is not new, avoid loading demo fixtures")
+            logger.info("DB is not new, avoid loading demo fixtures.")
             return
 
     async def _handle_tracing_fixtures(self) -> None:

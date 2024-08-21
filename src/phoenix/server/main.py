@@ -179,7 +179,7 @@ if __name__ == "__main__":
         help=(
             "Whether or not to check the database age before adding the fixtures. "
             "Default is False, i.e., fixtures will only be added if the "
-            "database is new"
+            "database is new."
         ),
     )
     datasets_parser = subparsers.add_parser("datasets")
@@ -246,12 +246,23 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
+        tracing_fixture_names = set()
+
+        # Initial startup demo dataset ingestion
+        inital_demo_projects = ["demo_llama_index", "demo_multimodal"]
+        inital_demo_trace_fixtures = []
+        tracing_fixture_names.update(
+            fixture.name
+            for name in inital_demo_projects
+            for fixture in get_trace_fixtures_by_project_name(name)
+        )
+        tracing_fixture_names.update(inital_demo_trace_fixtures)
+
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
                 args.no_internet,
             )
-        tracing_fixture_names = set()
         if args.with_trace_fixtures:
             tracing_fixture_names.update(
                 [name.strip() for name in args.with_trace_fixtures.split(",")]
