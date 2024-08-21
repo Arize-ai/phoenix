@@ -35,10 +35,10 @@ def test_launch_app(
     fake: Faker,
 ) -> None:
     span_names: Set[str] = set()
-    for _ in range(2):
+    for i in range(2):
         with launch():
-            for tracer in tracers:
-                name = fake.pystr()
+            for t, tracer in enumerate(tracers):
+                name = f"{i}_{t}_{fake.pystr()}"
                 span_names.add(name)
                 tracer.start_span(name).end()
             sleep(2)
