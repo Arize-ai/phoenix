@@ -253,6 +253,7 @@ addopts = [
   "--import-mode=importlib",
   "--doctest-modules",
   "--new-first",
+  "--showlocals",
 ]
 testpaths = [
   "tests",

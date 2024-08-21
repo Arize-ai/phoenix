@@ -1,5 +1,6 @@
 import os
 import tempfile
+from contextlib import ExitStack
 from typing import Iterator, List
 from unittest import mock
 from urllib.parse import urljoin
@@ -27,15 +28,17 @@ from portpicker import pick_unused_port  # type: ignore[import-untyped]
 
 @pytest.fixture(autouse=True)
 def set_env_var(monkeypatch: Iterator[MonkeyPatch]) -> Iterator[None]:
-    tmp = tempfile.TemporaryDirectory()
-    with mock.patch.dict(
-        os.environ,
-        (
-            (ENV_PHOENIX_PORT, str(pick_unused_port())),
-            (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
-            (ENV_PHOENIX_WORKING_DIR, tmp.name),
-        ),
-    ):
+    with ExitStack() as stack:
+        tmp = stack.enter_context(tempfile.TemporaryDirectory())
+        patch_env = mock.patch.dict(
+            os.environ,
+            (
+                (ENV_PHOENIX_PORT, str(pick_unused_port())),
+                (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
+                (ENV_PHOENIX_WORKING_DIR, tmp),
+            ),
+        )
+        stack.enter_context(patch_env)
         yield
 
 
@@ -44,11 +47,14 @@ def tracers(
     project_name: str,
     fake: Faker,
 ) -> List[Tracer]:
+    host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    grpc_endpoint = f"http://{host}:{get_env_grpc_port()}"
     http_endpoint = urljoin(get_base_url(), "v1/traces")
-    grpc_endpoint = f"http://{get_env_host()}:{get_env_grpc_port()}"
     tracers = []
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
-    for exporter in (HTTPExporter(http_endpoint), GRPCExporter(grpc_endpoint)):
+    for exporter in (GRPCExporter(grpc_endpoint), HTTPExporter(http_endpoint)):
         tracer_provider = TracerProvider(resource=resource)
         tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
         tracers.append(tracer_provider.get_tracer(__name__))
