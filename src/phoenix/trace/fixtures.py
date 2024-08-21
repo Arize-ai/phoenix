@@ -85,29 +85,9 @@ class TracesFixture:
     project_name: Optional[str] = None
 
 
-demo_llama_index_cohesive_rag_fixture = TracesFixture(
-    name="demo_llama_index_cohesive_rag",
-    project_name="demo_llama_index",
-    description="Cohesive RAG data that is based on real-world scenarios and evaluations.",
-    file_name="demo_llama_index_rag_traces.parquet",
-    evaluation_fixtures=(
-        EvaluationFixture(
-            evaluation_name="Q&A Correctness",
-            file_name="demo_llama_index_rag_qa_correctness_eval.parquet",
-        ),
-        EvaluationFixture(
-            evaluation_name="Hallucination",
-            file_name="demo_llama_index_rag_hallucination_eval.parquet",
-        ),
-        DocumentEvaluationFixture(
-            evaluation_name="Relevance",
-            file_name="demo_llama_index_rag_doc_relevance_eval.parquet",
-        ),
-    ),
-)
-
 demo_llama_index_rag_fixture = TracesFixture(
     name="demo_llama_index_rag",
+    project_name="demo_llama_index",
     description="Traces and evaluations of a RAG chatbot using LlamaIndex.",
     file_name="demo_llama_index_rag_traces.parquet",
     evaluation_fixtures=(
@@ -128,13 +108,13 @@ demo_llama_index_rag_fixture = TracesFixture(
 
 demo_llama_index_rag_llm_fixture = TracesFixture(
     name="demo_llama_index_rag_llm",
+    project_name="demo_llama_index_rag_llm",
     description="LLM traces for RAG chatbot using LlamaIndex.",
     file_name="demo_llama_index_llm_all_spans.parquet",
 )
 
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
-    project_name="test",
     description="Traces from running the llama_index on a RAG use case.",
     file_name="llama_index_rag_v8.parquet",
     evaluation_fixtures=(
