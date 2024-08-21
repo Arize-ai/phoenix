@@ -39,6 +39,7 @@ jobs:
             phoenix:
               - "src/**"
               - "tests/**"
+              - "integration_tests/server/**"
               - "tutorials/**"
               - "pyproject.toml"
             packages:
