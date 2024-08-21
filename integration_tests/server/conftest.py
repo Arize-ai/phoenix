@@ -44,7 +44,7 @@ def set_env_var(monkeypatch: Iterator[MonkeyPatch]) -> Iterator[None]:
             # This is for Windows. In Python 3.10+, it's cleaner to use
             # `TemporaryDirectory(ignore_cleanup_errors=True)` instead.
             tmp.cleanup()
-        except PermissionError:
+        except BaseException:
             pass
 
 

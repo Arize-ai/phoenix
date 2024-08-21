@@ -120,14 +120,13 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        migrate_in_thread(
-            sqlalchemy.create_engine(
-                url=url.set(drivername="sqlite"),
-                echo=Settings.log_migrations,
-                json_serializer=_dumps,
-                creator=lambda: sqlean.connect(f"file:{database}", uri=True),
-            )
+        sync_engine = sqlalchemy.create_engine(
+            url=url.set(drivername="sqlite"),
+            echo=Settings.log_migrations,
+            json_serializer=_dumps,
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
         )
+        migrate_in_thread(sync_engine)
     return engine
 
 
@@ -139,13 +138,12 @@ def aio_postgresql_engine(
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     if not migrate:
         return engine
-    migrate_in_thread(
-        sqlalchemy.create_engine(
-            url=url.set(drivername="postgresql"),
-            echo=Settings.log_migrations,
-            json_serializer=_dumps,
-        )
+    sync_engine = sqlalchemy.create_engine(
+        url=url.set(drivername="postgresql"),
+        echo=Settings.log_migrations,
+        json_serializer=_dumps,
     )
+    migrate_in_thread(sync_engine)
     return engine
 
 
