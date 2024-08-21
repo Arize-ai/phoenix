@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useMutation } from "react-relay";
 import { Form } from "react-router-dom";
+import { isValid as dateIsValid, parseISO } from "date-fns";
 import { graphql } from "relay-runtime";
 
 import {
@@ -19,6 +20,7 @@ import { CreateSystemAPIKeyDialogMutation } from "./__generated__/CreateSystemAP
 export type SystemKeyFormParams = {
   name: string;
   description: string | null;
+  expiresAt: string;
 };
 
 /**
@@ -29,15 +31,17 @@ export function CreateSystemAPIKeyDialog(props: {
   onSystemKeyCreated: (jwt: string) => void;
 }) {
   const { onSystemKeyCreated } = props;
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
+    setError,
   } = useForm<SystemKeyFormParams>({
     defaultValues: {
       name: "System",
       description: "",
+      expiresAt: "",
     },
   });
 
@@ -46,11 +50,21 @@ export function CreateSystemAPIKeyDialog(props: {
       mutation CreateSystemAPIKeyDialogMutation(
         $name: String!
         $description: String = null
+        $expiresAt: DateTime = null
       ) {
-        createSystemApiKey(input: { name: $name, description: $description }) {
+        createSystemApiKey(
+          input: {
+            name: $name
+            description: $description
+            expiresAt: $expiresAt
+          }
+        ) {
           jwt
           query {
             ...SystemAPIKeysTableFragment
+          }
+          apiKey {
+            id
           }
         }
       }
@@ -59,25 +73,43 @@ export function CreateSystemAPIKeyDialog(props: {
 
   const onSubmit = useCallback(
     (data: SystemKeyFormParams) => {
-      setError(null);
+      // Validate date is a valid date
+      if (data.expiresAt) {
+        const parsedDate = parseISO(data.expiresAt);
+        if (!dateIsValid(parsedDate)) {
+          return setError("expiresAt", {
+            message: "Date is not in a valid format",
+          });
+        }
+        if (parsedDate < new Date()) {
+          return setError("expiresAt", {
+            message: "Date must be in the future",
+          });
+        }
+      }
+
+      setFormError(null);
       commit({
-        variables: data,
+        variables: {
+          ...data,
+          expiresAt: data.expiresAt || null,
+        },
         onCompleted: (response) => {
           onSystemKeyCreated(response.createSystemApiKey.jwt);
         },
         onError: (error) => {
-          setError(error.message);
+          setFormError(error.message);
         },
       });
     },
-    [commit, onSystemKeyCreated]
+    [commit, onSystemKeyCreated, setError]
   );
 
   return (
     <Dialog title="Create a System Key" isDismissable>
-      {error && (
+      {formError && (
         <Alert variant="danger" banner>
-          {error}
+          {formError}
         </Alert>
       )}
       <Form onSubmit={handleSubmit(onSubmit)}>
@@ -120,6 +152,26 @@ export function CreateSystemAPIKeyDialog(props: {
                 onChange={onChange}
                 onBlur={onBlur}
                 value={value?.toString()}
+              />
+            )}
+          />
+          <Controller
+            name="expiresAt"
+            control={control}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                label="Expires At"
+                type="datetime-local"
+                name={name}
+                description={`The date at which the key will expire. Optional`}
+                errorMessage={error?.message}
+                validationState={invalid ? "invalid" : "valid"}
+                onChange={onChange}
+                onBlur={onBlur}
+                defaultValue={value}
               />
             )}
           />
