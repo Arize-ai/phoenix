@@ -100,6 +100,11 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select
+
+from phoenix.db import models
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -111,6 +116,7 @@ logger.addHandler(logging.NullHandler())
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+NEW_DB_AGE_THRESHOLD_MINUTES = 5
 
 ProjectName: TypeAlias = str
 
@@ -234,11 +240,13 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 class Scaffolder(DaemonTask):
     def __init__(
         self,
+        db: DbSessionFactory,
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
         tracing_fixture_names: Set[str] = set(),
     ) -> None:
         super().__init__()
+        self._db = db
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
         self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
@@ -250,6 +258,17 @@ class Scaffolder(DaemonTask):
         await self.stop()
 
     async def _run(self) -> None:
+        async with self._db() as session:
+            created_at = await session.scalar(
+                select(models.Project.created_at).where(models.Project.name == "default")
+            )
+            is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
+                minutes=NEW_DB_AGE_THRESHOLD_MINUTES
+            )
+
+        if not is_new_db:
+            logger.info("DB is not new, avoid loading demo fixtures")
+            return
         logger.info("Loading Trace Fixtures.")
         await self._handle_tracing_fixtures()
         logger.info("Finished loading fixtures. You may have to refresh.")
@@ -281,7 +300,7 @@ class Scaffolder(DaemonTask):
 
 def _lifespan(
     *,
-    dialect: SupportedSQLDialect,
+    db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
@@ -294,7 +313,7 @@ def _lifespan(
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
+        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with bulk_inserter as (
             enqueue,
             queue_span,
@@ -306,6 +325,7 @@ def _lifespan(
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ), dml_event_handler, Scaffolder(
+            db=db,
             queue_span=queue_span,
             queue_evaluation=queue_evaluation,
             tracing_fixture_names=tracing_fixture_names,
@@ -573,11 +593,12 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
+
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
-            dialect=db.dialect,
+            db=db,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
