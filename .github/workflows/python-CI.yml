@@ -61,7 +61,7 @@ jobs:
         with:
           uv-version: 0.3.0
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox-uv==1.11.2
+      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
@@ -157,6 +157,6 @@ jobs:
         with:
           uv-version: 0.3.0
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox-uv==1.11.2
+      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run -e ci-integration_tests -- server
         timeout-minutes: 5
