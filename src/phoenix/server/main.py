@@ -157,14 +157,20 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default="",
-        help=("Comma separated list of tracing fixture names. Example: 'fixture1, fixture2'"),
+        help=(
+            "Comma separated list of tracing fixture names (spaces are ignored). "
+            "Example: 'fixture1, fixture2'"
+        ),
     )
     serve_parser.add_argument(
         "--with-projects",
         type=str,
         required=False,
         default="",
-        help=("Comma separated list of project names. Example: 'project1, project2'"),
+        help=(
+            "Comma separated list of project names (spaces are ignored). "
+            "Example: 'project1, project2'"
+        ),
     )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
