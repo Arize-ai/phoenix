@@ -13,6 +13,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 
 import {
@@ -42,6 +43,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
@@ -177,7 +179,6 @@ export function ExperimentsTable({
         />
       ),
     },
-
     {
       header: "name",
       accessorKey: "name",
@@ -299,6 +300,7 @@ export function ExperimentsTable({
         return (
           <ExperimentActionMenu
             projectId={project?.id || null}
+            experimentId={row.original.id}
             metadata={metadata}
           />
         );
@@ -496,16 +498,19 @@ function AnnotationAggregationCell({
 
 export enum ExperimentAction {
   GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
+  COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
   VIEW_METADATA = "VIEW_METADATA",
 }
 
 function ExperimentActionMenu(props: {
   projectId: string | null;
+  experimentId: string;
   metadata: unknown;
 }) {
   const { projectId } = props;
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const notifySuccess = useNotifySuccess();
   return (
     <div
       // TODO: add this logic to the ActionMenu component
@@ -535,6 +540,14 @@ function ExperimentActionMenu(props: {
               );
               break;
             }
+            case ExperimentAction.COPY_EXPERIMENT_ID: {
+              copy(props.experimentId);
+              notifySuccess({
+                title: "Copied",
+                message: "The experiment ID has been copied to your clipboard",
+              });
+              break;
+            }
             default: {
               assertUnreachable(action);
             }
@@ -560,7 +573,18 @@ function ExperimentActionMenu(props: {
             alignItems="center"
           >
             <Icon svg={<Icons.InfoOutline />} />
-            <Text>View Metadata</Text>
+            <Text>View metadata</Text>
+          </Flex>
+        </Item>
+        <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
+          <Flex
+            direction="row"
+            gap="size-75"
+            justifyContent="start"
+            alignItems="center"
+          >
+            <Icon svg={<Icons.ClipboardCopy />} />
+            <Text>Copy experiment ID</Text>
           </Flex>
         </Item>
       </ActionMenu>
