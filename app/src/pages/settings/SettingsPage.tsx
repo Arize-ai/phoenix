@@ -9,7 +9,6 @@ import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import { APIKeysCard } from "./APIKeysCard";
 import { UsersCard } from "./UsersCard";
-import { UsersTable } from "./UsersTable";
 
 const settingsPageCSS = css`
   padding: var(--ac-global-dimension-size-400);

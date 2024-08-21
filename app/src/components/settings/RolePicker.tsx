@@ -10,15 +10,23 @@ function isUserRole(role: unknown): role is UserRole {
   return typeof role === "string" && role in UserRole;
 }
 
-export function RolePicker({
-  onChange,
-  role,
-}: {
+type RolePickerProps<T> = {
   onChange: (role: UserRole) => void;
   role: UserRole;
-}) {
+} & Omit<
+  PickerProps<T>,
+  "children" | "onSelectionChange" | "defaultSelectedKey"
+>;
+
+export function RolePicker<T>({
+  onChange,
+  role,
+  ...pickerProps
+}: RolePickerProps<T>) {
   return (
     <Picker
+      label="Role"
+      className="role-picker"
       defaultSelectedKey={role}
       aria-label="User Role"
       onSelectionChange={(key) => {
@@ -26,7 +34,8 @@ export function RolePicker({
           onChange(key);
         }
       }}
-      label="Role"
+      width={"100%"}
+      {...pickerProps}
     >
       {UserRoles.map((role) => {
         return <Item key={role}>{role}</Item>;

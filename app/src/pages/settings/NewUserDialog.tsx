@@ -1,29 +1,62 @@
 import React, { useCallback } from "react";
+import { graphql, useMutation } from "react-relay";
 
-import { Dialog } from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   UserForm,
   UserFormParams,
 } from "@phoenix/components/settings/UserForm";
 
-export function NewUserDialog() {
-  const onSubmit = useCallback((data: UserFormParams) => {
-    // currently no mutation implemented
-  }, []);
-  //   const [commit, isCommitting] = useMutation(graphql`
-  //     mutation NewUserDialogMutation($input: CreateUserInput!) {
-  //       createUser(input: $input) {
-  //         user {
-  //           id
-  //         }
-  //       }
-  //     }
-  //   `);
+import { NewUserDialogMutation } from "./__generated__/NewUserDialogMutation.graphql";
+
+export function NewUserDialog({
+  onNewUserCreated,
+  onNewUserCreationError,
+  onDismiss,
+}: {
+  onNewUserCreated: (email: string) => void;
+  onNewUserCreationError: (error: Error) => void;
+  onDismiss: () => void;
+}) {
+  const [commit, isCommitting] = useMutation<NewUserDialogMutation>(graphql`
+    mutation NewUserDialogMutation($input: CreateUserInput!) {
+      createUser(input: $input) {
+        user {
+          id
+          email
+        }
+      }
+    }
+  `);
+
+  const onSubmit = useCallback(
+    (data: UserFormParams) => {
+      commit({
+        variables: {
+          input: data,
+        },
+        onCompleted: (response) => {
+          onNewUserCreated(response.createUser.user.email);
+        },
+        onError: (error) => {
+          onNewUserCreationError(error);
+        },
+      });
+    },
+    [commit, onNewUserCreated, onNewUserCreationError]
+  );
 
   return (
-    <Dialog title="Create a user" isDismissable>
-      <UserForm onSubmit={onSubmit} isSubmitting={false} />
-    </Dialog>
+    <DialogContainer
+      onDismiss={onDismiss}
+      isDismissable
+      type="modal"
+      isKeyboardDismissDisabled
+    >
+      <Dialog title="Add user">
+        <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
+      </Dialog>
+    </DialogContainer>
   );
 }

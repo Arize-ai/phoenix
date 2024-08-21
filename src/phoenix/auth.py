@@ -39,6 +39,8 @@ def validate_password_format(password: str) -> None:
         raise ValueError("Password cannot contain whitespace characters")
     if not password.isascii():
         raise ValueError("Password can contain only ASCII characters")
+    if not len(password) >= 4:
+        raise ValueError("Password must be at least 4 characters long")
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
