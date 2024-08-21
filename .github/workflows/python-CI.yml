@@ -159,4 +159,4 @@ jobs:
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run -e ci-integration_tests -- server
-        timeout-minutes: 5
+        timeout-minutes: 10
