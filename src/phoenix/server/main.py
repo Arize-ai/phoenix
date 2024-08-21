@@ -336,10 +336,6 @@ if __name__ == "__main__":
         msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
-    print("CACA")
-    print(f"{args=}")
-    print(f"{force_fixture_ingestion=}")
-    print("CACA")
     app = create_app(
         db=factory,
         export_path=export_path,
