@@ -572,6 +572,15 @@ class Client(TraceDataExtractor):
         )
 
     def get_experiment(self, *, experiment_id: str) -> Experiment:
+        """
+        Get an experiment by ID.
+
+        Retrieve an Experiment object by ID, enables running `evaluate_experiment` after finishing
+        the initial experiment run.
+
+        Args:
+            experiment_id (str): ID of the experiment. This can be found in the UI.
+        """
         response = self._client.get(
             url=urljoin(self._base_url, f"v1/experiments/{experiment_id}"),
         )
