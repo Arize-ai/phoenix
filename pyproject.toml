@@ -430,4 +430,4 @@ select = ["E", "F", "W", "I", "NPY201"]
 force-single-line = false
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"
