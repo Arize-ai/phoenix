@@ -151,6 +151,7 @@ jobs:
           python-version: 3.8
       - uses: yezz123/setup-uv@v4
         with:
+          uv-version: 0.3.0
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox-uv==1.11.2
       - run: tox run -e ci-integration_tests -- server
