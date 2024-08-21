@@ -63,7 +63,7 @@ class UserMutationMixin:
                 )
             assert user is not None
         except IntegrityError as error:
-            raise ValueError(_get_user_create_message(error))
+            raise ValueError(_get_user_create_error_message(error))
         return UserMutationPayload(
             user=User(
                 id_attr=user.id,
@@ -75,7 +75,7 @@ class UserMutationMixin:
         )
 
 
-def _get_user_create_message(error: IntegrityError) -> str:
+def _get_user_create_error_message(error: IntegrityError) -> str:
     """
     Gets a user-facing error message to explain why user creation failed.
     """
