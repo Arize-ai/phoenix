@@ -84,7 +84,8 @@ def launch() -> Iterator[None]:
         while not log.empty():
             # For unknown reasons, this hangs if we try to print immediately
             # after `get()`, so we collect the lines and print them later.
-            logs.append(log.get())
+            if (line := log.get()) or (logs and logs[-1] != line):
+                logs.append(line)
         for line in logs:
             print(line, end="")
 
