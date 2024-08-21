@@ -85,7 +85,7 @@ dev = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "strawberry-graphql[debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
@@ -111,6 +111,7 @@ llama-index = [
 ]
 pg = [
   "asyncpg",
+  "psycopg[binary,pool]",
 ]
 container = [
   "prometheus-client",
@@ -163,7 +164,7 @@ dependencies = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "arize",
   "litellm>=1.0.3",
   "openai>=1.0.0",
