@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12c34e1a89e15a7a847340e3d87082bf>>
+ * @generated SignedSource<<c09063051d7da2308dafeb2dd8b09ec5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,14 @@ import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type CreateSystemAPIKeyDialogMutation$variables = {
   description?: string | null;
+  expiresAt?: string | null;
   name: string;
 };
 export type CreateSystemAPIKeyDialogMutation$data = {
   readonly createSystemApiKey: {
+    readonly apiKey: {
+      readonly id: string;
+    };
     readonly jwt: string;
     readonly query: {
       readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment">;
@@ -36,15 +40,25 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "expiresAt"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "name"
 },
-v2 = [
+v3 = [
   {
     "fields": [
       {
         "kind": "Variable",
         "name": "description",
         "variableName": "description"
+      },
+      {
+        "kind": "Variable",
+        "name": "expiresAt",
+        "variableName": "expiresAt"
       },
       {
         "kind": "Variable",
@@ -56,18 +70,38 @@ v2 = [
     "name": "input"
   }
 ],
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "jwt",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SystemApiKey",
+  "kind": "LinkedField",
+  "name": "apiKey",
+  "plural": false,
+  "selections": [
+    (v5/*: any*/)
+  ],
   "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -75,13 +109,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "CreateSystemApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createSystemApiKey",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -97,7 +131,8 @@ return {
               }
             ],
             "storageKey": null
-          }
+          },
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -108,21 +143,22 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
-      (v0/*: any*/)
+      (v2/*: any*/),
+      (v0/*: any*/),
+      (v1/*: any*/)
     ],
     "kind": "Operation",
     "name": "CreateSystemAPIKeyDialogMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "CreateSystemApiKeyMutationPayload",
         "kind": "LinkedField",
         "name": "createSystemApiKey",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -139,6 +175,7 @@ return {
                 "name": "systemApiKeys",
                 "plural": true,
                 "selections": [
+                  (v5/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -172,23 +209,24 @@ return {
               }
             ],
             "storageKey": null
-          }
+          },
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "dc1630ef456778d03268573b67317959",
+    "cacheID": "e162ef32e40e2920bbdb388bedd83989",
     "id": null,
     "metadata": {},
     "name": "CreateSystemAPIKeyDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateSystemAPIKeyDialogMutation(\n  $name: String!\n  $description: String = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "mutation CreateSystemAPIKeyDialogMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fff330c7ecaecfd389821773621a52eb";
+(node as any).hash = "8e8563676b39f1e44ef4bac4057ef7e3";
 
 export default node;
