@@ -28,16 +28,13 @@ from portpicker import pick_unused_port  # type: ignore[import-untyped]
 @pytest.fixture(autouse=True)
 def set_env_var(monkeypatch: Iterator[MonkeyPatch]) -> Iterator[None]:
     tmp = tempfile.TemporaryDirectory()
-    patch_env = mock.patch.dict(
-        os.environ,
-        (
-            (ENV_PHOENIX_PORT, str(pick_unused_port())),
-            (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
-            (ENV_PHOENIX_WORKING_DIR, tmp.name),
-        ),
+    values = (
+        (ENV_PHOENIX_PORT, str(pick_unused_port())),
+        (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
+        (ENV_PHOENIX_WORKING_DIR, tmp.name),
     )
     try:
-        with patch_env:
+        with mock.patch.dict(os.environ, values):
             yield
     finally:
         try:
