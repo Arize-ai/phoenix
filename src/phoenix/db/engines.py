@@ -139,7 +139,7 @@ def aio_postgresql_engine(
     if not migrate:
         return engine
     sync_engine = sqlalchemy.create_engine(
-        url=url.set(drivername="postgresql"),
+        url=url.set(drivername="postgresql+psycopg"),
         echo=Settings.log_migrations,
         json_serializer=_dumps,
     )
