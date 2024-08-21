@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.2.0...arize-phoenix-otel-v0.3.0) (2024-08-21)
+
+
+### Features
+
+* Improve OTel wrapper ergonomics ([#4295](https://github.com/Arize-ai/phoenix/issues/4295)) ([ef533cf](https://github.com/Arize-ai/phoenix/commit/ef533cf16b28ac5b6dbc8f593e7b31c3340f42df))
+
 ## [0.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.1.0...arize-phoenix-otel-v0.2.0) (2024-08-19)
 
 
