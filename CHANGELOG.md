@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.25.0...arize-phoenix-v4.26.0) (2024-08-21)
+
+
+### Features
+
+* **auth:** add login/ logout routes and createUser mutation ([#4293](https://github.com/Arize-ai/phoenix/issues/4293)) ([a3ff0f6](https://github.com/Arize-ai/phoenix/commit/a3ff0f6b1c90f126db1249e877d2369ab9bffe02))
+
+
+### Bug Fixes
+
+* postgresql driver name for db migrations ([#4304](https://github.com/Arize-ai/phoenix/issues/4304)) ([9e683f2](https://github.com/Arize-ai/phoenix/commit/9e683f2ef3c99a7c24233ea45ac1d666399107e4))
+
 ## [4.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.24.0...arize-phoenix-v4.25.0) (2024-08-21)
 
 
