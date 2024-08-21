@@ -10,6 +10,7 @@ import pandas as pd
 from phoenix.core.model_schema import Column
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 @dataclass(frozen=True)

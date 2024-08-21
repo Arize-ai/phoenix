@@ -100,6 +100,7 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
 
@@ -229,7 +230,8 @@ def _lifespan(
     dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
-    clean_ups: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[Callable[[], None]] = (),
+    shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
@@ -247,6 +249,8 @@ def _lifespan(
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ), dml_event_handler:
+            for callback in startup_callbacks:
+                callback()
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -254,8 +258,8 @@ def _lifespan(
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
                 "enqueue_operation": enqueue_operation,
             }
-        for clean_up in clean_ups:
-            clean_up()
+        for callback in shutdown_callbacks:
+            callback()
 
     return lifespan
 
@@ -428,10 +432,12 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
-    clean_up_callbacks: List[Callable[[], None]] = [],
+    startup_callbacks: Iterable[Callable[[], None]] = (),
+    shutdown_callbacks: Iterable[Callable[[], None]] = (),
     secret: Optional[str] = None,
 ) -> FastAPI:
-    clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
+    startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
+    shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -511,7 +517,8 @@ def create_app(
             dml_event_handler=dml_event_handler,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-            clean_ups=clean_ups,
+            shutdown_callbacks=shutdown_callbacks_list,
+            startup_callbacks=startup_callbacks_list,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
@@ -554,5 +561,5 @@ def create_app(
 
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        clean_ups.append(FastAPIInstrumentor().uninstrument)
+        shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
     return app

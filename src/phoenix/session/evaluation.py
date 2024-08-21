@@ -35,6 +35,7 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:

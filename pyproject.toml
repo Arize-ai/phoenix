@@ -97,6 +97,7 @@ dev = [
   "prometheus_client",
   "asgi-lifespan",
   "Faker>=26.0.0",
+  "portpicker",
   "uvloop; platform_system != 'Windows'",
 ]
 evals = []
@@ -253,6 +254,7 @@ addopts = [
   "--import-mode=importlib",
   "--doctest-modules",
   "--new-first",
+  "--showlocals",
 ]
 testpaths = [
   "tests",
@@ -430,4 +432,4 @@ select = ["E", "F", "W", "I", "NPY201"]
 force-single-line = false
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"

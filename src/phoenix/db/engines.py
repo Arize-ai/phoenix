@@ -7,6 +7,7 @@ from typing import Any
 
 import aiosqlite
 import numpy as np
+import sqlalchemy
 import sqlean
 from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -15,6 +16,7 @@ from typing_extensions import assert_never
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
+from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
 
@@ -118,7 +120,13 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        migrate_in_thread(engine.url)
+        sync_engine = sqlalchemy.create_engine(
+            url=url.set(drivername="sqlite"),
+            echo=Settings.log_migrations,
+            json_serializer=_dumps,
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+        )
+        migrate_in_thread(sync_engine)
     return engine
 
 
@@ -130,7 +138,12 @@ def aio_postgresql_engine(
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     if not migrate:
         return engine
-    migrate_in_thread(engine.url)
+    sync_engine = sqlalchemy.create_engine(
+        url=url.set(drivername="postgresql"),
+        echo=Settings.log_migrations,
+        json_serializer=_dumps,
+    )
+    migrate_in_thread(sync_engine)
     return engine
 
 
