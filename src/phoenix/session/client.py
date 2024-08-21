@@ -571,13 +571,12 @@ class Client(TraceDataExtractor):
             action="append",
         )
 
-    def list_experiments(self, project_name: Optional[str] = None) -> List[Experiment]:
+    def get_experiment(self, *, experiment_id: str) -> Experiment:
         response = self._client.get(
-            url=urljoin(self._base_url, "v1/experiments"),
-            params={"project_name": project_name or get_env_project_name()},
+            url=urljoin(self._base_url, f"v1/experiments/{experiment_id}"),
         )
-        experiment_data = response.json()["data"]
-        return [Experiment.from_dict(experiment) for experiment in experiment_data]
+        experiment = response.json()["data"]
+        return Experiment.from_dict(experiment)
 
     def _upload_tabular_dataset(
         self,

@@ -259,19 +259,32 @@ class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
 
 
 @router.get(
-    "/experiments",
+    "/datasets/{dataset_id}/experiments",
     operation_id="listExperiments",
-    summary="List all experiments",
-    response_description="List of experiments retrieved successfully",
+    summary="List experiments by dataset",
+    response_description="Experiments retrieved successfully",
 )
 async def list_experiments(
     request: Request,
+    dataset_id: str,
     project_name: Optional[str] = Query(
         default=None, description="The project name to get experiments from"
     ),
 ) -> ListExperimentsResponseBody:
+    dataset_gid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Dataset with ID {dataset_gid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
     async with request.app.state.db() as session:
-        query = select(models.Experiment).order_by(models.Experiment.id.desc())
+        query = (
+            select(models.Experiment)
+            .where(models.Experiment.dataset_id == dataset_rowid)
+            .order_by(models.Experiment.id.desc())
+        )
         if project_name:
             query = query.where(models.Experiment.project_name == project_name)
 
