@@ -54,6 +54,7 @@ export function APIKeysCard() {
       <CreateSystemAPIKeyDialog onSystemKeyCreated={showOneTimeAPIKeyDialog} />
     );
   };
+
   return (
     <div>
       <TabbedCard
@@ -74,7 +75,11 @@ export function APIKeysCard() {
           <APIKeysCardContent />
         </Suspense>
       </TabbedCard>
-      <DialogContainer onDismiss={() => setDialog(null)}>
+      <DialogContainer
+        onDismiss={() => {
+          setDialog(null);
+        }}
+      >
         {dialog}
       </DialogContainer>
     </div>

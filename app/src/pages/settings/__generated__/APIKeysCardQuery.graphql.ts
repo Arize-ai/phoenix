@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb31c00d7f49e04c1352dfa7effc2d2a>>
+ * @generated SignedSource<<314a46b0f443b9e1e188e126d3b94d20>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -53,6 +53,13 @@ const node: ConcreteRequest = {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
             "name": "name",
             "storageKey": null
           },
@@ -83,12 +90,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "f1b81e2adefe303b9fef38d2dcbad2b9",
+    "cacheID": "07048107c95469bc12ff425c6ba264ea",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
   }
 };
 

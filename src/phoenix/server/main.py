@@ -1,13 +1,16 @@
 import atexit
+import codecs
 import logging
 import os
+import sys
 from argparse import ArgumentParser
-from pathlib import Path, PosixPath
+from importlib.metadata import version
+from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
+from urllib.parse import urljoin
 
-import pkg_resources
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
@@ -54,6 +57,7 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 _WELCOME_MESSAGE = """
 
@@ -138,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     # Whether the app is running in a development environment
     parser.add_argument("--dev", action="store_true")
+    parser.add_argument("--no-ui", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
@@ -297,6 +302,18 @@ if __name__ == "__main__":
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
+    # Print information about the server
+    msg = _WELCOME_MESSAGE.format(
+        version=version("arize-phoenix"),
+        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        grpc_path=f"http://{host}:{get_env_grpc_port()}",
+        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        storage=get_printable_db_url(db_connection_str),
+    )
+    if authentication_enabled:
+        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
+    if sys.platform.startswith("win"):
+        msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -306,32 +323,19 @@ if __name__ == "__main__":
         corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
+        serve_ui=not args.no_ui,
         read_only=read_only,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
-        clean_up_callbacks=instrumentation_cleanups,
+        startup_callbacks=[lambda: print(msg)],
+        shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
         fixture_names=fixture_names,
         tracing_fixture_names=tracing_fixture_names,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
-
-    # Print information about the server
-    phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
-    print(
-        _WELCOME_MESSAGE.format(
-            version=phoenix_version,
-            ui_path=PosixPath(f"http://{host}:{port}", host_root_path),
-            grpc_path=f"http://{host}:{get_env_grpc_port()}",
-            http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
-            storage=get_printable_db_url(db_connection_str),
-        )
-    )
-
-    if authentication_enabled:
-        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()

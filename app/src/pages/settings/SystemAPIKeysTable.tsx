@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
@@ -8,26 +8,23 @@ import {
 
 import { Icon, Icons } from "@arizeai/components";
 
+import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
-import { SystemAPIKeysTableRefetchQuery } from "./__generated__/SystemAPIKeysTableRefetchQuery.graphql";
 
 export function SystemAPIKeysTable({
   query,
 }: {
   query: SystemAPIKeysTableFragment$key;
 }) {
-  const [data] = useRefetchableFragment<
-    SystemAPIKeysTableRefetchQuery,
-    SystemAPIKeysTableFragment$key
-  >(
+  const data = useFragment<SystemAPIKeysTableFragment$key>(
     graphql`
-      fragment SystemAPIKeysTableFragment on Query
-      @refetchable(queryName: "SystemAPIKeysTableRefetchQuery") {
+      fragment SystemAPIKeysTableFragment on Query {
         systemApiKeys {
+          id
           name
           description
           createdAt
@@ -52,6 +49,7 @@ export function SystemAPIKeysTable({
       {
         header: "Description",
         accessorKey: "description",
+        cell: TextCell,
       },
       {
         header: "Created At",
@@ -113,7 +111,7 @@ export function SystemAPIKeysTable({
         ))}
       </thead>
       {isEmpty ? (
-        <TableEmpty />
+        <TableEmpty message="No Keys" />
       ) : (
         <tbody>
           {rows.map((row) => {

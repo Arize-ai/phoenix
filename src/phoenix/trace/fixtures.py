@@ -24,6 +24,7 @@ from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, jso
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logger.addHandler(logging.NullHandler())
 
 
 class EvaluationResultSchema(NamedTuple):

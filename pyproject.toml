@@ -36,7 +36,8 @@ dependencies = [
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
   "typing-extensions>=4.6; python_version>='3.12'",
-  "scipy",
+  "scipy!=1.14.1; platform_system == 'Darwin'",  # MacOS installation issue: https://github.com/scipy/scipy/issues/21424
+  "scipy; platform_system != 'Darwin'",
   "wrapt",
   "protobuf>=3.20, <6.0",
   "grpcio",
@@ -84,7 +85,7 @@ dev = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "strawberry-graphql[debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
@@ -96,6 +97,7 @@ dev = [
   "prometheus_client",
   "asgi-lifespan",
   "Faker>=26.0.0",
+  "portpicker",
   "uvloop; platform_system != 'Windows'",
 ]
 evals = []
@@ -109,6 +111,7 @@ llama-index = [
 ]
 pg = [
   "asyncpg",
+  "psycopg[binary,pool]",
 ]
 container = [
   "prometheus-client",
@@ -161,7 +164,7 @@ dependencies = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "arize",
   "litellm>=1.0.3",
   "openai>=1.0.0",
@@ -252,6 +255,7 @@ addopts = [
   "--import-mode=importlib",
   "--doctest-modules",
   "--new-first",
+  "--showlocals",
 ]
 testpaths = [
   "tests",
@@ -429,4 +433,4 @@ select = ["E", "F", "W", "I", "NPY201"]
 force-single-line = false
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"
