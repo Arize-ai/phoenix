@@ -33,6 +33,7 @@ def register(
     batch: bool = False,
     set_global_tracer: bool = True,
     headers: Optional[Dict[str, str]] = None,
+    verbose: bool = True,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -53,6 +54,7 @@ def register(
         set_global_tracer (bool): If False, the TracerProvider will not be set as the global
             tracer provider. Defaults to True.
         headers (dict, optional): Optional headers to include in the HTTP request to the collector.
+        verbose (bool): If True, configuration details will be printed to stdout.
     """
 
     project_name = project_name or get_env_project_name()
@@ -77,7 +79,8 @@ def register(
         global_provider_msg = ""
 
     details = tracer_provider._tracing_details()
-    print(f"{details}" f"{global_provider_msg}")
+    if verbose:
+        print(f"{details}" f"{global_provider_msg}")
     return tracer_provider
 
 
@@ -130,7 +133,7 @@ class TracerProvider(_TracerProvider):
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)
-                        headers = _normalize_headers(exporter._headers)
+                        headers = _printable_headers(exporter._headers)
                 else:
                     processor_name = "Multiple Span Processors"
                     endpoint = "Multiple Span Exporters"
@@ -248,7 +251,7 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return exporter.__class__.__name__
 
 
-def _normalize_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
+def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
     if isinstance(headers, dict):
         return {key.lower(): "****" for key, _ in headers.items()}
     return {key.lower(): "****" for key, _ in headers}
