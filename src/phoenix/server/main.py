@@ -136,7 +136,7 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--read-only", type=bool, default=False)
+    parser.add_argument("--read-only", action="store_true", required=False)  # Default is False
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_true")
@@ -172,6 +172,16 @@ if __name__ == "__main__":
             "Example: 'project1, project2'"
         ),
     )
+    serve_parser.add_argument(
+        "--force-fixture-ingestion",
+        action="store_true",  # default is False
+        required=False,
+        help=(
+            "Whether or not to check the database age before adding the fixtures. "
+            "Default is False, i.e., fixtures will only be added if the "
+            "database is new"
+        ),
+    )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -179,12 +189,14 @@ if __name__ == "__main__":
     datasets_parser.add_argument("--trace", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", type=bool)
+    fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
-    trace_fixture_parser.add_argument("--simulate-streaming", type=bool)
+    trace_fixture_parser.add_argument(
+        "--simulate-streaming", action="store_true"
+    )  # Default is False
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     demo_parser.add_argument(
@@ -197,6 +209,7 @@ if __name__ == "__main__":
         args.database_url if args.database_url else get_env_database_connection_str()
     )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    force_fixture_ingestion = False
     if args.command == "datasets":
         primary_inferences_name = args.primary
         reference_inferences_name = args.reference
@@ -250,6 +263,7 @@ if __name__ == "__main__":
                 for name in project_names
                 for fixture in get_trace_fixtures_by_project_name(name)
             )
+        force_fixture_ingestion = args.force_fixture_ingestion
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -322,6 +336,10 @@ if __name__ == "__main__":
         msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
+    print("CACA")
+    print(f"{args=}")
+    print(f"{force_fixture_ingestion=}")
+    print("CACA")
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -340,6 +358,7 @@ if __name__ == "__main__":
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
         tracing_fixture_names=tracing_fixture_names,
+        force_fixture_ingestion=force_fixture_ingestion,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

@@ -116,7 +116,7 @@ logger.addHandler(logging.NullHandler())
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
-NEW_DB_AGE_THRESHOLD_MINUTES = 5
+NEW_DB_AGE_THRESHOLD_MINUTES = 1
 
 ProjectName: TypeAlias = str
 
@@ -244,12 +244,14 @@ class Scaffolder(DaemonTask):
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
         tracing_fixture_names: Set[str] = set(),
+        force_fixture_ingestion: bool = False,
     ) -> None:
         super().__init__()
         self._db = db
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
         self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
+        self._force_fixture_ingestion = force_fixture_ingestion
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -265,13 +267,13 @@ class Scaffolder(DaemonTask):
             is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
                 minutes=NEW_DB_AGE_THRESHOLD_MINUTES
             )
-
-        if not is_new_db:
+        if self._force_fixture_ingestion or is_new_db:
+            logger.info("Loading Trace Fixtures.")
+            await self._handle_tracing_fixtures()
+            logger.info("Finished loading fixtures. You may have to refresh.")
+        else:
             logger.info("DB is not new, avoid loading demo fixtures")
             return
-        logger.info("Loading Trace Fixtures.")
-        await self._handle_tracing_fixtures()
-        logger.info("Finished loading fixtures. You may have to refresh.")
 
     async def _handle_tracing_fixtures(self) -> None:
         for fixture in self._tracing_fixtures:
@@ -309,6 +311,7 @@ def _lifespan(
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
     tracing_fixture_names: Set[str] = set(),
+    force_fixture_ingestion: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -329,6 +332,7 @@ def _lifespan(
             queue_span=queue_span,
             queue_evaluation=queue_evaluation,
             tracing_fixture_names=tracing_fixture_names,
+            force_fixture_ingestion=force_fixture_ingestion,
         ):
             for callback in startup_callbacks:
                 callback()
@@ -521,6 +525,7 @@ def create_app(
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     secret: Optional[str] = None,
     tracing_fixture_names: Set[str] = set(),
+    force_fixture_ingestion: bool = False,
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -607,6 +612,7 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             tracing_fixture_names=tracing_fixture_names,
+            force_fixture_ingestion=force_fixture_ingestion,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
