@@ -35,40 +35,24 @@ def test_launch_app(
     fake: Faker,
 ) -> None:
     span_names: Set[str] = set()
-    with launch():
-        for tracer in tracers:
-            name = fake.pystr()
-            span_names.add(name)
-            tracer.start_span(name).end()
-        sleep(2)
-        response = urlopen(req)
-        response_dict = json.loads(response.read().decode("utf-8"))
-        assert response_dict
-        assert not response_dict.get("errors")
-        assert {
-            span["node"]["name"]
-            for project in response_dict["data"]["projects"]["edges"]
-            for span in project["node"]["spans"]["edges"]
-            if project["node"]["name"] == project_name
-        } == span_names
-    print(f"{response_dict=}")
-    with launch():
-        for tracer in tracers:
-            name = fake.pystr()
-            span_names.add(name)
-            tracer.start_span(name).end()
-        sleep(2)
-        response = urlopen(req)
-        response_dict = json.loads(response.read().decode("utf-8"))
-        assert response_dict
-        assert not response_dict.get("errors")
-        assert {
-            span["node"]["name"]
-            for project in response_dict["data"]["projects"]["edges"]
-            for span in project["node"]["spans"]["edges"]
-            if project["node"]["name"] == project_name
-        } == span_names
-    print(f"{response_dict=}")
+    for _ in range(2):
+        with launch():
+            for tracer in tracers:
+                name = fake.pystr()
+                span_names.add(name)
+                tracer.start_span(name).end()
+            sleep(2)
+            response = urlopen(req)
+            response_dict = json.loads(response.read().decode("utf-8"))
+            assert response_dict
+            assert not response_dict.get("errors")
+            assert {
+                span["node"]["name"]
+                for project in response_dict["data"]["projects"]["edges"]
+                for span in project["node"]["spans"]["edges"]
+                if project["node"]["name"] == project_name
+            } == span_names
+        print(f"{response_dict=}")
 
 
 @contextmanager
