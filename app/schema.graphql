@@ -134,6 +134,13 @@ input CreateTraceAnnotationInput {
   metadata: JSON! = {}
 }
 
+input CreateUserInput {
+  email: String!
+  username: String
+  password: String!
+  role: UserRoleInput!
+}
+
 enum DataQualityMetric {
   cardinality
   percentEmpty
@@ -899,6 +906,7 @@ type Mutation {
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
+  createUser(input: CreateUserInput!): UserMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -1449,10 +1457,19 @@ type UserEdge {
   node: User!
 }
 
+type UserMutationPayload {
+  user: User!
+}
+
 type UserRole implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
+}
+
+enum UserRoleInput {
+  ADMIN
+  MEMBER
 }
 
 type ValidationResult {

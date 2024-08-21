@@ -19,7 +19,6 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio.engine import AsyncConnection
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -111,22 +110,15 @@ LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
 
 
-async def get_token_counts_from_attributes(connection: AsyncConnection) -> None:
-    """
-    Gets token counts from attributes if present.
-    """
-    await connection.execute(
+def upgrade() -> None:
+    op.add_column("spans", sa.Column("llm_token_count_prompt", sa.Integer, nullable=True))
+    op.add_column("spans", sa.Column("llm_token_count_completion", sa.Integer, nullable=True))
+    op.execute(
         update(Span).values(
             llm_token_count_prompt=Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
             llm_token_count_completion=Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
         )
     )
-
-
-def upgrade() -> None:
-    op.add_column("spans", sa.Column("llm_token_count_prompt", sa.Integer, nullable=True))
-    op.add_column("spans", sa.Column("llm_token_count_completion", sa.Integer, nullable=True))
-    op.run_async(get_token_counts_from_attributes)
 
 
 def downgrade() -> None:

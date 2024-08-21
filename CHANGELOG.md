@@ -1,5 +1,43 @@
 # Changelog
 
+## [4.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.25.0...arize-phoenix-v4.26.0) (2024-08-21)
+
+
+### Features
+
+* **auth:** add login/ logout routes and createUser mutation ([#4293](https://github.com/Arize-ai/phoenix/issues/4293)) ([a3ff0f6](https://github.com/Arize-ai/phoenix/commit/a3ff0f6b1c90f126db1249e877d2369ab9bffe02))
+
+
+### Bug Fixes
+
+* postgresql driver name for db migrations ([#4304](https://github.com/Arize-ai/phoenix/issues/4304)) ([9e683f2](https://github.com/Arize-ai/phoenix/commit/9e683f2ef3c99a7c24233ea45ac1d666399107e4))
+
+## [4.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.24.0...arize-phoenix-v4.25.0) (2024-08-21)
+
+
+### Features
+
+* **auth:** add expiry support for system keys ([#4296](https://github.com/Arize-ai/phoenix/issues/4296)) ([8d436a5](https://github.com/Arize-ai/phoenix/commit/8d436a5d6e8b6d79a169c0ce186f1e5e07da62cd))
+* **auth:** create system key ([#4235](https://github.com/Arize-ai/phoenix/issues/4235)) ([bae5fbe](https://github.com/Arize-ai/phoenix/commit/bae5fbee5b7b51146de61ee8b5e37463a550ad63))
+* **auth:** system api keys ui ([#4270](https://github.com/Arize-ai/phoenix/issues/4270)) ([695fdea](https://github.com/Arize-ai/phoenix/commit/695fdea226a936a3b238d8bcbfe6e4ec49e31fe4))
+* Clarify `register` API documentation ([#4280](https://github.com/Arize-ai/phoenix/issues/4280)) ([819236c](https://github.com/Arize-ai/phoenix/commit/819236c1e654f168abd725ca2c4e3d7cf187b384))
+* Create `phoenix.otel` package ([#4230](https://github.com/Arize-ai/phoenix/issues/4230)) ([4e2ad61](https://github.com/Arize-ai/phoenix/commit/4e2ad615a6685bb60df987e1f23f3162eb5d3ca5))
+
+
+### Bug Fixes
+
+* conditionally display re-ranker queries in span details ([#4263](https://github.com/Arize-ai/phoenix/issues/4263)) ([248d61b](https://github.com/Arize-ai/phoenix/commit/248d61bace47c98cf18580e9f202a89e31cd635f))
+* **python:** application launch on Windows ([#4276](https://github.com/Arize-ai/phoenix/issues/4276)) ([9ede0a3](https://github.com/Arize-ai/phoenix/commit/9ede0a3e7068f5f5c76bebcdc070d73fbcabd17d))
+
+
+### Documentation
+
+* add haystack to README ([a244cdd](https://github.com/Arize-ai/phoenix/commit/a244cdd69b8c9b5e3412e6af1d56cef856c6f535))
+* Add human feedback notebook tutorial ([#4257](https://github.com/Arize-ai/phoenix/issues/4257)) ([d4c200f](https://github.com/Arize-ai/phoenix/commit/d4c200f3343ea4eb821b5faca1c2fb45e86788b9))
+* add LLM fixtures for demo dataset (fine-tuning dataset), fix demo notebook ([#4286](https://github.com/Arize-ai/phoenix/issues/4286)) ([9f54510](https://github.com/Arize-ai/phoenix/commit/9f545107f111d6083df69ae601c4f96ca7cce03a))
+* Add Phoenix Llamaindex RAG Demo notebook + chunks + questions ([#4202](https://github.com/Arize-ai/phoenix/issues/4202)) ([7f1b817](https://github.com/Arize-ai/phoenix/commit/7f1b81719e4bcb2ea7a71406183a4b071400e40f))
+* fix variable name typo in run experiments doc ([#4249](https://github.com/Arize-ai/phoenix/issues/4249)) ([9745754](https://github.com/Arize-ai/phoenix/commit/9745754cd5168962bb780400f65c55f58a20b1f2))
+
 ## [4.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.23.0...arize-phoenix-v4.24.0) (2024-08-15)
 
 
