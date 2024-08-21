@@ -17,8 +17,8 @@ from typing import (
     List,
     NamedTuple,
     Optional,
-    Tuple,
     Set,
+    Tuple,
     Union,
     cast,
 )
@@ -90,9 +90,6 @@ from phoenix.server.types import (
     DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
-)
-from phoenix.inferences.fixtures import (
-    get_fixture_by_name,
 )
 from phoenix.trace.fixtures import (
     get_evals_from_fixture,
