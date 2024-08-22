@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.core.model_schema import Model
@@ -77,7 +78,7 @@ class Context(BaseContext):
     secret: Optional[str] = None
 
     def get_secret(self) -> str:
-        """A type safe way to get the application secret. Throws an error if the secret is not set.
+        """A type-safe way to get the application secret. Throws an error if the secret is not set.
 
         Returns:
             str: the phoenix secret
@@ -88,3 +89,11 @@ class Context(BaseContext):
                 " Please set the PHOENIX_SECRET environment variable and re-deploy the application."
             )
         return self.secret
+
+    def get_response(self) -> StarletteResponse:
+        """
+        A type-safe way to get the response object. Throws an error if the response is not set.
+        """
+        if (response := self.response) is None:
+            raise ValueError("no response is set")
+        return response

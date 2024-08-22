@@ -49,7 +49,7 @@ class AuthMutationMixin:
             ),
         ):
             return AuthMutationPayload(success=False)
-        response = info.context.response
+        response = info.context.get_response()
         response.set_cookie(
             key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
             value="token",  # todo: compute access token
@@ -65,6 +65,6 @@ class AuthMutationMixin:
         self,
         info: Info[Context, None],
     ) -> AuthMutationPayload:
-        response = info.context.response
+        response = info.context.get_response()
         response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return AuthMutationPayload(success=True)
