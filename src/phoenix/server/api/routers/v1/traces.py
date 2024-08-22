@@ -28,7 +28,7 @@ from phoenix.server.dml_event import TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["traces"])

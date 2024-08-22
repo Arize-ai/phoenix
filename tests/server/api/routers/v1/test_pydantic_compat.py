@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytz
 
-from phoenix.server.api.routers.v1.pydantic_compat import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 
 
 class TestV1RoutesBaseModel:

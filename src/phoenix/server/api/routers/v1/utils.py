@@ -2,7 +2,7 @@ from typing import Any, Dict, Generic, List, Optional, TypedDict, Union
 
 from typing_extensions import TypeAlias, TypeVar, assert_never
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 
 StatusCode: TypeAlias = int
 DataType = TypeVar("DataType")

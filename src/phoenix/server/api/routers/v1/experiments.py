@@ -15,7 +15,7 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentInsertEvent
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["experiments"], include_in_schema=False)

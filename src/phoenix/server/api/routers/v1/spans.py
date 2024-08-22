@@ -19,7 +19,7 @@ from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
