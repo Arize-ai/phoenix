@@ -27,7 +27,7 @@ class AuthMutationPayload:
 
 @strawberry.type
 class AuthMutationMixin:
-    @strawberry.mutation(permission_classes=[HasSecret])
+    @strawberry.mutation(permission_classes=[HasSecret])  # type: ignore
     async def login(
         self,
         info: Info[Context, None],
@@ -60,7 +60,7 @@ class AuthMutationMixin:
         )
         return AuthMutationPayload(success=True)
 
-    @strawberry.mutation(permission_classes=[HasSecret])
+    @strawberry.mutation(permission_classes=[HasSecret])  # type: ignore
     async def logout(
         self,
         info: Info[Context, None],
