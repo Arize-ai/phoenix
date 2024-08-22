@@ -146,16 +146,7 @@ release = phoenix.__version__
 # If READTHEDOCS_VERSION doesn't exist, we're not on RTD
 # If it is an integer, we're in a PR build and the version isn't correct.
 # If it's "latest" → change to "dev" (that's what we want the switcher to call it)
-if not version_match or version_match.isdigit() or version_match == "latest":
-    # For local development, infer the version to match from the package.
-    if "dev" in release or "rc" in release:
-        version_match = "dev"
-        # We want to keep the relative reference if we are in dev mode
-        # but we want the whole url if we are effectively in a released version
-        json_url = "_static/switcher.json"
-    else:
-        version_match = f"v{release}"
-elif version_match == "stable":
+if not version_match or version_match.isdigit() or version_match == "stable":
     version_match = f"v{release}"
 
 # -- Options for HTML output -------------------------------------------------
@@ -194,13 +185,13 @@ html_theme_options = {
     "navbar_start": ["navbar-logo", "version-switcher"],
     "switcher": {
         "json_url": json_url,
-        "version_match": release,
+        "version_match": version_match,
     },
     "secondary_sidebar_items": [],
     "footer_start": [],
     "footer_end": ["copyright"],
     "navigation_depth": 3,
-    "collapse_navigation": True
+    "collapse_navigation": True,
 }
 
 html_sidebars = {
