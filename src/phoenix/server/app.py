@@ -299,12 +299,12 @@ class Scaffolder(DaemonTask):
         loading its trace dataframe, gettting and processings its
         spans and evals, and queuing.
         """
-        try:
-            loop = asyncio.get_running_loop()
-            for fixture in self._tracing_fixtures:
+        loop = asyncio.get_running_loop()
+        for fixture in self._tracing_fixtures:
+            try:
                 trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-                fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
+                fixture_spans, fixture_evals = await loop.run_in_executor(
                     None,
                     reset_fixture_span_ids_and_timestamps,
                     (
@@ -323,12 +323,12 @@ class Scaffolder(DaemonTask):
                 for evaluation in fixture_evals:
                     await self._queue_evaluation(evaluation)
 
-        except FileNotFoundError:
-            logger.warning(f"Fixture file not found for '{fixture.name}'")
-        except ValueError as e:
-            logger.error(f"Error processing fixture '{fixture.name}': {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
+            except FileNotFoundError:
+                logger.warning(f"Fixture file not found for '{fixture.name}'")
+            except ValueError as e:
+                logger.error(f"Error processing fixture '{fixture.name}': {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
 
 
 def _lifespan(
