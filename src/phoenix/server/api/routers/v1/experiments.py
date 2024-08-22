@@ -2,7 +2,7 @@ from datetime import datetime
 from random import getrandbits
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
