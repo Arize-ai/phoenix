@@ -1,14 +1,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Flex,
-  Form,
-  Heading,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
 import { Logo } from "@phoenix/components/nav/Logo";
 
