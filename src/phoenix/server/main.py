@@ -247,17 +247,6 @@ if __name__ == "__main__":
     elif args.command == "serve":
         # We use sets to avoid duplicates
         tracing_fixture_names = set()
-
-        # Initial startup demo dataset ingestion
-        inital_demo_projects = ["demo_llama_index", "demo_multimodal"]
-        inital_demo_trace_fixtures = []
-        tracing_fixture_names.update(
-            fixture.name
-            for name in inital_demo_projects
-            for fixture in get_trace_fixtures_by_project_name(name)
-        )
-        tracing_fixture_names.update(inital_demo_trace_fixtures)
-
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),

@@ -97,6 +97,7 @@ from phoenix.server.types import (
 from phoenix.trace.fixtures import (
     get_evals_from_fixture,
     get_trace_fixture_by_name,
+    get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
 )
@@ -114,6 +115,17 @@ logger.addHandler(logging.NullHandler())
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+# Initial boot up demo fixtures for ingestion
+INITIAL_DEMO_PROJECTS = []
+INITIAL_DEMO_TRACE_FIXTURES = []
+
+"""
+Threshold (in minutes) to determine if database is booted up for the first time.
+
+Used to assess whether the `default` project was created recently.
+If so, demo data is automatically ingested upon initial boot to populate the database.
+"""
 NEW_DB_AGE_THRESHOLD_MINUTES = 1
 
 ProjectName: TypeAlias = str
@@ -248,7 +260,9 @@ class Scaffolder(DaemonTask):
         self._db = db
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
-        self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
+        self._tracing_fixtures = set(
+            get_trace_fixture_by_name(name) for name in tracing_fixture_names
+        )
         self._force_fixture_ingestion = force_fixture_ingestion
 
     async def __aenter__(self) -> None:
@@ -258,26 +272,79 @@ class Scaffolder(DaemonTask):
         await self.stop()
 
     async def _run(self) -> None:
+        """
+        Main entry point for Scaffolder.
+        Determines whether to load fixtures and handles them.
+        """
+        if await self._should_load_fixtures():
+            logger.info("Loading trace fixtures.")
+            await self._handle_tracing_fixtures()
+            logger.info("Finished loading fixtures.")
+        else:
+            logger.info("DB is not new, avoid loading demo fixtures.")
+
+    async def _should_load_fixtures(self) -> bool:
+        if self._force_fixture_ingestion:
+            return True
+
         async with self._db() as session:
             created_at = await session.scalar(
                 select(models.Project.created_at).where(models.Project.name == "default")
             )
-            if created_at is None:
-                is_new_db = True
-            else:
-                is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
-                    minutes=NEW_DB_AGE_THRESHOLD_MINUTES
-                )
-        if self._force_fixture_ingestion or is_new_db:
-            logger.info("Loading Trace Fixtures.")
-            await self._handle_tracing_fixtures()
-            logger.info("Finished loading fixtures. You may have to refresh.")
-        else:
-            logger.info("DB is not new, avoid loading demo fixtures.")
-            return
+
+        is_new_db = created_at is None or (
+            datetime.now(timezone.utc) - created_at
+            < timedelta(minutes=NEW_DB_AGE_THRESHOLD_MINUTES)
+        )
+        return is_new_db
 
     async def _handle_tracing_fixtures(self) -> None:
+        """
+        Main handler for processing trace fixtures.
+        """
+        await self._add_initial_boot_demo_fixtures()
+
         for fixture in self._tracing_fixtures:
+            await self._process_fixture(fixture)
+
+    async def _add_initial_boot_demo_fixtures(self):
+        """
+        Ingest demo fixtures once on first time boot.
+        """
+        demo_trace_fixtures = set()
+        for proj_name in INITIAL_DEMO_PROJECTS:
+            try:
+                project_fixtures = set(
+                    get_trace_fixture_by_name(fixture.name)
+                    for fixture in get_trace_fixtures_by_project_name(proj_name)
+                )
+                demo_trace_fixtures.update(project_fixtures)
+            except Exception as e:
+                logger.error(f"Error getting demo project fixtures for '{proj_name}': {e}")
+
+        for trace_name in INITIAL_DEMO_TRACE_FIXTURES:
+            try:
+                demo_trace_fixtures.update(get_trace_fixture_by_name(trace_name))
+            except Exception as e:
+                logger.error(f"Error getting demo trace fixture '{trace_name}': {e}")
+
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                None,
+                self._tracing_fixtures.update,
+                demo_trace_fixtures,
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error loading boot demo fixtures: {e}")
+
+    async def _process_fixture(self, fixture) -> None:
+        """
+        Process a single fixture by loading its trace dataframe, gettting and processings its
+        spans and evals, and queuing.
+
+        :param fixture: The fixture to process
+        """
+        try:
             trace_ds = await asyncio.get_running_loop().run_in_executor(
                 None, load_example_traces, fixture.name
             )
@@ -293,12 +360,31 @@ class Scaffolder(DaemonTask):
                 ),
                 get_evals_from_fixture(fixture.name),
             )
+
             project_name = fixture.project_name or fixture.name
             logger.info(f"Loading '{project_name}' fixtures...")
-            for span in fixture_spans:
-                await self._queue_span(span, project_name)
-            for evaluation in fixture_evals:
-                await self._queue_evaluation(evaluation)
+            await self._queue_fixtures(fixture_spans, fixture_evals, project_name)
+
+        except FileNotFoundError:
+            logger.warning(f"Fixture file not found for '{fixture.name}'")
+        except ValueError as e:
+            logger.error(f"Error processing fixture '{fixture.name}': {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
+
+    async def _queue_fixtures(self, fixture_spans, fixture_evals, project_name):
+        """
+        Queue the fixture spans and evaluations using the queue_span function passed
+        into Scaffolder.
+
+        :param fixture_spans: List of fixture spans
+        :param fixture_evals: List of fixture evaluations
+        :param project_name: Name of the fixture project
+        """
+        for span in fixture_spans:
+            await self._queue_span(span, project_name)
+        for evaluation in fixture_evals:
+            await self._queue_evaluation(evaluation)
 
 
 def _lifespan(
