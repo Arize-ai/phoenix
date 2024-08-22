@@ -3,18 +3,24 @@ import { css } from "@emotion/react";
 
 import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
-import { Logo } from "@phoenix/components/nav/Logo";
+import { PhoenixLogo } from "./PhoenixLogo";
 
 export function LoginPage() {
   return (
     <main
       css={css`
-        padding-top: var(--ac-global-dimension-size-2000);
+        padding-top: 200px;
         width: 100%;
+        height: 100vh;
+        background: radial-gradient(
+          90% 60% at 50% 30%,
+          rgba(5, 145, 193, 0.4) 0%,
+          transparent 100%
+        );
       `}
     >
       <View
-        borderColor="dark"
+        borderColor="light"
         borderWidth="thin"
         width="size-5000"
         padding="size-400"
@@ -24,8 +30,8 @@ export function LoginPage() {
         borderRadius="medium"
       >
         <Flex direction="column" gap="size-200" alignItems="center">
-          <View paddingBottom="size-400">
-            <Logo size={120} />
+          <View paddingBottom="size-200">
+            <PhoenixLogo />
           </View>
         </Flex>
         <Form action="/login" method="post">
