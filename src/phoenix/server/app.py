@@ -95,6 +95,7 @@ from phoenix.server.types import (
     LastUpdatedAt,
 )
 from phoenix.trace.fixtures import (
+    TracesFixture,
     get_evals_from_fixture,
     get_trace_fixture_by_name,
     get_trace_fixtures_by_project_name,
@@ -103,6 +104,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.trace.v1.evaluation_pb2 import Evaluation
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
 if TYPE_CHECKING:
@@ -117,8 +119,8 @@ router = APIRouter(include_in_schema=False)
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 # Initial boot up demo fixtures for ingestion
-INITIAL_DEMO_PROJECTS = []
-INITIAL_DEMO_TRACE_FIXTURES = []
+INITIAL_DEMO_PROJECTS: List[str] = ["demo_llama_index"]
+INITIAL_DEMO_TRACE_FIXTURES: List[str] = []
 
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
@@ -307,7 +309,7 @@ class Scaffolder(DaemonTask):
         for fixture in self._tracing_fixtures:
             await self._process_fixture(fixture)
 
-    async def _add_initial_boot_demo_fixtures(self):
+    async def _add_initial_boot_demo_fixtures(self) -> None:
         """
         Ingest demo fixtures once on first time boot up.
         """
@@ -324,7 +326,7 @@ class Scaffolder(DaemonTask):
 
         for trace_name in INITIAL_DEMO_TRACE_FIXTURES:
             try:
-                demo_trace_fixtures.update(get_trace_fixture_by_name(trace_name))
+                demo_trace_fixtures.add(get_trace_fixture_by_name(trace_name))
             except Exception as e:
                 logger.error(f"Error getting demo trace fixture '{trace_name}': {e}")
 
@@ -337,7 +339,7 @@ class Scaffolder(DaemonTask):
         except Exception as e:
             logger.error(f"Unexpected error loading boot up demo fixtures: {e}")
 
-    async def _process_fixture(self, fixture) -> None:
+    async def _process_fixture(self, fixture: TracesFixture) -> None:
         """
         Process a single fixture by loading its trace dataframe, gettting and processings its
         spans and evals, and queuing.
@@ -372,7 +374,9 @@ class Scaffolder(DaemonTask):
         except Exception as e:
             logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
 
-    async def _queue_fixtures(self, fixture_spans, fixture_evals, project_name):
+    async def _queue_fixtures(
+        self, fixture_spans: List[Span], fixture_evals: List[Evaluation], project_name: str
+    ) -> None:
         """
         Queue the fixture spans and evaluations using the queue_span function passed
         into Scaffolder.
