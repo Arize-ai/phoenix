@@ -267,9 +267,6 @@ class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
 async def list_experiments(
     request: Request,
     dataset_id: str,
-    project_name: Optional[str] = Query(
-        default=None, description="The project name to get experiments from"
-    ),
 ) -> ListExperimentsResponseBody:
     dataset_gid = GlobalID.from_id(dataset_id)
     try:
@@ -285,8 +282,6 @@ async def list_experiments(
             .where(models.Experiment.dataset_id == dataset_rowid)
             .order_by(models.Experiment.id.desc())
         )
-        if project_name:
-            query = query.where(models.Experiment.project_name == project_name)
 
         result = await session.execute(query)
         experiments = result.scalars().all()
@@ -303,7 +298,7 @@ async def list_experiments(
                 ),
                 repetitions=experiment.repetitions,
                 metadata=experiment.metadata_,
-                project_name=experiment.project_name,
+                project_name=None,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
             )
