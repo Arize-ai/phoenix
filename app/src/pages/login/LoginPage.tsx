@@ -9,11 +9,6 @@ import { Logo } from "@phoenix/components/nav/Logo";
 
 import type { LoginPageMutation } from "./__generated__/LoginPageMutation.graphql";
 
-export type LoginFormParams = {
-  email: string;
-  password: string;
-};
-
 export function LoginPage() {
   return (
     <main
@@ -42,6 +37,11 @@ export function LoginPage() {
     </main>
   );
 }
+
+type LoginFormParams = {
+  email: string;
+  password: string;
+};
 
 export function LoginForm() {
   const [commit, isCommiting] = useMutation<LoginPageMutation>(graphql`
@@ -74,19 +74,13 @@ export function LoginForm() {
       <Controller
         name="email"
         control={control}
-        render={({
-          field: { onChange, onBlur, value },
-          fieldState: { invalid, error },
-        }) => (
+        render={({ field: { onChange, value } }) => (
           <TextField
             label="Email"
             name="email"
             isRequired
             type="email"
-            errorMessage={error?.message}
-            validationState={invalid ? "invalid" : "valid"}
             onChange={onChange}
-            onBlur={onBlur}
             value={value}
             placeholder="your email address"
           />
@@ -95,19 +89,13 @@ export function LoginForm() {
       <Controller
         name="password"
         control={control}
-        render={({
-          field: { onChange, onBlur, value },
-          fieldState: { invalid, error },
-        }) => (
+        render={({ field: { onChange, value } }) => (
           <TextField
             label="Password"
             name="password"
             type="password"
             isRequired
-            errorMessage={error?.message}
-            validationState={invalid ? "invalid" : "valid"}
             onChange={onChange}
-            onBlur={onBlur}
             value={value}
             placeholder="your password"
           />
