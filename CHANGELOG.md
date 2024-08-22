@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.26.0...arize-phoenix-v4.27.0) (2024-08-22)
+
+
+### Features
+
+* Add `list_experiments` client method ([#4271](https://github.com/Arize-ai/phoenix/issues/4271)) ([a063d83](https://github.com/Arize-ai/phoenix/commit/a063d839007e117152605ffd85a63b9c99ac82f6))
+* Add fixtures only for new DBs, add flag to force fixture ingestion ([#4315](https://github.com/Arize-ai/phoenix/issues/4315)) ([ef4adcd](https://github.com/Arize-ai/phoenix/commit/ef4adcd0df4615af0f7aef986c2d7d158cf7d650))
+* **auth:** minimal login page ([#4320](https://github.com/Arize-ai/phoenix/issues/4320)) ([764f359](https://github.com/Arize-ai/phoenix/commit/764f3594cf44ba23395b5e6cc4d021bb33d8b365))
+* **experiments:** add the ability to copy experiment IDs to the clipboard ([#4317](https://github.com/Arize-ai/phoenix/issues/4317)) ([589ac03](https://github.com/Arize-ai/phoenix/commit/589ac03677108be9c11c2acd66a94d79ee32e6fa))
+* onboarding demo projects ([#4262](https://github.com/Arize-ai/phoenix/issues/4262)) ([74dd3c7](https://github.com/Arize-ai/phoenix/commit/74dd3c7b678e4577d811ca020d0119dc36f4ce8e))
+
+
+### Bug Fixes
+
+* handle `None` values in the `reference` column in the `get_qa_with_reference` helper ([#4309](https://github.com/Arize-ai/phoenix/issues/4309)) ([58685b7](https://github.com/Arize-ai/phoenix/commit/58685b73d2675cb03b6658de362c37fbd9dc3cff))
+
 ## [4.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.25.0...arize-phoenix-v4.26.0) (2024-08-21)
 
 
