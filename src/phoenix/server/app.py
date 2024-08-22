@@ -302,9 +302,7 @@ class Scaffolder(DaemonTask):
         try:
             loop = asyncio.get_running_loop()
             for fixture in self._tracing_fixtures:
-                trace_ds = await loop.run_in_executor(
-                    None, load_example_traces, fixture.name
-                )
+                trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
                 fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
                     None,
