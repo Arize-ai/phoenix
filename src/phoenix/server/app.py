@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
 from types import MethodType
@@ -28,6 +29,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -46,6 +48,7 @@ import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR, server_instrumentation_is_enabled
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.helpers import SupportedSQLDialect
@@ -111,6 +114,14 @@ logger.addHandler(logging.NullHandler())
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+"""
+Threshold (in minutes) to determine if database is booted up for the first time.
+
+Used to assess whether the `default` project was created recently.
+If so, demo data is automatically ingested upon initial boot up to populate the database.
+"""
+NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 
@@ -234,14 +245,20 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 class Scaffolder(DaemonTask):
     def __init__(
         self,
+        db: DbSessionFactory,
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
         tracing_fixture_names: Set[str] = set(),
+        force_fixture_ingestion: bool = False,
     ) -> None:
         super().__init__()
+        self._db = db
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
-        self._tracing_fixtures = [get_trace_fixture_by_name(name) for name in tracing_fixture_names]
+        self._tracing_fixtures = set(
+            get_trace_fixture_by_name(name) for name in tracing_fixture_names
+        )
+        self._force_fixture_ingestion = force_fixture_ingestion
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -250,38 +267,74 @@ class Scaffolder(DaemonTask):
         await self.stop()
 
     async def _run(self) -> None:
-        logger.info("Loading Trace Fixtures.")
-        await self._handle_tracing_fixtures()
-        logger.info("Finished loading fixtures. You may have to refresh.")
+        """
+        Main entry point for Scaffolder.
+        Determines whether to load fixtures and handles them.
+        """
+        if await self._should_load_fixtures():
+            logger.info("Loading trace fixtures.")
+            await self._handle_tracing_fixtures()
+            logger.info("Finished loading fixtures.")
+        else:
+            logger.info("DB is not new, avoid loading demo fixtures.")
+
+    async def _should_load_fixtures(self) -> bool:
+        if self._force_fixture_ingestion:
+            return True
+
+        async with self._db() as session:
+            created_at = await session.scalar(
+                select(models.Project.created_at).where(models.Project.name == "default")
+            )
+        if created_at is None:
+            return False
+
+        is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
+            minutes=NEW_DB_AGE_THRESHOLD_MINUTES
+        )
+        return is_new_db
 
     async def _handle_tracing_fixtures(self) -> None:
+        """
+        Main handler for processing trace fixtures. Process each fixture by
+        loading its trace dataframe, gettting and processings its
+        spans and evals, and queuing.
+        """
+        loop = asyncio.get_running_loop()
         for fixture in self._tracing_fixtures:
-            trace_ds = await asyncio.get_running_loop().run_in_executor(
-                None, load_example_traces, fixture.name
-            )
+            try:
+                trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-            fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
-                None,
-                reset_fixture_span_ids_and_timestamps,
-                (
-                    # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
-                    # `encode` removes the hyphens in the UUIDs.
-                    decode_otlp_span(encode_span_to_otlp(span))
-                    for span in trace_ds.to_spans()
-                ),
-                get_evals_from_fixture(fixture.name),
-            )
-            project_name = fixture.project_name or fixture.name
-            logger.info(f"Loading '{project_name}' fixtures...")
-            for span in fixture_spans:
-                await self._queue_span(span, project_name)
-            for evaluation in fixture_evals:
-                await self._queue_evaluation(evaluation)
+                fixture_spans, fixture_evals = await loop.run_in_executor(
+                    None,
+                    reset_fixture_span_ids_and_timestamps,
+                    (
+                        # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                        # `encode` removes the hyphens in the UUIDs.
+                        decode_otlp_span(encode_span_to_otlp(span))
+                        for span in trace_ds.to_spans()
+                    ),
+                    get_evals_from_fixture(fixture.name),
+                )
+
+                project_name = fixture.project_name or fixture.name
+                logger.info(f"Loading '{project_name}' fixtures...")
+                for span in fixture_spans:
+                    await self._queue_span(span, project_name)
+                for evaluation in fixture_evals:
+                    await self._queue_evaluation(evaluation)
+
+            except FileNotFoundError:
+                logger.warning(f"Fixture file not found for '{fixture.name}'")
+            except ValueError as e:
+                logger.error(f"Error processing fixture '{fixture.name}': {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
 
 
 def _lifespan(
     *,
-    dialect: SupportedSQLDialect,
+    db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
@@ -290,11 +343,12 @@ def _lifespan(
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
     tracing_fixture_names: Set[str] = set(),
+    force_fixture_ingestion: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
+        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with bulk_inserter as (
             enqueue,
             queue_span,
@@ -306,9 +360,11 @@ def _lifespan(
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ), dml_event_handler, Scaffolder(
+            db=db,
             queue_span=queue_span,
             queue_evaluation=queue_evaluation,
             tracing_fixture_names=tracing_fixture_names,
+            force_fixture_ingestion=force_fixture_ingestion,
         ):
             for callback in startup_callbacks:
                 callback()
@@ -501,6 +557,7 @@ def create_app(
     shutdown_callbacks: Iterable[Callable[[], None]] = (),
     secret: Optional[str] = None,
     tracing_fixture_names: Set[str] = set(),
+    force_fixture_ingestion: bool = False,
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -573,11 +630,12 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
+
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
-            dialect=db.dialect,
+            db=db,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
@@ -586,6 +644,7 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             tracing_fixture_names=tracing_fixture_names,
+            force_fixture_ingestion=force_fixture_ingestion,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
