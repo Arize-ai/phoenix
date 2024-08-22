@@ -87,6 +87,7 @@
     "build:relay": "relay-compiler",
     "test": "jest --config ./jest.config.js",
     "dev": "pnpm run dev:server & pnpm run build:static && pnpm run build:relay && vite",
+    "dev:auth": "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH=true && DANGEROUSLY_SET_PHOENIX_SECRET=secret && pnpm run dev:server & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "pnpm run build:static && pnpm run build:relay && vite",
     "dev:server:mnist": "python3 -m phoenix.server.main --dev --umap_params 0,30,550 fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main --dev fixture fashion_mnist --primary-only true",
