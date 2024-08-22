@@ -25,8 +25,8 @@ to an endpoint at `http://localhost` using gRPC.
 ### Configuring the collector endpoint
 
 There are two ways to configure the collector endpoint:
-  - Using environment variables
-  - Using the `endpoint` keyword argument
+- Using environment variables
+- Using the `endpoint` keyword argument
 
 #### Using environment variables
 
