@@ -76,7 +76,6 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceRowIdsDataLoader,
 )
-from phoenix.server.api.routers.auth import router as auth_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
@@ -603,8 +602,6 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
-    if authentication_enabled:
-        app.include_router(auth_router)
     if serve_ui:
         app.mount(
             "/",
