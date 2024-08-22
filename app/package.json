@@ -110,6 +110,7 @@
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'"
   },
+  "packageManager": "pnpm@9.8.0",
   "pnpm": {
     "overrides": {
       "braces@<3.0.3": ">=3.0.3"
