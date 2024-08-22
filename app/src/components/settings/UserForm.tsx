@@ -37,7 +37,7 @@ export function UserForm({
       email: email ?? "",
       username: username ?? null,
       password: password ?? "",
-      role: role ?? UserRole.ADMIN,
+      role: role ?? UserRole.MEMBER,
     },
   });
   return (

@@ -41,7 +41,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       email: user.email,
       username: user.username,
       createdAt: user.createdAt,
-      roleName: user.role.name,
+      roleName: user.role.name.toLocaleLowerCase(),
     }));
   }, [data]);
 
