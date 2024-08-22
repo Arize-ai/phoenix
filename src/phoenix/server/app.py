@@ -286,10 +286,11 @@ class Scaffolder(DaemonTask):
             created_at = await session.scalar(
                 select(models.Project.created_at).where(models.Project.name == "default")
             )
+        if created_at is None:
+            return False
 
-        is_new_db = created_at and (
-            datetime.now(timezone.utc) - created_at
-            < timedelta(minutes=NEW_DB_AGE_THRESHOLD_MINUTES)
+        is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
+            minutes=NEW_DB_AGE_THRESHOLD_MINUTES
         )
         return is_new_db
 
