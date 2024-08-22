@@ -67,6 +67,7 @@ export function EditDatasetForm({
       onSubmit={onSubmit}
       isSubmitting={isCommitting}
       submitButtonText={isCommitting ? "Saving..." : "Save"}
+      formMode="edit"
     />
   );
 }
