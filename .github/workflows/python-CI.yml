@@ -7,6 +7,7 @@ on:
     paths:
       - "src/**"
       - "tests/**"
+      - "integration_tests/server/**"
       - "tutorials/**"
       - "pyproject.toml"
       - "packages/**"
@@ -38,6 +39,7 @@ jobs:
             phoenix:
               - "src/**"
               - "tests/**"
+              - "integration_tests/server/**"
               - "tutorials/**"
               - "pyproject.toml"
             packages:
