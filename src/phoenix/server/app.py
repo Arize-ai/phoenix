@@ -287,7 +287,7 @@ class Scaffolder(DaemonTask):
                 select(models.Project.created_at).where(models.Project.name == "default")
             )
 
-        is_new_db = created_at is None or (
+        is_new_db = created_at and (
             datetime.now(timezone.utc) - created_at
             < timedelta(minutes=NEW_DB_AGE_THRESHOLD_MINUTES)
         )
