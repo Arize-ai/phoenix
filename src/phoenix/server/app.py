@@ -95,16 +95,13 @@ from phoenix.server.types import (
     LastUpdatedAt,
 )
 from phoenix.trace.fixtures import (
-    TracesFixture,
     get_evals_from_fixture,
     get_trace_fixture_by_name,
-    get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.trace.v1.evaluation_pb2 import Evaluation
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
 if TYPE_CHECKING:
@@ -118,17 +115,13 @@ router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
-# Initial boot up demo fixtures for ingestion
-INITIAL_DEMO_PROJECTS: List[str] = ["demo_llama_index"]
-INITIAL_DEMO_TRACE_FIXTURES: List[str] = []
-
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
 
 Used to assess whether the `default` project was created recently.
 If so, demo data is automatically ingested upon initial boot up to populate the database.
 """
-NEW_DB_AGE_THRESHOLD_MINUTES = 1
+NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 
@@ -302,70 +295,34 @@ class Scaffolder(DaemonTask):
 
     async def _handle_tracing_fixtures(self) -> None:
         """
-        Main handler for processing trace fixtures.
-        """
-        await self._add_initial_boot_demo_fixtures()
-
-        for fixture in self._tracing_fixtures:
-            await self._process_fixture(fixture)
-
-    async def _add_initial_boot_demo_fixtures(self) -> None:
-        """
-        Ingest demo fixtures once on first time boot up.
-        """
-        demo_trace_fixtures = set()
-        for proj_name in INITIAL_DEMO_PROJECTS:
-            try:
-                project_fixtures = set(
-                    get_trace_fixture_by_name(fixture.name)
-                    for fixture in get_trace_fixtures_by_project_name(proj_name)
-                )
-                demo_trace_fixtures.update(project_fixtures)
-            except Exception as e:
-                logger.error(f"Error getting demo project fixtures for '{proj_name}': {e}")
-
-        for trace_name in INITIAL_DEMO_TRACE_FIXTURES:
-            try:
-                demo_trace_fixtures.add(get_trace_fixture_by_name(trace_name))
-            except Exception as e:
-                logger.error(f"Error getting demo trace fixture '{trace_name}': {e}")
-
-        try:
-            await asyncio.get_running_loop().run_in_executor(
-                None,
-                self._tracing_fixtures.update,
-                demo_trace_fixtures,
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error loading boot up demo fixtures: {e}")
-
-    async def _process_fixture(self, fixture: TracesFixture) -> None:
-        """
-        Process a single fixture by loading its trace dataframe, gettting and processings its
+        Main handler for processing trace fixtures. Process each fixture by
+        loading its trace dataframe, gettting and processings its
         spans and evals, and queuing.
-
-        :param fixture: The fixture to process
         """
         try:
-            trace_ds = await asyncio.get_running_loop().run_in_executor(
-                None, load_example_traces, fixture.name
-            )
+            for fixture in self._tracing_fixtures:
+                trace_ds = await asyncio.get_running_loop().run_in_executor(
+                    None, load_example_traces, fixture.name
+                )
 
-            fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
-                None,
-                reset_fixture_span_ids_and_timestamps,
-                (
-                    # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
-                    # `encode` removes the hyphens in the UUIDs.
-                    decode_otlp_span(encode_span_to_otlp(span))
-                    for span in trace_ds.to_spans()
-                ),
-                get_evals_from_fixture(fixture.name),
-            )
+                fixture_spans, fixture_evals = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    reset_fixture_span_ids_and_timestamps,
+                    (
+                        # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                        # `encode` removes the hyphens in the UUIDs.
+                        decode_otlp_span(encode_span_to_otlp(span))
+                        for span in trace_ds.to_spans()
+                    ),
+                    get_evals_from_fixture(fixture.name),
+                )
 
-            project_name = fixture.project_name or fixture.name
-            logger.info(f"Loading '{project_name}' fixtures...")
-            await self._queue_fixtures(fixture_spans, fixture_evals, project_name)
+                project_name = fixture.project_name or fixture.name
+                logger.info(f"Loading '{project_name}' fixtures...")
+                for span in fixture_spans:
+                    await self._queue_span(span, project_name)
+                for evaluation in fixture_evals:
+                    await self._queue_evaluation(evaluation)
 
         except FileNotFoundError:
             logger.warning(f"Fixture file not found for '{fixture.name}'")
@@ -373,22 +330,6 @@ class Scaffolder(DaemonTask):
             logger.error(f"Error processing fixture '{fixture.name}': {e}")
         except Exception as e:
             logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
-
-    async def _queue_fixtures(
-        self, fixture_spans: List[Span], fixture_evals: List[Evaluation], project_name: str
-    ) -> None:
-        """
-        Queue the fixture spans and evaluations using the queue_span function passed
-        into Scaffolder.
-
-        :param fixture_spans: List of fixture spans
-        :param fixture_evals: List of fixture evaluations
-        :param project_name: Name of the fixture project
-        """
-        for span in fixture_spans:
-            await self._queue_span(span, project_name)
-        for evaluation in fixture_evals:
-            await self._queue_evaluation(evaluation)
 
 
 def _lifespan(
