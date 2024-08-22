@@ -48,7 +48,7 @@ example, in order to export spans via HTTP to localhost, use Pheonix's HTTP coll
 
 ```
 from phoenix.otel import register
-tracer_provider = register(endpoint="http://localhost:6006")
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
 ```
 
 ### Additional configuration
@@ -144,7 +144,7 @@ from phoenix.otel import TracerProvider, BatchSpanProcessor, GRPCSpanExporter
 
 tracer_provider = TracerProvider()
 batch_processor = BatchSpanProcessor(
-    span_exporter=GRPCSpanExporter(endpoint="http://custom-endpoint.com")
+    span_exporter=GRPCSpanExporter(endpoint="http://custom-endpoint.com:6789")
 )
 tracer_provider.add_span_processor(batch_processor)
 ```
