@@ -38,7 +38,7 @@ export function RolePicker<T>({
       {...pickerProps}
     >
       {UserRoles.map((role) => {
-        return <Item key={role}>{role}</Item>;
+        return <Item key={role}>{role.toLocaleLowerCase()}</Item>;
       })}
     </Picker>
   );

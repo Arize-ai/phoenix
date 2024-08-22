@@ -8,6 +8,8 @@ import { UserRole } from "@phoenix/constants";
 
 import { RolePicker } from "./RolePicker";
 
+const MIN_PASSWORD_LENGTH = 4;
+
 export type UserFormParams = {
   email: string;
   username: string | null;
@@ -59,7 +61,7 @@ export function UserForm({
               required: "Email is required",
               pattern: {
                 value: /^[^@\s]+@[^@\s]+[.][^@\s]+$/,
-                message: "Entered value does not match email format",
+                message: "Invalid email format",
               },
             }}
             render={({
@@ -76,7 +78,7 @@ export function UserForm({
                 validationState={invalid ? "invalid" : "valid"}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
               />
             )}
           />
@@ -105,8 +107,8 @@ export function UserForm({
             rules={{
               required: "Password is required",
               minLength: {
-                value: 4,
-                message: "Password must be at least 4 characters",
+                value: MIN_PASSWORD_LENGTH,
+                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
               },
             }}
             render={({
@@ -114,7 +116,7 @@ export function UserForm({
               fieldState: { invalid, error },
             }) => (
               <TextField
-                label="password"
+                label="Password"
                 type="password"
                 description="Password must be at least 4 characters"
                 name={name}
