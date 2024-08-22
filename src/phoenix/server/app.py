@@ -300,8 +300,9 @@ class Scaffolder(DaemonTask):
         spans and evals, and queuing.
         """
         try:
+            loop = asyncio.get_running_loop()
             for fixture in self._tracing_fixtures:
-                trace_ds = await asyncio.get_running_loop().run_in_executor(
+                trace_ds = await loop.run_in_executor(
                     None, load_example_traces, fixture.name
                 )
 
