@@ -42,7 +42,6 @@ const router = createBrowserRouter(
       <Route path="/login" element={<LoginPage />} />
       <Route element={<Layout />}>
         <Route index loader={homeLoader} />
-
         <Route
           path="/model"
           handle={{ crumb: () => "model" }}
