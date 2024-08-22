@@ -124,7 +124,7 @@ INITIAL_DEMO_TRACE_FIXTURES = []
 Threshold (in minutes) to determine if database is booted up for the first time.
 
 Used to assess whether the `default` project was created recently.
-If so, demo data is automatically ingested upon initial boot to populate the database.
+If so, demo data is automatically ingested upon initial boot up to populate the database.
 """
 NEW_DB_AGE_THRESHOLD_MINUTES = 1
 
@@ -309,7 +309,7 @@ class Scaffolder(DaemonTask):
 
     async def _add_initial_boot_demo_fixtures(self):
         """
-        Ingest demo fixtures once on first time boot.
+        Ingest demo fixtures once on first time boot up.
         """
         demo_trace_fixtures = set()
         for proj_name in INITIAL_DEMO_PROJECTS:
@@ -335,7 +335,7 @@ class Scaffolder(DaemonTask):
                 demo_trace_fixtures,
             )
         except Exception as e:
-            logger.error(f"Unexpected error loading boot demo fixtures: {e}")
+            logger.error(f"Unexpected error loading boot up demo fixtures: {e}")
 
     async def _process_fixture(self, fixture) -> None:
         """
