@@ -1,9 +1,18 @@
-import React from "react";
+import React, { useCallback } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
 import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
 import { Logo } from "@phoenix/components/nav/Logo";
+
+import type { LoginPageMutation } from "./__generated__/LoginPageMutation.graphql";
+
+export type LoginFormParams = {
+  email: string;
+  password: string;
+};
 
 export function LoginPage() {
   return (
@@ -28,36 +37,99 @@ export function LoginPage() {
             <Logo size={120} />
           </View>
         </Flex>
-        <Form action="/login" method="post">
+        <LoginForm />
+      </View>
+    </main>
+  );
+}
+
+export function LoginForm() {
+  const [commit, isCommiting] = useMutation<LoginPageMutation>(graphql`
+    mutation LoginPageMutation($email: String!, $password: String!) {
+      login(input: { email: $email, password: $password }) {
+        success
+      }
+    }
+  `);
+  const onSubmit = useCallback(
+    (params: LoginFormParams) => {
+      commit({
+        variables: params,
+        onCompleted: (response) => {
+          if (response.login.success) {
+            return;
+          } else {
+            return;
+          }
+        },
+      });
+    },
+    [commit]
+  );
+  const { control, handleSubmit } = useForm<LoginFormParams>({
+    defaultValues: { email: "", password: "" },
+  });
+  return (
+    <Form>
+      <Controller
+        name="email"
+        control={control}
+        render={({
+          field: { onChange, onBlur, value },
+          fieldState: { invalid, error },
+        }) => (
           <TextField
             label="Email"
             name="email"
             isRequired
             type="email"
+            errorMessage={error?.message}
+            validationState={invalid ? "invalid" : "valid"}
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
             placeholder="your email address"
           />
+        )}
+      />
+      <Controller
+        name="password"
+        control={control}
+        render={({
+          field: { onChange, onBlur, value },
+          fieldState: { invalid, error },
+        }) => (
           <TextField
             label="Password"
             name="password"
             type="password"
             isRequired
+            errorMessage={error?.message}
+            validationState={invalid ? "invalid" : "valid"}
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
             placeholder="your password"
           />
-          <div
-            css={css`
-              margin-top: var(--ac-global-dimension-size-400);
-              margin-bottom: var(--ac-global-dimension-size-50);
-              button {
-                width: 100%;
-              }
-            `}
-          >
-            <Button variant="primary" type="submit">
-              Login
-            </Button>
-          </div>
-        </Form>
-      </View>
-    </main>
+        )}
+      />
+      <div
+        css={css`
+          margin-top: var(--ac-global-dimension-size-400);
+          margin-bottom: var(--ac-global-dimension-size-50);
+          button {
+            width: 100%;
+          }
+        `}
+      >
+        <Button
+          variant="primary"
+          loading={isCommiting}
+          onClick={handleSubmit(onSubmit)}
+        >
+          Login
+        </Button>
+      </div>
+    </Form>
   );
 }
