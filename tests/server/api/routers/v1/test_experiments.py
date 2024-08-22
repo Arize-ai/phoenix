@@ -132,12 +132,34 @@ async def test_reading_experiments(
     assert all(experiment[key] == value for key, value in expected.items())
 
 
-async def test_reading_experiment_404s_with_missing_experiment(
+async def test_listing_experiments_on_empty_dataset(
     httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_without_runs: Any,
 ) -> None:
-    incorrect_experiment_gid = GlobalID("Experiment", "9000")
-    response = await httpx_client.get(f"/v1/experiments/{incorrect_experiment_gid}")
-    assert response.status_code == 404
+    dataset_gid = GlobalID("Dataset", "0")
+
+    response = await httpx_client.get(f"/v1/datasets/{dataset_gid}/experiments")
+    assert response.status_code == 200
+    experiments = response.json()["data"]
+    [experiment["id"] for experiment in experiments]
+    assert len(experiments) == 0, "Both experiments are associated with Dataset with ID 1"
+
+
+async def test_listing_experiments_by_dataset(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_without_runs: Any,
+) -> None:
+    dataset_gid = GlobalID("Dataset", "1")
+    experiment_gid_0 = GlobalID("Experiment", "0")
+    experiment_gid_1 = GlobalID("Experiment", "1")
+
+    response = await httpx_client.get(f"/v1/datasets/{dataset_gid}/experiments")
+    assert response.status_code == 200
+    experiments = response.json()["data"]
+    experiment_gids = [experiment["id"] for experiment in experiments]
+    assert len(experiments) == 2
+    assert str(experiment_gid_1) == experiment_gids[0], "experiments are listed newest first"
+    assert str(experiment_gid_0) == experiment_gids[1], "experiments are listed newest first"
 
 
 async def test_deleting_dataset_also_deletes_experiments(
