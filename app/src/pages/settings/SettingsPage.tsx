@@ -11,6 +11,10 @@ import { APIKeysCard } from "./APIKeysCard";
 import { UsersCard } from "./UsersCard";
 
 const settingsPageCSS = css`
+  overflow-y: auto;
+`;
+
+const settingsPageInnerCSS = css`
   padding: var(--ac-global-dimension-size-400);
   max-width: 800px;
   min-width: 500px;
@@ -31,41 +35,43 @@ export function SettingsPage() {
   const { authenticationEnabled } = useFunctionality();
   return (
     <main css={settingsPageCSS}>
-      <Flex direction="column" gap="size-200" width="100%">
-        <Card title="Platform Settings" variant="compact">
-          <form css={formCSS}>
-            <Flex direction="row" gap="size-100" alignItems="end">
-              <TextField
-                label="Hostname"
-                value={BASE_URL}
-                isReadOnly
-                description="Connect to Phoenix over HTTP"
-              />
-              <CopyToClipboardButtonWithPadding text={BASE_URL} />
-            </Flex>
-            <Flex direction="row" gap="size-100" alignItems="end">
-              <TextField
-                label="Platform Version"
-                isReadOnly
-                value={VERSION}
-                description="The version of the Phoenix server"
-              />
-              <CopyToClipboardButtonWithPadding text={VERSION} />
-            </Flex>
-            <Flex direction="row" gap="size-100" alignItems="end">
-              <TextField
-                label="Python Version"
-                isReadOnly
-                value={`pip install 'arize-phoenix==${VERSION}'`}
-                description="The version of the Python client library to use to connect to this Phoenix"
-              />
-              <CopyToClipboardButtonWithPadding text={VERSION} />
-            </Flex>
-          </form>
-        </Card>
-        {authenticationEnabled && <APIKeysCard />}
-        {authenticationEnabled && <UsersCard />}
-      </Flex>
+      <div css={settingsPageInnerCSS}>
+        <Flex direction="column" gap="size-200" width="100%">
+          <Card title="Platform Settings" variant="compact">
+            <form css={formCSS}>
+              <Flex direction="row" gap="size-100" alignItems="end">
+                <TextField
+                  label="Hostname"
+                  value={BASE_URL}
+                  isReadOnly
+                  description="Connect to Phoenix over HTTP"
+                />
+                <CopyToClipboardButtonWithPadding text={BASE_URL} />
+              </Flex>
+              <Flex direction="row" gap="size-100" alignItems="end">
+                <TextField
+                  label="Platform Version"
+                  isReadOnly
+                  value={VERSION}
+                  description="The version of the Phoenix server"
+                />
+                <CopyToClipboardButtonWithPadding text={VERSION} />
+              </Flex>
+              <Flex direction="row" gap="size-100" alignItems="end">
+                <TextField
+                  label="Python Version"
+                  isReadOnly
+                  value={`pip install 'arize-phoenix==${VERSION}'`}
+                  description="The version of the Python client library to use to connect to this Phoenix"
+                />
+                <CopyToClipboardButtonWithPadding text={VERSION} />
+              </Flex>
+            </form>
+          </Card>
+          {authenticationEnabled && <APIKeysCard />}
+          {authenticationEnabled && <UsersCard />}
+        </Flex>
+      </div>
     </main>
   );
 }

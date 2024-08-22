@@ -70,6 +70,8 @@ export function UserForm({
                 label="Email"
                 type="email"
                 name={name}
+                isRequired
+                description="The user's email address. Must be unique."
                 errorMessage={error?.message}
                 validationState={invalid ? "invalid" : "valid"}
                 onChange={onChange}
@@ -86,9 +88,9 @@ export function UserForm({
               fieldState: { invalid, error },
             }) => (
               <TextField
-                label="username"
+                label="Username"
                 name={name}
-                isRequired={false}
+                description="The user's username. Optional."
                 errorMessage={error?.message}
                 validationState={invalid ? "invalid" : "valid"}
                 onChange={onChange}
