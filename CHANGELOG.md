@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.27.0...arize-phoenix-v4.28.0) (2024-08-23)
+
+
+### Features
+
+* **auth:** add create user modal to ui ([#4319](https://github.com/Arize-ai/phoenix/issues/4319)) ([e77a390](https://github.com/Arize-ai/phoenix/commit/e77a390d6dbc3ae8e226c0397aca3c556b5b722e))
+* **auth:** prettier login screen ([#4332](https://github.com/Arize-ai/phoenix/issues/4332)) ([18f8240](https://github.com/Arize-ai/phoenix/commit/18f82403bff53bc7ec4966dc44d70b1f403a972d))
+
+
+### Documentation
+
+* update api reference ([#4316](https://github.com/Arize-ai/phoenix/issues/4316)) ([387346d](https://github.com/Arize-ai/phoenix/commit/387346defa90d5f14c6b102b55640ce943d0621a))
+
 ## [4.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.26.0...arize-phoenix-v4.27.0) (2024-08-22)
 
 
