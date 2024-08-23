@@ -33,7 +33,7 @@ class ApiKeyValidator(DaemonTask):
             and (key := self._cache.get(id_)) is not None
             and key.name == payload.get("name")
             and key.description == payload.get("description")
-            and int(key.created_at.timestamp()) == payload.get("iat")
+            and key.created_at.timestamp() == payload.get("iat")
             and (int(key.expires_at.timestamp()) if key.expires_at else None) == payload.get("exp")
         )
 

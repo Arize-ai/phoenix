@@ -131,15 +131,15 @@ REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32, True, True, True, Tr
 """The requirements for the Phoenix secret key."""
 
 
-class JwtPayload(TypedDict):
+class JwtPayload(TypedDict, total=False):
     """
     The payload of a JSON Web Token.
     """
 
     name: str
     description: Optional[str]
-    iat: int
-    exp: Optional[int]
+    iat: float
+    exp: int
     id_: int
 
 
@@ -157,21 +157,22 @@ def create_jwt(
     Create a signed JSON Web Token for authentication
 
     Args:
-        secret (str): the secret key to sign the JWT
-        algorithm (str): the algorithm to use for signing
-        name (str): the name of the JWT
-        description (str): the description of the JWT
-        iat (datetime): the time the JWT was issued
-        exp (datetime): the time the JWT expires
-        id_ (int): the ID of the JWT
+        secret (str): the secret to sign with
+        name (str): name of the key / token
+        description (Optional[str]): description of the token
+        iat (datetime): the issued at time
+        exp (Optional[datetime]): the expiry, if set
+        id_ (int): the id of the key
+        algorithm (str, optional): the algorithm to use. Defaults to "HS256".
     Returns:
         str: the signed JWT
     """
     payload = JwtPayload(
         name=name,
         description=description,
-        iat=int(iat.timestamp()),
-        exp=int(exp.timestamp()) if exp else None,
+        iat=iat.timestamp(),
         id_=id_,
     )
+    if exp is not None:
+        payload["exp"] = int(exp.timestamp())
     return jwt.encode(cast(Dict[str, Any], payload), secret, algorithm=algorithm)
