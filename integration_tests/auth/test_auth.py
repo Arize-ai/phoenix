@@ -11,6 +11,8 @@ from typing_extensions import TypeAlias
 ProjectName: TypeAlias = str
 SpanName: TypeAlias = str
 Headers: TypeAlias = Dict[str, Any]
+Name: TypeAlias = str
+ApiKey: TypeAlias = str
 
 
 class TestSpanExporters:
@@ -19,7 +21,7 @@ class TestSpanExporters:
         span_exporter: Callable[[Optional[Headers]], SpanExporter],
         start_span: Callable[[ProjectName, SpanName, SpanExporter], Span],
         get_gql_spans: Callable[[str], Dict[str, Any]],
-        create_system_api_key: Callable[[str, datetime], str],
+        create_system_api_key: Callable[[Name, datetime], ApiKey],
         fake: Faker,
     ) -> None:
         system_api_key = create_system_api_key(

@@ -35,8 +35,8 @@ ProjectName: TypeAlias = str
 SpanName: TypeAlias = str
 
 
-@pytest.fixture(autouse=True, scope="module")
-def set_env_var(tmp_path_factory: TempPathFactory) -> Iterator[None]:
+@pytest.fixture(autouse=True, scope="class")
+def env(tmp_path_factory: TempPathFactory) -> Iterator[None]:
     tmp = tmp_path_factory.getbasetemp()
     values = (
         (ENV_PHOENIX_PORT, str(pick_unused_port())),

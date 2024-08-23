@@ -158,11 +158,11 @@ def create_jwt(
 
     Args:
         secret (str): the secret key to sign the JWT
-        algorithm (str): the algorithm to use for signing the JWT
+        algorithm (str): the algorithm to use for signing
         name (str): the name of the JWT
-        description (Optional[str]): the description of the JWT
-        iat (int): the time the JWT was issued (seconds since Unix epoch)
-        exp (Optional[int]): the expiration time of the JWT (seconds since Unix epoch)
+        description (str): the description of the JWT
+        iat (datetime): the time the JWT was issued
+        exp (datetime): the time the JWT expires
         id_ (int): the ID of the JWT
     Returns:
         str: the signed JWT

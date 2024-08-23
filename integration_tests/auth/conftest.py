@@ -1,16 +1,7 @@
 import os
 from dataclasses import asdict
 from datetime import datetime
-from typing import (
-    Any,
-    Callable,
-    ContextManager,
-    Dict,
-    Iterator,
-    List,
-    Protocol,
-    cast,
-)
+from typing import Any, Callable, ContextManager, Dict, Iterator, List, Protocol, cast
 from unittest import mock
 from urllib.parse import urljoin
 
@@ -29,6 +20,8 @@ from sqlalchemy import URL, make_url
 from typing_extensions import TypeAlias
 
 ProjectName: TypeAlias = str
+Name: TypeAlias = str
+ApiKey: TypeAlias = str
 
 
 class GetGqlSpans(Protocol):
@@ -75,8 +68,8 @@ def app(
 
 
 @pytest.fixture(autouse=True, scope="module")
-def create_system_api_key() -> Callable[[str, datetime], str]:
-    def _(name: str, expires_at: datetime) -> str:
+def create_system_api_key() -> Callable[[Name, datetime], ApiKey]:
+    def _(name: Name, expires_at: datetime) -> str:
         mutation = (
             'mutation{createSystemApiKey(input: {name: "'
             + name
@@ -92,6 +85,6 @@ def create_system_api_key() -> Callable[[str, datetime], str]:
         api_key = result["apiKey"]
         assert api_key["name"] == name
         assert datetime.fromisoformat(api_key["expiresAt"]) == expires_at
-        return cast(str, result["jwt"])
+        return cast(ApiKey, result["jwt"])
 
     return _
