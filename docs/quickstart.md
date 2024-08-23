@@ -86,7 +86,7 @@ Hosted Phoenix instances are always online. Nothing more to do here!
 To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix. The `register` utility from the `phoenix.otel` module streamlines this process.
 
 {% tabs %}
-{% tab title="Local Instance / Docker (Python)" %}
+{% tab title="Python" %}
 If `arize-phoenix` is not installed in your python environment, you can use `arize-phoenix-otel` to quickly connect to your phoenix instance.
 
 ```bash
@@ -106,10 +106,14 @@ register(
 ```
 
 {% hint style="info" %}
-You do not have to use phoenix.otel to connect to your phoenix instance, you can use OpenTelemetry itself to initialize  your OTEL connection
+You do not have to use phoenix.otel to connect to your phoenix instance, you can use OpenTelemetry itself to initialize  your OTEL connection. See[using-otel-python-directly.md](tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly.md "mention")
 {% endhint %}
 
-See [deploying-phoenix.md](deployment/deploying-phoenix.md "mention") for more details
+See [setup-tracing-python](tracing/how-to-tracing/setup-tracing/setup-tracing-python/ "mention") for more details on configuration and setup
+{% endtab %}
+
+{% tab title="TypeScript" %}
+For setting up tracing and OpenTelemetry with TypeScript, see [setup-tracing-ts.md](tracing/how-to-tracing/setup-tracing/setup-tracing-ts.md "mention")
 {% endtab %}
 
 {% tab title="Notebook" %}
