@@ -58,9 +58,7 @@ def test_validate_password_format_raises_on_invalid_format(password: str) -> Non
 
 @pytest.mark.parametrize("exp", [None, datetime.now(timezone.utc) + timedelta(days=1)])
 def test_create_jwt(exp: Optional[datetime], fake: Faker) -> None:
-    iat = datetime.now(timezone.utc)
-    secret = fake.pystr()
-    name = fake.pystr()
+    secret, name, iat = fake.pystr(), fake.pystr(), datetime.now(timezone.utc)
     kwargs = dict(name=name, description=None, iat=iat, id_=1, exp=exp)
     token = create_jwt(secret=secret, **kwargs)
     expected = dict(kwargs)
