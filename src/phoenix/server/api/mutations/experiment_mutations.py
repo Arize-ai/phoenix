@@ -9,7 +9,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import PhoenixGraphQLException
+from phoenix.server.api.exceptions import CustomGraphQLError
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
@@ -53,7 +53,7 @@ class ExperimentMutationMixin:
             }
             if unknown_experiment_ids := set(experiment_ids) - set(experiments.keys()):
                 await savepoint.rollback()
-                raise DeleteExperimentsError(
+                raise CustomGraphQLError(
                     "Failed to delete experiment(s), "
                     "probably due to invalid input experiment ID(s): "
                     + str(
@@ -74,7 +74,3 @@ class ExperimentMutationMixin:
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids
             ]
         )
-
-
-class DeleteExperimentsError(PhoenixGraphQLException):
-    pass

@@ -10,7 +10,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.api.exceptions import PhoenixGraphQLException
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.types import DbSessionFactory
 
@@ -25,7 +25,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
+    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, NotFound]]:
         # sqlalchemy has limited SQLite support for VALUES, so use UNION ALL instead.
         # For details, see https://github.com/sqlalchemy/sqlalchemy/issues/7228
         keys_subquery = union(
@@ -96,11 +96,4 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 ) in await session.stream(query)
                 if is_valid_version
             }
-        return [
-            results.get(key, DatasetExampleRevisionException("Could not find revision."))
-            for key in keys
-        ]
-
-
-class DatasetExampleRevisionException(PhoenixGraphQLException):
-    pass
+        return [results.get(key, NotFound("Could not find revision.")) for key in keys]

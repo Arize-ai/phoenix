@@ -1,15 +1,29 @@
 from graphql.error import GraphQLError
 from strawberry.extensions import MaskErrors
 
-from phoenix.exceptions import PhoenixException as _PhoenixException
 
-
-class PhoenixGraphQLException(_PhoenixException):
+class CustomGraphQLError(Exception):
     """
     An error that represents an expected error scenario in a GraphQL resolver.
     """
 
-    pass
+
+class BadRequest(CustomGraphQLError):
+    """
+    An error raised due to a malformed or invalid request.
+    """
+
+
+class NotFound(CustomGraphQLError):
+    """
+    An error raised when the requested resource is not found.
+    """
+
+
+class AuthorizationError(CustomGraphQLError):
+    """
+    An error raised when login fails or a user is not authorized to access a resource.
+    """
 
 
 def get_mask_errors_extension() -> MaskErrors:
@@ -21,6 +35,6 @@ def get_mask_errors_extension() -> MaskErrors:
 
 def _should_mask_error(error: GraphQLError) -> bool:
     """
-    Masks expected errors raised from GraphQL resolvers.
+    Masks unexpected errors raised from GraphQL resolvers.
     """
-    return not isinstance(error.original_error, PhoenixGraphQLException)
+    return not isinstance(error.original_error, CustomGraphQLError)
