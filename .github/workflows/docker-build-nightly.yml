@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
-      
+
       - name: Set BASE_IMAGE environment variable
         id: set-base-image
         run: |
@@ -40,11 +40,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      
+
       - name: Extract commit hash
         id: extract_commit
         run: echo "COMMIT_HASH=${GITHUB_SHA::7}" >> $GITHUB_ENV
-      
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
@@ -62,6 +62,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          sbom: true
+          provenance: mode=max
           tags: |
             ${{ matrix.variant == 'root' && format('{0}/{1}:nightly', env.REGISTRY, env.IMAGE_NAME) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
