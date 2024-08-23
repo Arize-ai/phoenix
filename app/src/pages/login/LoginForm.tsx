@@ -15,21 +15,15 @@ type LoginFormParams = {
 export function LoginForm() {
   const [commit, isCommiting] = useMutation<LoginFormMutation>(graphql`
     mutation LoginFormMutation($email: String!, $password: String!) {
-      login(input: { email: $email, password: $password }) {
-        success
-      }
+      login(input: { email: $email, password: $password })
     }
   `);
   const onSubmit = useCallback(
     (params: LoginFormParams) => {
       commit({
         variables: params,
-        onCompleted: (response) => {
-          if (response.login.success) {
-            return;
-          } else {
-            return;
-          }
+        onCompleted: () => {
+          // todo: redirect home
         },
       });
     },

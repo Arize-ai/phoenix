@@ -21,34 +21,39 @@ class LoginMutationInput:
 
 
 @strawberry.type
-class AuthMutationPayload:
-    success: bool
-
-
-@strawberry.type
 class AuthMutationMixin:
     @strawberry.mutation(permission_classes=[HasSecret])  # type: ignore
     async def login(
         self,
         info: Info[Context, None],
         input: LoginMutationInput,
-    ) -> AuthMutationPayload:
+    ) -> None:
+        # This is written to avoid an information disclosure vulnerability. In
+        # the event of a failed login, the stacktrace should not reveal whether
+        # login failed because of a non-existent email or an incorrect password.
+        # This is a workaround until we improve our error logging to prevent
+        # sensitive stacktraces from being logged.
+        # https://github.com/Arize-ai/phoenix/issues/4335
+        login_failed = False
         async with info.context.db() as session:
             if (
                 user := await session.scalar(
                     select(models.User).where(models.User.email == input.email)
                 )
             ) is None or (password_hash := user.password_hash) is None:
-                return AuthMutationPayload(success=False)
-        secret = info.context.get_secret()
-        loop = asyncio.get_running_loop()
-        if not await loop.run_in_executor(
-            executor=None,
-            func=lambda: is_valid_password(
-                password=input.password, salt=secret, password_hash=password_hash
-            ),
-        ):
-            return AuthMutationPayload(success=False)
+                login_failed = True
+        if not login_failed:
+            secret = info.context.get_secret()
+            loop = asyncio.get_running_loop()
+            if not await loop.run_in_executor(
+                executor=None,
+                func=lambda: is_valid_password(
+                    password=input.password, salt=secret, password_hash=password_hash
+                ),
+            ):
+                login_failed = True
+        if login_failed:
+            raise ValueError("login failed")
         response = info.context.get_response()
         response.set_cookie(
             key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
@@ -58,13 +63,11 @@ class AuthMutationMixin:
             samesite="strict",
             max_age=PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE_IN_SECONDS,
         )
-        return AuthMutationPayload(success=True)
 
     @strawberry.mutation(permission_classes=[HasSecret])  # type: ignore
     async def logout(
         self,
         info: Info[Context, None],
-    ) -> AuthMutationPayload:
+    ) -> None:
         response = info.context.get_response()
         response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
-        return AuthMutationPayload(success=True)

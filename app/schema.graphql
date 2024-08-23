@@ -58,10 +58,6 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
-type AuthMutationPayload {
-  success: Boolean!
-}
-
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
@@ -889,8 +885,8 @@ type Model {
 
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
-  login(input: LoginMutationInput!): AuthMutationPayload!
-  logout: AuthMutationPayload!
+  login(input: LoginMutationInput!): Void
+  logout: Void
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -1491,3 +1487,6 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
+
+"""Represents NULL values"""
+scalar Void
