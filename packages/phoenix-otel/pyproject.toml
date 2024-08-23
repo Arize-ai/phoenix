@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
@@ -32,9 +32,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-  "pytest==7.4.4",
-  "pytest-asyncio",
-  "mypy",
 ]
 
 [project.urls]
@@ -95,4 +92,10 @@ strict = true
 exclude = [
   "dist/",
   "tests/",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = [
+  "tests",
 ]

@@ -84,7 +84,7 @@ dev = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "strawberry-graphql[debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
@@ -96,6 +96,7 @@ dev = [
   "prometheus_client",
   "asgi-lifespan",
   "Faker>=26.0.0",
+  "portpicker",
   "uvloop; platform_system != 'Windows'",
 ]
 evals = []
@@ -109,6 +110,7 @@ llama-index = [
 ]
 pg = [
   "asyncpg",
+  "psycopg[binary,pool]",
 ]
 container = [
   "prometheus-client",
@@ -122,6 +124,8 @@ container = [
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
+]
+test = [
 ]
 
 [project.urls]
@@ -159,7 +163,7 @@ dependencies = [
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "arize",
   "litellm>=1.0.3",
   "openai>=1.0.0",
@@ -182,7 +186,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.11.0",
+  "mypy==1.11.1",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
@@ -249,6 +253,8 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  "--new-first",
+  "--showlocals",
 ]
 testpaths = [
   "tests",
@@ -426,4 +432,4 @@ select = ["E", "F", "W", "I", "NPY201"]
 force-single-line = false
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"

@@ -379,3 +379,12 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
 
     evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(**kwargs)
     assert evaluation.score == 1.0, "evaluates against named args in any order"
+
+
+async def test_get_experiment_client_method(
+    px_client, simple_dataset_with_one_experiment_run, acall
+):
+    experiment_gid = GlobalID("Experiment", "0")
+    experiment = await acall(px_client.get_experiment, experiment_id=experiment_gid)
+    assert experiment
+    assert isinstance(experiment, Experiment)

@@ -44,7 +44,7 @@ from phoenix.config import (
 )
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
-from phoenix.experiments.types import Dataset, Example
+from phoenix.experiments.types import Dataset, Example, Experiment
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -52,7 +52,7 @@ from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
-
+logger.addHandler(logging.NullHandler())
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
@@ -570,6 +570,22 @@ class Client(TraceDataExtractor):
             metadata=metadata,
             action="append",
         )
+
+    def get_experiment(self, *, experiment_id: str) -> Experiment:
+        """
+        Get an experiment by ID.
+
+        Retrieve an Experiment object by ID, enables running `evaluate_experiment` after finishing
+        the initial experiment run.
+
+        Args:
+            experiment_id (str): ID of the experiment. This can be found in the UI.
+        """
+        response = self._client.get(
+            url=urljoin(self._base_url, f"v1/experiments/{experiment_id}"),
+        )
+        experiment = response.json()["data"]
+        return Experiment.from_dict(experiment)
 
     def _upload_tabular_dataset(
         self,

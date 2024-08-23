@@ -1,13 +1,16 @@
 import atexit
+import codecs
 import logging
 import os
+import sys
 from argparse import ArgumentParser
-from pathlib import Path, PosixPath
+from importlib.metadata import version
+from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
+from urllib.parse import urljoin
 
-import pkg_resources
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
@@ -45,6 +48,7 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     get_dataset_fixtures,
     get_evals_from_fixture,
+    get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
@@ -53,6 +57,7 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 _WELCOME_MESSAGE = """
 
@@ -131,14 +136,52 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--read-only", type=bool, default=False)
+    parser.add_argument("--read-only", action="store_true", required=False)  # Default is False
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_true")
     # Whether the app is running in a development environment
     parser.add_argument("--dev", action="store_true")
+    parser.add_argument("--no-ui", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
+    serve_parser.add_argument(
+        "--with-fixture",
+        type=str,
+        required=False,
+        default="",
+        help=("Name of an inference fixture. Example: 'fixture1'"),
+    )
+    serve_parser.add_argument(
+        "--with-trace-fixtures",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of tracing fixture names (spaces are ignored). "
+            "Example: 'fixture1, fixture2'"
+        ),
+    )
+    serve_parser.add_argument(
+        "--with-projects",
+        type=str,
+        required=False,
+        default="",
+        help=(
+            "Comma separated list of project names (spaces are ignored). "
+            "Example: 'project1, project2'"
+        ),
+    )
+    serve_parser.add_argument(
+        "--force-fixture-ingestion",
+        action="store_true",  # default is False
+        required=False,
+        help=(
+            "Whether or not to check the database age before adding the fixtures. "
+            "Default is False, i.e., fixtures will only be added if the "
+            "database is new."
+        ),
+    )
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -146,12 +189,14 @@ if __name__ == "__main__":
     datasets_parser.add_argument("--trace", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", type=bool)
+    fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
-    trace_fixture_parser.add_argument("--simulate-streaming", type=bool)
+    trace_fixture_parser.add_argument(
+        "--simulate-streaming", action="store_true"
+    )  # Default is False
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     demo_parser.add_argument(
@@ -159,10 +204,12 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
+
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    force_fixture_ingestion = False
     if args.command == "datasets":
         primary_inferences_name = args.primary
         reference_inferences_name = args.reference
@@ -197,7 +244,26 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
-
+    elif args.command == "serve":
+        # We use sets to avoid duplicates
+        tracing_fixture_names = set()
+        if args.with_fixture:
+            primary_inferences, reference_inferences, corpus_inferences = get_inferences(
+                str(args.with_fixture),
+                args.no_internet,
+            )
+        if args.with_trace_fixtures:
+            tracing_fixture_names.update(
+                [name.strip() for name in args.with_trace_fixtures.split(",")]
+            )
+        if args.with_projects:
+            project_names = [name.strip() for name in args.with_projects.split(",")]
+            tracing_fixture_names.update(
+                fixture.name
+                for name in project_names
+                for fixture in get_trace_fixtures_by_project_name(name)
+            )
+        force_fixture_ingestion = args.force_fixture_ingestion
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -255,41 +321,43 @@ if __name__ == "__main__":
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    corpus_model = (
+        None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
+    )
+    # Print information about the server
+    msg = _WELCOME_MESSAGE.format(
+        version=version("arize-phoenix"),
+        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        grpc_path=f"http://{host}:{get_env_grpc_port()}",
+        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        storage=get_printable_db_url(db_connection_str),
+    )
+    if authentication_enabled:
+        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
+    if sys.platform.startswith("win"):
+        msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
-        corpus=None
-        if corpus_inferences is None
-        else create_model_from_inferences(corpus_inferences),
+        corpus=corpus_model,
         debug=args.debug,
         dev=args.dev,
+        serve_ui=not args.no_ui,
         read_only=read_only,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
-        clean_up_callbacks=instrumentation_cleanups,
+        startup_callbacks=[lambda: print(msg)],
+        shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        tracing_fixture_names=tracing_fixture_names,
+        force_fixture_ingestion=force_fixture_ingestion,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
-
-    # Print information about the server
-    phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
-    print(
-        _WELCOME_MESSAGE.format(
-            version=phoenix_version,
-            ui_path=PosixPath(f"http://{host}:{port}", host_root_path),
-            grpc_path=f"http://{host}:{get_env_grpc_port()}",
-            http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
-            storage=get_printable_db_url(db_connection_str),
-        )
-    )
-
-    if authentication_enabled:
-        print(_EXPERIMENTAL_WARNING.format(auth_enabled=authentication_enabled))
 
     # Start the server
     server.run()

@@ -18,5 +18,5 @@ __all__ = [
     "GRPCSpanExporter",
     "Resource",
     "PROJECT_NAME",
-    register,
+    "register",
 ]

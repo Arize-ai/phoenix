@@ -26,6 +26,7 @@ export function DatasetForm({
   onSubmit,
   isSubmitting,
   submitButtonText,
+  formMode,
 }: {
   datasetName?: string | null;
   datasetDescription?: string | null;
@@ -33,6 +34,7 @@ export function DatasetForm({
   onSubmit: (params: DatasetFormParams) => void;
   isSubmitting: boolean;
   submitButtonText: string;
+  formMode: "create" | "edit";
 }) {
   const {
     control,
@@ -125,7 +127,9 @@ export function DatasetForm({
       >
         <Flex direction="row" justifyContent="end">
           <Button
-            disabled={!isDirty}
+            // Only allow submission if the form is dirty for edits
+            // When creating allow the user to click create without any changes as the form will be prefilled with valid values
+            disabled={formMode === "edit" ? !isDirty : false}
             variant={isDirty ? "primary" : "default"}
             size="compact"
             loading={isSubmitting}

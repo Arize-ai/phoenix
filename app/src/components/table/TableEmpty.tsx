@@ -1,7 +1,8 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-export function TableEmpty() {
+export function TableEmpty(props: { message?: string }) {
+  const { message = "No Data" } = props;
   return (
     <tbody className="is-empty">
       <tr>
@@ -12,7 +13,7 @@ export function TableEmpty() {
             padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
           `}
         >
-          No Data
+          {message}
         </td>
       </tr>
     </tbody>

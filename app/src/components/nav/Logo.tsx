@@ -1,14 +1,15 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-export function Logo() {
+export function Logo(props: { size?: number }) {
+  const { size = 28 } = props;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       xmlnsXlink="http://www.w3.org/1999/xlink"
       viewBox="0 0 305.92 350.13"
-      width={28}
-      height={28}
+      width={size}
+      height={size}
       css={css`
         .cls-1 {
           fill: url(#linear-gradient);
