@@ -10,6 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -101,7 +102,7 @@ class ApiKeyMutationMixin:
         async with info.context.db() as session:
             api_key = await session.get(models.APIKey, api_key_id)
             if api_key is None:
-                raise ValueError("API Key not found")
+                raise NotFound(f"Unknown System API Key: {input.id}")
 
             await session.delete(api_key)
 
