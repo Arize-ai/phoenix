@@ -1,5 +1,6 @@
 line-length = 100
 target-version = "py38"
+exclude = ["notebooks"]
 
 [lint]
 select = ["E", "F", "W", "I", "NPY201"]
@@ -12,4 +13,3 @@ force-single-line = false
 
 [format]
 line-ending = "native"
-exclude = ["notebooks"]
