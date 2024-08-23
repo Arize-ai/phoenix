@@ -8,10 +8,12 @@ from strawberry.types import Info
 from phoenix.auth import is_valid_password
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import AuthorizationError
 from phoenix.server.api.mutations.auth import HasSecret
 
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE_IN_SECONDS = int(timedelta(days=31).total_seconds())
+FAILED_LOGIN_MESSAGE = "login failed"
 
 
 @strawberry.input
@@ -34,7 +36,7 @@ class AuthMutationMixin:
                     select(models.User).where(models.User.email == input.email)
                 )
             ) is None or (password_hash := user.password_hash) is None:
-                raise ValueError
+                raise AuthorizationError(FAILED_LOGIN_MESSAGE)
         secret = info.context.get_secret()
         loop = asyncio.get_running_loop()
         if not await loop.run_in_executor(
@@ -43,7 +45,7 @@ class AuthMutationMixin:
                 password=input.password, salt=secret, password_hash=password_hash
             ),
         ):
-            raise ValueError
+            raise AuthorizationError(FAILED_LOGIN_MESSAGE)
         response = info.context.get_response()
         response.set_cookie(
             key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
