@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.3.0...arize-phoenix-otel-v0.4.0) (2024-08-23)
+
+
+### Features
+
+* Improve urlencoding logic + bug fixes ([#4338](https://github.com/Arize-ai/phoenix/issues/4338)) ([604fcef](https://github.com/Arize-ai/phoenix/commit/604fcefc465c8d7534ac2152a84cbe8ddcf06597))
+
+
+### Bug Fixes
+
+* support pydantic in the range 2.4.1&lt;=pydantic<=2.7.1 ([#4323](https://github.com/Arize-ai/phoenix/issues/4323)) ([fa5eeff](https://github.com/Arize-ai/phoenix/commit/fa5eeff45b0752508d4bc51334607ef4acc19474))
+
+
+### Documentation
+
+* Refine otel readme ([#4329](https://github.com/Arize-ai/phoenix/issues/4329)) ([beb04a8](https://github.com/Arize-ai/phoenix/commit/beb04a872267178a57dce0211fb16f0c8bb3ea47))
+
 ## [0.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.2.0...arize-phoenix-otel-v0.3.0) (2024-08-21)
 
 
