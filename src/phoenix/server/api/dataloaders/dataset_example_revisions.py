@@ -10,6 +10,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.api.exceptions import PhoenixGraphQLException
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.types import DbSessionFactory
 
@@ -95,4 +96,11 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 ) in await session.stream(query)
                 if is_valid_version
             }
-        return [results.get(key, ValueError("Could not find revision.")) for key in keys]
+        return [
+            results.get(key, DatasetExampleRevisionException("Could not find revision."))
+            for key in keys
+        ]
+
+
+class DatasetExampleRevisionException(PhoenixGraphQLException):
+    pass

@@ -13,6 +13,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import PhoenixGraphQLException
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
@@ -362,7 +363,7 @@ class DatasetMutationMixin:
                 expected_type_name=Dataset.__name__,
             )
         except ValueError:
-            raise ValueError(f"Unknown dataset: {input.dataset_id}")
+            raise DeleteDatasetException(f"Unknown dataset: {input.dataset_id}")
         project_names_stmt = get_project_names_for_datasets(dataset_id)
         eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
         stmt = (
@@ -372,7 +373,7 @@ class DatasetMutationMixin:
             project_names = await session.scalars(project_names_stmt)
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             if not (dataset := await session.scalar(stmt)):
-                raise ValueError(f"Unknown dataset: {input.dataset_id}")
+                raise DeleteDatasetException(f"Unknown dataset: {input.dataset_id}")
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),
@@ -388,7 +389,7 @@ class DatasetMutationMixin:
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
         if not (patches := input.patches):
-            raise ValueError("Must provide examples to patch.")
+            raise PatchDatasetExamplesException("Must provide examples to patch.")
         by_numeric_id = [
             (
                 from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__),
@@ -399,9 +400,13 @@ class DatasetMutationMixin:
         ]
         example_ids, _, patches = map(list, zip(*sorted(by_numeric_id)))
         if len(set(example_ids)) < len(example_ids):
-            raise ValueError("Cannot patch the same example more than once per mutation.")
+            raise PatchDatasetExamplesException(
+                "Cannot patch the same example more than once per mutation."
+            )
         if any(patch.is_empty() for patch in patches):
-            raise ValueError("Received one or more empty patches that contain no fields to update.")
+            raise PatchDatasetExamplesException(
+                "Received one or more empty patches that contain no fields to update."
+            )
         version_description = input.version_description or None
         version_metadata = input.version_metadata
         async with info.context.db() as session:
@@ -419,9 +424,9 @@ class DatasetMutationMixin:
                 )
             ).all()
             if not datasets:
-                raise ValueError("No examples found.")
+                raise PatchDatasetExamplesException("No examples found.")
             if len(set(ds.id for ds in datasets)) > 1:
-                raise ValueError("Examples must come from the same dataset.")
+                raise PatchDatasetExamplesException("Examples must come from the same dataset.")
             dataset = datasets[0]
 
             revision_ids = (
@@ -445,7 +450,9 @@ class DatasetMutationMixin:
                 )
             ).all()
             if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
-                raise ValueError(f"{num_missing_examples} example(s) could not be found.")
+                raise PatchDatasetExamplesException(
+                    f"{num_missing_examples} example(s) could not be found."
+                )
 
             version_id = await session.scalar(
                 insert(models.DatasetVersion)
@@ -555,6 +562,14 @@ class DatasetMutationMixin:
             )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+
+
+class PatchDatasetExamplesException(PhoenixGraphQLException):
+    pass
+
+
+class DeleteDatasetException(PhoenixGraphQLException):
+    pass
 
 
 def _span_attribute(semconv: str) -> Any:
