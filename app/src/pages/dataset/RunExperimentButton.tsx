@@ -10,6 +10,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
@@ -123,14 +124,6 @@ function RunExperimentExample() {
       <CodeWrap>
         <PythonBlockWithCopy value={RUN_EXPERIMENT_PYTHON} />
       </CodeWrap>
-    </View>
-  );
-}
-
-function CodeWrap({ children }: { children: ReactNode }) {
-  return (
-    <View borderColor="light" borderWidth="thin" borderRadius="small">
-      {children}
     </View>
   );
 }
