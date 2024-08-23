@@ -160,5 +160,11 @@ jobs:
           uv-version: 0.3.0
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
-      - run: tox run -e ci-integration_tests -- server
+      - run: tox run -e ci-integration_tests
+        timeout-minutes: 10
+      - run: cp -r src/phoenix/db/migrations/future_versions/*.py src/phoenix/db/migrations/versions/
+        if: runner.os != 'Windows'
+      - run: xcopy src\phoenix\db\migrations\future_versions\*.py src\phoenix\db\migrations\versions\ /I
+        if: runner.os == 'Windows'
+      - run: tox run -e ci-integration_tests -- auth
         timeout-minutes: 10

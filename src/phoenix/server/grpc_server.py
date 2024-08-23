@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
+from grpc_interceptor import AsyncServerInterceptor
+from grpc_interceptor.exceptions import Unauthenticated
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -12,6 +14,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 )
 from typing_extensions import TypeAlias
 
+from phoenix.auth import AUTH_HEADER
 from phoenix.config import get_env_grpc_port
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
@@ -52,17 +55,21 @@ class GrpcServer:
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
+        api_key_validator: Optional[Callable[[str], bool]] = None,
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
+        self._api_key_validator = api_key_validator
 
     async def __aenter__(self) -> None:
         if self._disabled:
             return
         interceptors: List[ServerInterceptor] = []
+        if self._api_key_validator:
+            interceptors.append(ApiKeyInterceptor(self._api_key_validator))
         if self._enable_prometheus:
             ...
             # TODO: convert to async interceptor
@@ -91,3 +98,23 @@ class GrpcServer:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
             GrpcAioInstrumentorServer().uninstrument()  # type: ignore
+
+
+class ApiKeyInterceptor(AsyncServerInterceptor):
+    def __init__(self, validate: Callable[[str], bool]) -> None:
+        super().__init__()
+        self._validate = validate
+
+    async def intercept(
+        self,
+        method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
+        request_or_iterator: Any,
+        context: grpc.ServicerContext,
+        method_name: str,
+    ) -> Any:
+        for datum in context.invocation_metadata():
+            if datum.key.lower() == AUTH_HEADER:
+                if self._validate(datum.value):
+                    return await method(request_or_iterator, context)
+                break
+        raise Unauthenticated(status_code=grpc.StatusCode.UNAUTHENTICATED)

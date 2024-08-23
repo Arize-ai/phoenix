@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 
-import jwt
 import strawberry
 from sqlalchemy import insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
+from phoenix.auth import create_jwt
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated
@@ -62,7 +62,7 @@ class ApiKeyMutationMixin:
         encoded_jwt = create_jwt(
             secret=info.context.get_secret(),
             name=api_key.name,
-            id=api_key.id,
+            id_=api_key.id,
             description=api_key.description,
             iat=api_key.created_at,
             exp=api_key.expires_at,
@@ -78,42 +78,3 @@ class ApiKeyMutationMixin:
             ),
             query=Query(),
         )
-
-
-def create_jwt(
-    *,
-    secret: str,
-    algorithm: str = "HS256",
-    name: str,
-    description: Optional[str],
-    iat: datetime,
-    exp: Optional[datetime],
-    id: int,
-) -> str:
-    """Create a signed JSON Web Token for authentication
-
-    Args:
-        secret (str): the secret to sign with
-        name (str): name of the key / token
-        description (Optional[str]): description of the token
-        iat (datetime): the issued at time
-        exp (Optional[datetime]): the expiry, if set
-        id (int): the id of the key
-        algorithm (str, optional): the algorithm to use. Defaults to "HS256".
-
-    Returns:
-        str: The encoded JWT
-    """
-    payload: Dict[str, Any] = {
-        "name": name,
-        "description": description,
-        "iat": iat.utcnow(),
-        "id": id,
-    }
-    if exp is not None:
-        payload["exp"] = exp.utcnow()
-
-    # Encode the payload to create the JWT
-    token = jwt.encode(payload, secret, algorithm=algorithm)
-
-    return token

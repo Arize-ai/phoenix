@@ -2,7 +2,7 @@ import gzip
 import zlib
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -14,12 +14,14 @@ from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.status import (
     HTTP_204_NO_CONTENT,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from strawberry.relay import GlobalID
 
+from phoenix.auth import AUTH_HEADER
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
@@ -31,7 +33,23 @@ from phoenix.utilities.project import get_project_name
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["traces"])
+
+async def validate_api_key(request: Request) -> None:
+    """
+    Validates the API key in the request headers.
+
+    Args:
+        request: The incoming request.
+    Returns:
+        None
+    """
+    if (validate := request.app.state.validate_api_key) and (
+        not ((api_key := request.headers.get(AUTH_HEADER)) and validate(api_key))
+    ):
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Invalid API key")
+
+
+router = APIRouter(tags=["traces"], dependencies=[Depends(validate_api_key)])
 
 
 @router.post(

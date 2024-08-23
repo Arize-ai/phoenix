@@ -2,8 +2,9 @@ import asyncio
 import contextlib
 import json
 import logging
+from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -18,7 +19,6 @@ from typing import (
     List,
     NamedTuple,
     Optional,
-    Set,
     Tuple,
     Union,
     cast,
@@ -29,8 +29,9 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.sql.functions import coalesce, func
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -46,7 +47,13 @@ from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR, server_instrumentation_is_enabled
+from phoenix.auth import compute_password_hash
+from phoenix.config import (
+    DEFAULT_PROJECT_NAME,
+    PHOENIX_SECRET,
+    SERVER_DIR,
+    server_instrumentation_is_enabled,
+)
 from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
@@ -82,6 +89,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
+from phoenix.server.api_key_validator import ApiKeyValidator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
@@ -123,6 +131,7 @@ If so, demo data is automatically ingested upon initial boot up to populate the 
 NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
+_Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
 
 
 class AppConfig(NamedTuple):
@@ -247,7 +256,7 @@ class Scaffolder(DaemonTask):
         db: DbSessionFactory,
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
-        tracing_fixture_names: Set[str] = set(),
+        tracing_fixture_names: Iterable[str] = (),
         force_fixture_ingestion: bool = False,
     ) -> None:
         super().__init__()
@@ -258,12 +267,6 @@ class Scaffolder(DaemonTask):
             get_trace_fixture_by_name(name) for name in tracing_fixture_names
         )
         self._force_fixture_ingestion = force_fixture_ingestion
-
-    async def __aenter__(self) -> None:
-        await self.start()
-
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        await self.stop()
 
     async def _run(self) -> None:
         """
@@ -336,37 +339,48 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    api_key_validator: Optional[ApiKeyValidator] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
-    startup_callbacks: Iterable[Callable[[], None]] = (),
-    shutdown_callbacks: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[_Callback] = (),
+    shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
-    tracing_fixture_names: Set[str] = set(),
+    tracing_fixture_names: Iterable[str] = (),
     force_fixture_ingestion: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
-        async with bulk_inserter as (
-            enqueue,
-            queue_span,
-            queue_evaluation,
-            enqueue_operation,
-        ), GrpcServer(
-            queue_span,
-            disabled=read_only,
-            tracer_provider=tracer_provider,
-            enable_prometheus=enable_prometheus,
-        ), dml_event_handler, Scaffolder(
-            db=db,
-            queue_span=queue_span,
-            queue_evaluation=queue_evaluation,
-            tracing_fixture_names=tracing_fixture_names,
-            force_fixture_ingestion=force_fixture_ingestion,
-        ):
+        async with AsyncExitStack() as stack:
+            (
+                enqueue,
+                queue_span,
+                queue_evaluation,
+                enqueue_operation,
+            ) = await stack.enter_async_context(bulk_inserter)
+            grpc_server = GrpcServer(
+                queue_span,
+                disabled=read_only,
+                tracer_provider=tracer_provider,
+                enable_prometheus=enable_prometheus,
+                api_key_validator=api_key_validator,
+            )
+            scaffolder = Scaffolder(
+                db=db,
+                queue_span=queue_span,
+                queue_evaluation=queue_evaluation,
+                tracing_fixture_names=tracing_fixture_names,
+                force_fixture_ingestion=force_fixture_ingestion,
+            )
+            await stack.enter_async_context(grpc_server)
+            await stack.enter_async_context(dml_event_handler)
+            await stack.enter_async_context(scaffolder)
+            if api_key_validator:
+                await stack.enter_async_context(api_key_validator)
             for callback in startup_callbacks:
-                callback()
+                if isinstance((res := callback()), Awaitable):
+                    await res
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -375,7 +389,8 @@ def _lifespan(
                 "enqueue_operation": enqueue_operation,
             }
         for callback in shutdown_callbacks:
-            callback()
+            if isinstance((res := callback()), Awaitable):
+                await res
 
     return lifespan
 
@@ -538,6 +553,30 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+def ensure_admin_password(db: DbSessionFactory) -> _Callback:
+    async def _() -> None:
+        assert PHOENIX_SECRET
+        loop = asyncio.get_running_loop()
+        compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=PHOENIX_SECRET)
+        hash_ = await loop.run_in_executor(None, compute)
+        password_hash = coalesce(models.User.password_hash, hash_)
+        first_admin = (
+            select(func.min(models.User.id))
+            .join(models.UserRole)
+            .where(models.UserRole.name == "ADMIN")
+            .scalar_subquery()
+        )
+        stmt = (
+            update(models.User)
+            .where(models.User.id == first_admin)
+            .values(password_hash=password_hash)
+        )
+        async with db() as session:
+            await session.execute(stmt)
+
+    return _
+
+
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
@@ -552,14 +591,14 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
-    startup_callbacks: Iterable[Callable[[], None]] = (),
-    shutdown_callbacks: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[_Callback] = (),
+    shutdown_callbacks: Iterable[_Callback] = (),
     secret: Optional[str] = None,
-    tracing_fixture_names: Set[str] = set(),
+    tracing_fixture_names: Iterable[str] = (),
     force_fixture_ingestion: bool = False,
 ) -> FastAPI:
-    startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
-    shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
+    startup_callbacks_list: List[_Callback] = list(startup_callbacks)
+    shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -573,6 +612,11 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    if authentication_enabled:
+        api_key_validator = ApiKeyValidator(db)
+        startup_callbacks_list.append(ensure_admin_password(db))
+    else:
+        api_key_validator = None
     dml_event_handler = DmlEventHandler(
         db=db,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -638,6 +682,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            api_key_validator=api_key_validator,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
@@ -657,11 +702,13 @@ def create_app(
     )
     app.state.read_only = read_only
     app.state.export_path = export_path
+    app.state.validate_api_key = api_key_validator
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
-    if serve_ui:
+    web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
+    if serve_ui and web_manifest_path.is_file():
         app.mount(
             "/",
             app=Static(
@@ -674,7 +721,7 @@ def create_app(
                     n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
-                    web_manifest_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
+                    web_manifest_path=web_manifest_path,
                 ),
             ),
             name="static",

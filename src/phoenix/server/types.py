@@ -87,6 +87,12 @@ class DaemonTask(ABC):
                 task.cancel()
         self._tasks.clear()
 
+    async def __aenter__(self) -> None:
+        await self.start()
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        await self.stop()
+
     @abstractmethod
     async def _run(self) -> None: ...
 

@@ -4,7 +4,8 @@ from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from .utilities.re import parse_env_headers
+from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+from phoenix.utilities.re import parse_env_headers
 
 logger = getLogger(__name__)
 
@@ -62,8 +63,8 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Auth is under active development. Phoenix users are strongly advised not to
 # set these environment variables until the feature is officially released.
-ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
-ENV_DANGEROUSLY_SET_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
+ENV_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -122,7 +123,7 @@ def get_env_enable_auth() -> bool:
     """
     Gets the value of the DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH environment variable.
     """
-    return get_boolean_env_var(ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH) is True
+    return get_boolean_env_var(ENV_PHOENIX_ENABLE_AUTH) is True
 
 
 def get_env_phoenix_secret() -> Optional[str]:
@@ -130,10 +131,10 @@ def get_env_phoenix_secret() -> Optional[str]:
     Gets the value of the DANGEROUSLY_SET_PHOENIX_SECRET environment variable
     and performs validation.
     """
-    phoenix_secret = os.environ.get(ENV_DANGEROUSLY_SET_PHOENIX_SECRET)
+    phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
         return None
-    # todo: add validation for the phoenix secret
+    REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret)
     return phoenix_secret
 
 
@@ -145,13 +146,13 @@ def get_auth_settings() -> Tuple[bool, Optional[str]]:
     phoenix_secret = get_env_phoenix_secret()
     if enable_auth:
         assert phoenix_secret, (
-            "DANGEROUSLY_SET_PHOENIX_SECRET must be set "
-            "when auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+            f"`{ENV_PHOENIX_SECRET}` must be set when "
+            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     else:
         assert not phoenix_secret, (
-            "DANGEROUSLY_SET_PHOENIX_SECRET cannot be set "
-            "unless auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+            f"`{ENV_PHOENIX_SECRET}` must not be set unless "
+            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     return enable_auth, phoenix_secret
 
