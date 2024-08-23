@@ -5,12 +5,14 @@ import jwt
 import strawberry
 from sqlalchemy import insert, select
 from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 
 
@@ -26,6 +28,16 @@ class CreateApiKeyInput:
     name: str
     description: Optional[str] = UNSET
     expires_at: Optional[datetime] = UNSET
+
+
+@strawberry.input
+class DeleteApiKeyInput:
+    id: GlobalID
+
+
+@strawberry.type
+class DeleteSystemApiKeyMutationPayload:
+    id: GlobalID
 
 
 @strawberry.type
@@ -78,6 +90,22 @@ class ApiKeyMutationMixin:
             ),
             query=Query(),
         )
+
+    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
+    async def delete_system_api_key(
+        self, info: Info[Context, None], input: DeleteApiKeyInput
+    ) -> DeleteSystemApiKeyMutationPayload:
+        api_key_id = from_global_id_with_expected_type(
+            input.id, expected_type=SystemApiKey.__name__
+        )
+        async with info.context.db() as session:
+            api_key = await session.get(models.APIKey, api_key_id)
+            if api_key is None:
+                raise ValueError("API Key not found")
+
+            await session.delete(api_key)
+
+        return DeleteSystemApiKeyMutationPayload(id=input.id)
 
 
 def create_jwt(
