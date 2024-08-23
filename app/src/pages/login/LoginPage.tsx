@@ -3,9 +3,8 @@ import { css } from "@emotion/react";
 
 import { Flex, View } from "@arizeai/components";
 
-import { PhoenixLogo } from "./PhoenixLogo";
-
 import { LoginForm } from "./LoginForm";
+import { PhoenixLogo } from "./PhoenixLogo";
 
 export function LoginPage() {
   return (
