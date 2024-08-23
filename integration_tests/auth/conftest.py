@@ -1,7 +1,7 @@
 import os
 from dataclasses import asdict
 from datetime import datetime
-from typing import Any, Callable, ContextManager, Dict, Iterator, List, Protocol, cast
+from typing import Any, Callable, ContextManager, Dict, Iterator, List, Optional, Protocol, cast
 from unittest import mock
 from urllib.parse import urljoin
 
@@ -68,14 +68,13 @@ def app(
 
 
 @pytest.fixture(autouse=True, scope="module")
-def create_system_api_key() -> Callable[[Name, datetime], ApiKey]:
-    def _(name: Name, expires_at: datetime) -> str:
+def create_system_api_key() -> Callable[[Name, Optional[datetime]], ApiKey]:
+    def _(name: Name, expires_at: Optional[datetime]) -> str:
         mutation = (
-            'mutation{createSystemApiKey(input: {name: "'
-            + name
-            + '" expiresAt: "'
-            + expires_at.isoformat()
-            + '"}){jwt apiKey{name expiresAt}}}'
+            "mutation{createSystemApiKey(input: {name: "
+            + f'"{name}"'
+            + (f' expiresAt: "{expires_at.isoformat()}"' if expires_at else "")
+            + "}){jwt apiKey{name expiresAt}}}"
         )
         resp = httpx.post(urljoin(get_base_url(), "graphql"), json=dict(query=mutation))
         resp.raise_for_status()
@@ -84,7 +83,9 @@ def create_system_api_key() -> Callable[[Name, datetime], ApiKey]:
         result = resp_dict["data"]["createSystemApiKey"]
         api_key = result["apiKey"]
         assert api_key["name"] == name
-        assert datetime.fromisoformat(api_key["expiresAt"]) == expires_at
+        assert (
+            datetime.fromisoformat(api_key["expiresAt"]) if api_key["expiresAt"] else None
+        ) == expires_at
         return cast(ApiKey, result["jwt"])
 
     return _
