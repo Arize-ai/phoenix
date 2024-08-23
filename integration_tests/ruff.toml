@@ -12,3 +12,4 @@ force-single-line = false
 
 [format]
 line-ending = "native"
+exclude = ["notebooks"]
