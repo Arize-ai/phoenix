@@ -20,7 +20,7 @@ class NotFound(CustomGraphQLError):
     """
 
 
-class AuthorizationError(CustomGraphQLError):
+class Unauthorized(CustomGraphQLError):
     """
     An error raised when login fails or a user or other entity is not authorized
     to access a resource.
