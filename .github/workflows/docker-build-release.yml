@@ -25,7 +25,7 @@ jobs:
       - name: Extract version from tag
         id: extract_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
-      
+
       - name: Set BASE_IMAGE environment variable
         id: set-base-image
         run: |
@@ -44,7 +44,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
@@ -61,6 +61,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          sbom: true
+          provenance: mode=max
           tags: |
             ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
             ${{ matrix.variant == 'nonroot' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
