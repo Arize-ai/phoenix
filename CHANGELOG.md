@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.28.0...arize-phoenix-v4.28.1) (2024-08-23)
+
+
+### Bug Fixes
+
+* format code ([#4343](https://github.com/Arize-ai/phoenix/issues/4343)) ([32e131a](https://github.com/Arize-ai/phoenix/commit/32e131a17525b6fbe65178a03d7fa338490fdf0b))
+
 ## [4.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.27.0...arize-phoenix-v4.28.0) (2024-08-23)
 
 
