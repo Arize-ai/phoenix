@@ -1,8 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Form, TextField, View } from "@arizeai/components";
+import { Flex, View } from "@arizeai/components";
 
+import { LoginForm } from "./LoginForm";
 import { PhoenixLogo } from "./PhoenixLogo";
 
 export function LoginPage() {
@@ -39,35 +40,7 @@ export function LoginPage() {
             <PhoenixLogo />
           </View>
         </Flex>
-        <Form action="/login" method="post">
-          <TextField
-            label="Email"
-            name="email"
-            isRequired
-            type="email"
-            placeholder="your email address"
-          />
-          <TextField
-            label="Password"
-            name="password"
-            type="password"
-            isRequired
-            placeholder="your password"
-          />
-          <div
-            css={css`
-              margin-top: var(--ac-global-dimension-size-400);
-              margin-bottom: var(--ac-global-dimension-size-50);
-              button {
-                width: 100%;
-              }
-            `}
-          >
-            <Button variant="primary" type="submit">
-              Login
-            </Button>
-          </div>
-        </Form>
+        <LoginForm />
       </View>
       <footer
         css={css`

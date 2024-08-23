@@ -839,6 +839,11 @@ type LabelFraction {
   fraction: Float!
 }
 
+input LoginMutationInput {
+  email: String!
+  password: String!
+}
+
 enum MimeType {
   text
   json
@@ -879,8 +884,9 @@ type Model {
 }
 
 type Mutation {
-  deleteProject(id: GlobalID!): Query!
-  clearProject(input: ClearProjectInput!): Query!
+  createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
+  login(input: LoginMutationInput!): Void
+  logout: Void
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -899,13 +905,14 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  deleteProject(id: GlobalID!): Query!
+  clearProject(input: ClearProjectInput!): Query!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
-  createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUser(input: CreateUserInput!): UserMutationPayload!
 }
 
@@ -1480,3 +1487,6 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
+
+"""Represents NULL values"""
+scalar Void
