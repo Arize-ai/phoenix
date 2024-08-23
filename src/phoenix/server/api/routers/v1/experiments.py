@@ -18,7 +18,7 @@ from phoenix.server.dml_event import ExperimentInsertEvent
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 def _short_uuid() -> str:
