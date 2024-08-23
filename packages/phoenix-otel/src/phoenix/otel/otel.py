@@ -227,7 +227,7 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
-        super().__init__(*args, **kwargs)
+        super().__init__(**bound_args.arguments)
 
 
 def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:

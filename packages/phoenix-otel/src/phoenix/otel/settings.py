@@ -59,20 +59,19 @@ def parse_env_headers(s: str) -> Dict[str, str]:
         match = _HEADER_PATTERN.fullmatch(header.strip())
         if not match:
             parts = header.split("=", 1)
-            if len(parts) == 2:
-                name, value = parts
-                encoded_header = f"{urllib.parse.quote(name)}={urllib.parse.quote(value)}"
+            name, value = parts
+            encoded_header = f"{urllib.parse.quote(name)}={urllib.parse.quote(value)}"
             match = _HEADER_PATTERN.fullmatch(encoded_header.strip())
             if not match:
                 _logger.warning(
                     "Header format invalid! Header values in environment variables must be "
                     "URL encoded: %s",
-                    header,
+                    f"{name}: ****",
                 )
                 continue
             _logger.warning(
-                f"Header values in environment variables should be URL encoded, ``{header}`` "
-                f"was urlencoded to: ``{encoded_header}``"
+                "Header values in environment variables should be URL encoded, attempting to "
+                "URL encode header: {name}: ****"
             )
 
         name, value = header.split("=", 1)
