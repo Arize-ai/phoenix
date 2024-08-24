@@ -26,6 +26,7 @@
         "langchain",
         "litellm",
         "llamaindex",
+        "LLAMATRACE",
         "LOOKBACK",
         "mistralai",
         "ndcg",
