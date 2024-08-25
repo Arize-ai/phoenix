@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.4.0...arize-phoenix-otel-v0.4.1) (2024-08-25)
+
+
+### Bug Fixes
+
+* **otel:** add semantic conventions dependency ([#4380](https://github.com/Arize-ai/phoenix/issues/4380)) ([a3e1462](https://github.com/Arize-ai/phoenix/commit/a3e14626077fd7aa893126c360a24784c4aa591c))
+
 ## [0.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.3.0...arize-phoenix-otel-v0.4.0) (2024-08-23)
 
 
