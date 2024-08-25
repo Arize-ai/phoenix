@@ -2,6 +2,9 @@ import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import {
+  AnthropicSVG,
+  DSPYSVG,
+  GroqSVG,
   HaystackSVG,
   LangChainSVG,
   LlamaIndexSVG,
@@ -34,7 +37,7 @@ const integrationLinkCSS = css`
     background-color: var(--ac-global-color-grey-100);
     border-color: var(--ac-global-color-primary);
   }
-  min-width: 190px;
+  min-width: 230px;
   .integration__main-link {
     flex: 1 1 auto;
     color: var(--ac-global-text-color-900);
@@ -90,7 +93,8 @@ function IntegrationLink({
 const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
   {
     name: "OpenAI",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
     icon: <OpenAISVG />,
@@ -99,36 +103,65 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     name: "LlamaIndex",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-llama-index",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex",
     icon: <LlamaIndexSVG />,
   },
   {
     name: "LangChain",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-langchain",
     icon: <LangChainSVG />,
   },
   {
     name: "Haystack",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack",
     icon: <HaystackSVG />,
   },
   {
     name: "Vertex AI",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/vertex",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
     icon: <VertexAISVG />,
   },
   {
     name: "Mistral AI",
-    docsHref: "https://docs.arize.com/phoenix/integrations/overview",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai",
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai",
     icon: <MistralAISVG />,
+  },
+  {
+    name: "DSPy",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-dspy",
+    icon: <DSPYSVG />,
+  },
+  {
+    name: "Anthropic",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/anthropic",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic",
+    icon: <AnthropicSVG />,
+  },
+  {
+    name: "Groq",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/groq",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
+    icon: <GroqSVG />,
   },
 ];
 
