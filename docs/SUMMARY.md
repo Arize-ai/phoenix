@@ -37,6 +37,7 @@
   * [Instructor](tracing/integrations-tracing/instructor.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
+  * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
 * [Concepts: Tracing](tracing/concepts-tracing.md)
   * [Traces](tracing/concepts-tracing/what-are-traces.md)
   * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
