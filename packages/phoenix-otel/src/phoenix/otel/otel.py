@@ -31,7 +31,7 @@ def register(
     endpoint: Optional[str] = None,
     project_name: Optional[str] = None,
     batch: bool = False,
-    set_global_tracer: bool = True,
+    set_global_tracer_provider: bool = True,
     headers: Optional[Dict[str, str]] = None,
     verbose: bool = True,
 ) -> _TracerProvider:
@@ -51,7 +51,7 @@ def register(
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
             will be processed one at a time using a SimpleSpanProcessor.
-        set_global_tracer (bool): If False, the TracerProvider will not be set as the global
+        set_global_tracer_provider (bool): If False, the TracerProvider will not be set as the global
             tracer provider. Defaults to True.
         headers (dict, optional): Optional headers to include in the HTTP request to the collector.
         verbose (bool): If True, configuration details will be printed to stdout.
@@ -68,12 +68,12 @@ def register(
     tracer_provider.add_span_processor(span_processor)
     tracer_provider._default_processor = True
 
-    if set_global_tracer:
+    if set_global_tracer_provider:
         trace_api.set_tracer_provider(tracer_provider)
         global_provider_msg = (
             "|  \n"
             "|  `register` has set this TracerProvider as the global OpenTelemetry default.\n"
-            "|  To disable this behavior, call `register` with `set_global_tracer=False`.\n"
+            "|  To disable this behavior, call `register` with `set_global_tracer_provider=False`.\n"
         )
     else:
         global_provider_msg = ""
