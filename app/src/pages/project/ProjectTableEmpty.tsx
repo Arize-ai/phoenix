@@ -11,30 +11,32 @@ import {
   View,
 } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
+import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
-export function ProjectTableEmpty() {
+function SetupProjectDialog({ projectName }: { projectName: string }) {
+  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  return (
+    <Dialog title="Send Traces to this Project" size="L">
+      <View padding="size-400" overflow="auto">
+        <View paddingBottom="size-100">
+          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+        </View>
+        {language === "Python" ? (
+          <PythonProjectGuide projectName={projectName} />
+        ) : (
+          <TypeScriptProjectGuide projectName={projectName} />
+        )}
+      </View>
+    </Dialog>
+  );
+}
+
+export function ProjectTableEmpty({ projectName }: { projectName: string }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const onGettingStartedClick = () => {
-    setDialog(
-      <Dialog title="Getting Started with Traces" isDismissable>
-        <View padding="size-200">
-          <p
-            css={css`
-              margin: 0 0 var(--ac-global-dimension-size-100) 0;
-            `}
-          >
-            To get started with traces, you will need to setup tracing in your
-            application. Phoenix uses OpenTelemetry to collect traces and has
-            various integrations with orchestration frameworks, SDKs, and
-            languages. To get started, consult the documentation.
-          </p>
-          <ExternalLink href="https://docs.arize.com/phoenix/tracing/how-to-tracing">
-            View tracing documentation
-          </ExternalLink>
-        </View>
-      </Dialog>
-    );
+    setDialog(<SetupProjectDialog projectName={projectName} />);
   };
   return (
     <tbody className="is-empty">
@@ -58,7 +60,11 @@ export function ProjectTableEmpty() {
           </Flex>
         </td>
       </tr>
-      <DialogContainer onDismiss={() => setDialog(null)}>
+      <DialogContainer
+        onDismiss={() => setDialog(null)}
+        isDismissable
+        type="slideOver"
+      >
         {dialog}
       </DialogContainer>
     </tbody>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07e283462624a27f2b246588bfbb7765>>
+ * @generated SignedSource<<6d68580c3529a74e2f4819c3532ed0d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
+  readonly name: string;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -71,14 +72,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v3 = [
@@ -151,6 +152,7 @@ return {
   },
   "name": "SpansTable_spans",
   "selections": [
+    (v1/*: any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -196,7 +198,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -204,7 +206,7 @@ return {
                   "name": "spanKind",
                   "storageKey": null
                 },
-                (v2/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -307,7 +309,7 @@ return {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
-                    (v2/*: any*/),
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -430,13 +432,13 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v2/*: any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "ce0f0cd1dc09d507f1e3ec37a76403a8";
+(node as any).hash = "4827989f55b1c0bd269253b6bc977439";
 
 export default node;

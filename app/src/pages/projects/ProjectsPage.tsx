@@ -32,6 +32,7 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const REFRESH_INTERVAL_MS = 10000;
@@ -194,7 +195,8 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
       >
-        <Flex direction="row" justifyContent="end">
+        <Flex direction="row" justifyContent="end" gap="size-100">
+          <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>
       </View>
