@@ -22,7 +22,6 @@ from typing import (
     cast,
 )
 from urllib.parse import quote, urljoin
-from warnings import warn
 
 import httpx
 import pandas as pd
@@ -503,7 +502,6 @@ class Client(TraceDataExtractor):
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
-        dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
         Append examples to dataset on the Phoenix server. If `dataframe` or
@@ -537,11 +535,6 @@ class Client(TraceDataExtractor):
         Returns:
             A Dataset object with its examples.
         """
-        if dataset_description is not None:
-            warn(
-                "The `dataset_description` parameter has been deprecated "
-                "and will be removed in a future release."
-            )
         if dataframe is not None or csv_file_path is not None:
             if dataframe is not None and csv_file_path is not None:
                 raise ValueError(

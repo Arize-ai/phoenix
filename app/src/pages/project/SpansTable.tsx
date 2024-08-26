@@ -91,6 +91,7 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
+          name
           ...SpanColumnSelector_annotations
           spans(
             first: $first
@@ -498,7 +499,7 @@ export function SpansTable(props: SpansTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <ProjectTableEmpty />
+            <ProjectTableEmpty projectName={data.name} />
           ) : (
             <tbody>
               {rows.map((row) => {

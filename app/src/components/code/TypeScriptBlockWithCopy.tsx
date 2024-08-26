@@ -2,15 +2,15 @@ import React from "react";
 
 import { CopyToClipboardButton } from "../CopyToClipboardButton";
 
-import { PythonBlock } from "./PythonBlock";
 import { codeBlockWithCopyCSS } from "./styles";
+import { TypeScriptBlock } from "./TypeScriptBlock";
 
-export function PythonBlockWithCopy(props: { value: string }) {
+export function TypeScriptBlockWithCopy(props: { value: string }) {
   const { value } = props;
   return (
-    <div className="python-code-block" css={codeBlockWithCopyCSS}>
+    <div className="typescript-code-block" css={codeBlockWithCopyCSS}>
       <CopyToClipboardButton text={value} />
-      <PythonBlock value={value} />
+      <TypeScriptBlock value={value} />
     </div>
   );
 }

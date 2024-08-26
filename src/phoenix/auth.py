@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
-from typing import Optional, Protocol, Tuple, Union
+from typing import NamedTuple, Optional, Protocol, Tuple, Union
 
 from starlette.authentication import BaseUser
 from typing_extensions import TypeAlias
@@ -196,10 +196,18 @@ class Claim:
 Token: TypeAlias = str
 
 
+class ApiKeyDbId(NamedTuple):
+    id_: int
+
+
+class SessionTokenDbId(NamedTuple):
+    id_: int
+
+
 class TokenStore(Protocol):
     async def create(self, claims: Claim) -> Tuple[Token, int]: ...
     async def read(self, token: Token) -> Claim: ...
-    async def revoke(self, token_id: TokenId) -> None: ...
+    async def revoke(self, token: Union[Token, ApiKeyDbId, SessionTokenDbId]) -> None: ...
 
 
 class PhoenixUser(BaseUser):

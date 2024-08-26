@@ -4,13 +4,15 @@ from typing import Optional
 import strawberry
 from sqlalchemy import select
 from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.auth import ApiKeyAttributes, Claim, Issuer
+from phoenix.auth import ApiKeyAttributes, ApiKeyDbId, Claim, Issuer
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.mutations.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 
 
@@ -26,6 +28,16 @@ class CreateApiKeyInput:
     name: str
     description: Optional[str] = UNSET
     expires_at: Optional[datetime] = UNSET
+
+
+@strawberry.input
+class DeleteApiKeyInput:
+    id: GlobalID
+
+
+@strawberry.type
+class DeleteSystemApiKeyMutationPayload:
+    id: GlobalID
 
 
 @strawberry.type
@@ -79,3 +91,14 @@ class ApiKeyMutationMixin:
             ),
             query=Query(),
         )
+
+    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
+    async def delete_system_api_key(
+        self, info: Info[Context, None], input: DeleteApiKeyInput
+    ) -> DeleteSystemApiKeyMutationPayload:
+        assert (token_store := info.context.token_store) is not None
+        api_key_id = from_global_id_with_expected_type(
+            input.id, expected_type_name=SystemApiKey.__name__
+        )
+        await token_store.revoke(ApiKeyDbId(api_key_id))
+        return DeleteSystemApiKeyMutationPayload(id=input.id)

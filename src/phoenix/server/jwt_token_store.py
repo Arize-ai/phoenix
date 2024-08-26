@@ -2,7 +2,7 @@ import logging
 from asyncio import create_task, sleep
 from dataclasses import replace
 from datetime import datetime, timezone
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union
 
 import jwt
 from sqlalchemy import Subquery, delete, func, insert, literal, select
@@ -11,9 +11,11 @@ from typing_extensions import assert_never
 from phoenix.auth import (
     JWT_ALGORITHM,
     ApiKeyAttributes,
+    ApiKeyDbId,
     Claim,
     Issuer,
     SessionAttributes,
+    SessionTokenDbId,
     Token,
     TokenId,
 )
@@ -123,9 +125,17 @@ class JwtTokenStore(DaemonTask):
             claim = replace(claim, token_id=None)
         return claim
 
-    async def revoke(self, token: Token) -> None:
-        if (token_id := (claim := await self.read(token)).token_id) is None:
-            return
+    async def revoke(self, token: Union[Token, ApiKeyDbId, SessionTokenDbId]) -> None:
+        if isinstance(token, str):
+            claim = await self.read(token)
+            if (token_id := claim.token_id) is None:
+                return
+        elif isinstance(token, ApiKeyDbId):
+            token_id, claim = _token_id(Issuer.API_KEY, token.id_), Claim()
+        elif isinstance(token, SessionTokenDbId):
+            token_id, claim = _token_id(Issuer.SESSION, token.id_), Claim()
+        else:
+            assert_never(token)
         if token_id in self._cached_user_sessions or claim.issuer is Issuer.SESSION:
             _, id_ = _parse_token_id(token_id)
             user_id = (
