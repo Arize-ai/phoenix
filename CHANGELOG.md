@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.30.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.30.0...arize-phoenix-v4.30.1) (2024-08-26)
+
+
+### Bug Fixes
+
+* improve timeout error message for query_spans method ([#4391](https://github.com/Arize-ai/phoenix/issues/4391)) ([81811f1](https://github.com/Arize-ai/phoenix/commit/81811f1c18d98f89f5d3e941694d3965e957d7a7))
+
 ## [4.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.29.0...arize-phoenix-v4.30.0) (2024-08-26)
 
 
