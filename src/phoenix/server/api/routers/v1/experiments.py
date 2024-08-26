@@ -2,7 +2,7 @@ from datetime import datetime
 from random import getrandbits
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -90,8 +90,8 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 )
 async def create_experiment(
     request: Request,
-    dataset_id: str,
     request_body: CreateExperimentRequestBody,
+    dataset_id: str = Path(..., title="Dataset ID"),
 ) -> CreateExperimentResponseBody:
     dataset_globalid = GlobalID.from_id(dataset_id)
     try:
@@ -266,7 +266,7 @@ class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
 )
 async def list_experiments(
     request: Request,
-    dataset_id: str,
+    dataset_id: str = Path(..., title="Dataset ID"),
 ) -> ListExperimentsResponseBody:
     dataset_gid = GlobalID.from_id(dataset_id)
     try:
