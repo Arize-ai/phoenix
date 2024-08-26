@@ -97,7 +97,7 @@ class ApiKeyMutationMixin:
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteSystemApiKeyMutationPayload:
         api_key_id = from_global_id_with_expected_type(
-            input.id, expected_type=SystemApiKey.__name__
+            input.id, expected_type_name=SystemApiKey.__name__
         )
         async with info.context.db() as session:
             api_key = await session.get(models.APIKey, api_key_id)
