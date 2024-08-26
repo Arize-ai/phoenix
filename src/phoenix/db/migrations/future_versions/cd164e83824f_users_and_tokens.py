@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Sequence, TypedDict, Union
 
 import sqlalchemy as sa
 from alembic import op
-from phoenix.datetime_utils import normalize_datetime
 from sqlalchemy import (
     JSON,
     TIMESTAMP,
@@ -31,6 +30,8 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
+
+from phoenix.datetime_utils import normalize_datetime
 
 
 class JSONB(JSON):
