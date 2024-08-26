@@ -256,7 +256,7 @@ NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
 # NAME_TO_DATASET_FIXTURE: Dict[str, TracesFixture] = defaultdict(list)
-PROJ_NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
@@ -325,7 +325,7 @@ def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
 ) -> None:
-    expiration = time() + 10
+    expiration = time() + 5
     while time() < expiration:
         try:
             url = urljoin(endpoint, "/healthz")
