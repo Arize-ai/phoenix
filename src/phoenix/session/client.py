@@ -151,21 +151,37 @@ class Client(TraceDataExtractor):
                 "stop_time is deprecated. Use end_time instead.",
             )
             end_time = end_time or stop_time
-        response = self._client.post(
-            url=urljoin(self._base_url, "v1/spans"),
-            params={
-                "project_name": project_name,
-                "project-name": project_name,  # for backward-compatibility
-            },
-            json={
-                "queries": [q.to_dict() for q in queries],
-                "start_time": _to_iso_format(normalize_datetime(start_time)),
-                "end_time": _to_iso_format(normalize_datetime(end_time)),
-                "limit": limit,
-                "root_spans_only": root_spans_only,
-            },
-            timeout=timeout,
-        )
+        try:
+            response = self._client.post(
+                url=urljoin(self._base_url, "v1/spans"),
+                params={
+                    "project_name": project_name,
+                    "project-name": project_name,  # for backward-compatibility
+                },
+                json={
+                    "queries": [q.to_dict() for q in queries],
+                    "start_time": _to_iso_format(normalize_datetime(start_time)),
+                    "end_time": _to_iso_format(normalize_datetime(end_time)),
+                    "limit": limit,
+                    "root_spans_only": root_spans_only,
+                },
+                timeout=timeout,
+            )
+        except httpx.TimeoutException as error:
+            error_message = (
+                (
+                    f"The request timed out after {timeout} seconds. The timeout can be increased "
+                    "by passing a larger value to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+                if timeout is not None
+                else (
+                    "The request timed out. The timeout can be adjusted by "
+                    "passing a number of seconds to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+            )
+            raise TimeoutError(error_message) from error
         if response.status_code == 404:
             logger.info("No spans found.")
             return None
@@ -831,3 +847,6 @@ def _is_all_dict(seq: Sequence[Any]) -> bool:
 
 
 class DatasetUploadError(Exception): ...
+
+
+class TimeoutError(Exception): ...
