@@ -20,7 +20,12 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
+from phoenix.trace.utils import (
+    download_json_traces_fixture,
+    is_csv_file,
+    is_jsonl_file,
+    json_lines_to_df,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -58,7 +63,23 @@ class DatasetFixture:
 
     def load(self) -> "DatasetFixture":
         if self._df is None:
-            df = pd.read_csv(_url(self.file_name))
+            url = _url(self.file_name)
+
+            if is_jsonl_file(self.file_name):
+                df = json_lines_to_df(download_json_traces_fixture(url))
+            elif is_csv_file(self.file_name):
+                df = pd.read_csv(_url(self.file_name))
+            else:
+                try:
+                    df = pd.read_parquet(url)
+                except Exception:
+                    logger.warning(
+                        f"Failed to download example traces from {url=} "
+                        "due to exception {e=}. "
+                        "Returning empty dataframe for DatasetFixture"
+                    )
+                    df = pd.DataFrame()
+
             object.__setattr__(self, "_df", df)
         return self
 
@@ -103,6 +124,15 @@ demo_llama_index_rag_fixture = TracesFixture(
         DocumentEvaluationFixture(
             evaluation_name="Relevance",
             file_name="demo_llama_index_rag_doc_relevance_eval.parquet",
+        ),
+    ),
+    dataset_fixtures=(
+        DatasetFixture(
+            file_name="demo_llama_index_finetune_dataset.jsonl",
+            input_keys=("messages",),
+            output_keys=("messages",),
+            name="Demo LlamaIndex: RAG Q&A",
+            description="OpenAI GPT-3.5 LLM dataset for LlamaIndex demo",
         ),
     ),
 )
@@ -225,7 +255,8 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE = defaultdict(list)
+# NAME_TO_DATASET_FIXTURE: Dict[str, TracesFixture] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
@@ -268,12 +299,8 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    host = "https://storage.googleapis.com/"
-    bucket = "arize-phoenix-assets"
-    prefix = "traces/"
     fixture = get_trace_fixture_by_name(fixture_name)
-
-    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
+    url = _url(fixture.file_name)
 
     if is_jsonl_file(fixture.file_name):
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
@@ -298,7 +325,7 @@ def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
 ) -> None:
-    expiration = time() + 5
+    expiration = time() + 10
     while time() < expiration:
         try:
             url = urljoin(endpoint, "/healthz")
