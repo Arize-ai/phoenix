@@ -12,8 +12,9 @@ import {
 
 import { ExternalLink } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
-import { PythonProjectGuide } from "./PythonProjectGuide";
+import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 
 const PHOENIX_OTEL_DOC_LINK =
   "https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing";
@@ -60,7 +61,11 @@ function NewProjectDialog() {
             for a complete guide.
           </Text>
         </View>
-        {language === "Python" ? <PythonProjectGuide /> : "TypeScript"}
+        {language === "Python" ? (
+          <PythonProjectGuide />
+        ) : (
+          <TypeScriptProjectGuide />
+        )}
       </View>
     </Dialog>
   );

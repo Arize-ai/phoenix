@@ -9,3 +9,13 @@ export const readOnlyCodeMirrorCSS = css`
     background-color: transparent;
   }
 `;
+
+export const codeBlockWithCopyCSS = css`
+  position: relative;
+  .copy-to-clipboard-button {
+    position: absolute;
+    top: var(--ac-global-dimension-size-100);
+    right: var(--ac-global-dimension-size-100);
+    z-index: 1;
+  }
+`;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 import {
   Heading,
@@ -6,7 +6,6 @@ import {
   TabPane,
   Tabs,
   Text,
-  TextField,
   View,
 } from "@arizeai/components";
 
@@ -70,12 +69,16 @@ tracer_provider = register(
 )`;
 };
 
-export function PythonProjectGuide() {
+type PythonProjectGuideProps = {
+  /**
+   * An existing project name
+   */
+  projectName?: string;
+};
+export function PythonProjectGuide(props: PythonProjectGuideProps) {
   const isHosted = HOSTED_BASE_URLS.includes(BASE_URL);
 
-  const [projectName, setProjectName] = useState<string>(
-    "your-next-llm-project"
-  );
+  const projectName = props.projectName || "your-next-llm-project";
   return (
     <div>
       <View paddingTop="size-200" paddingBottom="size-100">
@@ -125,13 +128,6 @@ export function PythonProjectGuide() {
           Register your application to send traces to this project. The code
           below should be added <b>BEFORE</b> any code execution.
         </Text>
-      </View>
-      <View paddingBottom="size-100">
-        <TextField
-          label="Project Name"
-          value={projectName}
-          onChange={setProjectName}
-        />
       </View>
       <View paddingBottom="size-100">
         <CodeWrap>

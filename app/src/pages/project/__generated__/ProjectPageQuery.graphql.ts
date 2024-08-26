@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5058c2c39b362918390b6480b0e21833>>
+ * @generated SignedSource<<5852eb7ecbaa12deeb8eeac2b593b20e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,11 +63,18 @@ v3 = {
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v5 = [
+v6 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -86,20 +93,13 @@ v5 = [
       "dir": "desc"
     }
   },
-  (v4/*: any*/)
+  (v5/*: any*/)
 ],
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "spanKind",
-  "storageKey": null
-},
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "spanKind",
   "storageKey": null
 },
 v8 = {
@@ -172,7 +172,7 @@ v14 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v7/*: any*/),
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -246,7 +246,7 @@ v16 = [
   }
 ],
 v17 = [
-  (v4/*: any*/)
+  (v5/*: any*/)
 ];
 return {
   "fragment": {
@@ -308,6 +308,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v4/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -317,7 +318,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -340,8 +341,8 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*: any*/),
-                          (v6/*: any*/),
                           (v7/*: any*/),
+                          (v4/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -406,8 +407,8 @@ return {
                             "plural": true,
                             "selections": [
                               (v3/*: any*/),
-                              (v6/*: any*/),
                               (v7/*: any*/),
+                              (v4/*: any*/),
                               (v8/*: any*/),
                               (v9/*: any*/),
                               (v10/*: any*/),
@@ -514,7 +515,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "filters": [
                   "sort",
                   "rootSpansOnly",
@@ -548,7 +549,7 @@ return {
                     "name": "probability",
                     "value": 0.5
                   },
-                  (v4/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -562,7 +563,7 @@ return {
                     "name": "probability",
                     "value": 0.99
                   },
-                  (v4/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "latencyMsQuantile",
@@ -592,12 +593,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7ca0a7d143e3f1dbcffdb72ac9a605ee",
+    "cacheID": "43fee2b22bc4798639d2e1fbef09ce21",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...TracesTable_spans\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n\nfragment TracesTable_spans on Project {\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 50, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          id\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          cumulativeTokenCountTotal: tokenCountTotal\n          cumulativeTokenCountPrompt: tokenCountPrompt\n          cumulativeTokenCountCompletion: tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanAnnotations {\n            name\n            label\n            score\n            annotatorKind\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...TracesTable_spans\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 50, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          id\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          cumulativeTokenCountTotal: tokenCountTotal\n          cumulativeTokenCountPrompt: tokenCountPrompt\n          cumulativeTokenCountCompletion: tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanAnnotations {\n            name\n            label\n            score\n            annotatorKind\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

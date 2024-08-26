@@ -9,7 +9,9 @@ import {
   LangChainSVG,
   LlamaIndexSVG,
   MistralAISVG,
+  NodeJSSVG,
   OpenAISVG,
+  VercelSVG,
   VertexAISVG,
 } from "./IntegrationIcons";
 
@@ -172,10 +174,76 @@ const integrationsListCSS = css`
   gap: var(--ac-global-dimension-size-100);
   flex-wrap: wrap;
 `;
+
 export function PythonIntegrations() {
   return (
     <ul css={integrationsListCSS}>
       {PYTHON_INTEGRATIONS.map((integration) => (
+        <li key={integration.name}>
+          <IntegrationLink key={integration.name} {...integration} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const TYPESCRIPT_PLATFORM_INTEGRATIONS: IntegrationLinkProps[] = [
+  {
+    name: "Node",
+    docsHref:
+      "https://opentelemetry.io/docs/languages/js/getting-started/nodejs/",
+    githubHref: "https://github.com/open-telemetry/opentelemetry-js",
+    icon: <NodeJSSVG />,
+  },
+  {
+    name: "Vercel",
+    docsHref: "https://vercel.com/docs/observability/otel-overview",
+    githubHref: "https://github.com/vercel/otel",
+    icon: <VercelSVG />,
+  },
+];
+export function TypeScriptPlatformIntegrations() {
+  return (
+    <ul css={integrationsListCSS}>
+      {TYPESCRIPT_PLATFORM_INTEGRATIONS.map((integration) => (
+        <li key={integration.name}>
+          <IntegrationLink key={integration.name} {...integration} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
+  {
+    name: "OpenAI NodeJS SDK",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-node-sdk",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
+    icon: <OpenAISVG />,
+  },
+  {
+    name: "LangChain.js",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-langchain",
+    icon: <LangChainSVG />,
+  },
+  {
+    name: "Vercel AI SDK",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
+    icon: <VercelSVG />,
+  },
+];
+export function TypeScriptIntegrations() {
+  return (
+    <ul css={integrationsListCSS}>
+      {TYPESCRIPT_INTEGRATIONS.map((integration) => (
         <li key={integration.name}>
           <IntegrationLink key={integration.name} {...integration} />
         </li>
