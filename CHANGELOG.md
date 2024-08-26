@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.29.0...arize-phoenix-v4.30.0) (2024-08-26)
+
+
+### Features
+
+* **onboarding:** New project onboarding ([#4372](https://github.com/Arize-ai/phoenix/issues/4372)) ([16ac5ed](https://github.com/Arize-ai/phoenix/commit/16ac5edcfbe44b0e8fef018f2fdc1c083aaa2765))
+
 ## [4.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.28.1...arize-phoenix-v4.29.0) (2024-08-26)
 
 
