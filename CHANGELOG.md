@@ -1,5 +1,23 @@
 # Changelog
 
+## [4.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.28.1...arize-phoenix-v4.29.0) (2024-08-26)
+
+
+### Features
+
+* Add Experiments API to OpenAPI Schema ([#4356](https://github.com/Arize-ai/phoenix/issues/4356)) ([ca4fb5d](https://github.com/Arize-ai/phoenix/commit/ca4fb5db7e02f80777dc3e5ce22614aa91977109))
+* Delete system API key mutation ([#4337](https://github.com/Arize-ai/phoenix/issues/4337)) ([b6bb6bc](https://github.com/Arize-ai/phoenix/commit/b6bb6bc71266ef3178c31c358a5c63cf188dd868))
+
+
+### Bug Fixes
+
+* **docker:** support arm64 architecture in docker images ([#4386](https://github.com/Arize-ai/phoenix/issues/4386)) ([1b6eec8](https://github.com/Arize-ai/phoenix/commit/1b6eec898ab5f8bc355245f1ed14f54ad8a3173c))
+
+
+### Documentation
+
+* **examples:** add crew ai example ([#4373](https://github.com/Arize-ai/phoenix/issues/4373)) ([93ffb67](https://github.com/Arize-ai/phoenix/commit/93ffb67d94b7d8db1d917897ba613dfe47fef5f4))
+
 ## [4.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.28.0...arize-phoenix-v4.28.1) (2024-08-23)
 
 
