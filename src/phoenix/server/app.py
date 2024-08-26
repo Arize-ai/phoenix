@@ -269,7 +269,6 @@ class Scaffolder(DaemonTask):
         )
         self._force_fixture_ingestion = force_fixture_ingestion
         self._scaffold_dataset = scaffold_dataset
-        self.dataset_fixtures = []
 
     async def __aenter__(self) -> None:
         await self.start()
