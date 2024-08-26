@@ -648,23 +648,31 @@ if ENABLE_AUTH:
             UtcTimeStamp, server_default=func.now(), onupdate=func.now()
         )
         deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-        api_keys: Mapped[List["APIKey"]] = relationship("APIKey", back_populates="user")
+        api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
+        user_sessions: Mapped[List["UserSession"]] = relationship(
+            "UserSession", back_populates="user"
+        )
 
-    class APIKey(Base):
+    class UserSession(Base):
+        __tablename__ = "user_sessions"
+        id: Mapped[int] = mapped_column(primary_key=True)
+        user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+        user: Mapped["User"] = relationship("User", back_populates="user_sessions")
+        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
+
+    class ApiKey(Base):
         __tablename__ = "api_keys"
         id: Mapped[int] = mapped_column(primary_key=True)
-        user_id: Mapped[int] = mapped_column(
-            ForeignKey("users.id"),
-            index=True,
-        )
+        user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
         user: Mapped["User"] = relationship("User", back_populates="api_keys")
         name: Mapped[str]
         description: Mapped[Optional[str]]
         created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
 
     # todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
-    class AuditAPIKey(Base):
+    class AuditApiKey(Base):
         __tablename__ = "audit_api_keys"
         id: Mapped[int] = mapped_column(primary_key=True)
         api_key_id: Mapped[int] = mapped_column(

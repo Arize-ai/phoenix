@@ -5,6 +5,7 @@ from typing import Any, Optional
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
+from phoenix.auth import TokenStore
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
@@ -76,6 +77,7 @@ class Context(BaseContext):
     corpus: Optional[Model] = None
     read_only: bool = False
     secret: Optional[str] = None
+    token_store: Optional[TokenStore] = None
 
     def get_secret(self) -> str:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.

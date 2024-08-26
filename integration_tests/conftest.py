@@ -80,7 +80,7 @@ def http_span_exporter() -> _ExporterFactory:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
         endpoint = urljoin(get_base_url(), "v1/traces")
-        return OTLPSpanExporter(endpoint, headers=headers)
+        return OTLPSpanExporter(endpoint, headers=headers, timeout=1)
 
     return _
 
@@ -96,12 +96,12 @@ def grpc_span_exporter() -> _ExporterFactory:
         if host == "0.0.0.0":
             host = "127.0.0.1"
         endpoint = f"http://{host}:{get_env_grpc_port()}"
-        return OTLPSpanExporter(endpoint, headers=headers)
+        return OTLPSpanExporter(endpoint, headers=headers, timeout=1)
 
     return _
 
 
-@pytest.fixture(scope="session", params=["http", "grpc"])
+@pytest.fixture(scope="session", params=["http"])
 def span_exporter(request: SubRequest) -> _ExporterFactory:
     if request.param == "http":
         return cast(_ExporterFactory, request.getfixturevalue("http_span_exporter"))

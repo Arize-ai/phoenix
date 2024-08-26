@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from enum import Enum, auto
 from hashlib import pbkdf2_hmac
-from typing import Any, Dict, Optional, TypedDict, cast
+from typing import Optional, Protocol, Tuple, Union
 
-import jwt
+from starlette.authentication import BaseUser
+from typing_extensions import TypeAlias
 
 
 def compute_password_hash(*, password: str, salt: str) -> str:
@@ -72,14 +76,12 @@ class _PasswordRequirements:
     are characters from `0123456789`, and uppercase and lowercase characters are characters
     from the ASCII set of letters.
 
-    Args:
+    Attributes:
         length (int): the minimum length of the password
-        special_chars (bool): whether the password must contain special characters. Special
-            characters are characters from `!@#$%^&*()_+`
-        digits (bool): whether the password must contain digits. Digits are characters from
-            `0123456789`
-        upper_case (bool): whether the password must contain uppercase letters
-        lower_case (bool): whether the password must contain lowercase letters
+        special_chars (bool): whether the password must contain at least one special character
+        digits (bool): whether the password must contain at least one digit
+        upper_case (bool): whether the password must contain at least one uppercase letter
+        lower_case (bool): whether the password must contain at least one lowercase letter
     """
 
     length: int
@@ -117,8 +119,7 @@ class _PasswordRequirements:
             raise ValueError("Password must contain at least one lowercase letter")
 
 
-AUTH_HEADER = "x-api-key"
-"""The name of the header that contains the API key."""
+"""The name of the header for token-based authentication"""
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
 """The regular expression pattern for a valid email address."""
 NUM_ITERATIONS = 10_000
@@ -129,50 +130,82 @@ PASSWORD_REQUIREMENTS = _PasswordRequirements(MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
 REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32, True, True, True, True)
 """The requirements for the Phoenix secret key."""
+JWT_ALGORITHM = "HS256"
+"""The algorithm to use for the JSON Web Token."""
+PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
+PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE = timedelta(days=31)
 
 
-class JwtPayload(TypedDict, total=False):
-    """
-    The payload of a JSON Web Token.
-    """
-
-    name: str
-    description: Optional[str]
-    iat: float
-    exp: int
-    id_: int
+class Issuer(Enum):
+    API_KEY = auto()
+    SESSION = auto()
 
 
-def create_jwt(
-    *,
-    secret: str,
-    algorithm: str = "HS256",
-    name: str,
-    description: Optional[str] = None,
-    iat: datetime,
-    exp: Optional[datetime] = None,
-    id_: int,
-) -> str:
-    """
-    Create a signed JSON Web Token for authentication
+class ClaimStatus(Enum):
+    VALID = auto()
+    INACTIVE = auto()
+    EXPIRED = auto()
 
-    Args:
-        secret (str): the secret to sign with
-        name (str): name of the key / token
-        description (Optional[str]): description of the token
-        iat (datetime): the issued at time
-        exp (Optional[datetime]): the expiry, if set
-        id_ (int): the id of the key
-        algorithm (str, optional): the algorithm to use. Defaults to "HS256".
-    Returns:
-        str: the signed JWT
-    """
-    payload = JwtPayload(
-        name=name,
-        description=description,
-        iat=iat.timestamp(),
-        id_=id_,
-    )
-    if exp is not None:
-        payload["exp"] = int(exp.timestamp())
-    return jwt.encode(cast(Dict[str, Any], payload), secret, algorithm=algorithm)
+
+@dataclass(frozen=True)
+class _BaseAttributes:
+    user_role: str
+
+
+@dataclass(frozen=True)
+class ApiKeyAttributes(_BaseAttributes):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class SessionAttributes(_BaseAttributes): ...
+
+
+Attributes: TypeAlias = Union[ApiKeyAttributes, SessionAttributes]
+TokenId: TypeAlias = str
+
+
+@dataclass(frozen=True)
+class Claim:
+    token_id: Optional[TokenId] = None
+    user_id: Optional[int] = None
+    issuer: Optional[Issuer] = None
+    issued_at: Optional[datetime] = None
+    expiration_time: Optional[datetime] = None
+    audience: Optional[str] = None
+    attributes: Optional[Attributes] = None
+
+    def __post_init__(self) -> None:
+        if self.issuer is Issuer.API_KEY:
+            assert isinstance(self.attributes, ApiKeyAttributes)
+        elif self.issuer is Issuer.SESSION:
+            assert isinstance(self.attributes, SessionAttributes)
+
+    @property
+    def status(self) -> ClaimStatus:
+        if self.token_id is None:
+            return ClaimStatus.INACTIVE
+        if self.user_id is None:
+            return ClaimStatus.INACTIVE
+        if self.expiration_time and self.expiration_time < datetime.now(timezone.utc):
+            return ClaimStatus.EXPIRED
+        return ClaimStatus.VALID
+
+
+Token: TypeAlias = str
+
+
+class TokenStore(Protocol):
+    async def create(self, claims: Claim) -> Tuple[Token, int]: ...
+    async def read(self, token: Token) -> Claim: ...
+    async def revoke(self, token_id: TokenId) -> None: ...
+
+
+class PhoenixUser(BaseUser):
+    def __init__(self, claim: Claim) -> None:
+        self.claim = claim
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True

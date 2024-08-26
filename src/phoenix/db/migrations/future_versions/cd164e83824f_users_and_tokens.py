@@ -113,15 +113,21 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
+        "user_sessions",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), index=True),
+    )
+    op.create_table(
         "api_keys",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id"),
-            nullable=False,
-            index=True,
-        ),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
@@ -130,11 +136,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Column(
-            "expires_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=True,
-        ),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True, index=True),
     )
     op.create_table(
         "audit_api_keys",

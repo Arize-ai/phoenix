@@ -32,11 +32,17 @@ from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.sql.functions import coalesce, func
+from starlette.authentication import (
+    AuthCredentials,
+    AuthenticationBackend,
+    BaseUser,
+)
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
+from starlette.requests import HTTPConnection, Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -47,7 +53,12 @@ from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.auth import compute_password_hash
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PhoenixUser,
+    TokenStore,
+    compute_password_hash,
+)
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     PHOENIX_SECRET,
@@ -89,10 +100,10 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
-from phoenix.server.api_key_validator import ApiKeyValidator
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.jwt_token_store import JwtTokenStore
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -339,7 +350,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
-    api_key_validator: Optional[ApiKeyValidator] = None,
+    token_store: Optional[JwtTokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
@@ -364,7 +375,7 @@ def _lifespan(
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
-                api_key_validator=api_key_validator,
+                token_store=token_store,
             )
             scaffolder = Scaffolder(
                 db=db,
@@ -376,8 +387,8 @@ def _lifespan(
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
             await stack.enter_async_context(scaffolder)
-            if api_key_validator:
-                await stack.enter_async_context(api_key_validator)
+            if token_store:
+                await stack.enter_async_context(token_store)
             for callback in startup_callbacks:
                 if isinstance((res := callback()), Awaitable):
                     await res
@@ -412,6 +423,7 @@ def create_graphql_router(
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     secret: Optional[str] = None,
+    token_store: Optional[JwtTokenStore] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
     """Creates the GraphQL router.
 
@@ -495,6 +507,7 @@ def create_graphql_router(
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
             secret=secret,
+            token_store=token_store,
         )
 
     return GraphQLRouter(
@@ -553,7 +566,7 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
-def ensure_admin_password(db: DbSessionFactory) -> _Callback:
+def ensure_first_time_admin_password(db: DbSessionFactory) -> _Callback:
     async def _() -> None:
         assert PHOENIX_SECRET
         loop = asyncio.get_running_loop()
@@ -612,11 +625,18 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    if authentication_enabled:
-        api_key_validator = ApiKeyValidator(db)
-        startup_callbacks_list.append(ensure_admin_password(db))
+    middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
+    if authentication_enabled and secret:
+        token_store = JwtTokenStore(db, secret)
+        startup_callbacks_list.append(ensure_first_time_admin_password(db))
+        middlewares.append(
+            Middleware(
+                AuthenticationMiddleware,
+                backend=BearerTokenAuthBackend(token_store),
+            )
+        )
     else:
-        api_key_validator = None
+        token_store = None
     dml_event_handler = DmlEventHandler(
         db=db,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -666,14 +686,12 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
         secret=secret,
+        token_store=token_store,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
 
-        prometheus_middlewares = [Middleware(PrometheusMiddleware)]
-    else:
-        prometheus_middlewares = []
-
+        middlewares.append(Middleware(PrometheusMiddleware))
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -682,7 +700,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
-            api_key_validator=api_key_validator,
+            token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
@@ -690,10 +708,7 @@ def create_app(
             tracing_fixture_names=tracing_fixture_names,
             force_fixture_ingestion=force_fixture_ingestion,
         ),
-        middleware=[
-            Middleware(HeadersMiddleware),
-            *prometheus_middlewares,
-        ],
+        middleware=middlewares,
         exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
         swagger_ui_parameters={
@@ -702,7 +717,6 @@ def create_app(
     )
     app.state.read_only = read_only
     app.state.export_path = export_path
-    app.state.validate_api_key = api_key_validator
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
@@ -753,3 +767,29 @@ def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional
 
     app.state.get_secret = MethodType(get_secret, app.state)
     return app
+
+
+class BearerTokenAuthBackend(AuthenticationBackend):
+    """
+    Custom Authentication Backend for Bearer Token Authentication
+    """
+
+    def __init__(self, token_store: TokenStore) -> None:
+        self.token_store = token_store
+
+    async def authenticate(
+        self,
+        conn: HTTPConnection,
+    ) -> Optional[Tuple[AuthCredentials, BaseUser]]:
+        if header := conn.headers.get("Authorization"):
+            scheme, _, token = header.partition(" ")
+            if scheme.lower() != "bearer":
+                return None
+        elif cookie_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
+            token = cookie_token
+        else:
+            return None
+        claim = await self.token_store.read(token)
+        if claim.user_id is None:
+            return None
+        return AuthCredentials(), PhoenixUser(claim)

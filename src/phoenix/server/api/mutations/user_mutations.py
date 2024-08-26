@@ -10,6 +10,7 @@ from phoenix.auth import compute_password_hash, validate_email_format, validate_
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.mutations.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserRole import UserRole
 
@@ -29,7 +30,15 @@ class UserMutationPayload:
 
 @strawberry.type
 class UserMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(
+        permission_classes=[
+            IsNotReadOnly,
+            HasSecret,
+            IsNotReadOnly,
+            IsAuthenticated,
+            IsAdmin,
+        ]
+    )  # type: ignore
     async def create_user(
         self,
         info: Info[Context, None],

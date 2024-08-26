@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, Protocol
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -14,7 +14,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.auth import AUTH_HEADER
+from phoenix.auth import Claim, ClaimStatus, Token
 from phoenix.config import get_env_grpc_port
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
@@ -48,6 +48,10 @@ class Servicer(TraceServiceServicer):  # type:ignore
         return ExportTraceServiceResponse()
 
 
+class CanReadToken(Protocol):
+    async def read(self, token: Token) -> Claim: ...
+
+
 class GrpcServer:
     def __init__(
         self,
@@ -55,21 +59,21 @@ class GrpcServer:
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
-        api_key_validator: Optional[Callable[[str], bool]] = None,
+        token_store: Optional[CanReadToken] = None,
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
-        self._api_key_validator = api_key_validator
+        self._token_store = token_store
 
     async def __aenter__(self) -> None:
         if self._disabled:
             return
         interceptors: List[ServerInterceptor] = []
-        if self._api_key_validator:
-            interceptors.append(ApiKeyInterceptor(self._api_key_validator))
+        if self._token_store:
+            interceptors.append(ApiKeyInterceptor(self._token_store))
         if self._enable_prometheus:
             ...
             # TODO: convert to async interceptor
@@ -101,9 +105,9 @@ class GrpcServer:
 
 
 class ApiKeyInterceptor(AsyncServerInterceptor):
-    def __init__(self, validate: Callable[[str], bool]) -> None:
+    def __init__(self, token_store: CanReadToken) -> None:
         super().__init__()
-        self._validate = validate
+        self._token_store = token_store
 
     async def intercept(
         self,
@@ -113,8 +117,12 @@ class ApiKeyInterceptor(AsyncServerInterceptor):
         method_name: str,
     ) -> Any:
         for datum in context.invocation_metadata():
-            if datum.key.lower() == AUTH_HEADER:
-                if self._validate(datum.value):
+            if datum.key.lower() == "authorization":
+                scheme, _, token = datum.value.partition(" ")
+                if scheme.lower() != "bearer":
+                    break
+                claim = await self._token_store.read(token)
+                if claim.status is ClaimStatus.VALID:
                     return await method(request_or_iterator, context)
                 break
         raise Unauthenticated(status_code=grpc.StatusCode.UNAUTHENTICATED)

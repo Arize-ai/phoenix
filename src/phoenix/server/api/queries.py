@@ -136,7 +136,7 @@ class Query:
     async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
         # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
             .where(models.UserRole.name != "SYSTEM")
@@ -159,7 +159,7 @@ class Query:
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
         # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
             .where(models.UserRole.name == "SYSTEM")

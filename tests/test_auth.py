@@ -1,11 +1,6 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-
-import jwt
 import pytest
-from faker import Faker
 
-from phoenix.auth import create_jwt, validate_email_format, validate_password_format
+from phoenix.auth import validate_email_format, validate_password_format
 
 
 def test_validate_email_format_does_not_raise_on_valid_format() -> None:
@@ -54,16 +49,3 @@ def test_validate_password_format_does_not_raise_on_valid_format() -> None:
 def test_validate_password_format_raises_on_invalid_format(password: str) -> None:
     with pytest.raises(ValueError):
         validate_password_format(password)
-
-
-@pytest.mark.parametrize("exp", [None, datetime.now(timezone.utc) + timedelta(days=1)])
-def test_create_jwt(exp: Optional[datetime], fake: Faker) -> None:
-    secret, name, iat = fake.pystr(), fake.pystr(), datetime.now(timezone.utc)
-    kwargs = dict(name=name, description=None, iat=iat, id_=1, exp=exp)
-    token = create_jwt(secret=secret, **kwargs)
-    expected = dict(kwargs)
-    expected.pop("exp")
-    expected["iat"] = iat.timestamp()
-    if exp:
-        expected["exp"] = int(exp.timestamp())
-    assert jwt.decode(token, secret, algorithms=["HS256"]) == expected

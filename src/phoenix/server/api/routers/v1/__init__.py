@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from starlette.status import HTTP_403_FORBIDDEN
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+
+from phoenix.auth import ClaimStatus, PhoenixUser
+from phoenix.config import ENABLE_AUTH
 
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
@@ -24,9 +27,33 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
+async def authorize(request: Request) -> None:
+    """
+    Authorize the claim in the request.
+
+    Args:
+        request: The incoming request.
+    Returns:
+        None
+    """
+    if not isinstance((user := request.user), PhoenixUser):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    claim = user.claim
+    if claim.status is ClaimStatus.EXPIRED:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
+    if claim.status is ClaimStatus.INACTIVE:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Inactive token")
+    if claim.status is not ClaimStatus.VALID:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+dependencies = [Depends(prevent_access_in_read_only_mode)]
+if ENABLE_AUTH:
+    dependencies.append(Depends(authorize))
+
 router = APIRouter(
     prefix="/v1",
-    dependencies=[Depends(prevent_access_in_read_only_mode)],
+    dependencies=dependencies,
     responses=add_errors_to_responses(
         [
             HTTP_403_FORBIDDEN  # adds a 403 response to each route in the generated OpenAPI schema
