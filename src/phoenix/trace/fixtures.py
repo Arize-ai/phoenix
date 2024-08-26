@@ -255,7 +255,6 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-# NAME_TO_DATASET_FIXTURE: Dict[str, TracesFixture] = defaultdict(list)
 PROJ_NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
