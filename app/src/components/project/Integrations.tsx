@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import {
   AnthropicSVG,
+  CrewAISVG,
   DSPYSVG,
   GroqSVG,
   HaystackSVG,
@@ -164,6 +165,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
     icon: <GroqSVG />,
+  },
+  {
+    name: "CrewAI",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/crewai",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-crewai",
+    icon: <CrewAISVG />,
   },
 ];
 
