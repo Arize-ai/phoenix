@@ -8,7 +8,18 @@ from io import StringIO
 from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
-from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
+from typing import (
+    DefaultDict,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    cast,
+)
 from urllib.parse import urljoin
 
 import httpx
@@ -254,7 +265,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE: Dict[str, List[TracesFixture]] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: DefaultDict[str, List[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
