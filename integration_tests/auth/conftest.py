@@ -12,6 +12,7 @@ from typing import (
     Literal,
     Optional,
     Protocol,
+    Tuple,
     cast,
 )
 from unittest import mock
@@ -34,6 +35,7 @@ from typing_extensions import TypeAlias
 ProjectName: TypeAlias = str
 Name: TypeAlias = str
 ApiKey: TypeAlias = str
+GqlId: TypeAlias = str
 
 
 class GetGqlSpans(Protocol):
@@ -114,24 +116,30 @@ def create_user() -> Callable[[Email, UserName, Password, Role, Token], None]:
         resp.raise_for_status()
         resp_dict = resp.json()
         assert not resp_dict.get("errors")
-        assert resp_dict["data"]["createUser"]["user"]["email"] == email
-        assert resp_dict["data"]["createUser"]["user"]["role"]["name"].upper() == role.upper()
+        assert (user := resp_dict["data"]["createUser"]["user"])
+        assert user["email"] == email
+        assert user["role"]["name"].upper() == role.upper()
 
     return _
 
 
 @pytest.fixture(scope="module")
-def create_system_api_key() -> Callable[[Name, Optional[datetime]], ApiKey]:
+def create_system_api_key() -> (
+    Callable[
+        [Name, Optional[datetime], Optional[Token]],
+        Tuple[ApiKey, GqlId],
+    ]
+):
     def _(
         name: Name,
         expires_at: Optional[datetime] = None,
         token: Optional[Token] = None,
-    ) -> str:
+    ) -> Tuple[ApiKey, GqlId]:
         mutation = (
             "mutation{createSystemApiKey(input:{"
             + f'name:"{name}"'
             + (f' expiresAt:"{expires_at.isoformat()}"' if expires_at else "")
-            + "}){jwt apiKey{name expiresAt}}}"
+            + "}){jwt apiKey{id name expiresAt}}}"
         )
         resp = httpx.post(
             urljoin(get_base_url(), "graphql"),
@@ -147,7 +155,24 @@ def create_system_api_key() -> Callable[[Name, Optional[datetime]], ApiKey]:
         assert (
             datetime.fromisoformat(api_key["expiresAt"]) if api_key["expiresAt"] else None
         ) == expires_at
-        return cast(ApiKey, result["jwt"])
+        return cast(ApiKey, result["jwt"]), cast(GqlId, api_key["id"])
+
+    return _
+
+
+@pytest.fixture(scope="module")
+def delete_system_api_key() -> Callable[[GqlId, Optional[Token]], None]:
+    def _(gid: GqlId, token: Optional[Token] = None) -> None:
+        mutation = "mutation{deleteSystemApiKey(input:{" + f'id:"{gid}"' + "}){id}}"
+        resp = httpx.post(
+            urljoin(get_base_url(), "graphql"),
+            json=dict(query=mutation),
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
+        )
+        resp.raise_for_status()
+        resp_dict = resp.json()
+        assert not resp_dict.get("errors")
+        assert resp_dict["data"]["deleteSystemApiKey"]["id"] == gid
 
     return _
 

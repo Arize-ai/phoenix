@@ -566,7 +566,7 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
-def ensure_first_time_admin_password(db: DbSessionFactory) -> _Callback:
+def ensure_admin_password(db: DbSessionFactory) -> _Callback:
     async def _() -> None:
         assert PHOENIX_SECRET
         loop = asyncio.get_running_loop()
@@ -628,7 +628,7 @@ def create_app(
     middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
     if authentication_enabled and secret:
         token_store = JwtTokenStore(db, secret)
-        startup_callbacks_list.append(ensure_first_time_admin_password(db))
+        startup_callbacks_list.append(ensure_admin_password(db))
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,

@@ -1,7 +1,18 @@
 from contextlib import nullcontext
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, ContextManager, Dict, Iterator, Literal, Optional, cast, get_args
+from typing import (
+    Any,
+    Callable,
+    ContextManager,
+    Dict,
+    Iterator,
+    Literal,
+    Optional,
+    Tuple,
+    cast,
+    get_args,
+)
 
 import pytest
 from faker import Faker
@@ -22,6 +33,7 @@ Email: TypeAlias = str
 Password: TypeAlias = str
 Token: TypeAlias = str
 ApiKey: TypeAlias = str
+GqlId: TypeAlias = str
 
 NOW = datetime.now(timezone.utc)
 
@@ -43,7 +55,7 @@ class TestUsers:
         expectation: ContextManager[Optional[BaseException]],
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], ApiKey],
+        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
         password = (
@@ -53,9 +65,9 @@ class TestUsers:
         )
         with expectation:
             with login(email, password) as token:
-                assert create_system_api_key(fake.unique.pystr(), None, token)
+                create_system_api_key(fake.unique.pystr(), None, token)
             with pytest.raises(BaseException):
-                assert create_system_api_key(fake.unique.pystr(), None, token)
+                create_system_api_key(fake.unique.pystr(), None, token)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -72,7 +84,7 @@ class TestUsers:
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],
         create_user: Callable[[Email, UserName, Password, Role, Token], None],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], ApiKey],
+        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
         profile = fake.simple_profile()
@@ -83,7 +95,7 @@ class TestUsers:
             create_user(email, username, password, role, token)
         with login(email, password) as token:
             with expectation:
-                assert create_system_api_key(fake.unique.pystr(), None, token)
+                create_system_api_key(fake.unique.pystr(), None, token)
             for another_role in get_args(Role):
                 another_profile = fake.simple_profile()
                 another_email = cast(str, another_profile["mail"])
@@ -125,12 +137,13 @@ class TestSpanExporters:
         expected: SpanExportResult,
         span_exporter: Callable[[Optional[Headers]], SpanExporter],
         start_span: Callable[[ProjectName, SpanName, SpanExporter], Span],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], ApiKey],
+        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
+        delete_system_api_key: Callable[[GqlId, Token], None],
         token: Token,
         fake: Faker,
     ) -> None:
         if with_headers:
-            system_api_key = create_system_api_key(fake.unique.pystr(), expires_at, token)
+            system_api_key, gid = create_system_api_key(fake.unique.pystr(), expires_at, token)
             headers = {"Authorization": f"Bearer {system_api_key}"}
         else:
             headers = None
@@ -139,3 +152,7 @@ class TestSpanExporters:
         start_span(project_name, span_name, in_memory_span_exporter).end()
         actual = span_exporter(headers).export(in_memory_span_exporter.get_finished_spans())
         assert actual is expected
+        if with_headers:
+            delete_system_api_key(gid, token)
+            # actual = span_exporter(headers).export(in_memory_span_exporter.get_finished_spans())
+            # assert actual is SpanExportResult.FAILURE

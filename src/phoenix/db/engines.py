@@ -82,7 +82,7 @@ def create_engine(
 def aio_sqlite_engine(
     url: URL,
     migrate: bool = True,
-    echo: bool = False,
+    echo: bool = True,
     shared_cache: bool = True,
 ) -> AsyncEngine:
     database = url.database or ":memory:"

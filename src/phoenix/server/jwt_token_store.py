@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Tuple, Union
 
 import jwt
-from sqlalchemy import Subquery, delete, func, insert, literal, select
+from sqlalchemy import ScalarSelect, delete, func, insert, literal, select
 from typing_extensions import assert_never
 
 from phoenix.auth import (
@@ -31,7 +31,7 @@ class JwtTokenStore(DaemonTask):
         db: DbSessionFactory,
         secret: str,
         algorithm: str = JWT_ALGORITHM,
-        sleep_seconds: int = 10,
+        sleep_seconds: int = 1,
         **kwargs: Any,
     ) -> None:
         assert secret
@@ -43,11 +43,11 @@ class JwtTokenStore(DaemonTask):
         self._deny_list: Dict[TokenId, Claim] = {}
         self._secret = secret
         self._algorithm = algorithm
-        self._system_user_id: Subquery = (
+        self._system_user_id: ScalarSelect[int] = (
             select(func.min(models.User.id).label("user_id"))
             .join(models.UserRole)
             .where(models.UserRole.name == "SYSTEM")
-            .subquery()
+            .scalar_subquery()
         )
 
     async def create(self, claim: Claim) -> Tuple[Token, int]:
@@ -136,7 +136,11 @@ class JwtTokenStore(DaemonTask):
             token_id, claim = _token_id(Issuer.SESSION, token.id_), Claim()
         else:
             assert_never(token)
-        if token_id in self._cached_user_sessions or claim.issuer is Issuer.SESSION:
+        if (
+            token_id in self._cached_user_sessions
+            or claim.issuer is Issuer.SESSION
+            or isinstance(token, SessionTokenDbId)
+        ):
             _, id_ = _parse_token_id(token_id)
             user_id = (
                 select(models.UserSession.user_id)
@@ -152,19 +156,17 @@ class JwtTokenStore(DaemonTask):
                 async for id_ in deleted_sessions:
                     deleted_token_id = _token_id(Issuer.SESSION, id_)
                     self._cached_user_sessions.pop(deleted_token_id, None)
-        elif token_id in self._cached_user_sessions:
+        elif token_id in self._cached_user_sessions or isinstance(token, ApiKeyDbId):
             _, id_ = _parse_token_id(token_id)
             async with self._db() as session:
-                await session.execute(
-                    insert(models.AuditApiKey).from_select(
-                        ["api_key_id", "user_id", "action"],
-                        select(
-                            literal(id_).label("api_key_id"),
-                            self._system_user_id.c.user_id,
-                            literal("DELETE").label("action"),
-                        ).join(self._system_user_id, literal(True)),
-                    )
+                deleted_id = await session.scalar(
+                    insert(models.AuditApiKey)
+                    .values(dict(api_key_id=id_, user_id=self._system_user_id, action="DELETE"))
+                    .returning(models.AuditApiKey.id)
                 )
+            if deleted_id is not None:
+                deleted_token_id = _token_id(Issuer.API_KEY, deleted_id)
+                self._cached_user_sessions.pop(deleted_token_id, None)
 
     async def _update(self) -> None:
         now = datetime.now(timezone.utc)
@@ -197,11 +199,9 @@ class JwtTokenStore(DaemonTask):
                         ["api_key_id", "user_id", "action"],
                         select(
                             models.ApiKey.id.label("api_key_id"),
-                            self._system_user_id.c.user_id,
+                            self._system_user_id,
                             literal("DELETE").label("action"),
-                        )
-                        .join(self._system_user_id, literal(value=True))
-                        .where(models.ApiKey.expires_at < now),
+                        ).where(models.ApiKey.expires_at < now),
                     )
                 )
                 cached_api_keys = {}

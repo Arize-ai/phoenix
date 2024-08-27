@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
@@ -107,16 +107,32 @@ class _PasswordRequirements:
             raise ValueError("Password must not contain whitespace characters")
         if not password.isascii():
             raise ValueError("Password must contain only ASCII characters")
+        err_msg = []
         if len(password) < self.length:
-            raise ValueError(f"Password must be at least {self.length} characters long")
+            err_msg.append(f"must be at least {self.length} characters long")
         if self.special_chars and not any(char in "!@#$%^&*()_+" for char in password):
-            raise ValueError("Password must contain at least one special character")
+            err_msg.append("at least one special character")
         if self.digits and not any(char.isdigit() for char in password):
-            raise ValueError("Password must contain at least one digit")
+            err_msg.append("at least one digit")
         if self.upper_case and not any(char.isupper() for char in password):
-            raise ValueError("Password must contain at least one uppercase letter")
+            err_msg.append("at least one uppercase letter")
         if self.lower_case and not any(char.islower() for char in password):
-            raise ValueError("Password must contain at least one lowercase letter")
+            err_msg.append("at least one lowercase letter")
+        if not err_msg:
+            return
+        try:
+            from faker import Faker  # type: ignore[import-not-found,unused-ignore]
+
+            suggested_password = Faker().unique.password(**asdict(self))
+        except BaseException:
+            suggested_password = ""
+        if len(err_msg) > 1:
+            err_text = "Password " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
+        else:
+            err_text = f"Password {err_msg[0]}"
+        if suggested_password:
+            err_text = f"{err_text} (e.g. `{suggested_password}`)"
+        raise ValueError(err_text)
 
 
 """The name of the header for token-based authentication"""
