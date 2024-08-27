@@ -24,7 +24,6 @@ from typing import (
 from sqlalchemy import Select, select
 from typing_extensions import TypeAlias, Unpack
 
-from phoenix.db import models
 from phoenix.db.models import (
     Base,
     DocumentAnnotation,
@@ -187,7 +186,7 @@ class _AnnotationDmlEventHandler(
     async def __call__(self) -> None:
         async with self._db() as session:
             async for row in await session.stream(self._get_stmt()):
-                self._last_updated_at.set(models.Project, row.id)
+                self._last_updated_at.set(Project, row.id)
                 if cache := self._cache_for_dataloaders:
                     self._clear(cache, row.id, row.name)
 
