@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.30.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.30.1...arize-phoenix-v4.30.2) (2024-08-27)
+
+
+### Bug Fixes
+
+* **experiments:** ensure compare experiments page does not break for experiments that contain a large number of examples ([#4402](https://github.com/Arize-ai/phoenix/issues/4402)) ([71484e0](https://github.com/Arize-ai/phoenix/commit/71484e09407e4d73f7641820b7f642bec3a388c0))
+* use dataloader for experiment run annotations ([#4397](https://github.com/Arize-ai/phoenix/issues/4397)) ([5582ce6](https://github.com/Arize-ai/phoenix/commit/5582ce66115b9badf4b3147ce0c9a70ac39191f2))
+
 ## [4.30.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.30.0...arize-phoenix-v4.30.1) (2024-08-26)
 
 
