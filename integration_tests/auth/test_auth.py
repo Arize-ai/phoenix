@@ -1,7 +1,6 @@
 from contextlib import nullcontext
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
-from time import sleep
 from typing import (
     Any,
     Callable,
@@ -143,14 +142,14 @@ class TestSpanExporters:
         if with_headers:
             system_api_key, gid = create_system_api_key(fake.unique.pystr(), expires_at, token)
             headers = {"Authorization": f"Bearer {system_api_key}"}
+        export = span_exporter(headers).export
         project_name, span_name = fake.unique.pystr(), fake.unique.pystr()
-        in_memory_span_exporter = InMemorySpanExporter()
-        start_span(project_name, span_name, in_memory_span_exporter).end()
-        spans = in_memory_span_exporter.get_finished_spans()
-        actual = span_exporter(headers).export(spans)
-        assert actual is expected
-        if gid is not None and actual is SpanExportResult.SUCCESS:
+        memory = InMemorySpanExporter()
+        start_span(project_name, span_name, memory).end()
+        spans = memory.get_finished_spans()
+        assert len(spans) == 1
+        for _ in range(2):
+            assert export(spans) is expected
+        if gid is not None and expected is SpanExportResult.SUCCESS:
             delete_system_api_key(gid, token)
-            sleep(1)
-            actual = span_exporter(headers).export(spans)
-            assert actual is SpanExportResult.FAILURE
+            assert export(spans) is SpanExportResult.FAILURE

@@ -156,7 +156,7 @@ class JwtTokenStore(DaemonTask):
                 async for id_ in deleted_sessions:
                     deleted_token_id = _token_id(Issuer.SESSION, id_)
                     self._cached_user_sessions.pop(deleted_token_id, None)
-        elif token_id in self._cached_user_sessions or isinstance(token, ApiKeyDbId):
+        elif token_id in self._cached_api_keys or isinstance(token, ApiKeyDbId):
             _, id_ = _parse_token_id(token_id)
             async with self._db() as session:
                 deleted_id = await session.scalar(
@@ -166,7 +166,7 @@ class JwtTokenStore(DaemonTask):
                 )
             if deleted_id is not None:
                 deleted_token_id = _token_id(Issuer.API_KEY, deleted_id)
-                self._cached_user_sessions.pop(deleted_token_id, None)
+                self._cached_api_keys.pop(deleted_token_id, None)
 
     async def _update(self) -> None:
         now = datetime.now(timezone.utc)
