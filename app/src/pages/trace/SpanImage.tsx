@@ -12,7 +12,7 @@ type SpanImageProps = {
 };
 
 function isRedactedUrl(url: string) {
-  return url === "__REDACTED__" || url.includes("f6ct");
+  return url === "__REDACTED__";
 }
 
 const imageContainerCSS = css`
