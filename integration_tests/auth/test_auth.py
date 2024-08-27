@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
+from time import sleep
 from typing import (
     Any,
     Callable,
@@ -96,18 +97,13 @@ class TestUsers:
         with login(email, password) as token:
             with expectation:
                 create_system_api_key(fake.unique.pystr(), None, token)
-            for another_role in get_args(Role):
-                another_profile = fake.simple_profile()
-                another_email = cast(str, another_profile["mail"])
-                another_username = cast(str, another_profile["username"])
+            for _role in get_args(Role):
+                _profile = fake.simple_profile()
+                _email = cast(str, _profile["mail"])
+                _username = cast(str, _profile["username"])
+                _password = fake.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
                 with expectation:
-                    create_user(
-                        another_email,
-                        another_username,
-                        fake.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET)),
-                        another_role,
-                        token,
-                    )
+                    create_user(_email, _username, _password, _role, token)
 
 
 class TestSpanExporters:
@@ -142,17 +138,19 @@ class TestSpanExporters:
         token: Token,
         fake: Faker,
     ) -> None:
+        headers: Optional[Dict[str, Any]] = None
+        gid: Optional[GqlId] = None
         if with_headers:
             system_api_key, gid = create_system_api_key(fake.unique.pystr(), expires_at, token)
             headers = {"Authorization": f"Bearer {system_api_key}"}
-        else:
-            headers = None
         project_name, span_name = fake.unique.pystr(), fake.unique.pystr()
         in_memory_span_exporter = InMemorySpanExporter()
         start_span(project_name, span_name, in_memory_span_exporter).end()
-        actual = span_exporter(headers).export(in_memory_span_exporter.get_finished_spans())
+        spans = in_memory_span_exporter.get_finished_spans()
+        actual = span_exporter(headers).export(spans)
         assert actual is expected
-        if with_headers:
+        if gid is not None and actual is SpanExportResult.SUCCESS:
             delete_system_api_key(gid, token)
-            # actual = span_exporter(headers).export(in_memory_span_exporter.get_finished_spans())
-            # assert actual is SpanExportResult.FAILURE
+            sleep(1)
+            actual = span_exporter(headers).export(spans)
+            assert actual is SpanExportResult.FAILURE

@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Any, Awaitable, Callable, Optional, Protocol, Tuple
 
 import grpc
@@ -13,10 +14,13 @@ class CanReadToken(Protocol):
     async def read(self, token: Token) -> Claim: ...
 
 
-class BearerTokenAuthBackend(AuthenticationBackend):
+class HasTokenStore(ABC):
     def __init__(self, token_store: CanReadToken) -> None:
-        self.token_store = token_store
+        super().__init__()
+        self._token_store = token_store
 
+
+class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
     async def authenticate(
         self,
         conn: HTTPConnection,
@@ -29,7 +33,7 @@ class BearerTokenAuthBackend(AuthenticationBackend):
             token = cookie
         else:
             return None
-        claim = await self.token_store.read(token)
+        claim = await self._token_store.read(token)
         if claim.user_id is None:
             return None
         return AuthCredentials(), PhoenixUser(claim)
@@ -44,11 +48,7 @@ class PhoenixUser(BaseUser):
         return self.claim.status is ClaimStatus.VALID
 
 
-class ApiKeyInterceptor(AsyncServerInterceptor):
-    def __init__(self, token_store: CanReadToken) -> None:
-        super().__init__()
-        self._token_store = token_store
-
+class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
     async def intercept(
         self,
         method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
