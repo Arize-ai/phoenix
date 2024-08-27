@@ -7,7 +7,6 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import NamedTuple, Optional, Protocol, Tuple, Union
 
-from starlette.authentication import BaseUser
 from typing_extensions import TypeAlias
 
 
@@ -224,12 +223,3 @@ class TokenStore(Protocol):
     async def create(self, claims: Claim) -> Tuple[Token, int]: ...
     async def read(self, token: Token) -> Claim: ...
     async def revoke(self, token: Union[Token, ApiKeyDbId, SessionTokenDbId]) -> None: ...
-
-
-class PhoenixUser(BaseUser):
-    def __init__(self, claim: Claim) -> None:
-        self.claim = claim
-
-    @property
-    def is_authenticated(self) -> bool:
-        return True

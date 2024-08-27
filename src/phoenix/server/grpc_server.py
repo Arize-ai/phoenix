@@ -1,9 +1,7 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
-from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import Unauthenticated
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -14,8 +12,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.auth import Claim, ClaimStatus, Token
 from phoenix.config import get_env_grpc_port
+from phoenix.server.bearer_auth import ApiKeyInterceptor, CanReadToken
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name
@@ -46,10 +44,6 @@ class Servicer(TraceServiceServicer):  # type:ignore
                     span = decode_otlp_span(otlp_span)
                     await self._callback(span, project_name)
         return ExportTraceServiceResponse()
-
-
-class CanReadToken(Protocol):
-    async def read(self, token: Token) -> Claim: ...
 
 
 class GrpcServer:
@@ -102,27 +96,3 @@ class GrpcServer:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
             GrpcAioInstrumentorServer().uninstrument()  # type: ignore
-
-
-class ApiKeyInterceptor(AsyncServerInterceptor):
-    def __init__(self, token_store: CanReadToken) -> None:
-        super().__init__()
-        self._token_store = token_store
-
-    async def intercept(
-        self,
-        method: Callable[[Any, grpc.ServicerContext], Awaitable[Any]],
-        request_or_iterator: Any,
-        context: grpc.ServicerContext,
-        method_name: str,
-    ) -> Any:
-        for datum in context.invocation_metadata():
-            if datum.key.lower() == "authorization":
-                scheme, _, token = datum.value.partition(" ")
-                if scheme.lower() != "bearer":
-                    break
-                claim = await self._token_store.read(token)
-                if claim.status is ClaimStatus.VALID:
-                    return await method(request_or_iterator, context)
-                break
-        raise Unauthenticated(status_code=grpc.StatusCode.UNAUTHENTICATED)

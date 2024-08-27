@@ -3,7 +3,7 @@ from typing import Any
 from strawberry import Info
 from strawberry.permission import BasePermission
 
-from phoenix.auth import ClaimStatus, PhoenixUser
+from phoenix.server.bearer_auth import PhoenixUser
 
 
 class IsNotReadOnly(BasePermission):
@@ -23,7 +23,7 @@ class IsAuthenticated(BasePermission):
             user = info.context.request.user
         except AttributeError:
             return False
-        return isinstance(user, PhoenixUser) and user.claim.status is ClaimStatus.VALID
+        return isinstance(user, PhoenixUser) and user.is_authenticated
 
 
 class IsAdmin(BasePermission):
@@ -38,7 +38,7 @@ class IsAdmin(BasePermission):
             return False
         return (
             isinstance(user, PhoenixUser)
-            and user.claim.status is ClaimStatus.VALID
+            and user.is_authenticated
             and user.claim.attributes is not None
             and user.claim.attributes.user_role == "ADMIN"
         )

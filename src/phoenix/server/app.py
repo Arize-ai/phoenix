@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import json
@@ -32,17 +34,12 @@ from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.sql.functions import coalesce, func
-from starlette.authentication import (
-    AuthCredentials,
-    AuthenticationBackend,
-    BaseUser,
-)
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import HTTPConnection, Request
+from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -54,9 +51,6 @@ from typing_extensions import TypeAlias
 import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.auth import (
-    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PhoenixUser,
-    TokenStore,
     compute_password_hash,
 )
 from phoenix.config import (
@@ -100,6 +94,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
+from phoenix.server.bearer_auth import BearerTokenAuthBackend
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
@@ -767,29 +762,3 @@ def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional
 
     app.state.get_secret = MethodType(get_secret, app.state)
     return app
-
-
-class BearerTokenAuthBackend(AuthenticationBackend):
-    """
-    Custom Authentication Backend for Bearer Token Authentication
-    """
-
-    def __init__(self, token_store: TokenStore) -> None:
-        self.token_store = token_store
-
-    async def authenticate(
-        self,
-        conn: HTTPConnection,
-    ) -> Optional[Tuple[AuthCredentials, BaseUser]]:
-        if header := conn.headers.get("Authorization"):
-            scheme, _, token = header.partition(" ")
-            if scheme.lower() != "bearer":
-                return None
-        elif cookie_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
-            token = cookie_token
-        else:
-            return None
-        claim = await self.token_store.read(token)
-        if claim.user_id is None:
-            return None
-        return AuthCredentials(), PhoenixUser(claim)

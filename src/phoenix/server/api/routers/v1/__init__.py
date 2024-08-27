@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
-from phoenix.auth import ClaimStatus, PhoenixUser
+from phoenix.auth import ClaimStatus
 from phoenix.config import ENABLE_AUTH
+from phoenix.server.bearer_auth import PhoenixUser
 
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
