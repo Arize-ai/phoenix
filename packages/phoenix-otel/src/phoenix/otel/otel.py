@@ -51,9 +51,10 @@ def register(
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
             will be processed one at a time using a SimpleSpanProcessor.
-        set_global_tracer_provider (bool): If False, the TracerProvider will not be set as the global
-            tracer provider. Defaults to True.
-        headers (dict, optional): Optional headers to include in the HTTP request to the collector.
+        set_global_tracer_provider (bool): If False, the TracerProvider will not be set as the
+            global tracer provider. Defaults to True.
+        headers (dict, optional): Optional headers to include in the request to the collector.
+            If not provided, the `PHOENIX_CLIENT_HEADERS` environment variable will be used.
         verbose (bool): If True, configuration details will be printed to stdout.
     """
 
@@ -73,7 +74,8 @@ def register(
         global_provider_msg = (
             "|  \n"
             "|  `register` has set this TracerProvider as the global OpenTelemetry default.\n"
-            "|  To disable this behavior, call `register` with `set_global_tracer_provider=False`.\n"
+            "|  To disable this behavior, call `register` with "
+            "`set_global_tracer_provider=False`.\n"
         )
     else:
         global_provider_msg = ""
@@ -85,6 +87,22 @@ def register(
 
 
 class TracerProvider(_TracerProvider):
+    """
+    An extension of `opentelemetry.sdk.trace.TracerProvider` with Phoenix-aware defaults.
+
+    Extended keyword arguments are documented in the `Args` section. For further documentation, see
+    the OpenTelemetry documentation at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
+
+    Args:
+        endpoint (str, optional): The collector endpoint to which spans will be exported. If
+            specified, a default SpanProcessor will be created and added to this TracerProvider.
+            If not provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be
+            used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
+            specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
+            URL.
+        verbose (bool): If True, configuration details will be printed to stdout.
+    """
+
     def __init__(
         self, *args: Any, endpoint: Optional[str] = None, verbose: bool = True, **kwargs: Any
     ):
@@ -112,6 +130,12 @@ class TracerProvider(_TracerProvider):
             print(self._tracing_details())
 
     def add_span_processor(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Registers a new `SpanProcessor` for this `TracerProvider`.
+
+        If this `TracerProvider` has a default processor, it will be removed.
+        """
+
         if self._default_processor:
             self._active_span_processor.shutdown()
             self._active_span_processor._span_processors = tuple()  # remove default processors
@@ -163,6 +187,24 @@ class TracerProvider(_TracerProvider):
 
 
 class SimpleSpanProcessor(_SimpleSpanProcessor):
+    """
+    Simple SpanProcessor implementation.
+
+    SimpleSpanProcessor is an implementation of `SpanProcessor` that passes ended spans directly to
+    the configured `SpanExporter`.
+
+    Args:
+        span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
+            passed.
+        endpoint (str, optional): The collector endpoint to which spans will be exported. If not
+            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to
+            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
+            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+        headers (dict, optional): Optional headers to include in the request to the collector.
+            If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
+            environment variable will be used.
+    """
+
     def __init__(
         self,
         span_exporter: Optional[SpanExporter] = None,
@@ -182,6 +224,37 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
 
 
 class BatchSpanProcessor(_BatchSpanProcessor):
+    """
+    Batch SpanProcessor implementation.
+
+    `BatchSpanProcessor` is an implementation of `SpanProcessor` that batches ended spans and
+    pushes them to the configured `SpanExporter`.
+
+    `BatchSpanProcessor` is configurable with the following environment variables which correspond
+    to constructor parameters:
+
+    - :envvar:`OTEL_BSP_SCHEDULE_DELAY`
+    - :envvar:`OTEL_BSP_MAX_QUEUE_SIZE`
+    - :envvar:`OTEL_BSP_MAX_EXPORT_BATCH_SIZE`
+    - :envvar:`OTEL_BSP_EXPORT_TIMEOUT`
+
+    Args:
+        span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
+            passed.
+        endpoint (str, optional): The collector endpoint to which spans will be exported. If not
+            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to
+            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
+            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+        headers (dict, optional): Optional headers to include in the request to the collector.
+            If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
+            environment variable will be used.
+        max_queue_size (int, optional): The maximum queue size.
+        schedule_delay_millis (float, optional): The delay between two consecutive exports in
+            milliseconds.
+        max_export_batch_size (int, optional): The maximum batch size.
+        export_timeout_millis (float, optional): The batch timeout in milliseconds.
+    """
+
     def __init__(
         self,
         span_exporter: Optional[SpanExporter] = None,
@@ -201,6 +274,20 @@ class BatchSpanProcessor(_BatchSpanProcessor):
 
 
 class HTTPSpanExporter(_HTTPSpanExporter):
+    """
+    OTLP span exporter using HTTP.
+
+    For more information, see:
+    - `opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter`
+
+    Args:
+        endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
+            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            collector endpoint to use, defaults to the HTTP endpoint.
+        headers: Headers to send when exporting. If not provided, the `PHOENIX_CLIENT_HEADERS`
+            or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
+    """
+
     def __init__(self, *args: Any, **kwargs: Any):
         sig = inspect.signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
@@ -210,12 +297,30 @@ class HTTPSpanExporter(_HTTPSpanExporter):
             bound_args.arguments["headers"] = get_env_client_headers()
 
         if bound_args.arguments.get("endpoint") is None:
-            _, endpoint = _normalized_endpoint(None)
+            _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
         super().__init__(**bound_args.arguments)
 
 
 class GRPCSpanExporter(_GRPCSpanExporter):
+    """
+    OTLP span exporter using gRPC.
+
+    For more information, see:
+    - `opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter`
+
+    Args:
+        endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
+            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            collector endpoint to use, defaults to the gRPC endpoint.
+        insecure: Connection type
+        credentials: Credentials object for server authentication
+        headers: Headers to send when exporting. If not provided, the `PHOENIX_CLIENT_HEADERS`
+            or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
+        timeout: Backend request timeout in seconds
+        compression: gRPC compression method to use
+    """
+
     def __init__(self, *args: Any, **kwargs: Any):
         sig = inspect.signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
@@ -270,12 +375,16 @@ _KNOWN_PROVIDERS = {
 }
 
 
-def _normalized_endpoint(endpoint: Optional[str]) -> Tuple[ParseResult, str]:
+def _normalized_endpoint(
+    endpoint: Optional[str], use_http: bool = False
+) -> Tuple[ParseResult, str]:
     if endpoint is None:
         base_endpoint = get_env_collector_endpoint() or "http://localhost:6006"
         parsed = urlparse(base_endpoint)
         if parsed.hostname in _KNOWN_PROVIDERS:
             parsed = _KNOWN_PROVIDERS[parsed.hostname](parsed)
+        elif use_http:
+            parsed = _construct_http_endpoint(parsed)
         else:
             parsed = _construct_grpc_endpoint(parsed)
     else:
