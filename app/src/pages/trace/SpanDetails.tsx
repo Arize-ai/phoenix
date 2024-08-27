@@ -90,6 +90,7 @@ import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanAside } from "./SpanAside";
 import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanFeedback } from "./SpanFeedback";
+import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 /**
@@ -1392,6 +1393,13 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
   );
 }
 
+const messageContentListCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-size-200);
+  flex-wrap: wrap;
+`;
+
 /**
  * A list of message contents. Used for multi-modal models.
  */
@@ -1401,37 +1409,32 @@ function MessageContentsList({
   messageContents: AttributeMessageContent[];
 }) {
   return (
-    <ul
-      css={css`
-        display: flex;
-        flex-direction: column;
-        gap: var(--ac-global-dimension-size-100);
-      `}
-    >
+    <ul css={messageContentListCSS} data-testid="message-content-list">
       {messageContents.map((messageContent, idx) => {
         return (
-          <li key={idx}>
-            <MessageContent messageContentAttribute={messageContent} />
-          </li>
+          <MessageContentListItem
+            key={idx}
+            messageContentAttribute={messageContent}
+          />
         );
       })}
     </ul>
   );
 }
 
-const imageCSS = css`
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
+/**
+ * Display text content in full width.
+ */
+const messageContentTextListItemCSS = css`
+  flex: 1 1 100%;
 `;
-
 /**
  * Displays multi-modal message content. Typically an image or text.
  * Examples:
  * {"message_content":{"text":"What is in this image?","type":"text"}}
  * {"message_content":{"type":"image","image":{"image":{"url":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"}}}}
  */
-function MessageContent({
+function MessageContentListItem({
   messageContentAttribute,
 }: {
   messageContentAttribute: AttributeMessageContent;
@@ -1442,7 +1445,7 @@ function MessageContent({
   const imageUrl = image?.image?.url;
 
   return (
-    <Flex direction="column">
+    <li css={text ? messageContentTextListItemCSS : null}>
       {text ? (
         <pre
           css={css`
@@ -1454,8 +1457,8 @@ function MessageContent({
           {text}
         </pre>
       ) : null}
-      {imageUrl ? <img src={imageUrl} css={imageCSS} /> : null}
-    </Flex>
+      {imageUrl ? <SpanImage url={imageUrl} /> : null}
+    </li>
   );
 }
 
