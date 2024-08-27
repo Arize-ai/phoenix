@@ -185,7 +185,7 @@ if __name__ == "__main__":
         ),
     )
     serve_parser.add_argument(
-        "--scaffold-dataset",
+        "--scaffold-datasets",
         action="store_true",  # default is False
         required=False,
         help=(
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
 
     force_fixture_ingestion = False
-    scaffold_dataset = False
+    scaffold_datasets = False
     if args.command == "datasets":
         primary_inferences_name = args.primary
         reference_inferences_name = args.reference
@@ -282,7 +282,7 @@ if __name__ == "__main__":
                 for fixture in get_trace_fixtures_by_project_name(name)
             )
         force_fixture_ingestion = args.force_fixture_ingestion
-        scaffold_dataset = args.scaffold_dataset
+        scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -374,7 +374,7 @@ if __name__ == "__main__":
         secret=secret,
         tracing_fixture_names=tracing_fixture_names,
         force_fixture_ingestion=force_fixture_ingestion,
-        scaffold_dataset=scaffold_dataset,
+        scaffold_datasets=scaffold_datasets,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

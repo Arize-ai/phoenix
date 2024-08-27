@@ -258,7 +258,7 @@ class Scaffolder(DaemonTask):
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
         tracing_fixture_names: Set[str] = set(),
         force_fixture_ingestion: bool = False,
-        scaffold_dataset: bool = False,
+        scaffold_datasets: bool = False,
     ) -> None:
         super().__init__()
         self._db = db
@@ -268,7 +268,7 @@ class Scaffolder(DaemonTask):
             get_trace_fixture_by_name(name) for name in tracing_fixture_names
         )
         self._force_fixture_ingestion = force_fixture_ingestion
-        self._scaffold_dataset = scaffold_dataset
+        self._scaffold_datasets = scaffold_datasets
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -282,9 +282,9 @@ class Scaffolder(DaemonTask):
         Determines whether to load fixtures and handles them.
         """
         if await self._should_load_fixtures():
-            logger.info("Loading demo trace fixtures...")
+            logger.info("Loading trace fixtures...")
             await self._handle_tracing_fixtures()
-            logger.info("Finished demo loading fixtures.")
+            logger.info("Finished loading fixtures.")
         else:
             logger.info("DB is not new, avoid loading demo fixtures.")
 
@@ -328,7 +328,7 @@ class Scaffolder(DaemonTask):
                 )
 
                 # Ingest dataset fixtures
-                if self._scaffold_dataset:
+                if self._scaffold_datasets:
                     await self._handle_dataset_fixtures(fixture)
 
                 project_name = fixture.project_name or fixture.name
@@ -371,7 +371,7 @@ def _lifespan(
     read_only: bool = False,
     tracing_fixture_names: Set[str] = set(),
     force_fixture_ingestion: bool = False,
-    scaffold_dataset: bool = False,
+    scaffold_datasets: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -393,7 +393,7 @@ def _lifespan(
             queue_evaluation=queue_evaluation,
             tracing_fixture_names=tracing_fixture_names,
             force_fixture_ingestion=force_fixture_ingestion,
-            scaffold_dataset=scaffold_dataset,
+            scaffold_datasets=scaffold_datasets,
         ):
             for callback in startup_callbacks:
                 callback()
@@ -587,7 +587,7 @@ def create_app(
     secret: Optional[str] = None,
     tracing_fixture_names: Set[str] = set(),
     force_fixture_ingestion: bool = False,
-    scaffold_dataset: bool = False,
+    scaffold_datasets: bool = False,
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -675,7 +675,7 @@ def create_app(
             startup_callbacks=startup_callbacks_list,
             tracing_fixture_names=tracing_fixture_names,
             force_fixture_ingestion=force_fixture_ingestion,
-            scaffold_dataset=scaffold_dataset,
+            scaffold_datasets=scaffold_datasets,
         ),
         middleware=[
             Middleware(HeadersMiddleware),

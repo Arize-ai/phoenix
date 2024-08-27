@@ -22,9 +22,8 @@ from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import (
     download_json_traces_fixture,
-    is_csv_file,
-    is_jsonl_file,
     json_lines_to_df,
+    parse_file_extension,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,9 +64,9 @@ class DatasetFixture:
         if self._df is None:
             url = _url(self.file_name)
 
-            if is_jsonl_file(self.file_name):
+            if parse_file_extension(self.file_name) == ".jsonl":
                 df = json_lines_to_df(download_json_traces_fixture(url))
-            elif is_csv_file(self.file_name):
+            elif parse_file_extension(self.file_name) == ".csv":
                 df = pd.read_csv(_url(self.file_name))
             else:
                 try:
@@ -301,7 +300,7 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     fixture = get_trace_fixture_by_name(fixture_name)
     url = _url(fixture.file_name)
 
-    if is_jsonl_file(fixture.file_name):
+    if parse_file_extension(fixture.file_name) == ".jsonl":
         return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
     try:
