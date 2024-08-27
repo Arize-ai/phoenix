@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.30.2...arize-phoenix-v4.31.0) (2024-08-27)
+
+
+### Features
+
+* **vision:** show images in a gallery, expandable images ([#4407](https://github.com/Arize-ai/phoenix/issues/4407)) ([9e2d67f](https://github.com/Arize-ai/phoenix/commit/9e2d67f72c208437a70ca3e71fb1e6f33903e5c4))
+
+
+### Bug Fixes
+
+* annotation events should refresh trace project ([#4412](https://github.com/Arize-ai/phoenix/issues/4412)) ([3a18c13](https://github.com/Arize-ai/phoenix/commit/3a18c13eda514984badb07fb33ff235a77a0a2aa))
+
+
+### Documentation
+
+* demo dataset ingestion ([#4393](https://github.com/Arize-ai/phoenix/issues/4393)) ([c00862a](https://github.com/Arize-ai/phoenix/commit/c00862aec125aab33a1d4c5fb182a192df999f10))
+
 ## [4.30.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.30.1...arize-phoenix-v4.30.2) (2024-08-27)
 
 
