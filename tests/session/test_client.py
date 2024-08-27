@@ -1,6 +1,7 @@
 import gzip
 from datetime import datetime
 from typing import cast
+from unittest.mock import patch
 from urllib.parse import urljoin
 from uuid import uuid4
 
@@ -17,7 +18,7 @@ from pytz import UTC
 from respx import MockRouter
 from strawberry.relay import GlobalID
 
-from phoenix.session.client import Client
+from phoenix.session.client import Client, TimeoutError
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
@@ -85,6 +86,17 @@ def test_query_spans(
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(df1)))
     assert_frame_equal(client.query_spans(), df1)
+
+
+def test_query_spans_raises_custom_error_with_instructions_to_increase_timeout_parameter_on_timeout(
+    client: Client,
+    endpoint: str,
+    dataframe: pd.DataFrame,
+) -> None:
+    query = SpanQuery()
+    with patch("httpx.Client.post", side_effect=httpx.ReadTimeout("timeout")):
+        with pytest.raises(TimeoutError, match="`timeout` parameter"):
+            client.query_spans(query, query)
 
 
 def test_get_evaluations(
