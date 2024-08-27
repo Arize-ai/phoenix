@@ -46,7 +46,13 @@ from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR, server_instrumentation_is_enabled
+from phoenix.config import (
+    DEFAULT_PROJECT_NAME,
+    SERVER_DIR,
+    get_env_host,
+    get_env_port,
+    server_instrumentation_is_enabled,
+)
 from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
@@ -95,10 +101,13 @@ from phoenix.server.types import (
     LastUpdatedAt,
 )
 from phoenix.trace.fixtures import (
+    TracesFixture,
+    get_dataset_fixtures,
     get_evals_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
+    send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -250,6 +259,7 @@ class Scaffolder(DaemonTask):
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
         tracing_fixture_names: Set[str] = set(),
         force_fixture_ingestion: bool = False,
+        scaffold_datasets: bool = False,
     ) -> None:
         super().__init__()
         self._db = db
@@ -259,6 +269,7 @@ class Scaffolder(DaemonTask):
             get_trace_fixture_by_name(name) for name in tracing_fixture_names
         )
         self._force_fixture_ingestion = force_fixture_ingestion
+        self._scaffold_datasets = scaffold_datasets
 
     async def __aenter__(self) -> None:
         await self.start()
@@ -272,7 +283,7 @@ class Scaffolder(DaemonTask):
         Determines whether to load fixtures and handles them.
         """
         if await self._should_load_fixtures():
-            logger.info("Loading trace fixtures.")
+            logger.info("Loading trace fixtures...")
             await self._handle_tracing_fixtures()
             logger.info("Finished loading fixtures.")
         else:
@@ -317,6 +328,10 @@ class Scaffolder(DaemonTask):
                     get_evals_from_fixture(fixture.name),
                 )
 
+                # Ingest dataset fixtures
+                if self._scaffold_datasets:
+                    await self._handle_dataset_fixtures(fixture)
+
                 project_name = fixture.project_name or fixture.name
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
@@ -331,6 +346,19 @@ class Scaffolder(DaemonTask):
             except Exception as e:
                 logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
 
+    async def _handle_dataset_fixtures(self, fixture: TracesFixture) -> None:
+        loop = asyncio.get_running_loop()
+        try:
+            dataset_fixtures = await loop.run_in_executor(None, get_dataset_fixtures, fixture.name)
+            await loop.run_in_executor(
+                None,
+                send_dataset_fixtures,
+                f"http://{get_env_host()}:{get_env_port()}",
+                dataset_fixtures,
+            )
+        except Exception as e:
+            logger.error(f"Error processing dataset fixture: {e}")
+
 
 def _lifespan(
     *,
@@ -344,6 +372,7 @@ def _lifespan(
     read_only: bool = False,
     tracing_fixture_names: Set[str] = set(),
     force_fixture_ingestion: bool = False,
+    scaffold_datasets: bool = False,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -365,6 +394,7 @@ def _lifespan(
             queue_evaluation=queue_evaluation,
             tracing_fixture_names=tracing_fixture_names,
             force_fixture_ingestion=force_fixture_ingestion,
+            scaffold_datasets=scaffold_datasets,
         ):
             for callback in startup_callbacks:
                 callback()
@@ -559,6 +589,7 @@ def create_app(
     secret: Optional[str] = None,
     tracing_fixture_names: Set[str] = set(),
     force_fixture_ingestion: bool = False,
+    scaffold_datasets: bool = False,
 ) -> FastAPI:
     startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
     shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
@@ -646,6 +677,7 @@ def create_app(
             startup_callbacks=startup_callbacks_list,
             tracing_fixture_names=tracing_fixture_names,
             force_fixture_ingestion=force_fixture_ingestion,
+            scaffold_datasets=scaffold_datasets,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
