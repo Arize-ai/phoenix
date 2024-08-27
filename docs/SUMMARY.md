@@ -65,6 +65,7 @@
   * [Capture Feedback](tracing/how-to-tracing/capture-feedback.md)
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
   * [Configure Tracing](tracing/how-to-tracing/configure-tracing.md)
+  * [Send traces to Arize](tracing/how-to-tracing/send-traces-to-arize.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](use-cases/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
