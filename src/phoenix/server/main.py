@@ -188,7 +188,11 @@ if __name__ == "__main__":
         "--scaffold-dataset",
         action="store_true",  # default is False
         required=False,
-        help=(""),
+        help=(
+            "Whether or not to add any datasets defined in "
+            "the inputted project or trace fixture. "
+            "Default is False. "
+        ),
     )
 
     datasets_parser = subparsers.add_parser("datasets")
