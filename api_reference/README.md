@@ -32,10 +32,10 @@ api_reference
 
 - conf.py: All sphinx-related configuration is done here and is necessary to run Sphinx.
 - index.md: Main entrypoint for the API reference. This file must be in the `source` directory. For documentation to show up on the API reference, there must be a path (does not have to be direct) defined in index to the target documentation file.
-- requirements.txt: This file is necessary for readthedocs to manage dependecies.
+- requirements.txt: This file is necessary for management of dependencies on the readthedocs platform and its build process.
 - make files: Not required but useful in generating static HTML pages locally.
 
-To run and build locally, download all dependencies found in `requirements.txt` (especially packages/phoenix-evals as a dev dependency `-e`).
+`requirements.txt` contains all Sphinx-related dependencies. Although this file is mainly for the readthedocs build process, to run and build locally, you must download all dependencies found in `requirements.txt` from root (local Phoenix packages such as packages/phoenix-evals should be installed as a dev dependency using `-e`).
 
 ## Building the Documentation
 
@@ -54,16 +54,6 @@ where `path/to/module` refers to the module. The command above would be called i
 - Command options: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 
 This automatically generates reStructuredText with autodoc-related directives for all modules of the specified package. These files direct Sphinx when building on how to generate our documentation from the docstrings in our codebase. Once run, the documentation files will be generated in `api_reference/source/output`. Then, move all relevant files from `source/output` to `source/api`.
-
-### Index.md
-
-Once the newly generated files are in `source/api`, for the new documentation to show up, add a path under `{toctree}` in `index.md` to the module. This would look something like (Sphinx assumes the file extension):
-
-```
-api/module
-```
-
-This path does not have to direct - take for instance `evals.rst`. Index refers to `evals.rst`, which in turn references several evals submodules.
 
 ### Autodoc
 
@@ -89,9 +79,25 @@ Documentation (and a list of all directive options) for Sphinx's autodoc can be 
 
 - https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 
+### Index.md
+
+Once the newly generated files are in `source/api`, for the new documentation to show up, add a path under `{toctree}` in `index.md` to the module. This would look something like (Sphinx assumes the file extension):
+
+```
+api/module
+```
+
+This path does not have to be direct - take for instance `evals.rst`. Index refers to `evals.rst`, which in turn references several evals submodules.
+
+### conf.py
+
+All configurations for Sphinx are placed in this file. This file deals with configs such as page theme, navbar and sidebar settings, extensions and extension settings, custom CSS file settings, etc.
+
+Custom CSS and JavaScript files should be placed in `_static`.
+
 ### HTML Static Sites
 
-Once the rst files are created using autdoc and index.md has a way to reach the files in its toctree, the documentation can be rendered into static HTML pages. Make the static HTML sites using:
+Once the rst files are created using autodoc and index.md has a way to reach the files in its toctree, the documentation can be rendered into static HTML pages. Make the static HTML sites using:
 
 ```
 make clean
@@ -104,9 +110,9 @@ or
 make clean html
 ```
 
-and the HTML sites should be built in the `build` directory.
+and the HTML sites should be built in the `api_reference/build` directory.
 
-NOTE: All custom static files should be placed in `_static`.
+NOTE: All custom static files should be placed in `source/_static`.
 
 ## PyData Theme
 
@@ -116,9 +122,9 @@ The PyData theme that we use for our API reference has its own theme-related con
 
 ### .readthedocs.yaml
 
-Configurations for readthedocs is found in the root directory as `.readthedocs.yaml`. It must have the correct path to both Sphinx's `conf.py` file and to the `requirements.txt` in the API reference's directory. Once there are valid rst or md files for Phoenix's modules, a valid `.readthedocs.yaml`, and valid `conf.py`, readthedocs will automatically build our documentation. When a new commit is pushed to the Phoenix repository, readthedocs receives a webhook and a new build of the references is rendered to match the new commit. Whenever a new tag is updated on the repo, that tag will also be automatically built and updated to be public as per settings set on `Automation Rules` on readthedocs.
+Configurations for readthedocs can be found in the root directory in the file `/.readthedocs.yaml`. It must have the correct path to both Sphinx's `conf.py` file and to the `requirements.txt` in the API reference's directory. Once there are valid rst or md files for Phoenix's modules, a valid `.readthedocs.yaml`, and valid `conf.py`, readthedocs will automatically build our documentation. When a new commit is pushed to the Phoenix repository, readthedocs receives a webhook and a new build of the references is rendered to match the new commit. Whenever a new tag is updated on the repo, that tag will also be automatically built and updated to be public as per settings set on `Automation Rules` on readthedocs.
 
-Version control for the reference's version dropdown must be manually be updated in `switcher.json`.
+Version control for the reference's version dropdown must be manually updated in `switcher.json`.
 
 ### api_reference/requirements.txt
 
