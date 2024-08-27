@@ -23,10 +23,13 @@ Result: TypeAlias = DatasetExampleRevision
 
 class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory) -> None:
-        super().__init__(load_fn=self._load_fn, max_batch_size=100)
+        super().__init__(
+            load_fn=self._load_fn,
+            max_batch_size=200,  # needed to prevent the size of the query from getting too large
+        )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
+    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, NotFound]]:
         example_and_version_ids = tuple(
             set(
                 (example_id, version_id)
@@ -37,32 +40,36 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         versionless_example_ids = tuple(
             set(example_id for example_id, version_id in keys if version_id is None)
         )
-        resolved_versioned_keys = (
-            select(
-                models.DatasetExample.id.label("example_id"),
-                models.DatasetVersion.id.label("version_id"),
-            )
-            .select_from(models.DatasetExample)
-            .join(
-                models.DatasetVersion,
-                onclause=literal(True),  # cross join
-            )
-            .where(
-                or_(
-                    *(
-                        and_(
-                            models.DatasetExample.id == example_id,
-                            models.DatasetVersion.id == version_id,
+        resolved_example_and_version_ids = (
+            (
+                select(
+                    models.DatasetExample.id.label("example_id"),
+                    models.DatasetVersion.id.label("version_id"),
+                )
+                .select_from(models.DatasetExample)
+                .join(
+                    models.DatasetVersion,
+                    onclause=literal(True),  # cross join
+                )
+                .where(
+                    or_(
+                        *(
+                            and_(
+                                models.DatasetExample.id == example_id,
+                                models.DatasetVersion.id == version_id,
+                            )
+                            for example_id, version_id in example_and_version_ids
                         )
-                        for example_id, version_id in example_and_version_ids
                     )
                 )
             )
+            .union(
+                select(
+                    models.DatasetExample.id.label("example_id"), null().label("version_id")
+                ).where(models.DatasetExample.id.in_(versionless_example_ids))
+            )
+            .subquery()
         )
-        resolved_unversioned_keys = select(
-            models.DatasetExample.id.label("example_id"), null().label("version_id")
-        ).where(models.DatasetExample.id.in_(versionless_example_ids))
-        resolved_example_and_version_ids = resolved_versioned_keys.union(resolved_unversioned_keys)
         revision_ids = (
             select(
                 resolved_example_and_version_ids.c.example_id,
