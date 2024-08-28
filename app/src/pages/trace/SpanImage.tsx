@@ -18,7 +18,7 @@ function isRedactedUrl(url: string) {
 const imageContainerCSS = css`
   position: relative;
   overflow: hidden;
-  width: 400px;
+  width: 200px;
   height: 200px;
   border-radius: var(--ac-global-rounding-small);
   border: 1px solid var(--ac-global-color-grey-500);
