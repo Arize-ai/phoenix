@@ -6,10 +6,10 @@ description: How to get started with Phoenix
 
 ## [How to run in different environments](../environments.md)
 
-* Hosted Phoenix by Arize
-* [In a Python Notebook](../environments.md#notebooks)
+* [Hosted Phoenix by Arize](../hosted-phoenix.md)
+* [In a python notebook](../environments.md#notebooks)
 * [From the command line](../environments.md#terminal)
-* [In a container](../environments.md#container)
+* [In a Container](../environments.md#container)
 
 ## [How to configure phoenix](configuration.md)
 

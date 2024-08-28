@@ -4,6 +4,11 @@ description: Guides on how to use traces
 
 # How-to: Tracing
 
+## [Setup Tracing](setup-tracing/)
+
+* Setup Tracing in [Python](setup-tracing/setup-tracing-python/) or [TypeScript](setup-tracing/setup-tracing-ts.md)
+* Add Integrations via [Auto Intstrumentation](./#auto-instrumentation)
+
 ## [Tracing Core Concepts](tracing-core-concepts.md)
 
 * [How to log traces](tracing-core-concepts.md#how-to-log-traces)
