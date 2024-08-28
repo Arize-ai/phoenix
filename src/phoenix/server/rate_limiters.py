@@ -3,6 +3,10 @@ from functools import partial
 from time import time
 from typing import List, Optional
 
+from fastapi import HTTPException
+from strawberry.extensions import SchemaExtension
+from strawberry.types import Info
+
 from phoenix.exceptions import PhoenixException
 
 
@@ -86,7 +90,6 @@ class ServerRateLimiter:
 
     def _active_bucket_indices(self, current_index) -> List[int]:
         return [(current_index - ii) % self.num_partitions for ii in range(self.active_partitions)]
-    
 
     def _inactive_token_bucket_indices(self, current_index) -> List[int]:
         active_indices = set(self._active_bucket_indices(current_index))
@@ -127,20 +130,15 @@ class ServerRateLimiter:
         rate_limiter.make_request_if_ready()
 
 
-from fastapi import HTTPException, Request
-from starlette.middleware.base import BaseHTTPMiddleware
+class StrawberryRateLimiterExtension(SchemaExtension):
+    def __init__(self):
+        self.rate_limiter = ServerRateLimiter()
 
-
-class RateLimiterMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, rate_limiter: ServerRateLimiter):
-        super().__init__(app)
-        self.rate_limiter = rate_limiter
-
-    async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host
-        try:
-            self.rate_limiter.make_request(client_ip)
-        except UnavailableTokensError:
-            raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        response = await call_next(request)
-        return response
+    async def resolve(self, _next, root, info: Info, *args, **kwargs):
+        if info.field_name == "login" and info.parent_type.name == "Mutation":
+            client_ip = info.context["request"].client.host
+            try:
+                self.rate_limiter.make_request(client_ip)
+            except UnavailableTokensError:
+                raise HTTPException(status_code=429, detail="Rate limit exceeded")
+            return await _next(root, info, *args, **kwargs)
