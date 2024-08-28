@@ -11,7 +11,6 @@ import {
   GitHubLink,
   NavBreadcrumb,
   NavLink,
-  NavMenu,
   SideNavbar,
   ThemeToggle,
   TopNavbar,
