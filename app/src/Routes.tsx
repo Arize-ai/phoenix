@@ -27,6 +27,7 @@ import {
   LoginPage,
   ModelPage,
   ModelRoot,
+  ProfilePage,
   projectLoader,
   ProjectPage,
   ProjectsPage,
@@ -41,6 +42,11 @@ const router = createBrowserRouter(
     <Route path="/" errorElement={<ErrorElement />}>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<Layout />}>
+        <Route
+          path="/profile"
+          handle={{ crumb: () => "profile" }}
+          element={<ProfilePage />}
+        />
         <Route index loader={homeLoader} />
         <Route
           path="/model"
