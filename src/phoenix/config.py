@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from logging import getLogger
 from pathlib import Path
@@ -231,6 +232,14 @@ def get_env_port() -> int:
         return PORT
     if port.isnumeric():
         return int(port)
+    if _KUBERNETES_PHOENIX_PORT_PATTERN.match(port) is not None:
+        raise ValueError(
+            'If you are deploying Phoenix with Kubernetes using a service named "phoenix", '
+            "Kubernetes will automatically generate an environment variable `PHOENIX_PORT` "
+            'of the form "tcp://<IP>:<PORT>" that is not the integer format Phoenix expects. '
+            "To resolve this issue, explicitly set the `PHOENIX_PORT` environment variable to "
+            "an integer value in your Kubernetes deployment configuration."
+        )
     raise ValueError(
         f"Invalid value for environment variable {ENV_PHOENIX_PORT}: "
         f"{port}. Value must be an integer."
@@ -313,3 +322,4 @@ def get_web_base_url() -> str:
 
 
 DEFAULT_PROJECT_NAME = "default"
+_KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
