@@ -1,4 +1,4 @@
-Inferences / Schema
+inferences / schema
 ===================
 
 .. contents:: :local:
