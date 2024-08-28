@@ -37,6 +37,7 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import (
+    ScaffolderConfig,
     _db,
     create_app,
     create_engine_and_run_migrations,
@@ -228,6 +229,7 @@ if __name__ == "__main__":
 
     force_fixture_ingestion = False
     scaffold_datasets = False
+    tracing_fixture_names = set()
     if args.command == "datasets":
         primary_inferences_name = args.primary
         reference_inferences_name = args.reference
@@ -264,7 +266,6 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
-        tracing_fixture_names = set()
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
@@ -344,17 +345,25 @@ if __name__ == "__main__":
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
     # Print information about the server
+    root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.format(
         version=version("arize-phoenix"),
-        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
     )
     if authentication_enabled:
         msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
+    scaffolder_config = ScaffolderConfig(
+        db=factory,
+        tracing_fixture_names=tracing_fixture_names,
+        force_fixture_ingestion=force_fixture_ingestion,
+        scaffold_datasets=scaffold_datasets,
+        phoenix_url=root_path,
+    )
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -372,9 +381,7 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
-        tracing_fixture_names=tracing_fixture_names,
-        force_fixture_ingestion=force_fixture_ingestion,
-        scaffold_datasets=scaffold_datasets,
+        scaffolder_config=scaffolder_config,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
