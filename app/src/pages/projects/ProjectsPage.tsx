@@ -134,13 +134,11 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
 
   useInterval(
     () => {
-      if (autoRefreshEnabled) {
-        startTransition(() => {
-          refetch({}, { fetchPolicy: "store-and-network" });
-        });
-      }
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
     },
-    autoRefreshEnabled ? REFRESH_INTERVAL_MS : undefined
+    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
   );
 
   const onDelete = useCallback(
