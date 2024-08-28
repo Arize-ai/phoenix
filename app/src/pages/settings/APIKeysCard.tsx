@@ -74,7 +74,7 @@ export function APIKeysCard() {
       >
         <Suspense
           fallback={
-            <View padding="size-e00">
+            <View padding="size-100">
               <Loading />
             </View>
           }
