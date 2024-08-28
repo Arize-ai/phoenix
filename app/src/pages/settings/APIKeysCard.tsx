@@ -14,6 +14,7 @@ import {
   TabPane,
   Tabs,
   TextField,
+  View,
 } from "@arizeai/components";
 
 import { CopyToClipboardButton, Loading } from "@phoenix/components";
@@ -71,7 +72,13 @@ export function APIKeysCard() {
           </Button>
         }
       >
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <View padding="size-e00">
+              <Loading />
+            </View>
+          }
+        >
           <APIKeysCardContent />
         </Suspense>
       </TabbedCard>
