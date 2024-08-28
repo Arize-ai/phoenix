@@ -22,6 +22,13 @@ Then navigate to the current directory.
 cd phoenix/src/phoenix/db
 ```
 
+If you are using a non-default SQL database URL (e.g., for running PostgreSQL), ensure your `PHOENIX_SQL_DATABASE_URL` is set. This is not needed if you are running Phoenix with the default SQLite URL.
+
+```bash
+export PHOENIX_SQL_DATABASE_URL=<sql-database-url>
+```
+
+
 To manually run up-migrations, run the following command:
 
 ```bash
