@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d3eeb69b848003c2ca8a1929c7274270>>
+ * @generated SignedSource<<c47d0f2a5fdbadada13bca07e5bacaab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,7 +35,7 @@ var v0 = [
     "name": "after"
   },
   {
-    "defaultValue": 100,
+    "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
   },
@@ -245,16 +245,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dd65be0e4921fda8c7330e4b91d0d016",
+    "cacheID": "ead527a5c3ddda0f6c906c99183edf06",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 100\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "720b12837ec779f66a493b8c4f993cba";
+(node as any).hash = "56c501357948255461a24411fb6b5847";
 
 export default node;

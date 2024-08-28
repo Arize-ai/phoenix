@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<710cc98dcfec479c114a6bdaabef3854>>
+ * @generated SignedSource<<d91769ea4e28132b62dac1ad21ee7811>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,7 +37,7 @@ v1 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 100
+    "value": 50
   }
 ],
 v2 = {
@@ -214,7 +214,7 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "projects(first:100)"
+        "storageKey": "projects(first:50)"
       },
       {
         "alias": null,
@@ -228,12 +228,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e510243be5e7bcef0561820e0515c779",
+    "cacheID": "35a420462b10b0f0158d042fd39bfabb",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects(first: 100) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

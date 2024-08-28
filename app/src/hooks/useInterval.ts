@@ -1,7 +1,13 @@
 import { useEffect, useRef } from "react";
 
 type Callback = () => void;
-export function useInterval(callback: Callback, delay: number) {
+
+/**
+ * Custom hook to use setInterval with React hooks
+ * @param callback
+ * @param {number | undefined} delay - pass undefined to stop the interval
+ */
+export function useInterval(callback: Callback, delay?: number) {
   const savedCallback = useRef<Callback | null>(null);
 
   // Remember the latest callback.
@@ -14,9 +20,7 @@ export function useInterval(callback: Callback, delay: number) {
     function tick() {
       savedCallback.current && savedCallback.current();
     }
-    if (delay !== null) {
-      const id = setInterval(tick, delay);
-      return () => clearInterval(id);
-    }
+    const id = setInterval(tick, delay);
+    return () => clearInterval(id);
   }, [delay]);
 }
