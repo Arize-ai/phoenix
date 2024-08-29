@@ -340,6 +340,7 @@ input DeleteExperimentsInput {
 
 type DeleteSystemApiKeyMutationPayload {
   id: GlobalID!
+  query: Query!
 }
 
 type Dimension implements Node {
