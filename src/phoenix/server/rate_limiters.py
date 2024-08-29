@@ -39,7 +39,7 @@ class TokenBucket:
     def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
 
-    def available_requests(self) -> float:
+    def available_tokens(self) -> float:
         now = time.time()
         time_since_last_checked = now - self.last_checked
         self.tokens = min(self.max_tokens(), self.rate * time_since_last_checked + self.tokens)
@@ -47,7 +47,7 @@ class TokenBucket:
         return self.tokens
 
     def make_request_if_ready(self) -> None:
-        if self.available_requests() < 1:
+        if self.available_tokens() < 1:
             raise UnavailableTokensError
         self.tokens -= 1
 
@@ -79,7 +79,7 @@ class ServerRateLimiter:
             per_second_request_rate=per_second_rate_limit,
             enforcement_window_seconds=enforcement_window_seconds,
         )
-        self.expiration_seconds = partition_seconds
+        self.partition_seconds = partition_seconds
         self.active_partitions = active_partitions
         self.num_partitions = active_partitions + 2  # two overflow partitions to avoid edge cases
         self._reset_rate_limiters()
@@ -92,7 +92,7 @@ class ServerRateLimiter:
 
     def _current_partition_index(self, timestamp: float) -> int:
         return (
-            int(timestamp // self.expiration_seconds) % self.num_partitions
+            int(timestamp // self.partition_seconds) % self.num_partitions
         )  # a cyclic bucket index
 
     def _active_partition_indices(self, current_index: int) -> List[int]:
@@ -105,7 +105,8 @@ class ServerRateLimiter:
 
     def _cleanup_expired_limiters(self, request_time: float) -> None:
         time_since_last_cleanup = request_time - self._last_cleanup_time
-        if time_since_last_cleanup >= ((self.num_partitions - 1) * self.expiration_seconds):
+        if time_since_last_cleanup >= ((self.num_partitions - 1) * self.partition_seconds):
+            # Reset the cache to avoid "looping" back to the same partitions
             self._reset_rate_limiters()
             self._last_cleanup_time = request_time
             return

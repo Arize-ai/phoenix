@@ -51,10 +51,10 @@ def test_token_bucket_gains_tokens_over_time():
         bucket.tokens = 0  # start at 0
 
     with freeze_time(start + 5):
-        assert bucket.available_requests() == 5
+        assert bucket.available_tokens() == 5
 
     with freeze_time(start + 10):
-        assert bucket.available_requests() == 10
+        assert bucket.available_tokens() == 10
 
 
 def test_token_bucket_can_max_out_on_requests():
@@ -65,13 +65,13 @@ def test_token_bucket_can_max_out_on_requests():
         bucket.tokens = 0  # start at 0
 
     with freeze_time(start + 30):
-        assert bucket.available_requests() == 30
+        assert bucket.available_tokens() == 30
 
     with freeze_time(start + 120):
-        assert bucket.available_requests() == 120
+        assert bucket.available_tokens() == 120
 
     with freeze_time(start + 130):
-        assert bucket.available_requests() == 120  # should max out at 120
+        assert bucket.available_tokens() == 120  # should max out at 120
 
 
 def test_token_bucket_spends_tokens():
@@ -82,9 +82,9 @@ def test_token_bucket_spends_tokens():
         bucket.tokens = 0  # start at 0
 
     with freeze_time(start + 3):
-        assert bucket.available_requests() == 3
+        assert bucket.available_tokens() == 3
         bucket.make_request_if_ready()
-        assert bucket.available_requests() == 2
+        assert bucket.available_tokens() == 2
 
 
 def test_token_bucket_cannot_spend_unavailable_tokens():
@@ -95,7 +95,7 @@ def test_token_bucket_cannot_spend_unavailable_tokens():
         bucket.tokens = 0  # start at 0
 
     with freeze_time(start + 1):
-        assert bucket.available_requests() == 1
+        assert bucket.available_tokens() == 1
         bucket.make_request_if_ready()  # should spend one token
         with pytest.raises(UnavailableTokensError):
             bucket.make_request_if_ready()  # should raise since no tokens left
@@ -104,7 +104,7 @@ def test_token_bucket_cannot_spend_unavailable_tokens():
 def test_rate_limiter_cleans_up_old_partitions():
     start = time.time()
 
-    with warp_time(start):
+    with freeze_time(start):
         limiter = ServerRateLimiter(
             per_second_rate_limit=1,
             enforcement_window_seconds=100,
@@ -118,8 +118,9 @@ def test_rate_limiter_cleans_up_old_partitions():
         partition_sizes = [len(partition) for partition in limiter.cache_partitions]
         assert sum(partition_sizes) == 4
 
-    with freeze_time(start + 10):
-        # after 10 seconds, the cache rolls over to a second active partition
+    interval = limiter.partition_seconds
+    with freeze_time(start + interval):
+        # after a partition interval, the cache rolls over to a second active partition
         limiter.make_request("test_key_4")  # moves test_key_4 to current partition
         limiter.make_request("test_key_5")  # creates test_key_5 in current partition
         partition_sizes = [len(partition) for partition in limiter.cache_partitions]
@@ -127,6 +128,33 @@ def test_rate_limiter_cleans_up_old_partitions():
         assert 2 in partition_sizes  # two rate limiters in current cache partition
         assert 3 in partition_sizes  # three rate limiters remaining in original partition
 
-    with freeze_time(start + 10 + 40):
-        limiter.make_request("fresh_key")  # when "looping" partitions, they should be reset
+    with freeze_time(start + interval + (limiter.num_partitions * interval)):
+        limiter.make_request("fresh_key")  # when "looping" partitions, cache should be reset
         assert sum(len(partition) for partition in limiter.cache_partitions) == 1
+
+
+def test_rate_limiter_caches_token_buckets():
+    start = time.time()
+
+    with freeze_time(start):
+        limiter = ServerRateLimiter(
+            per_second_rate_limit=0.5,
+            enforcement_window_seconds=20,
+            partition_seconds=1,
+            active_partitions=2,
+        )
+        limiter.make_request("test_key")
+        limiter.make_request("test_key")
+        limiter.make_request("test_key")
+        token_bucket = None
+        for partition in limiter.cache_partitions:
+            if "test_key" in partition:
+                token_bucket = partition["test_key"]
+                break
+        assert token_bucket is not None, "Token bucket for 'test_key' should exist"
+        assert token_bucket.tokens == 7
+
+    with freeze_time(start + 1):
+        assert token_bucket.available_tokens() == 7.5
+        limiter.make_request("test_key")
+        assert token_bucket.tokens == 6.5
