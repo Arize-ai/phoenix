@@ -5,7 +5,7 @@ from sqlalchemy import insert
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.db.session import DbSessionFactory
 
 
 @pytest.fixture

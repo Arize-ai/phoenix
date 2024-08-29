@@ -39,6 +39,7 @@ from phoenix.config import (
     get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
+from phoenix.db.session import DbSessionFactory
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import (
@@ -48,7 +49,6 @@ from phoenix.server.app import (
     instrument_engine_if_enabled,
 )
 from phoenix.server.thread_server import ThreadServer
-from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
 from phoenix.session.client import Client
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor

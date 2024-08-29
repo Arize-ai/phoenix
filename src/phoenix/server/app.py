@@ -6,7 +6,7 @@ import json
 import logging
 from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
-from functools import cached_property, partial
+from functools import cached_property
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -31,9 +31,8 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from sqlalchemy.sql.functions import coalesce, func
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -50,12 +49,8 @@ from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.auth import (
-    compute_password_hash,
-)
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
-    PHOENIX_SECRET,
     SERVER_DIR,
     server_instrumentation_is_enabled,
 )
@@ -63,7 +58,9 @@ from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
+from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.session import DbSessionFactory
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
@@ -98,14 +95,14 @@ from phoenix.server.bearer_auth import BearerTokenAuthBackend
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.jwt_token_store import JwtTokenStore
+from phoenix.server.jwt_store import JwtStore
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
     DaemonTask,
-    DbSessionFactory,
     LastUpdatedAt,
+    TokenStore,
 )
 from phoenix.trace.fixtures import (
     get_evals_from_fixture,
@@ -345,7 +342,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
-    token_store: Optional[JwtTokenStore] = None,
+    token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
@@ -356,6 +353,9 @@ def _lifespan(
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+        for callback in startup_callbacks:
+            if isinstance((res := callback()), Awaitable):
+                await res
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with AsyncExitStack() as stack:
@@ -382,11 +382,8 @@ def _lifespan(
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
             await stack.enter_async_context(scaffolder)
-            if token_store:
+            if isinstance(token_store, AsyncContextManager):
                 await stack.enter_async_context(token_store)
-            for callback in startup_callbacks:
-                if isinstance((res := callback()), Awaitable):
-                    await res
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -418,7 +415,7 @@ def create_graphql_router(
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     secret: Optional[str] = None,
-    token_store: Optional[JwtTokenStore] = None,
+    token_store: Optional[TokenStore] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
     """Creates the GraphQL router.
 
@@ -561,30 +558,6 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
-def ensure_admin_password(db: DbSessionFactory) -> _Callback:
-    async def _() -> None:
-        assert PHOENIX_SECRET
-        loop = asyncio.get_running_loop()
-        compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=PHOENIX_SECRET)
-        hash_ = await loop.run_in_executor(None, compute)
-        password_hash = coalesce(models.User.password_hash, hash_)
-        first_admin = (
-            select(func.min(models.User.id))
-            .join(models.UserRole)
-            .where(models.UserRole.name == "ADMIN")
-            .scalar_subquery()
-        )
-        stmt = (
-            update(models.User)
-            .where(models.User.id == first_admin)
-            .values(password_hash=password_hash)
-        )
-        async with db() as session:
-            await session.execute(stmt)
-
-    return _
-
-
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
@@ -607,6 +580,7 @@ def create_app(
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
+    startup_callbacks_list.append(Facilitator(db))
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -622,8 +596,7 @@ def create_app(
     last_updated_at = LastUpdatedAt()
     middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
     if authentication_enabled and secret:
-        token_store = JwtTokenStore(db, secret)
-        startup_callbacks_list.append(ensure_admin_password(db))
+        token_store = JwtStore(db, secret)
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,

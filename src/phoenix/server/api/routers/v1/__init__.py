@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
-from phoenix.auth import ClaimStatus
+from phoenix.auth import ClaimSetStatus
 from phoenix.config import ENABLE_AUTH
 from phoenix.server.bearer_auth import PhoenixUser
 
@@ -39,12 +39,10 @@ async def authorize(request: Request) -> None:
     """
     if not isinstance((user := request.user), PhoenixUser):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    claim = user.claim
-    if claim.status is ClaimStatus.EXPIRED:
+    claims = user.claims
+    if claims.status is ClaimSetStatus.EXPIRED:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
-    if claim.status is ClaimStatus.INACTIVE:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Inactive token")
-    if claim.status is not ClaimStatus.VALID:
+    if claims.status is not ClaimSetStatus.VALID:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 

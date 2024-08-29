@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
-from typing import NamedTuple, Optional, Protocol, Tuple, Union
-
-from typing_extensions import TypeAlias
+from typing import Any, Optional, Protocol
 
 
 def compute_password_hash(*, password: str, salt: str) -> str:
@@ -119,18 +117,10 @@ class _PasswordRequirements:
             err_msg.append("at least one lowercase letter")
         if not err_msg:
             return
-        try:
-            from faker import Faker  # type: ignore[import-not-found,unused-ignore]
-
-            suggested_password = Faker().unique.password(**asdict(self))
-        except BaseException:
-            suggested_password = ""
         if len(err_msg) > 1:
             err_text = "Password " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
         else:
             err_text = f"Password {err_msg[0]}"
-        if suggested_password:
-            err_text = f"{err_text} (e.g. `{suggested_password}`)"
         raise ValueError(err_text)
 
 
@@ -143,83 +133,56 @@ MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
 PASSWORD_REQUIREMENTS = _PasswordRequirements(MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
-REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32, True, True, True, True)
+REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32)
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
-PHOENIX_ACCESS_TOKEN_COOKIE_MAX_AGE = timedelta(days=31)
+PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=5)
+PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
+PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=31)
 
 
-class Issuer(Enum):
-    API_KEY = auto()
-    SESSION = auto()
+class Token(str): ...
 
 
-class ClaimStatus(Enum):
+class ClaimSetStatus(Enum):
     VALID = auto()
-    INACTIVE = auto()
+    INVALID = auto()
     EXPIRED = auto()
 
 
 @dataclass(frozen=True)
-class _BaseAttributes:
-    user_role: str
+class TokenAttributes: ...
 
 
 @dataclass(frozen=True)
-class ApiKeyAttributes(_BaseAttributes):
-    name: Optional[str] = None
-    description: Optional[str] = None
-
-
-@dataclass(frozen=True)
-class SessionAttributes(_BaseAttributes): ...
-
-
-Attributes: TypeAlias = Union[ApiKeyAttributes, SessionAttributes]
-TokenId: TypeAlias = str
-
-
-@dataclass(frozen=True)
-class Claim:
-    token_id: Optional[TokenId] = None
-    user_id: Optional[int] = None
-    issuer: Optional[Issuer] = None
+class ClaimSet:
+    issuer: Optional[Any] = None
+    "Analog of `iss` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.1"
+    subject: Optional[Any] = None
+    "Analog of `sub` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.2"
+    audience: Optional[Any] = None
+    "Analog of `aud` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3"
+    not_before: Optional[datetime] = None
+    "Analog of `nbf` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5"
     issued_at: Optional[datetime] = None
+    "Analog of `iat` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6"
     expiration_time: Optional[datetime] = None
-    audience: Optional[str] = None
-    attributes: Optional[Attributes] = None
-
-    def __post_init__(self) -> None:
-        if self.issuer is Issuer.API_KEY:
-            assert isinstance(self.attributes, ApiKeyAttributes)
-        elif self.issuer is Issuer.SESSION:
-            assert isinstance(self.attributes, SessionAttributes)
+    "Analog of `exp` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4"
+    token_id: Optional[Any] = None
+    "Analog of `jti` claim in JWT RFC7519: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.7"
+    attributes: Optional[TokenAttributes] = None
+    "Application/domain-specific claims"
 
     @property
-    def status(self) -> ClaimStatus:
-        if self.token_id is None:
-            return ClaimStatus.INACTIVE
-        if self.user_id is None:
-            return ClaimStatus.INACTIVE
-        if self.expiration_time and self.expiration_time < datetime.now(timezone.utc):
-            return ClaimStatus.EXPIRED
-        return ClaimStatus.VALID
+    def status(self) -> ClaimSetStatus:
+        if self.expiration_time and self.expiration_time.timestamp() < datetime.now().timestamp():
+            return ClaimSetStatus.EXPIRED
+        if self.token_id is not None and self.subject is not None:
+            return ClaimSetStatus.VALID
+        return ClaimSetStatus.INVALID
 
 
-Token: TypeAlias = str
-
-
-class ApiKeyDbId(NamedTuple):
-    id_: int
-
-
-class SessionTokenDbId(NamedTuple):
-    id_: int
-
-
-class TokenStore(Protocol):
-    async def create(self, claims: Claim) -> Tuple[Token, int]: ...
-    async def read(self, token: Token) -> Claim: ...
-    async def revoke(self, token: Union[Token, ApiKeyDbId, SessionTokenDbId]) -> None: ...
+class CanReadToken(Protocol):
+    async def read(self, token: Token) -> Optional[ClaimSet]: ...

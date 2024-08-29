@@ -12,8 +12,9 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 )
 from typing_extensions import TypeAlias
 
+from phoenix.auth import CanReadToken
 from phoenix.config import get_env_grpc_port
-from phoenix.server.bearer_auth import ApiKeyInterceptor, CanReadToken
+from phoenix.server.bearer_auth import ApiKeyInterceptor
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name

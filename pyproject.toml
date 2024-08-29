@@ -259,6 +259,7 @@ addopts = [
   "--doctest-modules",
   "--new-first",
   "--showlocals",
+  "--exitfirst",
 ]
 testpaths = [
   "tests",

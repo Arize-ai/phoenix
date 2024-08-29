@@ -52,12 +52,14 @@ class _GetGqlSpans(Protocol):
 
 
 @pytest.fixture
-def get_gql_spans() -> _GetGqlSpans:
+def get_gql_spans(
+    httpx_client: httpx.Client,
+) -> _GetGqlSpans:
     def _(*keys: str) -> Dict[ProjectName, List[Dict[str, Any]]]:
         query = dict(
             query="query{projects{edges{node{name spans{edges{node{" + " ".join(keys) + "}}}}}}}"
         )
-        resp = httpx.post(urljoin(get_base_url(), "graphql"), json=query)
+        resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=query)
         resp.raise_for_status()
         resp_dict = resp.json()
         assert not resp_dict.get("errors")
@@ -80,7 +82,9 @@ def http_span_exporter() -> _ExporterFactory:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
         endpoint = urljoin(get_base_url(), "v1/traces")
-        return OTLPSpanExporter(endpoint, headers=headers, timeout=1)
+        exporter = OTLPSpanExporter(endpoint, headers=headers, timeout=1)
+        exporter._MAX_RETRY_TIMEOUT = 2
+        return exporter
 
     return _
 
@@ -101,7 +105,7 @@ def grpc_span_exporter() -> _ExporterFactory:
     return _
 
 
-@pytest.fixture(scope="session", params=["http"])
+@pytest.fixture(scope="session", params=["http", "grpc"])
 def span_exporter(request: SubRequest) -> _ExporterFactory:
     if request.param == "http":
         return cast(_ExporterFactory, request.getfixturevalue("http_span_exporter"))
@@ -136,6 +140,12 @@ def start_span(
         return get_tracer(project_name, exporter).start_span(span_name)
 
     return _
+
+
+@pytest.fixture(scope="session")
+def httpx_client() -> httpx.Client:
+    # Having no timeout is useful when stepping through the debugger.
+    return httpx.Client(timeout=None)
 
 
 @pytest.fixture(scope="session")

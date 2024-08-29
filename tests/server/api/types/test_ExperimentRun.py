@@ -8,7 +8,7 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.db.session import DbSessionFactory
 
 
 async def test_annotations_resolver_returns_annotations_for_run(

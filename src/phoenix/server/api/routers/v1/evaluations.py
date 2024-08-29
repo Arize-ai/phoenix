@@ -25,9 +25,9 @@ import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
+from phoenix.db.session import DbSessionFactory
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
-from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
     Evaluations,

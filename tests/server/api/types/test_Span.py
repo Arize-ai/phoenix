@@ -7,9 +7,9 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.session import DbSessionFactory
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
-from phoenix.server.types import DbSessionFactory
 
 
 async def test_project_resolver_returns_correct_project(

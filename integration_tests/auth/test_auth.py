@@ -1,5 +1,5 @@
+import secrets
 from contextlib import nullcontext
-from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
@@ -7,19 +7,19 @@ from typing import (
     ContextManager,
     Dict,
     Iterator,
-    Literal,
     Optional,
     Tuple,
     cast,
-    get_args,
 )
 
 import pytest
 from faker import Faker
+from httpx import HTTPStatusError
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
-from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from starlette.status import HTTP_401_UNAUTHORIZED
 from typing_extensions import TypeAlias
 
 ProjectName: TypeAlias = str
@@ -27,7 +27,6 @@ SpanName: TypeAlias = str
 Headers: TypeAlias = Dict[str, Any]
 Name: TypeAlias = str
 
-Role: TypeAlias = Literal["MEMBER", "ADMIN"]
 UserName: TypeAlias = str
 Email: TypeAlias = str
 Password: TypeAlias = str
@@ -43,64 +42,62 @@ class TestUsers:
         "email,use_secret,expectation",
         [
             ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(BaseException)),
-            ("system@localhost", True, pytest.raises(BaseException)),
-            ("admin", True, pytest.raises(BaseException)),
+            ("admin@localhost", False, pytest.raises(HTTPStatusError)),
+            ("system@localhost", True, pytest.raises(HTTPStatusError)),
+            ("admin", True, pytest.raises(HTTPStatusError)),
         ],
     )
     def test_admin(
         self,
         email: str,
         use_secret: bool,
-        expectation: ContextManager[Optional[BaseException]],
+        expectation: ContextManager[Optional[HTTPStatusError]],
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
-        password = (
-            secret
-            if use_secret
-            else fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
-        )
+        password = secret if use_secret else secrets.token_hex(32)
         with expectation:
             with login(email, password) as token:
                 create_system_api_key(fake.unique.pystr(), None, token)
-            with pytest.raises(BaseException):
-                create_system_api_key(fake.unique.pystr(), None, token)
+        with pytest.raises(HTTPStatusError) as exc:
+            create_system_api_key(fake.unique.pystr(), None, token)
+        if exc:
+            assert exc.value.response.status_code == HTTP_401_UNAUTHORIZED
 
     @pytest.mark.parametrize(
         "role,expectation",
         [
-            ("ADMIN", nullcontext()),
-            ("MEMBER", pytest.raises(BaseException)),
+            (UserRoleInput.ADMIN, nullcontext()),
+            (UserRoleInput.MEMBER, pytest.raises(HTTPStatusError)),
         ],
     )
     def test_create_user(
         self,
-        role: Role,
-        expectation: ContextManager[Optional[BaseException]],
+        role: UserRoleInput,
+        expectation: ContextManager[Optional[HTTPStatusError]],
         admin_email: str,
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],
-        create_user: Callable[[Email, UserName, Password, Role, Token], None],
+        create_user: Callable[[Email, UserName, Password, UserRoleInput, Token], None],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
         profile = fake.simple_profile()
         email = cast(str, profile["mail"])
         username = cast(str, profile["username"])
-        password = fake.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
+        password = secrets.token_hex(32)
         with login(admin_email, secret) as token:
             create_user(email, username, password, role, token)
         with login(email, password) as token:
             with expectation:
                 create_system_api_key(fake.unique.pystr(), None, token)
-            for _role in get_args(Role):
+            for _role in UserRoleInput:
                 _profile = fake.simple_profile()
                 _email = cast(str, _profile["mail"])
                 _username = cast(str, _profile["username"])
-                _password = fake.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
+                _password = secrets.token_hex(32)
                 with expectation:
                     create_user(_email, _username, _password, _role, token)
 
@@ -141,7 +138,7 @@ class TestSpanExporters:
         gid: Optional[GqlId] = None
         if with_headers:
             system_api_key, gid = create_system_api_key(fake.unique.pystr(), expires_at, token)
-            headers = {"Authorization": f"Bearer {system_api_key}"}
+            headers = {"authorization": f"Bearer {system_api_key}"}
         export = span_exporter(headers).export
         project_name, span_name = fake.unique.pystr(), fake.unique.pystr()
         memory = InMemorySpanExporter()

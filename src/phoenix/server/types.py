@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import (
     Any,
-    AsyncContextManager,
     Callable,
     DefaultDict,
     Generic,
@@ -12,15 +14,16 @@ from typing import (
     List,
     Optional,
     Protocol,
+    Tuple,
     Type,
     TypeVar,
+    final,
 )
 
 from cachetools import LRUCache
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
+from phoenix.db import enums, models
 
 
 class CanSetLastUpdatedAt(Protocol):
@@ -29,19 +32,6 @@ class CanSetLastUpdatedAt(Protocol):
 
 class CanGetLastUpdatedAt(Protocol):
     def get(self, table: Type[models.Base], id_: Optional[int] = None) -> Optional[datetime]: ...
-
-
-class DbSessionFactory:
-    def __init__(
-        self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
-        dialect: str,
-    ):
-        self._db = db
-        self.dialect = SupportedSQLDialect(dialect)
-
-    def __call__(self) -> AsyncContextManager[AsyncSession]:
-        return self._db()
 
 
 _AnyT = TypeVar("_AnyT")
@@ -135,3 +125,120 @@ class LastUpdatedAt:
 
     def set(self, table: Type[models.Base], id_: int) -> None:
         self._cache[table][id_] = datetime.now(timezone.utc)
+
+
+class AccessToken(Token): ...
+
+
+class RefreshToken(Token): ...
+
+
+class ApiKey(Token): ...
+
+
+@dataclass(frozen=True)
+class UserTokenAttributes(TokenAttributes):
+    user_role: enums.UserRole
+
+
+@dataclass(frozen=True)
+class AccessTokenAttributes(UserTokenAttributes): ...
+
+
+@dataclass(frozen=True)
+class RefreshTokenAttributes(UserTokenAttributes): ...
+
+
+@dataclass(frozen=True)
+class ApiKeyAttributes(UserTokenAttributes):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DbId(str, ABC):
+    table: Type[models.Base]
+
+    def __new__(cls, id_: int) -> DbId:
+        assert isinstance(id_, int)
+        return super().__new__(cls, f"{cls.table.__name__}:{id_}")
+
+    def __int__(self) -> int:
+        return int(self.split(":")[1])
+
+    def __deepcopy__(self, memo: Any) -> DbId:
+        return self
+
+
+class TokenId(DbId, ABC):
+    @classmethod
+    def parse(cls, value: str) -> Optional[DbId]:
+        table_name, _, id_ = value.partition(":")
+        if not id_.isnumeric():
+            return None
+        for sub in cls.__subclasses__():
+            if sub.table.__name__ == table_name:
+                return sub(int(id_))
+        return None
+
+
+@final
+class AccessTokenId(TokenId):
+    table = models.AccessToken
+
+
+@final
+class RefreshTokenId(TokenId):
+    table = models.RefreshToken
+
+
+@final
+class ApiKeyId(TokenId):
+    table = models.ApiKey
+
+
+@final
+class UserId(DbId):
+    table = models.User
+
+
+@dataclass(frozen=True)
+class UserClaimSet(ClaimSet):
+    subject: Optional[UserId] = None
+    attributes: Optional[UserTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class AccessTokenClaims(UserClaimSet):
+    token_id: Optional[AccessTokenId] = None
+    attributes: Optional[AccessTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class RefreshTokenClaims(UserClaimSet):
+    token_id: Optional[RefreshTokenId] = None
+    attributes: Optional[RefreshTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class ApiKeyClaims(UserClaimSet):
+    token_id: Optional[ApiKeyId] = None
+    attributes: Optional[ApiKeyAttributes] = None
+
+
+class CanRevokeTokens(Protocol):
+    async def revoke(self, *token_ids: TokenId) -> None: ...
+
+
+class TokenStore(CanReadToken, CanRevokeTokens, Protocol):
+    async def create_access_token(
+        self,
+        claim: AccessTokenClaims,
+    ) -> Tuple[AccessToken, AccessTokenId]: ...
+    async def create_refresh_token(
+        self,
+        claim: RefreshTokenClaims,
+    ) -> Tuple[RefreshToken, RefreshTokenId]: ...
+    async def create_api_key(
+        self,
+        claim: ApiKeyClaims,
+    ) -> Tuple[ApiKey, ApiKeyId]: ...

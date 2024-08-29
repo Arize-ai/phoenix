@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.db.session import DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
 
 if sys.version_info >= (3, 9):

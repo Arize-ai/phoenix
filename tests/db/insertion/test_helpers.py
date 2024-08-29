@@ -7,7 +7,7 @@ from sqlalchemy import insert, select
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.types import DbSessionFactory
+from phoenix.db.session import DbSessionFactory
 
 
 class Test_insert_on_conflict:

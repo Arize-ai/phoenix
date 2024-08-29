@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import ScalarSelect, Table, insert
 
 # revision identifiers, used by Alembic.
 revision: str = "cd164e83824f"
@@ -19,51 +18,8 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def insert_roles_and_users(
-    user_roles_table: Table,
-    users_table: Table,
-) -> None:
-    """
-    Populates the `user_roles` table and adds a system user and initial admin
-    user to the `users` table.
-    """
-
-    def role_id(role_name: str) -> ScalarSelect[int]:
-        return (
-            sa.select(user_roles_table.c.id)
-            .where(user_roles_table.c.name == role_name)
-            .scalar_subquery()
-        )
-
-    op.execute(
-        insert(user_roles_table).values([{"name": "SYSTEM"}, {"name": "ADMIN"}, {"name": "MEMBER"}])
-    )
-    op.execute(
-        insert(users_table).values(
-            [
-                {
-                    "user_role_id": role_id("SYSTEM"),
-                    "username": None,
-                    "email": "system@localhost",
-                    "auth_method": "LOCAL",
-                    "password_hash": None,
-                    "reset_password": False,
-                },
-                {
-                    "user_role_id": role_id("ADMIN"),
-                    "username": "admin",
-                    "email": "admin@localhost",
-                    "auth_method": "LOCAL",
-                    "password_hash": None,
-                    "reset_password": True,
-                },
-            ]
-        )
-    )
-
-
 def upgrade() -> None:
-    user_roles_table = op.create_table(
+    op.create_table(
         "user_roles",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
@@ -73,7 +29,7 @@ def upgrade() -> None:
             unique=True,
         ),
     )
-    users_table = op.create_table(
+    op.create_table(
         "users",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
@@ -113,7 +69,19 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "user_sessions",
+        "access_tokens",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), index=True),
+    )
+    op.create_table(
+        "refresh_tokens",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
         sa.Column(
@@ -168,7 +136,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    insert_roles_and_users(user_roles_table, users_table)
 
 
 def downgrade() -> None:

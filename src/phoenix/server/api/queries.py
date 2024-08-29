@@ -12,7 +12,7 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
 )
@@ -162,7 +162,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == "SYSTEM")
+            .where(models.UserRole.name == enums.UserRole.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)

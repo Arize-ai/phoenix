@@ -1,17 +1,20 @@
 from abc import ABC
-from typing import Any, Awaitable, Callable, Optional, Protocol, Tuple
+from typing import Any, Awaitable, Callable, Optional, Tuple
 
 import grpc
 from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import Unauthenticated
+from grpc_interceptor.exceptions import PermissionDenied, Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
 from starlette.requests import HTTPConnection
 
-from phoenix.auth import PHOENIX_ACCESS_TOKEN_COOKIE_NAME, Claim, ClaimStatus, Token
-
-
-class CanReadToken(Protocol):
-    async def read(self, token: Token) -> Claim: ...
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    CanReadToken,
+    ClaimSetStatus,
+    Token,
+)
+from phoenix.server.types import AccessTokenClaims, ApiKeyClaims, UserClaimSet, UserId
 
 
 class HasTokenStore(ABC):
@@ -27,25 +30,32 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
     ) -> Optional[Tuple[AuthCredentials, BaseUser]]:
         if header := conn.headers.get("Authorization"):
             scheme, _, token = header.partition(" ")
-            if scheme.lower() != "bearer":
+            if scheme.lower() != "bearer" or not token:
                 return None
-        elif cookie := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
-            token = cookie
+        elif access_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
+            token = access_token
+        elif refresh_token := conn.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME):
+            token = refresh_token
         else:
             return None
-        claim = await self._token_store.read(token)
-        if claim.user_id is None:
-            return None
-        return AuthCredentials(), PhoenixUser(claim)
+        claims = await self._token_store.read(Token(token))
+        if isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId):
+            return AuthCredentials(), PhoenixUser(claims.subject, claims)
+        return None
 
 
 class PhoenixUser(BaseUser):
-    def __init__(self, claim: Claim) -> None:
-        self.claim = claim
+    def __init__(self, user_id: UserId, claims: UserClaimSet) -> None:
+        self._user_id = user_id
+        self.claims = claims
+
+    @property
+    def identity(self) -> UserId:
+        return self._user_id
 
     @property
     def is_authenticated(self) -> bool:
-        return self.claim.status is ClaimStatus.VALID
+        return True
 
 
 class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
@@ -59,10 +69,14 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
         for datum in context.invocation_metadata():
             if datum.key.lower() == "authorization":
                 scheme, _, token = datum.value.partition(" ")
-                if scheme.lower() != "bearer":
+                if scheme.lower() != "bearer" or not token:
                     break
-                claim = await self._token_store.read(token)
-                if claim.status is ClaimStatus.VALID:
+                claim = await self._token_store.read(Token(token))
+                if not isinstance(claim, (AccessTokenClaims, ApiKeyClaims)):
+                    break
+                if claim.status is ClaimSetStatus.VALID and isinstance(claim.subject, UserId):
                     return await method(request_or_iterator, context)
-                break
-        raise Unauthenticated(status_code=grpc.StatusCode.UNAUTHENTICATED)
+                if claim.status is ClaimSetStatus.EXPIRED:
+                    raise PermissionDenied(details="Token has expired")
+                raise PermissionDenied()
+        raise Unauthenticated()
