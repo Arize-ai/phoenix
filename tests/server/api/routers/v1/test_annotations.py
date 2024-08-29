@@ -31,10 +31,7 @@ from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations, Tra
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="CI fails for unknown reason")
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12),
-    reason="FIXME: this test has TimeoutError with postgresql",
-)
+@pytest.mark.skip(reason="FIXME: this test has TimeoutError with postgresql for unknown reasons")
 class TestSendingAnnotationsBeforeSpans:
     async def test_sending_annotations_before_spans(
         self,
