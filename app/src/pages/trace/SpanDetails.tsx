@@ -69,6 +69,7 @@ import {
   AttributeEmbedding,
   AttributeEmbeddingEmbedding,
   AttributeLlm,
+  AttributeLLMToolDefinition,
   AttributeMessage,
   AttributeMessageContent,
   AttributePromptTemplate,
@@ -495,6 +496,29 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
 
+  const llmTools = useMemo<AttributeLLMToolDefinition[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    const tools = llmAttributes[LLMAttributePostfixes.tools];
+    if (!Array.isArray(tools)) {
+      return [];
+    }
+    const toolDefinitions = tools
+      ?.map((obj) => obj[SemanticAttributePrefixes.tool])
+      .filter(Boolean) as AttributeLLMToolDefinition[];
+    return toolDefinitions;
+  }, [llmAttributes]);
+
+  const llmToolSchemas = useMemo<string[]>(() => {
+    return llmTools.reduce((acc, tool) => {
+      if (tool?.json_schema) {
+        acc.push(tool.json_schema);
+      }
+      return acc;
+    }, [] as string[]);
+  }, [llmTools]);
+
   const outputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
@@ -550,6 +574,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   }, [modelName]);
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
+  const hasLLMToolSchemas = llmToolSchemas.length > 0;
   const hasOutput = output != null && output.value != null;
   const hasOutputMessages = outputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
@@ -575,6 +600,11 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
               <LLMMessagesList messages={inputMessages} />
+            </TabPane>
+          ) : null}
+          {hasLLMToolSchemas ? (
+            <TabPane name="Tools" hidden={!hasLLMToolSchemas}>
+              <LLMToolSchemasList toolSchemas={llmToolSchemas} />
             </TabPane>
           ) : null}
           {hasInput ? (
@@ -1340,6 +1370,39 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
     </MarkdownDisplayProvider>
   );
 }
+
+function LLMToolSchema({
+  toolSchema,
+  index,
+}: {
+  toolSchema: string;
+  index: number;
+}) {
+  const titleEl = (
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <SpanKindIcon spanKind="tool" />
+      <Text textSize="large" weight="heavy">
+        Tool
+      </Text>
+    </Flex>
+  );
+
+  return (
+    <Card
+      // @ts-expect-error force putting the title in as a string
+      title={titleEl}
+      titleExtra={<Counter variant="light">#{index + 1}</Counter>}
+      {...defaultCardProps}
+      backgroundColor="yellow-100"
+      borderColor="yellow-700"
+      bodyStyle={{ padding: 0 }}
+      extra={<CopyToClipboardButton text={toolSchema} />}
+    >
+      <CodeBlock value={toolSchema} mimeType={"json"} />
+    </Card>
+  );
+}
+
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
     <ul
@@ -1354,6 +1417,27 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
         return (
           <li key={idx}>
             <LLMMessage message={message} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
+  return (
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-100);
+        padding: var(--ac-global-dimension-static-size-200);
+      `}
+    >
+      {toolSchemas.map((toolSchema, idx) => {
+        return (
+          <li key={idx}>
+            <LLMToolSchema toolSchema={toolSchema} index={idx} />
           </li>
         );
       })}
