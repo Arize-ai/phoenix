@@ -1,12 +1,7 @@
 import time
 from collections import defaultdict
 from functools import partial
-from inspect import isawaitable
-from typing import Any, Callable, DefaultDict, List, Optional
-
-from fastapi import HTTPException
-from graphql import GraphQLResolveInfo
-from strawberry.extensions import SchemaExtension
+from typing import Any, DefaultDict, List, Optional
 
 from phoenix.exceptions import PhoenixException
 
@@ -137,27 +132,3 @@ class ServerRateLimiter:
         self._cleanup_expired_limiters(request_time)
         rate_limiter = self._fetch_token_bucket(key, request_time)
         rate_limiter.make_request_if_ready()
-
-
-class StrawberryRateLimiterExtension(SchemaExtension):
-    def __init__(self) -> None:
-        self.rate_limiter = ServerRateLimiter()
-
-    async def resolve(
-        self,
-        _next: Callable[..., Any],
-        root: Any,
-        info: GraphQLResolveInfo,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        if info.field_name == "login" and info.parent_type.name == "Mutation":
-            client_ip = info.context["request"].client.host
-            try:
-                self.rate_limiter.make_request(client_ip)
-            except UnavailableTokensError:
-                raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        result = _next(root, info, *args, **kwargs)
-        if isawaitable(result):
-            result = await result
-        return result
