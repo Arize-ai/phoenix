@@ -51,16 +51,7 @@ class TokenBucket:
         self.tokens -= 1
 
 
-class SingletonMeta(type):
-    _instances = dict()
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class ServerRateLimiter(metaclass=SingletonMeta):
+class ServerRateLimiter():
     """
     This rate limiter holds a cache of token buckets that enforce rate limits.
 
@@ -155,11 +146,11 @@ class StrawberryRateLimiterExtension(SchemaExtension):
     def __init__(self):
         self.rate_limiter = ServerRateLimiter()
 
-    async def resolve(self, _next, root, info: Info, *args, **kwargs):
+    def resolve(self, _next, root, info: Info, *args, **kwargs):
         if info.field_name == "login" and info.parent_type.name == "Mutation":
             client_ip = info.context["request"].client.host
             try:
                 self.rate_limiter.make_request(client_ip)
             except UnavailableTokensError:
                 raise HTTPException(status_code=429, detail="Rate limit exceeded")
-            return await _next(root, info, *args, **kwargs)
+        return _next(root, info, *args, **kwargs)
