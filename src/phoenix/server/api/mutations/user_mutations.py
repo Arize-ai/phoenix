@@ -78,7 +78,7 @@ class UserMutationMixin:
                 email=user.email,
                 username=user.username,
                 created_at=user.created_at,
-                role=UserRole(id_attr=user.user_role_id, name=role_name),
+                user_role_id=user.user_role_id,
             )
         )
 
