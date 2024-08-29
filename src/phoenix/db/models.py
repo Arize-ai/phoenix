@@ -679,23 +679,3 @@ class ApiKey(Base):
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
-
-
-# todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
-class AuditApiKey(Base):
-    __tablename__ = "audit_api_keys"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    api_key_id: Mapped[int] = mapped_column(
-        ForeignKey("api_keys.id"),
-        nullable=False,
-        index=True,
-    )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
-        nullable=False,
-        index=True,
-    )
-    action: Mapped[str] = mapped_column(
-        CheckConstraint("action IN ('CREATE', 'DELETE')", name="valid_action")
-    )
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())

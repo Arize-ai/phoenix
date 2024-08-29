@@ -106,36 +106,6 @@ def upgrade() -> None:
         ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True, index=True),
     )
-    op.create_table(
-        "audit_api_keys",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "api_key_id",
-            sa.Integer,
-            sa.ForeignKey("api_keys.id"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "user_id",
-            sa.Integer,
-            sa.ForeignKey("users.id"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "action",
-            sa.String,
-            sa.CheckConstraint("action IN ('CREATE', 'DELETE')", "valid_action"),
-            nullable=False,
-        ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-    )
 
 
 def downgrade() -> None:

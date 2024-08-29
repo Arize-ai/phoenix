@@ -50,9 +50,9 @@ def migrate(
         alembic_cfg.set_main_option("sqlalchemy.url", url)
         alembic_cfg.attributes["connection"] = engine.connect()
         command.upgrade(alembic_cfg, "head")
+        engine.dispose()
         printif(log_migrations, "---------------------------")
         printif(log_migrations, "✅ Migrations complete.")
-        engine.dispose()
     except BaseException as e:
         if error_queue:
             error_queue.put(e)

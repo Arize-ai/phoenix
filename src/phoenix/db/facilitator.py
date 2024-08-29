@@ -21,6 +21,13 @@ from phoenix.server.types import DbSessionFactory
 
 
 class Facilitator:
+    """
+    Facilitates the creation of database records necessary for Phoenix to function. This includes
+    ensuring that all enum values are present in their respective tables, ensuring that all user
+    roles are present, and ensuring that the admin user has a password hash. These tasks will be
+    carried out as callbacks at the very beginning of Starlette's lifespan process.
+    """
+
     def __init__(self, db: DbSessionFactory) -> None:
         self._db = db
 
@@ -36,6 +43,11 @@ class Facilitator:
 
 
 async def _ensure_enums(session: AsyncSession) -> None:
+    """
+    Ensure that all enum values are present in their respective tables. If any values are missing,
+    they will be added. If any values are present in the database but not in the enum, an error will
+    be raised. This function is idempotent: it will not add duplicate values to the database.
+    """
     for column, enum in COLUMN_ENUMS.items():
         table = column.class_
         existing = set([_ async for _ in await session.stream_scalars(select(distinct(column)))])
@@ -48,6 +60,11 @@ async def _ensure_enums(session: AsyncSession) -> None:
 
 
 async def _ensure_user_roles(session: AsyncSession) -> None:
+    """
+    Ensure that the system and admin roles are present in the database. If they are not, they will
+    be added. The system user will have the email "system@localhost" and the admin user will have
+    the email "admin@localhost".
+    """
     role_ids = {
         name: id_
         async for name, id_ in await session.stream(
@@ -85,6 +102,10 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
 
 
 async def _ensure_admin_password(session: AsyncSession) -> None:
+    """
+    Ensure that the first admin user with the LOCAL auth method in the database has a password
+    hash. If that admin user already has a password hash, this function will do nothing.
+    """
     assert PHOENIX_SECRET
     loop = asyncio.get_running_loop()
     compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=PHOENIX_SECRET)
