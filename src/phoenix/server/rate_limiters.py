@@ -2,11 +2,11 @@ import time
 from collections import defaultdict
 from functools import partial
 from inspect import isawaitable
-from typing import List, Optional
+from typing import Any, Callable, DefaultDict, List, Optional
 
 from fastapi import HTTPException
+from graphql import GraphQLResolveInfo
 from strawberry.extensions import SchemaExtension
-from strawberry.types import Info
 
 from phoenix.exceptions import PhoenixException
 
@@ -85,11 +85,11 @@ class ServerRateLimiter:
         self._last_cleanup_time = self._current_partition_start(time.time())
 
     def _reset_rate_limiters(self) -> None:
-        self.cache_partitions = [
+        self.cache_partitions: List[DefaultDict[Any, TokenBucket]] = [
             defaultdict(self.bucket_factory) for _ in range(self.num_partitions)
         ]
 
-    def _current_partition_index(self, timestamp) -> int:
+    def _current_partition_index(self, timestamp: float) -> int:
         return (
             int(timestamp // self.expiration_seconds) % self.num_partitions
         )  # a cyclic bucket index
@@ -144,10 +144,17 @@ class ServerRateLimiter:
 
 
 class StrawberryRateLimiterExtension(SchemaExtension):
-    def __init__(self):
+    def __init__(self) -> None:
         self.rate_limiter = ServerRateLimiter()
 
-    async def resolve(self, _next, root, info: Info, *args, **kwargs):
+    async def resolve(
+        self,
+        _next: Callable[..., Any],
+        root: Any,
+        info: GraphQLResolveInfo,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         if info.field_name == "login" and info.parent_type.name == "Mutation":
             client_ip = info.context["request"].client.host
             try:
