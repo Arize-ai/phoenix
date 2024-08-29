@@ -11,10 +11,10 @@ from strawberry.types.info import Info
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
 from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
+from phoenix.server.types import DbSessionFactory
 
 
 @pytest.fixture

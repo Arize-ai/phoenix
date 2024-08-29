@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import (
     Any,
+    AsyncContextManager,
     Callable,
     DefaultDict,
     Generic,
@@ -21,9 +22,11 @@ from typing import (
 )
 
 from cachetools import LRUCache
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
 from phoenix.db import enums, models
+from phoenix.db.helpers import SupportedSQLDialect
 
 
 class CanSetLastUpdatedAt(Protocol):
@@ -32,6 +35,19 @@ class CanSetLastUpdatedAt(Protocol):
 
 class CanGetLastUpdatedAt(Protocol):
     def get(self, table: Type[models.Base], id_: Optional[int] = None) -> Optional[datetime]: ...
+
+
+class DbSessionFactory:
+    def __init__(
+        self,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        dialect: str,
+    ):
+        self._db = db
+        self.dialect = SupportedSQLDialect(dialect)
+
+    def __call__(self) -> AsyncContextManager[AsyncSession]:
+        return self._db()
 
 
 _AnyT = TypeVar("_AnyT")

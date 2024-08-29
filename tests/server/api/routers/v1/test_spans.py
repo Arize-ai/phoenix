@@ -11,7 +11,7 @@ from sqlalchemy import insert, select
 
 from phoenix import Client, TraceDataset
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
 

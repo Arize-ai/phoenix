@@ -3,7 +3,7 @@ from typing import Any
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 
 
 async def test_projects_with_session_injection(

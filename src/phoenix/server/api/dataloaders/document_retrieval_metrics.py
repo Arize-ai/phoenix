@@ -15,9 +15,9 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.types import DbSessionFactory
 
 RowId: TypeAlias = int
 NumDocs: TypeAlias = int

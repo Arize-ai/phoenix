@@ -14,8 +14,8 @@ from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.api.dataloaders.cache import TwoTierCache
+from phoenix.server.types import DbSessionFactory
 
 Kind: TypeAlias = Literal["start", "end"]
 ProjectRowId: TypeAlias = int

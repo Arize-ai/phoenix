@@ -32,9 +32,9 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]

@@ -32,9 +32,8 @@ from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
-from phoenix.server.types import CanPutItem
+from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 
 SpanId: TypeAlias = str
 

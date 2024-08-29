@@ -9,7 +9,6 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.session import DbSessionFactory
 from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
@@ -26,6 +25,7 @@ from phoenix.experiments.types import (
     JSONSerializable,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.types import DbSessionFactory
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")

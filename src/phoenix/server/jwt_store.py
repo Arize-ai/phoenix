@@ -16,7 +16,6 @@ from phoenix.auth import (
     Token,
 )
 from phoenix.db import enums, models
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -27,6 +26,7 @@ from phoenix.server.types import (
     ApiKeyClaims,
     ApiKeyId,
     DaemonTask,
+    DbSessionFactory,
     RefreshToken,
     RefreshTokenAttributes,
     RefreshTokenClaims,

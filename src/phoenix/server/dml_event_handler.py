@@ -33,7 +33,6 @@ from phoenix.db.models import (
     Trace,
     TraceAnnotation,
 )
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.dml_event import (
     DmlEvent,
@@ -46,6 +45,7 @@ from phoenix.server.dml_event import (
 from phoenix.server.types import (
     BatchedCaller,
     CanSetLastUpdatedAt,
+    DbSessionFactory,
 )
 
 _DmlEventT = TypeVar("_DmlEventT", bound=DmlEvent)

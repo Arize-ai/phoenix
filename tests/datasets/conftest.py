@@ -5,7 +5,7 @@ import pytest
 
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
-from phoenix.db.session import DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 
 
 @pytest.fixture

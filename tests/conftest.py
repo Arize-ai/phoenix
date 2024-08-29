@@ -35,12 +35,11 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
-from phoenix.db.session import DbSessionFactory
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.types import BatchedCaller
+from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 
 

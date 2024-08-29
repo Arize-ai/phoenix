@@ -6,7 +6,6 @@ from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.core.model_schema import Model
-from phoenix.db.session import DbSessionFactory
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
@@ -33,7 +32,7 @@ from phoenix.server.api.dataloaders import (
     TraceRowIdsDataLoader,
 )
 from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, TokenStore
+from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory, TokenStore
 
 
 @dataclass

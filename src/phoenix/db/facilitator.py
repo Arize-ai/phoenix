@@ -17,7 +17,7 @@ from phoenix.auth import compute_password_hash
 from phoenix.config import ENABLE_AUTH, PHOENIX_SECRET
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
-from phoenix.db.session import DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 
 
 class Facilitator:

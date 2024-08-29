@@ -17,11 +17,11 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
-from phoenix.db.session import DbSessionFactory
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
