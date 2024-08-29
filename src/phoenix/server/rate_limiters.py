@@ -1,6 +1,6 @@
+import time
 from collections import defaultdict
 from functools import partial
-from time import time
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -31,7 +31,7 @@ class TokenBucket:
         self.enforcement_window = enforcement_window_seconds
         self.rate = per_second_request_rate
 
-        now = time()
+        now = time.time()
         self.last_checked = now
         self.tokens = self.max_tokens()
 
@@ -39,7 +39,7 @@ class TokenBucket:
         return self.rate * self.enforcement_window
 
     def available_requests(self) -> float:
-        now = time()
+        now = time.time()
         time_since_last_checked = now - self.last_checked
         self.tokens = min(self.max_tokens(), self.rate * time_since_last_checked + self.tokens)
         self.last_checked = now
@@ -51,13 +51,27 @@ class TokenBucket:
         self.tokens -= 1
 
 
-class ServerRateLimiter:
+class SingletonMeta(type):
+    _instances = dict()
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class ServerRateLimiter(metaclass=SingletonMeta):
     """
     This rate limiter holds a cache of token buckets that enforce rate limits.
 
-    The cache is stored in partitions that rotate every `partition_seconds`.
-    Every time the cache is accessed, inactive partitions are purged. If enough
-    time has passed, the entire cache is purged.
+    The cache is kept in partitions that rotate every `partition_seconds`. Each user's rate limiter
+    can be accessed from all active partitions, set with `active_partitions`. This guarantees that
+    a user's rate limiter will sit in the cache for at least:
+
+        minimum_cache_duration = (active_partitions - 1) * partition_seconds
+
+    Every time the cache is accessed, inactive partitions are purged. If enough time has passed,
+    the entire cache is purged.
     """
 
     def __init__(
@@ -65,7 +79,7 @@ class ServerRateLimiter:
         per_second_rate_limit: float = 0.5,
         enforcement_window_seconds: float = 5,
         partition_seconds: float = 60,
-        active_partitions: int = 3,
+        active_partitions: int = 2,
     ):
         self.bucket_factory = partial(
             TokenBucket,
@@ -76,55 +90,62 @@ class ServerRateLimiter:
         self.active_partitions = active_partitions
         self.num_partitions = active_partitions + 1
         self._reset_rate_limiters()
+        self._last_cleanup_time = self._current_partition_start(time.time())
 
     def _reset_rate_limiters(self) -> None:
         self.cache_partitions = [
             defaultdict(self.bucket_factory) for _ in range(self.num_partitions)
         ]
-        self._last_cleanup_time = time()
 
-    def _bucket_index(self, timestamp) -> int:
+    def _current_partition_index(self, timestamp) -> int:
         return (
             int(timestamp // self.expiration_seconds) % self.num_partitions
         )  # a cyclic bucket index
 
-    def _active_bucket_indices(self, current_index) -> List[int]:
+    def _active_partition_indices(self, current_index: int) -> List[int]:
         return [(current_index - ii) % self.num_partitions for ii in range(self.active_partitions)]
 
-    def _inactive_token_bucket_indices(self, current_index) -> List[int]:
-        active_indices = set(self._active_bucket_indices(current_index))
+    def _inactive_partition_indices(self, current_index: int) -> List[int]:
+        active_indices = set(self._active_partition_indices(current_index))
         all_indices = set(range(self.num_partitions))
         return list(all_indices - active_indices)
 
     def _cleanup_expired_limiters(self, request_time: float) -> None:
-        if time() - self._last_cleanup_time >= (self.active_partitions * self.expiration_seconds):
+        if time.time() - self._last_cleanup_time >= (
+            self.active_partitions * self.expiration_seconds
+        ):
             self._reset_rate_limiters()
+            self._last_cleanup_time = self._current_partition_start(request_time)
             return
 
-        current_bucket_index = self._bucket_index(request_time)
-        inactive_bucket_indices = self._inactive_bucket_indices(current_bucket_index)
-        for ii in inactive_bucket_indices:
+        current_partition_index = self._current_partition_index(request_time)
+        inactive_indices = self._inactive_partition_indices(current_partition_index)
+        for ii in inactive_indices:
             self.cache_partitions[ii] = defaultdict(self.bucket_factory)
-        self._last_cleanup_time = request_time
+        self._last_cleanup_time = self._current_partition_start(request_time)
+
+    def _current_partition_start(self, request_time: float) -> float:
+        partition_start_time = (request_time // self.expiration_seconds) * self.expiration_seconds
+        return partition_start_time
 
     def _fetch_token_bucket(self, key: str, request_time: float) -> TokenBucket:
-        current_bucket_index = self._bucket_index(request_time)
-        active_bucket_indices = self._active_bucket_indices(current_bucket_index)
+        current_partition_index = self._current_partition_index(request_time)
+        active_indices = self._active_partition_indices(current_partition_index)
         bucket: Optional[TokenBucket] = None
-        for ii in active_bucket_indices:
+        for ii in active_indices:
             partition = self.cache_partitions[ii]
             if key in partition:
                 bucket = partition[key]
                 del partition[key]
                 break
 
-        current_partition = self.cache_partitions[current_bucket_index]
+        current_partition = self.cache_partitions[current_partition_index]
         if key not in current_partition and bucket is not None:
             current_partition[key] = bucket
         return current_partition[key]
 
     def make_request(self, key: str) -> None:
-        request_time = time()
+        request_time = time.time()
         self._cleanup_expired_limiters(request_time)
         rate_limiter = self._fetch_token_bucket(key, request_time)
         rate_limiter.make_request_if_ready()

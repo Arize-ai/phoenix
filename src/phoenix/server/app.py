@@ -93,6 +93,7 @@ from phoenix.server.api.schema import schema
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.rate_limiters import StrawberryRateLimiterExtension
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -630,6 +631,7 @@ def create_app(
     )
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
+    strawberry_extensions.append(StrawberryRateLimiterExtension())
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
