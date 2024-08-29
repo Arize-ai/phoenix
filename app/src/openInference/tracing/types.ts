@@ -19,6 +19,15 @@ export type AttributeTool = {
   [ToolAttributePostfixes.description]?: string;
   [ToolAttributePostfixes.parameters]?: string;
 };
+
+export type AttributeLLMToolDefinition = {
+  [ToolAttributePostfixes.json_schema]?: string;
+};
+
+export type AttributeLLMTool = {
+  [SemanticAttributePrefixes.tool]?: AttributeLLMToolDefinition;
+};
+
 export type AttributeToolCall = {
   function?: {
     name?: string;
@@ -96,6 +105,7 @@ export type AttributeLlm = {
   [LLMAttributePostfixes.invocation_parameters]?: string;
   [LLMAttributePostfixes.prompts]?: string[];
   [LLMAttributePostfixes.prompt_template]?: AttributePromptTemplate;
+  [LLMAttributePostfixes.tools]?: AttributeLLMTool[];
 };
 
 export type AttributePromptTemplate = {
