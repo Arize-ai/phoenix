@@ -68,5 +68,5 @@ response = client.chat.completions.create(
 
 You should see your image appear in Phoenix:
 
-<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/image-trace.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image-trace.png" alt=""><figcaption></figcaption></figure>
 
