@@ -193,7 +193,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
     async def create(self, claim: _ClaimSetT) -> Tuple[_TokenT, _TokenIdT]: ...
 
     @abstractmethod
-    def _factory(
+    def _claim_set_factory(
         self,
         token_record: _TokenTableT,
         user_role: UserRole,
@@ -206,7 +206,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
                 await self._delete_expired_tokens(session)
             async with session.begin_nested():
                 async for token_record, user_role in await session.stream(self._update_stmt):
-                    token_id, claim_set = self._factory(token_record, UserRole(user_role))
+                    token_id, claim_set = self._claim_set_factory(token_record, UserRole(user_role))
                     claims[token_id] = claim_set
         self._claims = claims
 
@@ -242,7 +242,7 @@ class AccessTokenStore(
 ):
     _table = models.AccessToken
 
-    def _factory(
+    def _claim_set_factory(
         self,
         token: models.AccessToken,
         user_role: UserRole,
@@ -300,7 +300,7 @@ class RefreshTokenStore(
 ):
     _table = models.RefreshToken
 
-    def _factory(
+    def _claim_set_factory(
         self,
         token: models.RefreshToken,
         user_role: UserRole,
@@ -351,7 +351,7 @@ class ApiKeyStore(
 ):
     _table = models.ApiKey
 
-    def _factory(
+    def _claim_set_factory(
         self,
         token: models.ApiKey,
         user_role: UserRole,

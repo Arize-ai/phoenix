@@ -109,7 +109,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("audit_api_keys")
     op.drop_table("api_keys")
     op.drop_table("users")
     op.drop_table("user_roles")

@@ -94,7 +94,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -122,7 +122,7 @@ class Query:
     ) -> List[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
+                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             )
         return [
             UserRole(
@@ -139,7 +139,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -162,7 +162,7 @@ class Query:
             select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == enums.UserRole.value)
+            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)

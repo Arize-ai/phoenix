@@ -34,7 +34,6 @@ class UserMutationMixin:
         permission_classes=[
             IsNotReadOnly,
             HasSecret,
-            IsNotReadOnly,
             IsAuthenticated,
             IsAdmin,
         ]

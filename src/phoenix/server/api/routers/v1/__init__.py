@@ -28,7 +28,7 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
-async def authorize(request: Request) -> None:
+async def authorization(request: Request) -> None:
     """
     Authorize the claim in the request.
 
@@ -48,7 +48,7 @@ async def authorize(request: Request) -> None:
 
 dependencies = [Depends(prevent_access_in_read_only_mode)]
 if ENABLE_AUTH:
-    dependencies.append(Depends(authorize))
+    dependencies.append(Depends(authorization))
 
 router = APIRouter(
     prefix="/v1",
