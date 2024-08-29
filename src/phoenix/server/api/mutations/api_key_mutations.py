@@ -39,6 +39,7 @@ class DeleteApiKeyInput:
 @strawberry.type
 class DeleteSystemApiKeyMutationPayload:
     id: GlobalID
+    query: Query
 
 
 @strawberry.type
@@ -106,7 +107,7 @@ class ApiKeyMutationMixin:
 
             await session.delete(api_key)
 
-        return DeleteSystemApiKeyMutationPayload(id=input.id)
+        return DeleteSystemApiKeyMutationPayload(id=input.id, query=Query())
 
 
 def create_jwt(
