@@ -124,8 +124,7 @@ class ServerRateLimiter:
         for ii in active_indices:
             partition = self.cache_partitions[ii]
             if key in partition:
-                bucket = partition[key]
-                del partition[key]
+                bucket = partition.pop(key)
                 break
 
         current_partition = self.cache_partitions[current_partition_index]
