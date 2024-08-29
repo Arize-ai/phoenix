@@ -1,9 +1,8 @@
 from enum import Enum
-from typing import Dict, Type
+from typing import Mapping, Type
 
 from sqlalchemy.orm import InstrumentedAttribute
 
-from phoenix.config import ENABLE_AUTH
 from phoenix.db import models
 
 
@@ -13,9 +12,10 @@ class UserRole(Enum):
     MEMBER = "MEMBER"
 
 
-ENUM_TABLE_PAIRS: Dict[InstrumentedAttribute[str], Type[Enum]] = {}
+class AuthMethod(Enum):
+    LOCAL = "LOCAL"
 
-if ENABLE_AUTH:
-    ENUM_TABLE_PAIRS[models.UserRole.name] = UserRole
 
-assert len(ENUM_TABLE_PAIRS) == len({column.class_ for column in ENUM_TABLE_PAIRS})
+COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], Type[Enum]] = {
+    models.UserRole.name: UserRole,
+}

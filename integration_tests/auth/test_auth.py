@@ -14,12 +14,10 @@ from typing import (
 
 import pytest
 from faker import Faker
-from httpx import HTTPStatusError
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from starlette.status import HTTP_401_UNAUTHORIZED
 from typing_extensions import TypeAlias
 
 ProjectName: TypeAlias = str
@@ -42,16 +40,16 @@ class TestUsers:
         "email,use_secret,expectation",
         [
             ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(HTTPStatusError)),
-            ("system@localhost", True, pytest.raises(HTTPStatusError)),
-            ("admin", True, pytest.raises(HTTPStatusError)),
+            ("admin@localhost", False, pytest.raises(AssertionError)),
+            ("system@localhost", True, pytest.raises(AssertionError)),
+            ("admin", True, pytest.raises(AssertionError)),
         ],
     )
     def test_admin(
         self,
         email: str,
         use_secret: bool,
-        expectation: ContextManager[Optional[HTTPStatusError]],
+        expectation: ContextManager[Optional[AssertionError]],
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
@@ -61,22 +59,20 @@ class TestUsers:
         with expectation:
             with login(email, password) as token:
                 create_system_api_key(fake.unique.pystr(), None, token)
-        with pytest.raises(HTTPStatusError) as exc:
-            create_system_api_key(fake.unique.pystr(), None, token)
-        if exc:
-            assert exc.value.response.status_code == HTTP_401_UNAUTHORIZED
+            with pytest.raises(AssertionError):
+                create_system_api_key(fake.unique.pystr(), None, token)
 
     @pytest.mark.parametrize(
         "role,expectation",
         [
             (UserRoleInput.ADMIN, nullcontext()),
-            (UserRoleInput.MEMBER, pytest.raises(HTTPStatusError)),
+            (UserRoleInput.MEMBER, pytest.raises(AssertionError)),
         ],
     )
     def test_create_user(
         self,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[HTTPStatusError]],
+        expectation: ContextManager[Optional[AssertionError]],
         admin_email: str,
         secret: str,
         login: Callable[[Email, Password], ContextManager[Token]],

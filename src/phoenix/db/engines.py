@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime
 from enum import Enum
@@ -14,6 +15,7 @@ from typing_extensions import assert_never
 
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
+from phoenix.db.models import init_models
 from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
@@ -110,13 +112,21 @@ def aio_sqlite_engine(
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if not migrate:
         return engine
-    sync_engine = sqlalchemy.create_engine(
-        url=url.set(drivername="sqlite"),
-        echo=Settings.log_migrations,
-        json_serializer=_dumps,
-        creator=lambda: sqlean.connect(f"file:{database}", uri=True),
-    )
-    migrate_in_thread(sync_engine)
+    if database.startswith(":memory:"):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(init_models(engine))
+        else:
+            asyncio.create_task(init_models(engine))
+    else:
+        sync_engine = sqlalchemy.create_engine(
+            url=url.set(drivername="sqlite"),
+            echo=Settings.log_migrations,
+            json_serializer=_dumps,
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+        )
+        migrate_in_thread(sync_engine)
     return engine
 
 

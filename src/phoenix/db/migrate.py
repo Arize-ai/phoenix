@@ -52,6 +52,7 @@ def migrate(
         command.upgrade(alembic_cfg, "head")
         printif(log_migrations, "---------------------------")
         printif(log_migrations, "✅ Migrations complete.")
+        engine.dispose()
     except BaseException as e:
         if error_queue:
             error_queue.put(e)
