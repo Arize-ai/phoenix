@@ -57,10 +57,11 @@ class ServerRateLimiter:
     This rate limiter holds a cache of token buckets that enforce rate limits.
 
     The cache is kept in partitions that rotate every `partition_seconds`. Each user's rate limiter
-    can be accessed from all active partitions, set with `active_partitions`. This guarantees that
-    a user's rate limiter will sit in the cache for at least:
+    can be accessed from all active partitions, the number of active partitions is set with
+    `active_partitions`. This guarantees that a user's rate limiter will sit in the cache for at
+    least:
 
-        minimum_cache_duration = (active_partitions - 1) * partition_seconds
+        minimum_cache_lifetime = (active_partitions - 1) * partition_seconds
 
     Every time the cache is accessed, inactive partitions are purged. If enough time has passed,
     the entire cache is purged.
@@ -80,9 +81,9 @@ class ServerRateLimiter:
         )
         self.expiration_seconds = partition_seconds
         self.active_partitions = active_partitions
-        self.num_partitions = active_partitions + 1
+        self.num_partitions = active_partitions + 2  # two overflow partitions to avoid edge cases
         self._reset_rate_limiters()
-        self._last_cleanup_time = self._current_partition_start(time.time())
+        self._last_cleanup_time = time.time()
 
     def _reset_rate_limiters(self) -> None:
         self.cache_partitions: List[DefaultDict[Any, TokenBucket]] = [
@@ -103,22 +104,17 @@ class ServerRateLimiter:
         return list(all_indices - active_indices)
 
     def _cleanup_expired_limiters(self, request_time: float) -> None:
-        if time.time() - self._last_cleanup_time >= (
-            self.active_partitions * self.expiration_seconds
-        ):
+        time_since_last_cleanup = request_time - self._last_cleanup_time
+        if time_since_last_cleanup >= ((self.num_partitions - 1) * self.expiration_seconds):
             self._reset_rate_limiters()
-            self._last_cleanup_time = self._current_partition_start(request_time)
+            self._last_cleanup_time = request_time
             return
 
         current_partition_index = self._current_partition_index(request_time)
         inactive_indices = self._inactive_partition_indices(current_partition_index)
         for ii in inactive_indices:
             self.cache_partitions[ii] = defaultdict(self.bucket_factory)
-        self._last_cleanup_time = self._current_partition_start(request_time)
-
-    def _current_partition_start(self, request_time: float) -> float:
-        partition_start_time = (request_time // self.expiration_seconds) * self.expiration_seconds
-        return partition_start_time
+        self._last_cleanup_time = request_time
 
     def _fetch_token_bucket(self, key: str, request_time: float) -> TokenBucket:
         current_partition_index = self._current_partition_index(request_time)

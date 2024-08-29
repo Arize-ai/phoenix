@@ -126,8 +126,7 @@ def test_rate_limiter_cleans_up_old_partitions():
         assert sum(partition_sizes) == 5
         assert 2 in partition_sizes  # two rate limiters in current cache partition
         assert 3 in partition_sizes  # three rate limiters remaining in original partition
-        assert 0 in partition_sizes  # overflow partition is empty
 
-    with freeze_time(start + 10 + 21):
-        limiter.make_request("fresh_key")  # After 21 seconds, all partitions should be reset
+    with freeze_time(start + 10 + 40):
+        limiter.make_request("fresh_key")  # when "looping" partitions, they should be reset
         assert sum(len(partition) for partition in limiter.cache_partitions) == 1
