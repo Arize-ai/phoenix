@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio
 import pytest
+
 from phoenix.evals.executors import (
     AsyncExecutor,
     ExecutionStatus,

@@ -7,6 +7,8 @@ import pandas as pd
 import pyarrow
 import pytest
 from pandas.testing import assert_frame_equal
+from pyarrow import parquet
+
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import (
@@ -19,7 +21,6 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
 from phoenix.trace.trace_dataset import TraceDataset, _parse_schema_metadata
-from pyarrow import parquet
 
 
 def test_trace_dataset_construction() -> None:

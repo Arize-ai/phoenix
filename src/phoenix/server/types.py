@@ -69,12 +69,10 @@ class _HasBatch(Generic[_ItemT_contra], ABC):
         self._batch.put(item)
 
 
-class BatchedCaller(_HasBatch[_AnyT], Generic[_AnyT], ABC):
-    def __init__(self, *, sleep_seconds: float = 0.1, **kwargs: Any) -> None:
-        assert sleep_seconds > 0
+class DaemonTask(ABC):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._running = False
-        self._seconds = sleep_seconds
         self._tasks: List[Task[None]] = []
 
     async def start(self) -> None:
@@ -88,6 +86,16 @@ class BatchedCaller(_HasBatch[_AnyT], Generic[_AnyT], ABC):
             if not task.done():
                 task.cancel()
         self._tasks.clear()
+
+    @abstractmethod
+    async def _run(self) -> None: ...
+
+
+class BatchedCaller(DaemonTask, _HasBatch[_AnyT], Generic[_AnyT], ABC):
+    def __init__(self, *, sleep_seconds: float = 0.1, **kwargs: Any) -> None:
+        assert sleep_seconds > 0
+        super().__init__(**kwargs)
+        self._seconds = sleep_seconds
 
     @abstractmethod
     async def __call__(self) -> None: ...

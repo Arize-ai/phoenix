@@ -25,3 +25,7 @@ coverage.xml
 
 # devtools
 pyrightconfig.json
+
+# Demo data
+tutorials/internal/demo_llama_index/*.json
+.env

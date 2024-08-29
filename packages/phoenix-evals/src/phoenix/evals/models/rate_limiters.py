@@ -4,9 +4,10 @@ from functools import wraps
 from math import exp
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
+from typing_extensions import ParamSpec
+
 from phoenix.evals.exceptions import PhoenixException
 from phoenix.evals.utils import printif
-from typing_extensions import ParamSpec
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")

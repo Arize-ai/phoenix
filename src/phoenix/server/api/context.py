@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.core.model_schema import Model
@@ -16,6 +17,7 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
@@ -44,6 +46,7 @@ class DataLoaders:
     annotation_summaries: AnnotationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_run_annotations: ExperimentRunAnnotations
     experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
@@ -74,3 +77,25 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    secret: Optional[str] = None
+
+    def get_secret(self) -> str:
+        """A type-safe way to get the application secret. Throws an error if the secret is not set.
+
+        Returns:
+            str: the phoenix secret
+        """
+        if self.secret is None:
+            raise ValueError(
+                "Application secret not set."
+                " Please set the PHOENIX_SECRET environment variable and re-deploy the application."
+            )
+        return self.secret
+
+    def get_response(self) -> StarletteResponse:
+        """
+        A type-safe way to get the response object. Throws an error if the response is not set.
+        """
+        if (response := self.response) is None:
+            raise ValueError("no response is set")
+        return response

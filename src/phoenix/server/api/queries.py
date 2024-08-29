@@ -33,6 +33,7 @@ from phoenix.db.models import (
 )
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
@@ -92,7 +93,8 @@ class Query:
         )
         stmt = (
             select(models.User)
-            .where(models.UserRole.role != "SYSTEM")
+            .join(models.UserRole)
+            .where(models.UserRole.name != "SYSTEM")
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -106,7 +108,7 @@ class Query:
                     created_at=user.created_at,
                     role=UserRole(
                         id_attr=user.role.id,
-                        role=user.role.role,
+                        name=user.role.name,
                     ),
                 )
                 async for user in users
@@ -120,12 +122,12 @@ class Query:
     ) -> List[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.role != "SYSTEM")
+                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
         return [
             UserRole(
                 id_attr=role.id,
-                role=role.role,
+                name=role.name,
             )
             for role in roles
         ]
@@ -137,7 +139,7 @@ class Query:
             select(models.APIKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.role != "SYSTEM")
+            .where(models.UserRole.name != "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -160,7 +162,7 @@ class Query:
             select(models.APIKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.role == "SYSTEM")
+            .where(models.UserRole.name == "SYSTEM")
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -390,7 +392,7 @@ class Query:
             async with info.context.db() as session:
                 project = (await session.execute(project_stmt)).first()
             if project is None:
-                raise ValueError(f"Unknown project: {id}")
+                raise NotFound(f"Unknown project: {id}")
             return Project(
                 id_attr=project.id,
                 name=project.name,
@@ -405,7 +407,7 @@ class Query:
             async with info.context.db() as session:
                 trace = (await session.execute(trace_stmt)).first()
             if trace is None:
-                raise ValueError(f"Unknown trace: {id}")
+                raise NotFound(f"Unknown trace: {id}")
             return Trace(
                 id_attr=trace.id, trace_id=trace.trace_id, project_rowid=trace.project_rowid
             )
@@ -420,13 +422,13 @@ class Query:
             async with info.context.db() as session:
                 span = await session.scalar(span_stmt)
             if span is None:
-                raise ValueError(f"Unknown span: {id}")
+                raise NotFound(f"Unknown span: {id}")
             return to_gql_span(span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
                 if (dataset := await session.scalar(dataset_stmt)) is None:
-                    raise ValueError(f"Unknown dataset: {id}")
+                    raise NotFound(f"Unknown dataset: {id}")
             return to_gql_dataset(dataset)
         elif type_name == DatasetExample.__name__:
             example_id = node_id
@@ -452,7 +454,7 @@ class Query:
                     )
                 )
             if not example:
-                raise ValueError(f"Unknown dataset example: {id}")
+                raise NotFound(f"Unknown dataset example: {id}")
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,
@@ -463,7 +465,7 @@ class Query:
                     select(models.Experiment).where(models.Experiment.id == node_id)
                 )
             if not experiment:
-                raise ValueError(f"Unknown experiment: {id}")
+                raise NotFound(f"Unknown experiment: {id}")
             return Experiment(
                 id_attr=experiment.id,
                 name=experiment.name,
@@ -484,9 +486,9 @@ class Query:
                         )
                     )
                 ):
-                    raise ValueError(f"Unknown experiment run: {id}")
+                    raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
-        raise Exception(f"Unknown node type: {type_name}")
+        raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
     def clusters(

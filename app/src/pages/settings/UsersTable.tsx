@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
@@ -12,12 +13,12 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
+import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 
-export function UsersTable() {
-  const data = useLazyLoadQuery<UsersTableQuery>(
+export function UsersTable({ query }: { query: UsersTable_users$key }) {
+  const data = useFragment<UsersTable_users$key>(
     graphql`
-      query UsersTableQuery {
+      fragment UsersTable_users on Query {
         users {
           edges {
             user: node {
@@ -25,14 +26,14 @@ export function UsersTable() {
               username
               createdAt
               role {
-                role
+                name
               }
             }
           }
         }
       }
     `,
-    {}
+    query
   );
 
   const tableData = useMemo(() => {
@@ -40,7 +41,7 @@ export function UsersTable() {
       email: user.email,
       username: user.username,
       createdAt: user.createdAt,
-      role: user.role.role,
+      roleName: user.role.name.toLocaleLowerCase(),
     }));
   }, [data]);
 
@@ -57,7 +58,7 @@ export function UsersTable() {
       },
       {
         header: "role",
-        accessorKey: "role",
+        accessorKey: "roleName",
       },
       {
         header: "created at",
@@ -67,6 +68,7 @@ export function UsersTable() {
     ],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;

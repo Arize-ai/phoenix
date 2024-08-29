@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<81996d0999fb3e4527b08ee6051d3ac7>>
+ * @generated SignedSource<<37a8ece717ec601255de10e22d9dbf0a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
   readonly id: string;
+  readonly name: string;
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
@@ -106,21 +107,21 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "spanKind",
+  "name": "id",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "spanKind",
   "storageKey": null
 },
 v4 = {
@@ -193,7 +194,7 @@ v10 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -327,6 +328,7 @@ return {
   },
   "name": "TracesTable_spans",
   "selections": [
+    (v1/*: any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -377,9 +379,9 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
                 (v2/*: any*/),
                 (v3/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -443,9 +445,9 @@ return {
                   "name": "descendants",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
                     (v2/*: any*/),
                     (v3/*: any*/),
+                    (v1/*: any*/),
                     (v4/*: any*/),
                     (v5/*: any*/),
                     (v6/*: any*/),
@@ -556,13 +558,13 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v2/*: any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "cdce1686ed383bdf21cbcc8bdcefe6e0";
+(node as any).hash = "69e77ceeea7371be4ec13fc702225150";
 
 export default node;

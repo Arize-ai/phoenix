@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -48,14 +47,7 @@ class ExperimentRun(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         run_id = self.id_attr
-        async with info.context.db() as session:
-            annotations = (
-                await session.scalars(
-                    select(models.ExperimentRunAnnotation)
-                    .where(models.ExperimentRunAnnotation.experiment_run_id == run_id)
-                    .order_by(models.ExperimentRunAnnotation.name.desc())
-                )
-            ).all()
+        annotations = await info.context.data_loaders.experiment_run_annotations.load(run_id)
         return connection_from_list(
             [to_gql_experiment_run_annotation(annotation) for annotation in annotations], args
         )

@@ -2,6 +2,7 @@ from unittest import mock
 
 import pytest
 from openai import AzureOpenAI, OpenAI
+
 from phoenix.evals.models.openai import OpenAIModel
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"

@@ -33,18 +33,17 @@ Phoenix is an open-source AI observability platform designed for experimentation
 -   **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
 -   **_Datasets_** -  Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
 -   **_Experiments_** -  Track and evaluate changes to prompts, LLMs, and retrieval.
--   **_Inference Analysis_** - Visualize inferences and embeddings using dimensionality reduction and clustering to identify drift and performance degradation.
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, Haystack, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
 ## Installation
 
-Install Phoenix via `pip` or `conda` along with extra dependencies for running evals:
+Install Phoenix via `pip` or `conda`
 
 ```shell
-pip install 'arize-phoenix[evals]'
+pip install arize-phoenix
 ```
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
@@ -60,11 +59,6 @@ Join our community to connect with thousands of AI builders.
 -   𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
 -   💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
-
-## Thanks
-
--   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
--   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
 
 ## Breaking Changes
 

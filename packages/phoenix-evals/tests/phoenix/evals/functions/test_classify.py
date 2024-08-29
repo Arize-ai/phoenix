@@ -5,11 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pandas as pd
-import phoenix
 import pytest
 import respx
 from pandas.core.frame import DataFrame
 from pandas.testing import assert_frame_equal
+from respx.patterns import M
+
+import phoenix
 from phoenix.evals import (
     NOT_PARSABLE,
     OpenAIModel,
@@ -26,7 +28,6 @@ from phoenix.evals.default_templates import (
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import ExecutionStatus
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
-from respx.patterns import M
 
 
 @pytest.fixture

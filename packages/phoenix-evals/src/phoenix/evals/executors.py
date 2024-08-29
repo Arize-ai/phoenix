@@ -20,8 +20,9 @@ from typing import (
     Union,
 )
 
-from phoenix.evals.exceptions import PhoenixException
 from tqdm.auto import tqdm
+
+from phoenix.evals.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
 

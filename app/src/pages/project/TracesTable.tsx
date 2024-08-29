@@ -123,6 +123,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
+          name
           ...SpanColumnSelector_annotations
           rootSpans: spans(
             first: $first
@@ -619,7 +620,7 @@ export function TracesTable(props: TracesTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <ProjectTableEmpty />
+            <ProjectTableEmpty projectName={data.name} />
           ) : (
             <tbody>
               {rows.map((row) => {

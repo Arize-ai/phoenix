@@ -16,10 +16,9 @@ import {
 } from "@arizeai/components";
 import { ActionMenu, Flex, Item, Text } from "@arizeai/components";
 
-import { RemoveProjectDataForm } from "../RemoveProjectDataForm";
-
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
+import { RemoveProjectDataForm } from "./RemoveProjectDataForm";
 enum ProjectAction {
   DELETE = "deleteProject",
   CLEAR = "clearProject",

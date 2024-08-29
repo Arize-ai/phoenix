@@ -22,7 +22,6 @@ from typing import (
     cast,
 )
 from urllib.parse import quote, urljoin
-from warnings import warn
 
 import httpx
 import pandas as pd
@@ -44,7 +43,7 @@ from phoenix.config import (
 )
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
-from phoenix.experiments.types import Dataset, Example
+from phoenix.experiments.types import Dataset, Example, Experiment
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -52,7 +51,7 @@ from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
-
+logger.addHandler(logging.NullHandler())
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
@@ -152,21 +151,37 @@ class Client(TraceDataExtractor):
                 "stop_time is deprecated. Use end_time instead.",
             )
             end_time = end_time or stop_time
-        response = self._client.post(
-            url=urljoin(self._base_url, "v1/spans"),
-            params={
-                "project_name": project_name,
-                "project-name": project_name,  # for backward-compatibility
-            },
-            json={
-                "queries": [q.to_dict() for q in queries],
-                "start_time": _to_iso_format(normalize_datetime(start_time)),
-                "end_time": _to_iso_format(normalize_datetime(end_time)),
-                "limit": limit,
-                "root_spans_only": root_spans_only,
-            },
-            timeout=timeout,
-        )
+        try:
+            response = self._client.post(
+                url=urljoin(self._base_url, "v1/spans"),
+                params={
+                    "project_name": project_name,
+                    "project-name": project_name,  # for backward-compatibility
+                },
+                json={
+                    "queries": [q.to_dict() for q in queries],
+                    "start_time": _to_iso_format(normalize_datetime(start_time)),
+                    "end_time": _to_iso_format(normalize_datetime(end_time)),
+                    "limit": limit,
+                    "root_spans_only": root_spans_only,
+                },
+                timeout=timeout,
+            )
+        except httpx.TimeoutException as error:
+            error_message = (
+                (
+                    f"The request timed out after {timeout} seconds. The timeout can be increased "
+                    "by passing a larger value to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+                if timeout is not None
+                else (
+                    "The request timed out. The timeout can be adjusted by "
+                    "passing a number of seconds to the `timeout` parameter "
+                    "and can be disabled altogether by passing `None`."
+                )
+            )
+            raise TimeoutError(error_message) from error
         if response.status_code == 404:
             logger.info("No spans found.")
             return None
@@ -503,7 +518,6 @@ class Client(TraceDataExtractor):
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
-        dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
         Append examples to dataset on the Phoenix server. If `dataframe` or
@@ -537,11 +551,6 @@ class Client(TraceDataExtractor):
         Returns:
             A Dataset object with its examples.
         """
-        if dataset_description is not None:
-            warn(
-                "The `dataset_description` parameter has been deprecated "
-                "and will be removed in a future release."
-            )
         if dataframe is not None or csv_file_path is not None:
             if dataframe is not None and csv_file_path is not None:
                 raise ValueError(
@@ -570,6 +579,22 @@ class Client(TraceDataExtractor):
             metadata=metadata,
             action="append",
         )
+
+    def get_experiment(self, *, experiment_id: str) -> Experiment:
+        """
+        Get an experiment by ID.
+
+        Retrieve an Experiment object by ID, enables running `evaluate_experiment` after finishing
+        the initial experiment run.
+
+        Args:
+            experiment_id (str): ID of the experiment. This can be found in the UI.
+        """
+        response = self._client.get(
+            url=urljoin(self._base_url, f"v1/experiments/{experiment_id}"),
+        )
+        experiment = response.json()["data"]
+        return Experiment.from_dict(experiment)
 
     def _upload_tabular_dataset(
         self,
@@ -822,3 +847,6 @@ def _is_all_dict(seq: Sequence[Any]) -> bool:
 
 
 class DatasetUploadError(Exception): ...
+
+
+class TimeoutError(Exception): ...

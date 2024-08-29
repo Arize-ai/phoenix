@@ -4,8 +4,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Generator, Optional, Sequence
 
-from phoenix.evals.models.rate_limiters import RateLimiter
 from typing_extensions import TypeVar
+
+from phoenix.evals.models.rate_limiters import RateLimiter
 
 T = TypeVar("T", bound=type)
 

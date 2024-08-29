@@ -444,7 +444,7 @@ Your goal is to determine if the AI answer correctly matches, in substance, the 
     [END DATA]
 Compare the AI answer to the human ground truth answer, if the AI correctly answers the question,
 then the AI answer is "correct". If the AI answer is longer but contains the main idea of the
-Human answer please answer "correct". If the AI answer divergences or does not contain the main
+Human answer please answer "correct". If the AI answer diverges does not contain the main
 idea of the human answer, please answer "incorrect".
 """
 
@@ -469,7 +469,7 @@ outset. You are then going to respond with a LABEL (a single word evaluation).
 If the AI correctly answers the question as compared to the human answer, then
 the AI answer LABEL is "correct". If the AI answer is longer but contains the
 main idea of the Human answer please answer LABEL "correct". If the AI answer
-divergences or does not contain the main idea of the human answer, please answer
+diverges or does not contain the main idea of the human answer, please answer
 LABEL "incorrect".
 
 Example response:

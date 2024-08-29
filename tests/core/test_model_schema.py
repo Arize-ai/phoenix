@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_series_equal
+
 from phoenix.core.model_schema import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,

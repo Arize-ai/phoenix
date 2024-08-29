@@ -1,6 +1,6 @@
-from typing import Any, Dict, Generic, List, Optional, TypedDict, Union
+from typing import Any, Dict, Generic, List, Optional, TypedDict, TypeVar, Union
 
-from typing_extensions import TypeAlias, TypeVar, assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from .pydantic_compat import V1RoutesBaseModel
 

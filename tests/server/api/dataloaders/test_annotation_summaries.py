@@ -2,11 +2,12 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+from sqlalchemy import func, select
+
 from phoenix.db import models
 from phoenix.server.api.dataloaders import AnnotationSummaryDataLoader
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
-from sqlalchemy import func, select
 
 
 async def test_evaluation_summaries(

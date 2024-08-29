@@ -15,6 +15,7 @@ import {
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 const layoutCSS = css`
   display: flex;
@@ -76,6 +77,7 @@ function SideNav() {
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
+  const { authenticationEnabled } = useFunctionality();
   return (
     <SideNavbar>
       <Brand />
@@ -129,6 +131,15 @@ function SideNav() {
           <li>
             <ThemeToggle />
           </li>
+          {authenticationEnabled && (
+            <li>
+              <NavLink
+                to="/profile"
+                text="Profile"
+                icon={<Icon svg={<Icons.PersonOutline />} />}
+              />
+            </li>
+          )}
         </ul>
       </Flex>
     </SideNavbar>

@@ -1,8 +1,8 @@
 from datetime import datetime
 from random import getrandbits
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -18,7 +18,7 @@ from phoenix.server.dml_event import ExperimentInsertEvent
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 def _short_uuid() -> str:
@@ -90,8 +90,8 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 )
 async def create_experiment(
     request: Request,
-    dataset_id: str,
     request_body: CreateExperimentRequestBody,
+    dataset_id: str = Path(..., title="Dataset ID"),
 ) -> CreateExperimentResponseBody:
     dataset_globalid = GlobalID.from_id(dataset_id)
     try:
@@ -252,3 +252,57 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             updated_at=experiment.updated_at,
         )
     )
+
+
+class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
+    pass
+
+
+@router.get(
+    "/datasets/{dataset_id}/experiments",
+    operation_id="listExperiments",
+    summary="List experiments by dataset",
+    response_description="Experiments retrieved successfully",
+)
+async def list_experiments(
+    request: Request,
+    dataset_id: str = Path(..., title="Dataset ID"),
+) -> ListExperimentsResponseBody:
+    dataset_gid = GlobalID.from_id(dataset_id)
+    try:
+        dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Dataset with ID {dataset_gid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+    async with request.app.state.db() as session:
+        query = (
+            select(models.Experiment)
+            .where(models.Experiment.dataset_id == dataset_rowid)
+            .order_by(models.Experiment.id.desc())
+        )
+
+        result = await session.execute(query)
+        experiments = result.scalars().all()
+
+        if not experiments:
+            return ListExperimentsResponseBody(data=[])
+
+        data = [
+            Experiment(
+                id=str(GlobalID("Experiment", str(experiment.id))),
+                dataset_id=str(GlobalID("Dataset", str(experiment.dataset_id))),
+                dataset_version_id=str(
+                    GlobalID("DatasetVersion", str(experiment.dataset_version_id))
+                ),
+                repetitions=experiment.repetitions,
+                metadata=experiment.metadata_,
+                project_name=None,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+            )
+            for experiment in experiments
+        ]
+
+        return ListExperimentsResponseBody(data=data)

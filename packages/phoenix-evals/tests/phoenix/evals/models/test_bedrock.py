@@ -2,6 +2,7 @@ import asyncio
 
 import boto3
 import pytest
+
 from phoenix.evals import BedrockModel
 
 

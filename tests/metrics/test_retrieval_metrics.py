@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
-from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from sklearn.metrics import ndcg_score
+
+from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])

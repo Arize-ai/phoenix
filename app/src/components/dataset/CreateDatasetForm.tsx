@@ -58,6 +58,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
       isSubmitting={isCommitting}
       onSubmit={onSubmit}
       submitButtonText={isCommitting ? "Creating..." : "Create Dataset"}
+      formMode="create"
     />
   );
 }

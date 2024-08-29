@@ -2,13 +2,18 @@ import asyncio
 import contextlib
 import json
 import logging
+from contextlib import AsyncExitStack
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
     AsyncContextManager,
     AsyncIterator,
+    Awaitable,
     Callable,
     Dict,
     Iterable,
@@ -25,11 +30,9 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-)
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -47,9 +50,12 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     SERVER_DIR,
+    get_env_host,
+    get_env_port,
     server_instrumentation_is_enabled,
 )
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.helpers import SupportedSQLDialect
@@ -67,6 +73,7 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
@@ -90,9 +97,20 @@ from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
+    DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
 )
+from phoenix.trace.fixtures import (
+    TracesFixture,
+    get_dataset_fixtures,
+    get_evals_from_fixture,
+    get_trace_fixture_by_name,
+    load_example_traces,
+    reset_fixture_span_ids_and_timestamps,
+    send_dataset_fixtures,
+)
+from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
@@ -100,10 +118,22 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+"""
+Threshold (in minutes) to determine if database is booted up for the first time.
+
+Used to assess whether the `default` project was created recently.
+If so, demo data is automatically ingested upon initial boot up to populate the database.
+"""
+NEW_DB_AGE_THRESHOLD_MINUTES = 2
+
+ProjectName: TypeAlias = str
 
 
 class AppConfig(NamedTuple):
@@ -222,31 +252,164 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     return factory
 
 
+@dataclass(frozen=True)
+class ScaffolderConfig:
+    db: DbSessionFactory
+    tracing_fixture_names: Iterable[str] = field(default_factory=list)
+    force_fixture_ingestion: bool = False
+    scaffold_datasets: bool = False
+    phoenix_url: str = f"http://{get_env_host()}:{get_env_port()}"
+
+
+class Scaffolder(DaemonTask):
+    def __init__(
+        self,
+        config: ScaffolderConfig,
+        queue_span: Callable[[Span, ProjectName], Awaitable[None]],
+        queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+    ) -> None:
+        super().__init__()
+        self._db = config.db
+        self._queue_span = queue_span
+        self._queue_evaluation = queue_evaluation
+        self._tracing_fixtures = [
+            get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
+        ]
+        self._force_fixture_ingestion = config.force_fixture_ingestion
+        self._scaffold_datasets = config.scaffold_datasets
+        self._phoenix_url = config.phoenix_url
+
+    async def __aenter__(self) -> None:
+        if not self._tracing_fixtures:
+            return
+        await self.start()
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        await self.stop()
+
+    async def _run(self) -> None:
+        """
+        Main entry point for Scaffolder.
+        Determines whether to load fixtures and handles them.
+        """
+        if await self._should_load_fixtures():
+            logger.info("Loading trace fixtures...")
+            await self._handle_tracing_fixtures()
+            logger.info("Finished loading fixtures.")
+        else:
+            logger.info("DB is not new, avoid loading demo fixtures.")
+
+    async def _should_load_fixtures(self) -> bool:
+        if self._force_fixture_ingestion:
+            return True
+
+        async with self._db() as session:
+            created_at = await session.scalar(
+                select(models.Project.created_at).where(models.Project.name == "default")
+            )
+        if created_at is None:
+            return False
+
+        is_new_db = datetime.now(timezone.utc) - created_at < timedelta(
+            minutes=NEW_DB_AGE_THRESHOLD_MINUTES
+        )
+        return is_new_db
+
+    async def _handle_tracing_fixtures(self) -> None:
+        """
+        Main handler for processing trace fixtures. Process each fixture by
+        loading its trace dataframe, gettting and processings its
+        spans and evals, and queuing.
+        """
+        loop = asyncio.get_running_loop()
+        for fixture in self._tracing_fixtures:
+            try:
+                trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
+
+                fixture_spans, fixture_evals = await loop.run_in_executor(
+                    None,
+                    reset_fixture_span_ids_and_timestamps,
+                    (
+                        # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                        # `encode` removes the hyphens in the UUIDs.
+                        decode_otlp_span(encode_span_to_otlp(span))
+                        for span in trace_ds.to_spans()
+                    ),
+                    get_evals_from_fixture(fixture.name),
+                )
+
+                # Ingest dataset fixtures
+                if self._scaffold_datasets:
+                    await self._handle_dataset_fixtures(fixture)
+
+                project_name = fixture.project_name or fixture.name
+                logger.info(f"Loading '{project_name}' fixtures...")
+                for span in fixture_spans:
+                    await self._queue_span(span, project_name)
+                for evaluation in fixture_evals:
+                    await self._queue_evaluation(evaluation)
+
+            except FileNotFoundError:
+                logger.warning(f"Fixture file not found for '{fixture.name}'")
+            except ValueError as e:
+                logger.error(f"Error processing fixture '{fixture.name}': {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
+
+    async def _handle_dataset_fixtures(self, fixture: TracesFixture) -> None:
+        loop = asyncio.get_running_loop()
+        try:
+            dataset_fixtures = await loop.run_in_executor(None, get_dataset_fixtures, fixture.name)
+            await loop.run_in_executor(
+                None,
+                send_dataset_fixtures,
+                self._phoenix_url,
+                dataset_fixtures,
+            )
+        except Exception as e:
+            logger.error(f"Error processing dataset fixture: {e}")
+
+
 def _lifespan(
     *,
-    dialect: SupportedSQLDialect,
+    db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
-    clean_ups: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[Callable[[], None]] = (),
+    shutdown_callbacks: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
+    scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
-        async with bulk_inserter as (
-            enqueue,
-            queue_span,
-            queue_evaluation,
-            enqueue_operation,
-        ), GrpcServer(
-            queue_span,
-            disabled=read_only,
-            tracer_provider=tracer_provider,
-            enable_prometheus=enable_prometheus,
-        ), dml_event_handler:
+        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        async with AsyncExitStack() as stack:
+            (
+                enqueue,
+                queue_span,
+                queue_evaluation,
+                enqueue_operation,
+            ) = await stack.enter_async_context(bulk_inserter)
+            grpc_server = GrpcServer(
+                queue_span,
+                disabled=read_only,
+                tracer_provider=tracer_provider,
+                enable_prometheus=enable_prometheus,
+            )
+            await stack.enter_async_context(grpc_server)
+            await stack.enter_async_context(dml_event_handler)
+            if scaffolder_config:
+                scaffolder = Scaffolder(
+                    config=scaffolder_config,
+                    queue_span=queue_span,
+                    queue_evaluation=queue_evaluation,
+                )
+                await stack.enter_async_context(scaffolder)
+            for callback in startup_callbacks:
+                callback()
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -254,8 +417,8 @@ def _lifespan(
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
                 "enqueue_operation": enqueue_operation,
             }
-        for clean_up in clean_ups:
-            clean_up()
+        for callback in shutdown_callbacks:
+            callback()
 
     return lifespan
 
@@ -276,7 +439,26 @@ def create_graphql_router(
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
+    secret: Optional[str] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
+    """Creates the GraphQL router.
+
+    Args:
+        schema (BaseSchema): The GraphQL schema.
+        db (DbSessionFactory): The database session factory pointing to a SQL database.
+        model (Model): The Model representing inferences (legacy)
+        export_path (Path): the file path to export data to for download (legacy)
+        last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
+        event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
+        corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
+        cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
+        read_only (bool, optional): Marks the app as read-only. Defaults to False.
+        secret (Optional[str], optional): The application secret for auth. Defaults to None.
+
+    Returns:
+        GraphQLRouter: The router mounted at /graphql
+    """
+
     def get_context() -> Context:
         return Context(
             db=db,
@@ -291,33 +473,38 @@ def create_graphql_router(
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.document_evaluation_summary
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.document_evaluation_summary
+                        if cache_for_dataloaders
+                        else None
+                    ),
                 ),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
                 annotation_summaries=AnnotationSummaryDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.annotation_summary
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None
+                    ),
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.latency_ms_quantile
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
+                    ),
                 ),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
                     db,
-                    cache_map=cache_for_dataloaders.min_start_or_max_end_time
-                    if cache_for_dataloaders
-                    else None,
+                    cache_map=(
+                        cache_for_dataloaders.min_start_or_max_end_time
+                        if cache_for_dataloaders
+                        else None
+                    ),
                 ),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -336,6 +523,7 @@ def create_graphql_router(
             ),
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
+            secret=secret,
         )
 
     return GraphQLRouter(
@@ -408,9 +596,13 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
-    clean_up_callbacks: List[Callable[[], None]] = [],
+    startup_callbacks: Iterable[Callable[[], None]] = (),
+    shutdown_callbacks: Iterable[Callable[[], None]] = (),
+    secret: Optional[str] = None,
+    scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
-    clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
+    startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
+    shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -472,6 +664,7 @@ def create_app(
         event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
+        secret=secret,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -479,17 +672,20 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
+
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
-            dialect=db.dialect,
+            db=db,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
-            clean_ups=clean_ups,
+            shutdown_callbacks=shutdown_callbacks_list,
+            startup_callbacks=startup_callbacks_list,
+            scaffolder_config=scaffolder_config,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
@@ -525,12 +721,30 @@ def create_app(
             ),
             name="static",
         )
-
-    app.state.db = db
+    app = _update_app_state(app, db=db, secret=secret)
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        clean_ups.append(FastAPIInstrumentor().uninstrument)
+        shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
+    return app
+
+
+def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional[str]) -> FastAPI:
+    """
+    Dynamically updates the app's `state` to include useful fields and methods
+    (at the time of this writing, FastAPI does not support setting this state
+    during the creation of the app).
+    """
+    app.state.db = db
+    app.state._secret = secret
+
+    def get_secret(self: StarletteState) -> str:
+        if (secret := self._secret) is None:
+            raise ValueError("app secret is not set")
+        assert isinstance(secret, str)
+        return secret
+
+    app.state.get_secret = MethodType(get_secret, app.state)
     return app
