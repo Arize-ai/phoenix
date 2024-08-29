@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 from functools import partial
+from inspect import isawaitable
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -51,7 +52,7 @@ class TokenBucket:
         self.tokens -= 1
 
 
-class ServerRateLimiter():
+class ServerRateLimiter:
     """
     This rate limiter holds a cache of token buckets that enforce rate limits.
 
@@ -146,11 +147,14 @@ class StrawberryRateLimiterExtension(SchemaExtension):
     def __init__(self):
         self.rate_limiter = ServerRateLimiter()
 
-    def resolve(self, _next, root, info: Info, *args, **kwargs):
+    async def resolve(self, _next, root, info: Info, *args, **kwargs):
         if info.field_name == "login" and info.parent_type.name == "Mutation":
             client_ip = info.context["request"].client.host
             try:
                 self.rate_limiter.make_request(client_ip)
             except UnavailableTokensError:
                 raise HTTPException(status_code=429, detail="Rate limit exceeded")
-        return _next(root, info, *args, **kwargs)
+        result = _next(root, info, *args, **kwargs)
+        if isawaitable(result):
+            result = await result
+        return result

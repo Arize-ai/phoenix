@@ -106,7 +106,10 @@ def test_rate_limiter_cleans_up_old_partitions():
 
     with warp_time(start):
         limiter = ServerRateLimiter(
-            per_second_rate_limit=1, enforcement_window_seconds=100, partition_seconds=10, active_partitions=2
+            per_second_rate_limit=1,
+            enforcement_window_seconds=100,
+            partition_seconds=10,
+            active_partitions=2,
         )
         limiter.make_request("test_key_1")
         limiter.make_request("test_key_2")
@@ -114,7 +117,7 @@ def test_rate_limiter_cleans_up_old_partitions():
         limiter.make_request("test_key_4")
         partition_sizes = [len(partition) for partition in limiter.cache_partitions]
         assert sum(partition_sizes) == 4
-    
+
     with freeze_time(start + 10):
         # after 10 seconds, the cache rolls over to a second active partition
         limiter.make_request("test_key_4")  # moves test_key_4 to current partition
@@ -124,7 +127,6 @@ def test_rate_limiter_cleans_up_old_partitions():
         assert 2 in partition_sizes  # two rate limiters in current cache partition
         assert 3 in partition_sizes  # three rate limiters remaining in original partition
         assert 0 in partition_sizes  # overflow partition is empty
-
 
     with freeze_time(start + 10 + 21):
         limiter.make_request("fresh_key")  # After 21 seconds, all partitions should be reset
