@@ -5,7 +5,8 @@ from typing import (
     Union,
 )
 
-from sqlalchemy import Integer, case, func, literal, or_, select, union
+from sqlalchemy import and_, case, func, null, or_, select
+from sqlalchemy.sql.expression import literal
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -22,40 +23,76 @@ Result: TypeAlias = DatasetExampleRevision
 
 class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory) -> None:
-        super().__init__(load_fn=self._load_fn)
+        super().__init__(
+            load_fn=self._load_fn,
+            max_batch_size=200,  # needed to prevent the size of the query from getting too large
+        )
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Union[Result, NotFound]]:
-        # sqlalchemy has limited SQLite support for VALUES, so use UNION ALL instead.
-        # For details, see https://github.com/sqlalchemy/sqlalchemy/issues/7228
-        keys_subquery = union(
-            *(
-                select(
-                    literal(example_id, Integer).label("example_id"),
-                    literal(version_id, Integer).label("version_id"),
-                )
+        example_and_version_ids = tuple(
+            set(
+                (example_id, version_id)
                 for example_id, version_id in keys
+                if version_id is not None
             )
-        ).subquery()
+        )
+        versionless_example_ids = tuple(
+            set(example_id for example_id, version_id in keys if version_id is None)
+        )
+        resolved_example_and_version_ids = (
+            (
+                select(
+                    models.DatasetExample.id.label("example_id"),
+                    models.DatasetVersion.id.label("version_id"),
+                )
+                .select_from(models.DatasetExample)
+                .join(
+                    models.DatasetVersion,
+                    onclause=literal(True),  # cross join
+                )
+                .where(
+                    or_(
+                        *(
+                            and_(
+                                models.DatasetExample.id == example_id,
+                                models.DatasetVersion.id == version_id,
+                            )
+                            for example_id, version_id in example_and_version_ids
+                        )
+                    )
+                )
+            )
+            .union(
+                select(
+                    models.DatasetExample.id.label("example_id"), null().label("version_id")
+                ).where(models.DatasetExample.id.in_(versionless_example_ids))
+            )
+            .subquery()
+        )
         revision_ids = (
             select(
-                keys_subquery.c.example_id,
-                keys_subquery.c.version_id,
+                resolved_example_and_version_ids.c.example_id,
+                resolved_example_and_version_ids.c.version_id,
                 func.max(models.DatasetExampleRevision.id).label("revision_id"),
             )
-            .select_from(keys_subquery)
+            .select_from(resolved_example_and_version_ids)
             .join(
                 models.DatasetExampleRevision,
-                onclause=keys_subquery.c.example_id
+                onclause=resolved_example_and_version_ids.c.example_id
                 == models.DatasetExampleRevision.dataset_example_id,
             )
             .where(
                 or_(
-                    keys_subquery.c.version_id.is_(None),
-                    models.DatasetExampleRevision.dataset_version_id <= keys_subquery.c.version_id,
+                    resolved_example_and_version_ids.c.version_id.is_(None),
+                    models.DatasetExampleRevision.dataset_version_id
+                    <= resolved_example_and_version_ids.c.version_id,
                 )
             )
-            .group_by(keys_subquery.c.example_id, keys_subquery.c.version_id)
+            .group_by(
+                resolved_example_and_version_ids.c.example_id,
+                resolved_example_and_version_ids.c.version_id,
+            )
         ).subquery()
         query = (
             select(

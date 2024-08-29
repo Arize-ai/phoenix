@@ -71,10 +71,13 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
+  "tox",
+  "tox-uv",
+  "uv",
   "jupyter",
   "nbqa",
   "ruff==0.6.1",
-  "mypy==1.11.1",
+  "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
@@ -190,7 +193,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.11.1",
+  "mypy==1.11.2",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",

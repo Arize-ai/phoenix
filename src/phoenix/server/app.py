@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import json
 import logging
 from contextlib import AsyncExitStack
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
@@ -52,6 +51,8 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     SERVER_DIR,
+    get_env_host,
+    get_env_port,
     server_instrumentation_is_enabled,
 )
 from phoenix.core.model_schema import Model
@@ -75,6 +76,7 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
@@ -105,10 +107,13 @@ from phoenix.server.types import (
     TokenStore,
 )
 from phoenix.trace.fixtures import (
+    TracesFixture,
+    get_dataset_fixtures,
     get_evals_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
+    send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -253,23 +258,37 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     return factory
 
 
+@dataclass(frozen=True)
+class ScaffolderConfig:
+    db: DbSessionFactory
+    tracing_fixture_names: Iterable[str] = field(default_factory=list)
+    force_fixture_ingestion: bool = False
+    scaffold_datasets: bool = False
+    phoenix_url: str = f"http://{get_env_host()}:{get_env_port()}"
+
+
 class Scaffolder(DaemonTask):
     def __init__(
         self,
-        db: DbSessionFactory,
+        config: ScaffolderConfig,
         queue_span: Callable[[Span, ProjectName], Awaitable[None]],
         queue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
-        tracing_fixture_names: Iterable[str] = (),
-        force_fixture_ingestion: bool = False,
     ) -> None:
         super().__init__()
-        self._db = db
+        self._db = config.db
         self._queue_span = queue_span
         self._queue_evaluation = queue_evaluation
-        self._tracing_fixtures = set(
-            get_trace_fixture_by_name(name) for name in tracing_fixture_names
-        )
-        self._force_fixture_ingestion = force_fixture_ingestion
+        self._tracing_fixtures = [
+            get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
+        ]
+        self._force_fixture_ingestion = config.force_fixture_ingestion
+        self._scaffold_datasets = config.scaffold_datasets
+        self._phoenix_url = config.phoenix_url
+
+    async def __aenter__(self) -> None:
+        if not self._tracing_fixtures:
+            return
+        await self.start()
 
     async def _run(self) -> None:
         """
@@ -277,7 +296,7 @@ class Scaffolder(DaemonTask):
         Determines whether to load fixtures and handles them.
         """
         if await self._should_load_fixtures():
-            logger.info("Loading trace fixtures.")
+            logger.info("Loading trace fixtures...")
             await self._handle_tracing_fixtures()
             logger.info("Finished loading fixtures.")
         else:
@@ -322,6 +341,10 @@ class Scaffolder(DaemonTask):
                     get_evals_from_fixture(fixture.name),
                 )
 
+                # Ingest dataset fixtures
+                if self._scaffold_datasets:
+                    await self._handle_dataset_fixtures(fixture)
+
                 project_name = fixture.project_name or fixture.name
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
@@ -336,6 +359,19 @@ class Scaffolder(DaemonTask):
             except Exception as e:
                 logger.error(f"Unexpected error processing fixture '{fixture.name}': {e}")
 
+    async def _handle_dataset_fixtures(self, fixture: TracesFixture) -> None:
+        loop = asyncio.get_running_loop()
+        try:
+            dataset_fixtures = await loop.run_in_executor(None, get_dataset_fixtures, fixture.name)
+            await loop.run_in_executor(
+                None,
+                send_dataset_fixtures,
+                self._phoenix_url,
+                dataset_fixtures,
+            )
+        except Exception as e:
+            logger.error(f"Error processing dataset fixture: {e}")
+
 
 def _lifespan(
     *,
@@ -348,8 +384,7 @@ def _lifespan(
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
-    tracing_fixture_names: Iterable[str] = (),
-    force_fixture_ingestion: bool = False,
+    scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
@@ -372,16 +407,15 @@ def _lifespan(
                 enable_prometheus=enable_prometheus,
                 token_store=token_store,
             )
-            scaffolder = Scaffolder(
-                db=db,
-                queue_span=queue_span,
-                queue_evaluation=queue_evaluation,
-                tracing_fixture_names=tracing_fixture_names,
-                force_fixture_ingestion=force_fixture_ingestion,
-            )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
-            await stack.enter_async_context(scaffolder)
+            if scaffolder_config:
+                scaffolder = Scaffolder(
+                    config=scaffolder_config,
+                    queue_span=queue_span,
+                    queue_evaluation=queue_evaluation,
+                )
+                await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AsyncContextManager):
                 await stack.enter_async_context(token_store)
             yield {
@@ -465,6 +499,7 @@ def create_graphql_router(
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_run_annotations=ExperimentRunAnnotations(db),
                 experiment_run_counts=ExperimentRunCountsDataLoader(db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
@@ -575,8 +610,7 @@ def create_app(
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     secret: Optional[str] = None,
-    tracing_fixture_names: Iterable[str] = (),
-    force_fixture_ingestion: bool = False,
+    scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
@@ -673,8 +707,7 @@ def create_app(
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
-            tracing_fixture_names=tracing_fixture_names,
-            force_fixture_ingestion=force_fixture_ingestion,
+            scaffolder_config=scaffolder_config,
         ),
         middleware=middlewares,
         exception_handlers={HTTPException: plain_text_http_exception_handler},

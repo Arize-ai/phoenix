@@ -52,15 +52,15 @@ For details on customizing a local terminal deployment, see [Terminal Setup](htt
 {% endtab %}
 
 {% tab title="Docker" %}
-Launch your loaded docker image using:
+Launch the phoenix docker image using:
 
 ```bash
-docker run -p 6006:6006 arizephoenix/phoenix:latest
+docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
 ```
 
-This will expose the Phoenix on `localhost:6006`
+This will expose the Phoenix UI and REST API on `localhost:6006` and exposes the gRPC endpoint for spans on `localhost:4317`
 
-For more details on customizing a docker deployment, see [#docker](quickstart.md#docker "mention")
+For more details on customizing a docker deployment, see [docker.md](deployment/docker.md "mention")
 {% endtab %}
 
 {% tab title="Notebook" %}
@@ -83,83 +83,74 @@ Hosted Phoenix instances are always online. Nothing more to do here!
 
 ## Connect your App
 
-To collect traces from your application, you must point your app to your Phoenix instance.
+To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix. The `register` utility from the `phoenix.otel` module streamlines this process.
 
 {% tabs %}
-{% tab title="Local Instance / Docker (Python)" %}
-Install packages:
+{% tab title="Python" %}
+If `arize-phoenix` is not installed in your python environment, you can use `arize-phoenix-otel` to quickly connect to your phoenix instance.
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix-otel
 ```
 
 Connect your application to your instance using:
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
-tracer_provider.add_span_processor(span_processor)
-trace_api.set_tracer_provider(tracer_provider)
+# defaults to endpoint="http://localhost:4317"
+register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:4317",  # Sends traces using gRPC
+)  
 ```
 
-See [deploying-phoenix.md](deployment/deploying-phoenix.md "mention") for more details
+{% hint style="info" %}
+You do not have to use phoenix.otel to connect to your phoenix instance, you can use OpenTelemetry itself to initialize  your OTEL connection. See[using-otel-python-directly.md](tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly.md "mention")
+{% endhint %}
+
+See [setup-tracing-python](tracing/how-to-tracing/setup-tracing/setup-tracing-python/ "mention") for more details on configuration and setup
+{% endtab %}
+
+{% tab title="TypeScript" %}
+For setting up tracing and OpenTelemetry with TypeScript, see [setup-tracing-ts.md](tracing/how-to-tracing/setup-tracing/setup-tracing-ts.md "mention")
 {% endtab %}
 
 {% tab title="Notebook" %}
 Connect your notebook to Phoenix:
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
-tracer_provider.add_span_processor(span_processor)
-trace_api.set_tracer_provider(tracer_provider)
+# defaults to endpoint="http://localhost:4317"
+register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:4317",  # Sends traces using gRPC
+) 
 ```
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
-Install the following dependencies:
+If `arize-phoenix` is not installed in your python environment, you can use `arize-phoenix-otel` to quickly connect to your phoenix instance.
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix-otel
 ```
 
 Connect your application to your cloud instance using:
 
 ```python
 import os
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-    OTLPSpanExporter as GRPCSpanExporter,
-)
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-    OTLPSpanExporter as HTTPSpanExporter,
-)
+from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
 os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 
-# Add Phoenix
-span_phoenix_processor = SimpleSpanProcessor(HTTPSpanExporter(endpoint="https://app.phoenix.arize.com/v1/traces"))
-
-# Add them to the tracer
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
-trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+# configure the Phoenix tracer
+register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="https://app.phoenix.arize.com/v1/traces",
+) 
 ```
 
 Your Phoenix API key can be found on the Keys section of your dashboard.

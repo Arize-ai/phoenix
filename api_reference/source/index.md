@@ -51,7 +51,8 @@ Want to become a member of Phoenix's community? Check out our [Slack](https://ar
 
 api/session
 api/client
-api/inferences_schema
 api/evals
 api/experiments
+api/otel
+api/inferences_schema
 ```

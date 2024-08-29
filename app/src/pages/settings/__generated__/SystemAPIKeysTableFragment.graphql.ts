@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4bf1b1977c24e409e3f004bd2b964616>>
+ * @generated SignedSource<<8825bdc2832600eb1e6d2971c55eeef5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SystemAPIKeysTableFragment$data = {
   readonly systemApiKeys: ReadonlyArray<{
@@ -25,10 +25,18 @@ export type SystemAPIKeysTableFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment">;
 };
 
+import SystemAPIKeysTableQuery_graphql from './SystemAPIKeysTableQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": SystemAPIKeysTableQuery_graphql
+    }
+  },
   "name": "SystemAPIKeysTableFragment",
   "selections": [
     {
@@ -82,6 +90,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "74b725ff0b7b3ce3015ff314e8606cb7";
+(node as any).hash = "de0fc04de739f0adfcbdeaff28b16265";
 
 export default node;

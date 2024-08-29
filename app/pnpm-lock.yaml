@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arizeai/components':
-        specifier: ^1.8.0
-        version: 1.8.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        specifier: ^1.8.1
+        version: 1.8.1(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^0.8.0
-        version: 0.8.0
+        specifier: ^0.10.0
+        version: 0.10.0
       '@arizeai/point-cloud':
         specifier: ^3.0.6
         version: 3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(@types/react@18.2.48)(@types/three@0.149.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(react@18.2.0)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)
@@ -235,15 +235,15 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arizeai/components@1.8.0':
-    resolution: {integrity: sha512-taBLtaUo+0Dc1Q7FnS6hdLAqbzlJumFqIYGAHtONHGb4BWyNUa4vC0CUNvUlrIRIpumQQeBbmMqqloCxJLqutQ==}
+  '@arizeai/components@1.8.1':
+    resolution: {integrity: sha512-djcZ9noXJRaHsYHYJXAGKeON+vacT3aJvKdFcF0hJeWZ/j7wMGCpvzYwxRgLUooZvj5ifTGBzG9DmF6/sC+v5g==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
 
-  '@arizeai/openinference-semantic-conventions@0.8.0':
-    resolution: {integrity: sha512-+mRzrRe9DK8Ou+y3Bebqm6+1bThPtaV9hBDtaUsE6uRcv0jQu7QqEfmcJC3nZhatfdyy44QDpbHqnv/qkzmEyQ==}
+  '@arizeai/openinference-semantic-conventions@0.10.0':
+    resolution: {integrity: sha512-1HC3YEEQpDOp2ZYe2V3zdPhamTdZ1DZ9Km5iskKWLRMVZkswPty8GkOHYaSMUVd57UtFQt9WtF0FTH6moyyU4Q==}
 
   '@arizeai/point-cloud@3.0.6':
     resolution: {integrity: sha512-hatFoGJsHAHwZqzZokKqBcHhvyxGyyy9g/CEWpChOckcUkQktgKRT00rrrmiSE7XXHHeUVdkjYruS1R7y16KZg==}
@@ -4655,7 +4655,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.5
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@arizeai/components@1.8.0(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@arizeai/components@1.8.1(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@emotion/react': 11.11.4(@types/react@18.2.48)(react@18.2.0)
       '@react-aria/breadcrumbs': 3.5.13(react@18.2.0)
@@ -4697,7 +4697,7 @@ snapshots:
       - eslint
       - supports-color
 
-  '@arizeai/openinference-semantic-conventions@0.8.0': {}
+  '@arizeai/openinference-semantic-conventions@0.10.0': {}
 
   '@arizeai/point-cloud@3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(@types/react@18.2.48)(@types/three@0.149.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.2.0(react@18.2.0))(react@18.2.0)(three@0.139.2))(react@18.2.0)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)':
     dependencies:

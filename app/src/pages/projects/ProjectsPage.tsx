@@ -23,6 +23,7 @@ import {
   useLastNTimeRange,
 } from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -34,9 +35,10 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
+import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
 const REFRESH_INTERVAL_MS = 10000;
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
   const { timeRange } = useLastNTimeRange();
@@ -49,6 +51,9 @@ export function ProjectsPage() {
 }
 
 export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
+  const autoRefreshEnabled = usePreferencesContext(
+    (state) => state.projectsAutoRefreshEnabled
+  );
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -83,7 +88,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
       @refetchable(queryName: "ProjectsPageProjectsQuery")
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
+        first: { type: "Int", defaultValue: 50 }
       ) {
         projects(first: $first, after: $after)
           @connection(key: "ProjectsPage_projects") {
@@ -127,11 +132,14 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     [hasNext, isLoadingNext, loadNext]
   );
 
-  useInterval(() => {
-    startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    });
-  }, REFRESH_INTERVAL_MS);
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
+    },
+    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
+  );
 
   const onDelete = useCallback(
     (projectName: string) => {
@@ -195,7 +203,13 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
       >
-        <Flex direction="row" justifyContent="end" gap="size-100">
+        <Flex
+          direction="row"
+          justifyContent="end"
+          alignItems="center"
+          gap="size-100"
+        >
+          <ProjectsAutoRefreshToggle />
           <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>

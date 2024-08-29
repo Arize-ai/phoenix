@@ -38,6 +38,7 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import (
+    ScaffolderConfig,
     _db,
     create_app,
     create_engine_and_run_migrations,
@@ -143,7 +144,9 @@ if __name__ == "__main__":
     # Whether the app is running in a development environment
     parser.add_argument("--dev", action="store_true")
     parser.add_argument("--no-ui", action="store_true")
+
     subparsers = parser.add_subparsers(dest="command", required=True)
+
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
         "--with-fixture",
@@ -182,14 +185,27 @@ if __name__ == "__main__":
             "database is new."
         ),
     )
+    serve_parser.add_argument(
+        "--scaffold-datasets",
+        action="store_true",  # default is False
+        required=False,
+        help=(
+            "Whether or not to add any datasets defined in "
+            "the inputted project or trace fixture. "
+            "Default is False. "
+        ),
+    )
+
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
     datasets_parser.add_argument("--corpus", type=str, required=False)
     datasets_parser.add_argument("--trace", type=str, required=False)
+
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
+
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
@@ -197,19 +213,23 @@ if __name__ == "__main__":
     trace_fixture_parser.add_argument(
         "--simulate-streaming", action="store_true"
     )  # Default is False
+
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     demo_parser.add_argument(
         "trace_fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+
     force_fixture_ingestion = False
+    scaffold_datasets = False
+    tracing_fixture_names = set()
     if args.command == "datasets":
         primary_inferences_name = args.primary
         reference_inferences_name = args.reference
@@ -246,7 +266,6 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
-        tracing_fixture_names = set()
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
@@ -264,6 +283,7 @@ if __name__ == "__main__":
                 for fixture in get_trace_fixtures_by_project_name(name)
             )
         force_fixture_ingestion = args.force_fixture_ingestion
+        scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -325,17 +345,25 @@ if __name__ == "__main__":
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
     # Print information about the server
+    root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.format(
         version=version("arize-phoenix"),
-        ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+        ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
-        http_path=urljoin(urljoin(f"http://{host}:{port}", host_root_path), "v1/traces"),
+        http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
     )
     if authentication_enabled:
         msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
+    scaffolder_config = ScaffolderConfig(
+        db=factory,
+        tracing_fixture_names=tracing_fixture_names,
+        force_fixture_ingestion=force_fixture_ingestion,
+        scaffold_datasets=scaffold_datasets,
+        phoenix_url=root_path,
+    )
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -353,8 +381,7 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
-        tracing_fixture_names=tracing_fixture_names,
-        force_fixture_ingestion=force_fixture_ingestion,
+        scaffolder_config=scaffolder_config,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

@@ -38,6 +38,7 @@ class DeleteApiKeyInput:
 @strawberry.type
 class DeleteSystemApiKeyMutationPayload:
     id: GlobalID
+    query: Query
 
 
 @strawberry.type
@@ -99,4 +100,4 @@ class ApiKeyMutationMixin:
             input.id, expected_type_name=SystemApiKey.__name__
         )
         await token_store.revoke(ApiKeyId(api_key_id))
-        return DeleteSystemApiKeyMutationPayload(id=input.id)
+        return DeleteSystemApiKeyMutationPayload(id=input.id, query=Query())

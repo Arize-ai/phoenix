@@ -52,7 +52,7 @@ session = px.launch_app(trace=trace_ds)
 session.view()
 ```
 
-You should now see a view like this.
+You should now see a view like this. If not, toggle the time range to "All Time" as the default "Last 7 Days" may not adequately represent the time range of the traces.
 
 ![A view of the Phoenix UI prior to adding evaluation annotations](https://storage.googleapis.com/arize-assets/phoenix/assets/docs/notebooks/evals/traces\_without\_evaluation\_annotations.png)
 

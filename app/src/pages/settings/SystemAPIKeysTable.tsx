@@ -1,12 +1,13 @@
-import React, { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import React, { startTransition, useMemo } from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -14,15 +15,21 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
+import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
+import { DeleteSystemAPIKeyButton } from "./DeleteSystemAPIKeyButton";
 
 export function SystemAPIKeysTable({
   query,
 }: {
   query: SystemAPIKeysTableFragment$key;
 }) {
-  const data = useFragment<SystemAPIKeysTableFragment$key>(
+  const [data, refetch] = useRefetchableFragment<
+    SystemAPIKeysTableQuery,
+    SystemAPIKeysTableFragment$key
+  >(
     graphql`
-      fragment SystemAPIKeysTableFragment on Query {
+      fragment SystemAPIKeysTableFragment on Query
+      @refetchable(queryName: "SystemAPIKeysTableQuery") {
         systemApiKeys {
           id
           name
@@ -40,8 +47,8 @@ export function SystemAPIKeysTable({
   }, [data]);
 
   type TableRow = (typeof tableData)[number];
-  const table = useReactTable<TableRow>({
-    columns: [
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
       {
         header: "Name",
         accessorKey: "name",
@@ -61,7 +68,38 @@ export function SystemAPIKeysTable({
         accessorKey: "expiresAt",
         cell: TimestampCell,
       },
-    ],
+      {
+        header: "",
+        accessorKey: "id",
+        size: 10,
+        cell: ({ row }) => {
+          return (
+            <Flex direction="row" justifyContent="end" width="100%">
+              <DeleteSystemAPIKeyButton
+                id={row.original.id}
+                onDeleted={() => {
+                  startTransition(() => {
+                    refetch(
+                      {},
+                      {
+                        fetchPolicy: "network-only",
+                      }
+                    );
+                  });
+                }}
+              />
+            </Flex>
+          );
+        },
+        meta: {
+          textAlign: "right",
+        },
+      },
+    ];
+    return cols;
+  }, [refetch]);
+  const table = useReactTable<TableRow>({
+    columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
   });

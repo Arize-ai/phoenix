@@ -7,6 +7,7 @@ import {
   DialogContainer,
   Icon,
   Icons,
+  View,
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
@@ -74,7 +75,13 @@ export function UsersCard() {
         </Button>
       }
     >
-      <Suspense fallback={<Loading />}>
+      <Suspense
+        fallback={
+          <View padding="size-e00">
+            <Loading />
+          </View>
+        }
+      >
         <UsersTable query={data} />
       </Suspense>
       <DialogContainer

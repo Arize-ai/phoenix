@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 ProjectName: TypeAlias = str
 
 
-class Servicer(TraceServiceServicer):  # type:ignore
+class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
     def __init__(
         self,
         callback: Callable[[Span, ProjectName], Awaitable[None]],
@@ -84,7 +84,7 @@ class GrpcServer:
             interceptors=interceptors,
         )
         server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
-        add_TraceServiceServicer_to_server(Servicer(self._callback), server)
+        add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore[no-untyped-call,unused-ignore]
         await server.start()
         self._server = server
 

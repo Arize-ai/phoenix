@@ -12,6 +12,7 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
+from .experiment_run_annotations import ExperimentRunAnnotations
 from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
@@ -36,6 +37,7 @@ __all__ = [
     "AnnotationSummaryDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
+    "ExperimentRunAnnotations",
     "ExperimentRunCountsDataLoader",
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.15.0...arize-phoenix-evals-v0.15.1) (2024-08-27)
+
+
+### Bug Fixes
+
+* support pydantic in the range 2.4.1&lt;=pydantic<=2.7.1 ([#4323](https://github.com/Arize-ai/phoenix/issues/4323)) ([fa5eeff](https://github.com/Arize-ai/phoenix/commit/fa5eeff45b0752508d4bc51334607ef4acc19474))
+
 ## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.1...arize-phoenix-evals-v0.15.0) (2024-08-15)
 
 

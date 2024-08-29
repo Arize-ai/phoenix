@@ -40,10 +40,10 @@ Phoenix runs practically anywhere, including your Jupyter notebook, local machin
 
 ## Installation
 
-Install Phoenix via `pip` or `conda` along with extra dependencies for running evals:
+Install Phoenix via `pip` or `conda`
 
 ```shell
-pip install 'arize-phoenix[evals]'
+pip install arize-phoenix
 ```
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
@@ -59,11 +59,6 @@ Join our community to connect with thousands of AI builders.
 -   𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
 -   💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
-
-## Thanks
-
--   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
--   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
 
 ## Breaking Changes
 

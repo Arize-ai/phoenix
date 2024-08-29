@@ -15,6 +15,11 @@ export interface PreferencesProps {
    */
   traceStreamingEnabled: boolean;
   /**
+   * Whether or not to automatically refresh projects
+   * @default true
+   */
+  projectsAutoRefreshEnabled: boolean;
+  /**
    * Whether or not to show the span aside that contains details about timing, status, etc.
    * @default true
    */
@@ -34,9 +39,13 @@ export interface PreferencesState extends PreferencesProps {
   /**
    * Setter for enabling/disabling trace streaming
    * @param traceStreamingEnabled
-   * @returns
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
+  /**
+   * Setter for enabling/disabling project auto refresh
+   * @param projectsAutoRefreshEnabled
+   */
+  setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled: boolean) => void;
   /**
    * Setter for enabling/disabling the span aside
    * @param showSpanAside
@@ -60,6 +69,10 @@ export const createPreferencesStore = (
     traceStreamingEnabled: true,
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
       set({ traceStreamingEnabled });
+    },
+    projectsAutoRefreshEnabled: true,
+    setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
+      set({ projectsAutoRefreshEnabled });
     },
     showSpanAside: true,
     setShowSpanAside: (showSpanAside) => {

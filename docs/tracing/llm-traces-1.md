@@ -243,4 +243,4 @@ Learn more in the [evals quickstart](../quickstart/evals.md).
 
 ## Conclusion
 
-[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
+[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application (see also: this [deep dive on LLM evaluation](https://arize.com/blog-course/llm-evaluation-the-definitive-guide/)). For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
