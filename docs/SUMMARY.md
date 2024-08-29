@@ -58,6 +58,7 @@
     * [Instrument: Python](tracing/how-to-tracing/manual-instrumentation/custom-spans/README.md)
       * [Instrumenting Span Types](tracing/how-to-tracing/manual-instrumentation/custom-spans/instrumenting-span-types.md)
     * [Instrument: TS](tracing/how-to-tracing/manual-instrumentation/javascript.md)
+  * [Multi-modal Tracing](tracing/how-to-tracing/multi-modal-tracing.md)
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
   * [Importing Existing Traces](tracing/how-to-tracing/importing-existing-traces.md)
