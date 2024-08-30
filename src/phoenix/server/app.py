@@ -88,6 +88,8 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceRowIdsDataLoader,
+    UserRolesDataLoader,
+    UsersDataLoader,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
@@ -528,6 +530,8 @@ def create_graphql_router(
                 ),
                 trace_row_ids=TraceRowIdsDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
+                users=UsersDataLoader(db),
+                user_roles=UserRolesDataLoader(db),
             ),
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
