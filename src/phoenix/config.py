@@ -70,6 +70,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 # set these environment variables until the feature is officially released.
 ENV_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
+ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -141,6 +142,10 @@ def get_env_phoenix_secret() -> Optional[str]:
         return None
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret)
     return phoenix_secret
+
+
+def get_env_phoenix_api_key() -> Optional[str]:
+    return os.environ.get(ENV_PHOENIX_API_KEY)
 
 
 def get_auth_settings() -> Tuple[bool, Optional[str]]:
