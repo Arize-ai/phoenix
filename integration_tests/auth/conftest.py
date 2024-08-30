@@ -29,9 +29,9 @@ from phoenix.config import (
     ENV_PHOENIX_SECRET,
     get_base_url,
 )
+from phoenix.server.api.auth import IsAdmin, IsAuthenticated
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from phoenix.server.api.mutations.auth import IsAdmin, IsAuthenticated
 from phoenix.server.api.mutations.auth_mutations import FAILED_LOGIN_MESSAGE
 from typing_extensions import TypeAlias
 

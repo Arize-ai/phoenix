@@ -8,35 +8,34 @@ from hashlib import pbkdf2_hmac
 from typing import Any, Optional, Protocol
 
 
-def compute_password_hash(*, password: str, salt: str) -> str:
+def compute_password_hash(*, password: str, salt: bytes) -> bytes:
     """
     Salts and hashes a password using PBKDF2, HMAC, and SHA256.
 
     Args:
         password (str): the password to hash
-        salt (str): the salt to use
+        salt (bytes): the salt to use, must not be zero-length
     Returns:
-        str: the hashed password
+        bytes: the hashed password
     """
+    assert salt
     password_bytes = password.encode("utf-8")
-    salt_bytes = salt.encode("utf-8")
-    password_hash_bytes = pbkdf2_hmac("sha256", password_bytes, salt_bytes, NUM_ITERATIONS)
-    password_hash = password_hash_bytes.hex()
-    return password_hash
+    return pbkdf2_hmac("sha256", password_bytes, salt, NUM_ITERATIONS)
 
 
-def is_valid_password(*, password: str, salt: str, password_hash: str) -> bool:
+def is_valid_password(*, password: str, salt: bytes, password_hash: bytes) -> bool:
     """
     Determines whether the password is valid by salting and hashing the password
     and comparing against the existing hash value.
 
     Args:
         password (str): the password to validate
-        salt (str): the salt to use
-        password_hash (str): the hash to compare against
+        salt (bytes): the salt to use, must not be zero-length
+        password_hash (bytes): the hash to compare against
     Returns:
         bool: True if the password is valid, False otherwise
     """
+    assert salt
     return password_hash == compute_password_hash(password=password, salt=salt)
 
 
@@ -124,7 +123,8 @@ class _PasswordRequirements:
         raise ValueError(err_text)
 
 
-"""The name of the header for token-based authentication"""
+DEFAULT_SECRET_LENGTH = 32
+"""The default length of a secret key in bytes."""
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
 """The regular expression pattern for a valid email address."""
 NUM_ITERATIONS = 10_000
@@ -133,7 +133,7 @@ MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
 PASSWORD_REQUIREMENTS = _PasswordRequirements(MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
-REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32)
+REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(DEFAULT_SECRET_LENGTH)
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""

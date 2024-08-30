@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
+from functools import partial
 
 import strawberry
 from sqlalchemy import delete, select
@@ -54,12 +55,15 @@ class AuthMutationMixin:
                 )
             ) is None or (password_hash := user.password_hash) is None:
                 raise Unauthorized(FAILED_LOGIN_MESSAGE)
-        secret = info.context.get_secret()
+        assert user.password_salt is not None
         loop = asyncio.get_running_loop()
         if not await loop.run_in_executor(
             executor=None,
-            func=lambda: is_valid_password(
-                password=input.password, salt=secret, password_hash=password_hash
+            func=partial(
+                is_valid_password,
+                password=input.password,
+                salt=user.password_salt,
+                password_hash=password_hash,
             ),
         ):
             raise Unauthorized(FAILED_LOGIN_MESSAGE)
