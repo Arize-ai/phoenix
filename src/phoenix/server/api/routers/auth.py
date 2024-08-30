@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
@@ -17,6 +17,7 @@ from phoenix.auth import (
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
@@ -25,7 +26,16 @@ from phoenix.server.types import (
     UserId,
 )
 
-router = APIRouter(prefix="/auth", include_in_schema=False)
+rate_limiter = ServerRateLimiter(
+    per_second_rate_limit=0.2,
+    enforcement_window_seconds=30,
+    partition_seconds=60,
+    active_partitions=2,
+)
+login_rate_limiter = fastapi_rate_limiter(paths=["/login"])
+router = APIRouter(
+    prefix="/auth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
+)
 
 
 @router.post("/login")
