@@ -139,7 +139,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       {!isHosted ? (
         <View paddingBottom="size-100">
           <Text>
-            To configure gRPC and baching, see our{" "}
+            To configure gRPC and batching, see our{" "}
             <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>
               setup guide
             </ExternalLink>
