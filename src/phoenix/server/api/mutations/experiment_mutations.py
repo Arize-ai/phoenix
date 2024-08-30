@@ -11,7 +11,7 @@ from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_n
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import CustomGraphQLError
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
-from phoenix.server.api.mutations.auth import IsAuthenticated
+from phoenix.server.api.mutations.auth import IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -25,7 +25,7 @@ class ExperimentMutationPayload:
 
 @strawberry.type
 class ExperimentMutationMixin:
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAuthenticated])  # type: ignore
     async def delete_experiments(
         self,
         info: Info[Context, None],
