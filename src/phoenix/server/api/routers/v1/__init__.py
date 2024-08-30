@@ -42,7 +42,14 @@ async def authentication(request: Request) -> None:
 dependencies = [Depends(prevent_access_in_read_only_mode)]
 if ENABLE_AUTH:
     dependencies.append(
-        Depends(APIKeyHeader(name="Authorization", scheme_name="Bearer", auto_error=False))
+        Depends(
+            APIKeyHeader(
+                name="Authorization",
+                scheme_name="Bearer",
+                auto_error=False,
+                description="Enter `Bearer` followed by a space and then the token.",
+            )
+        )
     )
     dependencies.append(Depends(authentication))
 
