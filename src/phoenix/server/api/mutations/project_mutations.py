@@ -6,9 +6,9 @@ from strawberry.types import Info
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.auth import IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClearProjectInput import ClearProjectInput
-from phoenix.server.api.mutations.auth import IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
