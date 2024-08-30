@@ -1,4 +1,6 @@
 import asyncio
+import secrets
+from functools import partial
 from typing import Optional
 
 import strawberry
@@ -6,7 +8,12 @@ from sqlalchemy import insert, select
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry.types import Info
 
-from phoenix.auth import compute_password_hash, validate_email_format, validate_password_format
+from phoenix.auth import (
+    DEFAULT_SECRET_LENGTH,
+    compute_password_hash,
+    validate_email_format,
+    validate_password_format,
+)
 from phoenix.db import models
 from phoenix.server.api.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
@@ -48,11 +55,11 @@ class UserMutationMixin:
         user_role_id = (
             select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
         )
-        secret = info.context.get_secret()
+        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
         loop = asyncio.get_running_loop()
         password_hash = await loop.run_in_executor(
             executor=None,
-            func=lambda: compute_password_hash(password=password, salt=secret),
+            func=partial(compute_password_hash, password=password, salt=salt),
         )
         try:
             async with info.context.db() as session:
@@ -64,6 +71,7 @@ class UserMutationMixin:
                         email=email,
                         auth_method="LOCAL",
                         password_hash=password_hash,
+                        password_salt=salt,
                         reset_password=True,
                     )
                     .returning(models.User)
