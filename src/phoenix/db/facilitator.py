@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 from functools import partial
 
 from sqlalchemy import (
@@ -13,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 
-from phoenix.auth import compute_password_hash
+from phoenix.auth import DEFAULT_ENTROPY, compute_password_hash
 from phoenix.config import ENABLE_AUTH, PHOENIX_SECRET
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
@@ -107,8 +108,9 @@ async def _ensure_admin_password(session: AsyncSession) -> None:
     hash. If that admin user already has a password hash, this function will do nothing.
     """
     assert PHOENIX_SECRET
+    salt = secrets.token_bytes(DEFAULT_ENTROPY)
+    compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=salt)
     loop = asyncio.get_running_loop()
-    compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=PHOENIX_SECRET)
     hash_ = await loop.run_in_executor(None, compute)
     password_hash = coalesce(models.User.password_hash, hash_)
     first_local_admin = (
@@ -121,6 +123,9 @@ async def _ensure_admin_password(session: AsyncSession) -> None:
     stmt = (
         update(models.User)
         .where(models.User.id == first_local_admin)
-        .values(password_hash=password_hash)
+        .values(
+            password_hash=password_hash,
+            password_salt=salt,
+        )
     )
     await session.execute(stmt)

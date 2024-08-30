@@ -17,6 +17,7 @@ from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
+from phoenix.auth import DEFAULT_ENTROPY
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from typing_extensions import TypeAlias
 
@@ -55,7 +56,7 @@ class TestUsers:
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
-        password = secret if use_secret else secrets.token_hex(32)
+        password = secret if use_secret else secrets.token_hex(DEFAULT_ENTROPY)
         with expectation:
             with login(email, password) as token:
                 create_system_api_key(fake.unique.pystr(), None, token)
@@ -83,7 +84,7 @@ class TestUsers:
         profile = fake.simple_profile()
         email = cast(str, profile["mail"])
         username = cast(str, profile["username"])
-        password = secrets.token_hex(32)
+        password = secrets.token_hex(DEFAULT_ENTROPY)
         with login(admin_email, secret) as token:
             create_user(email, username, password, role, token)
         with login(email, password) as token:
@@ -93,7 +94,7 @@ class TestUsers:
                 _profile = fake.simple_profile()
                 _email = cast(str, _profile["mail"])
                 _username = cast(str, _profile["username"])
-                _password = secrets.token_hex(32)
+                _password = secrets.token_hex(DEFAULT_ENTROPY)
                 with expectation:
                     create_user(_email, _username, _password, _role, token)
 
