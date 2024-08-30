@@ -3,13 +3,12 @@ from typing import Any, Awaitable, Callable, Optional, Tuple
 
 import grpc
 from grpc_interceptor import AsyncServerInterceptor
-from grpc_interceptor.exceptions import PermissionDenied, Unauthenticated
+from grpc_interceptor.exceptions import Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
 from starlette.requests import HTTPConnection
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     CanReadToken,
     ClaimSetStatus,
     Token,
@@ -34,14 +33,14 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
                 return None
         elif access_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
             token = access_token
-        elif refresh_token := conn.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME):
-            token = refresh_token
         else:
             return None
         claims = await self._token_store.read(Token(token))
-        if isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId):
-            return AuthCredentials(), PhoenixUser(claims.subject, claims)
-        return None
+        if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
+            return None
+        if not isinstance(claims, (ApiKeyClaims, AccessTokenClaims)):
+            return None
+        return AuthCredentials(), PhoenixUser(claims.subject, claims)
 
 
 class PhoenixUser(BaseUser):
@@ -71,12 +70,14 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                 scheme, _, token = datum.value.partition(" ")
                 if scheme.lower() != "bearer" or not token:
                     break
-                claim = await self._token_store.read(Token(token))
-                if not isinstance(claim, (AccessTokenClaims, ApiKeyClaims)):
+                claims = await self._token_store.read(Token(token))
+                if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
                     break
-                if claim.status is ClaimSetStatus.VALID and isinstance(claim.subject, UserId):
+                if not isinstance(claims, (ApiKeyClaims, AccessTokenClaims)):
+                    raise Unauthenticated(details="Invalid token")
+                if claims.status is ClaimSetStatus.EXPIRED:
+                    raise Unauthenticated(details="Expired token")
+                if claims.status is ClaimSetStatus.VALID:
                     return await method(request_or_iterator, context)
-                if claim.status is ClaimSetStatus.EXPIRED:
-                    raise PermissionDenied(details="Token has expired")
-                raise PermissionDenied()
+                raise Unauthenticated()
         raise Unauthenticated()

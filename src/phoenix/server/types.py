@@ -172,23 +172,23 @@ class ApiKeyAttributes(UserTokenAttributes):
     description: Optional[str] = None
 
 
-class DbId(str, ABC):
+class _DbId(str, ABC):
     table: Type[models.Base]
 
-    def __new__(cls, id_: int) -> DbId:
+    def __new__(cls, id_: int) -> _DbId:
         assert isinstance(id_, int)
         return super().__new__(cls, f"{cls.table.__name__}:{id_}")
 
     def __int__(self) -> int:
         return int(self.split(":")[1])
 
-    def __deepcopy__(self, memo: Any) -> DbId:
+    def __deepcopy__(self, memo: Any) -> _DbId:
         return self
 
 
-class TokenId(DbId, ABC):
+class TokenId(_DbId, ABC):
     @classmethod
-    def parse(cls, value: str) -> Optional[DbId]:
+    def parse(cls, value: str) -> Optional[TokenId]:
         table_name, _, id_ = value.partition(":")
         if not id_.isnumeric():
             return None
@@ -214,7 +214,7 @@ class ApiKeyId(TokenId):
 
 
 @final
-class UserId(DbId):
+class UserId(_DbId):
     table = models.User
 
 
@@ -249,13 +249,13 @@ class CanRevokeTokens(Protocol):
 class TokenStore(CanReadToken, CanRevokeTokens, Protocol):
     async def create_access_token(
         self,
-        claim: AccessTokenClaims,
+        claims: AccessTokenClaims,
     ) -> Tuple[AccessToken, AccessTokenId]: ...
     async def create_refresh_token(
         self,
-        claim: RefreshTokenClaims,
+        claims: RefreshTokenClaims,
     ) -> Tuple[RefreshToken, RefreshTokenId]: ...
     async def create_api_key(
         self,
-        claim: ApiKeyClaims,
+        claims: ApiKeyClaims,
     ) -> Tuple[ApiKey, ApiKeyId]: ...
