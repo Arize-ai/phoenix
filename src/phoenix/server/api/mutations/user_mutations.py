@@ -12,7 +12,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.mutations.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.types.User import User
-from phoenix.server.api.types.UserRole import UserRole
 
 
 @strawberry.input
@@ -78,7 +77,7 @@ class UserMutationMixin:
                 email=user.email,
                 username=user.username,
                 created_at=user.created_at,
-                role=UserRole(id_attr=user.user_role_id, name=role_name),
+                user_role_id=user.user_role_id,
             )
         )
 

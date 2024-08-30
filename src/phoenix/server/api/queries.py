@@ -106,10 +106,7 @@ class Query:
                     email=user.email,
                     username=user.username,
                     created_at=user.created_at,
-                    role=UserRole(
-                        id_attr=user.role.id,
-                        name=user.role.name,
-                    ),
+                    user_role_id=user.user_role_id,
                 )
                 async for user in users
             ]

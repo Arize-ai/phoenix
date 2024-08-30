@@ -30,6 +30,8 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceRowIdsDataLoader,
+    UserRolesDataLoader,
+    UsersDataLoader,
 )
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory, TokenStore
@@ -59,6 +61,8 @@ class DataLoaders:
     token_counts: TokenCountDataLoader
     trace_row_ids: TraceRowIdsDataLoader
     project_by_name: ProjectByNameDataLoader
+    users: UsersDataLoader
+    user_roles: UserRolesDataLoader
 
 
 class _NoOp:
