@@ -9,7 +9,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     Optional,
     Protocol,
     Tuple,
@@ -89,7 +88,6 @@ def app(
         yield
 
 
-Role: TypeAlias = Literal["MEMBER", "ADMIN"]
 UserName: TypeAlias = str
 Email: TypeAlias = str
 Password: TypeAlias = str
