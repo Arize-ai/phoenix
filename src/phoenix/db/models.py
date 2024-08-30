@@ -648,7 +648,7 @@ class User(Base):
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     access_tokens: Mapped[List["AccessToken"]] = relationship("AccessToken", back_populates="user")
-    refresh_tokens: Mapped[List["AccessToken"]] = relationship(
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
         "RefreshToken", back_populates="user"
     )
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
