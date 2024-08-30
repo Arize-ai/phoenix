@@ -1,7 +1,8 @@
+import re
 import time
 from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Coroutine, DefaultDict, List, Optional
+from typing import Any, Callable, Coroutine, DefaultDict, List, Optional, Union
 
 from fastapi import HTTPException, Request
 
@@ -137,10 +138,10 @@ class ServerRateLimiter:
 
 
 def fastapi_rate_limiter(
-    rate_limiter: ServerRateLimiter, paths: Optional[List[str]] = None
+    rate_limiter: ServerRateLimiter, paths: Optional[List[Union[str, re.Pattern]]] = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
-        if paths is None or request.url.path in paths:
+        if paths is None or any(path_match(request.url.path, path) for path in paths):
             client = request.client
             if client:  # bypasses rate limiter if no client
                 client_ip = client.host
@@ -151,3 +152,9 @@ def fastapi_rate_limiter(
         return request
 
     return dependency
+
+
+def path_match(path: str, match_pattern: Union[str, re.Pattern]) -> bool:
+    if isinstance(match_pattern, str):
+        return path == match_pattern
+    return re.match(match_pattern, path) is not None
