@@ -26,6 +26,8 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_URL,
     ENV_PHOENIX_WORKING_DIR,
     get_base_url,
+    get_env_database_connection_str,
+    get_env_database_schema,
     get_env_grpc_port,
     get_env_host,
 )
@@ -219,7 +221,7 @@ def start_span(
 
 @pytest.fixture(scope="session")
 def httpx_client() -> httpx.Client:
-    # Having no timeout is useful when stepping through the debugger.
+    # Having no timeout is useful when stepping through the debugger on the server side.
     return httpx.Client(timeout=None)
 
 
@@ -227,6 +229,9 @@ def httpx_client() -> httpx.Client:
 def server() -> Callable[[], ContextManager[None]]:
     @contextmanager
     def _() -> Iterator[None]:
+        if get_env_database_connection_str().startswith("postgresql"):
+            # double-check for safety
+            assert get_env_database_schema()
         command = f"{sys.executable} -m phoenix.server.main serve"
         process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
         log: List[str] = []
