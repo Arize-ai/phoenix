@@ -7,7 +7,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 
 from .ApiKey import ApiKey
-from .User import User, to_gql_User
+from .User import User, to_gql_user
 
 
 @strawberry.type
@@ -20,4 +20,4 @@ class UserApiKey(ApiKey, Node):
         user = await info.context.data_loaders.users.load(self.user_id)
         if user is None:
             raise NotFound(f"User with id {self.user_id} not found")
-        return to_gql_User(user)
+        return to_gql_user(user)

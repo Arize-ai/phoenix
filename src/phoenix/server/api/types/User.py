@@ -29,7 +29,7 @@ class User(Node):
         return to_gql_user_role(role)
 
 
-def to_gql_User(user: models.User) -> User:
+def to_gql_user(user: models.User) -> User:
     """
     Converts an ORM user to a GraphQL user.
     """
