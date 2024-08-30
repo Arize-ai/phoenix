@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.security import APIKeyHeader
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from phoenix.auth import ClaimSetStatus
@@ -40,6 +41,9 @@ async def authentication(request: Request) -> None:
 
 dependencies = [Depends(prevent_access_in_read_only_mode)]
 if ENABLE_AUTH:
+    dependencies.append(
+        Depends(APIKeyHeader(name="Authorization", scheme_name="Bearer", auto_error=False))
+    )
     dependencies.append(Depends(authentication))
 
 router = APIRouter(
