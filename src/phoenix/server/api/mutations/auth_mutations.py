@@ -64,20 +64,27 @@ class AuthMutationMixin:
         ):
             raise Unauthorized(FAILED_LOGIN_MESSAGE)
         issued_at = datetime.now(timezone.utc)
-        access_token_claims = AccessTokenClaims(
-            subject=UserId(user.id),
-            issued_at=issued_at,
-            expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
-            attributes=AccessTokenAttributes(user_role=enums.UserRole(user.role.name)),
-        )
         refresh_token_claims = RefreshTokenClaims(
             subject=UserId(user.id),
             issued_at=issued_at,
             expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
-            attributes=RefreshTokenAttributes(user_role=enums.UserRole(user.role.name)),
+            attributes=RefreshTokenAttributes(
+                user_role=enums.UserRole(user.role.name),
+            ),
+        )
+        refresh_token, refresh_token_id = await token_store.create_refresh_token(
+            refresh_token_claims
+        )
+        access_token_claims = AccessTokenClaims(
+            subject=UserId(user.id),
+            issued_at=issued_at,
+            expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+            attributes=AccessTokenAttributes(
+                user_role=enums.UserRole(user.role.name),
+                refresh_token_id=refresh_token_id,
+            ),
         )
         access_token, _ = await token_store.create_access_token(access_token_claims)
-        refresh_token, _ = await token_store.create_refresh_token(refresh_token_claims)
         response = info.context.get_response()
         response.set_cookie(
             key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,

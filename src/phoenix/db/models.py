@@ -629,7 +629,7 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_role_id: Mapped[int] = mapped_column(
-        ForeignKey("user_roles.id"),
+        ForeignKey("user_roles.id", ondelete="CASCADE"),
         index=True,
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
@@ -655,25 +655,38 @@ class User(Base):
 class AccessToken(Base):
     __tablename__ = "access_tokens"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
     user: Mapped["User"] = relationship("User", back_populates="access_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    refresh_token_id: Mapped[int] = mapped_column(
+        ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
+        index=True,
+    )
 
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
     user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
 
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
     user: Mapped["User"] = relationship("User", back_populates="api_keys")
     name: Mapped[str]
     description: Mapped[Optional[str]]

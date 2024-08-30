@@ -9,19 +9,19 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.bearer_auth import PhoenixUser
 
 
-class _Security(BasePermission, ABC):
+class Authorization(BasePermission, ABC):
     def on_unauthorized(self) -> None:
         raise Unauthorized(self.message)
 
 
-class IsNotReadOnly(_Security):
+class IsNotReadOnly(Authorization):
     message = "Application is read-only"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         return not info.context.read_only
 
 
-class IsAuthenticated(_Security):
+class IsAuthenticated(Authorization):
     message = "User is not authenticated"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
@@ -34,7 +34,7 @@ class IsAuthenticated(_Security):
         return isinstance(user, PhoenixUser) and user.is_authenticated
 
 
-class IsAdmin(_Security):
+class IsAdmin(Authorization):
     message = "Only admin can perform this action"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:

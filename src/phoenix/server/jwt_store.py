@@ -5,10 +5,10 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from functools import cached_property
-from typing import Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 import jwt
-from sqlalchemy import Select, delete, insert, select
+from sqlalchemy import Select, delete, select
 
 from phoenix.auth import (
     JWT_ALGORITHM,
@@ -156,6 +156,8 @@ class _Claims(Generic[_TokenIdT, _ClaimSetT]):
 
 class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], ABC):
     _table: Type[_TokenTableT]
+    _token_id: Callable[[int], _TokenIdT]
+    _token: Callable[[str], _TokenT]
 
     def __init__(
         self,
@@ -183,6 +185,8 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
         return self._claims.get(token_id)
 
     async def revoke(self, *token_ids: _TokenIdT) -> None:
+        if not token_ids:
+            return
         for token_id in token_ids:
             self._claims.pop(token_id, None)
         stmt = delete(self._table).where(self._table.id.in_(map(int, token_ids)))
@@ -190,14 +194,20 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
             await session.execute(stmt)
 
     @abstractmethod
-    async def create(self, claim: _ClaimSetT) -> Tuple[_TokenT, _TokenIdT]: ...
+    def _from_db(self, record: _TokenTableT, role: UserRole) -> Tuple[_TokenIdT, _ClaimSetT]: ...
 
     @abstractmethod
-    def _claim_set_factory(
-        self,
-        token_record: _TokenTableT,
-        user_role: UserRole,
-    ) -> Tuple[_TokenIdT, _ClaimSetT]: ...
+    def _to_db(self, claims: _ClaimSetT) -> _TokenTableT: ...
+
+    async def create(self, claim: _ClaimSetT) -> Tuple[_TokenT, _TokenIdT]:
+        record = self._to_db(claim)
+        async with self._db() as session:
+            session.add(record)
+            await session.flush()
+        token_id = self._token_id(record.id)
+        claim = replace(claim, token_id=token_id)
+        self._claims[token_id] = claim
+        return self._token(self._encode(claim)), token_id
 
     async def _update(self) -> None:
         claims: _Claims[_TokenIdT, _ClaimSetT] = _Claims()
@@ -206,7 +216,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
                 await self._delete_expired_tokens(session)
             async with session.begin_nested():
                 async for token_record, user_role in await session.stream(self._update_stmt):
-                    token_id, claim_set = self._claim_set_factory(token_record, UserRole(user_role))
+                    token_id, claim_set = self._from_db(token_record, UserRole(user_role))
                     claims[token_id] = claim_set
         self._claims = claims
 
@@ -241,53 +251,39 @@ class AccessTokenStore(
     ]
 ):
     _table = models.AccessToken
+    _token_id = AccessTokenId
+    _token = AccessToken
 
-    def _claim_set_factory(
+    def _from_db(
         self,
-        token: models.AccessToken,
+        record: models.AccessToken,
         user_role: UserRole,
     ) -> Tuple[AccessTokenId, AccessTokenClaims]:
-        token_id = AccessTokenId(token.id)
+        token_id = AccessTokenId(record.id)
+        refresh_token_id = RefreshTokenId(record.refresh_token_id)
         return token_id, AccessTokenClaims(
             token_id=token_id,
-            subject=UserId(token.user_id),
-            issued_at=token.created_at,
-            expiration_time=token.expires_at,
+            subject=UserId(record.user_id),
+            issued_at=record.created_at,
+            expiration_time=record.expires_at,
             attributes=AccessTokenAttributes(
                 user_role=user_role,
+                refresh_token_id=refresh_token_id,
             ),
         )
 
-    async def create(
-        self,
-        claim: AccessTokenClaims,
-    ) -> Tuple[AccessToken, AccessTokenId]:
+    def _to_db(self, claim: AccessTokenClaims) -> models.AccessToken:
         assert claim.expiration_time
         assert claim.subject
         user_id = int(claim.subject)
-        async with self._db() as session:
-            access_token = await session.scalar(
-                insert(models.AccessToken)
-                .values(
-                    user_id=user_id,
-                    created_at=claim.issued_at,
-                    expires_at=claim.expiration_time,
-                )
-                .returning(models.AccessToken)
-            )
-        assert access_token
-        token_id = AccessTokenId(access_token.id)
-        claim = replace(claim, token_id=token_id)
-        self._claims[token_id] = claim
-        token = AccessToken(self._encode(claim))
-        return token, token_id
-
-    async def revoke(self, *token_ids: AccessTokenId) -> None:
-        for token_id in token_ids:
-            self._claims.pop(token_id, None)
-        stmt = delete(models.AccessToken).where(models.AccessToken.id.in_(map(int, token_ids)))
-        async with self._db() as session:
-            await session.execute(stmt)
+        assert claim.attributes
+        refresh_token_id = int(claim.attributes.refresh_token_id)
+        return models.AccessToken(
+            user_id=user_id,
+            created_at=claim.issued_at,
+            expires_at=claim.expiration_time,
+            refresh_token_id=refresh_token_id,
+        )
 
 
 class RefreshTokenStore(
@@ -299,46 +295,34 @@ class RefreshTokenStore(
     ]
 ):
     _table = models.RefreshToken
+    _token_id = RefreshTokenId
+    _token = RefreshToken
 
-    def _claim_set_factory(
+    def _from_db(
         self,
-        token: models.RefreshToken,
+        record: models.RefreshToken,
         user_role: UserRole,
     ) -> Tuple[RefreshTokenId, RefreshTokenClaims]:
-        token_id = RefreshTokenId(token.id)
+        token_id = RefreshTokenId(record.id)
         return token_id, RefreshTokenClaims(
             token_id=token_id,
-            subject=UserId(token.user_id),
-            issued_at=token.created_at,
-            expiration_time=token.expires_at,
+            subject=UserId(record.user_id),
+            issued_at=record.created_at,
+            expiration_time=record.expires_at,
             attributes=RefreshTokenAttributes(
                 user_role=user_role,
             ),
         )
 
-    async def create(
-        self,
-        claim: RefreshTokenClaims,
-    ) -> Tuple[RefreshToken, RefreshTokenId]:
-        assert claim.expiration_time
-        assert claim.subject
-        user_id = int(claim.subject)
-        async with self._db() as session:
-            access_token = await session.scalar(
-                insert(models.RefreshToken)
-                .values(
-                    user_id=user_id,
-                    created_at=claim.issued_at,
-                    expires_at=claim.expiration_time,
-                )
-                .returning(models.RefreshToken)
-            )
-        assert access_token
-        token_id = RefreshTokenId(access_token.id)
-        claim = replace(claim, token_id=token_id)
-        token = RefreshToken(self._encode(claim))
-        self._claims[token_id] = claim
-        return token, token_id
+    def _to_db(self, claims: RefreshTokenClaims) -> models.RefreshToken:
+        assert claims.expiration_time
+        assert claims.subject
+        user_id = int(claims.subject)
+        return models.RefreshToken(
+            user_id=user_id,
+            created_at=claims.issued_at,
+            expires_at=claims.expiration_time,
+        )
 
 
 class ApiKeyStore(
@@ -350,48 +334,36 @@ class ApiKeyStore(
     ]
 ):
     _table = models.ApiKey
+    _token_id = ApiKeyId
+    _token = ApiKey
 
-    def _claim_set_factory(
+    def _from_db(
         self,
-        token: models.ApiKey,
+        record: models.ApiKey,
         user_role: UserRole,
     ) -> Tuple[ApiKeyId, ApiKeyClaims]:
-        token_id = ApiKeyId(token.id)
+        token_id = ApiKeyId(record.id)
         return token_id, ApiKeyClaims(
             token_id=token_id,
-            subject=UserId(token.user_id),
-            issued_at=token.created_at,
-            expiration_time=token.expires_at,
+            subject=UserId(record.user_id),
+            issued_at=record.created_at,
+            expiration_time=record.expires_at,
             attributes=ApiKeyAttributes(
                 user_role=user_role,
-                name=token.name,
-                description=token.description,
+                name=record.name,
+                description=record.description,
             ),
         )
 
-    async def create(
-        self,
-        claim: ApiKeyClaims,
-    ) -> Tuple[ApiKey, ApiKeyId]:
-        assert claim.attributes
-        assert claim.attributes.name
-        assert claim.subject
-        user_id = int(claim.subject)
-        async with self._db() as session:
-            api_key = await session.scalar(
-                insert(models.ApiKey)
-                .values(
-                    user_id=user_id,
-                    name=claim.attributes.name,
-                    description=claim.attributes.description or None,
-                    created_at=claim.issued_at,
-                    expires_at=claim.expiration_time or None,
-                )
-                .returning(models.ApiKey)
-            )
-        assert api_key
-        token_id = ApiKeyId(api_key.id)
-        claim = replace(claim, token_id=token_id)
-        token = ApiKey(self._encode(claim))
-        self._claims[token_id] = claim
-        return token, token_id
+    def _to_db(self, claims: ApiKeyClaims) -> models.ApiKey:
+        assert claims.attributes
+        assert claims.attributes.name
+        assert claims.subject
+        user_id = int(claims.subject)
+        return models.ApiKey(
+            user_id=user_id,
+            name=claims.attributes.name,
+            description=claims.attributes.description or None,
+            created_at=claims.issued_at,
+            expires_at=claims.expiration_time or None,
+        )

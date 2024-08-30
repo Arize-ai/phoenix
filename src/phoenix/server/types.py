@@ -158,16 +158,17 @@ class UserTokenAttributes(TokenAttributes):
 
 
 @dataclass(frozen=True)
-class AccessTokenAttributes(UserTokenAttributes): ...
-
-
-@dataclass(frozen=True)
 class RefreshTokenAttributes(UserTokenAttributes): ...
 
 
 @dataclass(frozen=True)
+class AccessTokenAttributes(UserTokenAttributes):
+    refresh_token_id: RefreshTokenId
+
+
+@dataclass(frozen=True)
 class ApiKeyAttributes(UserTokenAttributes):
-    name: Optional[str] = None
+    name: str
     description: Optional[str] = None
 
 

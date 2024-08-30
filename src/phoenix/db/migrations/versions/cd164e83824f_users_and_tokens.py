@@ -78,7 +78,8 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), index=True),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
+        sa.Column("refresh_token_id", sa.Integer, sa.ForeignKey("refresh_tokens.id"), index=True),
     )
     op.create_table(
         "refresh_tokens",
@@ -90,7 +91,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), index=True),
+        sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
     )
     op.create_table(
         "api_keys",
