@@ -1,20 +1,19 @@
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Optional
 
-import jwt
 import strawberry
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated
+from phoenix.server.api.mutations.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
+from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
 
 
 @strawberry.type
@@ -44,51 +43,50 @@ class DeleteSystemApiKeyMutationPayload:
 
 @strawberry.type
 class ApiKeyMutationMixin:
-    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[
+            IsNotReadOnly,
+            HasSecret,
+            IsAuthenticated,
+            IsAdmin,
+        ]
+    )  # type: ignore
     async def create_system_api_key(
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
-        # TODO(auth): safe guard against auth being disabled and secret not being set
+        assert (token_store := info.context.token_store) is not None
+        user_role = enums.UserRole.SYSTEM
         async with info.context.db() as session:
             # Get the system user - note this could be pushed into a dataloader
             system_user = await session.scalar(
                 select(models.User)
                 .join(models.UserRole)  # Join User with UserRole
-                .where(models.UserRole.name == "SYSTEM")  # Filter where role is SYSTEM
+                .where(models.UserRole.name == user_role.value)  # Filter where role is SYSTEM
+                .order_by(models.User.id)
                 .limit(1)
             )
             if system_user is None:
                 raise ValueError("System user not found")
-
-            insert_stmt = (
-                insert(models.APIKey)
-                .values(
-                    user_id=system_user.id,
-                    name=input.name,
-                    description=input.description or None,
-                    expires_at=input.expires_at or None,
-                )
-                .returning(models.APIKey)
-            )
-            api_key = await session.scalar(insert_stmt)
-            assert api_key is not None
-
-        encoded_jwt = create_jwt(
-            secret=info.context.get_secret(),
-            name=api_key.name,
-            id=api_key.id,
-            description=api_key.description,
-            iat=api_key.created_at,
-            exp=api_key.expires_at,
+        issued_at = datetime.now(timezone.utc)
+        claims = ApiKeyClaims(
+            subject=UserId(system_user.id),
+            issued_at=issued_at,
+            expiration_time=input.expires_at or None,
+            attributes=ApiKeyAttributes(
+                user_role=user_role,
+                name=input.name,
+                description=input.description,
+            ),
         )
+        token, token_id = await token_store.create_api_key(claims)
         return CreateSystemApiKeyMutationPayload(
-            jwt=encoded_jwt,
+            jwt=token,
             api_key=SystemApiKey(
-                id_attr=api_key.id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
+                id_attr=int(token_id),
+                name=input.name,
+                description=input.description or None,
+                created_at=issued_at,
+                expires_at=input.expires_at or None,
             ),
             query=Query(),
         )
@@ -97,53 +95,9 @@ class ApiKeyMutationMixin:
     async def delete_system_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteSystemApiKeyMutationPayload:
+        assert (token_store := info.context.token_store) is not None
         api_key_id = from_global_id_with_expected_type(
             input.id, expected_type_name=SystemApiKey.__name__
         )
-        async with info.context.db() as session:
-            api_key = await session.get(models.APIKey, api_key_id)
-            if api_key is None:
-                raise NotFound(f"Unknown System API Key: {input.id}")
-
-            await session.delete(api_key)
-
+        await token_store.revoke(ApiKeyId(api_key_id))
         return DeleteSystemApiKeyMutationPayload(id=input.id, query=Query())
-
-
-def create_jwt(
-    *,
-    secret: str,
-    algorithm: str = "HS256",
-    name: str,
-    description: Optional[str],
-    iat: datetime,
-    exp: Optional[datetime],
-    id: int,
-) -> str:
-    """Create a signed JSON Web Token for authentication
-
-    Args:
-        secret (str): the secret to sign with
-        name (str): name of the key / token
-        description (Optional[str]): description of the token
-        iat (datetime): the issued at time
-        exp (Optional[datetime]): the expiry, if set
-        id (int): the id of the key
-        algorithm (str, optional): the algorithm to use. Defaults to "HS256".
-
-    Returns:
-        str: The encoded JWT
-    """
-    payload: Dict[str, Any] = {
-        "name": name,
-        "description": description,
-        "iat": iat.utcnow(),
-        "id": id,
-    }
-    if exp is not None:
-        payload["exp"] = exp.utcnow()
-
-    # Encode the payload to create the JWT
-    token = jwt.encode(payload, secret, algorithm=algorithm)
-
-    return token
