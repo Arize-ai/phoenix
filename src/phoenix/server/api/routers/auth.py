@@ -10,6 +10,7 @@ from phoenix.auth import (
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_MAX_AGE,
     Token,
+    is_valid_password,
     set_access_token_cookie,
     set_refresh_token_cookie,
 )
@@ -25,6 +26,59 @@ from phoenix.server.types import (
 )
 
 router = APIRouter(prefix="/auth", include_in_schema=False)
+
+
+@router.post("/login")
+async def login(request: Request) -> Response:
+    data = await request.json()
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not password:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Email and password required")
+
+    async with request.app.state.db() as session:
+        user = await session.scalar(
+            select(OrmUser).where(OrmUser.email == email).options(joinedload(OrmUser.role))
+        )
+        if user is None or user.password_hash is None:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+            )
+
+    assert user.password_salt is not None
+    if not await is_valid_password(
+        password=password,
+        salt=user.password_salt,
+        password_hash=user.password_hash,
+    ):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    issued_at = datetime.now(timezone.utc)
+    refresh_token_claims = RefreshTokenClaims(
+        subject=UserId(user.id),
+        issued_at=issued_at,
+        expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        attributes=RefreshTokenAttributes(
+            user_role=UserRole(user.role.name),
+        ),
+    )
+    token_store: JwtStore = request.app.state.get_token_store()
+    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
+    access_token_claims = AccessTokenClaims(
+        subject=UserId(user.id),
+        issued_at=issued_at,
+        expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        attributes=AccessTokenAttributes(
+            user_role=UserRole(user.role.name),
+            refresh_token_id=refresh_token_id,
+        ),
+    )
+    access_token, _ = await token_store.create_access_token(access_token_claims)
+    response = Response()
+    response = set_access_token_cookie(response, access_token)
+    response = set_refresh_token_cookie(response, refresh_token)
+    return response
 
 
 @router.post("/refresh")
