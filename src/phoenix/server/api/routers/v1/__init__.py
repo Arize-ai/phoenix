@@ -28,15 +28,7 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
-async def authorization(request: Request) -> None:
-    """
-    Authorize the claim in the request.
-
-    Args:
-        request: The incoming request.
-    Returns:
-        None
-    """
+async def authentication(request: Request) -> None:
     if not isinstance((user := request.user), PhoenixUser):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
     claims = user.claims
@@ -48,7 +40,7 @@ async def authorization(request: Request) -> None:
 
 dependencies = [Depends(prevent_access_in_read_only_mode)]
 if ENABLE_AUTH:
-    dependencies.append(Depends(authorization))
+    dependencies.append(Depends(authentication))
 
 router = APIRouter(
     prefix="/v1",
