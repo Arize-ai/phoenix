@@ -6,11 +6,11 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
-from phoenix.server.api.mutations.auth import IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation

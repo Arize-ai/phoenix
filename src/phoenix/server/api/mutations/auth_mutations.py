@@ -14,9 +14,9 @@ from phoenix.auth import (
     is_valid_password,
 )
 from phoenix.db import enums, models
+from phoenix.server.api.auth import HasSecret, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
-from phoenix.server.api.mutations.auth import HasSecret, IsAuthenticated, IsNotReadOnly
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
