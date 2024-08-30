@@ -86,40 +86,42 @@ class _PasswordRequirements:
     upper_case: bool = False
     lower_case: bool = False
 
-    def validate(self, password: str) -> None:
+    def validate(self, string: str, err_msg_subject: str = "Password") -> None:
         """
         Validates the password against the requirements.
 
         Args:
-            password (str): the password to validate
+            string (str): the password to validate
+            err_msg_subject (str, optional): the subject of the error message,
+                defaults to "Password"
         Returns:
             None
         Raises:
             ValueError: if the password does not meet the requirements
         """
-        if not password:
-            raise ValueError("Password must be non-empty")
-        if any(char.isspace() for char in password):
-            raise ValueError("Password must not contain whitespace characters")
-        if not password.isascii():
-            raise ValueError("Password must contain only ASCII characters")
+        if not string:
+            raise ValueError(f"{err_msg_subject} must be non-empty")
+        if any(char.isspace() for char in string):
+            raise ValueError(f"{err_msg_subject} must not contain whitespace characters")
+        if not string.isascii():
+            raise ValueError(f"{err_msg_subject} must contain only ASCII characters")
         err_msg = []
-        if len(password) < self.length:
+        if len(string) < self.length:
             err_msg.append(f"must be at least {self.length} characters long")
-        if self.special_chars and not any(char in "!@#$%^&*()_+" for char in password):
+        if self.special_chars and not any(char in "!@#$%^&*()_+" for char in string):
             err_msg.append("at least one special character")
-        if self.digits and not any(char.isdigit() for char in password):
+        if self.digits and not any(char.isdigit() for char in string):
             err_msg.append("at least one digit")
-        if self.upper_case and not any(char.isupper() for char in password):
+        if self.upper_case and not any(char.isupper() for char in string):
             err_msg.append("at least one uppercase letter")
-        if self.lower_case and not any(char.islower() for char in password):
+        if self.lower_case and not any(char.islower() for char in string):
             err_msg.append("at least one lowercase letter")
         if not err_msg:
             return
         if len(err_msg) > 1:
-            err_text = "Password " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
+            err_text = f"{err_msg_subject} " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
         else:
-            err_text = f"Password {err_msg[0]}"
+            err_text = f"{err_msg_subject} {err_msg[0]}"
         raise ValueError(err_text)
 
 
