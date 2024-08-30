@@ -638,7 +638,8 @@ class User(Base):
     auth_method: Mapped[str] = mapped_column(
         CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
     )
-    password_hash: Mapped[Optional[str]]
+    password_hash: Mapped[Optional[bytes]]
+    password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -650,6 +651,9 @@ class User(Base):
         "RefreshToken", back_populates="user"
     )
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    __table_args__ = (
+        CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+    )
 
 
 class AccessToken(Base):
