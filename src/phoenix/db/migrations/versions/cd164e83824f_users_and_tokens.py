@@ -47,7 +47,8 @@ def upgrade() -> None:
             sa.CheckConstraint("auth_method IN ('LOCAL')", "valid_auth_method"),
             nullable=False,
         ),
-        sa.Column("password_hash", sa.String, nullable=True),
+        sa.Column("password_hash", sa.LargeBinary, nullable=True),
+        sa.Column("password_salt", sa.LargeBinary, nullable=True),
         sa.Column("reset_password", sa.Boolean, nullable=False),
         sa.Column(
             "created_at",
@@ -67,6 +68,7 @@ def upgrade() -> None:
             sa.TIMESTAMP(timezone=True),
             nullable=True,
         ),
+        sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
     )
     op.create_table(
         "refresh_tokens",
