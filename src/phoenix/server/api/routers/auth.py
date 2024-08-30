@@ -1,9 +1,11 @@
+import asyncio
 from datetime import datetime, timezone
+from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_MAX_AGE,
@@ -32,7 +34,7 @@ rate_limiter = ServerRateLimiter(
     partition_seconds=60,
     active_partitions=2,
 )
-login_rate_limiter = fastapi_rate_limiter(paths=["/login"])
+login_rate_limiter = fastapi_rate_limiter(rate_limiter, paths=["/login"])
 router = APIRouter(
     prefix="/auth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
 )
@@ -51,18 +53,19 @@ async def login(request: Request) -> Response:
         user = await session.scalar(
             select(OrmUser).where(OrmUser.email == email).options(joinedload(OrmUser.role))
         )
-        if user is None or user.password_hash is None:
-            raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
-            )
+        if (
+            user is None
+            or (password_hash := user.password_hash) is None
+            or (salt := user.password_salt) is None
+        ):
+            raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
 
-    assert user.password_salt is not None
-    if not await is_valid_password(
-        password=password,
-        salt=user.password_salt,
-        password_hash=user.password_hash,
-    ):
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    loop = asyncio.get_running_loop()
+    password_is_valid = partial(
+        is_valid_password, password=password, salt=salt, password_hash=password_hash
+    )
+    if not await loop.run_in_executor(None, password_is_valid):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
 
     issued_at = datetime.now(timezone.utc)
     refresh_token_claims = RefreshTokenClaims(
@@ -85,7 +88,7 @@ async def login(request: Request) -> Response:
         ),
     )
     access_token, _ = await token_store.create_access_token(access_token_claims)
-    response = Response()
+    response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(response, access_token)
     response = set_refresh_token_cookie(response, refresh_token)
     return response
@@ -137,7 +140,10 @@ async def refresh_tokens(request: Request) -> Response:
         ),
     )
     access_token, _ = await token_store.create_access_token(access_token_claims)
-    response = Response()
+    response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(response, access_token)
     response = set_refresh_token_cookie(response, refresh_token)
     return response
+
+
+LOGIN_FAILED_MESSAGE = "Invalid email or password"

@@ -85,7 +85,7 @@ def _set_token_cookie(
     response: Response, cookie_name: str, cookie_max_age: timedelta, token: str
 ) -> Response:
     response.set_cookie(
-        key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+        key=cookie_name,
         value=token,
         secure=True,
         httponly=True,
