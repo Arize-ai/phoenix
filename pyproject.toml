@@ -40,6 +40,7 @@ dependencies = [
   "wrapt",
   "protobuf>=3.20, <6.0",
   "grpcio",
+  "grpc-interceptor",
   "tqdm",
   "httpx",
   "opentelemetry-sdk",
@@ -102,6 +103,7 @@ dev = [
   "Faker>=26.0.0",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
+  "grpc-interceptor[testing]",
 ]
 evals = []
 experimental = []
@@ -173,6 +175,7 @@ dependencies = [
   "openai>=1.0.0",
   "tenacity",
   "protobuf==3.20",  # version minimum (for tests)
+  "grpc-interceptor[testing]",
   "responses",
   "tiktoken",
   "typing-extensions==4.5.0; python_version=='3.8'",
@@ -259,6 +262,7 @@ addopts = [
   "--doctest-modules",
   "--new-first",
   "--showlocals",
+  "--exitfirst",
 ]
 testpaths = [
   "tests",

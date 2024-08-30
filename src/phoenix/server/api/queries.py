@@ -12,7 +12,7 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
 )
@@ -94,7 +94,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -122,7 +122,7 @@ class Query:
     ) -> List[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
+                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             )
         return [
             UserRole(
@@ -136,10 +136,10 @@ class Query:
     async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
         # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -159,10 +159,10 @@ class Query:
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
         # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == "SYSTEM")
+            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
