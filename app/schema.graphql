@@ -1454,6 +1454,7 @@ type UserApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  user: User!
 }
 
 """A connection to a list of items."""
