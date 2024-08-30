@@ -21,7 +21,7 @@ import httpx
 import pytest
 from _pytest.fixtures import SubRequest
 from faker import Faker
-from phoenix.auth import DEFAULT_ENTROPY, PHOENIX_ACCESS_TOKEN_COOKIE_NAME
+from phoenix.auth import DEFAULT_SECRET_LENGTH, PHOENIX_ACCESS_TOKEN_COOKIE_NAME
 from phoenix.config import (
     ENV_PHOENIX_ENABLE_AUTH,
     ENV_PHOENIX_SECRET,
@@ -44,7 +44,7 @@ class GetGqlSpans(Protocol):
 
 @pytest.fixture(scope="class")
 def secret(fake: Faker) -> str:
-    return secrets.token_hex(DEFAULT_ENTROPY)
+    return secrets.token_hex(DEFAULT_SECRET_LENGTH)
 
 
 @pytest.fixture(autouse=True, scope="class")

@@ -123,8 +123,8 @@ class _PasswordRequirements:
         raise ValueError(err_text)
 
 
-DEFAULT_ENTROPY = 32
-"""The default entropy for generating a secret key."""
+DEFAULT_SECRET_LENGTH = 32
+"""The default length of a secret key in bytes."""
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
 """The regular expression pattern for a valid email address."""
 NUM_ITERATIONS = 10_000
@@ -133,7 +133,7 @@ MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
 PASSWORD_REQUIREMENTS = _PasswordRequirements(MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
-REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(32)
+REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(DEFAULT_SECRET_LENGTH)
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""

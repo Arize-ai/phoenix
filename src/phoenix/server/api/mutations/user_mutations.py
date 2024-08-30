@@ -9,7 +9,7 @@ from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry.types import Info
 
 from phoenix.auth import (
-    DEFAULT_ENTROPY,
+    DEFAULT_SECRET_LENGTH,
     compute_password_hash,
     validate_email_format,
     validate_password_format,
@@ -56,7 +56,7 @@ class UserMutationMixin:
         user_role_id = (
             select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
         )
-        salt = secrets.token_bytes(DEFAULT_ENTROPY)
+        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
         loop = asyncio.get_running_loop()
         password_hash = await loop.run_in_executor(
             executor=None,
