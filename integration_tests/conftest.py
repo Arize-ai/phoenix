@@ -89,7 +89,7 @@ def env(tmp_path_factory: TempPathFactory) -> Iterator[None]:
 
 
 @pytest.fixture(
-    scope="class",
+    scope="session",
     params=[
         pytest.param("sqlite:///:memory:", id="sqlite"),
         pytest.param(

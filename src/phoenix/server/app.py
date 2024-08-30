@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
@@ -58,6 +59,7 @@ from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
+from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
@@ -90,9 +92,11 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
+from phoenix.server.bearer_auth import BearerTokenAuthBackend
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.jwt_store import JwtStore
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -100,6 +104,7 @@ from phoenix.server.types import (
     DaemonTask,
     DbSessionFactory,
     LastUpdatedAt,
+    TokenStore,
 )
 from phoenix.trace.fixtures import (
     TracesFixture,
@@ -283,9 +288,6 @@ class Scaffolder(DaemonTask):
             return
         await self.start()
 
-    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
-        await self.stop()
-
     async def _run(self) -> None:
         """
         Main entry point for Scaffolder.
@@ -374,6 +376,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
@@ -400,6 +403,7 @@ def _lifespan(
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
+                token_store=token_store,
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
@@ -410,6 +414,8 @@ def _lifespan(
                     queue_evaluation=queue_evaluation,
                 )
                 await stack.enter_async_context(scaffolder)
+            if isinstance(token_store, AsyncContextManager):
+                await stack.enter_async_context(token_store)
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -441,6 +447,7 @@ def create_graphql_router(
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     secret: Optional[str] = None,
+    token_store: Optional[TokenStore] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
     """Creates the GraphQL router.
 
@@ -525,6 +532,7 @@ def create_graphql_router(
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
             secret=secret,
+            token_store=token_store,
         )
 
     return GraphQLRouter(
@@ -605,6 +613,7 @@ def create_app(
     logger.info(f"Server umap params: {umap_params}")
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
+    startup_callbacks_list.append(Facilitator(db))
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -619,6 +628,16 @@ def create_app(
     )
     last_updated_at = LastUpdatedAt()
     middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
+    if authentication_enabled and secret:
+        token_store = JwtStore(db, secret)
+        middlewares.append(
+            Middleware(
+                AuthenticationMiddleware,
+                backend=BearerTokenAuthBackend(token_store),
+            )
+        )
+    else:
+        token_store = None
     dml_event_handler = DmlEventHandler(
         db=db,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -668,6 +687,7 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
         secret=secret,
+        token_store=token_store,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -681,6 +701,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
             shutdown_callbacks=shutdown_callbacks_list,

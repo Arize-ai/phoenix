@@ -34,7 +34,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
-from phoenix.config import ENABLE_AUTH, get_env_database_schema
+from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 
 
@@ -620,65 +620,77 @@ class ExperimentRunAnnotation(Base):
     )
 
 
-# todo: unnest the following models when auth is released (https://github.com/Arize-ai/phoenix/issues/4183)
-if ENABLE_AUTH:
+class UserRole(Base):
+    __tablename__ = "user_roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
-    class UserRole(Base):
-        __tablename__ = "user_roles"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        name: Mapped[str] = mapped_column(unique=True)
-        users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
-    class User(Base):
-        __tablename__ = "users"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        user_role_id: Mapped[int] = mapped_column(
-            ForeignKey("user_roles.id"),
-            index=True,
-        )
-        role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
-        username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
-        email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
-        auth_method: Mapped[str] = mapped_column(
-            CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
-        )
-        password_hash: Mapped[Optional[str]]
-        reset_password: Mapped[bool]
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-        updated_at: Mapped[datetime] = mapped_column(
-            UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-        )
-        deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-        api_keys: Mapped[List["APIKey"]] = relationship("APIKey", back_populates="user")
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_role_id: Mapped[int] = mapped_column(
+        ForeignKey("user_roles.id", ondelete="CASCADE"),
+        index=True,
+    )
+    role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
+    username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    auth_method: Mapped[str] = mapped_column(
+        CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
+    )
+    password_hash: Mapped[Optional[str]]
+    reset_password: Mapped[bool]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    access_tokens: Mapped[List["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    refresh_tokens: Mapped[List["AccessToken"]] = relationship(
+        "RefreshToken", back_populates="user"
+    )
+    api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
-    class APIKey(Base):
-        __tablename__ = "api_keys"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        user_id: Mapped[int] = mapped_column(
-            ForeignKey("users.id"),
-            index=True,
-        )
-        user: Mapped["User"] = relationship("User", back_populates="api_keys")
-        name: Mapped[str]
-        description: Mapped[Optional[str]]
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
-    # todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
-    class AuditAPIKey(Base):
-        __tablename__ = "audit_api_keys"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        api_key_id: Mapped[int] = mapped_column(
-            ForeignKey("api_keys.id"),
-            nullable=False,
-            index=True,
-        )
-        user_id: Mapped[int] = mapped_column(
-            ForeignKey("users.id"),
-            nullable=False,
-            index=True,
-        )
-        action: Mapped[str] = mapped_column(
-            CheckConstraint("action IN ('CREATE', 'DELETE')", name="valid_action")
-        )
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+
+
+class AccessToken(Base):
+    __tablename__ = "access_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="access_tokens")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    refresh_token_id: Mapped[int] = mapped_column(
+        ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="api_keys")
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
