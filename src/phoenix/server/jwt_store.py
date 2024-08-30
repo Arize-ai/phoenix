@@ -4,7 +4,7 @@ from asyncio import create_task, gather, sleep
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
-from functools import cached_property
+from functools import cached_property, singledispatchmethod
 from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 import jwt
@@ -80,13 +80,23 @@ class JwtStore:
             return None
         if (token_id := TokenId.parse(jti)) is None:
             return None
-        if isinstance(token_id, AccessTokenId):
-            return await self._access_token_store.get(token_id)
-        if isinstance(token_id, RefreshTokenId):
-            return await self._refresh_token_store.get(token_id)
-        if isinstance(token_id, ApiKeyId):
-            return await self._api_key_store.get(token_id)
+        return await self._get(token_id)
+
+    @singledispatchmethod
+    async def _get(self, _: TokenId) -> Optional[ClaimSet]:
         return None
+
+    @_get.register
+    async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
+        return await self._access_token_store.get(token_id)
+
+    @_get.register
+    async def _(self, token_id: RefreshTokenId) -> Optional[ClaimSet]:
+        return await self._refresh_token_store.get(token_id)
+
+    @_get.register
+    async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
+        return await self._api_key_store.get(token_id)
 
     async def create_access_token(
         self,
@@ -129,7 +139,12 @@ class JwtStore:
 _TokenT = TypeVar("_TokenT", bound=Token)
 _TokenIdT = TypeVar("_TokenIdT", bound=TokenId)
 _ClaimSetT = TypeVar("_ClaimSetT", bound=ClaimSet)
-_TokenTableT = TypeVar("_TokenTableT", models.AccessToken, models.RefreshToken, models.ApiKey)
+_RecordT = TypeVar(
+    "_RecordT",
+    models.AccessToken,
+    models.RefreshToken,
+    models.ApiKey,
+)
 
 
 class _Claims(Generic[_TokenIdT, _ClaimSetT]):
@@ -154,8 +169,8 @@ class _Claims(Generic[_TokenIdT, _ClaimSetT]):
         return deepcopy(claim) if claim else None
 
 
-class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], ABC):
-    _table: Type[_TokenTableT]
+class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC):
+    _table: Type[_RecordT]
     _token_id: Callable[[int], _TokenIdT]
     _token: Callable[[str], _TokenT]
 
@@ -194,10 +209,10 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
             await session.execute(stmt)
 
     @abstractmethod
-    def _from_db(self, record: _TokenTableT, role: UserRole) -> Tuple[_TokenIdT, _ClaimSetT]: ...
+    def _from_db(self, record: _RecordT, role: UserRole) -> Tuple[_TokenIdT, _ClaimSetT]: ...
 
     @abstractmethod
-    def _to_db(self, claims: _ClaimSetT) -> _TokenTableT: ...
+    def _to_db(self, claims: _ClaimSetT) -> _RecordT: ...
 
     async def create(self, claim: _ClaimSetT) -> Tuple[_TokenT, _TokenIdT]:
         record = self._to_db(claim)
@@ -207,7 +222,8 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
         token_id = self._token_id(record.id)
         claim = replace(claim, token_id=token_id)
         self._claims[token_id] = claim
-        return self._token(self._encode(claim)), token_id
+        token = self._token(self._encode(claim))
+        return token, token_id
 
     async def _update(self) -> None:
         claims: _Claims[_TokenIdT, _ClaimSetT] = _Claims()
@@ -215,13 +231,13 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _TokenTableT], 
             async with session.begin_nested():
                 await self._delete_expired_tokens(session)
             async with session.begin_nested():
-                async for token_record, user_role in await session.stream(self._update_stmt):
-                    token_id, claim_set = self._from_db(token_record, UserRole(user_role))
+                async for record, role in await session.stream(self._update_stmt):
+                    token_id, claim_set = self._from_db(record, UserRole(role))
                     claims[token_id] = claim_set
         self._claims = claims
 
     @cached_property
-    def _update_stmt(self) -> Select[Tuple[_TokenTableT, str]]:
+    def _update_stmt(self) -> Select[Tuple[_RecordT, str]]:
         return (
             select(self._table, models.UserRole.name)
             .join_from(self._table, models.User)
