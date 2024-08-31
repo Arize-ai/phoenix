@@ -14,6 +14,7 @@ from typing import (
 import jwt
 import pytest
 from faker import Faker
+from httpx import HTTPStatusError
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
@@ -139,9 +140,9 @@ class TestUsers:
         "email,use_secret,expectation",
         [
             ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(Unauthorized)),
-            ("system@localhost", True, pytest.raises(Unauthorized)),
-            ("admin", True, pytest.raises(Unauthorized)),
+            ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("system@localhost", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
         ],
     )
     def test_admin(

@@ -218,10 +218,11 @@ def log_in(
 ) -> _LogIn:
     @contextmanager
     def _(*, email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
-        args = f'email:"{email}", password:"{password}"'
-        query = "mutation{login(input:{" + args + "})}"
-        resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=dict(query=query))
-        _json(resp)
+        resp = httpx_client.post(
+            urljoin(get_base_url(), "/auth/login"),
+            json={"email": email, "password": password},
+        )
+        resp.raise_for_status()
         assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
         yield access_token, refresh_token
