@@ -138,7 +138,7 @@ class ServerRateLimiter:
 
 
 def fastapi_rate_limiter(
-    rate_limiter: ServerRateLimiter, paths: Optional[List[Union[str, re.Pattern]]] = None
+    rate_limiter: ServerRateLimiter, paths: Optional[List[Union[str, re.Pattern[str]]]] = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
         if paths is None or any(path_match(request.url.path, path) for path in paths):
@@ -154,7 +154,7 @@ def fastapi_rate_limiter(
     return dependency
 
 
-def path_match(path: str, match_pattern: Union[str, re.Pattern]) -> bool:
+def path_match(path: str, match_pattern: Union[str, re.Pattern[str]]) -> bool:
     if isinstance(match_pattern, str):
         return path == match_pattern
     return re.match(match_pattern, path) is not None
