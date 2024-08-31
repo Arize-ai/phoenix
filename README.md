@@ -39,6 +39,7 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
 <img alt="phoenix_overview.gif" width="100%" src="https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/phoenix_overview.gif?raw=true">
+
 ## Installation
 
 Install Phoenix via `pip` or `conda`
