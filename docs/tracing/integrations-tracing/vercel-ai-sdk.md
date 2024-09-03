@@ -1,6 +1,6 @@
 # Vercel AI SDK
 
-# OpenInference Vercel
+## OpenInference Vercel
 
 [![npm version](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel.svg)](https://badge.fury.io/js/@arizeai%2Fopeninference-vercel)
 
@@ -8,7 +8,7 @@ This package provides a set of utilities to ingest [Vercel AI SDK](https://githu
 
 > Note: This package requires you to be using the Vercel AI SDK version 3.3 or higher.
 
-## Installation
+### Installation
 
 ```shell
 npm install --save @arizeai/openinference-vercel
@@ -20,7 +20,7 @@ You will also need to install OpenTelemetry and Vercel packages to your project.
 npm i @opentelemetry/api @vercel/otel @opentelemetry/exporter-trace-otlp-proto @arizeai/openinference-semantic-conventions
 ```
 
-## Usage
+### Usage
 
 `@arizeai/openinference-vercel` provides a set of utilities to help you ingest Vercel AI SDK spans into platforms and works in conjunction with Vercel's OpenTelemetry support. To get started, you will need to add OpenTelemetry support to your Vercel project according to their [guide](https://vercel.com/docs/observability/otel-overview).
 
@@ -82,7 +82,7 @@ const result = await generateText({
 
 For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).
 
-## Examples
+### Examples
 
 To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the examples directory of this repo.
 
