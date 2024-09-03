@@ -13,6 +13,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
+from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
@@ -118,16 +119,18 @@ class ApiKeyMutationMixin:
         self, info: Info[Context, None], input: CreateUserApiKeyInput
     ) -> CreateUserApiKeyMutationPayload:
         assert (token_store := info.context.token_store) is not None
-        user = info.context.request.user
-        if not isinstance(user, PhoenixUser):
-            raise ValueError("User not found or not authenticated")
+        try:
+            user = info.context.request.user  # type: ignore
+            assert isinstance(user, PhoenixUser)
+        except AttributeError:
+            raise ValueError("User not found")
         issued_at = datetime.now(timezone.utc)
         claims = ApiKeyClaims(
             subject=user.identity,
             issued_at=issued_at,
             expiration_time=input.expires_at or None,
             attributes=ApiKeyAttributes(
-                user_role=user.role,
+                user_role=enums.UserRole.MEMBER,
                 name=input.name,
                 description=input.description,
             ),
@@ -141,7 +144,7 @@ class ApiKeyMutationMixin:
                 description=input.description or None,
                 created_at=issued_at,
                 expires_at=input.expires_at or None,
-                user_id=user.id,
+                user_id=int(user.identity),
             ),
             query=Query(),
         )
