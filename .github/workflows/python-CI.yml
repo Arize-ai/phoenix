@@ -2,12 +2,12 @@ name: Python CI
 
 on:
   push:
-    branches: [ main, datasets ]
+    branches: [ main, auth ]
   pull_request:
     paths:
       - "src/**"
       - "tests/**"
-      - "integration_tests/server/**"
+      - "integration_tests/**"
       - "tutorials/**"
       - "pyproject.toml"
       - "packages/**"
@@ -39,7 +39,7 @@ jobs:
             phoenix:
               - "src/**"
               - "tests/**"
-              - "integration_tests/server/**"
+              - "integration_tests/**"
               - "tutorials/**"
               - "pyproject.toml"
             packages:
@@ -150,6 +150,19 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

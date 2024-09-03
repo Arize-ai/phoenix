@@ -1,17 +1,8 @@
-import secrets
 from contextlib import nullcontext
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from typing import (
-    Any,
-    Callable,
-    ContextManager,
-    Dict,
-    Iterator,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import Any, ContextManager, Dict, Iterator, Optional, Protocol, Tuple
 
 import jwt
 import pytest
@@ -19,23 +10,103 @@ from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
-from phoenix.auth import DEFAULT_SECRET_LENGTH
+from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from typing_extensions import TypeAlias
 
-ProjectName: TypeAlias = str
-SpanName: TypeAlias = str
-Headers: TypeAlias = Dict[str, Any]
-Name: TypeAlias = str
-
-UserName: TypeAlias = str
-Email: TypeAlias = str
-Password: TypeAlias = str
-Token: TypeAlias = str
-ApiKey: TypeAlias = str
-GqlId: TypeAlias = str
-
 NOW = datetime.now(timezone.utc)
+
+_ProjectName: TypeAlias = str
+_SpanName: TypeAlias = str
+_Headers: TypeAlias = Dict[str, Any]
+_Name: TypeAlias = str
+
+_UserName: TypeAlias = str
+_Email: TypeAlias = str
+_Password: TypeAlias = str
+_Token: TypeAlias = str
+_AccessToken: TypeAlias = str
+_RefreshToken: TypeAlias = str
+_ApiKey: TypeAlias = str
+_GqlId: TypeAlias = str
+
+
+class _LogIn(Protocol):
+    def __call__(
+        self,
+        *,
+        email: _Email,
+        password: _Password,
+    ) -> ContextManager[Tuple[_AccessToken, _RefreshToken]]: ...
+
+
+class _LogOut(Protocol):
+    def __call__(self, token: _Token, /) -> None: ...
+
+
+class _CreateUser(Protocol):
+    def __call__(
+        self,
+        *,
+        email: _Email,
+        password: _Password,
+        role: UserRoleInput,
+        username: Optional[_UserName] = None,
+        token: Optional[_Token] = None,
+    ) -> _GqlId: ...
+
+
+class _PatchUser(Protocol):
+    def __call__(
+        self,
+        gid: _GqlId,
+        /,
+        *,
+        email: Optional[_Email] = None,
+        username: Optional[_UserName] = None,
+        password: Optional[_Password] = None,
+        role: Optional[UserRoleInput] = None,
+        token: Optional[_Token] = None,
+    ) -> _Token: ...
+
+
+class _CreateSystemApiKey(Protocol):
+    def __call__(
+        self,
+        *,
+        name: _Name,
+        expires_at: Optional[datetime] = None,
+        token: Optional[_Token] = None,
+    ) -> Tuple[_ApiKey, _GqlId]: ...
+
+
+class _DeleteSystemApiKey(Protocol):
+    def __call__(
+        self,
+        gid: _GqlId,
+        /,
+        *,
+        token: Optional[_Token] = None,
+    ) -> None: ...
+
+
+class _SpanExporterFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        headers: Optional[_Headers] = None,
+    ) -> SpanExporter: ...
+
+
+class _StartSpan(Protocol):
+    def __call__(
+        self,
+        *,
+        project_name: _ProjectName,
+        span_name: _SpanName,
+        exporter: SpanExporter,
+    ) -> Span: ...
 
 
 class TestTokens:
@@ -43,11 +114,11 @@ class TestTokens:
         self,
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
+        log_in: _LogIn,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with login(admin_email, secret) as (access_token, refresh_token):
+            with log_in(email=admin_email, password=secret) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -62,62 +133,76 @@ class TestUsers:
         "email,use_secret,expectation",
         [
             ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(AssertionError)),
-            ("system@localhost", True, pytest.raises(AssertionError)),
-            ("admin", True, pytest.raises(AssertionError)),
+            ("admin@localhost", False, pytest.raises(Unauthorized)),
+            ("system@localhost", True, pytest.raises(Unauthorized)),
+            ("admin", True, pytest.raises(Unauthorized)),
         ],
     )
     def test_admin(
         self,
         email: str,
         use_secret: bool,
-        expectation: ContextManager[Optional[AssertionError]],
+        expectation: ContextManager[Optional[Unauthorized]],
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
+        log_in: _LogIn,
+        create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
     ) -> None:
-        password = secret if use_secret else secrets.token_hex(DEFAULT_SECRET_LENGTH)
+        password = (
+            secret
+            if use_secret
+            else fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
+        )
         with expectation:
-            with login(email, password) as (token, _):
-                create_system_api_key(fake.unique.pystr(), None, token)
-            with pytest.raises(AssertionError):
-                create_system_api_key(fake.unique.pystr(), None, token)
+            with log_in(email=email, password=password) as (token, _):
+                create_system_api_key(name=fake.unique.pystr(), token=token)
+            with pytest.raises(Unauthorized):
+                create_system_api_key(name=fake.unique.pystr(), token=token)
 
     @pytest.mark.parametrize(
         "role,expectation",
         [
             (UserRoleInput.ADMIN, nullcontext()),
-            (UserRoleInput.MEMBER, pytest.raises(AssertionError)),
+            (UserRoleInput.MEMBER, pytest.raises(Unauthorized)),
         ],
     )
     def test_create_user(
         self,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[AssertionError]],
+        expectation: ContextManager[Optional[Unauthorized]],
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
-        create_user: Callable[[Email, UserName, Password, UserRoleInput, Token], None],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
+        log_in: _LogIn,
+        create_user: _CreateUser,
+        create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
     ) -> None:
-        profile = fake.simple_profile()
-        email = cast(str, profile["mail"])
-        username = cast(str, profile["username"])
-        password = secrets.token_hex(DEFAULT_SECRET_LENGTH)
-        with login(admin_email, secret) as (token, _):
-            create_user(email, username, password, role, token)
-        with login(email, password) as (token, _):
+        email = fake.unique.email()
+        username = fake.unique.pystr()
+        password = fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
+        with log_in(email=admin_email, password=secret) as (token, _):
+            create_user(
+                email=email,
+                password=password,
+                role=role,
+                username=username,
+                token=token,
+            )
+        with log_in(email=email, password=password) as (token, _):
             with expectation:
-                create_system_api_key(fake.unique.pystr(), None, token)
+                create_system_api_key(name=fake.unique.pystr(), token=token)
             for _role in UserRoleInput:
-                _profile = fake.simple_profile()
-                _email = cast(str, _profile["mail"])
-                _username = cast(str, _profile["username"])
-                _password = secrets.token_hex(DEFAULT_SECRET_LENGTH)
+                _email = fake.unique.email()
+                _username = fake.unique.pystr()
+                _password = fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET))
                 with expectation:
-                    create_user(_email, _username, _password, _role, token)
+                    create_user(
+                        email=_email,
+                        password=_password,
+                        role=_role,
+                        username=_username,
+                        token=token,
+                    )
 
 
 class TestSpanExporters:
@@ -126,9 +211,9 @@ class TestSpanExporters:
         self,
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
-    ) -> Iterator[Token]:
-        with login(admin_email, secret) as (token, _):
+        log_in: _LogIn,
+    ) -> Iterator[_Token]:
+        with log_in(email=admin_email, password=secret) as (token, _):
             yield token
 
     @pytest.mark.parametrize(
@@ -145,26 +230,30 @@ class TestSpanExporters:
         with_headers: bool,
         expires_at: Optional[datetime],
         expected: SpanExportResult,
-        span_exporter: Callable[[Optional[Headers]], SpanExporter],
-        start_span: Callable[[ProjectName, SpanName, SpanExporter], Span],
-        create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
-        delete_system_api_key: Callable[[GqlId, Token], None],
-        token: Token,
+        span_exporter: _SpanExporterFactory,
+        start_span: _StartSpan,
+        create_system_api_key: _CreateSystemApiKey,
+        delete_system_api_key: _DeleteSystemApiKey,
+        token: _Token,
         fake: Faker,
     ) -> None:
         headers: Optional[Dict[str, Any]] = None
-        gid: Optional[GqlId] = None
+        gid: Optional[_GqlId] = None
         if with_headers:
-            system_api_key, gid = create_system_api_key(fake.unique.pystr(), expires_at, token)
+            system_api_key, gid = create_system_api_key(
+                name=fake.unique.pystr(),
+                expires_at=expires_at,
+                token=token,
+            )
             headers = {"authorization": f"Bearer {system_api_key}"}
-        export = span_exporter(headers).export
+        export = span_exporter(headers=headers).export
         project_name, span_name = fake.unique.pystr(), fake.unique.pystr()
         memory = InMemorySpanExporter()
-        start_span(project_name, span_name, memory).end()
+        start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
         spans = memory.get_finished_spans()
         assert len(spans) == 1
         for _ in range(2):
             assert export(spans) is expected
         if gid is not None and expected is SpanExportResult.SUCCESS:
-            delete_system_api_key(gid, token)
+            delete_system_api_key(gid, token=token)
             assert export(spans) is SpanExportResult.FAILURE

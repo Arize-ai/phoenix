@@ -34,6 +34,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
+from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 
 
@@ -99,6 +100,7 @@ class Base(DeclarativeBase):
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
+        schema=get_env_database_schema(),
         naming_convention={
             "ix": "ix_%(table_name)s_%(column_0_N_name)s",
             "uq": "uq_%(table_name)s_%(column_0_N_name)s",

@@ -71,9 +71,9 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox",
-  "tox-uv",
-  "uv",
+  "tox==4.18.0",
+  "tox-uv==1.11.2",
+  "uv==0.4.2",
   "jupyter",
   "nbqa",
   "ruff==0.6.3",
