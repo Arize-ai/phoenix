@@ -13,11 +13,11 @@ import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
 import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
-import { useNotifySuccess } from "@phoenix/contexts";
 
 export function SystemAPIKeysTable({
   query,
