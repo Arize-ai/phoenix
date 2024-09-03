@@ -150,14 +150,9 @@ def get_auth_settings() -> Tuple[bool, Optional[str]]:
     """
     enable_auth = get_env_enable_auth()
     phoenix_secret = get_env_phoenix_secret()
-    if enable_auth:
-        assert phoenix_secret, (
+    if enable_auth and not phoenix_secret:
+        raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
-            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
-        )
-    else:
-        assert not phoenix_secret, (
-            f"`{ENV_PHOENIX_SECRET}` must not be set unless "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     return enable_auth, phoenix_secret
