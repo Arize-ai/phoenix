@@ -1,6 +1,7 @@
 import secrets
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -12,6 +13,7 @@ from typing import (
     cast,
 )
 
+import jwt
 import pytest
 from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -34,6 +36,25 @@ ApiKey: TypeAlias = str
 GqlId: TypeAlias = str
 
 NOW = datetime.now(timezone.utc)
+
+
+class TestTokens:
+    def test_log_in_tokens(
+        self,
+        admin_email: str,
+        secret: str,
+        login: Callable[[Email, Password], ContextManager[Token]],
+    ) -> None:
+        n, access_tokens, refresh_tokens = 2, set(), set()
+        for _ in range(n):
+            with login(admin_email, secret) as (access_token, refresh_token):
+                access_tokens.add(access_token)
+                refresh_tokens.add(refresh_token)
+        assert len(access_tokens) == n
+        assert len(refresh_tokens) == n
+        decode = partial(jwt.decode, options=dict(verify_signature=False))
+        assert len({decode(token)["jti"] for token in access_tokens}) == n
+        assert len({decode(token)["jti"] for token in refresh_tokens}) == n
 
 
 class TestUsers:
