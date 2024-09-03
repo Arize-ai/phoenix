@@ -136,9 +136,9 @@ input CreateTraceAnnotationInput {
 
 input CreateUserInput {
   email: String!
-  username: String
   password: String!
   role: UserRoleInput!
+  username: String
 }
 
 enum DataQualityMetric {
