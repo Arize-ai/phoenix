@@ -7,6 +7,8 @@ import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embed
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
+  AuthenticatedRoot,
+  authenticatedRootLoader,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -23,7 +25,6 @@ import {
   experimentsLoader,
   ExperimentsPage,
   homeLoader,
-  Layout,
   LoginPage,
   ModelPage,
   ModelRoot,
@@ -41,7 +42,7 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
       <Route path="/login" element={<LoginPage />} />
-      <Route element={<Layout />}>
+      <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
         <Route
           path="/profile"
           handle={{ crumb: () => "profile" }}
