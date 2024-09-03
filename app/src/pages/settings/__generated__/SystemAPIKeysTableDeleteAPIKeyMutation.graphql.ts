@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5b5a02a07837727269da806b9949564>>
+ * @generated SignedSource<<1cc107c2acb91803102268e76cf2837d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,18 +12,18 @@ import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type DeleteApiKeyInput = {
   id: string;
 };
-export type DeleteSystemAPIKeyButtonMutation$variables = {
+export type SystemAPIKeysTableDeleteAPIKeyMutation$variables = {
   input: DeleteApiKeyInput;
 };
-export type DeleteSystemAPIKeyButtonMutation$data = {
+export type SystemAPIKeysTableDeleteAPIKeyMutation$data = {
   readonly deleteSystemApiKey: {
     readonly __typename: "DeleteSystemApiKeyMutationPayload";
     readonly id: string;
   };
 };
-export type DeleteSystemAPIKeyButtonMutation = {
-  response: DeleteSystemAPIKeyButtonMutation$data;
-  variables: DeleteSystemAPIKeyButtonMutation$variables;
+export type SystemAPIKeysTableDeleteAPIKeyMutation = {
+  response: SystemAPIKeysTableDeleteAPIKeyMutation$data;
+  variables: SystemAPIKeysTableDeleteAPIKeyMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -72,7 +72,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DeleteSystemAPIKeyButtonMutation",
+    "name": "SystemAPIKeysTableDeleteAPIKeyMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -81,20 +81,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "DeleteSystemAPIKeyButtonMutation",
+    "name": "SystemAPIKeysTableDeleteAPIKeyMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "50908d8736ce33ae7dcbed1f16299d0f",
+    "cacheID": "c65d1d86f282379c1f529a7234b60120",
     "id": null,
     "metadata": {},
-    "name": "DeleteSystemAPIKeyButtonMutation",
+    "name": "SystemAPIKeysTableDeleteAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteSystemAPIKeyButtonMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteSystemApiKey(input: $input) {\n    __typename\n    id\n  }\n}\n"
+    "text": "mutation SystemAPIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteSystemApiKey(input: $input) {\n    __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "69aa0f424589544652508e589882593b";
+(node as any).hash = "5b7f3beaf38ac72be768417e2082c889";
 
 export default node;
