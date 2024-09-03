@@ -1,8 +1,17 @@
 import secrets
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
-from typing import Any, ContextManager, Dict, Optional, Protocol, Tuple
+from functools import partial
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    Optional,
+    Protocol,
+    Tuple,
+)
 
+import jwt
 import pytest
 from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -104,6 +113,25 @@ class _StartSpan(Protocol):
         span_name: _SpanName,
         exporter: SpanExporter,
     ) -> Span: ...
+
+
+class TestTokens:
+    def test_log_in_tokens_should_change(
+        self,
+        admin_email: str,
+        secret: str,
+        log_in: _LogIn,
+    ) -> None:
+        n, access_tokens, refresh_tokens = 2, set(), set()
+        for _ in range(n):
+            with log_in(email=admin_email, password=secret) as (access_token, refresh_token):
+                access_tokens.add(access_token)
+                refresh_tokens.add(refresh_token)
+        assert len(access_tokens) == n
+        assert len(refresh_tokens) == n
+        decode = partial(jwt.decode, options=dict(verify_signature=False))
+        assert len({decode(token)["jti"] for token in access_tokens}) == n
+        assert len({decode(token)["jti"] for token in refresh_tokens}) == n
 
 
 class TestUsers:
