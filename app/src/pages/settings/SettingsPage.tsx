@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 import { Card, Flex, TextField, View } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
@@ -68,8 +69,12 @@ export function SettingsPage() {
               </Flex>
             </form>
           </Card>
-          {authenticationEnabled && <APIKeysCard />}
-          {authenticationEnabled && <UsersCard />}
+          <IsAdmin>
+            <>
+              <APIKeysCard />
+              <UsersCard />
+            </>
+          </IsAdmin>
         </Flex>
       </div>
     </main>
