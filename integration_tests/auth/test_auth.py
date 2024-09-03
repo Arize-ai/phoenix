@@ -43,7 +43,7 @@ class TestTokens:
         self,
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
@@ -73,13 +73,13 @@ class TestUsers:
         use_secret: bool,
         expectation: ContextManager[Optional[AssertionError]],
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
         password = secret if use_secret else secrets.token_hex(DEFAULT_SECRET_LENGTH)
         with expectation:
-            with login(email, password) as token:
+            with login(email, password) as (token, _):
                 create_system_api_key(fake.unique.pystr(), None, token)
             with pytest.raises(AssertionError):
                 create_system_api_key(fake.unique.pystr(), None, token)
@@ -97,7 +97,7 @@ class TestUsers:
         expectation: ContextManager[Optional[AssertionError]],
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
         create_user: Callable[[Email, UserName, Password, UserRoleInput, Token], None],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
@@ -106,9 +106,9 @@ class TestUsers:
         email = cast(str, profile["mail"])
         username = cast(str, profile["username"])
         password = secrets.token_hex(DEFAULT_SECRET_LENGTH)
-        with login(admin_email, secret) as token:
+        with login(admin_email, secret) as (token, _):
             create_user(email, username, password, role, token)
-        with login(email, password) as token:
+        with login(email, password) as (token, _):
             with expectation:
                 create_system_api_key(fake.unique.pystr(), None, token)
             for _role in UserRoleInput:
@@ -126,9 +126,9 @@ class TestSpanExporters:
         self,
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
     ) -> Iterator[Token]:
-        with login(admin_email, secret) as token:
+        with login(admin_email, secret) as (token, _):
             yield token
 
     @pytest.mark.parametrize(

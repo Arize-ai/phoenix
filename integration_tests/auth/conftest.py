@@ -21,7 +21,11 @@ import httpx
 import pytest
 from _pytest.fixtures import SubRequest
 from faker import Faker
-from phoenix.auth import DEFAULT_SECRET_LENGTH, PHOENIX_ACCESS_TOKEN_COOKIE_NAME
+from phoenix.auth import (
+    DEFAULT_SECRET_LENGTH,
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+)
 from phoenix.config import (
     ENV_PHOENIX_ENABLE_AUTH,
     ENV_PHOENIX_SECRET,
@@ -182,18 +186,19 @@ def delete_system_api_key(
 def login(
     httpx_client: httpx.Client,
     logout: Callable[[Token], None],
-) -> Callable[[Email, Password], ContextManager[Token]]:
+) -> Callable[[Email, Password], ContextManager[Tuple[Token, Token]]]:
     @contextmanager
-    def _(email: Email, password: Password) -> Iterator[Token]:
+    def _(email: Email, password: Password) -> Iterator[Tuple[Token, Token]]:
         args = f'email:"{email}", password:"{password}"'
         query = "mutation{login(input:{" + args + "})}"
         resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=dict(query=query))
         resp.raise_for_status()
         assert (resp_dict := resp.json())
         assert not resp_dict.get("errors")
-        assert (token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        yield token
-        logout(token)
+        assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
+        assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
+        yield access_token, refresh_token
+        logout(access_token)
 
     return _
 
