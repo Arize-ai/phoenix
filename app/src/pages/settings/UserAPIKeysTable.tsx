@@ -68,6 +68,7 @@ export function UserAPIKeysTable({
         accessorKey: "expiresAt",
         cell: TimestampCell,
       },
+      // TODO(parker): Do not render this column for non admins once https://github.com/Arize-ai/phoenix/issues/4454 is done
       {
         header: "",
         accessorKey: "id",

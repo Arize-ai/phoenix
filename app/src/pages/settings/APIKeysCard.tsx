@@ -40,6 +40,7 @@ function APIKeysCardContent() {
       <TabPane title="System Keys" name="System Keys">
         <SystemAPIKeysTable query={query} />
       </TabPane>
+      {/* TODO(parker): do not render this table for non admins once  https://github.com/Arize-ai/phoenix/issues/4454 is done*/}
       <TabPane title="User Keys" name="User Keys">
         <UserAPIKeysTable query={query} />
       </TabPane>
