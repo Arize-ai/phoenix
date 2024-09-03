@@ -182,11 +182,11 @@ JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 """The name of the cookie that stores the Phoenix access token."""
-PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=11)
+PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=10)
 """The maximum age of the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
-PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=1)
+PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=31)
 
 
 class Token(str): ...
