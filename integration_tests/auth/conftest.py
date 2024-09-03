@@ -157,6 +157,7 @@ def create_user(
     httpx_client: httpx.Client,
 ) -> _CreateUser:
     def _(
+        *,
         email: _Email,
         password: _Password,
         role: UserRoleInput,
@@ -187,6 +188,7 @@ def create_system_api_key(
     httpx_client: httpx.Client,
 ) -> _CreateSystemApiKey:
     def _(
+        *,
         name: _Name,
         expires_at: Optional[datetime] = None,
         token: Optional[_Token] = None,
@@ -214,7 +216,7 @@ def create_system_api_key(
 def delete_system_api_key(
     httpx_client: httpx.Client,
 ) -> _DeleteSystemApiKey:
-    def _(gid: _GqlId, token: Optional[_Token] = None) -> None:
+    def _(gid: _GqlId, /, *, token: Optional[_Token] = None) -> None:
         args, out = f'id:"{gid}"', "id"
         query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
         resp = httpx_client.post(
@@ -234,7 +236,7 @@ def log_in(
     log_out: _LogOut,
 ) -> _LogIn:
     @contextmanager
-    def _(email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
+    def _(*, email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
         args = f'email:"{email}", password:"{password}"'
         query = "mutation{login(input:{" + args + "})}"
         resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=dict(query=query))
