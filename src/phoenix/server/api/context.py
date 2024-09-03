@@ -1,11 +1,22 @@
+from asyncio import get_running_loop
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Any, Optional
 
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_ACCESS_TOKEN_MAX_AGE,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_MAX_AGE,
+    compute_password_hash,
+)
 from phoenix.core.model_schema import Model
+from phoenix.db import enums, models
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
@@ -34,7 +45,17 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory, TokenStore
+from phoenix.server.types import (
+    AccessTokenAttributes,
+    AccessTokenClaims,
+    CanGetLastUpdatedAt,
+    CanPutItem,
+    DbSessionFactory,
+    RefreshTokenAttributes,
+    RefreshTokenClaims,
+    TokenStore,
+    UserId,
+)
 
 
 @dataclass
@@ -104,3 +125,61 @@ class Context(BaseContext):
         if (response := self.response) is None:
             raise ValueError("no response is set")
         return response
+
+    async def is_valid_password(self, password: str, hash_: bytes, /, *, salt: bytes) -> bool:
+        return hash_ == await self.hash_password(password, salt)
+
+    @staticmethod
+    async def hash_password(password: str, salt: bytes) -> bytes:
+        return await get_running_loop().run_in_executor(
+            None, partial(compute_password_hash, password=password, salt=salt)
+        )
+
+    async def log_out(self, user_id: int) -> None:
+        assert self.token_store is not None
+        response = self.get_response()
+        response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+        response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+        await self.token_store.log_out(UserId(user_id))
+
+    async def log_in(self, user: models.User) -> None:
+        assert self.token_store is not None
+        issued_at = datetime.now(timezone.utc)
+        refresh_token_claims = RefreshTokenClaims(
+            subject=UserId(user.id),
+            issued_at=issued_at,
+            expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+            attributes=RefreshTokenAttributes(
+                user_role=enums.UserRole(user.role.name),
+            ),
+        )
+        refresh_token, refresh_token_id = await self.token_store.create_refresh_token(
+            refresh_token_claims
+        )
+        access_token_claims = AccessTokenClaims(
+            subject=UserId(user.id),
+            issued_at=issued_at,
+            expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+            attributes=AccessTokenAttributes(
+                user_role=enums.UserRole(user.role.name),
+                refresh_token_id=refresh_token_id,
+            ),
+        )
+        access_token, _ = await self.token_store.create_access_token(access_token_claims)
+        response = self.get_response()
+        response.set_cookie(
+            key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+            value=access_token,
+            max_age=int(PHOENIX_ACCESS_TOKEN_MAX_AGE.total_seconds()),
+            secure=True,
+            httponly=True,
+            samesite="strict",
+        )
+        response.set_cookie(
+            key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+            value=refresh_token,
+            max_age=int(PHOENIX_REFRESH_TOKEN_MAX_AGE.total_seconds()),
+            secure=True,
+            httponly=True,
+            samesite="strict",
+        )

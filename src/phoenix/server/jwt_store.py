@@ -51,6 +51,7 @@ class JwtStore:
         assert secret
         super().__init__(**kwargs)
         self._secret = secret
+        self._db = db
         args = (db, secret, algorithm, sleep_seconds)
         self._access_token_store = AccessTokenStore(*args, **kwargs)
         self._refresh_token_store = RefreshTokenStore(*args, **kwargs)
@@ -80,23 +81,39 @@ class JwtStore:
             return None
         if (token_id := TokenId.parse(jti)) is None:
             return None
-        return await self._get(token_id)
+        return self._get(token_id)
 
     @singledispatchmethod
-    async def _get(self, _: TokenId) -> Optional[ClaimSet]:
+    def _get(self, _: TokenId) -> Optional[ClaimSet]:
         return None
 
     @_get.register
-    async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
-        return await self._access_token_store.get(token_id)
+    def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
+        return self._access_token_store.get(token_id)
 
     @_get.register
-    async def _(self, token_id: RefreshTokenId) -> Optional[ClaimSet]:
-        return await self._refresh_token_store.get(token_id)
+    def _(self, token_id: RefreshTokenId) -> Optional[ClaimSet]:
+        return self._refresh_token_store.get(token_id)
 
     @_get.register
-    async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
-        return await self._api_key_store.get(token_id)
+    def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
+        return self._api_key_store.get(token_id)
+
+    @singledispatchmethod
+    def _evict(self, _: TokenId) -> None:
+        return None
+
+    @_evict.register
+    def _(self, token_id: AccessTokenId) -> None:
+        return self._access_token_store.evict(token_id)
+
+    @_evict.register
+    def _(self, token_id: RefreshTokenId) -> None:
+        return self._refresh_token_store.evict(token_id)
+
+    @_evict.register
+    def _(self, token_id: ApiKeyId) -> None:
+        return self._api_key_store.evict(token_id)
 
     async def create_access_token(
         self,
@@ -134,6 +151,14 @@ class JwtStore:
             self._refresh_token_store.revoke(*refresh_token_ids),
             self._api_key_store.revoke(*api_key_ids),
         )
+
+    async def log_out(self, user_id: UserId) -> None:
+        for cls in (AccessTokenId, RefreshTokenId):
+            table = cls.table
+            stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
+            async with self._db() as session:
+                async for id_ in await session.stream_scalars(stmt):
+                    self._evict(cls(id_))
 
 
 _TokenT = TypeVar("_TokenT", bound=Token)
@@ -196,14 +221,19 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             payload["exp"] = int(claim.expiration_time.timestamp())
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
-    async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
+    def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         return self._claims.get(token_id)
 
-    async def revoke(self, *token_ids: _TokenIdT) -> None:
+    def evict(self, *token_ids: _TokenIdT) -> None:
         if not token_ids:
             return
         for token_id in token_ids:
             self._claims.pop(token_id, None)
+
+    async def revoke(self, *token_ids: _TokenIdT) -> None:
+        if not token_ids:
+            return
+        self.evict(*token_ids)
         stmt = delete(self._table).where(self._table.id.in_(map(int, token_ids)))
         async with self._db() as session:
             await session.execute(stmt)

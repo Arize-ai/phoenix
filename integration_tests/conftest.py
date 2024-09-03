@@ -31,8 +31,45 @@ from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from psutil import STATUS_ZOMBIE, Popen
 from typing_extensions import TypeAlias
 
-ProjectName: TypeAlias = str
-SpanName: TypeAlias = str
+_ProjectName: TypeAlias = str
+_SpanName: TypeAlias = str
+_Headers: TypeAlias = Dict[str, Any]
+
+
+class _GetGqlSpans(Protocol):
+    def __call__(self, *keys: str) -> Dict[_ProjectName, List[Dict[str, Any]]]: ...
+
+
+class _SpanExporterFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        headers: Optional[_Headers] = None,
+    ) -> SpanExporter: ...
+
+
+class _GetTracer(Protocol):
+    def __call__(
+        self,
+        *,
+        project_name: _ProjectName,
+        exporter: SpanExporter,
+    ) -> Tracer: ...
+
+
+class _StartSpan(Protocol):
+    def __call__(
+        self,
+        *,
+        project_name: _ProjectName,
+        span_name: _SpanName,
+        exporter: SpanExporter,
+    ) -> Span: ...
+
+
+@pytest.fixture(scope="class")
+def fake() -> Faker:
+    return Faker()
 
 
 @pytest.fixture(autouse=True, scope="class")
@@ -47,18 +84,13 @@ def env(tmp_path_factory: TempPathFactory) -> Iterator[None]:
         yield
 
 
-class _GetGqlSpans(Protocol):
-    def __call__(self, *keys: str) -> Dict[ProjectName, List[Dict[str, Any]]]: ...
-
-
 @pytest.fixture
 def get_gql_spans(
     httpx_client: httpx.Client,
 ) -> _GetGqlSpans:
-    def _(*keys: str) -> Dict[ProjectName, List[Dict[str, Any]]]:
-        query = dict(
-            query="query{projects{edges{node{name spans{edges{node{" + " ".join(keys) + "}}}}}}}"
-        )
+    def _(*keys: str) -> Dict[_ProjectName, List[Dict[str, Any]]]:
+        out = "name spans{edges{node{" + " ".join(keys) + "}}}"
+        query = dict(query="query{projects{edges{node{" + out + "}}}}")
         resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=query)
         resp.raise_for_status()
         resp_dict = resp.json()
@@ -71,18 +103,16 @@ def get_gql_spans(
     return _
 
 
-_ExporterFactory: TypeAlias = Callable[[Optional[Dict[str, str]]], SpanExporter]
-
-
 @pytest.fixture(scope="session")
-def http_span_exporter() -> _ExporterFactory:
+def http_span_exporter() -> _SpanExporterFactory:
     def _(
-        headers: Optional[Dict[str, str]] = None,
+        *,
+        headers: Optional[_Headers] = None,
     ) -> SpanExporter:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
         endpoint = urljoin(get_base_url(), "v1/traces")
-        exporter = OTLPSpanExporter(endpoint, headers=headers, timeout=1)
+        exporter = OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
         exporter._MAX_RETRY_TIMEOUT = 2
         return exporter
 
@@ -90,9 +120,10 @@ def http_span_exporter() -> _ExporterFactory:
 
 
 @pytest.fixture(scope="session")
-def grpc_span_exporter() -> _ExporterFactory:
+def grpc_span_exporter() -> _SpanExporterFactory:
     def _(
-        headers: Optional[Dict[str, str]] = None,
+        *,
+        headers: Optional[_Headers] = None,
     ) -> SpanExporter:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
@@ -100,23 +131,24 @@ def grpc_span_exporter() -> _ExporterFactory:
         if host == "0.0.0.0":
             host = "127.0.0.1"
         endpoint = f"http://{host}:{get_env_grpc_port()}"
-        return OTLPSpanExporter(endpoint, headers=headers, timeout=1)
+        return OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
 
     return _
 
 
 @pytest.fixture(scope="session", params=["http", "grpc"])
-def span_exporter(request: SubRequest) -> _ExporterFactory:
+def span_exporter(request: SubRequest) -> _SpanExporterFactory:
     if request.param == "http":
-        return cast(_ExporterFactory, request.getfixturevalue("http_span_exporter"))
+        return cast(_SpanExporterFactory, request.getfixturevalue("http_span_exporter"))
     if request.param == "grpc":
-        return cast(_ExporterFactory, request.getfixturevalue("grpc_span_exporter"))
+        return cast(_SpanExporterFactory, request.getfixturevalue("grpc_span_exporter"))
     raise ValueError(f"Unknown exporter: {request.param}")
 
 
 @pytest.fixture(scope="session")
-def get_tracer() -> Callable[[ProjectName, SpanExporter], Tracer]:
+def get_tracer() -> _GetTracer:
     def _(
+        *,
         project_name: str,
         exporter: SpanExporter,
     ) -> Tracer:
@@ -130,14 +162,15 @@ def get_tracer() -> Callable[[ProjectName, SpanExporter], Tracer]:
 
 @pytest.fixture(scope="session")
 def start_span(
-    get_tracer: Callable[[ProjectName, SpanExporter], Tracer],
-) -> Callable[[ProjectName, SpanName, SpanExporter], Span]:
+    get_tracer: _GetTracer,
+) -> _StartSpan:
     def _(
+        *,
         project_name: str,
         span_name: str,
         exporter: SpanExporter,
     ) -> Span:
-        return get_tracer(project_name, exporter).start_span(span_name)
+        return get_tracer(project_name=project_name, exporter=exporter).start_span(span_name)
 
     return _
 
@@ -146,11 +179,6 @@ def start_span(
 def httpx_client() -> httpx.Client:
     # Having no timeout is useful when stepping through the debugger.
     return httpx.Client(timeout=None)
-
-
-@pytest.fixture(scope="session")
-def fake() -> Faker:
-    return Faker()
 
 
 @pytest.fixture(scope="session")

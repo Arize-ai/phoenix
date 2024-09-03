@@ -1,20 +1,18 @@
-import asyncio
 import secrets
-from functools import partial
-from typing import Optional
+from typing import Literal, Optional
 
 import strawberry
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
+from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.auth import (
     DEFAULT_SECRET_LENGTH,
-    compute_password_hash,
     validate_email_format,
     validate_password_format,
 )
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.server.api.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -24,9 +22,9 @@ from phoenix.server.api.types.User import User
 @strawberry.input
 class CreateUserInput:
     email: str
-    username: Optional[str]
     password: str
     role: UserRoleInput
+    username: Optional[str] = UNSET
 
 
 @strawberry.type
@@ -51,34 +49,28 @@ class UserMutationMixin:
     ) -> UserMutationPayload:
         validate_email_format(email := input.email)
         validate_password_format(password := input.password)
-        role_name = input.role.value
-        user_role_id = (
-            select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
-        )
         salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-        loop = asyncio.get_running_loop()
-        password_hash = await loop.run_in_executor(
-            executor=None,
-            func=partial(compute_password_hash, password=password, salt=salt),
-        )
-        try:
-            async with info.context.db() as session:
-                user = await session.scalar(
-                    insert(models.User)
-                    .values(
-                        user_role_id=user_role_id,
-                        username=input.username,
-                        email=email,
-                        auth_method="LOCAL",
-                        password_hash=password_hash,
-                        password_salt=salt,
-                        reset_password=True,
-                    )
-                    .returning(models.User)
-                )
-            assert user is not None
-        except IntegrityError as error:
-            raise ValueError(_get_user_create_error_message(error))
+        password_hash = await info.context.hash_password(password, salt)
+        async with info.context.db() as session:
+            user_role_id = await session.scalar(
+                select(models.UserRole.id).where(models.UserRole.name == input.role.value)
+            )
+            if user_role_id is None:
+                raise ValueError(f"Role {input.role.value} not found")
+            user = models.User(
+                user_role_id=user_role_id,
+                username=input.username or None,
+                email=email,
+                auth_method=enums.AuthMethod.LOCAL.value,
+                password_hash=password_hash,
+                password_salt=salt,
+                reset_password=True,
+            )
+            session.add(user)
+            try:
+                await session.flush()
+            except IntegrityError as error:
+                raise ValueError(_user_error_message(error))
         return UserMutationPayload(
             user=User(
                 id_attr=user.id,
@@ -90,9 +82,12 @@ class UserMutationMixin:
         )
 
 
-def _get_user_create_error_message(error: IntegrityError) -> str:
+def _user_error_message(
+    error: IntegrityError,
+    action: Literal["create", "modify"] = "create",
+) -> str:
     """
-    Gets a user-facing error message to explain why user creation failed.
+    User-facing error message to explain why user creation/modification failed.
     """
     original_error_message = str(error)
     username_already_exists = "users.username" in original_error_message
@@ -101,4 +96,4 @@ def _get_user_create_error_message(error: IntegrityError) -> str:
         return "Username already exists"
     elif email_already_exists:
         return "Email already exists"
-    return "Failed to create user"
+    return f"Failed to {action} user"
