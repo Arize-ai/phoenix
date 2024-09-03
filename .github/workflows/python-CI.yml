@@ -152,8 +152,8 @@ jobs:
         os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
     services:
       postgres:
-        # Using this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (runner.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
