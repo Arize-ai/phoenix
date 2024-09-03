@@ -61,7 +61,7 @@ jobs:
             3.12
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.2
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
@@ -157,7 +157,7 @@ jobs:
           python-version: 3.8
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.2
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run -e ci-integration_tests

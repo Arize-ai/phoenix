@@ -76,7 +76,7 @@ dev = [
   "uv",
   "jupyter",
   "nbqa",
-  "ruff==0.6.1",
+  "ruff==0.6.3",
   "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
@@ -228,7 +228,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.1",
+  "ruff==0.6.3",
 ]
 
 [[tool.hatch.envs.style.matrix]]

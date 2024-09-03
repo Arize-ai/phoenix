@@ -1,6 +1,7 @@
 import secrets
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -12,6 +13,7 @@ from typing import (
     cast,
 )
 
+import jwt
 import pytest
 from faker import Faker
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
@@ -36,6 +38,25 @@ GqlId: TypeAlias = str
 NOW = datetime.now(timezone.utc)
 
 
+class TestTokens:
+    def test_log_in_tokens_should_change(
+        self,
+        admin_email: str,
+        secret: str,
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
+    ) -> None:
+        n, access_tokens, refresh_tokens = 2, set(), set()
+        for _ in range(n):
+            with login(admin_email, secret) as (access_token, refresh_token):
+                access_tokens.add(access_token)
+                refresh_tokens.add(refresh_token)
+        assert len(access_tokens) == n
+        assert len(refresh_tokens) == n
+        decode = partial(jwt.decode, options=dict(verify_signature=False))
+        assert len({decode(token)["jti"] for token in access_tokens}) == n
+        assert len({decode(token)["jti"] for token in refresh_tokens}) == n
+
+
 class TestUsers:
     @pytest.mark.parametrize(
         "email,use_secret,expectation",
@@ -52,13 +73,13 @@ class TestUsers:
         use_secret: bool,
         expectation: ContextManager[Optional[AssertionError]],
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
     ) -> None:
         password = secret if use_secret else secrets.token_hex(DEFAULT_SECRET_LENGTH)
         with expectation:
-            with login(email, password) as token:
+            with login(email, password) as (token, _):
                 create_system_api_key(fake.unique.pystr(), None, token)
             with pytest.raises(AssertionError):
                 create_system_api_key(fake.unique.pystr(), None, token)
@@ -76,7 +97,7 @@ class TestUsers:
         expectation: ContextManager[Optional[AssertionError]],
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
         create_user: Callable[[Email, UserName, Password, UserRoleInput, Token], None],
         create_system_api_key: Callable[[Name, Optional[datetime], Token], Tuple[ApiKey, GqlId]],
         fake: Faker,
@@ -85,9 +106,9 @@ class TestUsers:
         email = cast(str, profile["mail"])
         username = cast(str, profile["username"])
         password = secrets.token_hex(DEFAULT_SECRET_LENGTH)
-        with login(admin_email, secret) as token:
+        with login(admin_email, secret) as (token, _):
             create_user(email, username, password, role, token)
-        with login(email, password) as token:
+        with login(email, password) as (token, _):
             with expectation:
                 create_system_api_key(fake.unique.pystr(), None, token)
             for _role in UserRoleInput:
@@ -105,9 +126,9 @@ class TestSpanExporters:
         self,
         admin_email: str,
         secret: str,
-        login: Callable[[Email, Password], ContextManager[Token]],
+        login: Callable[[Email, Password], ContextManager[Tuple[Token, Token]]],
     ) -> Iterator[Token]:
-        with login(admin_email, secret) as token:
+        with login(admin_email, secret) as (token, _):
             yield token
 
     @pytest.mark.parametrize(
