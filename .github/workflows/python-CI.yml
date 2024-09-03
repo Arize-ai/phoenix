@@ -61,7 +61,7 @@ jobs:
             3.12
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.2
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
@@ -113,8 +113,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [macos-12, windows-latest, ubuntu-latest]
-        python-version: ["3.8"]
+        os: [ macos-12, windows-latest, ubuntu-latest ]
+        python-version: [ "3.8" ]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -149,7 +149,20 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-2019, macos-12]
+        os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
+    services:
+      postgres:
+        # Using this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (runner.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -157,8 +170,8 @@ jobs:
           python-version: 3.8
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.2
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.0 tox-uv==1.11.2
-      - run: tox run -e ci-integration_tests -- server
-        timeout-minutes: 10
+      - run: tox run -e ci-integration_tests
+        timeout-minutes: 15
