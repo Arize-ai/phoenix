@@ -11,6 +11,7 @@ from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
+from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
@@ -18,6 +19,7 @@ from phoenix.config import (
     EXPORT_DIR,
     get_auth_settings,
     get_env_database_connection_str,
+    get_env_database_schema,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
@@ -60,14 +62,14 @@ from phoenix.trace.schemas import Span
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-_WELCOME_MESSAGE = """
+_WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
 ██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
 ██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
 ██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
 ██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
-╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{version}
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
 
 |
 |  🌎 Join our Community 🌎
@@ -80,12 +82,15 @@ _WELCOME_MESSAGE = """
 |  https://docs.arize.com/phoenix
 |
 |  🚀 Phoenix Server 🚀
-|  Phoenix UI: {ui_path}
+|  Phoenix UI: {{ ui_path }}
 |  Log traces:
-|    - gRPC: {grpc_path}
-|    - HTTP: {http_path}
-|  Storage: {storage}
-"""
+|    - gRPC: {{ grpc_path }}
+|    - HTTP: {{ http_path }}
+|  Storage: {{ storage }}
+{% if schema -%}
+|    - Schema: {{ schema }}
+{% endif -%}
+""")
 
 _EXPERIMENTAL_WARNING = """
 🚨 WARNING: Phoenix is running in experimental mode. 🚨
@@ -346,12 +351,13 @@ if __name__ == "__main__":
     )
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
-    msg = _WELCOME_MESSAGE.format(
+    msg = _WELCOME_MESSAGE.render(
         version=version("arize-phoenix"),
         ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
+        schema=get_env_database_schema(),
     )
     if authentication_enabled:
         msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
