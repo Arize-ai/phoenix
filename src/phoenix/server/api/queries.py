@@ -478,7 +478,7 @@ class Query:
             return to_gql_experiment_run(run)
         raise NotFound(f"Unknown node type: {type_name}")
 
-    @strawberry.field  # type: ignore
+    @strawberry.field
     async def viewer(self, info: Info[Context, None]) -> Optional[User]:
         request = info.context.get_request()
         try:
