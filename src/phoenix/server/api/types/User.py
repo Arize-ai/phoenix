@@ -40,17 +40,3 @@ def to_gql_user(user: models.User) -> User:
         created_at=user.created_at,
         user_role_id=user.user_role_id,
     )
-
-
-def to_gql_user(user: OrmUser) -> User:
-    """
-    Converts an ORM user to a User type.
-    """
-    role = user.role
-    return User(
-        id_attr=user.id,
-        email=user.email,
-        username=user.username,
-        created_at=user.created_at,
-        role=UserRole(id_attr=role.id, name=role.name),
-    )
