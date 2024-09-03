@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
@@ -12,12 +12,16 @@ from phoenix.auth import (
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_MAX_AGE,
     Token,
+    delete_access_token_cookie,
+    delete_refresh_token_cookie,
     is_valid_password,
     set_access_token_cookie,
     set_refresh_token_cookie,
 )
 from phoenix.db.enums import UserRole
+from phoenix.db.models import RefreshToken as OrmRefreshToken
 from phoenix.db.models import User as OrmUser
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
@@ -91,6 +95,25 @@ async def login(request: Request) -> Response:
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(response, access_token)
     response = set_refresh_token_cookie(response, refresh_token)
+    return response
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+) -> Response:
+    if not isinstance(user := request.user, PhoenixUser):
+        return Response(status_code=HTTP_401_UNAUTHORIZED)
+    user_id = int(user.identity)
+    async with request.app.state.db() as session:
+        await session.execute(
+            delete(OrmRefreshToken)
+            .where(OrmRefreshToken.user_id == user_id)
+            .returning(OrmRefreshToken.id)
+        )
+    response = Response(status_code=HTTP_204_NO_CONTENT)
+    response = delete_access_token_cookie(response)
+    response = delete_refresh_token_cookie(response)
     return response
 
 

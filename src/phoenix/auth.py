@@ -95,6 +95,16 @@ def _set_token_cookie(
     return response
 
 
+def delete_access_token_cookie(response: Response) -> Response:
+    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+    return response
+
+
+def delete_refresh_token_cookie(response: Response) -> Response:
+    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    return response
+
+
 @dataclass(frozen=True)
 class _PasswordRequirements:
     """

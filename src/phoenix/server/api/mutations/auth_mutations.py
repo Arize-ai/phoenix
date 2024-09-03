@@ -12,19 +12,24 @@ from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_MAX_AGE,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_MAX_AGE,
+    delete_access_token_cookie,
+    delete_refresh_token_cookie,
     is_valid_password,
 )
 from phoenix.db import enums, models
-from phoenix.server.api.auth import HasSecret, IsAuthenticated, IsNotReadOnly
+from phoenix.db.models import RefreshToken as OrmRefreshToken
+from phoenix.server.api.auth import (
+    HasSecret,
+    IsAuthenticated,
+    IsNotReadOnly,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
-    AccessTokenId,
     RefreshTokenAttributes,
     RefreshTokenClaims,
-    RefreshTokenId,
     UserId,
 )
 
@@ -112,20 +117,12 @@ class AuthMutationMixin:
         self,
         info: Info[Context, None],
     ) -> None:
-        assert (token_store := info.context.token_store) is not None
         assert (request := info.context.request)
         assert (user := request.user)
         assert isinstance(user.identity, UserId)
         user_id = int(user.identity)
-        token_ids = []
         async with info.context.db() as session:
-            async with session.begin_nested():
-                for cls in (AccessTokenId, RefreshTokenId):
-                    table = cls.table
-                    stmt = delete(table).where(table.user_id == user_id).returning(table.id)
-                    async for id_ in await session.stream_scalars(stmt):
-                        token_ids.append(cls(id_))
-        if token_ids:
-            await token_store.revoke(*token_ids)
+            await session.execute(delete(OrmRefreshToken).where(OrmRefreshToken.user_id == user_id))
         response = info.context.get_response()
-        response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+        response = delete_access_token_cookie(response)
+        response = delete_refresh_token_cookie(response)

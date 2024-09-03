@@ -236,13 +236,11 @@ def log_out(
     httpx_client: httpx.Client,
 ) -> _LogOut:
     def _(token: _Token) -> None:
-        query = "mutation{logout}"
         resp = httpx_client.post(
-            urljoin(get_base_url(), "graphql"),
-            json=dict(query=query),
+            urljoin(get_base_url(), "/auth/logout"),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
         )
-        _json(resp)
+        resp.raise_for_status()
 
     return _
 
