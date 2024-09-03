@@ -655,6 +655,7 @@ class User(Base):
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -668,6 +669,7 @@ class RefreshToken(Base):
     user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
 class AccessToken(Base):
@@ -684,6 +686,7 @@ class AccessToken(Base):
         ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
         index=True,
     )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
 class ApiKey(Base):
@@ -698,3 +701,4 @@ class ApiKey(Base):
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
