@@ -1,26 +1,24 @@
-import React from "react";
-import { graphql, useMutation } from "react-relay";
+import React, { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Button, Icon, Icons } from "@arizeai/components";
 
-import { LogoutButtonMutation } from "./__generated__/LogoutButtonMutation.graphql";
-
 export function LogoutButton() {
   const navigate = useNavigate();
-  const [commit, isCommitting] = useMutation<LogoutButtonMutation>(graphql`
-    mutation LogoutButtonMutation {
-      logout
-    }
-  `);
-  const onLogout = () => {
-    commit({
-      variables: {},
-      onCompleted: () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const onLogout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/auth/logout", {
+        method: "POST",
+      });
+      if (response.ok) {
         navigate("/login");
-      },
-    });
-  };
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate]);
   return (
     <Button
       onClick={onLogout}
@@ -28,7 +26,7 @@ export function LogoutButton() {
       size="compact"
       icon={<Icon svg={<Icons.LogOut />} />}
     >
-      {isCommitting ? "Logging out..." : "Log out"}
+      {isLoading ? "Logging out..." : "Log out"}
     </Button>
   );
 }
