@@ -13,6 +13,8 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
+from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
 
 
@@ -25,6 +27,20 @@ class CreateSystemApiKeyMutationPayload:
 
 @strawberry.input
 class CreateApiKeyInput:
+    name: str
+    description: Optional[str] = UNSET
+    expires_at: Optional[datetime] = UNSET
+
+
+@strawberry.type
+class CreateUserApiKeyMutationPayload:
+    jwt: str
+    api_key: UserApiKey
+    query: Query
+
+
+@strawberry.input
+class CreateUserApiKeyInput:
     name: str
     description: Optional[str] = UNSET
     expires_at: Optional[datetime] = UNSET
@@ -87,6 +103,45 @@ class ApiKeyMutationMixin:
                 description=input.description or None,
                 created_at=issued_at,
                 expires_at=input.expires_at or None,
+            ),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[
+            IsNotReadOnly,
+            HasSecret,
+            IsAuthenticated,
+        ]
+    )  # type: ignore
+    async def create_user_api_key(
+        self, info: Info[Context, None], input: CreateUserApiKeyInput
+    ) -> CreateUserApiKeyMutationPayload:
+        assert (token_store := info.context.token_store) is not None
+        user = info.context.request.user
+        if not isinstance(user, PhoenixUser):
+            raise ValueError("User not found or not authenticated")
+        issued_at = datetime.now(timezone.utc)
+        claims = ApiKeyClaims(
+            subject=user.identity,
+            issued_at=issued_at,
+            expiration_time=input.expires_at or None,
+            attributes=ApiKeyAttributes(
+                user_role=user.role,
+                name=input.name,
+                description=input.description,
+            ),
+        )
+        token, token_id = await token_store.create_api_key(claims)
+        return CreateUserApiKeyMutationPayload(
+            jwt=token,
+            api_key=UserApiKey(
+                id_attr=int(token_id),
+                name=input.name,
+                description=input.description or None,
+                created_at=issued_at,
+                expires_at=input.expires_at or None,
+                user_id=user.id,
             ),
             query=Query(),
         )
