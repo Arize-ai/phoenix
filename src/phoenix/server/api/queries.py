@@ -7,6 +7,7 @@ import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
+from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
@@ -69,8 +70,8 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.User import User
-from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
 
@@ -140,17 +141,7 @@ class Query:
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [
-            UserApiKey(
-                id_attr=api_key.id,
-                user_id=api_key.user_id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
-            )
-            for api_key in api_keys
-        ]
+        return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
@@ -486,6 +477,26 @@ class Query:
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
         raise NotFound(f"Unknown node type: {type_name}")
+
+    @strawberry.field
+    async def viewer(self, info: Info[Context, None]) -> Optional[User]:
+        request = info.context.get_request()
+        try:
+            user = request.user
+        except AssertionError:
+            return None
+        if isinstance(user, UnauthenticatedUser):
+            return None
+        async with info.context.db() as session:
+            if (
+                user := await session.scalar(
+                    select(models.User)
+                    .where(models.User.id == int(user.identity))
+                    .options(joinedload(models.User.role))
+                )
+            ) is None:
+                return None
+        return to_gql_user(user)
 
     @strawberry.field
     def clusters(
