@@ -30,11 +30,15 @@ export function ViewerProvider({
 }>) {
   const [data] = useRefetchableFragment(
     graphql`
-      fragment ViewerContext_viewer on Query {
+      fragment ViewerContext_viewer on Query
+      @refetchable(queryName: "ViewerContextRefetchQuery") {
         viewer {
           id
           username
           email
+          role {
+            name
+          }
         }
       }
     `,

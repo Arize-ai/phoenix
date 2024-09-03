@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8accd833ec420c0b9107a450bd7ddc7c>>
+ * @generated SignedSource<<493db806afb41461ac8c0992ad1c49b0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type authenticatedRootLoaderQuery$variables = Record<PropertyKey, never>;
-export type authenticatedRootLoaderQuery$data = {
+export type ViewerContextRefetchQuery$variables = Record<PropertyKey, never>;
+export type ViewerContextRefetchQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ViewerContext_viewer">;
 };
-export type authenticatedRootLoaderQuery = {
-  response: authenticatedRootLoaderQuery$data;
-  variables: authenticatedRootLoaderQuery$variables;
+export type ViewerContextRefetchQuery = {
+  response: ViewerContextRefetchQuery$data;
+  variables: ViewerContextRefetchQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,7 +24,7 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "authenticatedRootLoaderQuery",
+    "name": "ViewerContextRefetchQuery",
     "selections": [
       {
         "args": null,
@@ -39,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "authenticatedRootLoaderQuery",
+    "name": "ViewerContextRefetchQuery",
     "selections": [
       {
         "alias": null,
@@ -94,15 +94,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "6c829fb3bc2f5b6f3dc7cc83990282b9",
+    "cacheID": "3140ec9f88a7f0af697593abfce6cac1",
     "id": null,
     "metadata": {},
-    "name": "authenticatedRootLoaderQuery",
+    "name": "ViewerContextRefetchQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    role {\n      name\n    }\n  }\n}\n"
+    "text": "query ViewerContextRefetchQuery {\n  ...ViewerContext_viewer\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    role {\n      name\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "26f018608f21da07f218dbd5e9f3a989";
+(node as any).hash = "8010036c1e996cdcd783b5b4cd65313a";
 
 export default node;

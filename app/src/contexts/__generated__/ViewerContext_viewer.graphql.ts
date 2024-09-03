@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<397bfafa2211a7b4f1250f1d6305a0b8>>
+ * @generated SignedSource<<0ddf4428f6184c26d7ae515162ef392c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,12 +8,15 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ViewerContext_viewer$data = {
   readonly viewer: {
     readonly email: string;
     readonly id: string;
+    readonly role: {
+      readonly name: string;
+    };
     readonly username: string | null;
   } | null;
   readonly " $fragmentType": "ViewerContext_viewer";
@@ -23,10 +26,18 @@ export type ViewerContext_viewer$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ViewerContext_viewer">;
 };
 
+import ViewerContextRefetchQuery_graphql from './ViewerContextRefetchQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": ViewerContextRefetchQuery_graphql
+    }
+  },
   "name": "ViewerContext_viewer",
   "selections": [
     {
@@ -57,6 +68,24 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "email",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "UserRole",
+          "kind": "LinkedField",
+          "name": "role",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "name",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -66,6 +95,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "242ca492e3b7bc6baa5250965510ed19";
+(node as any).hash = "8010036c1e996cdcd783b5b4cd65313a";
 
 export default node;
