@@ -69,6 +69,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        sqlite_autoincrement=True,
     )
     op.create_table(
         "refresh_tokens",
@@ -81,6 +82,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
+        sqlite_autoincrement=True,
     )
     op.create_table(
         "access_tokens",
@@ -94,6 +96,7 @@ def upgrade() -> None:
         ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
         sa.Column("refresh_token_id", sa.Integer, sa.ForeignKey("refresh_tokens.id"), index=True),
+        sqlite_autoincrement=True,
     )
     op.create_table(
         "api_keys",
@@ -108,6 +111,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=True, index=True),
+        sqlite_autoincrement=True,
     )
 
 
