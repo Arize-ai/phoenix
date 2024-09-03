@@ -49,7 +49,8 @@ and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
-The schema to use for SQL databases. This is ignored for SQLite.
+The schema to use for the PostgresSQL database. (This is ignored for SQLite.)
+See e.g. https://www.postgresql.org/docs/current/ddl-schemas.html
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
