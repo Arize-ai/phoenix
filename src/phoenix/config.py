@@ -136,7 +136,7 @@ def get_env_phoenix_secret() -> Optional[str]:
     phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
         return None
-    REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret)
+    REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
     return phoenix_secret
 
 
