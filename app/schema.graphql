@@ -1080,6 +1080,7 @@ type Query {
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
+  viewer: User
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""

@@ -12,6 +12,7 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
+from phoenix.auth import PHOENIX_ACCESS_TOKEN_COOKIE_NAME
 from phoenix.db import enums, models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
@@ -32,6 +33,7 @@ from phoenix.db.models import (
     Trace as OrmTrace,
 )
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.auth import IsAuthenticated
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers import ensure_list
@@ -69,8 +71,8 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.User import User
-from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
 
@@ -140,17 +142,7 @@ class Query:
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [
-            UserApiKey(
-                id_attr=api_key.id,
-                user_id=api_key.user_id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
-            )
-            for api_key in api_keys
-        ]
+        return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
@@ -486,6 +478,26 @@ class Query:
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
         raise NotFound(f"Unknown node type: {type_name}")
+
+    @strawberry.field(permission_classes=[IsAuthenticated])  # type: ignore
+    async def viewer(self, info: Info[Context, None]) -> Optional[User]:
+        request = info.context.get_request()
+        if (access_token := request.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)) is None:
+            return None
+        assert (token_store := info.context.token_store) is not None
+        claim = await token_store.read(access_token)
+        if claim.token_id is None or (user_id := claim.user_id) is None:
+            return None
+        async with info.context.db() as session:
+            if (
+                user := await session.scalar(
+                    select(models.User)
+                    .where(models.User.id == user_id)
+                    .options(joinedload(models.User.role))
+                )
+            ) is None:
+                return None
+        return to_gql_user(user)
 
     @strawberry.field
     def clusters(
