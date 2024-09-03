@@ -2,12 +2,12 @@ name: Python CI
 
 on:
   push:
-    branches: [main, auth]
+    branches: [ main, auth ]
   pull_request:
     paths:
       - "src/**"
       - "tests/**"
-      - "integration_tests/server/**"
+      - "integration_tests/**"
       - "tutorials/**"
       - "pyproject.toml"
       - "packages/**"
