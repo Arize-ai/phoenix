@@ -47,7 +47,7 @@ export function DeleteSystemAPIKeyButton({
         onDeleted();
       },
     });
-  }, [commit, id, notifySuccess, setDialog]);
+  }, [commit, id, notifySuccess, onDeleted]);
   const onDelete = () => {
     setDialog(
       <Dialog title="Delete System Key">

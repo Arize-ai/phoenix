@@ -6,7 +6,6 @@ import { Card, Flex, TextField, View } from "@arizeai/components";
 import { CopyToClipboardButton } from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
-import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import { APIKeysCard } from "./APIKeysCard";
 import { UsersCard } from "./UsersCard";
@@ -33,7 +32,6 @@ const formCSS = css`
 `;
 
 export function SettingsPage() {
-  const { authenticationEnabled } = useFunctionality();
   return (
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
