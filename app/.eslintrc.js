@@ -19,7 +19,7 @@ module.exports = {
   rules: {
     "react/no-unknown-property": ["error", { ignore: ["css"] }],
     "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
-    "react-hooks/exhaustive-deps": "warn", // Checks effect dependencies
+    "react-hooks/exhaustive-deps": "error", // Checks effect dependencies
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "no-console": "error",
     "simple-import-sort/imports": [
@@ -28,7 +28,6 @@ module.exports = {
         groups: [
           // Packages `react` related packages come first.
           ["^react", "^@?\\w", "^@emotion"],
-
           // Arize packages.
           ["^(@arizeai)(/.*|$)"],
           // internal packages.
