@@ -39,7 +39,7 @@ NOW = datetime.now(timezone.utc)
 
 
 class TestTokens:
-    def test_log_in_tokens(
+    def test_log_in_tokens_should_change(
         self,
         admin_email: str,
         secret: str,
