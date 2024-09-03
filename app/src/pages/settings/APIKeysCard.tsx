@@ -22,12 +22,14 @@ import { CopyToClipboardButton, Loading } from "@phoenix/components";
 import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
 import { CreateSystemAPIKeyDialog } from "./CreateSystemAPIKeyDialog";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
+import { UserAPIKeysTable } from "./UserAPIKeysTable";
 
 function APIKeysCardContent() {
   const query = useLazyLoadQuery<APIKeysCardQuery>(
     graphql`
       query APIKeysCardQuery {
         ...SystemAPIKeysTableFragment
+        ...UserAPIKeysTableFragment
       }
     `,
     {}
@@ -39,7 +41,7 @@ function APIKeysCardContent() {
         <SystemAPIKeysTable query={query} />
       </TabPane>
       <TabPane title="User Keys" name="User Keys">
-        <p>Coming Soon</p>
+        <UserAPIKeysTable query={query} />
       </TabPane>
     </Tabs>
   );

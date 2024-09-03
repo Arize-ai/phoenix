@@ -1,5 +1,5 @@
-import React, { startTransition, useCallback, useMemo } from "react";
-import { graphql, useMutation, useRefetchableFragment } from "react-relay";
+import React, { startTransition, useMemo } from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -14,24 +14,23 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
-import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
+import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
+import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
 import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
-import { useNotifySuccess } from "@phoenix/contexts";
 
-export function SystemAPIKeysTable({
+export function UserAPIKeysTable({
   query,
 }: {
-  query: SystemAPIKeysTableFragment$key;
+  query: UserAPIKeysTableFragment$key;
 }) {
   const [data, refetch] = useRefetchableFragment<
-    SystemAPIKeysTableQuery,
-    SystemAPIKeysTableFragment$key
+    UserAPIKeysTableQuery,
+    UserAPIKeysTableFragment$key
   >(
     graphql`
-      fragment SystemAPIKeysTableFragment on Query
-      @refetchable(queryName: "SystemAPIKeysTableQuery") {
-        systemApiKeys {
+      fragment UserAPIKeysTableFragment on Query
+      @refetchable(queryName: "UserAPIKeysTableQuery") {
+        userApiKeys {
           id
           name
           description
@@ -43,46 +42,8 @@ export function SystemAPIKeysTable({
     query
   );
 
-  const notifySuccess = useNotifySuccess();
-  const [commit] = useMutation(graphql`
-    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
-      $input: DeleteApiKeyInput!
-    ) {
-      deleteSystemApiKey(input: $input) {
-        __typename
-        id
-      }
-    }
-  `);
-  const handleDelete = useCallback(
-    (id: string) => {
-      commit({
-        variables: {
-          input: {
-            id,
-          },
-        },
-        onCompleted: () => {
-          notifySuccess({
-            title: "System key deleted",
-            message: "The system key has been deleted and is no longer active.",
-          });
-          startTransition(() => {
-            refetch(
-              {},
-              {
-                fetchPolicy: "network-only",
-              }
-            );
-          });
-        },
-      });
-    },
-    [commit, notifySuccess]
-  );
-
   const tableData = useMemo(() => {
-    return [...data.systemApiKeys];
+    return [...data.userApiKeys];
   }, [data]);
 
   type TableRow = (typeof tableData)[number];
@@ -116,7 +77,15 @@ export function SystemAPIKeysTable({
             <Flex direction="row" justifyContent="end" width="100%">
               <DeleteAPIKeyButton
                 handleDelete={() => {
-                  handleDelete(row.original.id);
+                  // TODO(parker): implement handle delete when https://github.com/Arize-ai/phoenix/issues/4059 is done
+                  startTransition(() => {
+                    refetch(
+                      {},
+                      {
+                        fetchPolicy: "network-only",
+                      }
+                    );
+                  });
                 }}
               />
             </Flex>
