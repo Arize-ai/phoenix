@@ -113,6 +113,7 @@ async def _ensure_admin_password(session: AsyncSession) -> None:
     loop = asyncio.get_running_loop()
     hash_ = await loop.run_in_executor(None, compute)
     password_hash = coalesce(models.User.password_hash, hash_)
+    password_salt = coalesce(models.User.password_salt, salt)
     first_local_admin = (
         select(func.min(models.User.id))
         .join(models.UserRole)
@@ -125,7 +126,7 @@ async def _ensure_admin_password(session: AsyncSession) -> None:
         .where(models.User.id == first_local_admin)
         .values(
             password_hash=password_hash,
-            password_salt=salt,
+            password_salt=password_salt,
         )
     )
     await session.execute(stmt)
