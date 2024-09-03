@@ -134,6 +134,18 @@ input CreateTraceAnnotationInput {
   metadata: JSON! = {}
 }
 
+input CreateUserApiKeyInput {
+  name: String!
+  description: String
+  expiresAt: DateTime
+}
+
+type CreateUserApiKeyMutationPayload {
+  jwt: String!
+  apiKey: UserApiKey!
+  query: Query!
+}
+
 input CreateUserInput {
   email: String!
   username: String
@@ -894,6 +906,7 @@ type Model {
 
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
+  createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteSystemApiKeyMutationPayload!
   login(input: LoginMutationInput!): Void
   logout: Void
