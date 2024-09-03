@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
@@ -96,6 +97,14 @@ class Context(BaseContext):
                 " Please set the PHOENIX_SECRET environment variable and re-deploy the application."
             )
         return self.secret
+
+    def get_request(self) -> StarletteRequest:
+        """
+        A type-safe way to get the request object. Throws an error if the request is not set.
+        """
+        if not isinstance(request := self.request, StarletteRequest):
+            raise ValueError("no request is set")
+        return request
 
     def get_response(self) -> StarletteResponse:
         """
