@@ -134,6 +134,7 @@ If so, demo data is automatically ingested upon initial boot up to populate the 
 NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
+_Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
 
 
 class AppConfig(NamedTuple):
@@ -377,13 +378,16 @@ def _lifespan(
     dml_event_handler: DmlEventHandler,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
-    startup_callbacks: Iterable[Callable[[], None]] = (),
-    shutdown_callbacks: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[_Callback] = (),
+    shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+        for callback in startup_callbacks:
+            if isinstance((res := callback()), Awaitable):
+                await res
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with AsyncExitStack() as stack:
@@ -408,8 +412,6 @@ def _lifespan(
                     queue_evaluation=queue_evaluation,
                 )
                 await stack.enter_async_context(scaffolder)
-            for callback in startup_callbacks:
-                callback()
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue": enqueue,
@@ -418,7 +420,8 @@ def _lifespan(
                 "enqueue_operation": enqueue_operation,
             }
         for callback in shutdown_callbacks:
-            callback()
+            if isinstance((res := callback()), Awaitable):
+                await res
 
     return lifespan
 
@@ -596,13 +599,13 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
-    startup_callbacks: Iterable[Callable[[], None]] = (),
-    shutdown_callbacks: Iterable[Callable[[], None]] = (),
+    startup_callbacks: Iterable[_Callback] = (),
+    shutdown_callbacks: Iterable[_Callback] = (),
     secret: Optional[str] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
-    startup_callbacks_list: List[Callable[[], None]] = list(startup_callbacks)
-    shutdown_callbacks_list: List[Callable[[], None]] = list(shutdown_callbacks)
+    startup_callbacks_list: List[_Callback] = list(startup_callbacks)
+    shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -616,6 +619,7 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
     dml_event_handler = DmlEventHandler(
         db=db,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -669,10 +673,7 @@ def create_app(
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
 
-        prometheus_middlewares = [Middleware(PrometheusMiddleware)]
-    else:
-        prometheus_middlewares = []
-
+        middlewares.append(Middleware(PrometheusMiddleware))
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -687,10 +688,7 @@ def create_app(
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
         ),
-        middleware=[
-            Middleware(HeadersMiddleware),
-            *prometheus_middlewares,
-        ],
+        middleware=middlewares,
         exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
         swagger_ui_parameters={
@@ -703,7 +701,8 @@ def create_app(
     app.include_router(router)
     app.include_router(graphql_router)
     app.add_middleware(GZipMiddleware)
-    if serve_ui:
+    web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
+    if serve_ui and web_manifest_path.is_file():
         app.mount(
             "/",
             app=Static(
@@ -716,7 +715,7 @@ def create_app(
                     n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
-                    web_manifest_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
+                    web_manifest_path=web_manifest_path,
                 ),
             ),
             name="static",

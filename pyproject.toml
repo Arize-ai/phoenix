@@ -70,12 +70,12 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox",
-  "tox-uv",
-  "uv",
+  "tox==4.18.0",
+  "tox-uv==1.11.2",
+  "uv==0.4.2",
   "jupyter",
   "nbqa",
-  "ruff==0.6.1",
+  "ruff==0.6.3",
   "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
@@ -102,6 +102,7 @@ dev = [
   "Faker>=26.0.0",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
+  "grpc-interceptor[testing]",
 ]
 evals = []
 experimental = []
@@ -225,7 +226,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.1",
+  "ruff==0.6.3",
 ]
 
 [[tool.hatch.envs.style.matrix]]
@@ -259,6 +260,7 @@ addopts = [
   "--doctest-modules",
   "--new-first",
   "--showlocals",
+  "--exitfirst",
 ]
 testpaths = [
   "tests",
