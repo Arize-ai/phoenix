@@ -7,12 +7,12 @@ import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
+from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
-from phoenix.auth import PHOENIX_ACCESS_TOKEN_COOKIE_NAME
 from phoenix.db import enums, models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
@@ -33,7 +33,6 @@ from phoenix.db.models import (
     Trace as OrmTrace,
 )
 from phoenix.pointcloud.clustering import Hdbscan
-from phoenix.server.api.auth import IsAuthenticated
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.helpers import ensure_list
@@ -479,20 +478,20 @@ class Query:
             return to_gql_experiment_run(run)
         raise NotFound(f"Unknown node type: {type_name}")
 
-    @strawberry.field(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.field  # type: ignore
     async def viewer(self, info: Info[Context, None]) -> Optional[User]:
         request = info.context.get_request()
-        if (access_token := request.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)) is None:
+        try:
+            user = request.user
+        except AssertionError:
             return None
-        assert (token_store := info.context.token_store) is not None
-        claim = await token_store.read(access_token)
-        if claim.token_id is None or (user_id := claim.user_id) is None:
+        if isinstance(user, UnauthenticatedUser):
             return None
         async with info.context.db() as session:
             if (
                 user := await session.scalar(
                     select(models.User)
-                    .where(models.User.id == user_id)
+                    .where(models.User.id == int(user.identity))
                     .options(joinedload(models.User.role))
                 )
             ) is None:
