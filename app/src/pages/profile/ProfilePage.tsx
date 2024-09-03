@@ -1,7 +1,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Card, Form, TextField } from "@arizeai/components";
+import { Card, Flex, Form, TextField } from "@arizeai/components";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
@@ -29,17 +29,26 @@ export function ProfilePage() {
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
-        <Card title="Profile" extra={<LogoutButton />} variant="compact">
-          <Form>
-            <TextField label="email" value={viewer.email} isReadOnly />
-            <TextField
-              label="username"
-              value={viewer.username || ""}
-              isReadOnly
-            />
-            <TextField label="role" value={viewer.role.name || ""} isReadOnly />
-          </Form>
-        </Card>
+        {/* TODO(auth): Change username, etc. */}
+        {/* TODO(auth): Reset password */}
+        <Flex direction="column" gap="size-200">
+          <Card title="Profile" extra={<LogoutButton />} variant="compact">
+            <Form>
+              <TextField label="email" value={viewer.email} isReadOnly />
+              <TextField
+                label="username"
+                value={viewer.username || ""}
+                isReadOnly
+              />
+              <TextField
+                label="role"
+                value={viewer.role.name || ""}
+                isReadOnly
+              />
+            </Form>
+          </Card>
+          <Card title="API Keys">user api key</Card>
+        </Flex>
       </div>
     </main>
   );

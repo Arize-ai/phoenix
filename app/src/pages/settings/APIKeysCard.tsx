@@ -22,14 +22,12 @@ import { CopyToClipboardButton, Loading } from "@phoenix/components";
 import { APIKeysCardQuery } from "./__generated__/APIKeysCardQuery.graphql";
 import { CreateSystemAPIKeyDialog } from "./CreateSystemAPIKeyDialog";
 import { SystemAPIKeysTable } from "./SystemAPIKeysTable";
-import { UserAPIKeysTable } from "./UserAPIKeysTable";
 
 function APIKeysCardContent() {
   const query = useLazyLoadQuery<APIKeysCardQuery>(
     graphql`
       query APIKeysCardQuery {
         ...SystemAPIKeysTableFragment
-        ...UserAPIKeysTableFragment
       }
     `,
     {}
@@ -40,9 +38,8 @@ function APIKeysCardContent() {
       <TabPane title="System Keys" name="System Keys">
         <SystemAPIKeysTable query={query} />
       </TabPane>
-      {/* TODO(parker): do not render this table for non admins once  https://github.com/Arize-ai/phoenix/issues/4454 is done*/}
       <TabPane title="User Keys" name="User Keys">
-        <UserAPIKeysTable query={query} />
+        <p>Coming Soon</p>
       </TabPane>
     </Tabs>
   );
