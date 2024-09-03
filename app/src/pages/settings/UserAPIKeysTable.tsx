@@ -73,7 +73,7 @@ export function UserAPIKeysTable({
         header: "",
         accessorKey: "id",
         size: 10,
-        cell: ({ row }) => {
+        cell: () => {
           return (
             <Flex direction="row" justifyContent="end" width="100%">
               <DeleteAPIKeyButton

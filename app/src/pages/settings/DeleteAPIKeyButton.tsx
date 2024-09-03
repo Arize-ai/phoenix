@@ -11,8 +11,6 @@ import {
   View,
 } from "@arizeai/components";
 
-import { useNotifySuccess } from "@phoenix/contexts";
-
 export function DeleteAPIKeyButton({
   handleDelete,
 }: {

@@ -128,7 +128,7 @@ export function SystemAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch]);
+  }, [refetch, handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
