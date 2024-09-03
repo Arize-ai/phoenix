@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum, auto
 from hashlib import pbkdf2_hmac
-from typing import Any, Optional, Protocol
+from typing import Any, Literal, Optional, Protocol
 
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
@@ -74,52 +74,59 @@ class _PasswordRequirements:
 
     Attributes:
         length (int): the minimum length of the password
-        special_chars (bool): whether the password must contain at least one special character
         digits (bool): whether the password must contain at least one digit
-        upper_case (bool): whether the password must contain at least one uppercase letter
         lower_case (bool): whether the password must contain at least one lowercase letter
+        upper_case (bool): whether the password must contain at least one uppercase letter
+        special_chars (bool): whether the password must contain at least one special character
     """
 
     length: int
-    special_chars: bool = False
     digits: bool = False
-    upper_case: bool = False
     lower_case: bool = False
+    upper_case: bool = False
+    special_chars: bool = False
 
-    def validate(self, password: str) -> None:
+    def validate(
+        self,
+        string: str,
+        /,
+        err_msg_subject: Literal["Password", "Phoenix secret"] = "Password",
+    ) -> None:
         """
         Validates the password against the requirements.
 
         Args:
-            password (str): the password to validate
+            string (str): the password to validate
+            err_msg_subject (str, optional): the subject of the error message,
+                defaults to "Password"
         Returns:
             None
         Raises:
             ValueError: if the password does not meet the requirements
         """
-        if not password:
-            raise ValueError("Password must be non-empty")
-        if any(char.isspace() for char in password):
-            raise ValueError("Password must not contain whitespace characters")
-        if not password.isascii():
-            raise ValueError("Password must contain only ASCII characters")
+        if not string:
+            raise ValueError(f"{err_msg_subject} must be non-empty")
+        if any(char.isspace() for char in string):
+            raise ValueError(f"{err_msg_subject} must not contain whitespace characters")
+        if not string.isascii():
+            raise ValueError(f"{err_msg_subject} must contain only ASCII characters")
         err_msg = []
-        if len(password) < self.length:
+        if len(string) < self.length:
             err_msg.append(f"must be at least {self.length} characters long")
-        if self.special_chars and not any(char in "!@#$%^&*()_+" for char in password):
-            err_msg.append("at least one special character")
-        if self.digits and not any(char.isdigit() for char in password):
+        if self.digits and not any(char.isdigit() for char in string):
             err_msg.append("at least one digit")
-        if self.upper_case and not any(char.isupper() for char in password):
-            err_msg.append("at least one uppercase letter")
-        if self.lower_case and not any(char.islower() for char in password):
+        if self.lower_case and not any(char.islower() for char in string):
             err_msg.append("at least one lowercase letter")
+        if self.upper_case and not any(char.isupper() for char in string):
+            err_msg.append("at least one uppercase letter")
+        if self.special_chars and not any(char in "!@#$%^&*()_+" for char in string):
+            err_msg.append("at least one special character")
         if not err_msg:
             return
         if len(err_msg) > 1:
-            err_text = "Password " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
+            err_text = f"{err_msg_subject} " + ", ".join(err_msg[:-1]) + ", and " + err_msg[-1]
         else:
-            err_text = f"Password {err_msg[0]}"
+            err_text = f"{err_msg_subject} {err_msg[0]}"
         raise ValueError(err_text)
 
 
@@ -131,9 +138,11 @@ NUM_ITERATIONS = 10_000
 """The number of iterations to use for the PBKDF2 key derivation function."""
 MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
-PASSWORD_REQUIREMENTS = _PasswordRequirements(MIN_PASSWORD_LENGTH)
+PASSWORD_REQUIREMENTS = _PasswordRequirements(length=MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
-REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(DEFAULT_SECRET_LENGTH)
+REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
+    length=DEFAULT_SECRET_LENGTH, digits=True, lower_case=True
+)
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
