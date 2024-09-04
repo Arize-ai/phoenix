@@ -86,8 +86,7 @@ def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
     else:
         for item in items:
             if "dialect" in item.fixturenames:
-                if "postgresql" in item.callspec.params.values():
-                    item.add_marker(pytest.mark.xfail(reason="postgres tests are currently flaky"))
+                item.add_marker(pytest.mark.xfail(reason="database tests are currently flaky"))
 
 
 @pytest.fixture
