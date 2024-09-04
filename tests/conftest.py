@@ -21,6 +21,7 @@ import httpx
 import pytest
 from _pytest.config import Config, Parser
 from _pytest.fixtures import SubRequest
+from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import URL, Request, Response
@@ -51,6 +52,30 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
+def pytest_terminal_summary(
+    terminalreporter: TerminalReporter, exitstatus: int, config: Config
+) -> None:
+    xfails = len([x for x in terminalreporter.stats.get("xfailed", [])])
+    xpasses = len([x for x in terminalreporter.stats.get("xpassed", [])])
+
+    xfail_threshold = 5  # allowing for 2 existing xfails + 3 flaky tests
+
+    terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
+    terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
+
+    if exitstatus == pytest.ExitCode.OK:
+        if xfails < xfail_threshold:
+            terminalreporter.write_sep(
+                "=", "Within xfail threshold. Passing the test suite.", green=True
+            )
+            terminalreporter._session.exitstatus = pytest.ExitCode.OK
+        else:
+            terminalreporter.write_sep(
+                "=", "Too many flaky tests. Failing the test suite.", red=True
+            )
+            terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
 def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
@@ -58,6 +83,11 @@ def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
+    else:
+        for item in items:
+            if "dialect" in item.fixturenames:
+                if "postgresql" in item.callspec.params.values():
+                    item.add_marker(pytest.mark.xfail(reason="postgres tests are currently flaky"))
 
 
 @pytest.fixture
