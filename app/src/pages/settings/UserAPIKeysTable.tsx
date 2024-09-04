@@ -109,19 +109,12 @@ export function UserAPIKeysTable({
         header: "",
         accessorKey: "id",
         size: 10,
-        cell: () => {
+        cell: ({ row }) => {
           return (
             <Flex direction="row" justifyContent="end" width="100%">
               <DeleteAPIKeyButton
                 handleDelete={() => {
-                  startTransition(() => {
-                    refetch(
-                      {},
-                      {
-                        fetchPolicy: "network-only",
-                      }
-                    );
-                  });
+                  handleDelete(row.original.id);
                 }}
               />
             </Flex>
@@ -133,7 +126,7 @@ export function UserAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch]);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
