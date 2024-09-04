@@ -52,7 +52,7 @@ class DeleteApiKeyInput:
 
 
 @strawberry.type
-class DeleteSystemApiKeyMutationPayload:
+class DeleteApiKeyMutationPayload:
     id: GlobalID
     query: Query
 
@@ -151,10 +151,21 @@ class ApiKeyMutationMixin:
     @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
     async def delete_system_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
-    ) -> DeleteSystemApiKeyMutationPayload:
+    ) -> DeleteApiKeyMutationPayload:
         assert (token_store := info.context.token_store) is not None
         api_key_id = from_global_id_with_expected_type(
             input.id, expected_type_name=SystemApiKey.__name__
         )
         await token_store.revoke(ApiKeyId(api_key_id))
-        return DeleteSystemApiKeyMutationPayload(id=input.id, query=Query())
+        return DeleteApiKeyMutationPayload(id=input.id, query=Query())
+
+    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated])  # type: ignore
+    async def delete_user_api_key(
+        self, info: Info[Context, None], input: DeleteApiKeyInput
+    ) -> DeleteApiKeyMutationPayload:
+        assert (token_store := info.context.token_store) is not None
+        api_key_id = from_global_id_with_expected_type(
+            input.id, expected_type_name=UserApiKey.__name__
+        )
+        await token_store.revoke(ApiKeyId(api_key_id))
+        return DeleteApiKeyMutationPayload(id=input.id, query=Query())
