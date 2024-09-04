@@ -336,6 +336,11 @@ input DeleteApiKeyInput {
   id: GlobalID!
 }
 
+type DeleteApiKeyMutationPayload {
+  id: GlobalID!
+  query: Query!
+}
+
 input DeleteDatasetExamplesInput {
   exampleIds: [GlobalID!]!
   datasetVersionDescription: String
@@ -348,11 +353,6 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
-}
-
-type DeleteSystemApiKeyMutationPayload {
-  id: GlobalID!
-  query: Query!
 }
 
 type Dimension implements Node {
@@ -907,7 +907,8 @@ type Model {
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
-  deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteSystemApiKeyMutationPayload!
+  deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
+  deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   login(input: LoginMutationInput!): Void
   logout: Void
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
