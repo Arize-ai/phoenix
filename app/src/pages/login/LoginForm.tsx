@@ -16,8 +16,8 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
     async (params: LoginFormParams) => {
-      setError(() => null);
-      setIsLoading(() => true);
+      setError(null);
+      setIsLoading(true);
       try {
         const response = await fetch("/auth/login", {
           method: "POST",
