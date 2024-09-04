@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo } from "react";
-import { Outlet } from "react-router";
+import React, { Suspense, useCallback, useMemo } from "react";
+import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons } from "@arizeai/components";
@@ -10,6 +10,7 @@ import {
   DocsLink,
   GitHubLink,
   NavBreadcrumb,
+  NavButton,
   NavLink,
   SideNavbar,
   ThemeToggle,
@@ -78,6 +79,15 @@ function SideNav() {
     return window.Config.hasInferences;
   }, []);
   const { authenticationEnabled } = useFunctionality();
+  const navigate = useNavigate();
+  const onLogout = useCallback(async () => {
+    const response = await fetch("/auth/logout", {
+      method: "POST",
+    });
+    if (response.ok) {
+      navigate("/login");
+    }
+  }, [navigate]);
   return (
     <SideNavbar>
       <Brand />
@@ -132,13 +142,22 @@ function SideNav() {
             <ThemeToggle />
           </li>
           {authenticationEnabled && (
-            <li>
-              <NavLink
-                to="/profile"
-                text="Profile"
-                icon={<Icon svg={<Icons.PersonOutline />} />}
-              />
-            </li>
+            <>
+              <li>
+                <NavLink
+                  to="/profile"
+                  text="Profile"
+                  icon={<Icon svg={<Icons.PersonOutline />} />}
+                />
+              </li>
+              <li>
+                <NavButton
+                  text="Log Out"
+                  icon={<Icon svg={<Icons.LogOut />} />}
+                  onClick={onLogout}
+                />
+              </li>
+            </>
           )}
         </ul>
       </Flex>

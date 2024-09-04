@@ -177,3 +177,16 @@ export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
     </RRNavLink>
   );
 }
+
+export function NavButton(props: {
+  text: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
+      {props.icon}
+      <Text>{props.text}</Text>
+    </button>
+  );
+}
