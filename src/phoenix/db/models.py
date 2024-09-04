@@ -631,7 +631,7 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
     user_role_id: Mapped[int] = mapped_column(
-        ForeignKey("user_roles.id"),
+        ForeignKey("user_roles.id", ondelete="NO ACTION"),
         index=True,
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
