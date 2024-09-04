@@ -1451,6 +1451,7 @@ type User implements Node {
   username: String
   createdAt: DateTime!
   role: UserRole!
+  apiKeys: [ApiKey!]!
 }
 
 type UserApiKey implements ApiKey & Node {
