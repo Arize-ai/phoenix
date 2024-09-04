@@ -541,7 +541,7 @@ def create_graphql_router(
 
     return GraphQLRouter(
         schema,
-        graphiql=True,
+        graphql_ide=True,
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
