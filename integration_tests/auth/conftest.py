@@ -32,7 +32,6 @@ from phoenix.config import (
 from phoenix.server.api.auth import IsAdmin, IsAuthenticated
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from phoenix.server.api.mutations.auth_mutations import FAILED_LOGIN_MESSAGE
 from typing_extensions import TypeAlias
 
 _ProjectName: TypeAlias = str
@@ -250,12 +249,7 @@ def _json(resp: httpx.Response) -> Dict[str, Any]:
     assert (resp_dict := cast(Dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if (
-            "not auth" in msg
-            or FAILED_LOGIN_MESSAGE in msg
-            or IsAuthenticated.message in msg
-            or IsAdmin.message in msg
-        ):
+        if "not auth" in msg or IsAuthenticated.message in msg or IsAdmin.message in msg:
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
