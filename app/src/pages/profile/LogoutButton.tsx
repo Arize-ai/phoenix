@@ -7,7 +7,7 @@ export function LogoutButton() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const onLogout = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(() => true);
     try {
       const response = await fetch("/auth/logout", {
         method: "POST",
@@ -16,7 +16,7 @@ export function LogoutButton() {
         navigate("/login");
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(() => false);
     }
   }, [navigate]);
   return (
