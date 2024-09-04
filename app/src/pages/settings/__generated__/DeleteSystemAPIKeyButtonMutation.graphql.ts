@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5b5a02a07837727269da806b9949564>>
+ * @generated SignedSource<<0d6737ea11f10d62c720159eb3000ba1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type DeleteSystemAPIKeyButtonMutation$variables = {
 };
 export type DeleteSystemAPIKeyButtonMutation$data = {
   readonly deleteSystemApiKey: {
-    readonly __typename: "DeleteSystemApiKeyMutationPayload";
+    readonly __typename: "DeleteApiKeyMutationPayload";
     readonly id: string;
   };
 };
@@ -44,7 +44,7 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "DeleteSystemApiKeyMutationPayload",
+    "concreteType": "DeleteApiKeyMutationPayload",
     "kind": "LinkedField",
     "name": "deleteSystemApiKey",
     "plural": false,
