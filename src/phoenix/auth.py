@@ -7,6 +7,8 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
+from fastapi import Response
+
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
     """
@@ -59,6 +61,48 @@ def validate_password_format(password: str) -> None:
     Checks that the password has a valid format.
     """
     PASSWORD_REQUIREMENTS.validate(password)
+
+
+def set_access_token_cookie(response: Response, access_token: str) -> Response:
+    return _set_token_cookie(
+        response=response,
+        cookie_name=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+        cookie_max_age=PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        token=access_token,
+    )
+
+
+def set_refresh_token_cookie(response: Response, refresh_token: str) -> Response:
+    return _set_token_cookie(
+        response=response,
+        cookie_name=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+        cookie_max_age=PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        token=refresh_token,
+    )
+
+
+def _set_token_cookie(
+    response: Response, cookie_name: str, cookie_max_age: timedelta, token: str
+) -> Response:
+    response.set_cookie(
+        key=cookie_name,
+        value=token,
+        secure=True,
+        httponly=True,
+        samesite="strict",
+        max_age=int(cookie_max_age.total_seconds()),
+    )
+    return response
+
+
+def delete_access_token_cookie(response: Response) -> Response:
+    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+    return response
+
+
+def delete_refresh_token_cookie(response: Response) -> Response:
+    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    return response
 
 
 @dataclass(frozen=True)
@@ -147,9 +191,13 @@ REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
-PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=5)
+"""The name of the cookie that stores the Phoenix access token."""
+PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=10)
+"""The maximum age of the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
+"""The name of the cookie that stores the Phoenix refresh token."""
 PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=31)
+"""The maximum age of the Phoenix refresh token."""
 
 
 class Token(str): ...
