@@ -65,7 +65,7 @@ const getOtelInitCodePython = ({
   return `from phoenix.otel import register\n
 tracer_provider = register(
   project_name="${projectName}",
-  endpoint="${(isHosted ? HOSTED_PHOENIX_URL : BASE_URL) + "/v1/traces"}"}
+  endpoint="${(isHosted ? HOSTED_PHOENIX_URL : BASE_URL) + "/v1/traces"}",${isHosted ? "" : `\n  headers={"api_key": "<your-api-key>"}`}
 )`;
 };
 
