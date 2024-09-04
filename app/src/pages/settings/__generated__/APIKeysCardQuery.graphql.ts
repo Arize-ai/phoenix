@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<314a46b0f443b9e1e188e126d3b94d20>>
+ * @generated SignedSource<<87527227e2af250a58dfb79cbd126a32>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,14 +12,52 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type APIKeysCardQuery$variables = Record<PropertyKey, never>;
 export type APIKeysCardQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment" | "UserAPIKeysTableFragment">;
 };
 export type APIKeysCardQuery = {
   response: APIKeysCardQuery$data;
   variables: APIKeysCardQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "id",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "name",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "description",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "createdAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "expiresAt",
+    "storageKey": null
+  }
+];
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -30,6 +68,11 @@ const node: ConcreteRequest = {
         "args": null,
         "kind": "FragmentSpread",
         "name": "SystemAPIKeysTableFragment"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "UserAPIKeysTableFragment"
       }
     ],
     "type": "Query",
@@ -48,57 +91,32 @@ const node: ConcreteRequest = {
         "kind": "LinkedField",
         "name": "systemApiKeys",
         "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "description",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "createdAt",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "expiresAt",
-            "storageKey": null
-          }
-        ],
+        "selections": (v0/*: any*/),
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "UserApiKey",
+        "kind": "LinkedField",
+        "name": "userApiKeys",
+        "plural": true,
+        "selections": (v0/*: any*/),
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "07048107c95469bc12ff425c6ba264ea",
+    "cacheID": "b5ca39f5901adfac7e884cb2555989fa",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "c3d10193f41d6556ae921b604ec89d8c";
+(node as any).hash = "ad967afd45af0d5976982c70eaadb330";
 
 export default node;
