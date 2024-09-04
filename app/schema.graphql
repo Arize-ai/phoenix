@@ -1450,6 +1450,9 @@ type User implements Node {
   email: String!
   username: String
   createdAt: DateTime!
+
+  """API keys associated with the user."""
+  apiKeys: [ApiKey!]
   role: UserRole!
 }
 

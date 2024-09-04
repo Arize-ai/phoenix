@@ -496,7 +496,10 @@ class Query:
                 )
             ) is None:
                 return None
-        return to_gql_user(user)
+            api_keys = list(
+                await session.scalars(select(models.ApiKey).where(models.ApiKey.user_id == user.id))
+            )
+        return to_gql_user(user, api_keys=api_keys)
 
     @strawberry.field
     def clusters(
