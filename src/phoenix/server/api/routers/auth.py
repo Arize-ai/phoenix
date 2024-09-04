@@ -184,4 +184,4 @@ async def refresh_tokens(request: Request) -> Response:
     return response
 
 
-LOGIN_FAILED_MESSAGE = "Invalid email or password"
+LOGIN_FAILED_MESSAGE = "Invalid email and/or password"
