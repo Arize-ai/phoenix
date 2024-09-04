@@ -1,10 +1,15 @@
 from abc import ABC
-from typing import Any, Awaitable, Callable, Optional, Tuple
+from typing import Any, Awaitable, Callable, Tuple
 
 import grpc
 from grpc_interceptor import AsyncServerInterceptor
 from grpc_interceptor.exceptions import Unauthenticated
-from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
+from starlette.authentication import (
+    AuthCredentials,
+    AuthenticationBackend,
+    AuthenticationError,
+    BaseUser,
+)
 from starlette.requests import HTTPConnection
 
 from phoenix.auth import (
@@ -26,20 +31,24 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
     async def authenticate(
         self,
         conn: HTTPConnection,
-    ) -> Optional[Tuple[AuthCredentials, BaseUser]]:
+    ) -> Tuple[AuthCredentials, BaseUser]:
         if header := conn.headers.get("Authorization"):
             scheme, _, token = header.partition(" ")
             if scheme.lower() != "bearer" or not token:
-                return None
+                raise AuthenticationError(
+                    "Only the Bearer authentication scheme is supported in the Authorization header"
+                )
         elif access_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
             token = access_token
         else:
-            return None
+            raise AuthenticationError("No Authorization header or access token cookie found")
         claims = await self._token_store.read(Token(token))
-        if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
-            return None
-        if not isinstance(claims, (ApiKeyClaims, AccessTokenClaims)):
-            return None
+        if (
+            not isinstance(claims, UserClaimSet)
+            or not isinstance(claims.subject, UserId)
+            or not isinstance(claims, (ApiKeyClaims, AccessTokenClaims))
+        ):
+            raise AuthenticationError("Authentication failed")
         return AuthCredentials(), PhoenixUser(claims.subject, claims)
 
 
