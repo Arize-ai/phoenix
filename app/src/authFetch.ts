@@ -36,16 +36,25 @@ export async function authFetch(
   throw new Error("An unexpected error occurred while fetching data");
 }
 
+let refreshPromise: Promise<Response> | null = null;
+
 async function refreshTokens(url: string = REFRESH_URL): Promise<Response> {
+  if (refreshPromise) {
+    // There is already a refresh request in progress, so we should wait for it
+    return refreshPromise;
+  }
   // This function should make a request to the server to refresh the access token
   // eslint-disable-next-line no-console
   console.log("Refreshing tokens");
-  return fetch(url, {
+  refreshPromise = fetch(url, {
     method: "POST",
   }).then((response) => {
     if (!response.ok) {
       throw new Error("Failed to refresh tokens");
     }
+    // Clear the refreshPromise so that future requests will trigger a new refresh
+    refreshPromise = null;
     return response;
   });
+  return refreshPromise;
 }
