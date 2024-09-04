@@ -197,6 +197,7 @@ PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=10)
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
 PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=31)
+"""The maximum age of the Phoenix refresh token."""
 
 
 class Token(str): ...
