@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column(
             "user_role_id",
             sa.Integer,
-            sa.ForeignKey("user_roles.id", ondelete="CASCADE"),
+            sa.ForeignKey("user_roles.id", ondelete="RESTRICT"),
             nullable=False,
             index=True,
         ),
