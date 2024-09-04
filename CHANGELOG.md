@@ -1,5 +1,31 @@
 # Changelog
 
+## [4.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.32.0...arize-phoenix-v4.33.0) (2024-09-04)
+
+
+### Features
+
+* **auth:** add user api keys table ([#4473](https://github.com/Arize-ai/phoenix/issues/4473)) ([7c1334d](https://github.com/Arize-ai/phoenix/commit/7c1334dcd9e2e862c9aab8e2b6d66b59d5e72bb4))
+* incorporate schema for postgresql and add integration test ([#4474](https://github.com/Arize-ai/phoenix/issues/4474)) ([cd64a99](https://github.com/Arize-ai/phoenix/commit/cd64a9975d673f872d00c26478c1ad832bd00303))
+* **onboarding:** add bedrock ([#4465](https://github.com/Arize-ai/phoenix/issues/4465)) ([b03901b](https://github.com/Arize-ai/phoenix/commit/b03901b95a8d14b1cd4ad74d92ee2c100f47c281))
+* render db schema in welcome message when applicable ([#4479](https://github.com/Arize-ai/phoenix/issues/4479)) ([ecdf039](https://github.com/Arize-ai/phoenix/commit/ecdf03958d9f30f7a0a485517bc64fab4c2eb0e7))
+* Return Query from DeleteSystemApiKey mutation ([#4432](https://github.com/Arize-ai/phoenix/issues/4432)) ([b0639e0](https://github.com/Arize-ai/phoenix/commit/b0639e0f18f658129da967d62b560e8d76a1c181))
+
+
+### Bug Fixes
+
+* small typo in app ([#4457](https://github.com/Arize-ai/phoenix/issues/4457)) ([55d7b87](https://github.com/Arize-ai/phoenix/commit/55d7b87dd94d8ae0231788de45f3a0abe343fdd2))
+
+
+### Documentation
+
+* create nbconvert makefile ([#4456](https://github.com/Arize-ai/phoenix/issues/4456)) ([f32f842](https://github.com/Arize-ai/phoenix/commit/f32f842a5b853d3b851c9f7d9fa49f1db9691ed0))
+* fix spacing ([f959dc6](https://github.com/Arize-ai/phoenix/commit/f959dc6aa9673ea377a675eafa5997fcd1428a6b))
+* improve migration guide ([#4425](https://github.com/Arize-ai/phoenix/issues/4425)) ([aed6c83](https://github.com/Arize-ai/phoenix/commit/aed6c838eb9ca395df340fcec1d129e80f071e4e))
+* Update hosted Phoenix tutorials to use register and add quickstarts ([#4371](https://github.com/Arize-ai/phoenix/issues/4371)) ([14b898b](https://github.com/Arize-ai/phoenix/commit/14b898bc741d3e9c6c770915bf93a95d3533c102))
+* update readme with a gif ([15a8d0a](https://github.com/Arize-ai/phoenix/commit/15a8d0ac9d3953a99e62106a06b0c8434e6e14a4))
+* vision tracing tutorial ([#4441](https://github.com/Arize-ai/phoenix/issues/4441)) ([669c1b7](https://github.com/Arize-ai/phoenix/commit/669c1b7496088ceabb3f1a745138e258e100f51b))
+
 ## [4.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.31.0...arize-phoenix-v4.32.0) (2024-08-29)
 
 
