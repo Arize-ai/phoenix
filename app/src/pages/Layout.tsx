@@ -16,6 +16,7 @@ import {
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
+import { useNotifyError } from "@phoenix/contexts";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 const layoutCSS = css`
@@ -78,6 +79,7 @@ function SideNav() {
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
+  const notifyError = useNotifyError();
   const { authenticationEnabled } = useFunctionality();
   const navigate = useNavigate();
   const onLogout = useCallback(async () => {
@@ -87,7 +89,11 @@ function SideNav() {
     if (response.ok) {
       navigate("/login");
     }
-  }, [navigate]);
+    notifyError({
+      title: "Logout Failed",
+      message: "Failed to log out: " + response.statusText,
+    });
+  }, [navigate, notifyError]);
   return (
     <SideNavbar>
       <Brand />

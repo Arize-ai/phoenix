@@ -53,6 +53,7 @@ const navLinkCSS = css`
     color 0.2s ease-in-out,
     background-color 0.2s ease-in-out;
   text-decoration: none;
+
   &.active {
     color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-primary-300);
@@ -64,6 +65,9 @@ const navLinkCSS = css`
   & > .ac-icon-wrap {
     padding: var(--ac-global-dimension-size-50);
     display: inline-block;
+  }
+  .ac-text {
+    white-space: nowrap;
   }
 `;
 
