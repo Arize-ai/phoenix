@@ -1,7 +1,9 @@
 import time
 from collections import defaultdict
 from functools import partial
-from typing import Any, DefaultDict, List, Optional
+from typing import Any, Callable, Coroutine, DefaultDict, List, Optional
+
+from fastapi import HTTPException, Request
 
 from phoenix.exceptions import PhoenixException
 
@@ -132,3 +134,24 @@ class ServerRateLimiter:
         self._cleanup_expired_limiters(request_time)
         rate_limiter = self._fetch_token_bucket(key, request_time)
         rate_limiter.make_request_if_ready()
+
+
+def fastapi_rate_limiter(
+    rate_limiter: ServerRateLimiter, paths: Optional[List[str]] = None
+) -> Callable[[Request], Coroutine[Any, Any, Request]]:
+    async def dependency(request: Request) -> Request:
+        if paths is None or any(path_match(request.url.path, path) for path in paths):
+            client = request.client
+            if client:  # bypasses rate limiter if no client
+                client_ip = client.host
+                try:
+                    rate_limiter.make_request(client_ip)
+                except UnavailableTokensError:
+                    raise HTTPException(status_code=429, detail="Too Many Requests")
+        return request
+
+    return dependency
+
+
+def path_match(path: str, match_pattern: str) -> bool:
+    return path == match_pattern

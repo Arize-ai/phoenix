@@ -860,11 +860,6 @@ type LabelFraction {
   fraction: Float!
 }
 
-input LoginMutationInput {
-  email: String!
-  password: String!
-}
-
 enum MimeType {
   text
   json
@@ -909,8 +904,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  login(input: LoginMutationInput!): Void
-  logout: Void
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -1514,6 +1507,3 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
-
-"""Represents NULL values"""
-scalar Void

@@ -32,7 +32,6 @@ from phoenix.config import (
 from phoenix.server.api.auth import IsAdmin, IsAuthenticated
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from phoenix.server.api.mutations.auth_mutations import FAILED_LOGIN_MESSAGE
 from typing_extensions import TypeAlias
 
 _ProjectName: TypeAlias = str
@@ -218,10 +217,11 @@ def log_in(
 ) -> _LogIn:
     @contextmanager
     def _(*, email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
-        args = f'email:"{email}", password:"{password}"'
-        query = "mutation{login(input:{" + args + "})}"
-        resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=dict(query=query))
-        _json(resp)
+        resp = httpx_client.post(
+            urljoin(get_base_url(), "/auth/login"),
+            json={"email": email, "password": password},
+        )
+        resp.raise_for_status()
         assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
         yield access_token, refresh_token
@@ -235,13 +235,11 @@ def log_out(
     httpx_client: httpx.Client,
 ) -> _LogOut:
     def _(token: _Token) -> None:
-        query = "mutation{logout}"
         resp = httpx_client.post(
-            urljoin(get_base_url(), "graphql"),
-            json=dict(query=query),
+            urljoin(get_base_url(), "/auth/logout"),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
         )
-        _json(resp)
+        resp.raise_for_status()
 
     return _
 
@@ -251,12 +249,7 @@ def _json(resp: httpx.Response) -> Dict[str, Any]:
     assert (resp_dict := cast(Dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if (
-            "not auth" in msg
-            or FAILED_LOGIN_MESSAGE in msg
-            or IsAuthenticated.message in msg
-            or IsAdmin.message in msg
-        ):
+        if "not auth" in msg or IsAuthenticated.message in msg or IsAdmin.message in msg:
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
