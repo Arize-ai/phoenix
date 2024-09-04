@@ -144,6 +144,10 @@ class _User(Protocol):
     def token(self) -> Optional[_Token]: ...
 
 
+class _UserGenerator(Protocol):
+    def send(self, role: UserRoleInput) -> _User: ...
+
+
 class TestTokens:
     def test_log_in_tokens_should_change(
         self,
@@ -227,9 +231,9 @@ class TestUsers:
                 create_system_api_key(name=fake.unique.pystr(), token=token)
             for _role in UserRoleInput:
                 _profile = next(profiles)
-                _email = profile.email
-                _username = profile.username
-                _password = profile.password
+                _email = _profile.email
+                _username = _profile.username
+                _password = _profile.password
                 with expectation:
                     create_user(
                         email=_email,

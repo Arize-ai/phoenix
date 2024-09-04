@@ -184,6 +184,10 @@ def profiles(
     return starmap(_Profile, zip(emails, usernames, passwords))
 
 
+class _UserGenerator(Protocol):
+    def send(self, role: UserRoleInput) -> _User: ...
+
+
 @pytest.fixture
 def users(
     profiles: Iterator[_Profile],
@@ -191,7 +195,7 @@ def users(
     create_user: _CreateUser,
     log_in: _LogIn,
     fake: Faker,
-) -> Generator[_User, UserRoleInput, None]:
+) -> _UserGenerator:
     def _() -> Generator[Optional[_User], UserRoleInput, None]:
         role = yield None
         for profile in profiles:
@@ -201,7 +205,7 @@ def users(
 
     g = _()
     next(g)
-    return cast(Generator[_User, UserRoleInput, None], g)
+    return cast(_UserGenerator, g)
 
 
 @pytest.fixture
