@@ -1,12 +1,15 @@
 import os
 import secrets
 from contextlib import ExitStack, contextmanager
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from itertools import count, starmap
 from typing import (
     Any,
     Callable,
     ContextManager,
     Dict,
+    Generator,
     Iterator,
     List,
     Optional,
@@ -23,6 +26,7 @@ from faker import Faker
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    REQUIREMENTS_FOR_PHOENIX_SECRET,
 )
 from phoenix.config import (
     ENV_PHOENIX_ENABLE_AUTH,
@@ -40,7 +44,7 @@ _Name: TypeAlias = str
 _ApiKey: TypeAlias = str
 _GqlId: TypeAlias = str
 
-_UserName: TypeAlias = str
+_Username: TypeAlias = str
 _Email: TypeAlias = str
 _Password: TypeAlias = str
 _Token: TypeAlias = str
@@ -68,9 +72,32 @@ class _CreateUser(Protocol):
         email: _Email,
         password: _Password,
         role: UserRoleInput,
-        username: Optional[_UserName] = None,
+        username: Optional[_Username] = None,
         token: Optional[_Token] = None,
     ) -> _GqlId: ...
+
+
+class _PatchUser(Protocol):
+    def __call__(
+        self,
+        gid: _GqlId,
+        /,
+        *,
+        username: Optional[_Username] = None,
+        password: Optional[_Password] = None,
+        role: Optional[UserRoleInput] = None,
+        token: Optional[_Token] = None,
+    ) -> Optional[_Token]: ...
+
+
+class _PatchSelfUser(Protocol):
+    def __call__(
+        self,
+        *,
+        username: Optional[_Username] = None,
+        password: Optional[_Password] = None,
+        token: Optional[_Token] = None,
+    ) -> Optional[_Token]: ...
 
 
 class _CreateSystemApiKey(Protocol):
@@ -118,6 +145,65 @@ def app(
         yield
 
 
+@pytest.fixture(autouse=True, scope="class")
+def emails(fake: Faker) -> Iterator[_Email]:
+    return (fake.unique.email() for _ in count())
+
+
+@pytest.fixture(autouse=True, scope="class")
+def passwords(fake: Faker) -> Iterator[_Password]:
+    return (fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET)) for _ in count())
+
+
+@pytest.fixture(autouse=True, scope="class")
+def usernames(fake: Faker) -> Iterator[_Username]:
+    return (fake.unique.pystr() for _ in count())
+
+
+@dataclass(frozen=True)
+class _Profile:
+    email: _Email
+    password: _Password
+    username: Optional[_Username] = None
+
+
+@dataclass(frozen=True)
+class _User:
+    gid: _GqlId
+    role: UserRoleInput
+    profile: _Profile
+    token: Optional[_Token] = None
+
+
+@pytest.fixture
+def profiles(
+    emails: Iterator[_Email],
+    usernames: Iterator[_Username],
+    passwords: Iterator[_Password],
+) -> Iterator[_Profile]:
+    return starmap(_Profile, zip(emails, usernames, passwords))
+
+
+@pytest.fixture
+def users(
+    profiles: Iterator[_Profile],
+    admin_token: _Token,
+    create_user: _CreateUser,
+    log_in: _LogIn,
+    fake: Faker,
+) -> Generator[_User, UserRoleInput, None]:
+    def _() -> Generator[Optional[_User], UserRoleInput, None]:
+        role = yield None
+        for profile in profiles:
+            gid = create_user(**asdict(profile), role=role, token=admin_token)
+            token, _ = log_in(email=profile.email, password=profile.password).__enter__()
+            role = yield _User(gid=gid, role=role, token=token, profile=profile)
+
+    g = _()
+    next(g)
+    return cast(Generator[_User, UserRoleInput, None], g)
+
+
 @pytest.fixture
 def admin_token(
     admin_email: str,
@@ -142,7 +228,7 @@ def create_user(
         email: _Email,
         password: _Password,
         role: UserRoleInput,
-        username: Optional[_UserName] = None,
+        username: Optional[_Username] = None,
         token: Optional[_Token] = None,
     ) -> _GqlId:
         args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
@@ -160,6 +246,84 @@ def create_user(
         assert user["email"] == email
         assert user["role"]["name"] == role.value
         return cast(_GqlId, user["id"])
+
+    return _
+
+
+@pytest.fixture(scope="module")
+def patch_user(
+    httpx_client: httpx.Client,
+) -> _PatchUser:
+    def _(
+        gid: _GqlId,
+        /,
+        *,
+        username: Optional[_Username] = None,
+        password: Optional[_Password] = None,
+        role: Optional[UserRoleInput] = None,
+        token: Optional[_Token] = None,
+    ) -> Optional[_Token]:
+        args = [f'userId:"{gid}"']
+        if password:
+            args.append(f'password:"{password}"')
+        if username:
+            args.append(f'username:"{username}"')
+        if role:
+            args.append(f"role:{role.value}")
+        out = "user{id username role{name}}"
+        query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
+        resp = httpx_client.post(
+            urljoin(get_base_url(), "graphql"),
+            json=dict(query=query),
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
+        )
+        resp_dict = _json(resp)
+        assert (user := resp_dict["data"]["patchUser"]["user"])
+        assert user["id"] == gid
+        if username:
+            assert user["username"] == username
+        if role:
+            assert user["role"]["name"] == role.value
+        if not password:
+            return None
+        assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
+        assert new_token != token
+        return new_token
+
+    return _
+
+
+@pytest.fixture(scope="module")
+def patch_self_user(
+    httpx_client: httpx.Client,
+) -> _PatchSelfUser:
+    def _(
+        *,
+        username: Optional[_Username] = None,
+        password: Optional[_Password] = None,
+        token: Optional[_Token] = None,
+    ) -> Optional[_Token]:
+        args = []
+        if password:
+            args.append(f'password:"{password}"')
+        if username:
+            args.append(f'username:"{username}"')
+        out = "user{username}"
+        query = "mutation{patchSelfUser(input:{" + ",".join(args) + "}){" + out + "}}"
+        resp = httpx_client.post(
+            urljoin(get_base_url(), "graphql"),
+            json=dict(query=query),
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
+        )
+        resp_dict = _json(resp)
+        assert (user := resp_dict["data"]["patchSelfUser"]["user"])
+        if username:
+            assert user["username"] == username
+        if not password:
+            return None
+        assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
+        assert new_token != token
+        return new_token
 
     return _
 
