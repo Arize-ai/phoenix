@@ -58,7 +58,7 @@ def pytest_terminal_summary(
     xfails = len([x for x in terminalreporter.stats.get("xfailed", [])])
     xpasses = len([x for x in terminalreporter.stats.get("xpassed", [])])
 
-    xfail_threshold = 5  # allowing for 2 existing xfails + 3 flaky tests
+    xfail_threshold = 3  # allowing for 2 existing xfails + 1 flaky test
 
     terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
     terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
