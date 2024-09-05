@@ -1456,6 +1456,7 @@ type UMAPPoints {
 type User implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  passwordNeedsReset: Boolean!
   email: String!
   username: String
   createdAt: DateTime!
