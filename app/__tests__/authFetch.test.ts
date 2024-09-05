@@ -1,4 +1,4 @@
-import { authFetch, refreshTokens } from "@phoenix/authFetch";
+import { authFetch } from "@phoenix/authFetch";
 jest.mock("@phoenix/config");
 
 describe("authFetch", () => {
