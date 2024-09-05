@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.0...arize-phoenix-v4.33.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* Fix typo and update ensure dataloader results ordering ([#4527](https://github.com/Arize-ai/phoenix/issues/4527)) ([21d71d1](https://github.com/Arize-ai/phoenix/commit/21d71d166d80a85f7c307d98462f5fcc05c61332))
+
 ## [4.33.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.32.0...arize-phoenix-v4.33.0) (2024-09-04)
 
 
