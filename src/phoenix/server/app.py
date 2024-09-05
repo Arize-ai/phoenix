@@ -94,7 +94,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers import auth_router, v1_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import schema
-from phoenix.server.bearer_auth import BearerTokenAuthBackend, check_authenticated
+from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
@@ -549,7 +549,7 @@ def create_graphql_router(
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
-        dependencies=(Depends(check_authenticated),) if authentication_enabled else (),
+        dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
     )
 
 

@@ -3,7 +3,7 @@ from fastapi.security import APIKeyHeader
 from starlette.status import HTTP_403_FORBIDDEN
 
 from phoenix.config import ENABLE_AUTH
-from phoenix.server.bearer_auth import check_authenticated
+from phoenix.server.bearer_auth import is_authenticated
 
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
@@ -40,7 +40,7 @@ if ENABLE_AUTH:
             )
         )
     )
-    dependencies.append(Depends(check_authenticated))
+    dependencies.append(Depends(is_authenticated))
 
 router = APIRouter(
     prefix="/v1",

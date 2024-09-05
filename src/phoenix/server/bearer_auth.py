@@ -86,7 +86,7 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
         raise Unauthenticated()
 
 
-async def check_authenticated(request: Request) -> None:
+async def is_authenticated(request: Request) -> None:
     """
     Raises a 401 if the request is not authenticated.
     """
