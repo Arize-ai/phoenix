@@ -153,7 +153,7 @@ def run_experiment(
             experiment. Defaults to None.
         rate_limit_errors (Optional[BaseException | Sequence[BaseException]]): An exception or
             sequence of exceptions to adaptively throttle on. Defaults to None.
-        dry_run (bool | int): R the experiment in dry-run mode. When set, experiment results will
+        dry_run (bool | int): Run the experiment in dry-run mode. When set, experiment results will
             not be recorded in Phoenix. If True, the experiment will run on a random dataset
             example. If an integer, the experiment will run on a random sample of the dataset
             examples of the given size. Defaults to False.
