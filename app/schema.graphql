@@ -931,6 +931,8 @@ type Mutation {
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   createUser(input: CreateUserInput!): UserMutationPayload!
+  patchUser(input: PatchUserInput!): UserMutationPayload!
+  patchViewer(input: PatchViewerInput!): UserMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -984,6 +986,19 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchUserInput {
+  userId: GlobalID!
+  newRole: UserRoleInput
+  newUsername: String
+  newPassword: String
+}
+
+input PatchViewerInput {
+  newUsername: String
+  newPassword: String
+  currentPassword: String
 }
 
 enum PerformanceMetric {

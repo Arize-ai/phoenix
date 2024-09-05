@@ -118,16 +118,6 @@ def env_phoenix_sql_database_url(
         yield
 
 
-@pytest.fixture(autouse=True, scope="class")
-def env_phoenix_sql_database_schema(
-    fake: Faker,
-) -> Iterator[None]:
-    schema = fake.unique.pystr()
-    values = ((ENV_PHOENIX_SQL_DATABASE_SCHEMA, schema),)
-    with mock.patch.dict(os.environ, values):
-        yield
-
-
 @pytest.fixture
 def get_gql_spans(
     httpx_client: httpx.Client,

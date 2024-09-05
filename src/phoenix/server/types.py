@@ -246,7 +246,11 @@ class CanRevokeTokens(Protocol):
     async def revoke(self, *token_ids: TokenId) -> None: ...
 
 
-class TokenStore(CanReadToken, CanRevokeTokens, Protocol):
+class CanLogOutUser(Protocol):
+    async def log_out(self, user_id: UserId) -> None: ...
+
+
+class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
     async def create_access_token(
         self,
         claims: AccessTokenClaims,
