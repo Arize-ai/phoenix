@@ -8,8 +8,10 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import enums, models
+from phoenix.db.models import ApiKey as OrmApiKey
 from phoenix.server.api.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -55,6 +57,22 @@ class DeleteApiKeyInput:
 class DeleteApiKeyMutationPayload:
     apiKeyId: GlobalID
     query: Query
+
+
+def can_delete_user_key(info: Info[Context, None], key: OrmApiKey) -> bool:
+    try:
+        user = info.context.request.user  # type: ignore
+    except AttributeError:
+        return False
+    return (
+        isinstance(user, PhoenixUser)
+        and user.claims is not None
+        and user.claims.attributes is not None
+        and (
+            user.claims.attributes.user_role == enums.UserRole.ADMIN
+            or int(user.identity) == key.user_id
+        )
+    )
 
 
 @strawberry.type
@@ -159,7 +177,12 @@ class ApiKeyMutationMixin:
         await token_store.revoke(ApiKeyId(api_key_id))
         return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())
 
-    @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated, IsAdmin, IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[
+            HasSecret,
+            IsAuthenticated,
+        ]
+    )  # type: ignore
     async def delete_user_api_key(
         self, info: Info[Context, None], input: DeleteApiKeyInput
     ) -> DeleteApiKeyMutationPayload:
@@ -167,5 +190,13 @@ class ApiKeyMutationMixin:
         api_key_id = from_global_id_with_expected_type(
             input.id, expected_type_name=UserApiKey.__name__
         )
+        async with info.context.db() as session:
+            api_key = await session.scalar(
+                select(models.ApiKey).where(models.ApiKey.id == api_key_id)
+            )
+            if api_key is None:
+                raise ValueError(f"API key with id {input.id} not found")
+        if not can_delete_user_key(info, api_key):
+            raise Unauthorized("User not authorized to delete")
         await token_store.revoke(ApiKeyId(api_key_id))
         return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())
