@@ -87,7 +87,7 @@ def _set_token_cookie(
     response.set_cookie(
         key=cookie_name,
         value=token,
-        secure=True,
+        # secure=True,
         httponly=True,
         samesite="strict",
         max_age=int(cookie_max_age.total_seconds()),
