@@ -18,6 +18,7 @@ from .UserRole import UserRole, to_gql_user_role
 @strawberry.type
 class User(Node):
     id_attr: NodeID[int]
+    password_needs_reset: bool
     email: str
     username: Optional[str]
     created_at: datetime
@@ -45,6 +46,7 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
     """
     return User(
         id_attr=user.id,
+        password_needs_reset=user.reset_password,
         username=user.username,
         email=user.email,
         created_at=user.created_at,
