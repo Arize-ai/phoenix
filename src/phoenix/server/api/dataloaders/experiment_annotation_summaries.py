@@ -79,5 +79,5 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 )
         return [
             sorted(summaries[experiment_id], key=lambda summary: summary.annotation_name)
-            for experiment_id in experiment_ids
+            for experiment_id in keys
         ]
