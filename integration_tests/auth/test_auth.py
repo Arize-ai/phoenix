@@ -202,12 +202,12 @@ class TestUsers:
         passwords: Iterator[_Password],
     ) -> None:
         password = secret if use_secret else next(passwords)
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(None, name=fake.unique.pystr())
         with expectation:
             with log_in(password, email=email) as (token, _):
                 create_system_api_key(token, name=fake.unique.pystr())
-            with pytest.raises(Unauthorized):
+            with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
                 create_system_api_key(token, name=fake.unique.pystr())
 
     def test_end_to_end_credentials_flow(
@@ -257,7 +257,7 @@ class TestUsers:
             resp.raise_for_status()
 
         # original access token is invalid after refresh
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
@@ -283,9 +283,9 @@ class TestUsers:
         resp.raise_for_status()
 
         # user is logged out of both browsers
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(browser_0_access_token_1, name="api-key-4")
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(browser_1_access_token_0, name="api-key-5")
 
     @pytest.mark.parametrize(
@@ -311,7 +311,7 @@ class TestUsers:
         email = profile.email
         username = profile.username
         password = profile.password
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_user(None, email=email, password=password, username=username, role=role)
         with log_in(secret, email=admin_email) as (token, _):
             create_user(token, email=email, password=password, username=username, role=role)
@@ -354,7 +354,7 @@ class TestUsers:
             log_in(password, email=email).__enter__()
         patch_viewer((old_token := token), (old_password := password), new_password=new_password)
         another_password = f"another_password_{next(passwords)}"
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             patch_viewer(old_token, new_password, new_password=another_password)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             log_in(old_password, email=email).__enter__()
@@ -376,7 +376,7 @@ class TestUsers:
         token, password = user.token, user.profile.password
         new_username = f"new_username_{next(usernames)}"
         for _password in (None, password):
-            with pytest.raises(Unauthorized):
+            with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
                 patch_viewer(None, _password, new_username=new_username)
         patch_viewer(token, None, new_username=new_username)
         another_username = f"another_username_{next(usernames)}"
@@ -403,7 +403,7 @@ class TestUsers:
         non_self = get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
         token, gid = user.token, non_self.gid
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             patch_user(None, gid, new_role=UserRoleInput.ADMIN)
         with expectation:
             patch_user(token, gid, new_role=UserRoleInput.ADMIN)
@@ -431,7 +431,7 @@ class TestUsers:
         new_password = f"new_password_{next(passwords)}"
         assert new_password != old_password
         token, gid = user.token, non_self.gid
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             patch_user(None, gid, new_password=new_password)
         with expectation as e:
             patch_user(token, gid, new_password=new_password)
@@ -465,7 +465,7 @@ class TestUsers:
         new_username = f"new_username_{next(usernames)}"
         assert new_username != old_username
         token, gid = user.token, non_self.gid
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             patch_user(None, gid, new_username=new_username)
         with expectation:
             patch_user(token, gid, new_username=new_username)

@@ -26,7 +26,7 @@ from typing import (
 )
 
 import strawberry
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
@@ -94,7 +94,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers import auth_router, v1_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import schema
-from phoenix.server.bearer_auth import BearerTokenAuthBackend
+from phoenix.server.bearer_auth import BearerTokenAuthBackend, check_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
@@ -446,6 +446,7 @@ def create_graphql_router(
     model: Model,
     export_path: Path,
     last_updated_at: CanGetLastUpdatedAt,
+    authentication_enabled: bool,
     corpus: Optional[Model] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
@@ -461,6 +462,7 @@ def create_graphql_router(
         model (Model): The Model representing inferences (legacy)
         export_path (Path): the file path to export data to for download (legacy)
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
+        authentication_enabled (bool): Whether authentication is enabled.
         event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
         corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
@@ -547,6 +549,7 @@ def create_graphql_router(
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
+        dependencies=(Depends(check_authenticated),) if authentication_enabled else (),
     )
 
 
@@ -686,6 +689,7 @@ def create_app(
         ),
         model=model,
         corpus=corpus,
+        authentication_enabled=authentication_enabled,
         export_path=export_path,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,

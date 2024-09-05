@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
+from starlette.status import HTTP_403_FORBIDDEN
 
-from phoenix.auth import ClaimSetStatus
 from phoenix.config import ENABLE_AUTH
-from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.bearer_auth import check_authenticated
 
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
@@ -29,16 +28,6 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
-async def authentication(request: Request) -> None:
-    if not isinstance((user := request.user), PhoenixUser):
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    claims = user.claims
-    if claims.status is ClaimSetStatus.EXPIRED:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
-    if claims.status is not ClaimSetStatus.VALID:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-
 dependencies = [Depends(prevent_access_in_read_only_mode)]
 if ENABLE_AUTH:
     dependencies.append(
@@ -51,7 +40,7 @@ if ENABLE_AUTH:
             )
         )
     )
-    dependencies.append(Depends(authentication))
+    dependencies.append(Depends(check_authenticated))
 
 router = APIRouter(
     prefix="/v1",
