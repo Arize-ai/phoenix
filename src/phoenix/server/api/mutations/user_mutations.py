@@ -22,7 +22,7 @@ from phoenix.server.api.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotRe
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.User import User
+from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -107,15 +107,7 @@ class UserMutationMixin:
                 await session.flush()
             except IntegrityError as error:
                 raise ValueError(_user_operation_error_message(error))
-        return UserMutationPayload(
-            user=User(
-                id_attr=user.id,
-                email=user.email,
-                username=user.username,
-                created_at=user.created_at,
-                user_role_id=user.user_role_id,
-            )
-        )
+        return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(
         permission_classes=[
@@ -163,15 +155,7 @@ class UserMutationMixin:
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
-        return UserMutationPayload(
-            user=User(
-                id_attr=user.id,
-                email=user.email,
-                username=user.username,
-                created_at=user.created_at,
-                user_role_id=user.user_role_id,
-            )
-        )
+        return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(
         permission_classes=[
@@ -215,15 +199,7 @@ class UserMutationMixin:
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
-        return UserMutationPayload(
-            user=User(
-                id_attr=user.id,
-                email=user.email,
-                username=user.username,
-                created_at=user.created_at,
-                user_role_id=user.user_role_id,
-            )
-        )
+        return UserMutationPayload(user=to_gql_user(user))
 
 
 def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:

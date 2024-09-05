@@ -101,16 +101,7 @@ class Query:
         )
         async with info.context.db() as session:
             users = await session.stream_scalars(stmt)
-            data = [
-                User(
-                    id_attr=user.id,
-                    email=user.email,
-                    username=user.username,
-                    created_at=user.created_at,
-                    user_role_id=user.user_role_id,
-                )
-                async for user in users
-            ]
+            data = [to_gql_user(user) async for user in users]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
