@@ -50,6 +50,11 @@ def pytest_addoption(parser: Parser) -> None:
         action="store_true",
         help="Run tests that require Postgres",
     )
+    parser.addoption(
+        "--allow-flaky",
+        action="store_true",
+        help="Allows a number of flaky database tests to fail",
+    )
 
 
 def pytest_terminal_summary(
@@ -83,6 +88,8 @@ def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
+
+    if config.getoption("--allow-flaky"):
         for item in items:
             if "dialect" in item.fixturenames:
                 item.add_marker(pytest.mark.xfail(reason="database tests are currently flaky"))
