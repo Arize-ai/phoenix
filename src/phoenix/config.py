@@ -5,7 +5,6 @@ from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 from phoenix.utilities.re import parse_env_headers
 
 logger = getLogger(__name__)
@@ -71,6 +70,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 ENV_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
+ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -140,8 +140,14 @@ def get_env_phoenix_secret() -> Optional[str]:
     phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
         return None
+    from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
     return phoenix_secret
+
+
+def get_env_phoenix_use_secure_cookies() -> bool:
+    return bool(get_boolean_env_var(ENV_PHOENIX_USE_SECURE_COOKIES))
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
