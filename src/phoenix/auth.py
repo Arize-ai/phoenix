@@ -9,6 +9,8 @@ from typing import Any, Literal, Optional, Protocol
 
 from fastapi import Response
 
+from phoenix.config import get_env_phoenix_use_secure_cookies
+
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
     """
@@ -87,7 +89,7 @@ def _set_token_cookie(
     response.set_cookie(
         key=cookie_name,
         value=token,
-        secure=True,
+        secure=get_env_phoenix_use_secure_cookies(),
         httponly=True,
         samesite="strict",
         max_age=int(cookie_max_age.total_seconds()),
