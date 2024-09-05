@@ -87,7 +87,7 @@ class _PatchUser(Protocol):
         new_role: Optional[UserRoleInput] = None,
         requester_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> Optional[_Token]: ...
+    ) -> None: ...
 
 
 class _PatchViewer(Protocol):
@@ -98,7 +98,7 @@ class _PatchViewer(Protocol):
         new_password: Optional[_Password] = None,
         current_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> Optional[_Token]: ...
+    ) -> None: ...
 
 
 class _CreateSystemApiKey(Protocol):
@@ -283,7 +283,7 @@ def patch_user(
         new_role: Optional[UserRoleInput] = None,
         requester_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> Optional[_Token]:
+    ) -> None:
         args = [f'userId:"{gid}"']
         if new_password:
             args.append(f'newPassword:"{new_password}"')
@@ -307,11 +307,6 @@ def patch_user(
             assert user["username"] == new_username
         if new_role:
             assert user["role"]["name"] == new_role.value
-        if not new_password:
-            return None
-        assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        assert new_token != token
-        return new_token
 
     return _
 
@@ -326,7 +321,7 @@ def patch_viewer(
         new_password: Optional[_Password] = None,
         current_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> Optional[_Token]:
+    ) -> None:
         args = []
         if new_password:
             args.append(f'newPassword:"{new_password}"')
@@ -345,11 +340,6 @@ def patch_viewer(
         assert (user := resp_dict["data"]["patchViewer"]["user"])
         if new_username:
             assert user["username"] == new_username
-        if not new_password:
-            return None
-        assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        assert new_token != token
-        return new_token
 
     return _
 

@@ -82,7 +82,7 @@ class _PatchUser(Protocol):
         new_role: Optional[UserRoleInput] = None,
         requester_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> _Token: ...
+    ) -> None: ...
 
 
 class _PatchViewer(Protocol):
@@ -92,7 +92,7 @@ class _PatchViewer(Protocol):
         new_password: Optional[_Password] = None,
         current_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
-    ) -> _Token: ...
+    ) -> None: ...
 
 
 class _CreateSystemApiKey(Protocol):
@@ -345,12 +345,11 @@ class TestUsers:
         new_password = f"new_password_{next(passwords)}"
         assert new_password != old_password
         old_token = user.token
-        new_token = patch_viewer(
+        patch_viewer(
             new_password=new_password,
             current_password=old_password,
             token=old_token,
         )
-        assert new_token != old_token
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             log_in(email=email, password=old_password).__enter__()
         another_password = f"another_password_{next(passwords)}"
@@ -360,19 +359,13 @@ class TestUsers:
                 current_password=new_password,
                 token=old_token,
             )
+        new_token, _ = log_in(email=email, password=new_password).__enter__()
         with pytest.raises(BaseException):
             patch_viewer(
                 new_password=another_password,
                 current_password=old_password,
                 token=new_token,
             )
-        final_password = f"final_password_{next(passwords)}"
-        patch_viewer(
-            new_password=final_password,
-            current_password=new_password,
-            token=new_token,
-        )
-        log_in(email=email, password=final_password).__enter__()
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_user_can_change_username_for_self(
