@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from itertools import product
 from typing import (
     Any,
     ContextManager,
@@ -49,9 +50,10 @@ _GqlId: TypeAlias = str
 class _LogIn(Protocol):
     def __call__(
         self,
+        password: _Password,
+        /,
         *,
         email: _Email,
-        password: _Password,
     ) -> ContextManager[Tuple[_AccessToken, _RefreshToken]]: ...
 
 
@@ -62,56 +64,58 @@ class _LogOut(Protocol):
 class _CreateUser(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        /,
         *,
         email: _Email,
         password: _Password,
         role: UserRoleInput,
         username: Optional[_Username] = None,
-        token: Optional[_Token] = None,
     ) -> _GqlId: ...
 
 
 class _PatchUser(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
         gid: _GqlId,
         /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
-        requester_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
 class _PatchViewer(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        current_password: Optional[_Password],
+        /,
+        *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
-        current_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
 class _CreateSystemApiKey(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        /,
         *,
         name: _Name,
         expires_at: Optional[datetime] = None,
-        token: Optional[_Token] = None,
     ) -> Tuple[_ApiKey, _GqlId]: ...
 
 
 class _DeleteSystemApiKey(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
         gid: _GqlId,
         /,
-        *,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
@@ -166,7 +170,7 @@ class TestTokens:
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with log_in(email=admin_email, password=secret) as (access_token, refresh_token):
+            with log_in(secret, email=admin_email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -198,11 +202,13 @@ class TestUsers:
         passwords: Iterator[_Password],
     ) -> None:
         password = secret if use_secret else next(passwords)
+        with pytest.raises(Unauthorized):
+            create_system_api_key(None, name=fake.unique.pystr())
         with expectation:
-            with log_in(email=email, password=password) as (token, _):
-                create_system_api_key(name=fake.unique.pystr(), token=token)
+            with log_in(password, email=email) as (token, _):
+                create_system_api_key(token, name=fake.unique.pystr())
             with pytest.raises(Unauthorized):
-                create_system_api_key(name=fake.unique.pystr(), token=token)
+                create_system_api_key(token, name=fake.unique.pystr())
 
     def test_end_to_end_credentials_flow(
         self,
@@ -222,7 +228,7 @@ class TestUsers:
         assert (browser_0_refresh_token_0 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
 
         # user creates api key in the first browser
-        create_system_api_key(name="api-key-0", token=browser_0_access_token_0)
+        create_system_api_key(browser_0_access_token_0, name="api-key-0")
 
         # tokens are refreshed in the first browser
         resp = httpx_client.post(
@@ -237,7 +243,7 @@ class TestUsers:
         assert (browser_0_refresh_token_1 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
 
         # user creates api key in the first browser
-        create_system_api_key(name="api-key-1", token=browser_0_access_token_1)
+        create_system_api_key(browser_0_access_token_1, name="api-key-1")
 
         # refresh token is good for one use only
         resp = httpx_client.post(
@@ -252,7 +258,7 @@ class TestUsers:
 
         # original access token is invalid after refresh
         with pytest.raises(Unauthorized):
-            create_system_api_key(name="api-key-2", token=browser_0_access_token_0)
+            create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
         resp = httpx_client.post(
@@ -264,7 +270,7 @@ class TestUsers:
         assert resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
 
         # user creates api key in the second browser
-        create_system_api_key(name="api-key-3", token=browser_1_access_token_0)
+        create_system_api_key(browser_1_access_token_0, name="api-key-3")
 
         # user logs out in first browser
         resp = httpx_client.post(
@@ -278,9 +284,9 @@ class TestUsers:
 
         # user is logged out of both browsers
         with pytest.raises(Unauthorized):
-            create_system_api_key(name="api-key-4", token=browser_0_access_token_1)
+            create_system_api_key(browser_0_access_token_1, name="api-key-4")
         with pytest.raises(Unauthorized):
-            create_system_api_key(name="api-key-5", token=browser_1_access_token_0)
+            create_system_api_key(browser_1_access_token_0, name="api-key-5")
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -305,29 +311,22 @@ class TestUsers:
         email = profile.email
         username = profile.username
         password = profile.password
-        with log_in(email=admin_email, password=secret) as (token, _):
-            create_user(
-                email=email,
-                password=password,
-                role=role,
-                username=username,
-                token=token,
-            )
-        with log_in(email=email, password=password) as (token, _):
+        with pytest.raises(Unauthorized):
+            create_user(None, email=email, password=password, username=username, role=role)
+        with log_in(secret, email=admin_email) as (token, _):
+            create_user(token, email=email, password=password, username=username, role=role)
+        with log_in(password, email=email) as (token, _):
             with expectation:
-                create_system_api_key(name=fake.unique.pystr(), token=token)
+                create_system_api_key(token, name=fake.unique.pystr())
             for _role in UserRoleInput:
                 _profile = next(profiles)
-                _email = _profile.email
-                _username = _profile.username
-                _password = _profile.password
                 with expectation:
                     create_user(
-                        email=_email,
-                        password=_password,
+                        token,
+                        email=_profile.email,
+                        username=_profile.username,
+                        password=_profile.password,
                         role=_role,
-                        username=_username,
-                        token=token,
                     )
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
@@ -341,31 +340,27 @@ class TestUsers:
     ) -> None:
         user = get_new_user(role)
         email = user.profile.email
-        old_password = user.profile.password
+        password = user.profile.password
+        token = user.token
         new_password = f"new_password_{next(passwords)}"
-        assert new_password != old_password
-        old_token = user.token
-        patch_viewer(
-            new_password=new_password,
-            current_password=old_password,
-            token=old_token,
-        )
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            log_in(email=email, password=old_password).__enter__()
+        assert new_password != password
+        wrong_password = next(passwords)
+        assert wrong_password != password
+        for _token, _password in product((None, token), (None, wrong_password, password)):
+            if _token == token and _password == password:
+                continue
+            with pytest.raises(BaseException):
+                patch_viewer(_token, _password, new_password=new_password)
+            log_in(password, email=email).__enter__()
+        patch_viewer((old_token := token), (old_password := password), new_password=new_password)
         another_password = f"another_password_{next(passwords)}"
         with pytest.raises(Unauthorized):
-            patch_viewer(
-                new_password=another_password,
-                current_password=new_password,
-                token=old_token,
-            )
-        new_token, _ = log_in(email=email, password=new_password).__enter__()
+            patch_viewer(old_token, new_password, new_password=another_password)
+        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+            log_in(old_password, email=email).__enter__()
+        new_token, _ = log_in(new_password, email=email).__enter__()
         with pytest.raises(BaseException):
-            patch_viewer(
-                new_password=another_password,
-                current_password=old_password,
-                token=new_token,
-            )
+            patch_viewer(new_token, old_password, new_password=another_password)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_user_can_change_username_for_self(
@@ -375,12 +370,19 @@ class TestUsers:
         log_in: _LogIn,
         get_new_user: _GetNewUser,
         usernames: Iterator[_Username],
+        passwords: Iterator[_Password],
     ) -> None:
         user = get_new_user(role)
+        token, password = user.token, user.profile.password
         new_username = f"new_username_{next(usernames)}"
-        patch_viewer(new_username=new_username, token=user.token)
+        for _password in (None, password):
+            with pytest.raises(Unauthorized):
+                patch_viewer(None, _password, new_username=new_username)
+        patch_viewer(token, None, new_username=new_username)
         another_username = f"another_username_{next(usernames)}"
-        patch_viewer(new_username=another_username, token=user.token)
+        wrong_password = next(passwords)
+        assert wrong_password != password
+        patch_viewer(token, wrong_password, new_username=another_username)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -400,9 +402,11 @@ class TestUsers:
         user = get_new_user(role)
         non_self = get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
-        gid = non_self.gid
+        token, gid = user.token, non_self.gid
+        with pytest.raises(Unauthorized):
+            patch_user(None, gid, new_role=UserRoleInput.ADMIN)
         with expectation:
-            patch_user(gid, new_role=UserRoleInput.ADMIN, token=user.token)
+            patch_user(token, gid, new_role=UserRoleInput.ADMIN)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -426,20 +430,17 @@ class TestUsers:
         old_password = non_self.profile.password
         new_password = f"new_password_{next(passwords)}"
         assert new_password != old_password
-        gid = non_self.gid
+        token, gid = user.token, non_self.gid
+        with pytest.raises(Unauthorized):
+            patch_user(None, gid, new_password=new_password)
         with expectation as e:
-            patch_user(
-                gid,
-                new_password=new_password,
-                requester_password=user.profile.password,
-                token=user.token,
-            )
+            patch_user(token, gid, new_password=new_password)
         if e:
             return
         email = non_self.profile.email
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            log_in(email=email, password=old_password).__enter__()
-        log_in(email=email, password=new_password).__enter__()
+            log_in(old_password, email=email).__enter__()
+        log_in(new_password, email=email).__enter__()
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -463,9 +464,11 @@ class TestUsers:
         old_username = non_self.profile.username
         new_username = f"new_username_{next(usernames)}"
         assert new_username != old_username
-        gid = non_self.gid
+        token, gid = user.token, non_self.gid
+        with pytest.raises(Unauthorized):
+            patch_user(None, gid, new_username=new_username)
         with expectation:
-            patch_user(gid, new_username=new_username, token=user.token)
+            patch_user(token, gid, new_username=new_username)
 
 
 class TestSpanExporters:
@@ -494,9 +497,9 @@ class TestSpanExporters:
         gid: Optional[_GqlId] = None
         if with_headers:
             system_api_key, gid = create_system_api_key(
+                admin_token,
                 name=fake.unique.pystr(),
                 expires_at=expires_at,
-                token=admin_token,
             )
             headers = {"authorization": f"Bearer {system_api_key}"}
         export = span_exporter(headers=headers).export
@@ -508,5 +511,5 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(spans) is expected
         if gid is not None and expected is SpanExportResult.SUCCESS:
-            delete_system_api_key(gid, token=admin_token)
+            delete_system_api_key(admin_token, gid)
             assert export(spans) is SpanExportResult.FAILURE

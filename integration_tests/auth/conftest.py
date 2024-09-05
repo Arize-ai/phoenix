@@ -54,70 +54,72 @@ _RefreshToken: TypeAlias = str
 class _LogIn(Protocol):
     def __call__(
         self,
+        password: _Password,
+        /,
         *,
         email: _Email,
-        password: _Password,
     ) -> ContextManager[Tuple[_AccessToken, _RefreshToken]]: ...
 
 
 class _LogOut(Protocol):
-    def __call__(self, token: _Token) -> None: ...
+    def __call__(self, token: _Token, /) -> None: ...
 
 
 class _CreateUser(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        /,
         *,
         email: _Email,
         password: _Password,
         role: UserRoleInput,
         username: Optional[_Username] = None,
-        token: Optional[_Token] = None,
     ) -> _GqlId: ...
 
 
 class _PatchUser(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
         gid: _GqlId,
         /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
-        requester_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
 class _PatchViewer(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        current_password: Optional[_Password],
+        /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
-        current_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
 class _CreateSystemApiKey(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
+        /,
         *,
         name: _Name,
         expires_at: Optional[datetime] = None,
-        token: Optional[_Token] = None,
     ) -> Tuple[_ApiKey, _GqlId]: ...
 
 
 class _DeleteSystemApiKey(Protocol):
     def __call__(
         self,
+        token: Optional[_Token],
         gid: _GqlId,
         /,
-        *,
-        token: Optional[_Token] = None,
     ) -> None: ...
 
 
@@ -200,9 +202,9 @@ def _users(
     def _() -> Generator[Optional[_User], UserRoleInput, None]:
         role = yield None
         for profile in profiles:
-            gid = create_user(**asdict(profile), role=role, token=admin_token)
+            gid = create_user(admin_token, **asdict(profile), role=role)
             email, password = profile.email, profile.password
-            token, _ = log_in(email=email, password=password).__enter__()
+            token, _ = log_in(password, email=email).__enter__()
             role = yield _User(gid=gid, role=role, token=token, profile=profile)
 
     g = _()
@@ -230,7 +232,7 @@ def admin_token(
     secret: str,
     log_in: _LogIn,
 ) -> Iterator[_Token]:
-    with log_in(email=admin_email, password=secret) as (token, _):
+    with log_in(secret, email=admin_email) as (token, _):
         yield token
 
 
@@ -244,12 +246,13 @@ def create_user(
     httpx_client: httpx.Client,
 ) -> _CreateUser:
     def _(
+        token: Optional[_Token],
+        /,
         *,
         email: _Email,
         password: _Password,
         role: UserRoleInput,
         username: Optional[_Username] = None,
-        token: Optional[_Token] = None,
     ) -> _GqlId:
         args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
         if username:
@@ -275,20 +278,17 @@ def patch_user(
     httpx_client: httpx.Client,
 ) -> _PatchUser:
     def _(
+        token: Optional[_Token],
         gid: _GqlId,
         /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
-        requester_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None:
         args = [f'userId:"{gid}"']
         if new_password:
             args.append(f'newPassword:"{new_password}"')
-            assert requester_password
-            args.append(f'requesterPassword:"{requester_password}"')
         if new_username:
             args.append(f'newUsername:"{new_username}"')
         if new_role:
@@ -316,16 +316,17 @@ def patch_viewer(
     httpx_client: httpx.Client,
 ) -> _PatchViewer:
     def _(
+        token: Optional[_Token],
+        current_password: Optional[_Password],
+        /,
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
-        current_password: Optional[_Password] = None,
-        token: Optional[_Token] = None,
     ) -> None:
         args = []
         if new_password:
             args.append(f'newPassword:"{new_password}"')
-            assert current_password
+        if current_password:
             args.append(f'currentPassword:"{current_password}"')
         if new_username:
             args.append(f'newUsername:"{new_username}"')
@@ -349,10 +350,11 @@ def create_system_api_key(
     httpx_client: httpx.Client,
 ) -> _CreateSystemApiKey:
     def _(
+        token: Optional[_Token],
+        /,
         *,
         name: _Name,
         expires_at: Optional[datetime] = None,
-        token: Optional[_Token] = None,
     ) -> Tuple[_ApiKey, _GqlId]:
         exp = f' expiresAt:"{expires_at.isoformat()}"' if expires_at else ""
         args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
@@ -377,7 +379,11 @@ def create_system_api_key(
 def delete_system_api_key(
     httpx_client: httpx.Client,
 ) -> _DeleteSystemApiKey:
-    def _(gid: _GqlId, /, *, token: Optional[_Token] = None) -> None:
+    def _(
+        token: Optional[_Token],
+        gid: _GqlId,
+        /,
+    ) -> None:
         args, out = f'id:"{gid}"', "id"
         query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
         resp = httpx_client.post(
@@ -397,7 +403,7 @@ def log_in(
     log_out: _LogOut,
 ) -> _LogIn:
     @contextmanager
-    def _(*, email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
+    def _(password: _Password, /, *, email: _Email) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
         resp = httpx_client.post(
             urljoin(get_base_url(), "/auth/login"),
             json={"email": email, "password": password},
@@ -415,7 +421,7 @@ def log_in(
 def log_out(
     httpx_client: httpx.Client,
 ) -> _LogOut:
-    def _(token: _Token) -> None:
+    def _(token: _Token, /) -> None:
         resp = httpx_client.post(
             urljoin(get_base_url(), "/auth/logout"),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},

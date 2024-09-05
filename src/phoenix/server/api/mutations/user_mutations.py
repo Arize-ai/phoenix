@@ -55,13 +55,10 @@ class PatchUserInput:
     new_role: Optional[UserRoleInput] = UNSET
     new_username: Optional[str] = UNSET
     new_password: Optional[str] = UNSET
-    requester_password: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
         if not self.new_role and not self.new_username and not self.new_password:
             raise ValueError("At least one field must be set")
-        if self.new_password and not self.requester_password:
-            raise ValueError("requester_password is required when modifying password")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
 
@@ -152,10 +149,6 @@ class UserMutationMixin:
             if password := input.new_password:
                 if user.auth_method != enums.AuthMethod.LOCAL.value:
                     raise ValueError("Cannot modify password for non-local user")
-                if not (
-                    current_password := input.requester_password
-                ) or not await info.context.is_valid_password(current_password, requester):
-                    raise ValueError("Valid current password is required to modify password")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = await info.context.hash_password(password, user.password_salt)
