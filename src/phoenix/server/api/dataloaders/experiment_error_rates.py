@@ -57,5 +57,5 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
             }
         return [
             error_rates.get(experiment_id, ValueError(f"Unknown experiment ID: {experiment_id}"))
-            for experiment_id in experiment_ids
+            for experiment_id in keys
         ]

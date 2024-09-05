@@ -38,4 +38,4 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
                     )
                 )
             }
-        return [spans.get(example_id) for example_id in example_ids]
+        return [spans.get(example_id) for example_id in keys]

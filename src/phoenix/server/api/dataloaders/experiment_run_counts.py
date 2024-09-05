@@ -49,5 +49,5 @@ class ExperimentRunCountsDataLoader(DataLoader[Key, Result]):
             }
         return [
             run_counts.get(experiment_id, ValueError(f"Unknown experiment: {experiment_id}"))
-            for experiment_id in experiment_ids
+            for experiment_id in keys
         ]

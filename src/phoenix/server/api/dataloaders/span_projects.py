@@ -30,4 +30,4 @@ class SpanProjectsDataLoader(DataLoader[Key, Result]):
                     .where(models.Span.id.in_(span_ids))
                 )
             }
-        return [projects.get(span_id) or ValueError("Invalid span ID") for span_id in span_ids]
+        return [projects.get(span_id) or ValueError("Invalid span ID") for span_id in keys]
