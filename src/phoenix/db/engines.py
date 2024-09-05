@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, Callable
 
 import aiosqlite
 import numpy as np
@@ -13,6 +13,7 @@ from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing_extensions import assert_never
 
+from phoenix.config import get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
@@ -130,6 +131,15 @@ def aio_sqlite_engine(
     return engine
 
 
+def set_postgresql_search_path(schema: str) -> Callable[[Connection, Any], None]:
+    def _(connection: Connection, _: Any) -> None:
+        cursor = connection.cursor()
+        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema};")
+        cursor.execute(f"SET search_path TO {schema};")
+
+    return _
+
+
 def aio_postgresql_engine(
     url: URL,
     migrate: bool = True,
@@ -143,6 +153,8 @@ def aio_postgresql_engine(
         echo=Settings.log_migrations,
         json_serializer=_dumps,
     )
+    if schema := get_env_database_schema():
+        event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
     migrate_in_thread(sync_engine)
     return engine
 
