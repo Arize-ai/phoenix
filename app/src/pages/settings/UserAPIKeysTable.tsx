@@ -1,5 +1,5 @@
-import React, { startTransition, useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import React, { startTransition, useCallback, useMemo } from "react";
+import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -13,10 +13,13 @@ import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
 import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
 import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
+
+const TIMESTAMP_CELL_SIZE = 70;
 
 export function UserAPIKeysTable({
   query,
@@ -36,10 +39,49 @@ export function UserAPIKeysTable({
           description
           createdAt
           expiresAt
+          user {
+            email
+          }
         }
       }
     `,
     query
+  );
+
+  const notifySuccess = useNotifySuccess();
+  const [commit] = useMutation(graphql`
+    mutation UserAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+      deleteUserApiKey(input: $input) {
+        __typename
+        id
+      }
+    }
+  `);
+  const handleDelete = useCallback(
+    (id: string) => {
+      commit({
+        variables: {
+          input: {
+            id,
+          },
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "User key deleted",
+            message: "The user key has been deleted and is no longer active.",
+          });
+          startTransition(() => {
+            refetch(
+              {},
+              {
+                fetchPolicy: "network-only",
+              }
+            );
+          });
+        },
+      });
+    },
+    [commit, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -52,6 +94,8 @@ export function UserAPIKeysTable({
       {
         header: "Name",
         accessorKey: "name",
+        size: 100,
+        cell: TextCell,
       },
       {
         header: "Description",
@@ -61,32 +105,31 @@ export function UserAPIKeysTable({
       {
         header: "Created At",
         accessorKey: "createdAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
       {
         header: "Expires At",
         accessorKey: "expiresAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
-      // TODO(parker): Do not render this column for non admins once https://github.com/Arize-ai/phoenix/issues/4454 is done
+      {
+        header: "User",
+        size: 120,
+        accessorKey: "user.email",
+        cell: TextCell,
+      },
       {
         header: "",
         accessorKey: "id",
         size: 10,
-        cell: () => {
+        cell: ({ row }) => {
           return (
             <Flex direction="row" justifyContent="end" width="100%">
               <DeleteAPIKeyButton
                 handleDelete={() => {
-                  // TODO(parker): implement handle delete when https://github.com/Arize-ai/phoenix/issues/4059 is done
-                  startTransition(() => {
-                    refetch(
-                      {},
-                      {
-                        fetchPolicy: "network-only",
-                      }
-                    );
-                  });
+                  handleDelete(row.original.id);
                 }}
               />
             </Flex>
@@ -98,7 +141,7 @@ export function UserAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch]);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
