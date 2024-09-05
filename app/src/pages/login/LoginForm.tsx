@@ -1,12 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
-
-import type { LoginFormMutation } from "./__generated__/LoginFormMutation.graphql";
 
 type LoginFormParams = {
   email: string;
@@ -16,25 +13,32 @@ type LoginFormParams = {
 export function LoginForm() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const [commit, isCommitting] = useMutation<LoginFormMutation>(graphql`
-    mutation LoginFormMutation($email: String!, $password: String!) {
-      login(input: { email: $email, password: $password })
-    }
-  `);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
-    (params: LoginFormParams) => {
+    async (params: LoginFormParams) => {
       setError(null);
-      commit({
-        variables: params,
-        onCompleted: () => {
-          navigate("/");
-        },
-        onError: () => {
-          setError("Invalid Login");
-        },
-      });
+      setIsLoading(true);
+      try {
+        const response = await fetch("/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(params),
+        });
+        if (!response.ok) {
+          setError("Invalid login");
+          return;
+        }
+      } catch (error) {
+        setError("Invalid login");
+        return;
+      } finally {
+        setIsLoading(() => false);
+      }
+      navigate("/");
     },
-    [commit, navigate]
+    [navigate, setError]
   );
   const { control, handleSubmit } = useForm<LoginFormParams>({
     defaultValues: { email: "", password: "" },
@@ -88,7 +92,7 @@ export function LoginForm() {
         >
           <Button
             variant="primary"
-            loading={isCommitting}
+            loading={isLoading}
             onClick={handleSubmit(onSubmit)}
           >
             Login

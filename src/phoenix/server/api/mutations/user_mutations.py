@@ -35,29 +35,35 @@ class CreateUserInput:
 
 
 @strawberry.input
-class PatchSelfUserInput:
-    username: Optional[str] = UNSET
-    password: Optional[str] = UNSET
+class PatchViewerInput:
+    new_username: Optional[str] = UNSET
+    new_password: Optional[str] = UNSET
+    current_password: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
-        if not self.username and not self.password:
+        if not self.new_username and not self.new_password:
             raise ValueError("At least one field must be set")
-        if self.password:
-            PASSWORD_REQUIREMENTS.validate(self.password)
+        if self.new_password and not self.current_password:
+            raise ValueError("current_password is required when modifying password")
+        if self.new_password:
+            PASSWORD_REQUIREMENTS.validate(self.new_password)
 
 
 @strawberry.input
 class PatchUserInput:
     user_id: GlobalID
-    role: Optional[UserRoleInput] = UNSET
-    username: Optional[str] = UNSET
-    password: Optional[str] = UNSET
+    new_role: Optional[UserRoleInput] = UNSET
+    new_username: Optional[str] = UNSET
+    new_password: Optional[str] = UNSET
+    requester_password: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
-        if not self.role and not self.username and not self.password:
+        if not self.new_role and not self.new_username and not self.new_password:
             raise ValueError("At least one field must be set")
-        if self.password:
-            PASSWORD_REQUIREMENTS.validate(self.password)
+        if self.new_password and not self.requester_password:
+            raise ValueError("requester_password is required when modifying password")
+        if self.new_password:
+            PASSWORD_REQUIREMENTS.validate(self.new_password)
 
 
 @strawberry.type
@@ -94,9 +100,7 @@ class UserMutationMixin:
         )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
-            user_role_id = await session.scalar(
-                select(models.UserRole.id).where(models.UserRole.name == input.role.value)
-            )
+            user_role_id = await session.scalar(_select_role_id_by_name(input.role.value))
             if user_role_id is None:
                 raise ValueError(f"Role {input.role.value} not found")
             stack.enter_context(session.no_autoflush)
@@ -105,7 +109,7 @@ class UserMutationMixin:
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_crud_error_message(error))
+                raise ValueError(_user_operation_error_message(error))
         return UserMutationPayload(
             user=User(
                 id_attr=user.id,
@@ -129,35 +133,42 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: PatchUserInput,
     ) -> UserMutationPayload:
+        assert (request := info.context.request)
+        assert isinstance(request.user, PhoenixUser)
+        assert (requester_id := int(request.user.identity))
         user_id = from_global_id_with_expected_type(input.user_id, expected_type_name=User.__name__)
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
+            requester = await session.scalar(_select_user_by_id(requester_id))
+            assert requester
             if not (user := await session.scalar(_select_user_by_id(user_id))):
                 raise ValueError("User not found")
             stack.enter_context(session.no_autoflush)
-            if input.role:
-                user_role_id = await session.scalar(
-                    select(models.UserRole.id).where(models.UserRole.name == input.role.value)
-                )
+            if input.new_role:
+                user_role_id = await session.scalar(_select_role_id_by_name(input.new_role.value))
                 if user_role_id is None:
-                    raise ValueError(f"Role {input.role.value} not found")
+                    raise ValueError(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
-            if password := input.password:
+            if password := input.new_password:
                 if user.auth_method != enums.AuthMethod.LOCAL.value:
                     raise ValueError("Cannot modify password for non-local user")
+                if not (
+                    current_password := input.requester_password
+                ) or not await info.context.is_valid_password(current_password, requester):
+                    raise ValueError("Valid current password is required to modify password")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = await info.context.hash_password(password, user.password_salt)
                 user.reset_password = True
-            if username := input.username:
+            if username := input.new_username:
                 user.username = username
             assert user in session.dirty
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_crud_error_message(error, "modify"))
+                raise ValueError(_user_operation_error_message(error, "modify"))
         assert user
-        if input.password:
+        if input.new_password:
             await info.context.log_out(user.id)
             await info.context.log_in(user)
         return UserMutationPayload(
@@ -177,10 +188,10 @@ class UserMutationMixin:
             IsAuthenticated,
         ]
     )  # type: ignore
-    async def patch_self_user(
+    async def patch_viewer(
         self,
         info: Info[Context, None],
-        input: PatchSelfUserInput,
+        input: PatchViewerInput,
     ) -> UserMutationPayload:
         assert (request := info.context.request)
         assert isinstance(user := request.user, PhoenixUser)
@@ -190,23 +201,27 @@ class UserMutationMixin:
             if not (user := await session.scalar(_select_user_by_id(user_id))):
                 raise ValueError("User not found")
             stack.enter_context(session.no_autoflush)
-            if password := input.password:
+            if password := input.new_password:
                 if user.auth_method != enums.AuthMethod.LOCAL.value:
                     raise ValueError("Cannot modify password for non-local user")
+                if not (
+                    current_password := input.current_password
+                ) or not await info.context.is_valid_password(current_password, user):
+                    raise ValueError("Valid current password is required to modify password")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = await info.context.hash_password(password, user.password_salt)
                 user.reset_password = False
-            if username := input.username:
+            if username := input.new_username:
                 user.username = username
             assert user in session.dirty
             user.updated_at = datetime.now(timezone.utc)
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_crud_error_message(error, "modify"))
+                raise ValueError(_user_operation_error_message(error, "modify"))
         assert user
-        if input.password:
+        if input.new_password:
             await info.context.log_out(user.id)
             await info.context.log_in(user)
         return UserMutationPayload(
@@ -220,15 +235,19 @@ class UserMutationMixin:
         )
 
 
+def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:
+    return select(models.UserRole.id).where(models.UserRole.name == role_name)
+
+
 def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
     return (
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )
 
 
-def _user_crud_error_message(
+def _user_operation_error_message(
     error: IntegrityError,
-    crud: Literal["create", "modify"] = "create",
+    operation: Literal["create", "modify"] = "create",
 ) -> str:
     """
     User-facing error message to explain why user creation/modification failed.
@@ -240,4 +259,4 @@ def _user_crud_error_message(
         return "Username already exists"
     elif email_already_exists:
         return "Email already exists"
-    return f"Failed to {crud} user"
+    return f"Failed to {operation} user"

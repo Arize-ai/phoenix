@@ -136,8 +136,12 @@ class Context(BaseContext):
             raise ValueError("no response is set")
         return response
 
-    async def is_valid_password(self, password: str, hash_: bytes, /, *, salt: bytes) -> bool:
-        return hash_ == await self.hash_password(password, salt)
+    async def is_valid_password(self, password: str, user: models.User) -> bool:
+        return (
+            user.password_hash is not None
+            and user.password_salt is not None
+            and user.password_hash == await self.hash_password(password, user.password_salt)
+        )
 
     @staticmethod
     async def hash_password(password: str, salt: bytes) -> bytes:

@@ -91,8 +91,8 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.api.routers import auth_router, v1_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
-from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend
 from phoenix.server.dml_event import DmlEvent
@@ -543,7 +543,7 @@ def create_graphql_router(
 
     return GraphQLRouter(
         schema,
-        graphiql=True,
+        graphql_ide="graphiql",
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
@@ -720,11 +720,11 @@ def create_app(
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
     )
-    app.state.read_only = read_only
-    app.state.export_path = export_path
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
+    if authentication_enabled:
+        app.include_router(auth_router)
     app.add_middleware(GZipMiddleware)
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
     if serve_ui and web_manifest_path.is_file():
@@ -745,7 +745,11 @@ def create_app(
             ),
             name="static",
         )
-    app = _update_app_state(app, db=db, secret=secret)
+    app.state.read_only = read_only
+    app.state.export_path = export_path
+    app.state.db = db
+    app = _add_get_secret_method(app=app, secret=secret)
+    app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
@@ -755,13 +759,10 @@ def create_app(
     return app
 
 
-def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional[str]) -> FastAPI:
+def _add_get_secret_method(*, app: FastAPI, secret: Optional[str]) -> FastAPI:
     """
-    Dynamically updates the app's `state` to include useful fields and methods
-    (at the time of this writing, FastAPI does not support setting this state
-    during the creation of the app).
+    Dynamically adds a `get_secret` method to the app's `state`.
     """
-    app.state.db = db
     app.state._secret = secret
 
     def get_secret(self: StarletteState) -> str:
@@ -771,4 +772,20 @@ def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional
         return secret
 
     app.state.get_secret = MethodType(get_secret, app.state)
+    return app
+
+
+def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]) -> FastAPI:
+    """
+    Dynamically adds a `get_token_store` method to the app's `state`.
+    """
+    app.state._token_store = token_store
+
+    def get_token_store(self: StarletteState) -> JwtStore:
+        if (token_store := self._token_store) is None:
+            raise ValueError("token store is not set on the app")
+        assert isinstance(token_store, JwtStore)
+        return token_store
+
+    app.state.get_token_store = MethodType(get_token_store, app.state)
     return app

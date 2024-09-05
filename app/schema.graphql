@@ -336,6 +336,11 @@ input DeleteApiKeyInput {
   id: GlobalID!
 }
 
+type DeleteApiKeyMutationPayload {
+  id: GlobalID!
+  query: Query!
+}
+
 input DeleteDatasetExamplesInput {
   exampleIds: [GlobalID!]!
   datasetVersionDescription: String
@@ -348,11 +353,6 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
-}
-
-type DeleteSystemApiKeyMutationPayload {
-  id: GlobalID!
-  query: Query!
 }
 
 type Dimension implements Node {
@@ -860,11 +860,6 @@ type LabelFraction {
   fraction: Float!
 }
 
-input LoginMutationInput {
-  email: String!
-  password: String!
-}
-
 enum MimeType {
   text
   json
@@ -907,9 +902,8 @@ type Model {
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
-  deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteSystemApiKeyMutationPayload!
-  login(input: LoginMutationInput!): Void
-  logout: Void
+  deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
+  deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
@@ -937,6 +931,8 @@ type Mutation {
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   createUser(input: CreateUserInput!): UserMutationPayload!
+  patchUser(input: PatchUserInput!): UserMutationPayload!
+  patchViewer(input: PatchViewerInput!): UserMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -990,6 +986,20 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchUserInput {
+  userId: GlobalID!
+  newRole: UserRoleInput
+  newUsername: String
+  newPassword: String
+  requesterPassword: String
+}
+
+input PatchViewerInput {
+  newUsername: String
+  newPassword: String
+  currentPassword: String
 }
 
 enum PerformanceMetric {
@@ -1451,6 +1461,7 @@ type User implements Node {
   username: String
   createdAt: DateTime!
   role: UserRole!
+  apiKeys: [ApiKey!]!
 }
 
 type UserApiKey implements ApiKey & Node {
@@ -1512,6 +1523,3 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
-
-"""Represents NULL values"""
-scalar Void

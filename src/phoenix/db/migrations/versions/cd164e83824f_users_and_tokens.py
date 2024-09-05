@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column(
             "user_role_id",
             sa.Integer,
-            sa.ForeignKey("user_roles.id"),
+            sa.ForeignKey("user_roles.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
@@ -74,7 +74,7 @@ def upgrade() -> None:
     op.create_table(
         "refresh_tokens",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -87,7 +87,7 @@ def upgrade() -> None:
     op.create_table(
         "access_tokens",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -95,13 +95,18 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.Column("expires_at", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
-        sa.Column("refresh_token_id", sa.Integer, sa.ForeignKey("refresh_tokens.id"), index=True),
+        sa.Column(
+            "refresh_token_id",
+            sa.Integer,
+            sa.ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
+            index=True,
+        ),
         sqlite_autoincrement=True,
     )
     op.create_table(
         "api_keys",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id"), index=True),
+        sa.Column("user_id", sa.Integer, sa.ForeignKey("users.id", ondelete="CASCADE"), index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(

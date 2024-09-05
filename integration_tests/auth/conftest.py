@@ -36,7 +36,6 @@ from phoenix.config import (
 from phoenix.server.api.auth import IsAdmin, IsAuthenticated
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from phoenix.server.api.mutations.auth_mutations import FAILED_LOGIN_MESSAGE
 from typing_extensions import TypeAlias
 
 _ProjectName: TypeAlias = str
@@ -83,19 +82,21 @@ class _PatchUser(Protocol):
         gid: _GqlId,
         /,
         *,
-        username: Optional[_Username] = None,
-        password: Optional[_Password] = None,
-        role: Optional[UserRoleInput] = None,
+        new_username: Optional[_Username] = None,
+        new_password: Optional[_Password] = None,
+        new_role: Optional[UserRoleInput] = None,
+        requester_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
     ) -> Optional[_Token]: ...
 
 
-class _PatchSelfUser(Protocol):
+class _PatchViewer(Protocol):
     def __call__(
         self,
         *,
-        username: Optional[_Username] = None,
-        password: Optional[_Password] = None,
+        new_username: Optional[_Username] = None,
+        new_password: Optional[_Password] = None,
+        current_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
     ) -> Optional[_Token]: ...
 
@@ -175,13 +176,13 @@ class _User:
     token: Optional[_Token] = None
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def profiles(
     emails: Iterator[_Email],
     usernames: Iterator[_Username],
     passwords: Iterator[_Password],
 ) -> Iterator[_Profile]:
-    return starmap(_Profile, zip(emails, usernames, passwords))
+    return starmap(_Profile, zip(emails, passwords, usernames))
 
 
 class _UserGenerator(Protocol):
@@ -189,7 +190,7 @@ class _UserGenerator(Protocol):
 
 
 @pytest.fixture
-def users(
+def _users(
     profiles: Iterator[_Profile],
     admin_token: _Token,
     create_user: _CreateUser,
@@ -200,12 +201,27 @@ def users(
         role = yield None
         for profile in profiles:
             gid = create_user(**asdict(profile), role=role, token=admin_token)
-            token, _ = log_in(email=profile.email, password=profile.password).__enter__()
+            email, password = profile.email, profile.password
+            token, _ = log_in(email=email, password=password).__enter__()
             role = yield _User(gid=gid, role=role, token=token, profile=profile)
 
     g = _()
     next(g)
     return cast(_UserGenerator, g)
+
+
+class _GetNewUser(Protocol):
+    def __call__(self, role: UserRoleInput) -> _User: ...
+
+
+@pytest.fixture
+def get_new_user(
+    _users: _UserGenerator,
+) -> _GetNewUser:
+    def _(role: UserRoleInput) -> _User:
+        return _users.send(role)
+
+    return _
 
 
 @pytest.fixture
@@ -262,18 +278,21 @@ def patch_user(
         gid: _GqlId,
         /,
         *,
-        username: Optional[_Username] = None,
-        password: Optional[_Password] = None,
-        role: Optional[UserRoleInput] = None,
+        new_username: Optional[_Username] = None,
+        new_password: Optional[_Password] = None,
+        new_role: Optional[UserRoleInput] = None,
+        requester_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
     ) -> Optional[_Token]:
         args = [f'userId:"{gid}"']
-        if password:
-            args.append(f'password:"{password}"')
-        if username:
-            args.append(f'username:"{username}"')
-        if role:
-            args.append(f"role:{role.value}")
+        if new_password:
+            args.append(f'newPassword:"{new_password}"')
+            assert requester_password
+            args.append(f'requesterPassword:"{requester_password}"')
+        if new_username:
+            args.append(f'newUsername:"{new_username}"')
+        if new_role:
+            args.append(f"newRole:{new_role.value}")
         out = "user{id username role{name}}"
         query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
         resp = httpx_client.post(
@@ -284,11 +303,11 @@ def patch_user(
         resp_dict = _json(resp)
         assert (user := resp_dict["data"]["patchUser"]["user"])
         assert user["id"] == gid
-        if username:
-            assert user["username"] == username
-        if role:
-            assert user["role"]["name"] == role.value
-        if not password:
+        if new_username:
+            assert user["username"] == new_username
+        if new_role:
+            assert user["role"]["name"] == new_role.value
+        if not new_password:
             return None
         assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert new_token != token
@@ -298,32 +317,35 @@ def patch_user(
 
 
 @pytest.fixture(scope="module")
-def patch_self_user(
+def patch_viewer(
     httpx_client: httpx.Client,
-) -> _PatchSelfUser:
+) -> _PatchViewer:
     def _(
         *,
-        username: Optional[_Username] = None,
-        password: Optional[_Password] = None,
+        new_username: Optional[_Username] = None,
+        new_password: Optional[_Password] = None,
+        current_password: Optional[_Password] = None,
         token: Optional[_Token] = None,
     ) -> Optional[_Token]:
         args = []
-        if password:
-            args.append(f'password:"{password}"')
-        if username:
-            args.append(f'username:"{username}"')
+        if new_password:
+            args.append(f'newPassword:"{new_password}"')
+            assert current_password
+            args.append(f'currentPassword:"{current_password}"')
+        if new_username:
+            args.append(f'newUsername:"{new_username}"')
         out = "user{username}"
-        query = "mutation{patchSelfUser(input:{" + ",".join(args) + "}){" + out + "}}"
+        query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
         resp = httpx_client.post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
         )
         resp_dict = _json(resp)
-        assert (user := resp_dict["data"]["patchSelfUser"]["user"])
-        if username:
-            assert user["username"] == username
-        if not password:
+        assert (user := resp_dict["data"]["patchViewer"]["user"])
+        if new_username:
+            assert user["username"] == new_username
+        if not new_password:
             return None
         assert (new_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert new_token != token
@@ -386,10 +408,11 @@ def log_in(
 ) -> _LogIn:
     @contextmanager
     def _(*, email: _Email, password: _Password) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
-        args = f'email:"{email}", password:"{password}"'
-        query = "mutation{login(input:{" + args + "})}"
-        resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=dict(query=query))
-        _json(resp)
+        resp = httpx_client.post(
+            urljoin(get_base_url(), "/auth/login"),
+            json={"email": email, "password": password},
+        )
+        resp.raise_for_status()
         assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
         yield access_token, refresh_token
@@ -403,13 +426,11 @@ def log_out(
     httpx_client: httpx.Client,
 ) -> _LogOut:
     def _(token: _Token) -> None:
-        query = "mutation{logout}"
         resp = httpx_client.post(
-            urljoin(get_base_url(), "graphql"),
-            json=dict(query=query),
+            urljoin(get_base_url(), "/auth/logout"),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
         )
-        _json(resp)
+        resp.raise_for_status()
 
     return _
 
@@ -419,12 +440,7 @@ def _json(resp: httpx.Response) -> Dict[str, Any]:
     assert (resp_dict := cast(Dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if (
-            "not auth" in msg
-            or FAILED_LOGIN_MESSAGE in msg
-            or IsAuthenticated.message in msg
-            or IsAdmin.message in msg
-        ):
+        if "not auth" in msg or IsAuthenticated.message in msg or IsAdmin.message in msg:
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict

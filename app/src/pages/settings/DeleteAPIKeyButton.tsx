@@ -1,5 +1,4 @@
-import React, { ReactNode, useCallback, useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import React, { ReactNode, useState } from "react";
 
 import {
   Button,
@@ -12,48 +11,19 @@ import {
   View,
 } from "@arizeai/components";
 
-import { useNotifySuccess } from "@phoenix/contexts";
-
-export function DeleteSystemAPIKeyButton({
-  id,
-  onDeleted,
+export function DeleteAPIKeyButton({
+  handleDelete,
 }: {
-  id: string;
-  onDeleted: () => void;
+  handleDelete: () => void;
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const notifySuccess = useNotifySuccess();
-  const [commit] = useMutation(graphql`
-    mutation DeleteSystemAPIKeyButtonMutation($input: DeleteApiKeyInput!) {
-      deleteSystemApiKey(input: $input) {
-        __typename
-        id
-      }
-    }
-  `);
-  const handleDelete = useCallback(() => {
-    commit({
-      variables: {
-        input: {
-          id,
-        },
-      },
-      onCompleted: () => {
-        notifySuccess({
-          title: "System key deleted",
-          message: "The system key has been deleted and is no longer active.",
-        });
-        setDialog(null);
-        onDeleted();
-      },
-    });
-  }, [commit, id, notifySuccess, onDeleted]);
+
   const onDelete = () => {
     setDialog(
       <Dialog title="Delete System Key">
         <View padding="size-200">
           <Text color="danger">
-            {`Are you sure you want to delete this system key? This cannot be undone and will disable all services using this key.`}
+            {`Are you sure you want to delete this key? This cannot be undone and will disable all uses of this key.`}
           </Text>
         </View>
         <View
