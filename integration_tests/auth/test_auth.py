@@ -4,6 +4,7 @@ from functools import partial
 from itertools import product
 from typing import (
     Any,
+    Callable,
     ContextManager,
     Dict,
     Iterator,
@@ -214,12 +215,12 @@ class TestUsers:
         self,
         admin_email: str,
         secret: str,
-        httpx_client: httpx.Client,
+        httpx_client: Callable[[], httpx.Client],
         create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
     ) -> None:
         # user logs into first browser
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
             json={"email": admin_email, "password": secret},
         )
@@ -231,7 +232,7 @@ class TestUsers:
         create_system_api_key(browser_0_access_token_0, name="api-key-0")
 
         # tokens are refreshed in the first browser
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/refresh"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
@@ -246,7 +247,7 @@ class TestUsers:
         create_system_api_key(browser_0_access_token_1, name="api-key-1")
 
         # refresh token is good for one use only
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/refresh"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
@@ -261,7 +262,7 @@ class TestUsers:
             create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
             json={"email": admin_email, "password": secret},
         )
@@ -273,7 +274,7 @@ class TestUsers:
         create_system_api_key(browser_1_access_token_0, name="api-key-3")
 
         # user logs out in first browser
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/logout"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_1,
