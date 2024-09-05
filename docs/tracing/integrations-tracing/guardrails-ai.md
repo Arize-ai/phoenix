@@ -13,7 +13,7 @@ In this example we will instrument a small program that uses the [Guardrails AI]
 **Install packages:**
 
 ```bash
-pip install arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix
 ```
 
 **Launch Phoenix:**
@@ -26,16 +26,11 @@ px.launch_app()
 **Connect your notebook to Phoenix:**
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
-tracer_provider.add_span_processor(span_processor)
-trace_api.set_tracer_provider(tracer_provider)
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+)  
 ```
 
 {% hint style="info" %}
@@ -55,22 +50,18 @@ For details on customizing a local terminal deployment, see [Terminal Setup](htt
 **Install packages:**
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix-otel
 ```
 
 **Connect your application to your instance using:**
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
-tracer_provider.add_span_processor(span_processor)
-trace_api.set_tracer_provider(tracer_provider)
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:6006",
+)
 ```
 
 See [deploying-phoenix.md](../../deployment/deploying-phoenix.md "mention") for more details
@@ -94,22 +85,18 @@ This will expose the Phoenix on `localhost:6006`
 **Install packages:**
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix-otel
 ```
 
 **Connect your application to your instance using:**
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-tracer_provider = trace_sdk.TracerProvider()
-span_exporter = OTLPSpanExporter("http://localhost:6006/v1/traces")
-span_processor = SimpleSpanProcessor(span_exporter)
-tracer_provider.add_span_processor(span_processor)
-trace_api.set_tracer_provider(tracer_provider)
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:6006",
+)
 ```
 
 For more info on using Phoenix with Docker, see [#docker](guardrails-ai.md#docker "mention")
@@ -121,34 +108,23 @@ If you don't want to host an instance of Phoenix yourself or use a notebook inst
 **Install packages:**
 
 ```bash
-pip install opentelemetry-sdk opentelemetry-exporter-otlp
+pip install arize-phoenix-otel
 ```
 
 **Connect your application to your cloud instance:**
 
 ```python
 import os
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-    OTLPSpanExporter as GRPCSpanExporter,
-)
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-    OTLPSpanExporter as HTTPSpanExporter,
-)
+from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
-os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 
-# Add Phoenix
-span_phoenix_processor = SimpleSpanProcessor(HTTPSpanExporter(endpoint="https://app.phoenix.arize.com/v1/traces"))
-
-# Add them to the tracer
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
-trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+# configure the Phoenix tracer
+register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="https://app.phoenix.arize.com/v1/traces",
+) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -168,7 +144,7 @@ Initialize the GuardrailsAIInstrumentor before your application code.
 ```python
 from openinference.instrumentation.guardrails import GuardrailsInstrumentor
 
-GuardrailsInstrumentor().instrument()
+GuardrailsInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 ## Run Guardrails

@@ -9,8 +9,7 @@ AutoGen is a new agent framework from Microsoft that allows for complex Agent cr
 The AutoGen Agent framework allows creation of multiple agents and connection of those agents to work together to accomplish tasks.
 
 ```python
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.openai import OpenAIInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 import phoenix as px
 
 px.launch_app()
