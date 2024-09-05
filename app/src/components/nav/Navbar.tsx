@@ -53,6 +53,7 @@ const navLinkCSS = css`
     color 0.2s ease-in-out,
     background-color 0.2s ease-in-out;
   text-decoration: none;
+
   &.active {
     color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-primary-300);
@@ -64,6 +65,9 @@ const navLinkCSS = css`
   & > .ac-icon-wrap {
     padding: var(--ac-global-dimension-size-50);
     display: inline-block;
+  }
+  .ac-text {
+    white-space: nowrap;
   }
 `;
 
@@ -175,5 +179,18 @@ export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
       {props.icon}
       <Text>{props.text}</Text>
     </RRNavLink>
+  );
+}
+
+export function NavButton(props: {
+  text: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
+      {props.icon}
+      <Text>{props.text}</Text>
+    </button>
   );
 }
