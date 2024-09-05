@@ -15,8 +15,6 @@ export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  // eslint-disable-next-line no-console
-  console.log("authFetch");
   try {
     return await fetch(input, init).then((response) => {
       if (response.status === 401) {
@@ -50,7 +48,9 @@ async function refreshTokens(url: string = REFRESH_URL): Promise<Response> {
     method: "POST",
   }).then((response) => {
     if (!response.ok) {
-      throw new Error("Failed to refresh tokens");
+      // for now force redirect to login page. This could re-throw with a custom error
+      // But for now, we'll just redirect
+      window.location.href = "/login";
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;
