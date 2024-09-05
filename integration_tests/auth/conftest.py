@@ -243,7 +243,7 @@ def admin_email() -> _Email:
 
 @pytest.fixture(scope="module")
 def create_user(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _CreateUser:
     def _(
         token: Optional[_Token],
@@ -259,7 +259,7 @@ def create_user(
             args.append(f'username:"{username}"')
         out = "user{id email role{name}}"
         query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
@@ -275,7 +275,7 @@ def create_user(
 
 @pytest.fixture(scope="module")
 def patch_user(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _PatchUser:
     def _(
         token: Optional[_Token],
@@ -295,7 +295,7 @@ def patch_user(
             args.append(f"newRole:{new_role.value}")
         out = "user{id username role{name}}"
         query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
@@ -313,7 +313,7 @@ def patch_user(
 
 @pytest.fixture(scope="module")
 def patch_viewer(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _PatchViewer:
     def _(
         token: Optional[_Token],
@@ -332,7 +332,7 @@ def patch_viewer(
             args.append(f'newUsername:"{new_username}"')
         out = "user{username}"
         query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
@@ -347,7 +347,7 @@ def patch_viewer(
 
 @pytest.fixture(scope="module")
 def create_system_api_key(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _CreateSystemApiKey:
     def _(
         token: Optional[_Token],
@@ -359,7 +359,7 @@ def create_system_api_key(
         exp = f' expiresAt:"{expires_at.isoformat()}"' if expires_at else ""
         args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
         query = "mutation{createSystemApiKey(input:{" + args + "}){" + out + "}}"
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
@@ -377,7 +377,7 @@ def create_system_api_key(
 
 @pytest.fixture(scope="module")
 def delete_system_api_key(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _DeleteSystemApiKey:
     def _(
         token: Optional[_Token],
@@ -386,7 +386,7 @@ def delete_system_api_key(
     ) -> None:
         args, out = f'id:"{gid}"', "id"
         query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
             json=dict(query=query),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
@@ -399,12 +399,12 @@ def delete_system_api_key(
 
 @pytest.fixture(scope="module")
 def log_in(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
     log_out: _LogOut,
 ) -> _LogIn:
     @contextmanager
     def _(password: _Password, /, *, email: _Email) -> Iterator[Tuple[_AccessToken, _RefreshToken]]:
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
             json={"email": email, "password": password},
         )
@@ -419,10 +419,10 @@ def log_in(
 
 @pytest.fixture(scope="module")
 def log_out(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _LogOut:
     def _(token: _Token, /) -> None:
-        resp = httpx_client.post(
+        resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/logout"),
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
         )
