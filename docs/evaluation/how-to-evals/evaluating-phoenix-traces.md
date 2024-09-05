@@ -16,6 +16,7 @@ pip install -q openai
 ```python
 import os
 from getpass import getpass
+
 import dotenv
 
 dotenv.load_dotenv()
@@ -43,6 +44,7 @@ if "PHOENIX_API_KEY" in os.environ:
     print("Using cloud instance of Phoenix.")
 else:
     import phoenix as px
+
     px.launch_app().view()
     print("Using local instance of Phoenix.")
 ```
@@ -80,17 +82,19 @@ from openai import OpenAI
 # Initialize OpenAI client
 client = OpenAI()
 
+
 # Function to generate a joke
 def generate_joke():
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that generates jokes."},
-            {"role": "user", "content": "Tell me a joke."}
-        ]
+            {"role": "user", "content": "Tell me a joke."},
+        ],
     )
     joke = response.choices[0].message.content
     return joke
+
 
 # Generate 5 different jokes
 jokes = []
@@ -100,7 +104,6 @@ for _ in range(5):
     print(f"Joke {len(jokes)}:\n{joke}\n")
 
 print(f"Generated {len(jokes)} jokes and tracked them in Phoenix.")
-
 ```
 
 ## Download trace dataset from Phoenix
@@ -130,30 +133,31 @@ Let's start with a simple example of generating evaluations using plain code. Op
 
 ```python
 # Create a new DataFrame with selected columns
-eval_df = spans_df[['context.span_id', 'attributes.llm.output_messages']].copy()
-eval_df.set_index('context.span_id', inplace=True)
+eval_df = spans_df[["context.span_id", "attributes.llm.output_messages"]].copy()
+eval_df.set_index("context.span_id", inplace=True)
 
 # Create a list to store unique jokes
 unique_jokes = set()
 
+
 # Function to check if a joke is a duplicate
 def is_duplicate(joke_data):
-    joke = joke_data[0]['message.content']
+    joke = joke_data[0]["message.content"]
     if joke in unique_jokes:
         return True
     else:
         unique_jokes.add(joke)
         return False
 
+
 # Apply the is_duplicate function to create the new column
-eval_df['label'] = eval_df['attributes.llm.output_messages'].apply(is_duplicate)
+eval_df["label"] = eval_df["attributes.llm.output_messages"].apply(is_duplicate)
 
 # Convert boolean to integer (0 for False, 1 for True)
-eval_df['label'] = eval_df['label']
+eval_df["label"] = eval_df["label"]
 
 # Reset unique_jokes list to ensure correct results if the cell is run multiple times
 unique_jokes.clear()
-
 ```
 
 
@@ -169,8 +173,8 @@ Our evals_df has a column for the span_id and a column for the evaluation result
 
 
 ```python
-eval_df['score'] = eval_df['label'].astype(int)
-eval_df['label'] = eval_df['label'].astype(str)
+eval_df["score"] = eval_df["label"].astype(int)
+eval_df["label"] = eval_df["label"].astype(str)
 ```
 
 
@@ -182,9 +186,7 @@ eval_df
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Duplicate", dataframe=eval_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Duplicate", dataframe=eval_df))
 ```
 
 You should now see evaluations in the Phoenix UI!
