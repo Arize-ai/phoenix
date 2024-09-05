@@ -53,7 +53,7 @@ class DeleteApiKeyInput:
 
 @strawberry.type
 class DeleteApiKeyMutationPayload:
-    id: GlobalID
+    apiKeyId: GlobalID
     query: Query
 
 
@@ -157,7 +157,7 @@ class ApiKeyMutationMixin:
             input.id, expected_type_name=SystemApiKey.__name__
         )
         await token_store.revoke(ApiKeyId(api_key_id))
-        return DeleteApiKeyMutationPayload(id=input.id, query=Query())
+        return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())
 
     @strawberry.mutation(permission_classes=[HasSecret, IsAuthenticated, IsAdmin, IsNotReadOnly])  # type: ignore
     async def delete_user_api_key(
@@ -168,4 +168,4 @@ class ApiKeyMutationMixin:
             input.id, expected_type_name=UserApiKey.__name__
         )
         await token_store.revoke(ApiKeyId(api_key_id))
-        return DeleteApiKeyMutationPayload(id=input.id, query=Query())
+        return DeleteApiKeyMutationPayload(apiKeyId=input.id, query=Query())

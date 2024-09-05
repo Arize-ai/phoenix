@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c09063051d7da2308dafeb2dd8b09ec5>>
+ * @generated SignedSource<<3a0c276b9b17c00054a989bf10883ce4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,12 @@
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type CreateSystemAPIKeyDialogMutation$variables = {
+export type APIKeysCardCreateSystemAPIKeyMutation$variables = {
   description?: string | null;
   expiresAt?: string | null;
   name: string;
 };
-export type CreateSystemAPIKeyDialogMutation$data = {
+export type APIKeysCardCreateSystemAPIKeyMutation$data = {
   readonly createSystemApiKey: {
     readonly apiKey: {
       readonly id: string;
@@ -26,9 +26,9 @@ export type CreateSystemAPIKeyDialogMutation$data = {
     };
   };
 };
-export type CreateSystemAPIKeyDialogMutation = {
-  response: CreateSystemAPIKeyDialogMutation$data;
-  variables: CreateSystemAPIKeyDialogMutation$variables;
+export type APIKeysCardCreateSystemAPIKeyMutation = {
+  response: APIKeysCardCreateSystemAPIKeyMutation$data;
+  variables: APIKeysCardCreateSystemAPIKeyMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -105,7 +105,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysCardCreateSystemAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -148,7 +148,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysCardCreateSystemAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -217,16 +217,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e162ef32e40e2920bbdb388bedd83989",
+    "cacheID": "799e8f0a627c6ae06e2a87c051d299d0",
     "id": null,
     "metadata": {},
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysCardCreateSystemAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateSystemAPIKeyDialogMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "mutation APIKeysCardCreateSystemAPIKeyMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e8563676b39f1e44ef4bac4057ef7e3";
+(node as any).hash = "a6f84fa9e14f363d2e7317d3d6507590";
 
 export default node;

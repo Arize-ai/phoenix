@@ -1,9 +1,27 @@
-import React from "react";
+import React, { ReactNode, useCallback, useState } from "react";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, Flex, Form, TextField } from "@arizeai/components";
+import {
+  Button,
+  Card,
+  DialogContainer,
+  Flex,
+  Form,
+  Icon,
+  Icons,
+  TextField,
+} from "@arizeai/components";
 
+import {
+  APIKeyFormParams,
+  CreateAPIKeyDialog,
+  OneTimeAPIKeyDialog,
+} from "@phoenix/components/auth";
+import { useNotifyError } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+
+import { LogoutButton } from "./LogoutButton";
 
 const profilePageCSS = css`
   overflow-y: auto;
@@ -20,7 +38,63 @@ const profilePageInnerCSS = css`
 `;
 
 export function ProfilePage() {
+  const [dialog, setDialog] = useState<ReactNode>(null);
+  const notifyError = useNotifyError();
   const { viewer } = useViewer();
+
+  const data = useLazyLoadQuery<ProfilePageQuery>(
+    graphql`
+      query ProfilePageQuery {
+        viewer {
+          ...APIKeysTableFragment
+        }
+      }
+    `,
+    {}
+  );
+
+  const [commit, isCommitting] =
+    useMutation<ProfilePageCreateUserAPIKeyMutation>(graphql`
+      mutation ProfilePageCreateUserAPIKeyMutation(
+        $input: CreateUserApiKeyInput!
+      ) {
+        createUserApiKey(input: $input) {
+          jwt
+          apiKey {
+            id
+            user {
+              ...APIKeysTableFragment
+            }
+          }
+        }
+      }
+    `);
+
+  const onSubmit = useCallback(
+    (data: APIKeyFormParams) => {
+      commit({
+        variables: {
+          input: {
+            ...data,
+            expiresAt: data.expiresAt || null,
+          },
+        },
+        onCompleted: (response) => {
+          setDialog(
+            <OneTimeAPIKeyDialog jwt={response.createUserApiKey.jwt} />
+          );
+        },
+        onError: (error) => {
+          notifyError({
+            title: "Error creating API key",
+            message: error.message,
+          });
+        },
+      });
+    },
+    [commit, notifyError]
+  );
+
   if (!viewer) {
     return null;
   }
@@ -45,8 +119,38 @@ export function ProfilePage() {
               />
             </Form>
           </Card>
-          <Card title="API Keys">user api key</Card>
+          <Card
+            title="API Keys"
+            variant="compact"
+            bodyStyle={{ padding: 0 }}
+            extra={
+              <Button
+                variant="default"
+                size="compact"
+                icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+                onClick={() =>
+                  setDialog(
+                    <CreateAPIKeyDialog
+                      onSubmit={onSubmit}
+                      isCommitting={isCommitting}
+                    />
+                  )
+                }
+              >
+                New Key
+              </Button>
+            }
+          >
+            <APIKeysTable query={data.viewer} />
+          </Card>
         </Flex>
+        <DialogContainer
+          onDismiss={() => {
+            setDialog(null);
+          }}
+        >
+          {dialog}
+        </DialogContainer>
       </div>
     </main>
   );

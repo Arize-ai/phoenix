@@ -2,6 +2,9 @@ import React, { PropsWithChildren, ReactNode } from "react";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+export * from "./CreateAPIKeyDialog";
+export * from "./OneTimeAPIKeyDialog";
+
 type AuthGuardProps = {
   fallback?: ReactNode;
 };
