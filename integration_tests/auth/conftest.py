@@ -146,17 +146,17 @@ def app(
         yield
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(scope="class")
 def emails(fake: Faker) -> Iterator[_Email]:
     return (fake.unique.email() for _ in count())
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(scope="class")
 def passwords(fake: Faker) -> Iterator[_Password]:
     return (fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET)) for _ in count())
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(scope="class")
 def usernames(fake: Faker) -> Iterator[_Username]:
     return (fake.unique.pystr() for _ in count())
 

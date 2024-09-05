@@ -89,7 +89,6 @@ class DataLoaders:
 
 class _NoOp:
     def get(self, *args: Any, **kwargs: Any) -> Any: ...
-
     def put(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
