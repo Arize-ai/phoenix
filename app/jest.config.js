@@ -3,7 +3,7 @@
 // eslint-disable-next-line no-undef
 module.exports = {
   preset: "ts-jest",
-  testEnvironment: "node",
+  testEnvironment: "jsdom",
   prettierPath: null,
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],

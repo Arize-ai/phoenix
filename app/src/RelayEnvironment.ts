@@ -6,6 +6,7 @@ import {
   Store,
 } from "relay-runtime";
 
+import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
 const graphQLPath = BASE_URL + "/graphql";
@@ -16,7 +17,7 @@ const graphQLPath = BASE_URL + "/graphql";
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
 const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
-  const response = await fetch(graphQLPath, {
+  const response = await authFetch(graphQLPath, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

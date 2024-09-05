@@ -5,8 +5,6 @@ import { Card, Flex, Form, TextField } from "@arizeai/components";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-import { LogoutButton } from "./LogoutButton";
-
 const profilePageCSS = css`
   overflow-y: auto;
 `;
@@ -32,7 +30,7 @@ export function ProfilePage() {
         {/* TODO(auth): Change username, etc. */}
         {/* TODO(auth): Reset password */}
         <Flex direction="column" gap="size-200">
-          <Card title="Profile" extra={<LogoutButton />} variant="compact">
+          <Card title="Profile" variant="compact">
             <Form>
               <TextField label="email" value={viewer.email} isReadOnly />
               <TextField
