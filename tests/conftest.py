@@ -196,7 +196,7 @@ async def app(
             umap_params=get_umap_parameters(None),
             serve_ui=False,
         )
-        manager = await stack.enter_async_context(LifespanManager(app))
+        manager = await stack.enter_async_context(LifespanManager(app, startup_timeout=3600))
         yield manager.app
 
 
