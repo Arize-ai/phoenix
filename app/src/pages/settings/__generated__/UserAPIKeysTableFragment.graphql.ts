@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e141c2d64acfb347734a53445e9a59e2>>
+ * @generated SignedSource<<1ab506ae52c1c40fa958523016b09314>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,9 @@ export type UserAPIKeysTableFragment$data = {
     readonly expiresAt: string | null;
     readonly id: string;
     readonly name: string;
+    readonly user: {
+      readonly email: string;
+    };
   }>;
   readonly " $fragmentType": "UserAPIKeysTableFragment";
 };
@@ -81,6 +84,24 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "expiresAt",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "User",
+          "kind": "LinkedField",
+          "name": "user",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "email",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -90,6 +111,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "b74ea37cf5a935ebe3ce165a42a5fbf7";
+(node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
 
 export default node;

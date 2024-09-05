@@ -19,6 +19,8 @@ import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFr
 import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
 import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
 
+const TIMESTAMP_CELL_SIZE = 70;
+
 export function UserAPIKeysTable({
   query,
 }: {
@@ -37,6 +39,9 @@ export function UserAPIKeysTable({
           description
           createdAt
           expiresAt
+          user {
+            email
+          }
         }
       }
     `,
@@ -89,6 +94,8 @@ export function UserAPIKeysTable({
       {
         header: "Name",
         accessorKey: "name",
+        size: 100,
+        cell: TextCell,
       },
       {
         header: "Description",
@@ -98,12 +105,20 @@ export function UserAPIKeysTable({
       {
         header: "Created At",
         accessorKey: "createdAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
       {
         header: "Expires At",
         accessorKey: "expiresAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
+      },
+      {
+        header: "User",
+        size: 120,
+        accessorKey: "user.email",
+        cell: TextCell,
       },
       {
         header: "",
