@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<87527227e2af250a58dfb79cbd126a32>>
+ * @generated SignedSource<<ad137848b2614a661fde5cb0e63c42c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,43 +20,41 @@ export type APIKeysCardQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "description",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "createdAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "expiresAt",
-    "storageKey": null
-  }
-];
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "expiresAt",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -91,7 +89,13 @@ return {
         "kind": "LinkedField",
         "name": "systemApiKeys",
         "plural": true,
-        "selections": (v0/*: any*/),
+        "selections": [
+          (v0/*: any*/),
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/)
+        ],
         "storageKey": null
       },
       {
@@ -101,18 +105,42 @@ return {
         "kind": "LinkedField",
         "name": "userApiKeys",
         "plural": true,
-        "selections": (v0/*: any*/),
+        "selections": [
+          (v0/*: any*/),
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "user",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "email",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "b5ca39f5901adfac7e884cb2555989fa",
+    "cacheID": "a8cfba9eaaac34bc497efaacbff45c05",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
   }
 };
 })();
