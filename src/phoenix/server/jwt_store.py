@@ -50,11 +50,12 @@ class JwtStore:
     ) -> None:
         assert secret
         super().__init__(**kwargs)
+        self._db = db
         self._secret = secret
         args = (db, secret, algorithm, sleep_seconds)
-        self._access_token_store = AccessTokenStore(*args, **kwargs)
-        self._refresh_token_store = RefreshTokenStore(*args, **kwargs)
-        self._api_key_store = ApiKeyStore(*args, **kwargs)
+        self._access_token_store = _AccessTokenStore(*args, **kwargs)
+        self._refresh_token_store = _RefreshTokenStore(*args, **kwargs)
+        self._api_key_store = _ApiKeyStore(*args, **kwargs)
 
     @cached_property
     def _stores(self) -> Tuple[DaemonTask, ...]:
@@ -98,6 +99,22 @@ class JwtStore:
     async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
         return await self._api_key_store.get(token_id)
 
+    @singledispatchmethod
+    async def _evict(self, _: TokenId) -> Optional[ClaimSet]:
+        return None
+
+    @_evict.register
+    async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
+        return await self._access_token_store.evict(token_id)
+
+    @_evict.register
+    async def _(self, token_id: RefreshTokenId) -> Optional[ClaimSet]:
+        return await self._refresh_token_store.evict(token_id)
+
+    @_evict.register
+    async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
+        return await self._api_key_store.evict(token_id)
+
     async def create_access_token(
         self,
         claim: AccessTokenClaims,
@@ -134,6 +151,14 @@ class JwtStore:
             self._refresh_token_store.revoke(*refresh_token_ids),
             self._api_key_store.revoke(*api_key_ids),
         )
+
+    async def log_out(self, user_id: UserId) -> None:
+        for cls in (AccessTokenId, RefreshTokenId):
+            table = cls.table
+            stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
+            async with self._db() as session:
+                async for id_ in await session.stream_scalars(stmt):
+                    await self._evict(cls(id_))
 
 
 _TokenT = TypeVar("_TokenT", bound=Token)
@@ -199,11 +224,14 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         return self._claims.get(token_id)
 
+    async def evict(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
+        return self._claims.pop(token_id, None)
+
     async def revoke(self, *token_ids: _TokenIdT) -> None:
         if not token_ids:
             return
         for token_id in token_ids:
-            self._claims.pop(token_id, None)
+            await self.evict(token_id)
         stmt = delete(self._table).where(self._table.id.in_(map(int, token_ids)))
         async with self._db() as session:
             await session.execute(stmt)
@@ -258,7 +286,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             self._tasks.pop()
 
 
-class AccessTokenStore(
+class _AccessTokenStore(
     _Store[
         AccessTokenClaims,
         AccessToken,
@@ -302,7 +330,7 @@ class AccessTokenStore(
         )
 
 
-class RefreshTokenStore(
+class _RefreshTokenStore(
     _Store[
         RefreshTokenClaims,
         RefreshToken,
@@ -341,7 +369,7 @@ class RefreshTokenStore(
         )
 
 
-class ApiKeyStore(
+class _ApiKeyStore(
     _Store[
         ApiKeyClaims,
         ApiKey,

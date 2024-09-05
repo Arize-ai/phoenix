@@ -1,4 +1,6 @@
+from asyncio import get_running_loop
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any, Optional
 
@@ -6,7 +8,13 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
+from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    compute_password_hash,
+)
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
@@ -35,7 +43,13 @@ from phoenix.server.api.dataloaders import (
     UsersDataLoader,
 )
 from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory, TokenStore
+from phoenix.server.types import (
+    CanGetLastUpdatedAt,
+    CanPutItem,
+    DbSessionFactory,
+    TokenStore,
+    UserId,
+)
 
 
 @dataclass
@@ -113,3 +127,22 @@ class Context(BaseContext):
         if (response := self.response) is None:
             raise ValueError("no response is set")
         return response
+
+    async def is_valid_password(self, password: str, user: models.User) -> bool:
+        return (
+            (hash_ := user.password_hash) is not None
+            and (salt := user.password_salt) is not None
+            and hash_ == await self.hash_password(password, salt)
+        )
+
+    @staticmethod
+    async def hash_password(password: str, salt: bytes) -> bytes:
+        compute = partial(compute_password_hash, password=password, salt=salt)
+        return await get_running_loop().run_in_executor(None, compute)
+
+    async def log_out(self, user_id: int) -> None:
+        assert self.token_store is not None
+        await self.token_store.log_out(UserId(user_id))
+        response = self.get_response()
+        response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+        response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)

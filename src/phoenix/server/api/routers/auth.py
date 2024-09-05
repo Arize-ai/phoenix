@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
@@ -21,15 +21,15 @@ from phoenix.auth import (
 )
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
-    AccessTokenId,
     RefreshTokenAttributes,
     RefreshTokenClaims,
-    RefreshTokenId,
+    TokenStore,
     UserId,
 )
 
@@ -103,20 +103,9 @@ async def login(request: Request) -> Response:
 async def logout(
     request: Request,
 ) -> Response:
-    token_store = request.app.state.get_token_store()
-    assert (user := request.user)
-    assert isinstance(user.identity, UserId)
-    user_id = int(user.identity)
-    token_ids = []
-    async with request.app.state.db() as session:
-        async with session.begin_nested():
-            for cls in (AccessTokenId, RefreshTokenId):
-                table = cls.table
-                stmt = delete(table).where(table.user_id == user_id).returning(table.id)
-                async for id_ in await session.stream_scalars(stmt):
-                    token_ids.append(cls(id_))
-    if token_ids:
-        await token_store.revoke(*token_ids)
+    token_store: TokenStore = request.app.state.get_token_store()
+    assert isinstance(user := request.user, PhoenixUser)
+    await token_store.log_out(user.identity)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
