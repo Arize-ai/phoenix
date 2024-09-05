@@ -1,6 +1,7 @@
 import os
 import sys
 from contextlib import ExitStack, contextmanager
+from functools import partial
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
@@ -120,12 +121,12 @@ def env_phoenix_sql_database_url(
 
 @pytest.fixture
 def get_gql_spans(
-    httpx_client: httpx.Client,
+    httpx_client: Callable[[], httpx.Client],
 ) -> _GetGqlSpans:
     def _(*keys: str) -> Dict[_ProjectName, List[Dict[str, Any]]]:
         out = "name spans{edges{node{" + " ".join(keys) + "}}}"
         query = dict(query="query{projects{edges{node{" + out + "}}}}")
-        resp = httpx_client.post(urljoin(get_base_url(), "graphql"), json=query)
+        resp = httpx_client().post(urljoin(get_base_url(), "graphql"), json=query)
         resp.raise_for_status()
         resp_dict = resp.json()
         assert not resp_dict.get("errors")
@@ -210,9 +211,9 @@ def start_span(
 
 
 @pytest.fixture(scope="session")
-def httpx_client() -> httpx.Client:
+def httpx_client() -> Callable[[], httpx.Client]:
     # Having no timeout is useful when stepping through the debugger on the server side.
-    return httpx.Client(timeout=None)
+    return partial(httpx.Client, timeout=None)
 
 
 @pytest.fixture(scope="session")
