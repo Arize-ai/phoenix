@@ -8,7 +8,7 @@ from grpc_interceptor.exceptions import Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
 from starlette.exceptions import HTTPException
 from starlette.requests import HTTPConnection
-from starlette.status import HTTP_401_UNAUTHORIZED
+from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
@@ -88,12 +88,12 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
 
 async def is_authenticated(request: Request) -> None:
     """
-    Raises a 401 if the request is not authenticated.
+    Raises a 401 if the request is not authenticated, 403 if token is expired
     """
     if not isinstance((user := request.user), PhoenixUser):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
     claims = user.claims
     if claims.status is ClaimSetStatus.EXPIRED:
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Expired token")
     if claims.status is not ClaimSetStatus.VALID:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
