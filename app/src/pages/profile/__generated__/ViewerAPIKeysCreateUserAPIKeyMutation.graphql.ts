@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9edf9c0d8f4238098db99bd1c2ccd9f>>
+ * @generated SignedSource<<96705c48e81b3d6f8671c93a06189ce7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,10 +15,10 @@ export type CreateUserApiKeyInput = {
   expiresAt?: string | null;
   name: string;
 };
-export type ProfilePageCreateUserAPIKeyMutation$variables = {
+export type ViewerAPIKeysCreateUserAPIKeyMutation$variables = {
   input: CreateUserApiKeyInput;
 };
-export type ProfilePageCreateUserAPIKeyMutation$data = {
+export type ViewerAPIKeysCreateUserAPIKeyMutation$data = {
   readonly createUserApiKey: {
     readonly apiKey: {
       readonly id: string;
@@ -29,9 +29,9 @@ export type ProfilePageCreateUserAPIKeyMutation$data = {
     readonly jwt: string;
   };
 };
-export type ProfilePageCreateUserAPIKeyMutation = {
-  response: ProfilePageCreateUserAPIKeyMutation$data;
-  variables: ProfilePageCreateUserAPIKeyMutation$variables;
+export type ViewerAPIKeysCreateUserAPIKeyMutation = {
+  response: ViewerAPIKeysCreateUserAPIKeyMutation$data;
+  variables: ViewerAPIKeysCreateUserAPIKeyMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -68,7 +68,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProfilePageCreateUserAPIKeyMutation",
+    "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -118,7 +118,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProfilePageCreateUserAPIKeyMutation",
+    "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "selections": [
       {
         "alias": null,
@@ -199,16 +199,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8a9360bc7f5103394346c02b6a066eb5",
+    "cacheID": "572bf0f64678128defccf833e6a5d4ce",
     "id": null,
     "metadata": {},
-    "name": "ProfilePageCreateUserAPIKeyMutation",
+    "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation ProfilePageCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "mutation ViewerAPIKeysCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "27a71f1115779c67ec0b524fb7ef4e6c";
+(node as any).hash = "28061ae008e197468be6fd5f2775ccb0";
 
 export default node;

@@ -495,7 +495,7 @@ def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str
         cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
     )
     resp.raise_for_status()
-    return resp.json()["data"]["createUserApiKey"]["apiKey"]["id"]
+    return str(resp.json()["data"]["createUserApiKey"]["apiKey"]["id"])
 
 
 class TestApiKeys:
