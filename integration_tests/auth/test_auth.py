@@ -509,7 +509,7 @@ class TestApiKeys:
     def test_delete_user_api_key(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
         create_user: _CreateUser,
         httpx_client: Callable[[], httpx.Client],
@@ -519,7 +519,7 @@ class TestApiKeys:
         username = "member"
         member_password = next(passwords)
 
-        with log_in(secret, email=admin_email) as (admin_token, _):
+        with log_in(admin_password, email=admin_email) as (admin_token, _):
             admin_api_key_id = create_user_key(httpx_client, admin_token)
             create_user(
                 admin_token,
