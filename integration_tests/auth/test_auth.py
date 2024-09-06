@@ -263,7 +263,7 @@ class TestUsers:
         # user logs into second browser
         resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": admin_email, "password": admin_password},
         )
         resp.raise_for_status()
         assert (browser_1_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
