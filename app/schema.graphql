@@ -337,7 +337,7 @@ input DeleteApiKeyInput {
 }
 
 type DeleteApiKeyMutationPayload {
-  id: GlobalID!
+  apiKeyId: GlobalID!
   query: Query!
 }
 
@@ -1461,7 +1461,7 @@ type User implements Node {
   username: String
   createdAt: DateTime!
   role: UserRole!
-  apiKeys: [ApiKey!]!
+  apiKeys: [UserApiKey!]!
 }
 
 type UserApiKey implements ApiKey & Node {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<556b8c089bb37db7811dab26537df3b6>>
+ * @generated SignedSource<<d9edf9c0d8f4238098db99bd1c2ccd9f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -149,18 +149,12 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": null,
+                    "concreteType": "UserApiKey",
                     "kind": "LinkedField",
                     "name": "apiKeys",
                     "plural": true,
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "__typename",
-                        "storageKey": null
-                      },
+                      (v3/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -188,14 +182,6 @@ return {
                         "kind": "ScalarField",
                         "name": "expiresAt",
                         "storageKey": null
-                      },
-                      {
-                        "kind": "InlineFragment",
-                        "selections": [
-                          (v3/*: any*/)
-                        ],
-                        "type": "Node",
-                        "abstractKey": "__isNode"
                       }
                     ],
                     "storageKey": null
@@ -213,12 +199,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a38e293fc466440bab0a84837c13d47",
+    "cacheID": "8a9360bc7f5103394346c02b6a066eb5",
     "id": null,
     "metadata": {},
     "name": "ProfilePageCreateUserAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation ProfilePageCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    __typename\n    name\n    description\n    createdAt\n    expiresAt\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  id\n}\n"
+    "text": "mutation ProfilePageCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();

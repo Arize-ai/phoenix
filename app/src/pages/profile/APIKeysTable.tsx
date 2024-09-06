@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import React, { startTransition, useCallback, useMemo } from "react";
+import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -7,18 +7,22 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
 import { APIKeysTableQuery } from "./__generated__/APIKeysTableQuery.graphql";
 
+const TIMESTAMP_CELL_SIZE = 70;
+
 export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
-  const [data] = useRefetchableFragment<
+  const [data, refetch] = useRefetchableFragment<
     APIKeysTableQuery,
     APIKeysTableFragment$key
   >(
@@ -26,6 +30,7 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       fragment APIKeysTableFragment on User
       @refetchable(queryName: "APIKeysTableQuery") {
         apiKeys {
+          id
           name
           description
           createdAt
@@ -34,6 +39,42 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       }
     `,
     query
+  );
+
+  const notifySuccess = useNotifySuccess();
+  const [commit] = useMutation(graphql`
+    mutation APIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+      deleteUserApiKey(input: $input) {
+        __typename
+        apiKeyId
+      }
+    }
+  `);
+  const handleDelete = useCallback(
+    (id: string) => {
+      commit({
+        variables: {
+          input: {
+            id,
+          },
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "API key deleted",
+            message: "The key has been deleted and is no longer active.",
+          });
+          startTransition(() => {
+            refetch(
+              {},
+              {
+                fetchPolicy: "network-only",
+              }
+            );
+          });
+        },
+      });
+    },
+    [commit, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -46,6 +87,7 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       {
         header: "Name",
         accessorKey: "name",
+        size: 100,
         cell: TextCell,
       },
       {
@@ -56,16 +98,37 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       {
         header: "Created At",
         accessorKey: "createdAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
       {
         header: "Expires At",
         accessorKey: "expiresAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
+      },
+      {
+        header: "",
+        accessorKey: "id",
+        size: 10,
+        cell: ({ row }) => {
+          return (
+            <Flex direction="row" justifyContent="end" width="100%">
+              <DeleteAPIKeyButton
+                handleDelete={() => {
+                  handleDelete(row.original.id);
+                }}
+              />
+            </Flex>
+          );
+        },
+        meta: {
+          textAlign: "right",
+        },
       },
     ];
     return cols;
-  }, []);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

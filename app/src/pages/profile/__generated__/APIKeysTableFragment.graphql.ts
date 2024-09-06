@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6631cac64643cbc5c435a2ff79c3b759>>
+ * @generated SignedSource<<81eb0dbe03e04f57f5bad81527b76221>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type APIKeysTableFragment$data = {
     readonly createdAt: string;
     readonly description: string | null;
     readonly expiresAt: string | null;
+    readonly id: string;
     readonly name: string;
   }>;
   readonly id: string;
@@ -27,7 +28,15 @@ export type APIKeysTableFragment$key = {
 
 import APIKeysTableQuery_graphql from './APIKeysTableQuery.graphql';
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": {
@@ -48,11 +57,12 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
-      "concreteType": null,
+      "concreteType": "UserApiKey",
       "kind": "LinkedField",
       "name": "apiKeys",
       "plural": true,
       "selections": [
+        (v0/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -84,18 +94,13 @@ const node: ReaderFragment = {
       ],
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    }
+    (v0/*: any*/)
   ],
   "type": "User",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "b5cc950482c8d88a792df5819f895c23";
+(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
 
 export default node;

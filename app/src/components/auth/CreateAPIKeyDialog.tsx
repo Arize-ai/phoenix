@@ -40,7 +40,7 @@ export function CreateAPIKeyDialog(props: {
   });
 
   return (
-    <Dialog title="Create a System Key" isDismissable>
+    <Dialog title="Create an API Key" isDismissable>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <View padding="size-200">
           <Controller

@@ -42,17 +42,6 @@ export function ProfilePage() {
   const notifyError = useNotifyError();
   const { viewer } = useViewer();
 
-  const data = useLazyLoadQuery<ProfilePageQuery>(
-    graphql`
-      query ProfilePageQuery {
-        viewer {
-          ...APIKeysTableFragment
-        }
-      }
-    `,
-    {}
-  );
-
   const [commit, isCommitting] =
     useMutation<ProfilePageCreateUserAPIKeyMutation>(graphql`
       mutation ProfilePageCreateUserAPIKeyMutation(
@@ -141,7 +130,7 @@ export function ProfilePage() {
               </Button>
             }
           >
-            <APIKeysTable query={data.viewer} />
+            <APIKeysTable query={viewer} />
           </Card>
         </Flex>
         <DialogContainer

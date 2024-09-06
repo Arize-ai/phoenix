@@ -9,6 +9,7 @@ import {
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -17,7 +18,6 @@ import { useNotifySuccess } from "@phoenix/contexts";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
-import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
 
 export function SystemAPIKeysTable({
   query,
@@ -50,7 +50,7 @@ export function SystemAPIKeysTable({
     ) {
       deleteSystemApiKey(input: $input) {
         __typename
-        id
+        apiKeyId
       }
     }
   `);

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<587f73877d7e85d0c247630679fd91ac>>
+ * @generated SignedSource<<7b5c6d470b3350b21b6d8c997a331582>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,13 +39,6 @@ v1 = [
   }
 ],
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -93,19 +86,25 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          },
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v3/*: any*/),
+          (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": null,
+                "concreteType": "UserApiKey",
                 "kind": "LinkedField",
                 "name": "apiKeys",
                 "plural": true,
@@ -138,14 +137,6 @@ return {
                     "kind": "ScalarField",
                     "name": "expiresAt",
                     "storageKey": null
-                  },
-                  {
-                    "kind": "InlineFragment",
-                    "selections": [
-                      (v3/*: any*/)
-                    ],
-                    "type": "Node",
-                    "abstractKey": "__isNode"
                   }
                 ],
                 "storageKey": null
@@ -160,16 +151,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9b06593697a68d790fffc0a55a3dd391",
+    "cacheID": "e677b5974fa137ac3a26acde353767d8",
     "id": null,
     "metadata": {},
     "name": "APIKeysTableQuery",
     "operationKind": "query",
-    "text": "query APIKeysTableQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    __typename\n    name\n    description\n    createdAt\n    expiresAt\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  id\n}\n"
+    "text": "query APIKeysTableQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...APIKeysTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b5cc950482c8d88a792df5819f895c23";
+(node as any).hash = "6c32098d55e4cba859dcec73f3ccd28c";
 
 export default node;

@@ -4,6 +4,7 @@ import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 export * from "./CreateAPIKeyDialog";
 export * from "./OneTimeAPIKeyDialog";
+export * from "./DeleteAPIKeyButton";
 
 type AuthGuardProps = {
   fallback?: ReactNode;

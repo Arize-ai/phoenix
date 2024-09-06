@@ -9,6 +9,7 @@ import {
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
+import { DeleteAPIKeyButton } from "@phoenix/components/auth"
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -17,7 +18,6 @@ import { useNotifySuccess } from "@phoenix/contexts";
 
 import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
 import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
-import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
 
 const TIMESTAMP_CELL_SIZE = 70;
 
@@ -53,7 +53,7 @@ export function UserAPIKeysTable({
     mutation UserAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
       deleteUserApiKey(input: $input) {
         __typename
-        id
+        apiKeyId
       }
     }
   `);
