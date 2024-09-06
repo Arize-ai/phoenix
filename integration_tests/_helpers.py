@@ -60,6 +60,7 @@ class _String(str, ABC):
         return super().__new__(cls, string)
 
 
+_Secret: TypeAlias = str
 _Email: TypeAlias = str
 _Password: TypeAlias = str
 _Username: TypeAlias = str

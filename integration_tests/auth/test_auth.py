@@ -33,6 +33,7 @@ from .._helpers import (
     _patch_viewer,
     _Profile,
     _RefreshToken,
+    _Secret,
     _SpanExporterConstructor,
     _start_span,
     _Username,
@@ -44,8 +45,8 @@ NOW = datetime.now(timezone.utc)
 class TestTokens:
     def test_log_in_tokens_should_change(
         self,
-        _admin_email: str,
-        _secret: str,
+        _admin_email: _Email,
+        _secret: _Secret,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
@@ -74,7 +75,7 @@ class TestUsers:
         email: _Email,
         use_secret: bool,
         expectation: ContextManager[Optional[Unauthorized]],
-        _secret: str,
+        _secret: _Secret,
         _fake: Faker,
         _passwords: Iterator[_Password],
     ) -> None:
@@ -151,8 +152,8 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        _admin_email: str,
-        _secret: str,
+        _admin_email: _Email,
+        _secret: _Secret,
         _fake: Faker,
         _profiles: Iterator[_Profile],
     ) -> None:

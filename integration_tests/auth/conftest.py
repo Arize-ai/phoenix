@@ -21,6 +21,7 @@ from .._helpers import (
     _LoggedInUser,
     _Password,
     _Profile,
+    _Secret,
     _server,
     _UserGenerator,
     _Username,
@@ -28,13 +29,13 @@ from .._helpers import (
 
 
 @pytest.fixture(scope="class")
-def _secret() -> str:
+def _secret() -> _Secret:
     return secrets.token_hex(32)
 
 
 @pytest.fixture(autouse=True, scope="class")
 def _app(
-    _secret: str,
+    _secret: _Secret,
     _env_phoenix_sql_database_url: Any,
 ) -> Iterator[None]:
     values = (
@@ -102,8 +103,8 @@ def _get_new_user(
 
 @pytest.fixture
 def _admin_token(
-    _admin_email: str,
-    _secret: str,
+    _admin_email: _Email,
+    _secret: _Secret,
 ) -> Iterator[_AccessToken]:
     with _log_in(_secret, email=_admin_email) as (token, _):
         yield token
