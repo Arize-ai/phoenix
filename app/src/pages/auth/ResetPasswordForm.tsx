@@ -1,8 +1,7 @@
 import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
-import { graphql } from "relay-runtime";
 
 import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
