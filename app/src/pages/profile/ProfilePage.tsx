@@ -24,11 +24,11 @@ const profilePageInnerCSS = css`
 
 export function ProfilePage() {
   const { viewer } = useViewer();
-
+  const navigate = useNavigate();
   if (!viewer) {
     return null;
   }
-  const navigate = useNavigate();
+
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
