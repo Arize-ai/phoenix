@@ -384,7 +384,7 @@ def delete_system_api_key(
         gid: _GqlId,
         /,
     ) -> None:
-        args, out = f'id:"{gid}"', "id"
+        args, out = f'id:"{gid}"', "apiKeyId"
         query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
         resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
@@ -392,7 +392,7 @@ def delete_system_api_key(
             cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
         )
         resp_dict = _json(resp)
-        assert resp_dict["data"]["deleteSystemApiKey"]["id"] == gid
+        assert resp_dict["data"]["deleteSystemApiKey"]["apiKeyId"] == gid
 
     return _
 

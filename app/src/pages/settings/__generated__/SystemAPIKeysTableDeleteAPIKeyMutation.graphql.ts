@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3f380e0e8f6bb23e27d5962ba467043>>
+ * @generated SignedSource<<4dd8cc0ea82581272b4749c4237cf5b7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type SystemAPIKeysTableDeleteAPIKeyMutation$variables = {
 export type SystemAPIKeysTableDeleteAPIKeyMutation$data = {
   readonly deleteSystemApiKey: {
     readonly __typename: "DeleteApiKeyMutationPayload";
-    readonly id: string;
+    readonly apiKeyId: string;
   };
 };
 export type SystemAPIKeysTableDeleteAPIKeyMutation = {
@@ -60,7 +60,7 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "id",
+        "name": "apiKeyId",
         "storageKey": null
       }
     ],
@@ -85,16 +85,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "c65d1d86f282379c1f529a7234b60120",
+    "cacheID": "a8c45c42b5becca8efa65334285a2f97",
     "id": null,
     "metadata": {},
     "name": "SystemAPIKeysTableDeleteAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation SystemAPIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteSystemApiKey(input: $input) {\n    __typename\n    id\n  }\n}\n"
+    "text": "mutation SystemAPIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteSystemApiKey(input: $input) {\n    __typename\n    apiKeyId\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5b7f3beaf38ac72be768417e2082c889";
+(node as any).hash = "55ab8200b5bfda0aa73594ad5cfce96f";
 
 export default node;

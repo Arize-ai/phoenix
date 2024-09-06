@@ -14,24 +14,22 @@ import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
-import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
-import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
+import { APIKeysTableFragment$key } from "./__generated__/APIKeysTableFragment.graphql";
+import { APIKeysTableQuery } from "./__generated__/APIKeysTableQuery.graphql";
 
-export function SystemAPIKeysTable({
-  query,
-}: {
-  query: SystemAPIKeysTableFragment$key;
-}) {
+const TIMESTAMP_CELL_SIZE = 70;
+
+export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
   const [data, refetch] = useRefetchableFragment<
-    SystemAPIKeysTableQuery,
-    SystemAPIKeysTableFragment$key
+    APIKeysTableQuery,
+    APIKeysTableFragment$key
   >(
     graphql`
-      fragment SystemAPIKeysTableFragment on Query
-      @refetchable(queryName: "SystemAPIKeysTableQuery") {
-        systemApiKeys {
+      fragment APIKeysTableFragment on User
+      @refetchable(queryName: "APIKeysTableQuery") {
+        apiKeys {
           id
           name
           description
@@ -43,15 +41,15 @@ export function SystemAPIKeysTable({
     query
   );
 
-  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
-    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
-      $input: DeleteApiKeyInput!
-    ) {
-      deleteSystemApiKey(input: $input) {
+    mutation APIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+      deleteUserApiKey(input: $input) {
         __typename
         apiKeyId
+        query {
+          ...UserAPIKeysTableFragment
+        }
       }
     }
   `);
@@ -65,8 +63,8 @@ export function SystemAPIKeysTable({
         },
         onCompleted: () => {
           notifySuccess({
-            title: "System key deleted",
-            message: "The system key has been deleted and is no longer active.",
+            title: "API key deleted",
+            message: "The key has been deleted and is no longer active.",
           });
           startTransition(() => {
             refetch(
@@ -77,19 +75,13 @@ export function SystemAPIKeysTable({
             );
           });
         },
-        onError: (error) => {
-          notifyError({
-            title: "Error deleting system key",
-            message: error.message,
-          });
-        },
       });
     },
-    [commit, notifyError, notifySuccess, refetch]
+    [commit, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
-    return [...data.systemApiKeys];
+    return [...data.apiKeys];
   }, [data]);
 
   type TableRow = (typeof tableData)[number];
@@ -98,6 +90,8 @@ export function SystemAPIKeysTable({
       {
         header: "Name",
         accessorKey: "name",
+        size: 100,
+        cell: TextCell,
       },
       {
         header: "Description",
@@ -107,11 +101,13 @@ export function SystemAPIKeysTable({
       {
         header: "Created At",
         accessorKey: "createdAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
       {
         header: "Expires At",
         accessorKey: "expiresAt",
+        size: TIMESTAMP_CELL_SIZE,
         cell: TimestampCell,
       },
       {

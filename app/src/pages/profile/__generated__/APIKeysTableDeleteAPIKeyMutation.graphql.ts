@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c09063051d7da2308dafeb2dd8b09ec5>>
+ * @generated SignedSource<<6c6b2abaa0af141b695f2d2fe494d904>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,112 +10,72 @@
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type CreateSystemAPIKeyDialogMutation$variables = {
-  description?: string | null;
-  expiresAt?: string | null;
-  name: string;
+export type DeleteApiKeyInput = {
+  id: string;
 };
-export type CreateSystemAPIKeyDialogMutation$data = {
-  readonly createSystemApiKey: {
-    readonly apiKey: {
-      readonly id: string;
-    };
-    readonly jwt: string;
+export type APIKeysTableDeleteAPIKeyMutation$variables = {
+  input: DeleteApiKeyInput;
+};
+export type APIKeysTableDeleteAPIKeyMutation$data = {
+  readonly deleteUserApiKey: {
+    readonly __typename: "DeleteApiKeyMutationPayload";
+    readonly apiKeyId: string;
     readonly query: {
-      readonly " $fragmentSpreads": FragmentRefs<"SystemAPIKeysTableFragment">;
+      readonly " $fragmentSpreads": FragmentRefs<"UserAPIKeysTableFragment">;
     };
   };
 };
-export type CreateSystemAPIKeyDialogMutation = {
-  response: CreateSystemAPIKeyDialogMutation$data;
-  variables: CreateSystemAPIKeyDialogMutation$variables;
+export type APIKeysTableDeleteAPIKeyMutation = {
+  response: APIKeysTableDeleteAPIKeyMutation$data;
+  variables: APIKeysTableDeleteAPIKeyMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "description"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "expiresAt"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "name"
-},
-v3 = [
+var v0 = [
   {
-    "fields": [
-      {
-        "kind": "Variable",
-        "name": "description",
-        "variableName": "description"
-      },
-      {
-        "kind": "Variable",
-        "name": "expiresAt",
-        "variableName": "expiresAt"
-      },
-      {
-        "kind": "Variable",
-        "name": "name",
-        "variableName": "name"
-      }
-    ],
-    "kind": "ObjectValue",
+    "defaultValue": null,
+    "kind": "LocalArgument",
     "name": "input"
   }
 ],
-v4 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "jwt",
+  "name": "__typename",
   "storageKey": null
 },
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SystemApiKey",
-  "kind": "LinkedField",
-  "name": "apiKey",
-  "plural": false,
-  "selections": [
-    (v5/*: any*/)
-  ],
+  "name": "apiKeyId",
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysTableDeleteAPIKeyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
-        "concreteType": "CreateSystemApiKeyMutationPayload",
+        "args": (v1/*: any*/),
+        "concreteType": "DeleteApiKeyMutationPayload",
         "kind": "LinkedField",
-        "name": "createSystemApiKey",
+        "name": "deleteUserApiKey",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -127,12 +87,11 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "SystemAPIKeysTableFragment"
+                "name": "UserAPIKeysTableFragment"
               }
             ],
             "storageKey": null
-          },
-          (v6/*: any*/)
+          }
         ],
         "storageKey": null
       }
@@ -142,23 +101,20 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v2/*: any*/),
-      (v0/*: any*/),
-      (v1/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysTableDeleteAPIKeyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v3/*: any*/),
-        "concreteType": "CreateSystemApiKeyMutationPayload",
+        "args": (v1/*: any*/),
+        "concreteType": "DeleteApiKeyMutationPayload",
         "kind": "LinkedField",
-        "name": "createSystemApiKey",
+        "name": "deleteUserApiKey",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -170,12 +126,18 @@ return {
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "SystemApiKey",
+                "concreteType": "UserApiKey",
                 "kind": "LinkedField",
-                "name": "systemApiKeys",
+                "name": "userApiKeys",
                 "plural": true,
                 "selections": [
-                  (v5/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -203,30 +165,47 @@ return {
                     "kind": "ScalarField",
                     "name": "expiresAt",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "user",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "email",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
-          },
-          (v6/*: any*/)
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e162ef32e40e2920bbdb388bedd83989",
+    "cacheID": "f28a00e7a6eb2e18b1f8b31c8231c2b7",
     "id": null,
     "metadata": {},
-    "name": "CreateSystemAPIKeyDialogMutation",
+    "name": "APIKeysTableDeleteAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateSystemAPIKeyDialogMutation(\n  $name: String!\n  $description: String = null\n  $expiresAt: DateTime = null\n) {\n  createSystemApiKey(input: {name: $name, description: $description, expiresAt: $expiresAt}) {\n    jwt\n    query {\n      ...SystemAPIKeysTableFragment\n    }\n    apiKey {\n      id\n    }\n  }\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "mutation APIKeysTableDeleteAPIKeyMutation(\n  $input: DeleteApiKeyInput!\n) {\n  deleteUserApiKey(input: $input) {\n    __typename\n    apiKeyId\n    query {\n      ...UserAPIKeysTableFragment\n    }\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e8563676b39f1e44ef4bac4057ef7e3";
+(node as any).hash = "3a505d9d13944798a57fc873ddf0992d";
 
 export default node;

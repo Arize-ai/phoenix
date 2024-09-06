@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ddf4428f6184c26d7ae515162ef392c>>
+ * @generated SignedSource<<ee9672b89d0875c89b646a1081277a2e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type ViewerContext_viewer$data = {
       readonly name: string;
     };
     readonly username: string | null;
+    readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
   } | null;
   readonly " $fragmentType": "ViewerContext_viewer";
 };
@@ -86,6 +87,11 @@ const node: ReaderFragment = {
             }
           ],
           "storageKey": null
+        },
+        {
+          "args": null,
+          "kind": "FragmentSpread",
+          "name": "APIKeysTableFragment"
         }
       ],
       "storageKey": null
@@ -95,6 +101,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "8010036c1e996cdcd783b5b4cd65313a";
+(node as any).hash = "60a8f9b353f4cc5c8734971ca698d497";
 
 export default node;

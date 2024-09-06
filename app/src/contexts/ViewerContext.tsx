@@ -39,6 +39,7 @@ export function ViewerProvider({
           role {
             name
           }
+          ...APIKeysTableFragment
         }
       }
     `,

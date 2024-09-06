@@ -1,12 +1,9 @@
-import React, { useCallback, useState } from "react";
+import React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useMutation } from "react-relay";
 import { Form } from "react-router-dom";
 import { isValid as dateIsValid, parseISO } from "date-fns";
-import { graphql } from "relay-runtime";
 
 import {
-  Alert,
   Button,
   Dialog,
   Flex,
@@ -15,9 +12,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { CreateSystemAPIKeyDialogMutation } from "./__generated__/CreateSystemAPIKeyDialogMutation.graphql";
-
-export type SystemKeyFormParams = {
+export type APIKeyFormParams = {
   name: string;
   description: string | null;
   expiresAt: string;
@@ -25,93 +20,27 @@ export type SystemKeyFormParams = {
 
 /**
  * A dialog that allows admin users to create a system API key.
- * TODO: Add expiry date field
  */
-export function CreateSystemAPIKeyDialog(props: {
-  onSystemKeyCreated: (jwt: string) => void;
+export function CreateAPIKeyDialog(props: {
+  isCommitting: boolean;
+  onSubmit: (data: APIKeyFormParams) => void;
+  defaultName?: APIKeyFormParams["name"];
 }) {
-  const { onSystemKeyCreated } = props;
-  const [formError, setFormError] = useState<string | null>(null);
+  const { isCommitting, onSubmit, defaultName } = props;
   const {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
-    setError,
-  } = useForm<SystemKeyFormParams>({
+  } = useForm<APIKeyFormParams>({
     defaultValues: {
-      name: "System",
+      name: defaultName ?? "New Key",
       description: "",
       expiresAt: "",
     },
   });
 
-  const [commit, isCommitting] = useMutation<CreateSystemAPIKeyDialogMutation>(
-    graphql`
-      mutation CreateSystemAPIKeyDialogMutation(
-        $name: String!
-        $description: String = null
-        $expiresAt: DateTime = null
-      ) {
-        createSystemApiKey(
-          input: {
-            name: $name
-            description: $description
-            expiresAt: $expiresAt
-          }
-        ) {
-          jwt
-          query {
-            ...SystemAPIKeysTableFragment
-          }
-          apiKey {
-            id
-          }
-        }
-      }
-    `
-  );
-
-  const onSubmit = useCallback(
-    (data: SystemKeyFormParams) => {
-      // Validate date is a valid date
-      if (data.expiresAt) {
-        const parsedDate = parseISO(data.expiresAt);
-        if (!dateIsValid(parsedDate)) {
-          return setError("expiresAt", {
-            message: "Date is not in a valid format",
-          });
-        }
-        if (parsedDate < new Date()) {
-          return setError("expiresAt", {
-            message: "Date must be in the future",
-          });
-        }
-      }
-
-      setFormError(null);
-      commit({
-        variables: {
-          ...data,
-          expiresAt: data.expiresAt || null,
-        },
-        onCompleted: (response) => {
-          onSystemKeyCreated(response.createSystemApiKey.jwt);
-        },
-        onError: (error) => {
-          setFormError(error.message);
-        },
-      });
-    },
-    [commit, onSystemKeyCreated, setError]
-  );
-
   return (
-    <Dialog title="Create a System Key" isDismissable>
-      {formError && (
-        <Alert variant="danger" banner>
-          {formError}
-        </Alert>
-      )}
+    <Dialog title="Create an API Key" isDismissable>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <View padding="size-200">
           <Controller
@@ -158,6 +87,18 @@ export function CreateSystemAPIKeyDialog(props: {
           <Controller
             name="expiresAt"
             control={control}
+            rules={{
+              validate: (value) => {
+                const parsedDate = parseISO(value);
+                if (value && !dateIsValid(parsedDate)) {
+                  return "Date is not in a valid format";
+                }
+                if (parsedDate < new Date()) {
+                  return "Date must be in the future";
+                }
+                return true;
+              },
+            }}
             render={({
               field: { name, onChange, onBlur, value },
               fieldState: { invalid, error },

@@ -10,7 +10,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.types.ApiKey import ApiKey, to_gql_api_key
+from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 
 from .UserRole import UserRole, to_gql_user_role
 
@@ -32,7 +32,7 @@ class User(Node):
         return to_gql_user_role(role)
 
     @strawberry.field
-    async def api_keys(self, info: Info[Context, None]) -> List[ApiKey]:
+    async def api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
         async with info.context.db() as session:
             api_keys = await session.scalars(
                 select(models.ApiKey).where(models.ApiKey.user_id == self.id_attr)
