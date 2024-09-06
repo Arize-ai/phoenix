@@ -13,6 +13,7 @@ from phoenix.config import ENV_PHOENIX_ENABLE_AUTH, ENV_PHOENIX_SECRET
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
+    _AccessToken,
     _create_user,
     _Email,
     _GetNewUser,
@@ -21,7 +22,6 @@ from .._helpers import (
     _Password,
     _Profile,
     _server,
-    _Token,
     _UserGenerator,
     _Username,
 )
@@ -74,7 +74,7 @@ def _profiles(
 @pytest.fixture
 def _users(
     _profiles: Iterator[_Profile],
-    _admin_token: _Token,
+    _admin_token: _AccessToken,
     _fake: Faker,
 ) -> _UserGenerator:
     def _() -> Generator[Optional[_LoggedInUser], UserRoleInput, None]:
@@ -104,7 +104,7 @@ def _get_new_user(
 def _admin_token(
     _admin_email: str,
     _secret: str,
-) -> Iterator[_Token]:
+) -> Iterator[_AccessToken]:
     with _log_in(_secret, email=_admin_email) as (token, _):
         yield token
 

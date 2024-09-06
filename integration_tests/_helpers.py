@@ -2,13 +2,25 @@ from __future__ import annotations
 
 import os
 import sys
+from abc import ABC
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Protocol, Tuple, cast
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Protocol,
+    Tuple,
+    cast,
+)
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
@@ -36,18 +48,21 @@ from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import OperationalError
 from typing_extensions import TypeAlias
 
-_Email: TypeAlias = str
-_GqlId: TypeAlias = str
-_Name: TypeAlias = str
-_Password: TypeAlias = str
-_Token: TypeAlias = str
-_Username: TypeAlias = str
-_AccessToken: TypeAlias = _Token
-_ApiKey: TypeAlias = _Token
-_RefreshToken: TypeAlias = _Token
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
 _Headers: TypeAlias = Dict[str, Any]
+_Name: TypeAlias = str
+
+
+class _String(str, ABC):
+    def __new__(cls, string: Optional[str] = None) -> _String:
+        assert string
+        return super().__new__(cls, string)
+
+
+_Email: TypeAlias = str
+_Password: TypeAlias = str
+_Username: TypeAlias = str
 
 
 @dataclass(frozen=True)
@@ -57,6 +72,9 @@ class _Profile:
     username: Optional[_Username] = None
 
 
+class _GqlId(_String): ...
+
+
 @dataclass(frozen=True)
 class _User:
     gid: _GqlId
@@ -64,17 +82,24 @@ class _User:
     profile: _Profile
 
 
-@dataclass(frozen=True)
-class _LoggedInTokens:
+class _Token(_String, ABC): ...
+
+
+class _AccessToken(_Token): ...
+
+
+class _ApiKey(_Token): ...
+
+
+class _RefreshToken(_Token): ...
+
+
+class _LoggedInTokens(NamedTuple):
     access: _AccessToken
     refresh: _RefreshToken
 
     def log_out(self) -> None:
         _log_out(self.access)
-
-    def __iter__(self) -> Iterator[_Token]:
-        yield self.access
-        yield self.refresh
 
     def __enter__(self) -> _LoggedInTokens:
         return self
@@ -102,19 +127,6 @@ class _SpanExporterConstructor(Protocol):
         *,
         headers: Optional[_Headers] = None,
     ) -> SpanExporter: ...
-
-
-def _get_gql_spans(*keys: str) -> Dict[_ProjectName, List[Dict[str, Any]]]:
-    out = "name spans{edges{node{" + " ".join(keys) + "}}}"
-    query = dict(query="query{projects{edges{node{" + out + "}}}}")
-    resp = _httpx_client().post(urljoin(get_base_url(), "graphql"), json=query)
-    resp.raise_for_status()
-    resp_dict = resp.json()
-    assert not resp_dict.get("errors")
-    return {
-        project["node"]["name"]: [span["node"] for span in project["node"]["spans"]["edges"]]
-        for project in resp_dict["data"]["projects"]["edges"]
-    }
 
 
 def _http_span_exporter(
@@ -163,8 +175,8 @@ def _start_span(
 
 
 def _httpx_client(
-    access_token: Optional[_Token] = None,
-    refresh_token: Optional[_Token] = None,
+    access_token: Optional[_AccessToken] = None,
+    refresh_token: Optional[_RefreshToken] = None,
     cookies: Optional[Dict[str, Any]] = None,
 ) -> httpx.Client:
     if access_token:
@@ -244,7 +256,7 @@ def _random_schema(url: URL, _fake: Faker) -> Iterator[str]:
 
 
 def _gql(
-    access_token: Optional[_Token],
+    access_token: Optional[_AccessToken] = None,
     /,
     *,
     query: str,
@@ -257,8 +269,19 @@ def _gql(
     return _json(resp)
 
 
+def _get_gql_spans(*keys: str) -> Dict[_ProjectName, List[Dict[str, Any]]]:
+    out = "name spans{edges{node{" + " ".join(keys) + "}}}"
+    query = "query{projects{edges{node{" + out + "}}}}"
+    resp_dict = _gql(query=query)
+    assert not resp_dict.get("errors")
+    return {
+        project["node"]["name"]: [span["node"] for span in project["node"]["spans"]["edges"]]
+        for project in resp_dict["data"]["projects"]["edges"]
+    }
+
+
 def _create_user(
-    access_token: Optional[_Token],
+    access_token: Optional[_AccessToken] = None,
     /,
     *,
     email: _Email,
@@ -275,12 +298,12 @@ def _create_user(
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == email
     assert user["role"]["name"] == role.value
-    return cast(_GqlId, user["id"])
+    return _GqlId(user["id"])
 
 
 def _patch_user(
-    access_token: Optional[_Token],
     gid: _GqlId,
+    access_token: Optional[_AccessToken] = None,
     /,
     *,
     new_username: Optional[_Username] = None,
@@ -306,8 +329,8 @@ def _patch_user(
 
 
 def _patch_viewer(
-    access_token: Optional[_Token],
-    current_password: Optional[_Password],
+    access_token: Optional[_AccessToken] = None,
+    current_password: Optional[_Password] = None,
     /,
     *,
     new_username: Optional[_Username] = None,
@@ -329,7 +352,7 @@ def _patch_viewer(
 
 
 def _create_system_api_key(
-    access_token: Optional[_Token],
+    access_token: Optional[_AccessToken] = None,
     /,
     *,
     name: _Name,
@@ -344,12 +367,14 @@ def _create_system_api_key(
     assert api_key["name"] == name
     exp_t = datetime.fromisoformat(api_key["expiresAt"]) if api_key["expiresAt"] else None
     assert exp_t == expires_at
-    return cast(_ApiKey, result["jwt"]), cast(_GqlId, api_key["id"])
+    assert (jwt := result["jwt"])
+    assert (id_ := api_key["id"])
+    return _ApiKey(jwt), _GqlId(id_)
 
 
 def _delete_system_api_key(
-    access_token: Optional[_Token],
     gid: _GqlId,
+    access_token: Optional[_AccessToken] = None,
     /,
 ) -> None:
     args, out = f'id:"{gid}"', "apiKeyId"
@@ -371,14 +396,18 @@ def _log_in(
     resp.raise_for_status()
     assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
     assert (refresh_token := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
-    return _LoggedInTokens(access_token, refresh_token)
+    return _LoggedInTokens(_AccessToken(access_token), _RefreshToken(refresh_token))
 
 
 def _log_out(
-    access_token: _Token,
+    access_token: Optional[_AccessToken] = None,
+    refresh_token: Optional[_RefreshToken] = None,
     /,
 ) -> None:
-    resp = _httpx_client(access_token).post(urljoin(get_base_url(), "auth/logout"))
+    resp = _httpx_client(
+        access_token,
+        refresh_token,
+    ).post(urljoin(get_base_url(), "auth/logout"))
     resp.raise_for_status()
 
 

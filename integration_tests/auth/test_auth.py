@@ -17,21 +17,24 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
+    _AccessToken,
     _create_system_api_key,
     _create_user,
     _delete_system_api_key,
+    _Email,
     _GetNewUser,
     _GqlId,
     _Headers,
     _httpx_client,
     _log_in,
+    _log_out,
     _Password,
     _patch_user,
     _patch_viewer,
     _Profile,
+    _RefreshToken,
     _SpanExporterConstructor,
     _start_span,
-    _Token,
     _Username,
 )
 
@@ -68,7 +71,7 @@ class TestUsers:
     )
     def test_admin(
         self,
-        email: str,
+        email: _Email,
         use_secret: bool,
         expectation: ContextManager[Optional[Unauthorized]],
         _secret: str,
@@ -86,44 +89,34 @@ class TestUsers:
 
     def test_end_to_end_credentials_flow(
         self,
-        _admin_email: str,
-        _secret: str,
+        _admin_email: _Email,
+        _secret: _Password,
         _fake: Faker,
     ) -> None:
         # user logs into first browser
-        resp = _httpx_client().post(
-            urljoin(get_base_url(), "/auth/login"),
-            json={"email": _admin_email, "password": _secret},
-        )
-        resp.raise_for_status()
-        assert (browser_0_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        assert (browser_0_refresh_token_0 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
+        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(_secret, email=_admin_email)
 
         # user creates api key in the first browser
         _create_system_api_key(browser_0_access_token_0, name="api-key-0")
 
         # tokens are refreshed in the first browser
-        resp = _httpx_client().post(
-            urljoin(get_base_url(), "/auth/refresh"),
-            cookies={
-                PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
-                PHOENIX_REFRESH_TOKEN_COOKIE_NAME: browser_0_refresh_token_0,
-            },
+        resp = _httpx_client(browser_0_access_token_0, browser_0_refresh_token_0).post(
+            urljoin(get_base_url(), "auth/refresh"),
         )
         resp.raise_for_status()
-        assert (browser_0_access_token_1 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        assert (browser_0_refresh_token_1 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
+        browser_0_access_token_1 = _AccessToken(resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
+        browser_0_refresh_token_1 = _RefreshToken(
+            resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+        )
+        assert browser_0_access_token_1
+        assert browser_0_refresh_token_1
 
         # user creates api key in the first browser
         _create_system_api_key(browser_0_access_token_1, name="api-key-1")
 
         # refresh token is good for one use only
-        resp = _httpx_client().post(
-            urljoin(get_base_url(), "/auth/refresh"),
-            cookies={
-                PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
-                PHOENIX_REFRESH_TOKEN_COOKIE_NAME: browser_0_refresh_token_0,
-            },
+        resp = _httpx_client(browser_0_access_token_0, browser_0_refresh_token_0).post(
+            urljoin(get_base_url(), "auth/refresh"),
         )
         with pytest.raises(HTTPStatusError):
             resp.raise_for_status()
@@ -133,26 +126,13 @@ class TestUsers:
             _create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
-        resp = _httpx_client().post(
-            urljoin(get_base_url(), "/auth/login"),
-            json={"email": _admin_email, "password": _secret},
-        )
-        resp.raise_for_status()
-        assert (browser_1_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        assert resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(_secret, email=_admin_email)
 
         # user creates api key in the second browser
         _create_system_api_key(browser_1_access_token_0, name="api-key-3")
 
         # user logs out in first browser
-        resp = _httpx_client().post(
-            urljoin(get_base_url(), "/auth/logout"),
-            cookies={
-                PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_1,
-                PHOENIX_REFRESH_TOKEN_COOKIE_NAME: browser_0_refresh_token_1,
-            },
-        )
-        resp.raise_for_status()
+        _log_out(browser_0_access_token_1, browser_0_refresh_token_1)
 
         # user is logged out of both browsers
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
@@ -267,9 +247,9 @@ class TestUsers:
         assert user.gid != non_self.gid
         (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            _patch_user(None, gid, new_role=UserRoleInput.ADMIN)
+            _patch_user(gid, new_role=UserRoleInput.ADMIN)
         with expectation:
-            _patch_user(token, gid, new_role=UserRoleInput.ADMIN)
+            _patch_user(gid, token, new_role=UserRoleInput.ADMIN)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -293,9 +273,9 @@ class TestUsers:
         assert new_password != old_password
         (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            _patch_user(None, gid, new_password=new_password)
+            _patch_user(gid, new_password=new_password)
         with expectation as e:
-            _patch_user(token, gid, new_password=new_password)
+            _patch_user(gid, token, new_password=new_password)
         if e:
             return
         email = non_self.profile.email
@@ -325,9 +305,9 @@ class TestUsers:
         assert new_username != old_username
         (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            _patch_user(None, gid, new_username=new_username)
+            _patch_user(gid, new_username=new_username)
         with expectation:
-            _patch_user(token, gid, new_username=new_username)
+            _patch_user(gid, token, new_username=new_username)
 
 
 def _create_user_key(token: str) -> str:
@@ -469,7 +449,7 @@ class TestSpanExporters:
         expires_at: Optional[datetime],
         expected: SpanExportResult,
         _span_exporter: _SpanExporterConstructor,
-        _admin_token: _Token,
+        _admin_token: _AccessToken,
         _fake: Faker,
     ) -> None:
         headers: Optional[_Headers] = None
@@ -490,5 +470,5 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(spans) is expected
         if gid is not None and expected is SpanExportResult.SUCCESS:
-            _delete_system_api_key(_admin_token, gid)
+            _delete_system_api_key(gid, _admin_token)
             assert export(spans) is SpanExportResult.FAILURE
