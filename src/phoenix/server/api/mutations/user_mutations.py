@@ -219,6 +219,8 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: DeleteUsersInput,
     ) -> None:
+        if not input.user_ids:
+            return
         user_ids = tuple(
             map(
                 lambda gid: from_global_id_with_expected_type(gid, User.__name__),
