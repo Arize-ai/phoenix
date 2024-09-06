@@ -33,7 +33,8 @@ function APIKeysCardContent() {
         ...UserAPIKeysTableFragment
       }
     `,
-    {}
+    {},
+    { fetchPolicy: "network-only" }
   );
 
   return (

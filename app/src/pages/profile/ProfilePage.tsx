@@ -1,5 +1,5 @@
 import React, { ReactNode, useCallback, useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -21,6 +21,8 @@ import {
 import { useNotifyError } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+import { ProfilePageCreateUserAPIKeyMutation } from "./__generated__/ProfilePageCreateUserAPIKeyMutation.graphql";
+import { APIKeysTable } from "./APIKeysTable";
 import { LogoutButton } from "./LogoutButton";
 
 const profilePageCSS = css`

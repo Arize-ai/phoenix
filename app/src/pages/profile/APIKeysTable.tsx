@@ -47,6 +47,9 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
       deleteUserApiKey(input: $input) {
         __typename
         apiKeyId
+        query {
+          ...UserAPIKeysTableFragment
+        }
       }
     }
   `);
