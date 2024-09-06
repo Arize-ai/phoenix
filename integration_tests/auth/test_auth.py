@@ -10,6 +10,7 @@ from typing import (
     Iterator,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
 )
 from urllib.parse import urljoin
@@ -87,6 +88,10 @@ class _PatchUser(Protocol):
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
     ) -> None: ...
+
+
+class _DeleteUsers(Protocol):
+    def __call__(self, token: Optional[_Token], /, *, user_ids: Sequence[_GqlId]) -> None: ...
 
 
 class _PatchViewer(Protocol):
@@ -472,109 +477,46 @@ class TestUsers:
         with expectation:
             patch_user(token, gid, new_username=new_username)
 
-    def test_admin_can_delete_admin_and_member_users(
+    def test_admin_can_delete_non_self_admin_and_member_users(
         self,
         admin_token: _Token,
         get_new_user: _GetNewUser,
-        httpx_client: Callable[[], httpx.Client],
+        delete_users: _DeleteUsers,
     ) -> None:
         admin = get_new_user(UserRoleInput.ADMIN)
         member = get_new_user(UserRoleInput.MEMBER)
-        DELETE_USERS_MUTATION = """
-          mutation ($userIds: [GlobalID!]!) {
-            deleteUsers(input: {userIds: $userIds})
-          }
-        """
-        response = httpx_client().post(
-            urljoin(get_base_url(), "/graphql"),
-            json={
-                "query": DELETE_USERS_MUTATION,
-                "variables": {"userIds": [admin.gid, member.gid]},
-            },
-            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
-        )
-        response.raise_for_status()
-        response_json = response.json()
-        assert response_json.get("errors") is None
+        delete_users(admin_token, user_ids=[admin.gid, member.gid])
 
-    def test_cannot_delete_system_user(
+    def test_admin_cannot_delete_system_user(
         self,
         admin_token: _Token,
         get_new_user: _GetNewUser,
-        httpx_client: Callable[[], httpx.Client],
+        delete_users: _DeleteUsers,
     ) -> None:
-        DELETE_USERS_MUTATION = """
-          mutation ($userIds: [GlobalID!]!) {
-            deleteUsers(input: {userIds: $userIds})
-          }
-        """
         system_user_gid = str(GlobalID(type_name="User", node_id="1"))
-        response = httpx_client().post(
-            urljoin(get_base_url(), "/graphql"),
-            json={
-                "query": DELETE_USERS_MUTATION,
-                "variables": {"userIds": [system_user_gid]},
-            },
-            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
-        )
-        response.raise_for_status()
-        response_json = response.json()
-        assert (errors := response_json.get("errors"))
-        assert len(errors) == 1
-        assert errors[0]["message"] == "Some user IDs could not be found: {1}"
+        with pytest.raises(Exception, match="Some user IDs could not be found: {1}"):
+            delete_users(admin_token, user_ids=[system_user_gid])
 
-    def test_cannot_delete_last_admin_user(
+    def test_admin_cannot_delete_last_admin_user(
         self,
         admin_token: _Token,
         get_new_user: _GetNewUser,
-        httpx_client: Callable[[], httpx.Client],
+        delete_users: _DeleteUsers,
     ) -> None:
-        DELETE_USERS_MUTATION = """
-          mutation ($userIds: [GlobalID!]!) {
-            deleteUsers(input: {userIds: $userIds})
-          }
-        """
         admin_user_gid = str(GlobalID(type_name="User", node_id="2"))
-        response = httpx_client().post(
-            urljoin(get_base_url(), "/graphql"),
-            json={
-                "query": DELETE_USERS_MUTATION,
-                "variables": {"userIds": [admin_user_gid]},
-            },
-            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
-        )
-        response.raise_for_status()
-        response_json = response.json()
-        assert (errors := response_json.get("errors"))
-        assert len(errors) == 1
-        assert errors[0]["message"] == "Cannot delete the last admin user"
+        with pytest.raises(Exception, match="Cannot delete the last admin user"):
+            delete_users(admin_token, user_ids=[admin_user_gid])
 
     def test_member_cannot_delete_users(
         self,
         member_token: _Token,
         get_new_user: _GetNewUser,
-        httpx_client: Callable[[], httpx.Client],
+        delete_users: _DeleteUsers,
     ) -> None:
         admin = get_new_user(UserRoleInput.ADMIN)
         member = get_new_user(UserRoleInput.MEMBER)
-        DELETE_USERS_MUTATION = """
-          mutation ($userIds: [GlobalID!]!) {
-            deleteUsers(input: {userIds: $userIds})
-          }
-        """
-        response = httpx_client().post(
-            urljoin(get_base_url(), "/graphql"),
-            json={
-                "query": DELETE_USERS_MUTATION,
-                "variables": {"userIds": [admin.gid, member.gid]},
-            },
-            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: member_token},
-        )
-        response.raise_for_status()
-        response_json = response.json()
-        assert (errors := response_json.get("errors")) is not None
-        assert len(errors) == 1
-        assert errors[0]["message"] == "Only admin can perform this action"
+        with pytest.raises(Exception, match="Only admin can perform this action"):
+            delete_users(member_token, user_ids=[admin.gid, member.gid])
 
 
 def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str:

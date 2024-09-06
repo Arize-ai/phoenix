@@ -14,6 +14,7 @@ from typing import (
     List,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
     cast,
 )
@@ -89,6 +90,10 @@ class _PatchUser(Protocol):
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
     ) -> None: ...
+
+
+class _DeleteUsers(Protocol):
+    def __call__(self, token: Optional[_Token], /, *, user_ids: Sequence[_GqlId]) -> None: ...
 
 
 class _PatchViewer(Protocol):
@@ -334,6 +339,38 @@ def patch_user(
             assert user["username"] == new_username
         if new_role:
             assert user["role"]["name"] == new_role.value
+
+    return _
+
+
+@pytest.fixture(scope="module")
+def delete_users(
+    httpx_client: Callable[[], httpx.Client],
+) -> _DeleteUsers:
+    def _(
+        token: Optional[_Token],
+        /,
+        *,
+        user_ids: Sequence[_GqlId],
+    ) -> None:
+        mutation = """
+          mutation ($userIds: [GlobalID!]!) {
+            deleteUsers(input: {userIds: $userIds})
+          }
+        """
+        response = httpx_client().post(
+            urljoin(get_base_url(), "/graphql"),
+            json={
+                "query": mutation,
+                "variables": {"userIds": list(user_ids)},
+            },
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
+        )
+        response.raise_for_status()
+        if (errors := response.json().get("errors")) is not None:
+            assert len(errors) == 1
+            error_message = errors[0]["message"]
+            raise Exception(error_message)
 
     return _
 
