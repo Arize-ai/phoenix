@@ -91,7 +91,7 @@ class _PatchUser(Protocol):
 
 
 class _DeleteUsers(Protocol):
-    def __call__(self, token: Optional[_Token], /, *, user_ids: Sequence[_GqlId]) -> None: ...
+    def __call__(self, token: _Token, /, *, user_ids: Sequence[_GqlId]) -> None: ...
 
 
 class _PatchViewer(Protocol):
