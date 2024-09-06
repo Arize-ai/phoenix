@@ -8,7 +8,7 @@ from datetime import datetime
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from typing import Any, Dict, Iterator, List, Optional, Protocol, Tuple, cast
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Protocol, Tuple, cast
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
@@ -162,9 +162,17 @@ def _start_span(
     return _get_tracer(project_name=project_name, exporter=exporter).start_span(span_name)
 
 
-def _httpx_client() -> httpx.Client:
+def _httpx_client(
+    access_token: Optional[_Token] = None,
+    refresh_token: Optional[_Token] = None,
+    cookies: Optional[Dict[str, Any]] = None,
+) -> httpx.Client:
+    if access_token:
+        cookies = {**(cookies or {}), PHOENIX_ACCESS_TOKEN_COOKIE_NAME: access_token}
+    if refresh_token:
+        cookies = {**(cookies or {}), PHOENIX_REFRESH_TOKEN_COOKIE_NAME: refresh_token}
     # Having no timeout is useful when stepping through the debugger on the server side.
-    return httpx.Client(timeout=None)
+    return httpx.Client(timeout=None, cookies=cookies)
 
 
 @contextmanager
@@ -208,7 +216,11 @@ def _is_alive(process: Popen) -> bool:
     return process.is_running() and process.status() != STATUS_ZOMBIE
 
 
-def _capture_stdout(process: Popen, log: List[str], lock: Lock) -> None:
+def _capture_stdout(
+    process: Popen,
+    log: List[str],
+    lock: Lock,
+) -> None:
     while _is_alive(process):
         line = process.stdout.readline()
         if line or (log and log[-1] != line):
@@ -231,8 +243,22 @@ def _random_schema(url: URL, _fake: Faker) -> Iterator[str]:
     engine.dispose()
 
 
+def _gql(
+    access_token: Optional[_Token],
+    /,
+    *,
+    query: str,
+    variables: Optional[Mapping[str, Any]] = None,
+) -> Dict[str, Any]:
+    resp = _httpx_client(access_token).post(
+        urljoin(get_base_url(), "graphql"),
+        json=dict(query=query, variables=dict(variables or {})),
+    )
+    return _json(resp)
+
+
 def _create_user(
-    token: Optional[_Token],
+    access_token: Optional[_Token],
     /,
     *,
     email: _Email,
@@ -245,12 +271,7 @@ def _create_user(
         args.append(f'username:"{username}"')
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json=dict(query=query),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
-    )
-    resp_dict = _json(resp)
+    resp_dict = _gql(access_token, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == email
     assert user["role"]["name"] == role.value
@@ -258,7 +279,7 @@ def _create_user(
 
 
 def _patch_user(
-    token: Optional[_Token],
+    access_token: Optional[_Token],
     gid: _GqlId,
     /,
     *,
@@ -275,12 +296,7 @@ def _patch_user(
         args.append(f"newRole:{new_role.value}")
     out = "user{id username role{name}}"
     query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json=dict(query=query),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
-    )
-    resp_dict = _json(resp)
+    resp_dict = _gql(access_token, query=query)
     assert (user := resp_dict["data"]["patchUser"]["user"])
     assert user["id"] == gid
     if new_username:
@@ -290,7 +306,7 @@ def _patch_user(
 
 
 def _patch_viewer(
-    token: Optional[_Token],
+    access_token: Optional[_Token],
     current_password: Optional[_Password],
     /,
     *,
@@ -306,19 +322,14 @@ def _patch_viewer(
         args.append(f'newUsername:"{new_username}"')
     out = "user{username}"
     query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json=dict(query=query),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
-    )
-    resp_dict = _json(resp)
+    resp_dict = _gql(access_token, query=query)
     assert (user := resp_dict["data"]["patchViewer"]["user"])
     if new_username:
         assert user["username"] == new_username
 
 
 def _create_system_api_key(
-    token: Optional[_Token],
+    access_token: Optional[_Token],
     /,
     *,
     name: _Name,
@@ -327,12 +338,7 @@ def _create_system_api_key(
     exp = f' expiresAt:"{expires_at.isoformat()}"' if expires_at else ""
     args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
     query = "mutation{createSystemApiKey(input:{" + args + "}){" + out + "}}"
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json=dict(query=query),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
-    )
-    resp_dict = _json(resp)
+    resp_dict = _gql(access_token, query=query)
     assert (result := resp_dict["data"]["createSystemApiKey"])
     assert (api_key := result["apiKey"])
     assert api_key["name"] == name
@@ -341,19 +347,23 @@ def _create_system_api_key(
     return cast(_ApiKey, result["jwt"]), cast(_GqlId, api_key["id"])
 
 
-def _delete_system_api_key(token: Optional[_Token], gid: _GqlId, /) -> None:
+def _delete_system_api_key(
+    access_token: Optional[_Token],
+    gid: _GqlId,
+    /,
+) -> None:
     args, out = f'id:"{gid}"', "apiKeyId"
     query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json=dict(query=query),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token} if token else {},
-    )
-    resp_dict = _json(resp)
+    resp_dict = _gql(access_token, query=query)
     assert resp_dict["data"]["deleteSystemApiKey"]["apiKeyId"] == gid
 
 
-def _log_in(password: _Password, /, *, email: _Email) -> _LoggedInTokens:
+def _log_in(
+    password: _Password,
+    /,
+    *,
+    email: _Email,
+) -> _LoggedInTokens:
     resp = _httpx_client().post(
         urljoin(get_base_url(), "auth/login"),
         json={"email": email, "password": password},
@@ -364,15 +374,17 @@ def _log_in(password: _Password, /, *, email: _Email) -> _LoggedInTokens:
     return _LoggedInTokens(access_token, refresh_token)
 
 
-def _log_out(token: _Token, /) -> None:
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "auth/logout"),
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
-    )
+def _log_out(
+    access_token: _Token,
+    /,
+) -> None:
+    resp = _httpx_client(access_token).post(urljoin(get_base_url(), "auth/logout"))
     resp.raise_for_status()
 
 
-def _json(resp: httpx.Response) -> Dict[str, Any]:
+def _json(
+    resp: httpx.Response,
+) -> Dict[str, Any]:
     resp.raise_for_status()
     assert (resp_dict := cast(Dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
