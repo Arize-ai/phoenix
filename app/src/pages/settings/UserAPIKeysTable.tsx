@@ -9,7 +9,7 @@ import {
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
-import { DeleteAPIKeyButton } from "@phoenix/components/auth"
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
