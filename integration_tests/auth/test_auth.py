@@ -514,22 +514,26 @@ class TestApiKeys:
         log_in: _LogIn,
         create_user: _CreateUser,
         httpx_client: httpx.Client,
+        passwords: Iterator[_Password],
     ) -> None:
         member_email = "member@localhost.com"
         username = "member"
-        password = secrets.token_hex(32)
+        member_password = next(passwords)
 
-        with log_in(email=admin_email, password=secret) as (admin_token, _):
+        with log_in(secret, email=admin_email) as (admin_token, _):
             admin_api_key_id = create_user_key(httpx_client, admin_token)
             create_user(
                 email=member_email,
-                password=password,
+                password=member_password,
                 role=UserRoleInput.MEMBER,
                 username=username,
                 token=admin_token,
             )
 
-            with log_in(email=member_email, password=password) as (member_token, _):
+            with log_in(
+                member_password,
+                email=member_email,
+            ) as (member_token, _):
                 member_api_key_id = create_user_key(httpx_client, member_token)
                 member_api_key_id_2 = create_user_key(httpx_client, member_token)
                 # member can delete their own keys
