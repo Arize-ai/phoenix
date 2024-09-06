@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 
 from phoenix.auth import DEFAULT_SECRET_LENGTH, compute_password_hash
-from phoenix.config import ENABLE_AUTH, PHOENIX_SECRET
+from phoenix.config import ENABLE_AUTH, DEFAULT_ADMIN_PASSWORD
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
 from phoenix.server.types import DbSessionFactory
@@ -107,9 +107,8 @@ async def _ensure_admin_password(session: AsyncSession) -> None:
     Ensure that the first admin user with the LOCAL auth method in the database has a password
     hash. If that admin user already has a password hash, this function will do nothing.
     """
-    assert PHOENIX_SECRET
     salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-    compute = partial(compute_password_hash, password=PHOENIX_SECRET, salt=salt)
+    compute = partial(compute_password_hash, password=DEFAULT_ADMIN_PASSWORD, salt=salt)
     loop = asyncio.get_running_loop()
     hash_ = await loop.run_in_executor(None, compute)
     password_hash = coalesce(models.User.password_hash, hash_)
