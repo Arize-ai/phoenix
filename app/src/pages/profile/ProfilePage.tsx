@@ -5,6 +5,8 @@ import { Card, Flex, Form, TextField } from "@arizeai/components";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+import { ViewerAPIKeys } from "./ViewerAPIKeys";
+
 const profilePageCSS = css`
   overflow-y: auto;
 `;
@@ -21,6 +23,7 @@ const profilePageInnerCSS = css`
 
 export function ProfilePage() {
   const { viewer } = useViewer();
+
   if (!viewer) {
     return null;
   }
@@ -45,7 +48,7 @@ export function ProfilePage() {
               />
             </Form>
           </Card>
-          <Card title="API Keys">user api key</Card>
+          <ViewerAPIKeys viewer={viewer} />
         </Flex>
       </div>
     </main>

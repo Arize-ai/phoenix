@@ -1,14 +1,19 @@
+from typing import TYPE_CHECKING
+
 import strawberry
 from strawberry import Private
-from strawberry.relay.types import Node, NodeID
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
+from typing_extensions import Annotated
 
 from phoenix.db.models import ApiKey as OrmApiKey
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 
 from .ApiKey import ApiKey
-from .User import User, to_gql_user
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -17,10 +22,12 @@ class UserApiKey(ApiKey, Node):
     user_id: Private[int]
 
     @strawberry.field
-    async def user(self, info: Info[Context, None]) -> User:
+    async def user(self, info: Info[Context, None]) -> Annotated["User", strawberry.lazy(".User")]:
         user = await info.context.data_loaders.users.load(self.user_id)
         if user is None:
             raise NotFound(f"User with id {self.user_id} not found")
+        from .User import to_gql_user
+
         return to_gql_user(user)
 
 

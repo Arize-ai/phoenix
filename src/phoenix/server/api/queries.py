@@ -467,6 +467,15 @@ class Query:
                 ):
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
+        elif type_name == User.__name__:
+            async with info.context.db() as session:
+                if not (
+                    user := await session.scalar(
+                        select(models.User).where(models.User.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown user: {id}")
+            return to_gql_user(user)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
