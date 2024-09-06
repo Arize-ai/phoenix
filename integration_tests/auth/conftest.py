@@ -384,7 +384,7 @@ def delete_system_api_key(
         gid: _GqlId,
         /,
     ) -> None:
-        args, out = f'id:"{gid}"', "id"
+        args, out = f'apiKeyId:"{gid}"', "id"
         query = "mutation{deleteSystemApiKey(input:{" + args + "}){" + out + "}}"
         resp = httpx_client().post(
             urljoin(get_base_url(), "graphql"),
