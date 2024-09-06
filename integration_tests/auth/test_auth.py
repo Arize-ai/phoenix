@@ -166,12 +166,12 @@ class TestTokens:
     def test_log_in_tokens_should_change(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with log_in(secret, email=admin_email) as (access_token, refresh_token):
+            with log_in(admin_password, email=admin_email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -183,18 +183,17 @@ class TestTokens:
 
 class TestUsers:
     @pytest.mark.parametrize(
-        "email,use_secret,expectation",
+        "email,expectation",
         [
-            ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("system@localhost", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("admin", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin@localhost", nullcontext()),
+            ("admin@localhost", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("system@localhost", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
         ],
     )
     def test_admin(
         self,
         email: str,
-        use_secret: bool,
         expectation: ContextManager[Optional[Unauthorized]],
         secret: str,
         log_in: _LogIn,
@@ -202,7 +201,7 @@ class TestUsers:
         fake: Faker,
         passwords: Iterator[_Password],
     ) -> None:
-        password = secret if use_secret else next(passwords)
+        password = next(passwords)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(None, name=fake.unique.pystr())
         with expectation:
@@ -214,7 +213,7 @@ class TestUsers:
     def test_end_to_end_credentials_flow(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         httpx_client: Callable[[], httpx.Client],
         create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
@@ -222,7 +221,7 @@ class TestUsers:
         # user logs into first browser
         resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": admin_email, "password": admin_password},
         )
         resp.raise_for_status()
         assert (browser_0_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))

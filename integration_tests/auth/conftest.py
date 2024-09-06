@@ -229,16 +229,21 @@ def get_new_user(
 @pytest.fixture
 def admin_token(
     admin_email: str,
-    secret: str,
+    admin_password: str,
     log_in: _LogIn,
 ) -> Iterator[_Token]:
-    with log_in(secret, email=admin_email) as (token, _):
+    with log_in(admin_password, email=admin_email) as (token, _):
         yield token
 
 
 @pytest.fixture(scope="module")
 def admin_email() -> _Email:
     return "admin@localhost"
+
+
+@pytest.fixture(scope="module")
+def admin_password() -> _Email:
+    return "admin"
 
 
 @pytest.fixture(scope="module")
