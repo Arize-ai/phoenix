@@ -2,176 +2,48 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from itertools import product
-from typing import (
-    Any,
-    Callable,
-    ContextManager,
-    Dict,
-    Iterator,
-    Optional,
-    Protocol,
-    Tuple,
-)
+from typing import ContextManager, Iterator, Optional
 from urllib.parse import urljoin
 
-import httpx
 import jwt
 import pytest
 from faker import Faker
 from httpx import HTTPStatusError
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Span
-from phoenix.auth import (
-    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
-)
+from phoenix.auth import PHOENIX_ACCESS_TOKEN_COOKIE_NAME, PHOENIX_REFRESH_TOKEN_COOKIE_NAME
 from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from typing_extensions import TypeAlias
+
+from ..conftest import _Headers, _httpx_client, _SpanExporterFactory, _start_span
+from .conftest import (
+    _create_system_api_key,
+    _create_user,
+    _delete_system_api_key,
+    _GetNewUser,
+    _GqlId,
+    _log_in,
+    _Password,
+    _patch_user,
+    _patch_viewer,
+    _Profile,
+    _Token,
+    _Username,
+)
 
 NOW = datetime.now(timezone.utc)
-
-_ProjectName: TypeAlias = str
-_SpanName: TypeAlias = str
-_Headers: TypeAlias = Dict[str, Any]
-_Name: TypeAlias = str
-
-_Username: TypeAlias = str
-_Email: TypeAlias = str
-_Password: TypeAlias = str
-_Token: TypeAlias = str
-_AccessToken: TypeAlias = str
-_RefreshToken: TypeAlias = str
-_ApiKey: TypeAlias = str
-_GqlId: TypeAlias = str
-
-
-class _LogIn(Protocol):
-    def __call__(
-        self,
-        password: _Password,
-        /,
-        *,
-        email: _Email,
-    ) -> ContextManager[Tuple[_AccessToken, _RefreshToken]]: ...
-
-
-class _LogOut(Protocol):
-    def __call__(self, token: _Token, /) -> None: ...
-
-
-class _CreateUser(Protocol):
-    def __call__(
-        self,
-        token: Optional[_Token],
-        /,
-        *,
-        email: _Email,
-        password: _Password,
-        role: UserRoleInput,
-        username: Optional[_Username] = None,
-    ) -> _GqlId: ...
-
-
-class _PatchUser(Protocol):
-    def __call__(
-        self,
-        token: Optional[_Token],
-        gid: _GqlId,
-        /,
-        *,
-        new_username: Optional[_Username] = None,
-        new_password: Optional[_Password] = None,
-        new_role: Optional[UserRoleInput] = None,
-    ) -> None: ...
-
-
-class _PatchViewer(Protocol):
-    def __call__(
-        self,
-        token: Optional[_Token],
-        current_password: Optional[_Password],
-        /,
-        *,
-        new_username: Optional[_Username] = None,
-        new_password: Optional[_Password] = None,
-    ) -> None: ...
-
-
-class _CreateSystemApiKey(Protocol):
-    def __call__(
-        self,
-        token: Optional[_Token],
-        /,
-        *,
-        name: _Name,
-        expires_at: Optional[datetime] = None,
-    ) -> Tuple[_ApiKey, _GqlId]: ...
-
-
-class _DeleteSystemApiKey(Protocol):
-    def __call__(
-        self,
-        token: Optional[_Token],
-        gid: _GqlId,
-        /,
-    ) -> None: ...
-
-
-class _SpanExporterFactory(Protocol):
-    def __call__(
-        self,
-        *,
-        headers: Optional[_Headers] = None,
-    ) -> SpanExporter: ...
-
-
-class _StartSpan(Protocol):
-    def __call__(
-        self,
-        *,
-        project_name: _ProjectName,
-        span_name: _SpanName,
-        exporter: SpanExporter,
-    ) -> Span: ...
-
-
-class _Profile(Protocol):
-    @property
-    def email(self) -> _Email: ...
-    @property
-    def password(self) -> _Password: ...
-    @property
-    def username(self) -> Optional[_Username]: ...
-
-
-class _User(Protocol):
-    @property
-    def gid(self) -> _GqlId: ...
-    @property
-    def profile(self) -> _Profile: ...
-    @property
-    def role(self) -> UserRoleInput: ...
-    @property
-    def token(self) -> Optional[_Token]: ...
-
-
-class _GetNewUser(Protocol):
-    def __call__(self, role: UserRoleInput) -> _User: ...
 
 
 class TestTokens:
     def test_log_in_tokens_should_change(
         self,
-        admin_email: str,
-        secret: str,
-        log_in: _LogIn,
+        _admin_email: str,
+        _secret: str,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with log_in(secret, email=admin_email) as (access_token, refresh_token):
+            with _log_in(_secret, email=_admin_email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -196,43 +68,39 @@ class TestUsers:
         email: str,
         use_secret: bool,
         expectation: ContextManager[Optional[Unauthorized]],
-        secret: str,
-        log_in: _LogIn,
-        create_system_api_key: _CreateSystemApiKey,
-        fake: Faker,
-        passwords: Iterator[_Password],
+        _secret: str,
+        _fake: Faker,
+        _passwords: Iterator[_Password],
     ) -> None:
-        password = secret if use_secret else next(passwords)
+        password = _secret if use_secret else next(_passwords)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            create_system_api_key(None, name=fake.unique.pystr())
+            _create_system_api_key(None, name=_fake.unique.pystr())
         with expectation:
-            with log_in(password, email=email) as (token, _):
-                create_system_api_key(token, name=fake.unique.pystr())
+            with _log_in(password, email=email) as (token, _):
+                _create_system_api_key(token, name=_fake.unique.pystr())
             with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-                create_system_api_key(token, name=fake.unique.pystr())
+                _create_system_api_key(token, name=_fake.unique.pystr())
 
     def test_end_to_end_credentials_flow(
         self,
-        admin_email: str,
-        secret: str,
-        httpx_client: Callable[[], httpx.Client],
-        create_system_api_key: _CreateSystemApiKey,
-        fake: Faker,
+        _admin_email: str,
+        _secret: str,
+        _fake: Faker,
     ) -> None:
         # user logs into first browser
-        resp = httpx_client().post(
+        resp = _httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": _admin_email, "password": _secret},
         )
         resp.raise_for_status()
         assert (browser_0_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert (browser_0_refresh_token_0 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
 
         # user creates api key in the first browser
-        create_system_api_key(browser_0_access_token_0, name="api-key-0")
+        _create_system_api_key(browser_0_access_token_0, name="api-key-0")
 
         # tokens are refreshed in the first browser
-        resp = httpx_client().post(
+        resp = _httpx_client().post(
             urljoin(get_base_url(), "/auth/refresh"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
@@ -244,10 +112,10 @@ class TestUsers:
         assert (browser_0_refresh_token_1 := resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
 
         # user creates api key in the first browser
-        create_system_api_key(browser_0_access_token_1, name="api-key-1")
+        _create_system_api_key(browser_0_access_token_1, name="api-key-1")
 
         # refresh token is good for one use only
-        resp = httpx_client().post(
+        resp = _httpx_client().post(
             urljoin(get_base_url(), "/auth/refresh"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_0,
@@ -259,22 +127,22 @@ class TestUsers:
 
         # original access token is invalid after refresh
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            create_system_api_key(browser_0_access_token_0, name="api-key-2")
+            _create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
-        resp = httpx_client().post(
+        resp = _httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": _admin_email, "password": _secret},
         )
         resp.raise_for_status()
         assert (browser_1_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
         assert resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
 
         # user creates api key in the second browser
-        create_system_api_key(browser_1_access_token_0, name="api-key-3")
+        _create_system_api_key(browser_1_access_token_0, name="api-key-3")
 
         # user logs out in first browser
-        resp = httpx_client().post(
+        resp = _httpx_client().post(
             urljoin(get_base_url(), "/auth/logout"),
             cookies={
                 PHOENIX_ACCESS_TOKEN_COOKIE_NAME: browser_0_access_token_1,
@@ -285,9 +153,9 @@ class TestUsers:
 
         # user is logged out of both browsers
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            create_system_api_key(browser_0_access_token_1, name="api-key-4")
+            _create_system_api_key(browser_0_access_token_1, name="api-key-4")
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            create_system_api_key(browser_1_access_token_0, name="api-key-5")
+            _create_system_api_key(browser_1_access_token_0, name="api-key-5")
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -300,29 +168,26 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        admin_email: str,
-        secret: str,
-        log_in: _LogIn,
-        create_user: _CreateUser,
-        create_system_api_key: _CreateSystemApiKey,
-        fake: Faker,
-        profiles: Iterator[_Profile],
+        _admin_email: str,
+        _secret: str,
+        _fake: Faker,
+        _profiles: Iterator[_Profile],
     ) -> None:
-        profile = next(profiles)
+        profile = next(_profiles)
         email = profile.email
         username = profile.username
         password = profile.password
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            create_user(None, email=email, password=password, username=username, role=role)
-        with log_in(secret, email=admin_email) as (token, _):
-            create_user(token, email=email, password=password, username=username, role=role)
-        with log_in(password, email=email) as (token, _):
+            _create_user(None, email=email, password=password, username=username, role=role)
+        with _log_in(_secret, email=_admin_email) as (token, _):
+            _create_user(token, email=email, password=password, username=username, role=role)
+        with _log_in(password, email=email) as (token, _):
             with expectation:
-                create_system_api_key(token, name=fake.unique.pystr())
+                _create_system_api_key(token, name=_fake.unique.pystr())
             for _role in UserRoleInput:
-                _profile = next(profiles)
+                _profile = next(_profiles)
                 with expectation:
-                    create_user(
+                    _create_user(
                         token,
                         email=_profile.email,
                         username=_profile.username,
@@ -334,56 +199,52 @@ class TestUsers:
     def test_user_can_change_password_for_self(
         self,
         role: UserRoleInput,
-        patch_viewer: _PatchViewer,
-        log_in: _LogIn,
-        get_new_user: _GetNewUser,
-        passwords: Iterator[_Password],
+        _get_new_user: _GetNewUser,
+        _passwords: Iterator[_Password],
     ) -> None:
-        user = get_new_user(role)
+        user = _get_new_user(role)
         email = user.profile.email
         password = user.profile.password
-        token = user.token
-        new_password = f"new_password_{next(passwords)}"
+        (token, *_) = user.tokens
+        new_password = f"new_password_{next(_passwords)}"
         assert new_password != password
-        wrong_password = next(passwords)
+        wrong_password = next(_passwords)
         assert wrong_password != password
         for _token, _password in product((None, token), (None, wrong_password, password)):
             if _token == token and _password == password:
                 continue
             with pytest.raises(BaseException):
-                patch_viewer(_token, _password, new_password=new_password)
-            log_in(password, email=email).__enter__()
-        patch_viewer((old_token := token), (old_password := password), new_password=new_password)
-        another_password = f"another_password_{next(passwords)}"
+                _patch_viewer(_token, _password, new_password=new_password)
+            _log_in(password, email=email)
+        _patch_viewer((old_token := token), (old_password := password), new_password=new_password)
+        another_password = f"another_password_{next(_passwords)}"
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            patch_viewer(old_token, new_password, new_password=another_password)
+            _patch_viewer(old_token, new_password, new_password=another_password)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            log_in(old_password, email=email).__enter__()
-        new_token, _ = log_in(new_password, email=email).__enter__()
+            _log_in(old_password, email=email)
+        new_token, _ = _log_in(new_password, email=email)
         with pytest.raises(BaseException):
-            patch_viewer(new_token, old_password, new_password=another_password)
+            _patch_viewer(new_token, old_password, new_password=another_password)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_user_can_change_username_for_self(
         self,
         role: UserRoleInput,
-        patch_viewer: _PatchViewer,
-        log_in: _LogIn,
-        get_new_user: _GetNewUser,
-        usernames: Iterator[_Username],
-        passwords: Iterator[_Password],
+        _get_new_user: _GetNewUser,
+        _usernames: Iterator[_Username],
+        _passwords: Iterator[_Password],
     ) -> None:
-        user = get_new_user(role)
-        token, password = user.token, user.profile.password
-        new_username = f"new_username_{next(usernames)}"
+        user = _get_new_user(role)
+        (token, *_), password = user.tokens, user.profile.password
+        new_username = f"new_username_{next(_usernames)}"
         for _password in (None, password):
             with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-                patch_viewer(None, _password, new_username=new_username)
-        patch_viewer(token, None, new_username=new_username)
-        another_username = f"another_username_{next(usernames)}"
-        wrong_password = next(passwords)
+                _patch_viewer(None, _password, new_username=new_username)
+        _patch_viewer(token, None, new_username=new_username)
+        another_username = f"another_username_{next(_usernames)}"
+        wrong_password = next(_passwords)
         assert wrong_password != password
-        patch_viewer(token, wrong_password, new_username=another_username)
+        _patch_viewer(token, wrong_password, new_username=another_username)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -396,18 +257,16 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        patch_user: _PatchUser,
-        log_in: _LogIn,
-        get_new_user: _GetNewUser,
+        _get_new_user: _GetNewUser,
     ) -> None:
-        user = get_new_user(role)
-        non_self = get_new_user(UserRoleInput.MEMBER)
+        user = _get_new_user(role)
+        non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
-        token, gid = user.token, non_self.gid
+        (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            patch_user(None, gid, new_role=UserRoleInput.ADMIN)
+            _patch_user(None, gid, new_role=UserRoleInput.ADMIN)
         with expectation:
-            patch_user(token, gid, new_role=UserRoleInput.ADMIN)
+            _patch_user(token, gid, new_role=UserRoleInput.ADMIN)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -420,28 +279,26 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        patch_user: _PatchUser,
-        log_in: _LogIn,
-        get_new_user: _GetNewUser,
-        passwords: Iterator[_Password],
+        _get_new_user: _GetNewUser,
+        _passwords: Iterator[_Password],
     ) -> None:
-        user = get_new_user(role)
-        non_self = get_new_user(UserRoleInput.MEMBER)
+        user = _get_new_user(role)
+        non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
         old_password = non_self.profile.password
-        new_password = f"new_password_{next(passwords)}"
+        new_password = f"new_password_{next(_passwords)}"
         assert new_password != old_password
-        token, gid = user.token, non_self.gid
+        (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            patch_user(None, gid, new_password=new_password)
+            _patch_user(None, gid, new_password=new_password)
         with expectation as e:
-            patch_user(token, gid, new_password=new_password)
+            _patch_user(token, gid, new_password=new_password)
         if e:
             return
         email = non_self.profile.email
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            log_in(old_password, email=email).__enter__()
-        log_in(new_password, email=email).__enter__()
+            _log_in(old_password, email=email)
+        _log_in(new_password, email=email)
 
     @pytest.mark.parametrize(
         "role,expectation",
@@ -454,26 +311,24 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        patch_user: _PatchUser,
-        log_in: _LogIn,
-        get_new_user: _GetNewUser,
-        usernames: Iterator[_Username],
+        _get_new_user: _GetNewUser,
+        _usernames: Iterator[_Username],
     ) -> None:
-        user = get_new_user(role)
-        non_self = get_new_user(UserRoleInput.MEMBER)
+        user = _get_new_user(role)
+        non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
         old_username = non_self.profile.username
-        new_username = f"new_username_{next(usernames)}"
+        new_username = f"new_username_{next(_usernames)}"
         assert new_username != old_username
-        token, gid = user.token, non_self.gid
+        (token, *_), gid = user.tokens, non_self.gid
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            patch_user(None, gid, new_username=new_username)
+            _patch_user(None, gid, new_username=new_username)
         with expectation:
-            patch_user(token, gid, new_username=new_username)
+            _patch_user(token, gid, new_username=new_username)
 
 
-def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str:
-    create_user_key_mutation = """
+def _create_user_key(token: str) -> str:
+    _create_user_key_mutation = """
             mutation ($input: CreateUserApiKeyInput!) {
               createUserApiKey(input: $input) {
                 apiKey {
@@ -482,10 +337,10 @@ def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str
               }
             }
             """
-    resp = httpx_client().post(
+    resp = _httpx_client().post(
         urljoin(get_base_url(), "graphql"),
         json={
-            "query": create_user_key_mutation,
+            "query": _create_user_key_mutation,
             "variables": {
                 "input": {
                     "name": "test",
@@ -509,20 +364,17 @@ class TestApiKeys:
 
     def test_delete_user_api_key(
         self,
-        admin_email: str,
-        secret: str,
-        log_in: _LogIn,
-        create_user: _CreateUser,
-        httpx_client: Callable[[], httpx.Client],
-        passwords: Iterator[_Password],
+        _admin_email: str,
+        _secret: str,
+        _passwords: Iterator[_Password],
     ) -> None:
         member_email = "member@localhost.com"
         username = "member"
-        member_password = next(passwords)
+        member_password = next(_passwords)
 
-        with log_in(secret, email=admin_email) as (admin_token, _):
-            admin_api_key_id = create_user_key(httpx_client, admin_token)
-            create_user(
+        with _log_in(_secret, email=_admin_email) as (admin_token, _):
+            admin_api_key_id = _create_user_key(admin_token)
+            _create_user(
                 admin_token,
                 email=member_email,
                 password=member_password,
@@ -530,14 +382,14 @@ class TestApiKeys:
                 username=username,
             )
 
-            with log_in(
+            with _log_in(
                 member_password,
                 email=member_email,
             ) as (member_token, _):
-                member_api_key_id = create_user_key(httpx_client, member_token)
-                member_api_key_id_2 = create_user_key(httpx_client, member_token)
+                member_api_key_id = _create_user_key(member_token)
+                member_api_key_id_2 = _create_user_key(member_token)
                 # member can delete their own keys
-                resp = httpx_client().post(
+                resp = _httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -552,7 +404,7 @@ class TestApiKeys:
                 resp.raise_for_status()
                 assert resp.json().get("errors") is None
                 # member can't delete other user's keys
-                resp = httpx_client().post(
+                resp = _httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -567,7 +419,7 @@ class TestApiKeys:
                 assert len(errors := resp.json().get("errors")) == 1
                 assert errors[0]["message"] == "User not authorized to delete"
                 # admin can delete their own key
-                resp = httpx_client().post(
+                resp = _httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -582,7 +434,7 @@ class TestApiKeys:
                 resp.raise_for_status()
                 assert resp.json().get("errors") is None
                 # admin can delete other user's keys
-                resp = httpx_client().post(
+                resp = _httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -613,30 +465,27 @@ class TestSpanExporters:
         with_headers: bool,
         expires_at: Optional[datetime],
         expected: SpanExportResult,
-        span_exporter: _SpanExporterFactory,
-        start_span: _StartSpan,
-        create_system_api_key: _CreateSystemApiKey,
-        delete_system_api_key: _DeleteSystemApiKey,
-        admin_token: _Token,
-        fake: Faker,
+        _span_exporter: _SpanExporterFactory,
+        _admin_token: _Token,
+        _fake: Faker,
     ) -> None:
-        headers: Optional[Dict[str, Any]] = None
+        headers: Optional[_Headers] = None
         gid: Optional[_GqlId] = None
         if with_headers:
-            system_api_key, gid = create_system_api_key(
-                admin_token,
-                name=fake.unique.pystr(),
+            system_api_key, gid = _create_system_api_key(
+                _admin_token,
+                name=_fake.unique.pystr(),
                 expires_at=expires_at,
             )
             headers = {"authorization": f"Bearer {system_api_key}"}
-        export = span_exporter(headers=headers).export
-        project_name, span_name = fake.unique.pystr(), fake.unique.pystr()
+        export = _span_exporter(headers=headers).export
+        project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
         memory = InMemorySpanExporter()
-        start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
+        _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
         spans = memory.get_finished_spans()
         assert len(spans) == 1
         for _ in range(2):
             assert export(spans) is expected
         if gid is not None and expected is SpanExportResult.SUCCESS:
-            delete_system_api_key(admin_token, gid)
+            _delete_system_api_key(_admin_token, gid)
             assert export(spans) is SpanExportResult.FAILURE
