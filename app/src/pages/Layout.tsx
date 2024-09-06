@@ -88,6 +88,7 @@ function SideNav() {
     });
     if (response.ok) {
       navigate("/login");
+      return;
     }
     notifyError({
       title: "Logout Failed",
