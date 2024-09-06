@@ -1,12 +1,9 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, View } from "@arizeai/components";
+import { View } from "@arizeai/components";
 
-import { LoginForm } from "./LoginForm";
-import { PhoenixLogo } from "./PhoenixLogo";
-
-export function LoginPage() {
+export function AuthLayout({ children }: PropsWithChildren) {
   return (
     <main
       css={css`
@@ -35,12 +32,7 @@ export function LoginPage() {
         marginEnd="auto"
         borderRadius="medium"
       >
-        <Flex direction="column" gap="size-200" alignItems="center">
-          <View paddingBottom="size-200">
-            <PhoenixLogo />
-          </View>
-        </Flex>
-        <LoginForm />
+        {children}
       </View>
       <footer
         css={css`

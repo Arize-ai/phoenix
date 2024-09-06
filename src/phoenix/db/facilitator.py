@@ -14,8 +14,8 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 
-from phoenix.auth import DEFAULT_SECRET_LENGTH, compute_password_hash
-from phoenix.config import ENABLE_AUTH, DEFAULT_ADMIN_PASSWORD
+from phoenix.auth import DEFAULT_ADMIN_PASSWORD, DEFAULT_SECRET_LENGTH, compute_password_hash
+from phoenix.config import ENABLE_AUTH
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
 from phoenix.server.types import DbSessionFactory
