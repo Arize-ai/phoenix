@@ -23,7 +23,6 @@ import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { ProfilePageCreateUserAPIKeyMutation } from "./__generated__/ProfilePageCreateUserAPIKeyMutation.graphql";
 import { APIKeysTable } from "./APIKeysTable";
-import { LogoutButton } from "./LogoutButton";
 
 const profilePageCSS = css`
   overflow-y: auto;
