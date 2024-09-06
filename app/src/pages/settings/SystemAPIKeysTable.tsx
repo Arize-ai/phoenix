@@ -14,7 +14,7 @@ import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
@@ -43,6 +43,7 @@ export function SystemAPIKeysTable({
     query
   );
 
+  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
     mutation SystemAPIKeysTableDeleteAPIKeyMutation(
@@ -76,9 +77,15 @@ export function SystemAPIKeysTable({
             );
           });
         },
+        onError: (error) => {
+          notifyError({
+            title: "Error deleting system key",
+            message: error.message,
+          });
+        },
       });
     },
-    [commit, notifySuccess, refetch]
+    [commit, notifyError, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
