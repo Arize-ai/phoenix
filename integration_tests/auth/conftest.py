@@ -236,6 +236,18 @@ def admin_token(
         yield token
 
 
+@pytest.fixture
+def member_token(
+    get_new_user: _GetNewUser,
+    member_email: str,
+    member_password: str,
+    log_in: _LogIn,
+) -> Iterator[_Token]:
+    member = get_new_user(UserRoleInput.MEMBER)
+    with log_in(member.profile.password, email=member.profile.email) as (token, _):
+        yield token
+
+
 @pytest.fixture(scope="module")
 def admin_email() -> _Email:
     return "admin@localhost"
@@ -244,6 +256,16 @@ def admin_email() -> _Email:
 @pytest.fixture(scope="module")
 def admin_password() -> _Email:
     return "admin"
+
+
+@pytest.fixture(scope="module")
+def member_email() -> _Email:
+    return "member@domain.com"
+
+
+@pytest.fixture(scope="module")
+def member_password() -> _Password:
+    return "Member-password1234"
 
 
 @pytest.fixture(scope="module")

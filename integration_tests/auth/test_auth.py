@@ -29,6 +29,7 @@ from phoenix.auth import (
 from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 NOW = datetime.now(timezone.utc)
@@ -470,6 +471,110 @@ class TestUsers:
             patch_user(None, gid, new_username=new_username)
         with expectation:
             patch_user(token, gid, new_username=new_username)
+
+    def test_admin_can_delete_admin_and_member_users(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        httpx_client: Callable[[], httpx.Client],
+    ) -> None:
+        admin = get_new_user(UserRoleInput.ADMIN)
+        member = get_new_user(UserRoleInput.MEMBER)
+        DELETE_USERS_MUTATION = """
+          mutation ($userIds: [GlobalID!]!) {
+            deleteUsers(input: {userIds: $userIds})
+          }
+        """
+        response = httpx_client().post(
+            urljoin(get_base_url(), "/graphql"),
+            json={
+                "query": DELETE_USERS_MUTATION,
+                "variables": {"userIds": [admin.gid, member.gid]},
+            },
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        assert response_json.get("errors") is None
+
+    def test_cannot_delete_system_user(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        httpx_client: Callable[[], httpx.Client],
+    ) -> None:
+        DELETE_USERS_MUTATION = """
+          mutation ($userIds: [GlobalID!]!) {
+            deleteUsers(input: {userIds: $userIds})
+          }
+        """
+        system_user_gid = str(GlobalID(type_name="User", node_id="1"))
+        response = httpx_client().post(
+            urljoin(get_base_url(), "/graphql"),
+            json={
+                "query": DELETE_USERS_MUTATION,
+                "variables": {"userIds": [system_user_gid]},
+            },
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        assert (errors := response_json.get("errors"))
+        assert len(errors) == 1
+        assert errors[0]["message"] == "Some user IDs could not be found: {1}"
+
+    def test_cannot_delete_last_admin_user(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        httpx_client: Callable[[], httpx.Client],
+    ) -> None:
+        DELETE_USERS_MUTATION = """
+          mutation ($userIds: [GlobalID!]!) {
+            deleteUsers(input: {userIds: $userIds})
+          }
+        """
+        admin_user_gid = str(GlobalID(type_name="User", node_id="2"))
+        response = httpx_client().post(
+            urljoin(get_base_url(), "/graphql"),
+            json={
+                "query": DELETE_USERS_MUTATION,
+                "variables": {"userIds": [admin_user_gid]},
+            },
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        assert (errors := response_json.get("errors"))
+        assert len(errors) == 1
+        assert errors[0]["message"] == "Cannot delete the last admin user"
+
+    def test_member_cannot_delete_users(
+        self,
+        member_token: _Token,
+        get_new_user: _GetNewUser,
+        httpx_client: Callable[[], httpx.Client],
+    ) -> None:
+        admin = get_new_user(UserRoleInput.ADMIN)
+        member = get_new_user(UserRoleInput.MEMBER)
+        DELETE_USERS_MUTATION = """
+          mutation ($userIds: [GlobalID!]!) {
+            deleteUsers(input: {userIds: $userIds})
+          }
+        """
+        response = httpx_client().post(
+            urljoin(get_base_url(), "/graphql"),
+            json={
+                "query": DELETE_USERS_MUTATION,
+                "variables": {"userIds": [admin.gid, member.gid]},
+            },
+            cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: member_token},
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        assert (errors := response_json.get("errors")) is not None
+        assert len(errors) == 1
+        assert errors[0]["message"] == "Only admin can perform this action"
 
 
 def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str:

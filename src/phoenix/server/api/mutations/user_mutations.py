@@ -1,10 +1,10 @@
 import secrets
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
-from typing import Literal, Optional, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import strawberry
-from sqlalchemy import Select, select
+from sqlalchemy import Select, and_, delete, distinct, func, select
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -20,6 +20,7 @@ from phoenix.auth import (
 from phoenix.db import enums, models
 from phoenix.server.api.auth import HasSecret, IsAdmin, IsAuthenticated, IsNotReadOnly
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
@@ -61,6 +62,11 @@ class PatchUserInput:
             raise ValueError("At least one field must be set")
         if self.new_password:
             PASSWORD_REQUIREMENTS.validate(self.new_password)
+
+
+@strawberry.input
+class DeleteUsersInput:
+    user_ids: List[GlobalID]
 
 
 @strawberry.type
@@ -200,6 +206,56 @@ class UserMutationMixin:
         if input.new_password:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=to_gql_user(user))
+
+    @strawberry.mutation(
+        permission_classes=[
+            IsNotReadOnly,
+            IsAuthenticated,
+            IsAdmin,
+        ]
+    )  # type: ignore
+    async def delete_users(
+        self,
+        info: Info[Context, None],
+        input: DeleteUsersInput,
+    ) -> None:
+        user_ids = tuple(
+            map(
+                lambda gid: from_global_id_with_expected_type(gid, User.__name__),
+                set(input.user_ids),
+            )
+        )
+        system_role_id = (
+            select(models.UserRole.id)
+            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
+            .scalar_subquery()
+        )
+        admin_role_id = (
+            select(models.UserRole.id)
+            .where(models.UserRole.name == enums.UserRole.ADMIN.value)
+            .scalar_subquery()
+        )
+        async with info.context.db() as session:
+            async with session.begin_nested():
+                deleted_user_ids = await session.scalars(
+                    delete(models.User)
+                    .where(
+                        and_(
+                            models.User.id.in_(user_ids),
+                            models.User.user_role_id != system_role_id,
+                        )
+                    )
+                    .returning(models.User.id)
+                )
+                if undeleted_ids := set(user_ids) - set(deleted_user_ids):
+                    raise NotFound(f"Some user IDs could not be found: {undeleted_ids}")
+                num_remaining_admins = await session.scalar(
+                    select(func.count(distinct(models.User.id))).where(
+                        models.User.user_role_id == admin_role_id
+                    )
+                )
+                if num_remaining_admins == 0:
+                    raise Conflict("Cannot delete the last admin user")
 
 
 def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:
