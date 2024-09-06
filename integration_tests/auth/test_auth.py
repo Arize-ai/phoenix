@@ -300,7 +300,7 @@ class TestUsers:
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
         create_user: _CreateUser,
         create_system_api_key: _CreateSystemApiKey,
@@ -313,7 +313,7 @@ class TestUsers:
         password = profile.password
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_user(None, email=email, password=password, username=username, role=role)
-        with log_in(secret, email=admin_email) as (token, _):
+        with log_in(admin_password, email=admin_email) as (token, _):
             create_user(token, email=email, password=password, username=username, role=role)
         with log_in(password, email=email) as (token, _):
             with expectation:
