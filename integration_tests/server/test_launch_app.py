@@ -4,7 +4,7 @@ from typing import Set
 
 from faker import Faker
 
-from ..conftest import (
+from .._helpers import (
     _get_gql_spans,
     _grpc_span_exporter,
     _http_span_exporter,

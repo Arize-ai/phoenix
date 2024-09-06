@@ -16,8 +16,8 @@ from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from ..conftest import _Headers, _httpx_client, _SpanExporterFactory, _start_span
-from .conftest import (
+from .._helpers import _Headers, _httpx_client, _SpanExporterConstructor, _start_span
+from ._helpers import (
     _create_system_api_key,
     _create_user,
     _delete_system_api_key,
@@ -465,7 +465,7 @@ class TestSpanExporters:
         with_headers: bool,
         expires_at: Optional[datetime],
         expected: SpanExportResult,
-        _span_exporter: _SpanExporterFactory,
+        _span_exporter: _SpanExporterConstructor,
         _admin_token: _Token,
         _fake: Faker,
     ) -> None:
