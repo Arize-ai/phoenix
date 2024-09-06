@@ -16,18 +16,21 @@ from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _Headers, _httpx_client, _SpanExporterConstructor, _start_span
-from ._helpers import (
+from .._helpers import (
     _create_system_api_key,
     _create_user,
     _delete_system_api_key,
     _GetNewUser,
     _GqlId,
+    _Headers,
+    _httpx_client,
     _log_in,
     _Password,
     _patch_user,
     _patch_viewer,
     _Profile,
+    _SpanExporterConstructor,
+    _start_span,
     _Token,
     _Username,
 )

@@ -14,8 +14,7 @@ from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 from phoenix.config import ENV_PHOENIX_ENABLE_AUTH, ENV_PHOENIX_SECRET
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import _server
-from ._helpers import (
+from .._helpers import (
     _create_user,
     _Email,
     _GetNewUser,
@@ -23,6 +22,7 @@ from ._helpers import (
     _LoggedInUser,
     _Password,
     _Profile,
+    _server,
     _Token,
     _UserGenerator,
     _Username,
