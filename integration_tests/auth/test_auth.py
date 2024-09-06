@@ -472,7 +472,7 @@ class TestUsers:
             patch_user(token, gid, new_username=new_username)
 
 
-def create_user_key(httpx_client: httpx.Client, token: str) -> str:
+def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str:
     create_user_key_mutation = """
             mutation ($input: CreateUserApiKeyInput!) {
               createUserApiKey(input: $input) {
@@ -482,7 +482,7 @@ def create_user_key(httpx_client: httpx.Client, token: str) -> str:
               }
             }
             """
-    resp = httpx_client.post(
+    resp = httpx_client().post(
         urljoin(get_base_url(), "graphql"),
         json={
             "query": create_user_key_mutation,
@@ -513,7 +513,7 @@ class TestApiKeys:
         secret: str,
         log_in: _LogIn,
         create_user: _CreateUser,
-        httpx_client: httpx.Client,
+        httpx_client: Callable[[], httpx.Client],
         passwords: Iterator[_Password],
     ) -> None:
         member_email = "member@localhost.com"
@@ -523,11 +523,11 @@ class TestApiKeys:
         with log_in(secret, email=admin_email) as (admin_token, _):
             admin_api_key_id = create_user_key(httpx_client, admin_token)
             create_user(
+                admin_token,
                 email=member_email,
                 password=member_password,
                 role=UserRoleInput.MEMBER,
                 username=username,
-                token=admin_token,
             )
 
             with log_in(
@@ -537,7 +537,7 @@ class TestApiKeys:
                 member_api_key_id = create_user_key(httpx_client, member_token)
                 member_api_key_id_2 = create_user_key(httpx_client, member_token)
                 # member can delete their own keys
-                resp = httpx_client.post(
+                resp = httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -552,7 +552,7 @@ class TestApiKeys:
                 resp.raise_for_status()
                 assert resp.json().get("errors") is None
                 # member can't delete other user's keys
-                resp = httpx_client.post(
+                resp = httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -567,7 +567,7 @@ class TestApiKeys:
                 assert len(errors := resp.json().get("errors")) == 1
                 assert errors[0]["message"] == "User not authorized to delete"
                 # admin can delete their own key
-                resp = httpx_client.post(
+                resp = httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
@@ -582,7 +582,7 @@ class TestApiKeys:
                 resp.raise_for_status()
                 assert resp.json().get("errors") is None
                 # admin can delete other user's keys
-                resp = httpx_client.post(
+                resp = httpx_client().post(
                     urljoin(get_base_url(), "graphql"),
                     json={
                         "query": self.DELETE_USER_KEY_MUTATION,
