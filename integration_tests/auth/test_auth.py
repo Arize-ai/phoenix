@@ -11,12 +11,18 @@ from faker import Faker
 from httpx import HTTPStatusError
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.auth import PHOENIX_ACCESS_TOKEN_COOKIE_NAME, PHOENIX_REFRESH_TOKEN_COOKIE_NAME
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+)
 from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
+    _EXPECTATION_401,
     _AccessToken,
     _create_system_api_key,
     _create_user,
@@ -42,14 +48,11 @@ NOW = datetime.now(timezone.utc)
 
 
 class TestTokens:
-    def test_log_in_tokens_should_change(
-        self,
-        _admin_email: _Email,
-        _admin_password: _Password,
-    ) -> None:
+    def test_log_in_tokens_should_change(self) -> None:
+        password, email = DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_EMAIL
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with _log_in(_admin_password, email=_admin_email) as (access_token, refresh_token):
+            with _log_in(password, email=email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -64,9 +67,9 @@ class TestUsers:
         "email,use_admin_password,expectation",
         [
             ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("system@localhost", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("admin", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin@localhost", False, _EXPECTATION_401),
+            ("system@localhost", True, _EXPECTATION_401),
+            ("admin", True, _EXPECTATION_401),
         ],
     )
     def test_admin(
@@ -74,29 +77,22 @@ class TestUsers:
         email: _Email,
         use_admin_password: bool,
         expectation: ContextManager[Optional[Unauthorized]],
-        _admin_password: _Password,
         _fake: Faker,
         _passwords: Iterator[_Password],
     ) -> None:
-        password = _admin_password if use_admin_password else next(_passwords)
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        password = DEFAULT_ADMIN_PASSWORD if use_admin_password else next(_passwords)
+        with _EXPECTATION_401:
             _create_system_api_key(None, name=_fake.unique.pystr())
         with expectation:
             with _log_in(password, email=email) as (token, _):
                 _create_system_api_key(token, name=_fake.unique.pystr())
-            with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+            with _EXPECTATION_401:
                 _create_system_api_key(token, name=_fake.unique.pystr())
 
-    def test_end_to_end_credentials_flow(
-        self,
-        _admin_email: _Email,
-        _admin_password: _Password,
-        _fake: Faker,
-    ) -> None:
+    def test_end_to_end_credentials_flow(self, _fake: Faker) -> None:
+        password, email = DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_EMAIL
         # user logs into first browser
-        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(
-            _admin_password, email=_admin_email
-        )
+        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(password, email=email)
 
         # user creates api key in the first browser
         _create_system_api_key(browser_0_access_token_0, name="api-key-0")
@@ -124,13 +120,11 @@ class TestUsers:
             resp.raise_for_status()
 
         # original access token is invalid after refresh
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
-        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(
-            _admin_password, email=_admin_email
-        )
+        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(password, email=email)
 
         # user creates api key in the second browser
         _create_system_api_key(browser_1_access_token_0, name="api-key-3")
@@ -139,9 +133,9 @@ class TestUsers:
         _log_out(browser_0_access_token_1, browser_0_refresh_token_1)
 
         # user is logged out of both browsers
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _create_system_api_key(browser_0_access_token_1, name="api-key-4")
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _create_system_api_key(browser_1_access_token_0, name="api-key-5")
 
     @pytest.mark.parametrize(
@@ -155,32 +149,21 @@ class TestUsers:
         self,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        _admin_email: _Email,
-        _admin_password: _Password,
         _fake: Faker,
         _profiles: Iterator[_Profile],
     ) -> None:
         profile = next(_profiles)
-        email = profile.email
-        username = profile.username
-        password = profile.password
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            _create_user(email=email, password=password, username=username, role=role)
-        with _log_in(_admin_password, email=_admin_email) as (token, _):
-            _create_user(token, email=email, password=password, username=username, role=role)
+        with _EXPECTATION_401:
+            _create_user(profile=profile, role=role)
+        with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (token, _):
+            _create_user(token, profile=profile, role=role)
+        password, email = profile.password, profile.email
         with _log_in(password, email=email) as (token, _):
             with expectation:
                 _create_system_api_key(token, name=_fake.unique.pystr())
             for _role in UserRoleInput:
-                _profile = next(_profiles)
                 with expectation:
-                    _create_user(
-                        token,
-                        email=_profile.email,
-                        username=_profile.username,
-                        password=_profile.password,
-                        role=_role,
-                    )
+                    _create_user(token, profile=next(_profiles), role=_role)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_user_can_change_password_for_self(
@@ -190,8 +173,8 @@ class TestUsers:
         _passwords: Iterator[_Password],
     ) -> None:
         user = _get_new_user(role)
-        email = user.profile.email
-        password = user.profile.password
+        email = user.email
+        password = user.password
         (token, *_) = user.tokens
         new_password = f"new_password_{next(_passwords)}"
         assert new_password != password
@@ -205,11 +188,11 @@ class TestUsers:
             _log_in(password, email=email)
         _patch_viewer((old_token := token), (old_password := password), new_password=new_password)
         another_password = f"another_password_{next(_passwords)}"
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _patch_viewer(old_token, new_password, new_password=another_password)
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _log_in(old_password, email=email)
-        new_token, _ = _log_in(new_password, email=email)
+        new_token, *_ = _log_in(new_password, email=email)
         with pytest.raises(BaseException):
             _patch_viewer(new_token, old_password, new_password=another_password)
 
@@ -222,10 +205,10 @@ class TestUsers:
         _passwords: Iterator[_Password],
     ) -> None:
         user = _get_new_user(role)
-        (token, *_), password = user.tokens, user.profile.password
+        (token, *_), password = user.tokens, user.password
         new_username = f"new_username_{next(_usernames)}"
         for _password in (None, password):
-            with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+            with _EXPECTATION_401:
                 _patch_viewer(None, _password, new_username=new_username)
         _patch_viewer(token, None, new_username=new_username)
         another_username = f"another_username_{next(_usernames)}"
@@ -250,7 +233,7 @@ class TestUsers:
         non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
         (token, *_), gid = user.tokens, non_self.gid
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _patch_user(gid, new_role=UserRoleInput.ADMIN)
         with expectation:
             _patch_user(gid, token, new_role=UserRoleInput.ADMIN)
@@ -272,18 +255,18 @@ class TestUsers:
         user = _get_new_user(role)
         non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
-        old_password = non_self.profile.password
+        old_password = non_self.password
         new_password = f"new_password_{next(_passwords)}"
         assert new_password != old_password
         (token, *_), gid = user.tokens, non_self.gid
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _patch_user(gid, new_password=new_password)
         with expectation as e:
             _patch_user(gid, token, new_password=new_password)
         if e:
             return
-        email = non_self.profile.email
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        email = non_self.email
+        with _EXPECTATION_401:
             _log_in(old_password, email=email)
         _log_in(new_password, email=email)
 
@@ -304,11 +287,11 @@ class TestUsers:
         user = _get_new_user(role)
         non_self = _get_new_user(UserRoleInput.MEMBER)
         assert user.gid != non_self.gid
-        old_username = non_self.profile.username
+        old_username = non_self.username
         new_username = f"new_username_{next(_usernames)}"
         assert new_username != old_username
         (token, *_), gid = user.tokens, non_self.gid
-        with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
+        with _EXPECTATION_401:
             _patch_user(gid, new_username=new_username)
         with expectation:
             _patch_user(gid, token, new_username=new_username)
@@ -349,24 +332,17 @@ class TestApiKeys:
             }
             """
 
-    def test_delete_user_api_key(
-        self,
-        _admin_email: _Email,
-        _admin_password: _Password,
-        _passwords: Iterator[_Password],
-    ) -> None:
+    def test_delete_user_api_key(self, _passwords: Iterator[_Password]) -> None:
         member_email = "member@localhost.com"
         username = "member"
         member_password = next(_passwords)
 
-        with _log_in(_admin_password, email=_admin_email) as (admin_token, _):
+        with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (admin_token, _):
             admin_api_key_id = _create_user_key(admin_token)
             _create_user(
                 admin_token,
-                email=member_email,
-                password=member_password,
                 role=UserRoleInput.MEMBER,
-                username=username,
+                profile=_Profile(email=member_email, password=member_password, username=username),
             )
 
             with _log_in(

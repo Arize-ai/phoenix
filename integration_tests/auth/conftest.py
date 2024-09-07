@@ -8,7 +8,11 @@ from unittest import mock
 
 import pytest
 from faker import Faker
-from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    REQUIREMENTS_FOR_PHOENIX_SECRET,
+)
 from phoenix.config import ENV_PHOENIX_ENABLE_AUTH, ENV_PHOENIX_SECRET
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
@@ -66,8 +70,8 @@ def _usernames(_fake: Faker) -> Iterator[_Username]:
 @pytest.fixture(scope="class")
 def _profiles(
     _emails: Iterator[_Email],
-    _usernames: Iterator[_Password],
     _passwords: Iterator[_Password],
+    _usernames: Iterator[_Username],
 ) -> Iterator[_Profile]:
     return starmap(_Profile, zip(_emails, _passwords, _usernames))
 
@@ -76,13 +80,12 @@ def _profiles(
 def _users(
     _profiles: Iterator[_Profile],
     _admin_token: _AccessToken,
-    _fake: Faker,
 ) -> _UserGenerator:
     def _() -> Generator[Optional[_LoggedInUser], UserRoleInput, None]:
         role = yield None
         for profile in _profiles:
-            gid = _create_user(_admin_token, **asdict(profile), role=role)
-            email, password = profile.email, profile.password
+            gid = _create_user(_admin_token, profile=profile, role=role)
+            password, email = profile.password, profile.email
             tokens = _log_in(password, email=email)
             role = yield _LoggedInUser(gid=gid, role=role, tokens=tokens, profile=profile)
 
@@ -102,19 +105,6 @@ def _get_new_user(
 
 
 @pytest.fixture
-def _admin_token(
-    _admin_email: _Email,
-    _admin_password: _Password,
-) -> Iterator[_AccessToken]:
-    with _log_in(_admin_password, email=_admin_email) as (token, _):
+def _admin_token() -> Iterator[_AccessToken]:
+    with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (token, _):
         yield token
-
-
-@pytest.fixture(scope="module")
-def _admin_email() -> _Email:
-    return "admin@localhost"
-
-
-@pytest.fixture(scope="module")
-def _admin_password() -> _Password:
-    return "admin"

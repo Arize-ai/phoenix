@@ -6,6 +6,7 @@ from abc import ABC
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cached_property
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
@@ -27,6 +28,7 @@ from urllib.request import urlopen
 import httpx
 import pytest
 from faker import Faker
+from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -53,24 +55,22 @@ _SpanName: TypeAlias = str
 _Headers: TypeAlias = Dict[str, Any]
 _Name: TypeAlias = str
 
-
-class _String(str, ABC):
-    def __new__(cls, string: Optional[str] = None) -> _String:
-        assert string
-        return super().__new__(cls, string)
-
-
 _Secret: TypeAlias = str
 _Email: TypeAlias = str
 _Password: TypeAlias = str
 _Username: TypeAlias = str
 
 
-@dataclass(frozen=True)
-class _Profile:
+class _Profile(NamedTuple):
     email: _Email
     password: _Password
     username: Optional[_Username] = None
+
+
+class _String(str, ABC):
+    def __new__(cls, string: Optional[str] = None) -> _String:
+        assert string
+        return super().__new__(cls, string)
 
 
 class _GqlId(_String): ...
@@ -82,6 +82,21 @@ class _User:
     role: UserRoleInput
     profile: _Profile
 
+    def log_in(self) -> _LoggedInTokens:
+        return _log_in(self.password, email=self.email)
+
+    @cached_property
+    def password(self) -> _Password:
+        return self.profile.password
+
+    @cached_property
+    def email(self) -> _Email:
+        return self.profile.email
+
+    @cached_property
+    def username(self) -> Optional[_Username]:
+        return self.profile.username
+
 
 class _Token(_String, ABC): ...
 
@@ -89,7 +104,13 @@ class _Token(_String, ABC): ...
 class _ApiKey(_Token): ...
 
 
-class _RefreshToken(_Token): ...
+class _RefreshToken(_Token):
+    def __call__(self) -> _LoggedInTokens:
+        resp = _httpx_client(refresh_token=self).post(urljoin(get_base_url(), "auth/refresh"))
+        resp.raise_for_status()
+        access_token = _AccessToken(resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
+        refresh_token = _RefreshToken(resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME))
+        return _LoggedInTokens(access_token, refresh_token)
 
 
 class _AccessToken(_Token):
@@ -111,6 +132,12 @@ class _LoggedInTokens(NamedTuple):
 @dataclass(frozen=True)
 class _LoggedInUser(_User):
     tokens: _LoggedInTokens
+
+    def log_out(self) -> None:
+        self.tokens.access.log_out()
+
+    def refresh(self) -> _LoggedInTokens:
+        return self.tokens.refresh()
 
 
 class _UserGenerator(Protocol):
@@ -241,13 +268,13 @@ def _capture_stdout(
 
 
 @contextmanager
-def _random_schema(url: URL, _fake: Faker) -> Iterator[str]:
+def _random_schema(url: URL, fake: Faker) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     try:
         engine.connect()
     except OperationalError as ex:
         pytest.skip(f"PostgreSQL unavailable: {ex}")
-    schema = _fake.unique.pystr().lower()
+    schema = fake.unique.pystr().lower()
     yield schema
     with engine.connect() as conn:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
@@ -284,11 +311,12 @@ def _create_user(
     access_token: Optional[_AccessToken] = None,
     /,
     *,
-    email: _Email,
-    password: _Password,
     role: UserRoleInput,
-    username: Optional[_Username] = None,
+    profile: _Profile,
 ) -> _GqlId:
+    email = profile.email
+    password = profile.password
+    username = profile.username
     args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
     if username:
         args.append(f'username:"{username}"')
@@ -391,7 +419,7 @@ def _log_in(
 ) -> _LoggedInTokens:
     resp = _httpx_client().post(
         urljoin(get_base_url(), "auth/login"),
-        json={"email": email, "password": password},
+        json=dict(email=email, password=password),
     )
     resp.raise_for_status()
     assert (access_token := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
@@ -422,3 +450,7 @@ def _json(
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
+
+
+_EXPECTATION_401 = pytest.raises(HTTPStatusError, match="401 Unauthorized")
+_EXPECTATION_403 = pytest.raises(HTTPStatusError, match="403 Forbidden")
