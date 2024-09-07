@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import patch
@@ -88,6 +89,7 @@ async def test_run_experiment(
             evaluators={f"{i:02}": e for i, e in enumerate(evaluators)},
             print_summary=False,
         )
+        time.sleep(1)  # Wait for the entire experiment to be run
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
