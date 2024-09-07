@@ -1,7 +1,6 @@
 import json
-from asyncio import sleep
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Dict
+from typing import Any, Dict
 from unittest.mock import patch
 
 import httpx
@@ -375,9 +374,7 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
     assert evaluation.score == 1.0, "evaluates against named args in any order"
 
 
-async def test_get_experiment_client_method(
-    px_client, simple_dataset_with_one_experiment_run
-):
+async def test_get_experiment_client_method(px_client, simple_dataset_with_one_experiment_run):
     experiment_gid = GlobalID("Experiment", "0")
     experiment = px_client.get_experiment_runs(experiment_id=experiment_gid)
     assert experiment

@@ -232,6 +232,7 @@ def httpx_clients(
     class Transport(httpx.BaseTransport, httpx.AsyncBaseTransport):
         def __init__(self, transport: httpx.ASGITransport) -> None:
             import nest_asyncio
+
             nest_asyncio.apply()
 
             self.transport = transport

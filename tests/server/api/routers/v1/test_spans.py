@@ -1,7 +1,8 @@
+import time
 from asyncio import sleep
 from datetime import datetime
 from random import getrandbits
-from typing import Any, Awaitable, Callable, cast
+from typing import Any, cast
 
 import httpx
 import pandas as pd
@@ -30,6 +31,7 @@ async def test_span_round_tripping_with_docs(
     orig_count = len(orig_docs)
     assert orig_count
     px_client.log_traces(TraceDataset(df))
+    time.sleep(0.1)  # Wait for the spans to be inserted
     docs = cast(pd.DataFrame, px_client.query_spans(doc_query))
     new_count = len(docs)
     assert new_count

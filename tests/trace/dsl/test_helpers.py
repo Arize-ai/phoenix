@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 import pandas as pd
 from pandas.testing import assert_frame_equal
