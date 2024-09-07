@@ -176,6 +176,8 @@ class _PasswordRequirements:
         raise ValueError(err_text)
 
 
+DEFAULT_ADMIN_USERNAME = "admin"
+DEFAULT_ADMIN_EMAIL = "admin@localhost"
 DEFAULT_ADMIN_PASSWORD = "admin"
 DEFAULT_SECRET_LENGTH = 32
 """The default length of a secret key in bytes."""

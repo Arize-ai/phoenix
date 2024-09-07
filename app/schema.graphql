@@ -355,6 +355,10 @@ input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
 }
 
+input DeleteUsersInput {
+  userIds: [GlobalID!]!
+}
+
 type Dimension implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -933,6 +937,7 @@ type Mutation {
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
+  deleteUsers(input: DeleteUsersInput!): Void
 }
 
 """An object with a Globally Unique ID"""
@@ -1523,3 +1528,6 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
+
+"""Represents NULL values"""
+scalar Void

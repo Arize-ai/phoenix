@@ -10,6 +10,7 @@ from typing import (
     Iterator,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
 )
 from urllib.parse import urljoin
@@ -29,6 +30,7 @@ from phoenix.auth import (
 from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 NOW = datetime.now(timezone.utc)
@@ -86,6 +88,10 @@ class _PatchUser(Protocol):
         new_password: Optional[_Password] = None,
         new_role: Optional[UserRoleInput] = None,
     ) -> None: ...
+
+
+class _DeleteUsers(Protocol):
+    def __call__(self, token: _Token, /, *, user_ids: Sequence[_GqlId]) -> None: ...
 
 
 class _PatchViewer(Protocol):
@@ -470,6 +476,57 @@ class TestUsers:
             patch_user(None, gid, new_username=new_username)
         with expectation:
             patch_user(token, gid, new_username=new_username)
+
+    def test_admin_can_delete_non_self_admin_and_member_users(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        admin = get_new_user(UserRoleInput.ADMIN)
+        member = get_new_user(UserRoleInput.MEMBER)
+        delete_users(admin_token, user_ids=[admin.gid, member.gid])
+
+    def test_admin_cannot_delete_system_user(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        system_user_gid = str(GlobalID(type_name="User", node_id="1"))
+        with pytest.raises(Exception, match="Some user IDs could not be found"):
+            delete_users(admin_token, user_ids=[system_user_gid])
+
+    def test_error_is_raised_when_deleting_a_non_existent_user_id(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        system_user_gid = str(GlobalID(type_name="User", node_id="10000"))
+        with pytest.raises(Exception, match="Some user IDs could not be found"):
+            delete_users(admin_token, user_ids=[system_user_gid])
+
+    def test_member_cannot_delete_users(
+        self,
+        member_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        admin = get_new_user(UserRoleInput.ADMIN)
+        member = get_new_user(UserRoleInput.MEMBER)
+        with pytest.raises(Exception, match="Only admin can perform this action"):
+            delete_users(member_token, user_ids=[admin.gid, member.gid])
+
+    def test_admin_cannot_delete_default_admin_user(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        admin_user_gid = str(GlobalID(type_name="User", node_id="2"))
+        with pytest.raises(Exception, match="Cannot delete the default admin user"):
+            delete_users(admin_token, user_ids=[admin_user_gid])
 
 
 def create_user_key(httpx_client: Callable[[], httpx.Client], token: str) -> str:

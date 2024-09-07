@@ -14,7 +14,13 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 
-from phoenix.auth import DEFAULT_ADMIN_PASSWORD, DEFAULT_SECRET_LENGTH, compute_password_hash
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    DEFAULT_ADMIN_USERNAME,
+    DEFAULT_SECRET_LENGTH,
+    compute_password_hash,
+)
 from phoenix.config import ENABLE_AUTH
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
@@ -93,8 +99,8 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
     ) is not None:
         admin_user = models.User(
             user_role_id=admin_role_id,
-            username="admin",
-            email="admin@localhost",
+            username=DEFAULT_ADMIN_USERNAME,
+            email=DEFAULT_ADMIN_EMAIL,
             auth_method=AuthMethod.LOCAL.value,
             reset_password=True,
         )
