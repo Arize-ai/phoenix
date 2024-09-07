@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import time
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
 from importlib.metadata import version
