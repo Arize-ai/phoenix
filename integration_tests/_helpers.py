@@ -86,27 +86,26 @@ class _User:
 class _Token(_String, ABC): ...
 
 
-class _AccessToken(_Token): ...
-
-
 class _ApiKey(_Token): ...
 
 
 class _RefreshToken(_Token): ...
 
 
+class _AccessToken(_Token):
+    def log_out(self) -> None:
+        _log_out(self)
+
+
 class _LoggedInTokens(NamedTuple):
     access: _AccessToken
     refresh: _RefreshToken
-
-    def log_out(self) -> None:
-        _log_out(self.access)
 
     def __enter__(self) -> _LoggedInTokens:
         return self
 
     def __exit__(self, *args: Any, **kwargs: Any) -> None:
-        self.log_out()
+        self.access.log_out()
 
 
 @dataclass(frozen=True)
