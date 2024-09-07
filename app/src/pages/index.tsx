@@ -17,7 +17,7 @@ export * from "./experiments";
 export * from "./experiment";
 export * from "./settings";
 export * from "./apis";
-export * from "./login";
+export * from "./auth";
 export * from "./profile";
 export * from "./AuthenticatedRoot";
 export * from "./authenticatedRootLoader";

@@ -33,7 +33,6 @@ from .._helpers import (
     _patch_viewer,
     _Profile,
     _RefreshToken,
-    _Secret,
     _SpanExporterConstructor,
     _start_span,
     _Username,
@@ -46,11 +45,11 @@ class TestTokens:
     def test_log_in_tokens_should_change(
         self,
         _admin_email: _Email,
-        _secret: _Secret,
+        _admin_password: _Password,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with _log_in(_secret, email=_admin_email) as (access_token, refresh_token):
+            with _log_in(_admin_password, email=_admin_email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -62,7 +61,7 @@ class TestTokens:
 
 class TestUsers:
     @pytest.mark.parametrize(
-        "email,use_secret,expectation",
+        "email,use_admin_password,expectation",
         [
             ("admin@localhost", True, nullcontext()),
             ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
@@ -73,13 +72,13 @@ class TestUsers:
     def test_admin(
         self,
         email: _Email,
-        use_secret: bool,
+        use_admin_password: bool,
         expectation: ContextManager[Optional[Unauthorized]],
-        _secret: _Secret,
+        _admin_password: _Password,
         _fake: Faker,
         _passwords: Iterator[_Password],
     ) -> None:
-        password = _secret if use_secret else next(_passwords)
+        password = _admin_password if use_admin_password else next(_passwords)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             _create_system_api_key(None, name=_fake.unique.pystr())
         with expectation:
@@ -91,11 +90,13 @@ class TestUsers:
     def test_end_to_end_credentials_flow(
         self,
         _admin_email: _Email,
-        _secret: _Password,
+        _admin_password: _Password,
         _fake: Faker,
     ) -> None:
         # user logs into first browser
-        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(_secret, email=_admin_email)
+        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(
+            _admin_password, email=_admin_email
+        )
 
         # user creates api key in the first browser
         _create_system_api_key(browser_0_access_token_0, name="api-key-0")
@@ -127,7 +128,9 @@ class TestUsers:
             _create_system_api_key(browser_0_access_token_0, name="api-key-2")
 
         # user logs into second browser
-        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(_secret, email=_admin_email)
+        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(
+            _admin_password, email=_admin_email
+        )
 
         # user creates api key in the second browser
         _create_system_api_key(browser_1_access_token_0, name="api-key-3")
@@ -153,7 +156,7 @@ class TestUsers:
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
         _admin_email: _Email,
-        _secret: _Secret,
+        _admin_password: _Password,
         _fake: Faker,
         _profiles: Iterator[_Profile],
     ) -> None:
@@ -162,8 +165,8 @@ class TestUsers:
         username = profile.username
         password = profile.password
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
-            _create_user(None, email=email, password=password, username=username, role=role)
-        with _log_in(_secret, email=_admin_email) as (token, _):
+            _create_user(email=email, password=password, username=username, role=role)
+        with _log_in(_admin_password, email=_admin_email) as (token, _):
             _create_user(token, email=email, password=password, username=username, role=role)
         with _log_in(password, email=email) as (token, _):
             with expectation:
@@ -348,15 +351,15 @@ class TestApiKeys:
 
     def test_delete_user_api_key(
         self,
-        _admin_email: str,
-        _secret: str,
+        _admin_email: _Email,
+        _admin_password: _Password,
         _passwords: Iterator[_Password],
     ) -> None:
         member_email = "member@localhost.com"
         username = "member"
         member_password = next(_passwords)
 
-        with _log_in(_secret, email=_admin_email) as (admin_token, _):
+        with _log_in(_admin_password, email=_admin_email) as (admin_token, _):
             admin_api_key_id = _create_user_key(admin_token)
             _create_user(
                 admin_token,
