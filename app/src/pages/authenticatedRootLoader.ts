@@ -22,10 +22,6 @@ export async function authenticatedRootLoader() {
     {}
   ).toPromise();
 
-  if (!loaderData?.viewer && window.Config.authenticationEnabled) {
-    // Should never happen but just in case
-    return redirect("/login");
-  }
   if (loaderData?.viewer?.passwordNeedsReset) {
     return redirect("/reset-password");
   }
