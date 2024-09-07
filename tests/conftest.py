@@ -225,7 +225,7 @@ def httpx_clients(
         def handle_request(self, request: Request) -> Response:
             fut = loop.create_task(self.handle_async_request(request))
             try:
-                return self.loop.run_until_complete(asyncio.wait_for(fut, timeout=10))
+                return loop.run_until_complete(asyncio.wait_for(fut, timeout=10))
             except asyncio.TimeoutError:
                 fut.cancel()
                 raise TimeoutError("Request timed out after 10 seconds")
