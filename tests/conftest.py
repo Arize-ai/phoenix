@@ -161,12 +161,23 @@ def db(
     raise ValueError(f"Unknown db fixture: {dialect}")
 
 
+# def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
+#     lock, db = asyncio.Lock(), _db(engine)
+
+#     @contextlib.asynccontextmanager
+#     async def factory() -> AsyncIterator[AsyncSession]:
+#         async with lock, db() as session:
+#             yield session
+
+#     return DbSessionFactory(db=factory, dialect=engine.dialect.name)
+
+
 def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
-    lock, db = asyncio.Lock(), _db(engine)
+    db = _db(engine)
 
     @contextlib.asynccontextmanager
     async def factory() -> AsyncIterator[AsyncSession]:
-        async with lock, db() as session:
+        async with db() as session:
             yield session
 
     return DbSessionFactory(db=factory, dialect=engine.dialect.name)
@@ -199,13 +210,13 @@ async def app(
         yield manager.app
 
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    try:
-        import uvloop
-    except ImportError:
-        return asyncio.DefaultEventLoopPolicy()
-    return uvloop.EventLoopPolicy()
+# @pytest.fixture(scope="session")
+# def event_loop_policy():
+#     try:
+#         import uvloop
+#     except ImportError:
+#         return asyncio.DefaultEventLoopPolicy()
+#     return uvloop.EventLoopPolicy()
 
 
 @pytest.fixture
@@ -220,15 +231,13 @@ def httpx_clients(
 ) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport, httpx.AsyncBaseTransport):
         def __init__(self, transport: httpx.ASGITransport) -> None:
+            import nest_asyncio
+            nest_asyncio.apply()
+
             self.transport = transport
 
         def handle_request(self, request: Request) -> Response:
-            fut = loop.create_task(self.handle_async_request(request))
-            try:
-                return loop.run_until_complete(asyncio.wait_for(fut, timeout=10))
-            except asyncio.TimeoutError:
-                fut.cancel()
-                raise TimeoutError("Request timed out after 10 seconds")
+            return asyncio.run(self.handle_async_request(request))
 
         async def handle_async_request(self, request: Request) -> Response:
             response = await self.transport.handle_async_request(request)

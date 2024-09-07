@@ -11,7 +11,6 @@ async def test_get_retrieved_documents(
     px_client: Client,
     default_project: Any,
     abc_project: Any,
-    acall: Callable[..., Awaitable[Any]],
 ) -> None:
     expected = pd.DataFrame(
         {
@@ -23,7 +22,7 @@ async def test_get_retrieved_documents(
             "document_score": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = await acall(get_retrieved_documents, px_client)
+    actual = get_retrieved_documents(px_client)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
@@ -34,7 +33,6 @@ async def test_get_qa_with_reference(
     px_client: Client,
     default_project: Any,
     abc_project: Any,
-    acall: Callable[..., Awaitable[Any]],
 ) -> None:
     expected = pd.DataFrame(
         {
@@ -44,7 +42,7 @@ async def test_get_qa_with_reference(
             "reference": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    actual = await acall(get_qa_with_reference, px_client)
+    actual = get_qa_with_reference(px_client)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),

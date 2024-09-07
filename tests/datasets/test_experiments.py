@@ -34,7 +34,6 @@ async def test_run_experiment(
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
-    acall: Callable[..., Awaitable[Any]],
 ) -> None:
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -81,8 +80,7 @@ async def test_run_experiment(
             lambda reference, expected: expected == reference,
             lambda reference, expected: expected is reference,
         ]
-        experiment = await acall(
-            run_experiment,
+        experiment = run_experiment(
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -145,7 +143,6 @@ async def test_run_experiment_with_llm_eval(
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
-    acall: Callable[..., Awaitable[Any]],
 ) -> None:
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -191,8 +188,7 @@ async def test_run_experiment_with_llm_eval(
             assert isinstance(example, Example)
             return "doesn't matter, this is the output"
 
-        experiment = await acall(
-            run_experiment,
+        experiment = run_experiment(
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -255,7 +251,6 @@ async def test_run_evaluation(
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset_with_one_experiment_run: Any,
-    acall: Callable[..., Awaitable[Any]],
 ) -> None:
     experiment = Experiment(
         id=str(GlobalID("Experiment", "0")),
@@ -265,8 +260,7 @@ async def test_run_evaluation(
         project_name="test",
     )
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
-        await acall(evaluate_experiment, experiment, evaluators=[lambda _: _])
-        await sleep(0.1)
+        evaluate_experiment(experiment, evaluators=[lambda _: _])
         async with db() as session:
             evaluations = list(await session.scalars(select(models.ExperimentRunAnnotation)))
         assert len(evaluations) == 1
@@ -382,9 +376,9 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
 
 
 async def test_get_experiment_client_method(
-    px_client, simple_dataset_with_one_experiment_run, acall
+    px_client, simple_dataset_with_one_experiment_run
 ):
     experiment_gid = GlobalID("Experiment", "0")
-    experiment = await acall(px_client.get_experiment, experiment_id=experiment_gid)
+    experiment = px_client.get_experiment_runs(experiment_id=experiment_gid)
     assert experiment
     assert isinstance(experiment, Experiment)
