@@ -249,8 +249,8 @@ def member_token(
     log_in: _LogIn,
 ) -> Iterator[_Token]:
     member = get_new_user(UserRoleInput.MEMBER)
-    with log_in(member.profile.password, email=member.profile.email) as (token, _):
-        yield token
+    assert (token := member.token) is not None
+    return token
 
 
 @pytest.fixture(scope="module")
