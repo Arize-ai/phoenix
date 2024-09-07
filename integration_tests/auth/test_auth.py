@@ -166,12 +166,12 @@ class TestTokens:
     def test_log_in_tokens_should_change(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
     ) -> None:
         n, access_tokens, refresh_tokens = 2, set(), set()
         for _ in range(n):
-            with log_in(secret, email=admin_email) as (access_token, refresh_token):
+            with log_in(admin_password, email=admin_email) as (access_token, refresh_token):
                 access_tokens.add(access_token)
                 refresh_tokens.add(refresh_token)
         assert len(access_tokens) == n
@@ -183,7 +183,7 @@ class TestTokens:
 
 class TestUsers:
     @pytest.mark.parametrize(
-        "email,use_secret,expectation",
+        "email,use_admin_password,expectation",
         [
             ("admin@localhost", True, nullcontext()),
             ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
@@ -194,15 +194,15 @@ class TestUsers:
     def test_admin(
         self,
         email: str,
-        use_secret: bool,
         expectation: ContextManager[Optional[Unauthorized]],
-        secret: str,
+        use_admin_password: bool,
+        admin_password: str,
         log_in: _LogIn,
         create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
         passwords: Iterator[_Password],
     ) -> None:
-        password = secret if use_secret else next(passwords)
+        password = admin_password if use_admin_password else next(passwords)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(None, name=fake.unique.pystr())
         with expectation:
@@ -214,7 +214,7 @@ class TestUsers:
     def test_end_to_end_credentials_flow(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         httpx_client: Callable[[], httpx.Client],
         create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
@@ -222,7 +222,7 @@ class TestUsers:
         # user logs into first browser
         resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": admin_email, "password": admin_password},
         )
         resp.raise_for_status()
         assert (browser_0_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
@@ -264,7 +264,7 @@ class TestUsers:
         # user logs into second browser
         resp = httpx_client().post(
             urljoin(get_base_url(), "/auth/login"),
-            json={"email": admin_email, "password": secret},
+            json={"email": admin_email, "password": admin_password},
         )
         resp.raise_for_status()
         assert (browser_1_access_token_0 := resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
@@ -301,7 +301,7 @@ class TestUsers:
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
         create_user: _CreateUser,
         create_system_api_key: _CreateSystemApiKey,
@@ -314,7 +314,7 @@ class TestUsers:
         password = profile.password
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_user(None, email=email, password=password, username=username, role=role)
-        with log_in(secret, email=admin_email) as (token, _):
+        with log_in(admin_password, email=admin_email) as (token, _):
             create_user(token, email=email, password=password, username=username, role=role)
         with log_in(password, email=email) as (token, _):
             with expectation:
@@ -510,7 +510,7 @@ class TestApiKeys:
     def test_delete_user_api_key(
         self,
         admin_email: str,
-        secret: str,
+        admin_password: str,
         log_in: _LogIn,
         create_user: _CreateUser,
         httpx_client: Callable[[], httpx.Client],
@@ -520,7 +520,7 @@ class TestApiKeys:
         username = "member"
         member_password = next(passwords)
 
-        with log_in(secret, email=admin_email) as (admin_token, _):
+        with log_in(admin_password, email=admin_email) as (admin_token, _):
             admin_api_key_id = create_user_key(httpx_client, admin_token)
             create_user(
                 admin_token,
