@@ -183,25 +183,26 @@ class TestTokens:
 
 class TestUsers:
     @pytest.mark.parametrize(
-        "email,expectation",
+        "email,is_admin,expectation",
         [
-            ("admin@localhost", nullcontext()),
-            ("admin@localhost", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("system@localhost", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
-            ("admin", pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin@localhost", True, nullcontext()),
+            ("admin@localhost", False, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("system@localhost", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
+            ("admin", True, pytest.raises(HTTPStatusError, match="401 Unauthorized")),
         ],
     )
     def test_admin(
         self,
         email: str,
         expectation: ContextManager[Optional[Unauthorized]],
-        secret: str,
+        is_admin: bool,
+        admin_password: str,
         log_in: _LogIn,
         create_system_api_key: _CreateSystemApiKey,
         fake: Faker,
         passwords: Iterator[_Password],
     ) -> None:
-        password = next(passwords)
+        password = admin_password if is_admin else next(passwords)
         with pytest.raises(HTTPStatusError, match="401 Unauthorized"):
             create_system_api_key(None, name=fake.unique.pystr())
         with expectation:
