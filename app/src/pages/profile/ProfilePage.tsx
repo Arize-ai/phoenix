@@ -1,7 +1,8 @@
 import React from "react";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Card, Flex, Form, TextField } from "@arizeai/components";
+import { Button, Card, Flex, Form, TextField } from "@arizeai/components";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
@@ -23,17 +24,32 @@ const profilePageInnerCSS = css`
 
 export function ProfilePage() {
   const { viewer } = useViewer();
-
+  const navigate = useNavigate();
   if (!viewer) {
     return null;
   }
+
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
         {/* TODO(auth): Change username, etc. */}
-        {/* TODO(auth): Reset password */}
+
         <Flex direction="column" gap="size-200">
-          <Card title="Profile" variant="compact">
+          <Card
+            title="Profile"
+            variant="compact"
+            extra={
+              <Button
+                variant="default"
+                size="compact"
+                onClick={() => {
+                  navigate("/reset-password");
+                }}
+              >
+                Reset Password
+              </Button>
+            }
+          >
             <Form>
               <TextField label="email" value={viewer.email} isReadOnly />
               <TextField

@@ -78,6 +78,11 @@ export function LoginForm() {
               onChange={onChange}
               value={value}
               placeholder="your password"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSubmit(onSubmit)();
+                }
+              }}
             />
           )}
         />
