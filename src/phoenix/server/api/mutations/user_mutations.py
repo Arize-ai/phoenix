@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional, Tuple
 
 import strawberry
-from sqlalchemy import Select, and_, delete, distinct, func, select
+from sqlalchemy import Select, and_, case, delete, distinct, func, select
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -12,6 +12,8 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     PASSWORD_REQUIREMENTS,
     validate_email_format,
@@ -227,37 +229,57 @@ class UserMutationMixin:
                 set(input.user_ids),
             )
         )
-        system_role_id = (
+        system_user_role_id = (
             select(models.UserRole.id)
             .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
             .scalar_subquery()
         )
-        admin_role_id = (
+        admin_user_role_id = (
             select(models.UserRole.id)
             .where(models.UserRole.name == enums.UserRole.ADMIN.value)
             .scalar_subquery()
         )
+        default_admin_user_id = (
+            select(models.User.id)
+            .where(
+                (
+                    and_(
+                        models.User.user_role_id == admin_user_role_id,
+                        models.User.username == DEFAULT_ADMIN_USERNAME,
+                        models.User.email == DEFAULT_ADMIN_EMAIL,
+                    )
+                )
+            )
+            .scalar_subquery()
+        )
         async with info.context.db() as session:
-            async with session.begin_nested():
-                deleted_user_ids = await session.scalars(
-                    delete(models.User)
+            [
+                (
+                    num_default_admin_user_ids,
+                    num_resolved_user_ids,
+                )
+            ] = (
+                await session.execute(
+                    select(
+                        func.coalesce(
+                            func.sum(case((models.User.id == default_admin_user_id, 1), else_=0)), 0
+                        ),
+                        func.count(distinct(models.User.id)),
+                    )
+                    .select_from(models.User)
                     .where(
                         and_(
                             models.User.id.in_(user_ids),
-                            models.User.user_role_id != system_role_id,
+                            models.User.user_role_id != system_user_role_id,
                         )
                     )
-                    .returning(models.User.id)
                 )
-                if undeleted_ids := set(user_ids) - set(deleted_user_ids):
-                    raise NotFound(f"Some user IDs could not be found: {undeleted_ids}")
-                num_remaining_admins = await session.scalar(
-                    select(func.count(distinct(models.User.id))).where(
-                        models.User.user_role_id == admin_role_id
-                    )
-                )
-                if num_remaining_admins == 0:
-                    raise Conflict("Cannot delete the last admin user")
+            ).all()
+            if num_default_admin_user_ids > 0:
+                raise Conflict("Cannot delete the default admin user")
+            if num_resolved_user_ids < len(user_ids):
+                raise NotFound("Some user IDs could not be found")
+            await session.execute(delete(models.User).where(models.User.id.in_(user_ids)))
 
 
 def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:

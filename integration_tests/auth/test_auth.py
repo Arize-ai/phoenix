@@ -494,7 +494,17 @@ class TestUsers:
         delete_users: _DeleteUsers,
     ) -> None:
         system_user_gid = str(GlobalID(type_name="User", node_id="1"))
-        with pytest.raises(Exception, match="Some user IDs could not be found: {1}"):
+        with pytest.raises(Exception, match="Some user IDs could not be found"):
+            delete_users(admin_token, user_ids=[system_user_gid])
+
+    def test_error_is_raised_when_deleting_a_non_existent_user_id(
+        self,
+        admin_token: _Token,
+        get_new_user: _GetNewUser,
+        delete_users: _DeleteUsers,
+    ) -> None:
+        system_user_gid = str(GlobalID(type_name="User", node_id="10000"))
+        with pytest.raises(Exception, match="Some user IDs could not be found"):
             delete_users(admin_token, user_ids=[system_user_gid])
 
     def test_member_cannot_delete_users(
@@ -508,21 +518,14 @@ class TestUsers:
         with pytest.raises(Exception, match="Only admin can perform this action"):
             delete_users(member_token, user_ids=[admin.gid, member.gid])
 
-
-class TestUsersAdminCannotDeleteLastAdminUser:
-    """
-    This test must be run isolation because it relies on the fact that there is
-    only one admin user.
-    """
-
-    def test_admin_cannot_delete_last_admin_user(
+    def test_admin_cannot_delete_default_admin_user(
         self,
         admin_token: _Token,
         get_new_user: _GetNewUser,
         delete_users: _DeleteUsers,
     ) -> None:
         admin_user_gid = str(GlobalID(type_name="User", node_id="2"))
-        with pytest.raises(Exception, match="Cannot delete the last admin user"):
+        with pytest.raises(Exception, match="Cannot delete the default admin user"):
             delete_users(admin_token, user_ids=[admin_user_gid])
 
 
