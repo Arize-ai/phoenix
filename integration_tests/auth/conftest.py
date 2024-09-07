@@ -247,7 +247,7 @@ def member_token(
     member_email: str,
     member_password: str,
     log_in: _LogIn,
-) -> Iterator[_Token]:
+) -> _Token:
     member = get_new_user(UserRoleInput.MEMBER)
     assert (token := member.token) is not None
     return token
