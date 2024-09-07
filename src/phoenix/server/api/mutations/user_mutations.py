@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional, Tuple
 
 import strawberry
-from sqlalchemy import Select, and_, case, delete, distinct, func, select
+from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -255,16 +255,22 @@ class UserMutationMixin:
         async with info.context.db() as session:
             [
                 (
-                    num_default_admin_user_ids,
+                    deletes_default_admin,
                     num_resolved_user_ids,
                 )
             ] = (
                 await session.execute(
                     select(
-                        func.coalesce(
-                            func.sum(case((models.User.id == default_admin_user_id, 1), else_=0)), 0
-                        ),
-                        func.count(distinct(models.User.id)),
+                        cast(
+                            func.coalesce(
+                                func.max(
+                                    case((models.User.id == default_admin_user_id, 1), else_=0)
+                                ),
+                                0,
+                            ),
+                            Boolean,
+                        ).label("deletes_default_admin"),
+                        func.count(distinct(models.User.id)).label("num_resolved_user_ids"),
                     )
                     .select_from(models.User)
                     .where(
@@ -275,7 +281,7 @@ class UserMutationMixin:
                     )
                 )
             ).all()
-            if num_default_admin_user_ids > 0:
+            if deletes_default_admin:
                 raise Conflict("Cannot delete the default admin user")
             if num_resolved_user_ids < len(user_ids):
                 raise NotFound("Some user IDs could not be found")
