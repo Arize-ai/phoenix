@@ -1,8 +1,8 @@
 # Docker
 
-[![](https://camo.githubusercontent.com/63d36979ad4d1307931b2e7388f90bf5c14024b3d43baccfea1dabf890444d54/68747470733a2f2f696d672e736869656c64732e696f2f646f636b65722f762f6172697a6570686f656e69782f70686f656e69783f736f72743d73656d766572266c6f676f3d646f636b6572266c6162656c3d696d61676526636f6c6f723d626c7565)](https://hub.docker.com/r/arizephoenix/phoenix/tags)
+{% embed url="https://hub.docker.com/r/arizephoenix/phoenix/tags" %}
 
-This guide provides instructions for installing and setting up your environment to run Phoenix locally using Docker.&#x20;
+This guide provides instructions for installing and setting up your environment to run Phoenix locally using Docker.
 
 ## Prerequisites
 
@@ -20,6 +20,83 @@ This guide provides instructions for installing and setting up your environment 
 4. External Postgres(optional).
    1. you will need to set the `PHOENIX_SQL_DATABASE_URL` environment variable to the connection string for your postgres instance.
    2. Note: We do only officially support Postgres versions >= 14.
+
+## Docker
+
+Lastly, we must run the phoenix server so that our application can export spans to it. To do this, we recommend running phoenix via an image. Phoenix images are available via dockerhub.
+
+{% embed url="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general" %}
+
+In order to run the phoenix server, you will have to start the application. Below are a few examples of how you can run the application on your local machine.
+
+{% tabs %}
+{% tab title="Docker" %}
+Pull the image you would like to run
+
+```
+docker pull arizephoenix/phoenix
+```
+
+Pick an image you would like to run or simply run the latest:
+
+{% hint style="danger" %}
+Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:4.0.0
+{% endhint %}
+
+```
+docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
+```
+
+See [#ports](../setup/configuration.md#ports "mention")for details on the ports for the container.
+{% endtab %}
+{% endtabs %}
+
+Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car.
+
+Here is an example **compose.yaml**
+
+```yaml
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"  # UI and OTLP HTTP collector
+      - "4317:4317"  # OTLP gRPC collector
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - COLLECTOR_ENDPOINT=http://phoenix:6006/v1/traces
+      - PROD_CORS_ORIGIN=http://localhost:3000
+      # Set INSTRUMENT_LLAMA_INDEX=false to disable instrumentation
+      - INSTRUMENT_LLAMA_INDEX=true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://0.0.0.0:8000/api/chat/healthcheck"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
+  frontend:
+    build: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+```
+
+This way you will always have a running Phoenix instance when you run
+
+```
+docker compose up
+```
+
+For the full details of on how to configure Phoenix, check out the [Configuration section](../setup/configuration.md)
 
 ## PostGreSQL
 
