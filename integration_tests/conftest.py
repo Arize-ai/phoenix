@@ -89,7 +89,7 @@ def _env_phoenix_sql_database_url(
     values = [(ENV_PHOENIX_SQL_DATABASE_URL, _sql_database_url.render_as_string())]
     with ExitStack() as stack:
         if _sql_database_url.get_backend_name().startswith("postgresql"):
-            schema = stack.enter_context(_random_schema(_sql_database_url, _fake))
+            schema = stack.enter_context(_random_schema(_sql_database_url))
             values.append((ENV_PHOENIX_SQL_DATABASE_SCHEMA, schema))
         stack.enter_context(mock.patch.dict(os.environ, values))
         yield
