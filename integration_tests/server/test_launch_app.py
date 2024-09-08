@@ -31,5 +31,6 @@ class TestLaunchApp:
                         exporter=exporter(headers=None),
                     ).end()
                 sleep(2)
-                gql_span_names = set(span["name"] for span in _get_gql_spans("name")[project_name])
+                project = _get_gql_spans(None, "name")[project_name]
+                gql_span_names = set(span["name"] for span in project)
                 assert gql_span_names == span_names

@@ -22,11 +22,7 @@ export async function authenticatedRootLoader() {
     {}
   ).toPromise();
 
-  if (!loaderData?.viewer) {
-    // Should never happen but just in case
-    return redirect("/login");
-  }
-  if (loaderData.viewer.passwordNeedsReset) {
+  if (loaderData?.viewer?.passwordNeedsReset) {
     return redirect("/reset-password");
   }
   return loaderData;

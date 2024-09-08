@@ -1,43 +1,22 @@
 import os
 import secrets
 from contextlib import ExitStack
-from dataclasses import asdict
-from itertools import count, starmap
-from typing import Any, Generator, Iterator, Optional, cast
+from typing import Any, Iterator
 from unittest import mock
 
 import pytest
-from faker import Faker
-from phoenix.auth import (
-    DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
-    REQUIREMENTS_FOR_PHOENIX_SECRET,
-)
+from phoenix.auth import DEFAULT_SECRET_LENGTH
 from phoenix.config import ENV_PHOENIX_ENABLE_AUTH, ENV_PHOENIX_SECRET
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
-from .._helpers import (
-    _AccessToken,
-    _create_user,
-    _Email,
-    _GetNewUser,
-    _log_in,
-    _LoggedInUser,
-    _Password,
-    _Profile,
-    _Secret,
-    _server,
-    _UserGenerator,
-    _Username,
-)
+from .._helpers import _Secret, _server
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def _secret() -> _Secret:
-    return secrets.token_hex(32)
+    return secrets.token_hex(DEFAULT_SECRET_LENGTH)
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="module")
 def _app(
     _secret: _Secret,
     _env_phoenix_sql_database_url: Any,
@@ -50,61 +29,3 @@ def _app(
         stack.enter_context(mock.patch.dict(os.environ, values))
         stack.enter_context(_server())
         yield
-
-
-@pytest.fixture(scope="class")
-def _emails(_fake: Faker) -> Iterator[_Email]:
-    return (_fake.unique.email() for _ in count())
-
-
-@pytest.fixture(scope="class")
-def _passwords(_fake: Faker) -> Iterator[_Password]:
-    return (_fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET)) for _ in count())
-
-
-@pytest.fixture(scope="class")
-def _usernames(_fake: Faker) -> Iterator[_Username]:
-    return (_fake.unique.pystr() for _ in count())
-
-
-@pytest.fixture(scope="class")
-def _profiles(
-    _emails: Iterator[_Email],
-    _passwords: Iterator[_Password],
-    _usernames: Iterator[_Username],
-) -> Iterator[_Profile]:
-    return starmap(_Profile, zip(_emails, _passwords, _usernames))
-
-
-@pytest.fixture
-def _users(
-    _profiles: Iterator[_Profile],
-    _admin_token: _AccessToken,
-) -> _UserGenerator:
-    def _() -> Generator[Optional[_LoggedInUser], UserRoleInput, None]:
-        role = yield None
-        for profile in _profiles:
-            gid = _create_user(_admin_token, profile=profile, role=role)
-            password, email = profile.password, profile.email
-            tokens = _log_in(password, email=email)
-            role = yield _LoggedInUser(gid=gid, role=role, tokens=tokens, profile=profile)
-
-    g = _()
-    next(g)
-    return cast(_UserGenerator, g)
-
-
-@pytest.fixture
-def _get_new_user(
-    _users: _UserGenerator,
-) -> _GetNewUser:
-    def _(role: UserRoleInput) -> _LoggedInUser:
-        return _users.send(role)
-
-    return _
-
-
-@pytest.fixture
-def _admin_token() -> Iterator[_AccessToken]:
-    with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (token, _):
-        yield token

@@ -1,9 +1,16 @@
-from contextlib import nullcontext
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from itertools import product
-from typing import ContextManager, Iterator, Optional
-from urllib.parse import urljoin
+from typing import (
+    ContextManager,
+    DefaultDict,
+    Dict,
+    Generic,
+    Iterator,
+    Optional,
+    Set,
+    TypeVar,
+)
 
 import jwt
 import pytest
@@ -11,259 +18,362 @@ from faker import Faker
 from httpx import HTTPStatusError
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.auth import (
-    DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
-    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
-)
-from phoenix.config import get_base_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from strawberry.relay import GlobalID
 
 from .._helpers import (
+    _ADMIN,
+    _CZAR,
+    _DENIED,
     _EXPECTATION_401,
+    _MEMBER,
+    _OK,
+    _OK_OR_DENIED,
+    _SYSTEM_USER_GID,
     _AccessToken,
-    _create_system_api_key,
+    _ApiKey,
     _create_user,
-    _delete_system_api_key,
-    _Email,
-    _GetNewUser,
+    _Expectation,
+    _GetUser,
     _GqlId,
     _Headers,
-    _httpx_client,
     _log_in,
-    _log_out,
+    _LoggedInUser,
     _Password,
     _patch_user,
     _patch_viewer,
     _Profile,
     _RefreshToken,
-    _SpanExporterConstructor,
+    _RoleOrUser,
+    _SpanExporterFactory,
     _start_span,
     _Username,
 )
 
 NOW = datetime.now(timezone.utc)
+_decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
+_TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 
 
-class TestTokens:
-    def test_log_in_tokens_should_change(self) -> None:
-        password, email = DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_EMAIL
-        n, access_tokens, refresh_tokens = 2, set(), set()
-        for _ in range(n):
-            with _log_in(password, email=email) as (access_token, refresh_token):
-                access_tokens.add(access_token)
-                refresh_tokens.add(refresh_token)
-        assert len(access_tokens) == n
-        assert len(refresh_tokens) == n
-        decode = partial(jwt.decode, options=dict(verify_signature=False))
-        assert len({decode(token)["jti"] for token in access_tokens}) == n
-        assert len({decode(token)["jti"] for token in refresh_tokens}) == n
-
-
-class TestUsers:
-    @pytest.mark.parametrize(
-        "email,use_admin_password,expectation",
-        [
-            ("admin@localhost", True, nullcontext()),
-            ("admin@localhost", False, _EXPECTATION_401),
-            ("system@localhost", True, _EXPECTATION_401),
-            ("admin", True, _EXPECTATION_401),
-        ],
-    )
-    def test_admin(
+class TestLogIn:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_get_user_can_log_in(
         self,
-        email: _Email,
-        use_admin_password: bool,
-        expectation: ContextManager[Optional[Unauthorized]],
-        _fake: Faker,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        u.log_in()
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_get_user_can_log_in_more_than_once_simultaneously(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        for _ in range(10):
+            u.log_in()
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_get_user_cannot_log_in_with_empty_password(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        with _EXPECTATION_401:
+            _log_in("", email=u.email)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_get_user_cannot_log_in_with_wrong_password(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
         _passwords: Iterator[_Password],
     ) -> None:
-        password = DEFAULT_ADMIN_PASSWORD if use_admin_password else next(_passwords)
+        u = _get_user(role_or_user)
+        assert (wrong_password := next(_passwords)) != u.password
         with _EXPECTATION_401:
-            _create_system_api_key(None, name=_fake.unique.pystr())
-        with expectation:
-            with _log_in(password, email=email) as (token, _):
-                _create_system_api_key(token, name=_fake.unique.pystr())
+            _log_in(wrong_password, email=u.email)
+
+
+class TestLogOut:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_get_user_can_log_out(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doers = [u.log_in() for _ in range(2)]
+        for doer in doers:
+            doer.create_api_key()
+        doers[0].log_out()
+        for doer in doers:
             with _EXPECTATION_401:
-                _create_system_api_key(token, name=_fake.unique.pystr())
+                doer.create_api_key()
 
-    def test_end_to_end_credentials_flow(self, _fake: Faker) -> None:
-        password, email = DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_EMAIL
+
+class TestLoggedInTokens:
+    class _JtiSet(Generic[_TokenT]):
+        def __init__(self) -> None:
+            self._set: Set[str] = set()
+
+        def add(self, token: _TokenT) -> None:
+            assert (jti := _decode_jwt(token)["jti"]) not in self._set
+            self._set.add(jti)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_logged_in_tokens_should_change_after_log_out(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        access_tokens = self._JtiSet[_AccessToken]()
+        refresh_tokens = self._JtiSet[_RefreshToken]()
+        u = _get_user(role_or_user)
+        for _ in range(2):
+            with u.log_in() as doer:
+                access_tokens.add(doer.tokens.access_token)
+                refresh_tokens.add(doer.tokens.refresh_token)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_logged_in_tokens_should_differ_between_users(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+    ) -> None:
+        access_tokens = self._JtiSet[_AccessToken]()
+        refresh_tokens = self._JtiSet[_RefreshToken]()
+        u = _get_user(role_or_user)
+        with u.log_in() as doer:
+            access_tokens.add(doer.tokens.access_token)
+            refresh_tokens.add(doer.tokens.refresh_token)
+        other_user = _get_user(role)
+        with other_user.log_in() as doer:
+            access_tokens.add(doer.tokens.access_token)
+            refresh_tokens.add(doer.tokens.refresh_token)
+
+
+class TestRefreshToken:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_end_to_end_credentials_flow(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doers: DefaultDict[int, Dict[int, _LoggedInUser]] = defaultdict(dict)
+
         # user logs into first browser
-        browser_0_access_token_0, browser_0_refresh_token_0 = _log_in(password, email=email)
-
+        doers[0][0] = u.log_in()
         # user creates api key in the first browser
-        _create_system_api_key(browser_0_access_token_0, name="api-key-0")
-
+        doers[0][0].create_api_key()
         # tokens are refreshed in the first browser
-        resp = _httpx_client(browser_0_access_token_0, browser_0_refresh_token_0).post(
-            urljoin(get_base_url(), "auth/refresh"),
-        )
-        resp.raise_for_status()
-        browser_0_access_token_1 = _AccessToken(resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME))
-        browser_0_refresh_token_1 = _RefreshToken(
-            resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
-        )
-        assert browser_0_access_token_1
-        assert browser_0_refresh_token_1
-
+        doers[0][1] = doers[0][0].refresh()
         # user creates api key in the first browser
-        _create_system_api_key(browser_0_access_token_1, name="api-key-1")
-
+        doers[0][1].create_api_key()
         # refresh token is good for one use only
-        resp = _httpx_client(browser_0_access_token_0, browser_0_refresh_token_0).post(
-            urljoin(get_base_url(), "auth/refresh"),
-        )
         with pytest.raises(HTTPStatusError):
-            resp.raise_for_status()
-
+            doers[0][0].refresh()
         # original access token is invalid after refresh
         with _EXPECTATION_401:
-            _create_system_api_key(browser_0_access_token_0, name="api-key-2")
+            doers[0][0].create_api_key()
 
-        # user logs into second browser
-        browser_1_access_token_0, browser_1_refresh_token_0 = _log_in(password, email=email)
-
-        # user creates api key in the second browser
-        _create_system_api_key(browser_1_access_token_0, name="api-key-3")
+        # user logs into second doers
+        doers[1][0] = u.log_in()
+        # user creates api key in the second doers
+        doers[1][0].create_api_key()
 
         # user logs out in first browser
-        _log_out(browser_0_access_token_1, browser_0_refresh_token_1)
-
+        doers[0][1].log_out()
         # user is logged out of both browsers
         with _EXPECTATION_401:
-            _create_system_api_key(browser_0_access_token_1, name="api-key-4")
+            doers[0][1].create_api_key()
         with _EXPECTATION_401:
-            _create_system_api_key(browser_1_access_token_0, name="api-key-5")
+            doers[1][0].create_api_key()
 
-    @pytest.mark.parametrize(
-        "role,expectation",
-        [
-            (UserRoleInput.ADMIN, nullcontext()),
-            (UserRoleInput.MEMBER, pytest.raises(Unauthorized)),
-        ],
-    )
-    def test_create_user(
+
+class TestCreateUser:
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_cannot_create_user_without_access(
         self,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
-        _fake: Faker,
         _profiles: Iterator[_Profile],
     ) -> None:
         profile = next(_profiles)
         with _EXPECTATION_401:
-            _create_user(profile=profile, role=role)
-        with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (token, _):
-            _create_user(token, profile=profile, role=role)
-        password, email = profile.password, profile.email
-        with _log_in(password, email=email) as (token, _):
-            with expectation:
-                _create_system_api_key(token, name=_fake.unique.pystr())
-            for _role in UserRoleInput:
-                with expectation:
-                    _create_user(token, profile=next(_profiles), role=_role)
+            _create_user(role=role, profile=profile)
 
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
     @pytest.mark.parametrize("role", list(UserRoleInput))
-    def test_user_can_change_password_for_self(
+    def test_only_admin_can_create_user(
         self,
+        role_or_user: UserRoleInput,
         role: UserRoleInput,
-        _get_new_user: _GetNewUser,
+        expectation: ContextManager[Optional[Unauthorized]],
+        _get_user: _GetUser,
+        _profiles: Iterator[_Profile],
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        profile = next(_profiles)
+        with expectation as e:
+            new_user = doer.create_user(role, profile=profile)
+        if not e:
+            new_user.log_in()
+
+
+class TestPatchViewer:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_cannot_patch_viewer_without_access(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        with _EXPECTATION_401:
+            _patch_viewer(None, u.password, new_username="new_username")
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_cannot_change_password_without_current_password(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
         _passwords: Iterator[_Password],
     ) -> None:
-        user = _get_new_user(role)
-        email = user.email
-        password = user.password
-        (token, *_) = user.tokens
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        new_password = next(_passwords)
+        with pytest.raises(Exception):
+            _patch_viewer(doer, None, new_password=new_password)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_cannot_change_password_with_wrong_current_password(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _passwords: Iterator[_Password],
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        assert (wrong_password := next(_passwords)) != doer.password
+        new_password = next(_passwords)
+        with pytest.raises(Exception):
+            _patch_viewer(doer, wrong_password, new_password=new_password)
+
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_change_password(
+        self,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+        _passwords: Iterator[_Password],
+    ) -> None:
+        u = _get_user(role)
+        doer = u.log_in()
         new_password = f"new_password_{next(_passwords)}"
-        assert new_password != password
-        wrong_password = next(_passwords)
-        assert wrong_password != password
-        for _token, _password in product((None, token), (None, wrong_password, password)):
-            if _token == token and _password == password:
-                continue
-            with pytest.raises(BaseException):
-                _patch_viewer(_token, _password, new_password=new_password)
-            _log_in(password, email=email)
-        _patch_viewer((old_token := token), (old_password := password), new_password=new_password)
+        assert new_password != doer.password
+        _patch_viewer(
+            (old_token := doer.tokens),
+            (old_password := doer.password),
+            new_password=new_password,
+        )
         another_password = f"another_password_{next(_passwords)}"
         with _EXPECTATION_401:
             _patch_viewer(old_token, new_password, new_password=another_password)
         with _EXPECTATION_401:
-            _log_in(old_password, email=email)
-        new_token, *_ = _log_in(new_password, email=email)
-        with pytest.raises(BaseException):
-            _patch_viewer(new_token, old_password, new_password=another_password)
+            _log_in(old_password, email=doer.email)
+        new_tokens = _log_in(new_password, email=doer.email)
+        with pytest.raises(Exception):
+            _patch_viewer(new_tokens, old_password, new_password=another_password)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
-    def test_user_can_change_username_for_self(
+    def test_change_username(
         self,
         role: UserRoleInput,
-        _get_new_user: _GetNewUser,
+        _get_user: _GetUser,
         _usernames: Iterator[_Username],
         _passwords: Iterator[_Password],
     ) -> None:
-        user = _get_new_user(role)
-        (token, *_), password = user.tokens, user.password
+        u = _get_user(role)
+        doer = u.log_in()
         new_username = f"new_username_{next(_usernames)}"
-        for _password in (None, password):
-            with _EXPECTATION_401:
-                _patch_viewer(None, _password, new_username=new_username)
-        _patch_viewer(token, None, new_username=new_username)
+        _patch_viewer(doer, None, new_username=new_username)
         another_username = f"another_username_{next(_usernames)}"
         wrong_password = next(_passwords)
-        assert wrong_password != password
-        _patch_viewer(token, wrong_password, new_username=another_username)
+        assert wrong_password != doer.password
+        _patch_viewer(doer, wrong_password, new_username=another_username)
 
+
+class TestPatchUser:
     @pytest.mark.parametrize(
-        "role,expectation",
+        "role_or_user,expectation",
         [
-            (UserRoleInput.MEMBER, pytest.raises(Unauthorized)),
-            (UserRoleInput.ADMIN, nullcontext()),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
         ],
     )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    @pytest.mark.parametrize("new_role", list(UserRoleInput))
     def test_only_admin_can_change_role_for_non_self(
         self,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
+        new_role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        _get_new_user: _GetNewUser,
+        _get_user: _GetUser,
     ) -> None:
-        user = _get_new_user(role)
-        non_self = _get_new_user(UserRoleInput.MEMBER)
-        assert user.gid != non_self.gid
-        (token, *_), gid = user.tokens, non_self.gid
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role)
+        assert non_self.gid != doer.gid
         with _EXPECTATION_401:
-            _patch_user(gid, new_role=UserRoleInput.ADMIN)
+            _patch_user(non_self, new_role=new_role)
         with expectation:
-            _patch_user(gid, token, new_role=UserRoleInput.ADMIN)
+            doer.patch_user(non_self, new_role=new_role)
 
     @pytest.mark.parametrize(
-        "role,expectation",
+        "role_or_user,expectation",
         [
-            (UserRoleInput.MEMBER, pytest.raises(Unauthorized)),
-            (UserRoleInput.ADMIN, nullcontext()),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
         ],
     )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_change_password_for_non_self(
         self,
+        role_or_user: UserRoleInput,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        _get_new_user: _GetNewUser,
+        _get_user: _GetUser,
         _passwords: Iterator[_Password],
     ) -> None:
-        user = _get_new_user(role)
-        non_self = _get_new_user(UserRoleInput.MEMBER)
-        assert user.gid != non_self.gid
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role)
+        assert non_self.gid != doer.gid
         old_password = non_self.password
         new_password = f"new_password_{next(_passwords)}"
         assert new_password != old_password
-        (token, *_), gid = user.tokens, non_self.gid
         with _EXPECTATION_401:
-            _patch_user(gid, new_password=new_password)
+            _patch_user(non_self, new_password=new_password)
         with expectation as e:
-            _patch_user(gid, token, new_password=new_password)
+            doer.patch_user(non_self, new_password=new_password)
         if e:
+            non_self.log_in()
             return
         email = non_self.email
         with _EXPECTATION_401:
@@ -271,146 +381,203 @@ class TestUsers:
         _log_in(new_password, email=email)
 
     @pytest.mark.parametrize(
-        "role,expectation",
+        "role_or_user,expectation",
         [
-            (UserRoleInput.MEMBER, pytest.raises(Unauthorized)),
-            (UserRoleInput.ADMIN, nullcontext()),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
         ],
     )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_change_username_for_non_self(
         self,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: ContextManager[Optional[Unauthorized]],
-        _get_new_user: _GetNewUser,
+        _get_user: _GetUser,
         _usernames: Iterator[_Username],
     ) -> None:
-        user = _get_new_user(role)
-        non_self = _get_new_user(UserRoleInput.MEMBER)
-        assert user.gid != non_self.gid
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role)
+        assert non_self.gid != doer.gid
         old_username = non_self.username
         new_username = f"new_username_{next(_usernames)}"
         assert new_username != old_username
-        (token, *_), gid = user.tokens, non_self.gid
         with _EXPECTATION_401:
-            _patch_user(gid, new_username=new_username)
+            _patch_user(non_self, new_username=new_username)
         with expectation:
-            _patch_user(gid, token, new_username=new_username)
+            doer.patch_user(non_self, new_username=new_username)
 
 
-def _create_user_key(token: str) -> str:
-    _create_user_key_mutation = """
-            mutation ($input: CreateUserApiKeyInput!) {
-              createUserApiKey(input: $input) {
-                apiKey {
-                  id
-                }
-              }
-            }
-            """
-    resp = _httpx_client().post(
-        urljoin(get_base_url(), "graphql"),
-        json={
-            "query": _create_user_key_mutation,
-            "variables": {
-                "input": {
-                    "name": "test",
-                }
-            },
-        },
-        cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: token},
+class TestDeleteUsers:
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, pytest.raises(Exception)),
+            (_CZAR, pytest.raises(Exception)),
+        ],
     )
-    resp.raise_for_status()
-    return str(resp.json()["data"]["createUserApiKey"]["apiKey"]["id"])
+    def test_cannot_delete_system_user(
+        self,
+        role_or_user: UserRoleInput,
+        expectation: _Expectation,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        with expectation:
+            doer.delete_users(_SYSTEM_USER_GID)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, pytest.raises(Exception, match="Cannot delete the default admin user")),
+            (_CZAR, pytest.raises(Exception)),
+        ],
+    )
+    def test_cannot_delete_default_admin_user(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _Expectation,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        with expectation:
+            doer.delete_users(_CZAR)
+        _CZAR.log_in()
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_only_admin_can_delete_users(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role)
+        with expectation as e:
+            doer.delete_users(non_self)
+        if e:
+            non_self.log_in()
+        else:
+            with _EXPECTATION_401:
+                non_self.log_in()
+
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _CZAR])
+    def test_error_is_raised_when_deleting_a_non_existent_user_id(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        phantom = _GqlId(GlobalID(type_name="User", node_id=str(999_999_999)))
+        user = _get_user()
+        with pytest.raises(Exception, match="Some user IDs could not be found"):
+            doer.delete_users(phantom, user)
+        user.log_in()
 
 
-class TestApiKeys:
-    DELETE_USER_KEY_MUTATION = """
-            mutation ($input: DeleteApiKeyInput!) {
-              deleteUserApiKey(input: $input) {
-                apiKeyId
-              }
-            }
-            """
+class TestCreateApiKey:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_create_user_api_key(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        doer.create_api_key()
 
-    def test_delete_user_api_key(self, _passwords: Iterator[_Password]) -> None:
-        member_email = "member@localhost.com"
-        username = "member"
-        member_password = next(_passwords)
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    def test_only_admin_can_create_system_api_key(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        with expectation:
+            doer.create_api_key("System")
 
-        with _log_in(DEFAULT_ADMIN_PASSWORD, email=DEFAULT_ADMIN_EMAIL) as (admin_token, _):
-            admin_api_key_id = _create_user_key(admin_token)
-            _create_user(
-                admin_token,
-                role=UserRoleInput.MEMBER,
-                profile=_Profile(email=member_email, password=member_password, username=username),
-            )
 
-            with _log_in(
-                member_password,
-                email=member_email,
-            ) as (member_token, _):
-                member_api_key_id = _create_user_key(member_token)
-                member_api_key_id_2 = _create_user_key(member_token)
-                # member can delete their own keys
-                resp = _httpx_client().post(
-                    urljoin(get_base_url(), "graphql"),
-                    json={
-                        "query": self.DELETE_USER_KEY_MUTATION,
-                        "variables": {
-                            "input": {
-                                "id": member_api_key_id,
-                            }
-                        },
-                    },
-                    cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: member_token},
-                )
-                resp.raise_for_status()
-                assert resp.json().get("errors") is None
-                # member can't delete other user's keys
-                resp = _httpx_client().post(
-                    urljoin(get_base_url(), "graphql"),
-                    json={
-                        "query": self.DELETE_USER_KEY_MUTATION,
-                        "variables": {
-                            "input": {
-                                "id": admin_api_key_id,
-                            }
-                        },
-                    },
-                    cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: member_token},
-                )
-                assert len(errors := resp.json().get("errors")) == 1
-                assert errors[0]["message"] == "User not authorized to delete"
-                # admin can delete their own key
-                resp = _httpx_client().post(
-                    urljoin(get_base_url(), "graphql"),
-                    json={
-                        "query": self.DELETE_USER_KEY_MUTATION,
-                        "variables": {
-                            "input": {
-                                "id": admin_api_key_id,
-                            }
-                        },
-                    },
-                    cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
-                )
-                resp.raise_for_status()
-                assert resp.json().get("errors") is None
-                # admin can delete other user's keys
-                resp = _httpx_client().post(
-                    urljoin(get_base_url(), "graphql"),
-                    json={
-                        "query": self.DELETE_USER_KEY_MUTATION,
-                        "variables": {
-                            "input": {
-                                "id": member_api_key_id_2,
-                            }
-                        },
-                    },
-                    cookies={PHOENIX_ACCESS_TOKEN_COOKIE_NAME: admin_token},
-                )
-                resp.raise_for_status()
-                assert resp.json().get("errors") is None
+class TestDeleteApiKey:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_delete_user_api_key(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        api_key = doer.create_api_key()
+        doer.delete_api_key(api_key)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_only_admin_can_delete_user_api_key_for_non_self(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role).log_in()
+        assert non_self.gid != doer.gid
+        api_key = non_self.create_api_key()
+        with expectation:
+            doer.delete_api_key(api_key)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    def test_only_admin_can_delete_system_api_key(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        api_key = _CZAR.create_api_key("System")
+        with expectation:
+            doer.delete_api_key(api_key)
 
 
 class TestSpanExporters:
@@ -428,19 +595,14 @@ class TestSpanExporters:
         with_headers: bool,
         expires_at: Optional[datetime],
         expected: SpanExportResult,
-        _span_exporter: _SpanExporterConstructor,
-        _admin_token: _AccessToken,
+        _span_exporter: _SpanExporterFactory,
         _fake: Faker,
     ) -> None:
         headers: Optional[_Headers] = None
-        gid: Optional[_GqlId] = None
+        api_key: Optional[_ApiKey] = None
         if with_headers:
-            system_api_key, gid = _create_system_api_key(
-                _admin_token,
-                name=_fake.unique.pystr(),
-                expires_at=expires_at,
-            )
-            headers = {"authorization": f"Bearer {system_api_key}"}
+            api_key = _CZAR.log_in().create_api_key("System", expires_at=expires_at)
+            headers = dict(authorization=f"Bearer {api_key}")
         export = _span_exporter(headers=headers).export
         project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
         memory = InMemorySpanExporter()
@@ -449,6 +611,6 @@ class TestSpanExporters:
         assert len(spans) == 1
         for _ in range(2):
             assert export(spans) is expected
-        if gid is not None and expected is SpanExportResult.SUCCESS:
-            _delete_system_api_key(gid, _admin_token)
+        if api_key and expected is SpanExportResult.SUCCESS:
+            _CZAR.log_in().delete_api_key(api_key)
             assert export(spans) is SpanExportResult.FAILURE
