@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager, nullcontext
@@ -526,9 +527,9 @@ def _random_schema(url: URL, fake: Faker) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     try:
         engine.connect()
-    except OperationalError as ex:
-        pytest.skip(f"PostgreSQL unavailable: {ex}")
-    schema = fake.unique.pystr().lower()
+    except OperationalError as exc:
+        pytest.skip(f"PostgreSQL unavailable: {exc}")
+    schema = "_" + secrets.token_hex(15)
     yield schema
     with engine.connect() as conn:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))

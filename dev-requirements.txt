@@ -2,5 +2,6 @@ mypy==1.11.2
 ruff==0.6.3
 pytest==8.3.2
 pytest-xdist==3.6.1
+pytest-randomly==3.15.0
 pytest-asyncio==0.23.8
 uvloop; platform_system != 'Windows'
