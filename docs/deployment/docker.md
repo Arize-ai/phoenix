@@ -23,6 +23,8 @@ This guide provides instructions for installing and setting up your environment 
 
 ## Docker
 
+Run a local instance of Arize Phoenix in Docker with 2 commands
+
 {% tabs %}
 {% tab title="Docker" %}
 Pull the image you would like to run
@@ -42,6 +44,8 @@ docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 ```
 
 See [#ports](../setup/configuration.md#ports "mention") for details on the ports for the container.
+
+Navigate to [http://0.0.0.0:6006](http://0.0.0.0:6006) and you should see your local Arize Phoenix
 {% endtab %}
 {% endtabs %}
 
