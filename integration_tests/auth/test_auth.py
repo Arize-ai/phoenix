@@ -58,7 +58,7 @@ _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 
 class TestLogIn:
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
-    def test_get_user_can_log_in(
+    def test_can_log_in(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -67,7 +67,7 @@ class TestLogIn:
         u.log_in()
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
-    def test_get_user_can_log_in_more_than_once_simultaneously(
+    def test_can_log_in_more_than_once_simultaneously(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -77,7 +77,7 @@ class TestLogIn:
             u.log_in()
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
-    def test_get_user_cannot_log_in_with_empty_password(
+    def test_cannot_log_in_with_empty_password(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -87,7 +87,7 @@ class TestLogIn:
             _log_in("", email=u.email)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
-    def test_get_user_cannot_log_in_with_wrong_password(
+    def test_cannot_log_in_with_wrong_password(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -101,7 +101,7 @@ class TestLogIn:
 
 class TestLogOut:
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
-    def test_get_user_can_log_out(
+    def test_can_log_out(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
