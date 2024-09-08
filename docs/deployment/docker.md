@@ -1,6 +1,6 @@
 # Docker
 
-{% embed url="https://hub.docker.com/r/arizephoenix/phoenix/tags" %}
+{% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
 
 This guide provides instructions for installing and setting up your environment to run Phoenix locally using Docker.
 
@@ -22,12 +22,6 @@ This guide provides instructions for installing and setting up your environment 
    2. Note: We do only officially support Postgres versions >= 14.
 
 ## Docker
-
-Lastly, we must run the phoenix server so that our application can export spans to it. To do this, we recommend running phoenix via an image. Phoenix images are available via dockerhub.
-
-{% embed url="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general" %}
-
-In order to run the phoenix server, you will have to start the application. Below are a few examples of how you can run the application on your local machine.
 
 {% tabs %}
 {% tab title="Docker" %}
