@@ -184,9 +184,9 @@ class TestRefreshToken:
         with _EXPECTATION_401:
             doers[0][0].create_api_key()
 
-        # user logs into second doers
+        # user logs into second browser
         doers[1][0] = u.log_in()
-        # user creates api key in the second doers
+        # user creates api key in the second browser
         doers[1][0].create_api_key()
 
         # user logs out in first browser
