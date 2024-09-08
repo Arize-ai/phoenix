@@ -4,4 +4,5 @@ openinference-semantic-conventions
 opentelemetry-sdk
 portpicker
 psutil
+pytest-randomly
 types-psutil
