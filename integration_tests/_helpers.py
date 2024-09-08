@@ -34,7 +34,6 @@ from urllib.request import urlopen
 
 import httpx
 import pytest
-from faker import Faker
 from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
@@ -88,10 +87,6 @@ class _Profile:
 
 class _String(str, ABC):
     def __new__(cls, obj: Any) -> _String:
-        """
-
-        :rtype: object
-        """
         assert obj is not None
         return super().__new__(cls, str(obj))
 
@@ -506,7 +501,9 @@ def _server() -> Iterator[None]:
             print(line, end="")
 
 
-def _is_alive(process: Popen) -> bool:
+def _is_alive(
+    process: Popen,
+) -> bool:
     return process.is_running() and process.status() != STATUS_ZOMBIE
 
 
@@ -523,13 +520,15 @@ def _capture_stdout(
 
 
 @contextmanager
-def _random_schema(url: URL, fake: Faker) -> Iterator[str]:
+def _random_schema(
+    url: URL,
+) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     try:
         engine.connect()
     except OperationalError as exc:
         pytest.skip(f"PostgreSQL unavailable: {exc}")
-    schema = "_" + secrets.token_hex(15)
+    schema = f"_{secrets.token_hex(15)}"
     yield schema
     with engine.connect() as conn:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
@@ -711,7 +710,12 @@ def _delete_api_key(
     assert resp_dict["data"][field]["apiKeyId"] == gid
 
 
-def _log_in(password: _Password, /, *, email: _Email) -> _LoggedInTokens:
+def _log_in(
+    password: _Password,
+    /,
+    *,
+    email: _Email,
+) -> _LoggedInTokens:
     json_ = dict(email=email, password=password)
     resp = _httpx_client().post("auth/login", json=json_)
     resp.raise_for_status()
