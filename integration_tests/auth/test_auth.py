@@ -605,9 +605,9 @@ class TestGraphQLQuery:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        doer = u.log_in()
+        logged_in_user = u.log_in()
         with expectation:
-            doer.gql(query)
+            logged_in_user.gql(query)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
@@ -616,9 +616,9 @@ class TestGraphQLQuery:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        doer = u.log_in()
+        logged_in_user = u.log_in()
         query = 'query{node(id:"' + u.gid + '"){__typename}}'
-        doer.gql(query)
+        logged_in_user.gql(query)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -637,11 +637,11 @@ class TestGraphQLQuery:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        doer = u.log_in()
+        logged_in_user = u.log_in()
         non_self = _get_user(role)
         query = 'query{node(id:"' + non_self.gid + '"){__typename}}'
         with expectation:
-            doer.gql(query)
+            logged_in_user.gql(query)
 
 
 class TestSpanExporters:
