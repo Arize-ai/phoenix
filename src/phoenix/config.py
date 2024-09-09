@@ -76,6 +76,8 @@ ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY = "PHOENIX_ACCESS_TOKEN_EXPIRY"
 ENV_PHOENIX_REFRESH_TOKEN_EXPIRY = "PHOENIX_REFRESH_TOKEN_EXPIRY"
+ENV_PHOENIX_OAUTH_CLIENT_ID = "PHOENIX_OAUTH_CLIENT_ID"
+ENV_PHOENIX_OAUTH_CLIENT_SECRET = "PHOENIX_OAUTH_CLIENT_SECRET"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -215,6 +217,20 @@ def _parse_duration(duration_str: str) -> timedelta:
     if duration <= timedelta(0):
         raise ValueError("duration must be positive")
     return duration
+
+
+def get_oauth_settings() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Gets OAuth settings and performs validation.
+    """
+    oauth_client_id = os.environ.get(ENV_PHOENIX_OAUTH_CLIENT_ID)
+    oauth_client_secret = os.environ.get(ENV_PHOENIX_OAUTH_CLIENT_SECRET)
+    if (oauth_client_id is None) != (oauth_client_secret is None):
+        raise ValueError(
+            f"`{ENV_PHOENIX_OAUTH_CLIENT_ID}` and `{ENV_PHOENIX_OAUTH_CLIENT_SECRET}` "
+            "must be set or unset together."
+        )
+    return oauth_client_id, oauth_client_secret
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

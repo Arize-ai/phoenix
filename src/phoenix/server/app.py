@@ -154,6 +154,8 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    oauth_client_id: Optional[str] = None
+    """OAuth client ID (if configured)"""
 
 
 class Static(StaticFiles):
@@ -202,6 +204,7 @@ class Static(StaticFiles):
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
+                    "oauth_client_id": self._app_config.oauth_client_id,
                 },
             )
         except Exception as e:
@@ -607,6 +610,8 @@ def create_app(
     secret: Optional[str] = None,
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
+    oauth_client_id: Optional[str] = None,
+    oauth_client_secret: Optional[str] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
@@ -735,6 +740,7 @@ def create_app(
                     n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
+                    oauth_client_id=oauth_client_id,
                     web_manifest_path=web_manifest_path,
                 ),
             ),
@@ -745,6 +751,8 @@ def create_app(
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.db = db
+    app.state.oauth_client_id = oauth_client_id
+    app.state.oauth_client_secret = oauth_client_secret
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

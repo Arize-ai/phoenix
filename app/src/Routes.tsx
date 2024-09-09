@@ -29,6 +29,7 @@ import {
   LoginPage,
   ModelPage,
   ModelRoot,
+  oAuthCallbackLoader,
   ProfilePage,
   projectLoader,
   ProjectPage,
@@ -49,6 +50,11 @@ const router = createBrowserRouter(
         path="/reset-password"
         element={<ResetPasswordPage />}
         loader={resetPasswordLoader}
+      />
+      <Route
+        path="/oauth-callback"
+        element={<LoginPage />} // todo: implement loading page
+        loader={oAuthCallbackLoader}
       />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
         <Route element={<Layout />}>

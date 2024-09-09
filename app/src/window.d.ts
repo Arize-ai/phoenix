@@ -15,6 +15,7 @@ declare global {
         nSamples: number;
       };
       authenticationEnabled: boolean;
+      oAuthClientId: string | null;
     };
   }
 }

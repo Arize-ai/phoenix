@@ -1,11 +1,18 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import partial
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
-from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.status import (
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
@@ -184,6 +191,49 @@ async def refresh_tokens(request: Request) -> Response:
     response = set_refresh_token_cookie(
         response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
     )
+    return response
+
+
+@dataclass
+class CreateOAuthTokensRequestBody:
+    authorization_code: str
+    redirect_uri: str
+
+
+@router.post("/oauth-tokens")
+async def create_oauth_tokens(
+    request: Request,
+    body: CreateOAuthTokensRequestBody,
+) -> Response:
+    if not isinstance(oauth_client_id := request.app.state.oauth_client_id, str) or not isinstance(
+        oauth_client_secret := request.app.state.oauth_client_secret, str
+    ):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=(
+                "An OAuth client ID and client secret must be passed via the "
+                "`PHOENIX_OAUTH_CLIENT_ID` and `PHOENIX_OAUTH_CLIENT_SECRET` environment variables."
+            ),
+        )
+    resp = httpx.post(
+        "https://oauth2.googleapis.com/token",
+        json={
+            "client_id": oauth_client_id,
+            "client_secret": oauth_client_secret,
+            "code": body.authorization_code,
+            "redirect_uri": body.redirect_uri,
+            "grant_type": "authorization_code",
+        },
+    )
+    resp.raise_for_status()
+    response_data = resp.json()
+    if not {"access_token", "expires_in", "scope", "token_type", "id_token"}.issubset(
+        set(response_data.keys())
+    ):
+        return Response(status_code=HTTP_401_UNAUTHORIZED)
+    # todo: generate phoenix access and refresh tokens and set as cookies
+    response = Response(status_code=HTTP_204_NO_CONTENT)
+    print("Login success")
     return response
 
 
