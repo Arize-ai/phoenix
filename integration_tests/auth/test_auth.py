@@ -580,6 +580,70 @@ class TestDeleteApiKey:
             doer.delete_api_key(api_key)
 
 
+class TestGraphQLQuery:
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "query{users{edges{node{id}}}}",
+            "query{userApiKeys{id}}",
+            "query{systemApiKeys{id}}",
+        ],
+    )
+    def test_only_admin_can_list_users_and_api_keys(
+        self,
+        role_or_user: _RoleOrUser,
+        query: str,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        with expectation:
+            doer.gql(query)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _CZAR])
+    def test_can_query_user_node_for_self(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        query = 'query{node(id:"' + u.gid + '"){__typename}}'
+        doer.gql(query)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_CZAR, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_only_admin_can_query_user_node_for_non_self(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        non_self = _get_user(role)
+        query = 'query{node(id:"' + non_self.gid + '"){__typename}}'
+        with expectation:
+            doer.gql(query)
+
+
 class TestSpanExporters:
     @pytest.mark.parametrize(
         "with_headers,expires_at,expected",

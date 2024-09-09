@@ -539,6 +539,7 @@ def create_graphql_router(
             ),
             cache_for_dataloaders=cache_for_dataloaders,
             read_only=read_only,
+            auth_enabled=authentication_enabled,
             secret=secret,
             token_store=token_store,
         )
