@@ -28,5 +28,5 @@ class IsAdmin(Authorization):
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         if not info.context.auth_enabled:
-            return True
+            return False
         return isinstance((user := info.context.user), PhoenixUser) and user.is_admin
