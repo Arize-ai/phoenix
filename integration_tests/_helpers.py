@@ -212,7 +212,7 @@ class _User:
 
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
-_CZAR = _User(
+_DEFAULT_ADMIN = _User(
     _GqlId(GlobalID("User", "2")),
     _ADMIN,
     _Profile(
@@ -453,8 +453,8 @@ def _httpx_client(
             PHOENIX_REFRESH_TOKEN_COOKIE_NAME: auth.tokens.refresh_token,
         }
     elif isinstance(auth, _User):
-        doer = auth.log_in()
-        return _httpx_client(doer.tokens, headers, cookies, transport)
+        logged_in_user = auth.log_in()
+        return _httpx_client(logged_in_user.tokens, headers, cookies, transport)
     elif isinstance(auth, _ApiKey):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif auth is None:
