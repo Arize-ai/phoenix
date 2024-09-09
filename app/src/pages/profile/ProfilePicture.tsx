@@ -23,7 +23,7 @@ export function ProfilePicture({ name }: { name: string }) {
         justify-content: center;
         align-items: center;
         border: 1px solid var(--ac-global-color-grey-300);
-        color: var(--ac-global-color-grey-900);
+        color: white;
         background: linear-gradient(
           120deg,
           ${gradientColors[0]},
