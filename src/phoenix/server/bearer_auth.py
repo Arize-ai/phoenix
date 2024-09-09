@@ -1,4 +1,5 @@
 from abc import ABC
+from functools import cached_property
 from typing import Any, Awaitable, Callable, Optional, Tuple
 
 import grpc
@@ -16,6 +17,7 @@ from phoenix.auth import (
     ClaimSetStatus,
     Token,
 )
+from phoenix.db import enums
 from phoenix.server.types import AccessTokenClaims, ApiKeyClaims, UserClaimSet, UserId
 
 
@@ -50,12 +52,21 @@ class PhoenixUser(BaseUser):
     def __init__(self, user_id: UserId, claims: UserClaimSet) -> None:
         self._user_id = user_id
         self.claims = claims
+        assert claims.attributes
+        self._is_admin = (
+            claims.status is ClaimSetStatus.VALID
+            and claims.attributes.user_role == enums.UserRole.ADMIN
+        )
 
-    @property
+    @cached_property
+    def is_admin(self) -> bool:
+        return self._is_admin
+
+    @cached_property
     def identity(self) -> UserId:
         return self._user_id
 
-    @property
+    @cached_property
     def is_authenticated(self) -> bool:
         return True
 

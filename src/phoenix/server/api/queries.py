@@ -33,8 +33,9 @@ from phoenix.db.models import (
     Trace as OrmTrace,
 )
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
@@ -77,7 +78,7 @@ from phoenix.server.api.types.UserRole import UserRole
 
 @strawberry.type
 class Query:
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
         self,
         info: Info[Context, None],
@@ -121,9 +122,8 @@ class Query:
             for role in roles
         ]
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
-        # TODO(auth): add access control
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -134,9 +134,8 @@ class Query:
             api_keys = await session.scalars(stmt)
         return [to_gql_api_key(api_key) for api_key in api_keys]
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
-        # TODO(auth): add access control
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -468,6 +467,8 @@ class Query:
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
         elif type_name == User.__name__:
+            if int((user := info.context.user).identity) != node_id and not user.is_admin:
+                raise Unauthorized(MSG_ADMIN_ONLY)
             async with info.context.db() as session:
                 if not (
                     user := await session.scalar(

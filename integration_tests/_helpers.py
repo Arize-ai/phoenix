@@ -55,7 +55,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
 )
-from phoenix.server.api.auth import IsAdmin, IsAuthenticated
+from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from psutil import STATUS_ZOMBIE, Popen
@@ -129,6 +129,13 @@ class _User:
     @cached_property
     def username(self) -> Optional[_Username]:
         return self.profile.username
+
+    def gql(
+        self,
+        query: str,
+        variables: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return _gql(self, query=query, variables=variables)
 
     def create_user(
         self,
@@ -739,7 +746,7 @@ def _json(
     assert (resp_dict := cast(Dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
-        if "not auth" in msg or IsAuthenticated.message in msg or IsAdmin.message in msg:
+        if "not auth" in msg or IsAdmin.message in msg:
             raise Unauthorized(msg)
         raise RuntimeError(msg)
     return resp_dict
