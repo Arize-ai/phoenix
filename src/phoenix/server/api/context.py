@@ -1,8 +1,8 @@
 from asyncio import get_running_loop
 from dataclasses import dataclass
-from functools import partial
+from functools import cached_property, partial
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -42,6 +42,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -96,6 +97,7 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None
 
@@ -146,3 +148,7 @@ class Context(BaseContext):
         response = self.get_response()
         response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
         response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+
+    @cached_property
+    def user(self) -> PhoenixUser:
+        return cast(PhoenixUser, self.get_request().user)

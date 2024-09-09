@@ -107,11 +107,11 @@ class TestLogOut:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        doers = [u.log_in() for _ in range(2)]
-        for logged_in_user in doers:
+        logged_in_users = [u.log_in() for _ in range(2)]
+        for logged_in_user in logged_in_users:
             logged_in_user.create_api_key()
-        doers[0].log_out()
-        for logged_in_user in doers:
+        logged_in_users[0].log_out()
+        for logged_in_user in logged_in_users:
             with _EXPECTATION_401:
                 logged_in_user.create_api_key()
 
@@ -167,35 +167,35 @@ class TestRefreshToken:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        doers: DefaultDict[int, Dict[int, _LoggedInUser]] = defaultdict(dict)
+        logged_in_users: DefaultDict[int, Dict[int, _LoggedInUser]] = defaultdict(dict)
 
         # user logs into first browser
-        doers[0][0] = u.log_in()
+        logged_in_users[0][0] = u.log_in()
         # user creates api key in the first browser
-        doers[0][0].create_api_key()
+        logged_in_users[0][0].create_api_key()
         # tokens are refreshed in the first browser
-        doers[0][1] = doers[0][0].refresh()
+        logged_in_users[0][1] = logged_in_users[0][0].refresh()
         # user creates api key in the first browser
-        doers[0][1].create_api_key()
+        logged_in_users[0][1].create_api_key()
         # refresh token is good for one use only
         with pytest.raises(HTTPStatusError):
-            doers[0][0].refresh()
+            logged_in_users[0][0].refresh()
         # original access token is invalid after refresh
         with _EXPECTATION_401:
-            doers[0][0].create_api_key()
+            logged_in_users[0][0].create_api_key()
 
         # user logs into second browser
-        doers[1][0] = u.log_in()
+        logged_in_users[1][0] = u.log_in()
         # user creates api key in the second browser
-        doers[1][0].create_api_key()
+        logged_in_users[1][0].create_api_key()
 
         # user logs out in first browser
-        doers[0][1].log_out()
+        logged_in_users[0][1].log_out()
         # user is logged out of both browsers
         with _EXPECTATION_401:
-            doers[0][1].create_api_key()
+            logged_in_users[0][1].create_api_key()
         with _EXPECTATION_401:
-            doers[1][0].create_api_key()
+            logged_in_users[1][0].create_api_key()
 
 
 class TestCreateUser:
@@ -580,6 +580,70 @@ class TestDeleteApiKey:
             logged_in_user.delete_api_key(api_key)
 
 
+class TestGraphQLQuery:
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "query{users{edges{node{id}}}}",
+            "query{userApiKeys{id}}",
+            "query{systemApiKeys{id}}",
+        ],
+    )
+    def test_only_admin_can_list_users_and_api_keys(
+        self,
+        role_or_user: _RoleOrUser,
+        query: str,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        logged_in_user = u.log_in()
+        with expectation:
+            logged_in_user.gql(query)
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    def test_can_query_user_node_for_self(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        logged_in_user = u.log_in()
+        query = 'query{node(id:"' + u.gid + '"){__typename}}'
+        logged_in_user.gql(query)
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_only_admin_can_query_user_node_for_non_self(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        logged_in_user = u.log_in()
+        non_self = _get_user(role)
+        query = 'query{node(id:"' + non_self.gid + '"){__typename}}'
+        with expectation:
+            logged_in_user.gql(query)
+
+
 class TestSpanExporters:
     @pytest.mark.parametrize(
         "with_headers,expires_at,expected",
@@ -612,5 +676,5 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
-            _DEFAULT_ADMIN.log_in().delete_api_key(api_key)
+            _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(spans) is SpanExportResult.FAILURE
