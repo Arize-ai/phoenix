@@ -1,11 +1,20 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
+from urllib.parse import parse_qs
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.responses import JSONResponse
+from starlette.status import (
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
@@ -170,6 +179,55 @@ async def refresh_tokens(request: Request) -> Response:
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(response, access_token)
     response = set_refresh_token_cookie(response, refresh_token)
+    return response
+
+
+@dataclass
+class CreateGitHubOAuthTokensRequestBody:
+    code: str
+
+
+@router.post("/github-tokens")
+async def create_github_oauth_tokens(
+    request: Request,
+    body: CreateGitHubOAuthTokensRequestBody,
+) -> Response:
+    if not isinstance(
+        github_client_id := request.app.state.github_client_id, str
+    ) or not isinstance(github_client_secret := request.app.state.github_client_secret, str):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=(
+                "In order to log in with GitHub, a GitHub app must be configured and "
+                "the client ID and client secret must be passed via the `PHOENIX_GITHUB_CLIENT_ID` "
+                "and `PHOENIX_GITHUB_CLIENT_SECRET` environment variables."
+            ),
+        )
+    resp = httpx.post(
+        "https://github.com/login/oauth/access_token",
+        params={
+            "client_id": github_client_id,
+            "client_secret": github_client_secret,
+            "code": body.code,
+        },
+    )
+    resp.raise_for_status()
+    response_data = parse_qs(resp.text)
+    errors = response_data.get("error", [])
+    error_descriptions = response_data.get("error_description", [])
+    error_uris = response_data.get("error_uri", [])
+    if errors or error_descriptions or error_uris:
+        return JSONResponse(
+            status_code=HTTP_401_UNAUTHORIZED,
+            content={
+                "errors": errors,
+                "error_descriptions": error_descriptions,
+                "error_uris": error_uris,
+            },
+        )
+    # todo: generate phoenix access and refresh tokens and set as cookies
+    print(f"{response_data=}")
+    response = Response(status_code=HTTP_204_NO_CONTENT)
     return response
 
 

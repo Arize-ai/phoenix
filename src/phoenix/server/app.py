@@ -155,6 +155,8 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    github_client_id: Optional[str] = None
+    """ GitHub OAuth client ID (if configured)"""
 
 
 class Static(StaticFiles):
@@ -203,6 +205,7 @@ class Static(StaticFiles):
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
+                    "github_client_id": self._app_config.github_client_id,
                 },
             )
         except Exception as e:
@@ -617,6 +620,8 @@ def create_app(
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     secret: Optional[str] = None,
+    github_client_id: Optional[str] = None,
+    github_client_secret: Optional[str] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
@@ -744,6 +749,7 @@ def create_app(
                     n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
+                    github_client_id=github_client_id,
                     web_manifest_path=web_manifest_path,
                 ),
             ),
@@ -752,6 +758,8 @@ def create_app(
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.state.db = db
+    app.state.github_client_id = github_client_id
+    app.state.github_client_secret = github_client_secret
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

@@ -71,6 +71,8 @@ ENV_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_GITHUB_CLIENT_ID = "PHOENIX_GITHUB_CLIENT_ID"
+ENV_PHOENIX_GITHUB_CLIENT_SECRET = "PHOENIX_GITHUB_CLIENT_SECRET"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -166,6 +168,20 @@ def get_auth_settings() -> Tuple[bool, Optional[str]]:
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     return enable_auth, phoenix_secret
+
+
+def get_github_oauth_settings() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Gets GitHub OAuth settings and performs validation.
+    """
+    github_client_id = os.environ.get(ENV_PHOENIX_GITHUB_CLIENT_ID)
+    github_client_secret = os.environ.get(ENV_PHOENIX_GITHUB_CLIENT_SECRET)
+    if (github_client_id is None) != (github_client_secret is None):
+        raise ValueError(
+            f"`{ENV_PHOENIX_GITHUB_CLIENT_ID}` and `{ENV_PHOENIX_GITHUB_CLIENT_SECRET}` "
+            "must be set or unset together."
+        )
+    return github_client_id, github_client_secret
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

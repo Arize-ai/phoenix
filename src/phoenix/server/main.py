@@ -25,6 +25,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_port,
+    get_github_oauth_settings,
     get_pids_path,
     get_working_dir,
 )
@@ -370,6 +371,7 @@ if __name__ == "__main__":
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    github_client_id, github_client_secret = get_github_oauth_settings()
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -388,6 +390,8 @@ if __name__ == "__main__":
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
         scaffolder_config=scaffolder_config,
+        github_client_id=github_client_id,
+        github_client_secret=github_client_secret,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

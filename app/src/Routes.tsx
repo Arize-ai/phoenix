@@ -25,6 +25,7 @@ import {
   ExperimentComparePage,
   experimentsLoader,
   ExperimentsPage,
+  githubOAuthCallbackLoader,
   homeLoader,
   LoginPage,
   ModelPage,
@@ -49,6 +50,11 @@ const router = createBrowserRouter(
         path="/reset-password"
         element={<ResetPasswordPage />}
         loader={resetPasswordLoader}
+      />
+      <Route
+        path="/github-oauth-callback"
+        element={<LoginPage />} // todo: implement loading page
+        loader={githubOAuthCallbackLoader}
       />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
         <Route element={<Layout />}>

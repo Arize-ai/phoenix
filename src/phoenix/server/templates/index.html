@@ -87,6 +87,7 @@
                 nSamples: parseInt("{{n_samples}}"),
               },
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
+              githubClientId: {% if github_client_id is not none %}"{{ github_client_id }}"{% else %}null{% endif %},
           }),
           writable: false
       });
