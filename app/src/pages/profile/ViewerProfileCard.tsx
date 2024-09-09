@@ -39,6 +39,7 @@ export function ViewerProfileCard() {
     control,
     handleSubmit,
     formState: { isDirty },
+    reset,
   } = useForm<EditProfileFormParams>({
     defaultValues: {
       username: viewer?.username || "",
@@ -58,6 +59,7 @@ export function ViewerProfileCard() {
             title: "Profile updated",
             message: "Your profile has been updated",
           });
+          reset({ username: data.username });
           refetchViewer();
         },
         onError: (error) => {
@@ -68,7 +70,7 @@ export function ViewerProfileCard() {
         },
       });
     },
-    [commit, notifySuccess, notifyError, refetchViewer]
+    [commit, notifySuccess, reset, refetchViewer, notifyError]
   );
   if (!viewer) {
     return null;
