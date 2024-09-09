@@ -1,12 +1,12 @@
 import React from "react";
-import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Card, Flex, Form, TextField } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { ViewerAPIKeys } from "./ViewerAPIKeys";
+import { ViewerProfileCard } from "./ViewerProfileCard";
 
 const profilePageCSS = css`
   overflow-y: auto;
@@ -24,7 +24,6 @@ const profilePageInnerCSS = css`
 
 export function ProfilePage() {
   const { viewer } = useViewer();
-  const navigate = useNavigate();
   if (!viewer) {
     return null;
   }
@@ -32,38 +31,8 @@ export function ProfilePage() {
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
-        {/* TODO(auth): Change username, etc. */}
-
         <Flex direction="column" gap="size-200">
-          <Card
-            title="Profile"
-            variant="compact"
-            extra={
-              <Button
-                variant="default"
-                size="compact"
-                onClick={() => {
-                  navigate("/reset-password");
-                }}
-              >
-                Reset Password
-              </Button>
-            }
-          >
-            <Form>
-              <TextField label="email" value={viewer.email} isReadOnly />
-              <TextField
-                label="username"
-                value={viewer.username || ""}
-                isReadOnly
-              />
-              <TextField
-                label="role"
-                value={viewer.role.name || ""}
-                isReadOnly
-              />
-            </Form>
-          </Card>
+          <ViewerProfileCard />
           <ViewerAPIKeys viewer={viewer} />
         </Flex>
       </div>
