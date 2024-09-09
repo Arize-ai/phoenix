@@ -15,6 +15,6 @@
 | Action                               | Admin | Member |
 |:-------------------------------------|:-----:|:------:|
 | List All System API Keys             |  Yes  |   No   |
-| List All User API Keys               |  Yes  |  Yes   |
+| List All User API Keys               |  Yes  |   No   |
 | List All Users                       |  Yes  |   No   |
 | Fetch Other User's Info, e.g. emails |  Yes  |   No   |
