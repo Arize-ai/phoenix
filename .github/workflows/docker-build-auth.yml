@@ -1,4 +1,4 @@
-name: Publish dangerously-experimental-auth Docker image
+name: Publish experimental auth Docker image
 
 on:
   push:
