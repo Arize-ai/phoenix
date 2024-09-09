@@ -67,8 +67,8 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Auth is under active development. Phoenix users are strongly advised not to
 # set these environment variables until the feature is officially released.
-ENV_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
-ENV_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
+ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 
@@ -127,14 +127,14 @@ def get_boolean_env_var(env_var: str) -> Optional[bool]:
 
 def get_env_enable_auth() -> bool:
     """
-    Gets the value of the DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH environment variable.
+    Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
     return get_boolean_env_var(ENV_PHOENIX_ENABLE_AUTH) is True
 
 
 def get_env_phoenix_secret() -> Optional[str]:
     """
-    Gets the value of the DANGEROUSLY_SET_PHOENIX_SECRET environment variable
+    Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
