@@ -23,7 +23,7 @@ from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
 from ._helpers import (
-    _CZAR,
+    _DEFAULT_ADMIN,
     _MEMBER,
     _Email,
     _GetUser,
@@ -126,7 +126,7 @@ def _users(
     def _() -> Generator[Optional[_User], Tuple[UserRoleInput, Optional[_Profile]], None]:
         role, profile = yield None
         while True:
-            user = _CZAR.create_user(role, profile=profile or next(_profiles))
+            user = _DEFAULT_ADMIN.create_user(role, profile=profile or next(_profiles))
             role, profile = yield user
 
     g = _()
