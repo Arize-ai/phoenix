@@ -88,7 +88,6 @@ export function ResetPasswordForm() {
           />
         )}
       />
-
       <Controller
         name="newPassword"
         control={control}

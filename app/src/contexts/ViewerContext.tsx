@@ -1,4 +1,4 @@
-import React from "react";
+import React, { startTransition } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import {
@@ -8,10 +8,12 @@ import {
 
 export type ViewerContextType = {
   viewer: ViewerContext_viewer$data["viewer"];
+  refetchViewer: () => void;
 };
 
 export const ViewerContext = React.createContext<ViewerContextType>({
   viewer: null,
+  refetchViewer: () => {},
 });
 
 export function useViewer() {
@@ -28,7 +30,7 @@ export function ViewerProvider({
 }: React.PropsWithChildren<{
   query: ViewerContext_viewer$key;
 }>) {
-  const [data] = useRefetchableFragment(
+  const [data, _refetch] = useRefetchableFragment(
     graphql`
       fragment ViewerContext_viewer on Query
       @refetchable(queryName: "ViewerContextRefetchQuery") {
@@ -45,8 +47,18 @@ export function ViewerProvider({
     `,
     query
   );
+  const refetchViewer = () => {
+    startTransition(() => {
+      _refetch(
+        {},
+        {
+          fetchPolicy: "network-only",
+        }
+      );
+    });
+  };
   return (
-    <ViewerContext.Provider value={{ viewer: data.viewer }}>
+    <ViewerContext.Provider value={{ viewer: data.viewer, refetchViewer }}>
       {children}
     </ViewerContext.Provider>
   );
