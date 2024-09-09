@@ -676,5 +676,5 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
-            _DEFAULT_ADMIN.log_in().delete_api_key(api_key)
+            _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(spans) is SpanExportResult.FAILURE
