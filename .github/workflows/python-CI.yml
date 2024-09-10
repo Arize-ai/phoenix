@@ -61,9 +61,9 @@ jobs:
             3.12
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.4.2
+          uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
+      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
       - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
@@ -170,8 +170,12 @@ jobs:
           python-version: 3.8
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.4.2
+          uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
-      - run: tox run -e ci-integration_tests
+      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
+      - run: tox run -e py38-ci-integration_tests
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        timeout-minutes: 15
+      - run: tox run-parallel --parallel-no-spinner -e py38-ci-integration_tests,py312-ci-integration_tests
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         timeout-minutes: 15
