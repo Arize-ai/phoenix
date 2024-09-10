@@ -8,6 +8,7 @@
 * [Setup](setup/README.md)
   * [Environments](environments.md)
   * [Configuration](setup/configuration.md)
+  * [Authentication](setup/authentication.md)
 * [Deployment](deployment/README.md)
   * [Quickstart: Deployment](deployment/deploying-phoenix.md)
   * [Persistence](deployment/persistence.md)
