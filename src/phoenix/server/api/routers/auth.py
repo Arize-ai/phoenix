@@ -8,10 +8,8 @@ from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from phoenix.auth import (
-    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_ACCESS_TOKEN_MAX_AGE,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_MAX_AGE,
+    PHOENIX_TOKEN_MAX_AGE,
     Token,
     delete_access_token_cookie,
     delete_refresh_token_cookie,
@@ -21,7 +19,7 @@ from phoenix.auth import (
 )
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
-from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
@@ -76,7 +74,7 @@ async def login(request: Request) -> Response:
     refresh_token_claims = RefreshTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        expiration_time=issued_at + PHOENIX_TOKEN_MAX_AGE,
         attributes=RefreshTokenAttributes(
             user_role=UserRole(user.role.name),
         ),
@@ -86,7 +84,7 @@ async def login(request: Request) -> Response:
     access_token_claims = AccessTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        expiration_time=issued_at + PHOENIX_TOKEN_MAX_AGE,
         attributes=AccessTokenAttributes(
             user_role=UserRole(user.role.name),
             refresh_token_id=refresh_token_id,
@@ -112,7 +110,7 @@ async def logout(
     return response
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[Depends(is_authenticated)])
 async def refresh_tokens(request: Request) -> Response:
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
@@ -130,15 +128,6 @@ async def refresh_tokens(request: Request) -> Response:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired refresh token")
     await token_store.revoke(refresh_token_id)
 
-    if (
-        (access_token := request.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)) is not None
-        and isinstance(
-            access_token_claims := await token_store.read(Token(access_token)), AccessTokenClaims
-        )
-        and (access_token_id := access_token_claims.token_id)
-    ):
-        await token_store.revoke(access_token_id)
-
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(
@@ -151,7 +140,7 @@ async def refresh_tokens(request: Request) -> Response:
     refresh_token_claims = RefreshTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        expiration_time=issued_at + PHOENIX_TOKEN_MAX_AGE,
         attributes=RefreshTokenAttributes(
             user_role=user_role,
         ),
@@ -160,7 +149,7 @@ async def refresh_tokens(request: Request) -> Response:
     access_token_claims = AccessTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        expiration_time=issued_at + PHOENIX_TOKEN_MAX_AGE,
         attributes=AccessTokenAttributes(
             user_role=user_role,
             refresh_token_id=refresh_token_id,
