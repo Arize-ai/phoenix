@@ -71,12 +71,12 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox==4.18.0",
-  "tox-uv==1.11.2",
-  "uv==0.4.2",
+  "tox==4.18.1",
+  "tox-uv==1.11.3",
+  "uv==0.4.8",
   "jupyter",
   "nbqa",
-  "ruff==0.6.3",
+  "ruff==0.6.4",
   "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
@@ -228,7 +228,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.3",
+  "ruff==0.6.4",
 ]
 
 [[tool.hatch.envs.style.matrix]]
