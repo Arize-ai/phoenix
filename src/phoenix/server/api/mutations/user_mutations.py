@@ -252,6 +252,7 @@ class UserMutationMixin:
                     .where(
                         and_(
                             models.User.id.in_(user_ids),
+                            models.User.deleted_at.is_(None),
                             models.User.user_role_id != system_user_role_id,
                         )
                     )
