@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import DefaultDict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -25,7 +25,9 @@ class UsersDataLoader(DataLoader[Key, Result]):
         users_by_id: DefaultDict[Key, Result] = defaultdict(None)
         async with self._db() as session:
             data = await session.stream_scalars(
-                select(models.User).where(models.User.id.in_(user_ids))
+                select(models.User).where(
+                    and_(models.User.id.in_(user_ids), models.User.deleted_at.is_(None))
+                )
             )
             async for user in data:
                 users_by_id[user.id] = user

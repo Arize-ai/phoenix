@@ -99,6 +99,19 @@ class TestLogIn:
         with _EXPECTATION_401:
             _log_in(wrong_password, email=u.email)
 
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_cannot_log_in_with_deleted_user(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _passwords: Iterator[_Password],
+    ) -> None:
+        admin_user = _get_user(UserRoleInput.ADMIN)
+        user = _get_user(role_or_user)
+        admin_user.delete_users(user)
+        with _EXPECTATION_401:
+            user.log_in()
+
 
 class TestLogOut:
     def test_default_admin_cannot_log_out_during_testing(self) -> None:
