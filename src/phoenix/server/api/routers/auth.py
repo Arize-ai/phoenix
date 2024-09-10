@@ -144,7 +144,9 @@ async def refresh_tokens(request: Request) -> Response:
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(
-                select(OrmUser).where(OrmUser.id == user_id).options(joinedload(OrmUser.role))
+                select(OrmUser)
+                .where(and_(OrmUser.id == user_id, OrmUser.deleted_at.is_(None)))
+                .options(joinedload(OrmUser.role))
             )
         ) is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
