@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from phoenix.auth import (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_TOKEN_MAX_AGE,
     Token,
@@ -19,7 +20,7 @@ from phoenix.auth import (
 )
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
-from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
@@ -110,11 +111,14 @@ async def logout(
     return response
 
 
-@router.post("/refresh", dependencies=[Depends(is_authenticated)])
+@router.post("/refresh")
 async def refresh_tokens(request: Request) -> Response:
+    if (access_token := request.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)) is None:
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing access token")
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
     token_store: JwtStore = request.app.state.get_token_store()
+    access_token_claims = await token_store.read(Token(access_token))
     refresh_token_claims = await token_store.read(Token(refresh_token))
     if (
         not isinstance(refresh_token_claims, RefreshTokenClaims)
@@ -126,6 +130,16 @@ async def refresh_tokens(request: Request) -> Response:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     if expiration_time.timestamp() < datetime.now().timestamp():
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired refresh token")
+    if (
+        not isinstance(access_token_claims, AccessTokenClaims)
+        or not isinstance(
+            access_token_claims_attributes := access_token_claims.attributes, AccessTokenAttributes
+        )
+        or access_token_claims_attributes.refresh_token_id != refresh_token_id
+        or (access_token_id := access_token_claims.token_id) is None
+    ):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    await token_store.revoke(access_token_id)
     await token_store.revoke(refresh_token_id)
 
     async with request.app.state.db() as session:
