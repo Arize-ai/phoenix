@@ -34,6 +34,7 @@ from .._helpers import (
     _AccessToken,
     _ApiKey,
     _create_user,
+    _DefaultAdminTokenSequestration,
     _Expectation,
     _GetUser,
     _GqlId,
@@ -100,7 +101,18 @@ class TestLogIn:
 
 
 class TestLogOut:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    def test_default_admin_cannot_log_out_during_testing(self) -> None:
+        """
+        This is not a functional test of Phoenix itself. Instead, it is intended to verify
+        that the safeguard preventing the default admin from logging out during concurrent
+        test runs is working as expected.
+        """
+        cls = _DefaultAdminTokenSequestration.exc_cls
+        msg = _DefaultAdminTokenSequestration.message
+        with pytest.raises(cls, match=msg):
+            _DEFAULT_ADMIN.log_in().log_out()
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_can_log_out(
         self,
         role_or_user: _RoleOrUser,
@@ -125,7 +137,7 @@ class TestLoggedInTokens:
             assert (jti := _decode_jwt(token)["jti"]) not in self._set
             self._set.add(jti)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_logged_in_tokens_should_change_after_log_out(
         self,
         role_or_user: _RoleOrUser,
@@ -139,7 +151,7 @@ class TestLoggedInTokens:
                 access_tokens.add(logged_in_user.tokens.access_token)
                 refresh_tokens.add(logged_in_user.tokens.refresh_token)
 
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_logged_in_tokens_should_differ_between_users(
         self,
@@ -160,7 +172,7 @@ class TestLoggedInTokens:
 
 
 class TestRefreshToken:
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_end_to_end_credentials_flow(
         self,
         role_or_user: _RoleOrUser,
