@@ -6,8 +6,6 @@ import {
   Dialog,
   Flex,
   Heading,
-  TabPane,
-  Tabs,
   Text,
   TextField,
   View,
