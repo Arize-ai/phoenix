@@ -398,17 +398,23 @@ def _start_span(
     ).start_span(span_name)
 
 
-class _DefaultAdminTokenSequestration:
+class _DefaultAdminTokens(ABC):
     """
     Because the tests can be run concurrently, and we need the default admin to create database
     entities (e.g. to add new users), the default admin should never log out once logged in,
     because logging out invalidates all existing access tokens, resulting in a race among the
     tests. The approach here is to add a middleware to block any inadvertent use of the default
-    admin's access tokens for logging out.
+    admin's access tokens for logging out. This class is intended to be used as a singleton
+    container to ensure that all tokens are always accounted for. Furthermore, the tokens are
+    disambiguated by the port of the server to which they belong.
     """
 
     _set: Set[Tuple[int, str]] = set()
     _lock: Lock = Lock()
+
+    @classmethod
+    def __new__(cls) -> Self:
+        raise NotImplementedError("This class is intended as a singleton to be used directly.")
 
     @classmethod
     def stash(cls, port: int, cookies: str) -> None:
@@ -433,6 +439,45 @@ class _DefaultAdminTokenSequestration:
         return False
 
 
+class _DefaultAdminTokenSequestration(httpx.BaseTransport):
+    """
+    This middleware sequesters the default admin's access and refresh tokens when they pass
+    through the httpx client. If a sequestered token is used to log out, an exception is
+    raised. This is because logging out the default admin during testing would revoke all
+    existing access tokens being held by other concurrent tests attached to the same server.
+    """
+
+    message = "Default admin must not log out during testing."
+    exc_cls = RuntimeError
+
+    def __init__(self, transport: httpx.BaseTransport) -> None:
+        self._transport = transport
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        assert (port := request.url.port)
+        path, headers = request.url.path, request.headers
+        sequester_tokens = False
+        if "auth/login" in path:
+            sequester_tokens = DEFAULT_ADMIN_EMAIL in request.content.decode()
+        elif "auth/refresh" in path:
+            if cookies := headers.get("cookie"):
+                sequester_tokens = _DefaultAdminTokens.intersect(port, cookies)
+        elif (
+            "auth/logout" in path
+            and (cookies := headers.get("cookie"))
+            and _DefaultAdminTokens.intersect(port, cookies)
+        ):
+            raise self.exc_cls(self.message)
+        response = self._transport.handle_request(request)
+        if (
+            sequester_tokens
+            and response.status_code // 100 == 2
+            and (cookies := response.headers.get("set-cookie"))
+        ):
+            _DefaultAdminTokens.stash(port, cookies)
+        return response
+
+
 class _LogResponse(httpx.Response):
     def __init__(self, info: BytesIO, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -454,29 +499,10 @@ class _LogTransport(httpx.BaseTransport):
         self._transport = transport
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
-        assert (port := request.url.port)
-        sequester_tokens = False
-        if request.url.path.endswith("auth/login"):
-            sequester_tokens = DEFAULT_ADMIN_EMAIL in request.content.decode()
-        elif request.url.path.endswith("auth/refresh"):
-            if cookies := request.headers.get("cookie"):
-                sequester_tokens = _DefaultAdminTokenSequestration.intersect(port, cookies)
-        elif (
-            request.url.path.endswith("auth/logout")
-            and (cookies := request.headers.get("cookie"))
-            and _DefaultAdminTokenSequestration.intersect(port, cookies)
-        ):
-            raise RuntimeError("Default admin must not log out during testing.")
         info = BytesIO()
         info.write(f"{'-'*50}\n".encode())
         info.write(f"{datetime.now(timezone.utc).isoformat()}\n".encode())
         response = self._transport.handle_request(request)
-        if (
-            sequester_tokens
-            and response.status_code // 100 == 2
-            and (cookies := response.headers.get("set-cookie"))
-        ):
-            _DefaultAdminTokenSequestration.stash(port, cookies)
         info.write(f"{response.status_code} {request.method} {request.url}\n".encode())
         info.write(f"{request.headers}\n".encode())
         info.write(f"{response.headers}\n".encode())
@@ -526,7 +552,11 @@ def _httpx_client(
         headers=headers,
         cookies=cookies,
         base_url=get_base_url(),
-        transport=transport or _LogTransport(httpx.HTTPTransport()),
+        transport=_LogTransport(
+            _DefaultAdminTokenSequestration(
+                transport or httpx.HTTPTransport(),
+            )
+        ),
     )
 
 
