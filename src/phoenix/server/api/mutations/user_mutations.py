@@ -101,14 +101,14 @@ class UserMutationMixin:
             session = await stack.enter_async_context(info.context.db())
             user_role_id = await session.scalar(_select_role_id_by_name(input.role.value))
             if user_role_id is None:
-                raise ValueError(f"Role {input.role.value} not found")
+                raise NotFound(f"Role {input.role.value} not found")
             stack.enter_context(session.no_autoflush)
             user.user_role_id = user_role_id
             session.add(user)
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_operation_error_message(error))
+                raise Conflict(_user_operation_error_message(error))
         return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
@@ -126,16 +126,16 @@ class UserMutationMixin:
             requester = await session.scalar(_select_user_by_id(requester_id))
             assert requester
             if not (user := await session.scalar(_select_user_by_id(user_id))):
-                raise ValueError("User not found")
+                raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if input.new_role:
                 user_role_id = await session.scalar(_select_role_id_by_name(input.new_role.value))
                 if user_role_id is None:
-                    raise ValueError(f"Role {input.new_role.value} not found")
+                    raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
             if password := input.new_password:
                 if user.auth_method != enums.AuthMethod.LOCAL.value:
-                    raise ValueError("Cannot modify password for non-local user")
+                    raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = await info.context.hash_password(password, user.password_salt)
@@ -146,7 +146,7 @@ class UserMutationMixin:
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_operation_error_message(error, "modify"))
+                raise Conflict(_user_operation_error_message(error, "modify"))
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
@@ -164,15 +164,15 @@ class UserMutationMixin:
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
             if not (user := await session.scalar(_select_user_by_id(user_id))):
-                raise ValueError("User not found")
+                raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if password := input.new_password:
                 if user.auth_method != enums.AuthMethod.LOCAL.value:
-                    raise ValueError("Cannot modify password for non-local user")
+                    raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password
                 ) or not await info.context.is_valid_password(current_password, user):
-                    raise ValueError("Valid current password is required to modify password")
+                    raise Conflict("Valid current password is required to modify password")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_hash = await info.context.hash_password(password, user.password_salt)
@@ -184,7 +184,7 @@ class UserMutationMixin:
             try:
                 await session.flush()
             except IntegrityError as error:
-                raise ValueError(_user_operation_error_message(error, "modify"))
+                raise Conflict(_user_operation_error_message(error, "modify"))
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
@@ -294,7 +294,9 @@ def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:
 
 def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
     return (
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
+        select(models.User)
+        .where(and_(models.User.id == user_id, models.User.deleted_at.is_(None)))
+        .options(joinedload(models.User.role))
     )
 
 
