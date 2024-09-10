@@ -89,7 +89,6 @@ async def test_run_experiment(
             evaluators={f"{i:02}": e for i, e in enumerate(evaluators)},
             print_summary=False,
         )
-        time.sleep(1)  # Wait for the entire experiment to be run
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -262,6 +261,7 @@ async def test_run_evaluation(
     )
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
         evaluate_experiment(experiment, evaluators=[lambda _: _])
+        time.sleep(1)  # Wait for the evaluations to be inserted
         async with db() as session:
             evaluations = list(await session.scalars(select(models.ExperimentRunAnnotation)))
         assert len(evaluations) == 1
@@ -378,6 +378,6 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
 
 async def test_get_experiment_client_method(px_client, simple_dataset_with_one_experiment_run):
     experiment_gid = GlobalID("Experiment", "0")
-    experiment = px_client.get_experiment_runs(experiment_id=experiment_gid)
+    experiment = px_client.get_experiment(experiment_id=experiment_gid)
     assert experiment
     assert isinstance(experiment, Experiment)

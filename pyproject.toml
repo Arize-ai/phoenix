@@ -247,7 +247,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
-tests = "pytest -n auto {args}"
+tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
@@ -261,7 +261,6 @@ addopts = [
   "--doctest-modules",
   "--new-first",
   "--showlocals",
-  "--exitfirst",
 ]
 testpaths = [
   "tests",

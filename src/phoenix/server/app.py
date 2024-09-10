@@ -397,8 +397,8 @@ def _lifespan(
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        global DB_MUTEX
-        DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        # global DB_MUTEX
+        # DB_MUTEX = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         async with AsyncExitStack() as stack:
             (
                 enqueue,

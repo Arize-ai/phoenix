@@ -18,6 +18,7 @@ from typing import (
 
 import httpx
 import pytest
+import sqlean
 from _pytest.config import Config, Parser
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
@@ -27,7 +28,8 @@ from httpx import URL, Request, Response
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from starlette.types import ASGIApp
 
 from phoenix.config import EXPORT_DIR
@@ -64,20 +66,21 @@ def pytest_terminal_summary(
 
     xfail_threshold = 12  # our tests are currently quite unreliable
 
-    terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
-    terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
+    if config.getoption("--run-postgres"):
+        terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
+        terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
 
-    if exitstatus == pytest.ExitCode.OK:
-        if xfails < xfail_threshold:
-            terminalreporter.write_sep(
-                "=", "Within xfail threshold. Passing the test suite.", green=True
-            )
-            terminalreporter._session.exitstatus = pytest.ExitCode.OK
-        else:
-            terminalreporter.write_sep(
-                "=", "Too many flaky tests. Failing the test suite.", red=True
-            )
-            terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
+        if exitstatus == pytest.ExitCode.OK:
+            if xfails < xfail_threshold:
+                terminalreporter.write_sep(
+                    "=", "Within xfail threshold. Passing the test suite.", green=True
+                )
+                terminalreporter._session.exitstatus = pytest.ExitCode.OK
+            else:
+                terminalreporter.write_sep(
+                    "=", "Too many flaky tests. Failing the test suite.", red=True
+                )
+                terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
 def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
@@ -126,7 +129,7 @@ async def postgresql_url(postgresql_connection: Connection) -> AsyncIterator[URL
     yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
 
 
-@pytest.fixture
+@pytest.fixture()
 async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
@@ -140,16 +143,21 @@ def dialect(request: SubRequest) -> str:
     return request.param
 
 
+def create_async_sqlite_engine() -> sessionmaker:
+    return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean)
+
+
 @pytest.fixture
 async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
+    # engine = create_async_sqlite_engine()
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def db(
     request: SubRequest,
     dialect: str,
@@ -162,12 +170,14 @@ def db(
 
 
 # def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
-#     lock, db = asyncio.Lock(), _db(engine)
+#     lock = threading.Lock()
+#     db = _db(engine)
 
 #     @contextlib.asynccontextmanager
 #     async def factory() -> AsyncIterator[AsyncSession]:
-#         async with lock, db() as session:
-#             yield session
+#         with lock:
+#             async with db() as session:
+#                 yield session
 
 #     return DbSessionFactory(db=factory, dialect=engine.dialect.name)
 
@@ -227,7 +237,6 @@ async def loop() -> AbstractEventLoop:
 @pytest.fixture
 def httpx_clients(
     app: ASGIApp,
-    loop: AbstractEventLoop,
 ) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport, httpx.AsyncBaseTransport):
         def __init__(self, transport: httpx.ASGITransport) -> None:
