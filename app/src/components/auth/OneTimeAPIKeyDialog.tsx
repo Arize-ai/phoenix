@@ -66,7 +66,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
           <View paddingBottom="size-100" paddingTop="size-100">
             <Text>
               When using the Phoenix REST and GraphQL APIs, pass the API key as
-              a
+              a{" "}
               <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
                 bearer token
               </ExternalLink>
