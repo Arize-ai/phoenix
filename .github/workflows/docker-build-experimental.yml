@@ -54,9 +54,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            ${{ matrix.variant == 'root' && 'experimental' || '' }}
-            ${{ matrix.variant == 'nonroot' && 'experimental' || '' }}
-            ${{ matrix.variant == 'debug' && 'experimental' || '' }}
+            ${{ matrix.variant == 'root' && 'dangerously-experimental' || '' }}
+            ${{ matrix.variant == 'nonroot' && 'dangerously-experimental' || '' }}
+            ${{ matrix.variant == 'debug' && 'dangerously-experimental' || '' }}
 
       - name: Build and push Docker image
         id: push
@@ -69,10 +69,10 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-            ${{ matrix.variant == 'root' && format('{0}/{1}:experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'root' && format('{0}/{1}:experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:dangerously-experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:dangerously-experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
