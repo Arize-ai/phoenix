@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import joinedload
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
@@ -56,7 +56,9 @@ async def login(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(OrmUser).where(OrmUser.email == email).options(joinedload(OrmUser.role))
+            select(OrmUser)
+            .where(and_(OrmUser.email == email, OrmUser.deleted_at.is_(None)))
+            .options(joinedload(OrmUser.role))
         )
         if (
             user is None

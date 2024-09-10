@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional, Tuple
 
 import strawberry
-from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
+from sqlalchemy import Boolean, Select, and_, case, cast, distinct, func, select, update
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -27,6 +27,7 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import AccessTokenId, ApiKeyId, RefreshTokenId
 
 
 @strawberry.input
@@ -195,6 +196,7 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: DeleteUsersInput,
     ) -> None:
+        assert (token_store := info.context.token_store) is not None
         if not input.user_ids:
             return
         user_ids = tuple(
@@ -259,7 +261,30 @@ class UserMutationMixin:
                 raise Conflict("Cannot delete the default admin user")
             if num_resolved_user_ids < len(user_ids):
                 raise NotFound("Some user IDs could not be found")
-            await session.execute(delete(models.User).where(models.User.id.in_(user_ids)))
+            access_token_ids = (
+                AccessTokenId(id)
+                for id in await session.scalars(
+                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_ids))
+                )
+            )
+            refresh_token_ids = (
+                RefreshTokenId(id)
+                for id in await session.scalars(
+                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_ids))
+                )
+            )
+            api_key_ids = (
+                ApiKeyId(id)
+                for id in await session.scalars(
+                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_ids))
+                )
+            )
+            await token_store.revoke(*access_token_ids, *refresh_token_ids, *api_key_ids)
+            await session.execute(
+                update(models.User)
+                .where(models.User.id.in_(user_ids))
+                .values(deleted_at=func.now())
+            )
 
 
 def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:

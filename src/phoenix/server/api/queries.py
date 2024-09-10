@@ -96,7 +96,12 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
+            .where(
+                and_(
+                    models.UserRole.name != enums.UserRole.SYSTEM.value,
+                    models.User.deleted_at.is_(None),
+                )
+            )
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
