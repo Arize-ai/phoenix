@@ -398,7 +398,7 @@ def _start_span(
     ).start_span(span_name)
 
 
-class _DefaultAdminTokens:
+class _DefaultAdminTokenSequestration:
     """
     Because the tests can be run concurrently, and we need the default admin to create database
     entities (e.g. to add new users), the default admin should never log out once logged in,
@@ -407,28 +407,28 @@ class _DefaultAdminTokens:
     admin's access tokens for logging out.
     """
 
-    _set: Set[str] = set()
+    _set: Set[Tuple[int, str]] = set()
     _lock: Lock = Lock()
 
     @classmethod
-    def extract(cls, cookies: str) -> None:
+    def stash(cls, port: int, cookies: str) -> None:
         for cookie in cookies.split(","):
             if cookie.startswith(PHOENIX_ACCESS_TOKEN_COOKIE_NAME) or cookie.startswith(
                 PHOENIX_REFRESH_TOKEN_COOKIE_NAME
             ):
                 token = _get_token_from_cookie(cookie)
                 with cls._lock:
-                    cls._set.add(token)
+                    cls._set.add((port, token))
 
     @classmethod
-    def intersect(cls, cookies: str) -> bool:
+    def intersect(cls, port: int, cookies: str) -> bool:
         for cookie in cookies.split(","):
             if cookie.startswith(PHOENIX_ACCESS_TOKEN_COOKIE_NAME) or cookie.startswith(
                 PHOENIX_REFRESH_TOKEN_COOKIE_NAME
             ):
                 token = _get_token_from_cookie(cookie)
                 with cls._lock:
-                    if token in cls._set:
+                    if (port, token) in cls._set:
                         return True
         return False
 
@@ -454,20 +454,29 @@ class _LogTransport(httpx.BaseTransport):
         self._transport = transport
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        assert (port := request.url.port)
         sequester_tokens = False
         if request.url.path.endswith("auth/login"):
             sequester_tokens = DEFAULT_ADMIN_EMAIL in request.content.decode()
         elif request.url.path.endswith("auth/refresh"):
-            sequester_tokens = _DefaultAdminTokens.intersect(request.headers["cookie"])
-        elif request.url.path.endswith("auth/logout"):
-            if _DefaultAdminTokens.intersect(request.headers["cookie"]):
-                raise RuntimeError("Default admin must not log out during testing.")
+            if cookies := request.headers.get("cookie"):
+                sequester_tokens = _DefaultAdminTokenSequestration.intersect(port, cookies)
+        elif (
+            request.url.path.endswith("auth/logout")
+            and (cookies := request.headers.get("cookie"))
+            and _DefaultAdminTokenSequestration.intersect(port, cookies)
+        ):
+            raise RuntimeError("Default admin must not log out during testing.")
         info = BytesIO()
         info.write(f"{'-'*50}\n".encode())
         info.write(f"{datetime.now(timezone.utc).isoformat()}\n".encode())
         response = self._transport.handle_request(request)
-        if sequester_tokens and response.status_code // 100 == 2:
-            _DefaultAdminTokens.extract(response.headers.get("set-cookie"))
+        if (
+            sequester_tokens
+            and response.status_code // 100 == 2
+            and (cookies := response.headers.get("set-cookie"))
+        ):
+            _DefaultAdminTokenSequestration.stash(port, cookies)
         info.write(f"{response.status_code} {request.method} {request.url}\n".encode())
         info.write(f"{request.headers}\n".encode())
         info.write(f"{response.headers}\n".encode())
