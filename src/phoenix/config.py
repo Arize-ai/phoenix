@@ -183,8 +183,8 @@ def get_env_access_token_expiry() -> timedelta:
         return _parse_duration(access_token_expiry)
     except ValueError as error:
         raise ValueError(
-            f"Error reading {ENV_PHOENIX_ACCESS_TOKEN_EXPIRY} environment variable"
-        ) from error
+            f"Error reading {ENV_PHOENIX_ACCESS_TOKEN_EXPIRY} environment variable: {str(error)}"
+        )
 
 
 def get_env_refresh_token_expiry() -> timedelta:
@@ -197,8 +197,8 @@ def get_env_refresh_token_expiry() -> timedelta:
         return _parse_duration(refresh_token_expiry)
     except ValueError as error:
         raise ValueError(
-            f"Error reading {ENV_PHOENIX_REFRESH_TOKEN_EXPIRY} environment variable"
-        ) from error
+            f"Error reading {ENV_PHOENIX_REFRESH_TOKEN_EXPIRY} environment variable: {str(error)}"
+        )
 
 
 def _parse_duration(duration_str: str) -> timedelta:

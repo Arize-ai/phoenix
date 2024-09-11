@@ -81,9 +81,6 @@ def test_get_env_token_expiry_raises_expected_errors_for_invalid_values(
 ) -> None:
     monkeypatch.setenv(env_var_name, env_var_value)
     with pytest.raises(
-        ValueError, match=f"Error reading {env_var_name} environment variable"
-    ) as exc_info:
+        ValueError, match=f"Error reading {env_var_name} environment variable: {error_message}"
+    ):
         env_var_getter()
-    error = exc_info.value
-    assert isinstance(cause := error.__cause__, ValueError)
-    assert str(cause) == error_message
