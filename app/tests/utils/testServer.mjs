@@ -7,15 +7,8 @@ import os from "os";
 import path from "path";
 import process from "process";
 
-let tmpDir;
 const appPrefix = "phoenix";
-try {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
-
-  // the rest of your app goes here
-} catch {
-  // handle error
-}
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
 // Set environment variables for the server
 process.env["PHOENIX_WORKING_DIR"] = tmpDir;
