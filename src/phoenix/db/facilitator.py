@@ -21,7 +21,6 @@ from phoenix.auth import (
     DEFAULT_SECRET_LENGTH,
     compute_password_hash,
 )
-from phoenix.config import ENABLE_AUTH
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
 from phoenix.server.types import DbSessionFactory
@@ -35,15 +34,16 @@ class Facilitator:
     carried out as callbacks at the very beginning of Starlette's lifespan process.
     """
 
-    def __init__(self, db: DbSessionFactory) -> None:
+    def __init__(self, *, db: DbSessionFactory, authentication_enabled: bool) -> None:
         self._db = db
+        self._authentication_enabled = authentication_enabled
 
     async def __call__(self) -> None:
         async with self._db() as session:
             for fn in (
                 _ensure_enums,
                 _ensure_user_roles,
-                *((_ensure_admin_password,) if ENABLE_AUTH else ()),
+                *((_ensure_admin_password,) if self._authentication_enabled else ()),
             ):
                 async with session.begin_nested():
                     await fn(session)
