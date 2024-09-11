@@ -27,7 +27,7 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     return None
 
 
-def get_env_phoenix_auth_header() -> Optional[str]:
+def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
     api_key = os.environ.get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
