@@ -46,12 +46,6 @@ Running Phoenix for the first time? Select a quickstart below.&#x20;
 
 <table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong> </td><td><a href="tracing/llm-traces-1.md">llm-traces-1.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="quickstart/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals.png">evals.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="quickstart/phoenix-inferences/">phoenix-inferences</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr><tr><td align="center"><strong>Datasets and Experiments</strong></td><td><a href="datasets-and-experiments/quickstart-datasets.md">quickstart-datasets.md</a></td><td><a href=".gitbook/assets/experiments_preview.png">experiments_preview.png</a></td></tr></tbody></table>
 
-### Demo
-
-{% embed url="https://www.loom.com/share/a96e244c4ff8473d9350b02ccbd203b4" %}
-Overview of Phoenix Tracing
-{% endembed %}
-
 ## Next Steps
 
 ### [Try our Tutorials](notebooks.md)
