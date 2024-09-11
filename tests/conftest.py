@@ -89,11 +89,6 @@ def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
 
-    if config.getoption("--allow-flaky"):
-        for item in items:
-            if "dialect" in item.fixturenames:
-                item.add_marker(pytest.mark.xfail(reason="database tests are currently flaky"))
-
 
 @pytest.fixture
 def pydantic_version() -> Literal["v1", "v2"]:
@@ -116,7 +111,7 @@ def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
 postgresql_connection = factories.postgresql("postgresql_proc")
 
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 async def postgresql_url(postgresql_connection: Connection) -> AsyncIterator[URL]:
     connection = postgresql_connection
     user = connection.info.user
@@ -127,7 +122,7 @@ async def postgresql_url(postgresql_connection: Connection) -> AsyncIterator[URL
     yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
 
 
-@pytest.fixture()
+@pytest.fixture(scope="function")
 async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
@@ -141,7 +136,7 @@ def dialect(request: SubRequest) -> str:
     return request.param
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:

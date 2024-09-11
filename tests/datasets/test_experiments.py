@@ -35,9 +35,8 @@ async def test_run_experiment(
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
+    dialect: str,
 ) -> None:
-    pytest.xfail("TODO: Convert this to an integration test")
-
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
@@ -119,6 +118,10 @@ async def test_run_experiment(
                 .scalars()
                 .all()
             )
+
+        if dialect == "postgresql":
+            pytest.xfail("TODO: Convert this to an integration test")
+
         assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
             assert run.output == {"task_output": {"doesn't matter": "this is the output"}}
