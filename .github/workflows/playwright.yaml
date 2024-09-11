@@ -4,8 +4,8 @@ env:
   pip-version: 24.2
 
 on:
-  push:
-    branches: []
+  #   push:
+  #     branches: []
   pull_request:
     branches: [auth]
 jobs:
