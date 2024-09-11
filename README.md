@@ -55,6 +55,7 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 Join our community to connect with thousands of AI builders.
 
 - 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
+- 📚 Read our [documentation](https://docs.arize.com/phoenix).
 - 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
