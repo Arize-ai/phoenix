@@ -155,7 +155,6 @@
 
 ## 📚 Reference
 
-* [Ask AI](reference/ask-ai.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [OpenInference](reference/open-inference.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
