@@ -133,7 +133,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
           <IsAdmin
             fallback={
               <Text>
-                Personal API keys can be created and managed on your{""}
+                Personal API keys can be created and managed on your{" "}
                 <ExternalLink href="/profile">Profile</ExternalLink>
               </Text>
             }
