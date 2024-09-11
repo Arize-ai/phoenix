@@ -14,13 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.12
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install .
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -30,6 +23,16 @@ jobs:
       - name: Install Playwright Browsers
         working-directory: ./app
         run: pnpm exec playwright install --with-deps
+      - name: Build the app
+        working-directory: ./app
+        run: pnpm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install Phoenix
+        run: |
+          python -m pip install --upgrade pip==${{ env.pip-version }}
+          pip install .
       - name: Run Playwright tests
         working-directory: ./app
         run: pnpm exec playwright test
