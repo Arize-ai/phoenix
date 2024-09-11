@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import APIKeyHeader
 from starlette.status import HTTP_403_FORBIDDEN
 
-from phoenix.config import ENABLE_AUTH
 from phoenix.server.bearer_auth import is_authenticated
 
 from .datasets import router as datasets_router
@@ -28,33 +27,38 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
         )
 
 
-dependencies = [Depends(prevent_access_in_read_only_mode)]
-if ENABLE_AUTH:
-    dependencies.append(
-        Depends(
-            APIKeyHeader(
-                name="Authorization",
-                scheme_name="Bearer",
-                auto_error=False,
-                description="Enter `Bearer` followed by a space and then the token.",
+def create_v1_router(authentication_enabled: bool) -> APIRouter:
+    """
+    Instantiates the v1 REST API router.
+    """
+    dependencies = [Depends(prevent_access_in_read_only_mode)]
+    if authentication_enabled:
+        dependencies.append(
+            Depends(
+                APIKeyHeader(
+                    name="Authorization",
+                    scheme_name="Bearer",
+                    auto_error=False,
+                    description="Enter `Bearer` followed by a space and then the token.",
+                )
             )
         )
-    )
-    dependencies.append(Depends(is_authenticated))
+        dependencies.append(Depends(is_authenticated))
 
-router = APIRouter(
-    prefix="/v1",
-    dependencies=dependencies,
-    responses=add_errors_to_responses(
-        [
-            HTTP_403_FORBIDDEN  # adds a 403 response to each route in the generated OpenAPI schema
-        ]
-    ),
-)
-router.include_router(datasets_router)
-router.include_router(experiments_router)
-router.include_router(experiment_runs_router)
-router.include_router(experiment_evaluations_router)
-router.include_router(traces_router)
-router.include_router(spans_router)
-router.include_router(evaluations_router)
+    router = APIRouter(
+        prefix="/v1",
+        dependencies=dependencies,
+        responses=add_errors_to_responses(
+            [
+                HTTP_403_FORBIDDEN  # adds a 403 response to routes in the generated OpenAPI schema
+            ]
+        ),
+    )
+    router.include_router(datasets_router)
+    router.include_router(experiments_router)
+    router.include_router(experiment_runs_router)
+    router.include_router(experiment_evaluations_router)
+    router.include_router(traces_router)
+    router.include_router(spans_router)
+    router.include_router(evaluations_router)
+    return router

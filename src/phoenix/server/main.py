@@ -16,8 +16,8 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
-    get_auth_settings,
     get_env_access_token_expiry,
+    get_env_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
@@ -300,7 +300,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_auth_settings()
+    authentication_enabled, secret = get_env_auth_settings()
 
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []

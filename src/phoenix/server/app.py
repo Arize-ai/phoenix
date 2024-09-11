@@ -91,7 +91,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
-from phoenix.server.api.routers import auth_router, v1_router
+from phoenix.server.api.routers import auth_router, create_v1_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
@@ -623,7 +623,7 @@ def create_app(
     logger.info(f"Server umap params: {umap_params}")
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
-    startup_callbacks_list.append(Facilitator(db))
+    startup_callbacks_list.append(Facilitator(db=db, authentication_enabled=authentication_enabled))
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -726,7 +726,7 @@ def create_app(
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
     )
-    app.include_router(v1_router)
+    app.include_router(create_v1_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
