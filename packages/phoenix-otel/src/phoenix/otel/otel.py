@@ -2,7 +2,7 @@ import inspect
 import os
 import sys
 import warnings
-from typing import Any, Callable,Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes

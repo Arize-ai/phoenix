@@ -26,6 +26,7 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
         return parse_env_headers(headers_str)
     return None
 
+
 def get_env_phoenix_auth_header() -> Optional[str]:
     api_key = os.environ.get(ENV_PHOENIX_API_KEY)
     if api_key:
