@@ -126,10 +126,9 @@ async def postgresql_url(postgresql_connection: Connection) -> AsyncIterator[URL
 async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     engine = aio_postgresql_engine(postgresql_url, migrate=False)
     async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
     await engine.dispose()
 
 
@@ -144,10 +143,9 @@ async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
         make_url("sqlite+aiosqlite:///:memory:"), migrate=False, shared_cache=False
     )
     async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
     await engine.dispose()
 
 
