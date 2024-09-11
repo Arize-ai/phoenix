@@ -1,9 +1,12 @@
 import os
 import re
 import tempfile
+from datetime import timedelta
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+import pandas as pd
 
 from phoenix.utilities.re import parse_env_headers
 
@@ -71,6 +74,8 @@ ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_ACCESS_TOKEN_EXPIRY = "PHOENIX_ACCESS_TOKEN_EXPIRY"
+ENV_PHOENIX_REFRESH_TOKEN_EXPIRY = "PHOENIX_REFRESH_TOKEN_EXPIRY"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -166,6 +171,50 @@ def get_auth_settings() -> Tuple[bool, Optional[str]]:
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     return enable_auth, phoenix_secret
+
+
+def get_env_access_token_expiry() -> timedelta:
+    """
+    Gets the access token expiry.
+    """
+    if (access_token_expiry := os.environ.get(ENV_PHOENIX_ACCESS_TOKEN_EXPIRY)) is None:
+        return timedelta(minutes=10)
+    try:
+        return _parse_duration(access_token_expiry)
+    except ValueError as error:
+        raise ValueError(
+            f"Error reading {ENV_PHOENIX_ACCESS_TOKEN_EXPIRY} environment variable: {str(error)}"
+        )
+
+
+def get_env_refresh_token_expiry() -> timedelta:
+    """
+    Gets the refresh token expiry.
+    """
+    if (refresh_token_expiry := os.environ.get(ENV_PHOENIX_REFRESH_TOKEN_EXPIRY)) is None:
+        return timedelta(weeks=1)
+    try:
+        return _parse_duration(refresh_token_expiry)
+    except ValueError as error:
+        raise ValueError(
+            f"Error reading {ENV_PHOENIX_REFRESH_TOKEN_EXPIRY} environment variable: {str(error)}"
+        )
+
+
+def _parse_duration(duration_str: str) -> timedelta:
+    """
+    Parses a duration string into a timedelta object, assuming the duration is
+    in seconds if no unit is provided.
+    """
+    try:
+        duration = timedelta(seconds=float(duration_str))
+    except ValueError:
+        duration = pd.Timedelta(duration_str)
+    if pd.isnull(duration):
+        raise ValueError("duration cannot be null")
+    if duration <= timedelta(0):
+        raise ValueError("duration must be positive")
+    return duration
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

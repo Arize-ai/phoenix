@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,9 +9,7 @@ from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_40
 
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_ACCESS_TOKEN_MAX_AGE,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_MAX_AGE,
     Token,
     delete_access_token_cookie,
     delete_refresh_token_cookie,
@@ -47,6 +45,8 @@ router = APIRouter(
 
 @router.post("/login")
 async def login(request: Request) -> Response:
+    assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
+    assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     data = await request.json()
     email = data.get("email")
     password = data.get("password")
@@ -78,7 +78,7 @@ async def login(request: Request) -> Response:
     refresh_token_claims = RefreshTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        expiration_time=issued_at + refresh_token_expiry,
         attributes=RefreshTokenAttributes(
             user_role=UserRole(user.role.name),
         ),
@@ -88,7 +88,7 @@ async def login(request: Request) -> Response:
     access_token_claims = AccessTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        expiration_time=issued_at + access_token_expiry,
         attributes=AccessTokenAttributes(
             user_role=UserRole(user.role.name),
             refresh_token_id=refresh_token_id,
@@ -96,8 +96,12 @@ async def login(request: Request) -> Response:
     )
     access_token, _ = await token_store.create_access_token(access_token_claims)
     response = Response(status_code=HTTP_204_NO_CONTENT)
-    response = set_access_token_cookie(response, access_token)
-    response = set_refresh_token_cookie(response, refresh_token)
+    response = set_access_token_cookie(
+        response=response, access_token=access_token, max_age=access_token_expiry
+    )
+    response = set_refresh_token_cookie(
+        response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
+    )
     return response
 
 
@@ -116,6 +120,8 @@ async def logout(
 
 @router.post("/refresh")
 async def refresh_tokens(request: Request) -> Response:
+    assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
+    assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
     token_store: JwtStore = request.app.state.get_token_store()
@@ -155,7 +161,7 @@ async def refresh_tokens(request: Request) -> Response:
     refresh_token_claims = RefreshTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        expiration_time=issued_at + refresh_token_expiry,
         attributes=RefreshTokenAttributes(
             user_role=user_role,
         ),
@@ -164,7 +170,7 @@ async def refresh_tokens(request: Request) -> Response:
     access_token_claims = AccessTokenClaims(
         subject=UserId(user.id),
         issued_at=issued_at,
-        expiration_time=issued_at + PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        expiration_time=issued_at + access_token_expiry,
         attributes=AccessTokenAttributes(
             user_role=user_role,
             refresh_token_id=refresh_token_id,
@@ -172,8 +178,12 @@ async def refresh_tokens(request: Request) -> Response:
     )
     access_token, _ = await token_store.create_access_token(access_token_claims)
     response = Response(status_code=HTTP_204_NO_CONTENT)
-    response = set_access_token_cookie(response, access_token)
-    response = set_refresh_token_cookie(response, refresh_token)
+    response = set_access_token_cookie(
+        response=response, access_token=access_token, max_age=access_token_expiry
+    )
+    response = set_refresh_token_cookie(
+        response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
+    )
     return response
 
 
