@@ -65,20 +65,24 @@ def validate_password_format(password: str) -> None:
     PASSWORD_REQUIREMENTS.validate(password)
 
 
-def set_access_token_cookie(response: Response, access_token: str) -> Response:
+def set_access_token_cookie(
+    *, response: Response, access_token: str, max_age: timedelta
+) -> Response:
     return _set_token_cookie(
         response=response,
         cookie_name=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-        cookie_max_age=PHOENIX_ACCESS_TOKEN_MAX_AGE,
+        cookie_max_age=max_age,
         token=access_token,
     )
 
 
-def set_refresh_token_cookie(response: Response, refresh_token: str) -> Response:
+def set_refresh_token_cookie(
+    *, response: Response, refresh_token: str, max_age: timedelta
+) -> Response:
     return _set_token_cookie(
         response=response,
         cookie_name=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
-        cookie_max_age=PHOENIX_REFRESH_TOKEN_MAX_AGE,
+        cookie_max_age=max_age,
         token=refresh_token,
     )
 
@@ -197,12 +201,8 @@ JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 """The name of the cookie that stores the Phoenix access token."""
-PHOENIX_ACCESS_TOKEN_MAX_AGE = timedelta(minutes=10)
-"""The maximum age of the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
-PHOENIX_REFRESH_TOKEN_MAX_AGE = timedelta(days=31)
-"""The maximum age of the Phoenix refresh token."""
 
 
 class Token(str): ...

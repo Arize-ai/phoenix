@@ -18,6 +18,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_auth_settings,
+    get_env_access_token_expiry,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_enable_prometheus,
@@ -25,6 +26,7 @@ from phoenix.config import (
     get_env_host,
     get_env_host_root_path,
     get_env_port,
+    get_env_refresh_token_expiry,
     get_pids_path,
     get_working_dir,
 )
@@ -387,6 +389,8 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        access_token_expiry=get_env_access_token_expiry(),
+        refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
