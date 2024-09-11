@@ -200,15 +200,6 @@ async def app(
         yield manager.app
 
 
-# @pytest.fixture(scope="session")
-# def event_loop_policy():
-#     try:
-#         import uvloop
-#     except ImportError:
-#         return asyncio.DefaultEventLoopPolicy()
-#     return uvloop.EventLoopPolicy()
-
-
 @pytest.fixture
 async def loop() -> AbstractEventLoop:
     return get_running_loop()
