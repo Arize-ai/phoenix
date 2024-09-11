@@ -18,7 +18,6 @@ from typing import (
 
 import httpx
 import pytest
-import sqlean
 from _pytest.config import Config, Parser
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
@@ -28,8 +27,7 @@ from httpx import URL, Request, Response
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
 
 from phoenix.config import EXPORT_DIR
@@ -143,14 +141,9 @@ def dialect(request: SubRequest) -> str:
     return request.param
 
 
-def create_async_sqlite_engine() -> sessionmaker:
-    return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean)
-
-
 @pytest.fixture
 async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
-    # engine = create_async_sqlite_engine()
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
@@ -163,27 +156,14 @@ def db(
     dialect: str,
 ) -> DbSessionFactory:
     if dialect == "sqlite":
-        return _db_with_lock(request.getfixturevalue("sqlite_engine"))
+        return db_session_factory(request.getfixturevalue("sqlite_engine"))
     elif dialect == "postgresql":
-        return _db_with_lock(request.getfixturevalue("postgresql_engine"))
+        return db_session_factory(request.getfixturevalue("postgresql_engine"))
     raise ValueError(f"Unknown db fixture: {dialect}")
 
 
-# def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
-#     lock = threading.Lock()
-#     db = _db(engine)
-
-#     @contextlib.asynccontextmanager
-#     async def factory() -> AsyncIterator[AsyncSession]:
-#         with lock:
-#             async with db() as session:
-#                 yield session
-
-#     return DbSessionFactory(db=factory, dialect=engine.dialect.name)
-
-
-def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
-    db = _db(engine)
+def db_session_factory(engine: AsyncEngine) -> DbSessionFactory:
+    db = _db(engine, bypass_lock=True)
 
     @contextlib.asynccontextmanager
     async def factory() -> AsyncIterator[AsyncSession]:
