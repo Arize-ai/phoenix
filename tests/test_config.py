@@ -16,7 +16,8 @@ from phoenix.config import (
     (
         pytest.param("3600", timedelta(seconds=3600), id="with-positive-unitless-integer"),
         pytest.param("3600.10", timedelta(seconds=3600.10), id="with-positive-decimal"),
-        pytest.param("36d", timedelta(days=36), id="with-positive-day-unit"),
+        pytest.param("36 days", timedelta(days=36), id="with-positive-day-unit"),
+        pytest.param("36d", timedelta(days=36), id="with-positive-d-unit"),
         pytest.param(
             "P4M6DT3H12M45S",
             timedelta(days=(4 * 30 + 6), hours=3, minutes=12, seconds=45),
@@ -53,7 +54,7 @@ def test_get_env_token_expiry_parses_valid_values(
     (
         pytest.param("-3600", "duration must be positive", id="with-negative-integer"),
         pytest.param("-3600.10", "duration must be positive", id="with-negative-decimal"),
-        pytest.param("-36d", "duration must be positive", id="with-negative-day-unit"),
+        pytest.param("-36d", "duration must be positive", id="with-negative-d-unit"),
         pytest.param("0", "duration must be positive", id="with-zero-duration"),
         pytest.param("nan", "duration cannot be null", id="with-null"),
     ),
