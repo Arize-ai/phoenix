@@ -2,11 +2,11 @@ from typing import Any, Dict
 
 from fastapi.openapi.utils import get_openapi
 
-from phoenix.server.api.routers.v1 import REST_API_VERSION
-from phoenix.server.api.routers.v1 import router as v1_router
+from phoenix.server.api.routers.v1 import REST_API_VERSION, create_v1_router
 
 
 def get_openapi_schema() -> Dict[str, Any]:
+    v1_router = create_v1_router(authentication_enabled=False)
     return get_openapi(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,

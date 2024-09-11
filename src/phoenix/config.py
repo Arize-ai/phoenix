@@ -159,7 +159,7 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return os.environ.get(ENV_PHOENIX_API_KEY)
 
 
-def get_auth_settings() -> Tuple[bool, Optional[str]]:
+def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
@@ -239,8 +239,6 @@ ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
 INFERENCES_DIR = ROOT_DIR / "inferences"
 TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
-
-ENABLE_AUTH, PHOENIX_SECRET = get_auth_settings()
 
 
 def ensure_working_dir() -> None:
