@@ -3,11 +3,13 @@ import React from "react";
 import { Heading, Text, View } from "@arizeai/components";
 
 import { ExternalLink } from "@phoenix/components";
+import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 
 import { TypeScriptBlockWithCopy } from "../code/TypeScriptBlockWithCopy";
 
+import { IS_HOSTED_DEPLOYMENT } from "./hosting";
 import {
   TypeScriptIntegrations,
   TypeScriptPlatformIntegrations,
@@ -33,8 +35,8 @@ resource: new Resource({
 };
 
 export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
+  const isHosted = IS_HOSTED_DEPLOYMENT;
   const existingProjectName = props.projectName;
-
   const projectName = existingProjectName || "your-next-llm-project";
   return (
     <div>
@@ -62,22 +64,43 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <View paddingBottom="size-100">
         <Text>
-          If authentication is enabled, set the{" "}
-          <b>OTEL_EXPORTER_OTLP_TRACES_HEADERS</b>. See{" "}
+          Set the authentication headers in the environment variable{" "}
+          <b>OTEL_EXPORTER_OTLP_HEADERS</b>. See{" "}
           <ExternalLink
             href={
               "https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_traces_headers"
             }
           >
-            environment variable
+            environment variables
           </ExternalLink>
         </Text>
       </View>
       <CodeWrap>
         <PythonBlockWithCopy
-          value={`OTEL_EXPORTER_OTLP_TRACES_HEADERS='<auth-headers>'`}
+          value={
+            isHosted
+              ? `OTEL_EXPORTER_OTLP_HEADERS='<auth-headers>'`
+              : `OTEL_EXPORTER_OTLP_HEADERS='authorization=Bearer%20<your-api-key>'`
+          }
         />
       </CodeWrap>
+      <IsAuthenticated>
+        <View paddingBottom="size-100" paddingTop="size-100">
+          <IsAdmin
+            fallback={
+              <Text>
+                Your personal API keys can be created and managed on your{""}
+                <ExternalLink href="/profile">Profile</ExternalLink>
+              </Text>
+            }
+          >
+            <Text>
+              System API keys can be created and managed in{" "}
+              <ExternalLink href="/settings">Settings</ExternalLink>
+            </Text>
+          </IsAdmin>
+        </View>
+      </IsAuthenticated>
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">
           Set the Project Name

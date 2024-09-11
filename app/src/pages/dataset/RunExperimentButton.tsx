@@ -10,16 +10,27 @@ import {
   View,
 } from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
+import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
 // TODO: plumb though session URL from the backend
-const SET_BASE_URL_PYTHON =
-  `import os\n` +
-  `# Set the phoenix collector endpoint. Commonly http://localhost:6060 \n` +
-  `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
+function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
+  let setBaseURLPython =
+    `import os\n` +
+    `# Set the phoenix collector endpoint. Commonly http://localhost:6060 \n` +
+    `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
+  if (isAuthEnabled) {
+    setBaseURLPython +=
+      `\n` +
+      `# Configure access\n` +
+      `os.environ["PHOENIX_API_KEY"] = "<your-api-key>"`;
+  }
+  return setBaseURLPython;
+}
 const TASK_PYTHON =
   `from phoenix.experiments.types import Example\n` +
   `# Define your task\n` +
@@ -75,6 +86,7 @@ export function RunExperimentButton() {
 function RunExperimentExample() {
   const datasetName = useDatasetContext((state) => state.datasetName);
   const version = useDatasetContext((state) => state.latestVersion);
+  const isAuthEnabled = window.Config.authenticationEnabled;
 
   const getDatasetPythonCode = useMemo(() => {
     return (
@@ -98,8 +110,25 @@ function RunExperimentExample() {
         <Text>Point to a running instance of Phoenix</Text>
       </View>
       <CodeWrap>
-        <PythonBlockWithCopy value={SET_BASE_URL_PYTHON} />
+        <PythonBlockWithCopy value={getSetBaseUrlPython({ isAuthEnabled })} />
       </CodeWrap>
+      <IsAuthenticated>
+        <View paddingBottom="size-100" paddingTop="size-100">
+          <IsAdmin
+            fallback={
+              <Text>
+                Your personal API keys can be created and managed on your{""}
+                <ExternalLink href="/profile">Profile</ExternalLink>
+              </Text>
+            }
+          >
+            <Text>
+              System API keys can be created and managed in{" "}
+              <ExternalLink href="/settings">Settings</ExternalLink>
+            </Text>
+          </IsAdmin>
+        </View>
+      </IsAuthenticated>
       <View paddingTop="size-100" paddingBottom="size-100">
         <Text>Pull down this dataset</Text>
       </View>

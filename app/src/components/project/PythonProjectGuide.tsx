@@ -14,6 +14,9 @@ import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 
+import { IsAdmin } from "../auth";
+
+import { HOSTED_PHOENIX_URL, IS_HOSTED_DEPLOYMENT } from "./hosting";
 import { PythonIntegrations } from "./Integrations";
 
 const PHOENIX_OTEL_DOC_LINK =
@@ -27,13 +30,20 @@ const PHOENIX_ENVIRONMENT_VARIABLES_LINK =
 const INSTALL_PHOENIX_OTEL_PYTHON = `pip install arize-phoenix-otel`;
 const INSTALL_OPENAI_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation-openai openai`;
 
-const HOSTED_PHOENIX_URL = "https://app.phoenix.arize.com";
-const LLAMATRACE_URL = "https://llamatrace.com";
-
-const HOSTED_BASE_URLS = [HOSTED_PHOENIX_URL, LLAMATRACE_URL];
-
-// Environment variables
-const HOSTED_PHOENIX_ENVIRONMENT_VARIABLES_PYTHON = `PHOENIX_CLIENT_HEADERS='api_key=<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+function getEnvironmentVariablesPython({
+  isAuthEnabled,
+  isHosted,
+}: {
+  isAuthEnabled: boolean;
+  isHosted: boolean;
+}): string {
+  if (isHosted) {
+    return `PHOENIX_CLIENT_HEADERS='api_key=<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+  } else if (isAuthEnabled) {
+    return `PHOENIX_API_KEY='<your-api-key>'\nPHOENIX_COLLECTOR_ENDPOINT='${HOSTED_PHOENIX_URL}'`;
+  }
+  return `PHOENIX_COLLECTOR_ENDPOINT='${BASE_URL}'`;
+}
 
 const INSTRUMENT_OPENAI_PYTHON = `from openinference.instrumentation.openai import OpenAIInstrumentor
 
@@ -76,7 +86,12 @@ type PythonProjectGuideProps = {
   projectName?: string;
 };
 export function PythonProjectGuide(props: PythonProjectGuideProps) {
-  const isHosted = HOSTED_BASE_URLS.includes(BASE_URL);
+  const isHosted = IS_HOSTED_DEPLOYMENT;
+  const isAuthEnabled = window.Config.authenticationEnabled;
+  const environmentVariablesPython = getEnvironmentVariablesPython({
+    isAuthEnabled,
+    isHosted,
+  });
 
   const projectName = props.projectName || "your-next-llm-project";
   return (
@@ -104,19 +119,31 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       <View paddingBottom="size-100">
         <Text>
           <b>arize-phoenix-otel</b> automatically picks up your configuration
-          from environment variables (e.x. <b>PHOENIX_CLIENT_HEADERS</b> for
-          authentication). See{" "}
+          from
           <ExternalLink href={PHOENIX_ENVIRONMENT_VARIABLES_LINK}>
             environment variables
           </ExternalLink>
         </Text>
       </View>
-      {isHosted ? (
-        <CodeWrap>
-          <PythonBlockWithCopy
-            value={HOSTED_PHOENIX_ENVIRONMENT_VARIABLES_PYTHON}
-          />
-        </CodeWrap>
+      <CodeWrap>
+        <PythonBlockWithCopy value={environmentVariablesPython} />
+      </CodeWrap>
+      {isAuthEnabled ? (
+        <View paddingBottom="size-100" paddingTop="size-100">
+          <IsAdmin
+            fallback={
+              <Text>
+                Personal API keys can be created and managed on your{""}
+                <ExternalLink href="/profile">Profile</ExternalLink>
+              </Text>
+            }
+          >
+            <Text>
+              System API keys can be created and managed in{" "}
+              <ExternalLink href="/settings">Settings</ExternalLink>
+            </Text>
+          </IsAdmin>
+        </View>
       ) : null}
       <View paddingTop="size-200" paddingBottom="size-100">
         <Heading level={2} weight="heavy">
