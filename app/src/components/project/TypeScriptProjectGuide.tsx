@@ -89,7 +89,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
           <IsAdmin
             fallback={
               <Text>
-                Your personal API keys can be created and managed on your{""}
+                Your personal API keys can be created and managed on your{" "}
                 <ExternalLink href="/profile">Profile</ExternalLink>
               </Text>
             }
