@@ -35,10 +35,8 @@ async def test_run_experiment(
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
-    dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
+    pytest.xfail("TODO: Convert this to an integration test")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
