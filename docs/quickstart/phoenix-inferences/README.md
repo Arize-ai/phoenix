@@ -79,12 +79,12 @@ _**Important**_**:** The fields used in a Schema will _vary_ depending on the mo
 
 For examples on how Schema are defined for other model types (NLP, tabular, LLM-based applications), see example notebooks under [Embedding Analysis](../../notebooks.md#embedding-analysis) and [Structured Data Analysis](../../notebooks.md#structured-data-analysis).
 
-### Step 4: Wrap into Inference object
+### Step 4: Wrap into Inferences object
 
-Wrap your `train_df` and schema `train_schema`  into a Phoenix `inference` object:
+Wrap your `train_df` and schema `train_schema`  into a Phoenix `Inferences` object:
 
 ```python
-train_ds = Inference(dataframe=train_df, schema=train_schema, name="training")
+train_ds = px.Inferences(dataframe=train_df, schema=train_schema, name="training")
 ```
 
 ### Step 5: Launch Phoenix!
