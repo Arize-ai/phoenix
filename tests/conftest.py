@@ -128,6 +128,8 @@ async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
     await engine.dispose()
 
 
@@ -144,6 +146,8 @@ async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
     await engine.dispose()
 
 
