@@ -1,7 +1,8 @@
 import inspect
 import os
+import sys
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable,Dict, List, Optional, Tuple, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -19,7 +20,12 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProce
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from .settings import get_env_client_headers, get_env_collector_endpoint, get_env_project_name
+from .settings import (
+    get_env_client_headers,
+    get_env_collector_endpoint,
+    get_env_phoenix_auth_header,
+    get_env_project_name,
+)
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
@@ -106,14 +112,14 @@ class TracerProvider(_TracerProvider):
     def __init__(
         self, *args: Any, endpoint: Optional[str] = None, verbose: bool = True, **kwargs: Any
     ):
-        sig = inspect.signature(_TracerProvider)
+        sig = _get_class_signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
         if bound_args.arguments.get("resource") is None:
             bound_args.arguments["resource"] = Resource.create(
                 {PROJECT_NAME: get_env_project_name()}
             )
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
         parsed_url, endpoint = _normalized_endpoint(endpoint)
         self._default_processor = False
@@ -289,17 +295,33 @@ class HTTPSpanExporter(_HTTPSpanExporter):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        sig = inspect.signature(_HTTPSpanExporter)
+        sig = _get_class_signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
 
         if not bound_args.arguments.get("headers"):
-            bound_args.arguments["headers"] = get_env_client_headers()
+            env_headers = get_env_client_headers()
+            auth_header = get_env_phoenix_auth_header()
+            headers = {
+                **(env_headers or dict()),
+                **(auth_header or dict()),
+            }
+            bound_args.arguments["headers"] = headers if headers else None
+        else:
+            headers = bound_args.arguments["headers"]
+            # If the auth header is not in the headers, add it
+            if "authorization" not in headers:
+                auth_header = get_env_phoenix_auth_header()
+                bound_args.arguments["headers"] = {
+                    **headers,
+                    **(auth_header or dict()),
+                }
 
+        print(bound_args.arguments)
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
 
 class GRPCSpanExporter(_GRPCSpanExporter):
@@ -322,17 +344,34 @@ class GRPCSpanExporter(_GRPCSpanExporter):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        sig = inspect.signature(_GRPCSpanExporter)
+        sig = _get_class_signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
 
         if not bound_args.arguments.get("headers"):
-            bound_args.arguments["headers"] = get_env_client_headers()
+            env_headers = get_env_client_headers()
+            auth_header = get_env_phoenix_auth_header()
+            headers = {
+                **(env_headers or dict()),
+                **(auth_header or dict()),
+            }
+            bound_args.arguments["headers"] = headers if headers else None
+        else:
+            headers = bound_args.arguments["headers"]
+            # If the auth header is not in the headers, add it
+            if "authorization" not in headers:
+                auth_header = get_env_phoenix_auth_header()
+                bound_args.arguments["headers"] = {
+                    **headers,
+                    **(auth_header or dict()),
+                }
 
+        print(sig)
+        print(bound_args.arguments)
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
 
 def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
@@ -391,3 +430,15 @@ def _normalized_endpoint(
         parsed = urlparse(endpoint)
     parsed = cast(ParseResult, parsed)
     return parsed, parsed.geturl()
+
+
+def _get_class_signature(fn: Callable) -> inspect.Signature:
+    if sys.version_info >= (3, 9):
+        return inspect.signature(fn)
+    elif sys.version_info >= (3, 8):
+        init_signature = inspect.signature(fn.__init__)
+        new_params = list(init_signature.parameters.values())[1:]
+        new_sig = init_signature.replace(parameters=new_params)
+        return new_sig
+    else:
+        raise RuntimeError("Unsupported Python version")
