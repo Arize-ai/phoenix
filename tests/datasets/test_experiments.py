@@ -1,5 +1,5 @@
 import json
-import time
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import patch
@@ -94,6 +94,7 @@ async def test_run_experiment(
             evaluators={f"{i:02}": e for i, e in enumerate(evaluators)},
             print_summary=False,
         )
+        await asyncio.sleep(3)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -274,7 +275,7 @@ async def test_run_evaluation(
     )
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
         evaluate_experiment(experiment, evaluators=[lambda _: _])
-        time.sleep(1)  # Wait for the evaluations to be inserted
+        await asyncio.sleep(1)  # Wait for the evaluations to be inserted
         async with db() as session:
             evaluations = list(await session.scalars(select(models.ExperimentRunAnnotation)))
         assert len(evaluations) == 1
