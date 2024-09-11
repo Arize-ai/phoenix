@@ -616,6 +616,8 @@ def create_app(
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     secret: Optional[str] = None,
+    access_token_expiry: Optional[timedelta] = None,
+    refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
     logger.info(f"Server umap params: {umap_params}")
@@ -751,6 +753,8 @@ def create_app(
         )
     app.state.read_only = read_only
     app.state.export_path = export_path
+    app.state.access_token_expiry = access_token_expiry
+    app.state.refresh_token_expiry = refresh_token_expiry
     app.state.db = db
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
