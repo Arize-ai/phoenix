@@ -685,6 +685,7 @@ class AccessToken(Base):
     refresh_token_id: Mapped[int] = mapped_column(
         ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
         index=True,
+        unique=True,
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
 

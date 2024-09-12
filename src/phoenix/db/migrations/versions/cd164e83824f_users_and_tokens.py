@@ -100,6 +100,7 @@ def upgrade() -> None:
             sa.Integer,
             sa.ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
             index=True,
+            unique=True,
         ),
         sqlite_autoincrement=True,
     )
