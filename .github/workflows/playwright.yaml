@@ -4,10 +4,10 @@ env:
   pip-version: 24.2
 
 on:
-  #   push:
-  #     branches: []
+  push:
+    branches: [auth, main]
   pull_request:
-    branches: [auth]
+    branches: [auth, main]
 jobs:
   test:
     timeout-minutes: 60
