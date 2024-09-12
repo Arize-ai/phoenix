@@ -6,13 +6,10 @@ from functools import partial
 
 from sqlalchemy import (
     distinct,
-    func,
     insert,
     select,
-    update,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.functions import coalesce
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
@@ -43,7 +40,6 @@ class Facilitator:
             for fn in (
                 _ensure_enums,
                 _ensure_user_roles,
-                *((_ensure_admin_password,) if self._authentication_enabled else ()),
             ):
                 async with session.begin_nested():
                     await fn(session)
@@ -97,41 +93,18 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
     if (admin_role := UserRole.ADMIN.value) not in existing_roles and (
         admin_role_id := role_ids.get(admin_role)
     ) is not None:
+        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+        compute = partial(compute_password_hash, password=DEFAULT_ADMIN_PASSWORD, salt=salt)
+        loop = asyncio.get_running_loop()
+        hash_ = await loop.run_in_executor(None, compute)
         admin_user = models.User(
             user_role_id=admin_role_id,
             username=DEFAULT_ADMIN_USERNAME,
             email=DEFAULT_ADMIN_EMAIL,
             auth_method=AuthMethod.LOCAL.value,
+            password_salt=salt,
+            password_hash=hash_,
             reset_password=True,
         )
         session.add(admin_user)
     await session.flush()
-
-
-async def _ensure_admin_password(session: AsyncSession) -> None:
-    """
-    Ensure that the first admin user with the LOCAL auth method in the database has a password
-    hash. If that admin user already has a password hash, this function will do nothing.
-    """
-    salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-    compute = partial(compute_password_hash, password=DEFAULT_ADMIN_PASSWORD, salt=salt)
-    loop = asyncio.get_running_loop()
-    hash_ = await loop.run_in_executor(None, compute)
-    password_hash = coalesce(models.User.password_hash, hash_)
-    password_salt = coalesce(models.User.password_salt, salt)
-    first_local_admin = (
-        select(func.min(models.User.id))
-        .join(models.UserRole)
-        .where(models.UserRole.name == UserRole.ADMIN.value)
-        .where(models.User.auth_method == AuthMethod.LOCAL.value)
-        .scalar_subquery()
-    )
-    stmt = (
-        update(models.User)
-        .where(models.User.id == first_local_admin)
-        .values(
-            password_hash=password_hash,
-            password_salt=password_salt,
-        )
-    )
-    await session.execute(stmt)
