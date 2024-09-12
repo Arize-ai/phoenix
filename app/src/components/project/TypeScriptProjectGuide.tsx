@@ -80,7 +80,7 @@ export function TypeScriptProjectGuide(props: PythonProjectGuideProps) {
           value={
             isHosted
               ? `OTEL_EXPORTER_OTLP_HEADERS='<auth-headers>'`
-              : `OTEL_EXPORTER_OTLP_HEADERS='authorization=Bearer%20<your-api-key>'`
+              : `OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer <your-api-key>'`
           }
         />
       </CodeWrap>

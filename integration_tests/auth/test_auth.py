@@ -17,6 +17,10 @@ import jwt
 import pytest
 from faker import Faker
 from httpx import HTTPStatusError
+from opentelemetry.sdk.environment_variables import (
+    OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+)
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phoenix.server.api.exceptions import Unauthorized
@@ -703,7 +707,7 @@ class TestSpanExporters:
         headers: Optional[_Headers] = None
         api_key: Optional[_ApiKey] = None
         if with_headers:
-            api_key = _DEFAULT_ADMIN.log_in().create_api_key("System", expires_at=expires_at)
+            api_key = _DEFAULT_ADMIN.create_api_key("System", expires_at=expires_at)
             headers = dict(authorization=f"Bearer {api_key}")
         export = _span_exporter(headers=headers).export
         project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
@@ -716,3 +720,36 @@ class TestSpanExporters:
         if api_key and expected is SpanExportResult.SUCCESS:
             _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(spans) is SpanExportResult.FAILURE
+
+    @pytest.mark.parametrize(
+        "with_env_var,expectation",
+        [
+            (True, SpanExportResult.SUCCESS),
+            (False, SpanExportResult.FAILURE),
+        ],
+    )
+    def test_environment_variable(
+        self,
+        with_env_var: bool,
+        expectation: SpanExportResult,
+        monkeypatch: pytest.MonkeyPatch,
+        _span_exporter: _SpanExporterFactory,
+        _fake: Faker,
+    ) -> None:
+        api_key = _DEFAULT_ADMIN.create_api_key("System")
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_HEADERS, False)
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_TRACES_HEADERS, False)
+        if with_env_var:
+            monkeypatch.setenv(
+                OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                f"Authorization=Bearer {api_key}",
+            )
+        project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
+        memory = InMemorySpanExporter()
+        _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
+        spans = memory.get_finished_spans()
+        assert len(spans) == 1
+        export = _span_exporter(headers=None).export
+        assert export(spans) is expectation
+        _DEFAULT_ADMIN.delete_api_key(api_key)
+        assert export(spans) is SpanExportResult.FAILURE
