@@ -106,7 +106,7 @@ export function ResetPasswordForm() {
           fieldState: { invalid, error },
         }) => (
           <TextField
-            label="Password"
+            label="New Password"
             type="password"
             isRequired
             description={`Password must be at least ${MIN_PASSWORD_LENGTH} characters`}
