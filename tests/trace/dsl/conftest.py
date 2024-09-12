@@ -58,17 +58,82 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
-                    "input": {
-                        "value": "xyz",
-                    },
+                    "input": {"value": "xyz"},
                     "retrieval": {
-                        "documents": [
-                            {"document": {"content": "A", "score": 1}},
-                            {"document": {"content": "B", "score": 2}},
-                            {"document": {"content": "C", "score": 3}},
-                        ],
+                        "documents": [{"document": {"content": "A", "score": 1}}],
                     },
                 },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="5678",
+                parent_id="2345",
+                name="retriever span",
+                span_kind="RETRIEVER",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "input": {"value": "xyz"},
+                    "retrieval": {
+                        "documents": [{}, {"document": {"content": "B", "score": 2}}],
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="6789",
+                parent_id="2345",
+                name="retriever span",
+                span_kind="RETRIEVER",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "input": {"value": "xyz"},
+                    "retrieval": {
+                        "documents": [{}, {}, {"document": {"content": "C", "score": 3}}],
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="78910",
+                parent_id="2345",
+                name="retriever span",
+                span_kind="RETRIEVER",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={},
                 events=[],
                 status_code="OK",
                 status_message="okay",
