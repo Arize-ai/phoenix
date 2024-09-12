@@ -726,7 +726,7 @@ class TestSpanExporters:
             api_key = _DEFAULT_ADMIN.create_api_key("System", expires_at=expires_at)
             if method == "headers":
                 # Must use all lower case for `authorization` because
-                # otherwise it would crash the grpc receiver.
+                # otherwise it would crash the gRPC receiver.
                 headers = dict(authorization=f"Bearer {api_key}")
             elif method == "setenv":
                 monkeypatch.setenv(
