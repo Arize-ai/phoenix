@@ -211,6 +211,9 @@ class _User:
     def delete_api_key(self, api_key: _ApiKey, /) -> None:
         return _delete_api_key(api_key, self)
 
+    def export_embeddings(self, filename: str) -> None:
+        _export_embeddings(self, filename=filename)
+
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
 _DEFAULT_ADMIN = _User(
@@ -828,6 +831,11 @@ def _log_out(
     resp.raise_for_status()
 
 
+def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename: str) -> None:
+    resp = _httpx_client(auth).get("/exports", params={"filename": filename})
+    resp.raise_for_status()
+
+
 def _json(
     resp: httpx.Response,
 ) -> Dict[str, Any]:
@@ -853,3 +861,4 @@ _DENIED = pytest.raises(Unauthorized)
 
 _EXPECTATION_401 = pytest.raises(HTTPStatusError, match="401 Unauthorized")
 _EXPECTATION_403 = pytest.raises(HTTPStatusError, match="403 Forbidden")
+_EXPECTATION_404 = pytest.raises(HTTPStatusError, match="404 Not Found")
