@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.33.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.1...arize-phoenix-v4.33.2) (2024-09-12)
+
+
+### Bug Fixes
+
+* `get_retrieved_documents` should handle missing values ([#4599](https://github.com/Arize-ai/phoenix/issues/4599)) ([4f604b1](https://github.com/Arize-ai/phoenix/commit/4f604b1fd8d76560535ca020990eaea689a0f25b))
+
+
+### Documentation
+
+* add docs link to readme ([#4572](https://github.com/Arize-ai/phoenix/issues/4572)) ([558c5d3](https://github.com/Arize-ai/phoenix/commit/558c5d38f1d7835fc8e4b0f7ece5198537d6a82a))
+
 ## [4.33.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.0...arize-phoenix-v4.33.1) (2024-09-05)
 
 
