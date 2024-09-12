@@ -2,8 +2,11 @@
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.
 
-These defaults are aware of the `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_PROJECT_NAME`, and
-`PHOENIX_CLIENT_HEADERS` environment variables.
+These defaults are aware of environment variables you may have set to configure Phoenix:
+- `PHOENIX_COLLECTOR_ENDPOINT`
+- `PHOENIX_PROJECT_NAME`
+- `PHOENIX_CLIENT_HEADERS`
+- `PHOENIX_API_KEY`
 
 # Examples
 
@@ -21,6 +24,11 @@ tracer_provider = register()
 
 This is all you need to get started using OTel with Phoenix! `register` defaults to sending spans
 to an endpoint at `http://localhost` using gRPC.
+
+## Phoenix Authentication
+
+If the `PHOENIX_API_KEY` environment variable is set, `register` will automatically add an
+`authorization` header to each span payload.
 
 ### Configuring the collector endpoint
 

@@ -10,6 +10,7 @@ _logger = getLogger(__name__)
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
+ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -24,6 +25,14 @@ def get_env_client_headers() -> Optional[Dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
+
+
+def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
+    api_key = os.environ.get(ENV_PHOENIX_API_KEY)
+    if api_key:
+        return dict(authorization=f"Bearer {api_key}")
+    else:
+        return None
 
 
 # Optional whitespace
