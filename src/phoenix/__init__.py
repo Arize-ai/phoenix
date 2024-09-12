@@ -126,7 +126,7 @@ class PhoenixTraceLlamaIndexLoader(Loader):
             "Example usage:\n\n"
             "```python\n"
             "from phoenix.otel import register\n"
-            "from openinference.instrumentation.llamaindex import LlamaIndexInstrumentor\n\n"
+            "from openinference.instrumentation.llama_index import LlamaIndexInstrumentor\n\n"
             "tracer_provider = register()\n"
             "LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)\n"
             "```\n"
