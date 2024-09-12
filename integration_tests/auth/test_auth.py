@@ -36,6 +36,7 @@ from .._helpers import (
     _DEFAULT_ADMIN,
     _DENIED,
     _EXPECTATION_401,
+    _EXPECTATION_404,
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
@@ -45,6 +46,7 @@ from .._helpers import (
     _create_user,
     _DefaultAdminTokenSequestration,
     _Expectation,
+    _export_embeddings,
     _GetUser,
     _GqlId,
     _Headers,
@@ -741,3 +743,20 @@ class TestSpanExporters:
         if api_key and expected is SpanExportResult.SUCCESS:
             _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(_spans) is SpanExportResult.FAILURE
+
+
+class TestEmbeddingsRestApi:
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
+    def test_authenticated_users_can_access_route(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        user = _get_user(role_or_user)
+        logged_in_user = user.log_in()
+        with _EXPECTATION_404:  # no files have been exported
+            logged_in_user.export_embeddings("embeddings")
+
+    def test_unauthenticated_requests_receive_401(self) -> None:
+        with _EXPECTATION_401:
+            _export_embeddings(None, filename="embeddings")

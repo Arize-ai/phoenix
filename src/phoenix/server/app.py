@@ -28,7 +28,6 @@ from typing import (
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
 from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -91,7 +90,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
-from phoenix.server.api.routers import auth_router, create_v1_router
+from phoenix.server.api.routers import auth_router, create_embeddings_router, create_v1_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
@@ -223,18 +222,6 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 
 
 ProjectRowId: TypeAlias = int
-
-
-@router.get("/exports")
-async def download_exported_file(request: Request, filename: str) -> FileResponse:
-    file = request.app.state.export_path / (filename + ".parquet")
-    if not file.is_file():
-        raise HTTPException(status_code=404)
-    return FileResponse(
-        path=file,
-        filename=file.name,
-        media_type="application/x-octet-stream",
-    )
 
 
 @router.get("/arize_phoenix_version")
@@ -727,6 +714,7 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
+    app.include_router(create_embeddings_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
