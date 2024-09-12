@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import (
@@ -258,6 +259,18 @@ class TestCreateUser:
             new_user = logged_in_user.create_user(role, profile=profile)
         if not e:
             new_user.log_in()
+
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_username_is_optional(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+        _profiles: Iterator[_Profile],
+    ) -> None:
+        profile = replace(next(_profiles), username=None)
+        _get_user(role_or_user).create_user(role, profile=profile)
 
 
 class TestPatchViewer:

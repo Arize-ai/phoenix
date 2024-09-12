@@ -91,7 +91,7 @@ class UserMutationMixin:
         password_hash = await info.context.hash_password(password, salt)
         user = models.User(
             reset_password=True,
-            username=input.username,
+            username=input.username or None,
             email=email,
             auth_method=enums.AuthMethod.LOCAL.value,
             password_hash=password_hash,
