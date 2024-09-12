@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.4.1...arize-phoenix-otel-v0.5.0) (2024-09-12)
+
+
+### Features
+
+* Pick up authorization headers from environment variable ([#4590](https://github.com/Arize-ai/phoenix/issues/4590)) ([7648b2a](https://github.com/Arize-ai/phoenix/commit/7648b2a2c363d82f53fbc98852720bb52a0fa3d4))
+
+
+### Bug Fixes
+
+* Ensure correct dataloader results ordering ([#4524](https://github.com/Arize-ai/phoenix/issues/4524)) ([f9239d6](https://github.com/Arize-ai/phoenix/commit/f9239d63af9d06c04430f9dca808caf08d152d3d))
+
 ## [0.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.4.0...arize-phoenix-otel-v0.4.1) (2024-08-25)
 
 
