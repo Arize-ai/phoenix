@@ -831,9 +831,7 @@ def _log_out(
     resp.raise_for_status()
 
 
-def _export_embeddings(
-    auth: Optional[_SecurityArtifact] = None, /, *, filename: str
-) -> httpx.Response:
+def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename: str) -> None:
     resp = _httpx_client(auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()
 
