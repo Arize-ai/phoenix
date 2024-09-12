@@ -60,7 +60,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
           </View>
           <CodeWrap>
             <PythonBlockWithCopy
-              value={`OTEL_EXPORTER_OTLP_HEADERS='authorization=Bearer%20${jwt}'`}
+              value={`OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer ${jwt}'`}
             />
           </CodeWrap>
           <View paddingBottom="size-100" paddingTop="size-100">

@@ -8,8 +8,10 @@ from typing import (
     Dict,
     Generic,
     Iterator,
+    Literal,
     Optional,
     Set,
+    Tuple,
     TypeVar,
 )
 
@@ -17,11 +19,17 @@ import jwt
 import pytest
 from faker import Faker
 from httpx import HTTPStatusError
+from opentelemetry.sdk.environment_variables import (
+    OTEL_EXPORTER_OTLP_HEADERS,
+    OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+)
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from .._helpers import (
     _ADMIN,
@@ -683,8 +691,15 @@ class TestGraphQLQuery:
 
 
 class TestSpanExporters:
+    @pytest.fixture
+    def _spans(self, _fake: Faker) -> Tuple[ReadableSpan, ...]:
+        memory = InMemorySpanExporter()
+        project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
+        _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
+        return memory.get_finished_spans()
+
     @pytest.mark.parametrize(
-        "with_headers,expires_at,expected",
+        "use_api_key,expires_at,expected",
         [
             (True, NOW + timedelta(days=1), SpanExportResult.SUCCESS),
             (True, None, SpanExportResult.SUCCESS),
@@ -692,27 +707,37 @@ class TestSpanExporters:
             (False, None, SpanExportResult.FAILURE),
         ],
     )
-    def test_headers(
+    @pytest.mark.parametrize("method", ["headers", "setenv"])
+    def test_api_key(
         self,
-        with_headers: bool,
+        method: Literal["headers", "setenv"],
+        use_api_key: bool,
         expires_at: Optional[datetime],
         expected: SpanExportResult,
         _span_exporter: _SpanExporterFactory,
-        _fake: Faker,
+        _spans: Tuple[ReadableSpan, ...],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_HEADERS, False)
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_TRACES_HEADERS, False)
         headers: Optional[_Headers] = None
         api_key: Optional[_ApiKey] = None
-        if with_headers:
-            api_key = _DEFAULT_ADMIN.log_in().create_api_key("System", expires_at=expires_at)
-            headers = dict(authorization=f"Bearer {api_key}")
+        if use_api_key:
+            api_key = _DEFAULT_ADMIN.create_api_key("System", expires_at=expires_at)
+            if method == "headers":
+                # Must use all lower case for `authorization` because
+                # otherwise it would crash the gRPC receiver.
+                headers = dict(authorization=f"Bearer {api_key}")
+            elif method == "setenv":
+                monkeypatch.setenv(
+                    OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                    f"Authorization=Bearer {api_key}",
+                )
+            else:
+                assert_never(method)
         export = _span_exporter(headers=headers).export
-        project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
-        memory = InMemorySpanExporter()
-        _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
-        spans = memory.get_finished_spans()
-        assert len(spans) == 1
         for _ in range(2):
-            assert export(spans) is expected
+            assert export(_spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
             _DEFAULT_ADMIN.delete_api_key(api_key)
-            assert export(spans) is SpanExportResult.FAILURE
+            assert export(_spans) is SpanExportResult.FAILURE
