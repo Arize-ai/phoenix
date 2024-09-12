@@ -623,7 +623,7 @@ def create_app(
     logger.info(f"Server umap params: {umap_params}")
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
-    startup_callbacks_list.append(Facilitator(db=db, authentication_enabled=authentication_enabled))
+    startup_callbacks_list.append(Facilitator(db=db))
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
