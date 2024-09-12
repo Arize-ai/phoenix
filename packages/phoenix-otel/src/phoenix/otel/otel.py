@@ -317,7 +317,6 @@ class HTTPSpanExporter(_HTTPSpanExporter):
                     **(auth_header or dict()),
                 }
 
-        print(bound_args.arguments)
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
@@ -366,8 +365,6 @@ class GRPCSpanExporter(_GRPCSpanExporter):
                     **(auth_header or dict()),
                 }
 
-        print(sig)
-        print(bound_args.arguments)
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
