@@ -31,9 +31,8 @@ class Facilitator:
     carried out as callbacks at the very beginning of Starlette's lifespan process.
     """
 
-    def __init__(self, *, db: DbSessionFactory, authentication_enabled: bool) -> None:
+    def __init__(self, *, db: DbSessionFactory) -> None:
         self._db = db
-        self._authentication_enabled = authentication_enabled
 
     async def __call__(self) -> None:
         async with self._db() as session:
