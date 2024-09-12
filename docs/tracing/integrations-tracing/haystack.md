@@ -4,6 +4,8 @@ description: Instrument LLM applications built with Haystack
 
 # Haystack
 
+{% embed url="https://www.youtube.com/watch?t=6s&v=ZbOs_Njx2ko" %}
+
 Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai/)
 
 ## Launch Phoenix

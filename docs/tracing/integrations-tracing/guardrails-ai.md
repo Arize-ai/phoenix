@@ -4,6 +4,8 @@ description: Instrument LLM applications that use the Guardrails AI framework
 
 # Guardrails AI
 
+{% embed url="https://www.youtube.com/watch?v=o5bo9P3WW7k" %}
+
 In this example we will instrument a small program that uses the [Guardrails AI](https://www.guardrailsai.com/) framework to protect their LLM calls.
 
 ## Launch Phoenix

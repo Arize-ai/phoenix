@@ -4,6 +4,8 @@ description: Instrument multi agent applications using CrewAI
 
 # CrewAI
 
+{% embed url="https://www.youtube.com/watch?t=4s&v=Yc5q3l6F7Ww" %}
+
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/crewai_tracing_tutorial.ipynb" %}
 
 ## Launch Phoenix

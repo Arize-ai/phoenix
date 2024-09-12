@@ -1,5 +1,7 @@
 # Bring Your Own Evaluator
 
+{% embed url="https://www.youtube.com/watch?v=EfhylWtNb1s" %}
+
 ### Before you begin:
 
 You'll need two things to build your own evaluator: a dataset to evaluate and a template prompt to use as the evaluation prompt on each row of data. The dataset can have any columns you like, and the template can be structured however you like. The only requirement is that the dataset has all the columns your template uses.
