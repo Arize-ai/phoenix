@@ -32,7 +32,7 @@ test("create a member", async ({ page }) => {
   // Add the user
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password *", { exact: true }).fill("member123");
-  await page.getByLabel("Confirm Password ").fill("member123");
+  await page.getByLabel("Confirm Password").fill("member123");
   await page.getByLabel("member", { exact: true }).click();
   await page.getByRole("option", { name: "member" }).click();
   await page
