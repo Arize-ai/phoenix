@@ -308,7 +308,10 @@ class HTTPSpanExporter(_HTTPSpanExporter):
             }
             bound_args.arguments["headers"] = headers if headers else None
         else:
-            headers = bound_args.arguments["headers"]
+            headers = dict()
+            for header_field, value in bound_args.arguments["headers"].items():
+                headers[header_field.lower()] = value
+
             # If the auth header is not in the headers, add it
             if "authorization" not in headers:
                 auth_header = get_env_phoenix_auth_header()
@@ -316,6 +319,8 @@ class HTTPSpanExporter(_HTTPSpanExporter):
                     **headers,
                     **(auth_header or dict()),
                 }
+            else:
+                bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None, use_http=True)
@@ -356,7 +361,10 @@ class GRPCSpanExporter(_GRPCSpanExporter):
             }
             bound_args.arguments["headers"] = headers if headers else None
         else:
-            headers = bound_args.arguments["headers"]
+            headers = dict()
+            for header_field, value in bound_args.arguments["headers"].items():
+                headers[header_field.lower()] = value
+
             # If the auth header is not in the headers, add it
             if "authorization" not in headers:
                 auth_header = get_env_phoenix_auth_header()
@@ -364,6 +372,8 @@ class GRPCSpanExporter(_GRPCSpanExporter):
                     **headers,
                     **(auth_header or dict()),
                 }
+            else:
+                bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None)
@@ -394,8 +404,8 @@ def _exporter_transport(exporter: SpanExporter) -> str:
 
 def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
     if isinstance(headers, dict):
-        return {key.lower(): "****" for key, _ in headers.items()}
-    return {key.lower(): "****" for key, _ in headers}
+        return {key: "****" for key, _ in headers.items()}
+    return {key: "****" for key, _ in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
