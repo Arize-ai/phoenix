@@ -14,6 +14,7 @@ export type UserFormParams = {
   email: string;
   username: string | null;
   password: string;
+  confirmPassword: string;
   role: UserRole;
 };
 
@@ -37,6 +38,7 @@ export function UserForm({
       email: email ?? "",
       username: username ?? null,
       password: password ?? "",
+      confirmPassword: "",
       role: role ?? UserRole.MEMBER,
     },
   });
@@ -118,6 +120,7 @@ export function UserForm({
               <TextField
                 label="Password"
                 type="password"
+                isRequired
                 description="Password must be at least 4 characters"
                 name={name}
                 errorMessage={error?.message}
@@ -125,6 +128,36 @@ export function UserForm({
                 onChange={onChange}
                 onBlur={onBlur}
                 defaultValue={value}
+              />
+            )}
+          />
+          <Controller
+            name="confirmPassword"
+            control={control}
+            rules={{
+              required: "Please confirm your password",
+              minLength: {
+                value: MIN_PASSWORD_LENGTH,
+                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+              },
+              validate: (value, formValues) =>
+                value === formValues.password || "Passwords do not match",
+            }}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                label="Confirm Password"
+                isRequired
+                type="password"
+                description="Confirm the new password"
+                name={name}
+                errorMessage={error?.message}
+                validationState={invalid ? "invalid" : "valid"}
+                onChange={onChange}
+                onBlur={onBlur}
+                defaultValue={value ?? undefined}
               />
             )}
           />
