@@ -1,5 +1,7 @@
 import { BASE_URL } from "@phoenix/config";
 
+import { getReturnUrlQueryParam } from "./utils/routingUtils";
+
 const REFRESH_URL = BASE_URL + "/auth/refresh";
 
 class UnauthorizedError extends Error {
@@ -48,7 +50,7 @@ async function refreshTokens(): Promise<Response> {
     if (!response.ok) {
       // for now force redirect to login page. This could re-throw with a custom error
       // But for now, we'll just redirect
-      window.location.href = "/login";
+      window.location.href = `/login?${getReturnUrlQueryParam()}`;
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;

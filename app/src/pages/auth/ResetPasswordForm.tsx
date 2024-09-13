@@ -49,7 +49,6 @@ export function ResetPasswordForm() {
           },
         },
         onCompleted: () => {
-          // TODO: preserve the page the user came from
           navigate("/login");
         },
         onError: (error) => {
