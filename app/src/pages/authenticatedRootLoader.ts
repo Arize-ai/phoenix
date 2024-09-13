@@ -2,6 +2,7 @@ import { fetchQuery, graphql } from "react-relay";
 import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
+import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import { authenticatedRootLoaderQuery } from "./__generated__/authenticatedRootLoaderQuery.graphql";
 
@@ -23,7 +24,8 @@ export async function authenticatedRootLoader() {
   ).toPromise();
 
   if (loaderData?.viewer?.passwordNeedsReset) {
-    return redirect("/reset-password");
+    const redirectUrl = createRedirectUrlWithReturn("/reset-password");
+    return redirect(redirectUrl);
   }
   return loaderData;
 }
