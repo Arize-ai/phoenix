@@ -17,6 +17,13 @@ class VersionedClient(httpx.Client):
         from phoenix import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
+
+        if env_headers := get_env_client_headers():
+            self.headers.update(env_headers)
+        if "authorization" not in [k.lower() for k in self.headers]:
+            if api_key := get_env_phoenix_api_key():
+                self.headers["authorization"] = f"Bearer {api_key}"
+
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
 
@@ -60,12 +67,6 @@ class VersionedClient(httpx.Client):
                 )
 
     def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
-        headers = dict()
-        if env_headers := get_env_client_headers():
-            headers.update(env_headers)
-        if api_key := get_env_phoenix_api_key():
-            headers["authorization"] = f"Bearer {api_key}"
-        kwargs["headers"] = headers or None
         response = super().request(*args, **kwargs)
         self._check_version(response)
         return response
@@ -80,6 +81,13 @@ class VersionedAsyncClient(httpx.AsyncClient):
         from phoenix import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
+
+        if env_headers := get_env_client_headers():
+            self.headers.update(env_headers)
+        if "authorization" not in [k.lower() for k in self.headers]:
+            if api_key := get_env_phoenix_api_key():
+                self.headers["authorization"] = f"Bearer {api_key}"
+
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
 
@@ -119,12 +127,6 @@ class VersionedAsyncClient(httpx.AsyncClient):
                 )
 
     async def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
-        headers = dict()
-        if env_headers := get_env_client_headers():
-            headers.update(env_headers)
-        if api_key := get_env_phoenix_api_key():
-            headers["authorization"] = f"Bearer {api_key}"
-        kwargs["headers"] = headers or None
         response = await super().request(*args, **kwargs)
         self._check_version(response)
         return response

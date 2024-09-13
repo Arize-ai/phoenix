@@ -77,13 +77,10 @@ from phoenix.utilities.json import jsonify
 
 
 def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
-    headers = get_env_client_headers()
     return VersionedClient(
         base_url=get_base_url(),
-        headers=headers,
     ), VersionedAsyncClient(
         base_url=get_base_url(),
-        headers=headers,
     )
 
 

@@ -88,15 +88,12 @@ class Client(TraceDataExtractor):
             )
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
-        headers = dict((headers or get_env_client_headers() or {}))
+        headers = dict(headers or {})
         if api_key:
             headers = {
                 **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},
-                "Authorization": f"Bearer {api_key}",
+                "authorization": f"Bearer {api_key}",
             }
-        elif api_key := get_env_phoenix_api_key():
-            if not headers or ("authorization" not in [k.lower() for k in headers]):
-                headers = {**(headers or {}), "Authorization": f"Bearer {api_key}"}
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
