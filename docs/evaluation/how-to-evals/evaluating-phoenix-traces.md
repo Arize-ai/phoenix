@@ -1,7 +1,7 @@
 # Overview
-This guide will walk you through the process of evaluating traces captured in Phoenix, and exporting the results to the Phoenix UI.
+This guide will walk you through exporting traces captured in Phoenix, evaluating them programmatically, and  logging the evaluation results back to Phoenix for analysis.
 
-This process is similar to the [evaluation quickstart guide](https://docs.arize.com/phoenix/evaluation/evals), but instead of creating your own dataset or using an existing external one, you'll export a trace dataset from Phoenix and log the evaluation results to Phoenix.
+This builds on the [evaluation quickstart guide](https://docs.arize.com/phoenix/evaluation/evals), but instead of creating your own dataset or using an existing external one, you'll query traces from Phoenix to create a dataset and log the evaluation results to Phoenix so that the traces are annotated with the evaluations.
 
 ## Install dependencies & Set environment variables
 
@@ -118,12 +118,12 @@ spans_df.head()
 
 ## Generate evaluations
 
-Now that we have our trace dataset, we can generate evaluations for each trace. Evaluations can be generated in many different ways. Ultimately, we want to end up with a set of labels and/or scores for our traces.
+Now that we have our trace dataset, we can generate evaluations for each span. Evaluations can be generated in many different ways. Ultimately, we want to end up with a set of labels and/or scores for our traces.
 
 You can generate evaluations using:
 - Plain code
-- Phoenix's [built-in LLM as a Judge evaluators](https://docs.arize.com/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
-- Your own [custom LLM as a Judge evaluator](https://docs.arize.com/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
+- Phoenix's [built-in LLM evaluators](https://docs.arize.com/phoenix/evaluation/how-to-evals/running-pre-tested-evals)
+- Your own [custom LLM  evaluator](https://docs.arize.com/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
 - Other evaluation packages
 
 As long as you format your evaluation results properly, you can upload them to Phoenix and visualize them in the UI.
