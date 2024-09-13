@@ -20,7 +20,7 @@ export function DeleteAPIKeyButton({
 
   const onDelete = () => {
     setDialog(
-      <Dialog title="Delete System Key">
+      <Dialog title="Delete API Key">
         <View padding="size-200">
           <Text color="danger">
             {`Are you sure you want to delete this key? This cannot be undone and will disable all uses of this key.`}
