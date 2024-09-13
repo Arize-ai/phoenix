@@ -41,7 +41,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_base_url, get_env_client_headers
+from phoenix.config import get_base_url
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter

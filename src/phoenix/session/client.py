@@ -35,10 +35,8 @@ from pyarrow import ArrowInvalid, Table
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
-    get_env_phoenix_api_key,
     get_env_port,
     get_env_project_name,
 )
@@ -92,7 +90,7 @@ class Client(TraceDataExtractor):
         if api_key:
             headers = {
                 **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},
-                "authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {api_key}",
             }
         host = get_env_host()
         if host == "0.0.0.0":
