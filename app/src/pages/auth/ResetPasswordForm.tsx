@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
 import { useNotifyError } from "@phoenix/contexts";
+import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
 
@@ -49,7 +50,8 @@ export function ResetPasswordForm() {
           },
         },
         onCompleted: () => {
-          navigate("/login");
+          const to = createRedirectUrlWithReturn("/login");
+          navigate(to);
         },
         onError: (error) => {
           notifyError({
@@ -59,7 +61,7 @@ export function ResetPasswordForm() {
         },
       });
     },
-    [commit, notifyError, navigate]
+    [commit, navigate, notifyError]
   );
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
