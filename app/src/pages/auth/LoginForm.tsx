@@ -5,6 +5,8 @@ import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
+import { getReturnUrl } from "@phoenix/utils/routingUtils";
+
 type LoginFormParams = {
   email: string;
   password: string;
@@ -36,7 +38,8 @@ export function LoginForm() {
       } finally {
         setIsLoading(() => false);
       }
-      navigate("/");
+      const returnUrl = getReturnUrl();
+      navigate(returnUrl);
     },
     [navigate, setError]
   );
