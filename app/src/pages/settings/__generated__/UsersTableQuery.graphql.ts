@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb1d77197ecb892027e7df9a8167f18b>>
+ * @generated SignedSource<<9e40a51149ed2b8af8e110739eacab3f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type UsersCardQuery$variables = Record<PropertyKey, never>;
-export type UsersCardQuery$data = {
+export type UsersTableQuery$variables = Record<PropertyKey, never>;
+export type UsersTableQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"UsersTable_users">;
 };
-export type UsersCardQuery = {
-  response: UsersCardQuery$data;
-  variables: UsersCardQuery$variables;
+export type UsersTableQuery = {
+  response: UsersTableQuery$data;
+  variables: UsersTableQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,7 +24,7 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "UsersCardQuery",
+    "name": "UsersTableQuery",
     "selections": [
       {
         "args": null,
@@ -39,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "UsersCardQuery",
+    "name": "UsersTableQuery",
     "selections": [
       {
         "alias": null,
@@ -123,15 +123,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "3f0bf033ced909f3b3bd00f99d0903fe",
+    "cacheID": "0245c1369e7c90133ed938ba989f6d18",
     "id": null,
     "metadata": {},
-    "name": "UsersCardQuery",
+    "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "2b3e260c950dd1a6a1a6883ff6fb78c4";
+(node as any).hash = "8ee32a96431dda537d1322a7623a8107";
 
 export default node;

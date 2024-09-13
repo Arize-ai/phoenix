@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import React, { startTransition, useMemo } from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
@@ -7,21 +7,33 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
+import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
+import { DeleteUserButton } from "./DeleteUserButton";
+
+const isDefaultAdminUser = (user: {
+  email: string;
+  username?: string | null;
+}) => user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
-  const data = useFragment<UsersTable_users$key>(
+  const [data, refetch] = useRefetchableFragment<
+    UsersTableQuery,
+    UsersTable_users$key
+  >(
     graphql`
-      fragment UsersTable_users on Query {
+      fragment UsersTable_users on Query
+      @refetchable(queryName: "UsersTableQuery") {
         users {
           edges {
             user: node {
+              id
               email
               username
               createdAt
@@ -38,6 +50,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
 
   const tableData = useMemo(() => {
     return data.users.edges.map(({ user }) => ({
+      id: user.id,
       email: user.email,
       username: user.username,
       createdAt: user.createdAt,
@@ -64,6 +77,31 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         header: "created at",
         accessorKey: "createdAt",
         cell: TimestampCell,
+      },
+      {
+        header: "",
+        accessorKey: "id",
+        size: 10,
+        cell: ({ row }) => {
+          if (isDefaultAdminUser(row.original)) {
+            return null;
+          }
+          return (
+            <Flex direction="row" justifyContent="end" width="100%">
+              <DeleteUserButton
+                userId={row.original.id}
+                onDeleted={() => {
+                  startTransition(() => {
+                    refetch({}, { fetchPolicy: "network-only" });
+                  });
+                }}
+              />
+            </Flex>
+          );
+        },
+        meta: {
+          textAlign: "right",
+        },
       },
     ],
     data: tableData,
