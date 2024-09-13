@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f6a03d56a2b1c81095de0c7a7fceabc>>
+ * @generated SignedSource<<5baead45bba9527405fa14e5e6df2d6f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {
   readonly users: {
@@ -16,6 +16,7 @@ export type UsersTable_users$data = {
       readonly user: {
         readonly createdAt: string;
         readonly email: string;
+        readonly id: string;
         readonly role: {
           readonly name: string;
         };
@@ -30,10 +31,18 @@ export type UsersTable_users$key = {
   readonly " $fragmentSpreads": FragmentRefs<"UsersTable_users">;
 };
 
+import UsersTableQuery_graphql from './UsersTableQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": UsersTableQuery_graphql
+    }
+  },
   "name": "UsersTable_users",
   "selections": [
     {
@@ -60,6 +69,13 @@ const node: ReaderFragment = {
               "name": "node",
               "plural": false,
               "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -113,6 +129,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "a87302705dfc7b091db312313f46ec4f";
+(node as any).hash = "8ee32a96431dda537d1322a7623a8107";
 
 export default node;
