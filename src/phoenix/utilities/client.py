@@ -3,6 +3,8 @@ from typing import Any
 
 import httpx
 
+from phoenix.config import get_env_client_headers, get_env_phoenix_api_key
+
 PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version"
 
 
@@ -58,6 +60,12 @@ class VersionedClient(httpx.Client):
                 )
 
     def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
+        headers = dict()
+        if env_headers := get_env_client_headers():
+            headers.update(env_headers)
+        if api_key := get_env_phoenix_api_key():
+            headers["authorization"] = f"Bearer {api_key}"
+        kwargs["headers"] = headers or None
         response = super().request(*args, **kwargs)
         self._check_version(response)
         return response
@@ -111,6 +119,12 @@ class VersionedAsyncClient(httpx.AsyncClient):
                 )
 
     async def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
+        headers = dict()
+        if env_headers := get_env_client_headers():
+            headers.update(env_headers)
+        if api_key := get_env_phoenix_api_key():
+            headers["authorization"] = f"Bearer {api_key}"
+        kwargs["headers"] = headers or None
         response = await super().request(*args, **kwargs)
         self._check_version(response)
         return response
