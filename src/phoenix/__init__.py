@@ -77,8 +77,8 @@ class PhoenixTraceOpenAILoader(Loader):
     def exec_module(self, module: ModuleType) -> None:
         raise ImportError(
             "The legacy `phoenix.trace.openai` instrumentor module has been removed.\n"
-            "Please use the `phoenix.otel` package to directly configure OpenTelemetry and "
-            "instrument the OpenAI SDK with OpenInference:\n\n"
+            "Please use OpenInference to instrument the OpenAI SDK. Additionally, the "
+            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
             "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai"
             "\n\n"
             "Example usage:\n\n"
@@ -95,19 +95,22 @@ class PhoenixTraceLangchainLoader(Loader):
     def create_module(self, spec: ModuleSpec) -> None:
         return None
 
+    "Please use OpenInference to instrument the Langchain SDK. Additionally, the `phoenix.otel` "
+    "module can be used to quickly configure OpenTelemetry:\n\n"
+
     def exec_module(self, module: ModuleType) -> None:
         raise ImportError(
             "The legacy `phoenix.trace.langchain` instrumentor module has been removed.\n"
-            "Please use the `phoenix.otel` package to directly configure OpenTelemetry and "
-            "instrument the Langchain SDK with OpenInference:\n\n"
+            "Please use OpenInference to instrument the LangChain SDK. Additionally, the "
+            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
             "https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain"
             "\n\n"
             "Example usage:\n\n"
             "```python\n"
             "from phoenix.otel import register\n"
-            "from openinference.instrumentation.langchain import LangchainInstrumentor\n\n"
+            "from openinference.instrumentation.langchain import LangChainInstrumentor\n\n"
             "tracer_provider = register()\n"
-            "LangchainInstrumentor().instrument(tracer_provider=tracer_provider)\n"
+            "LangChainInstrumentor().instrument(tracer_provider=tracer_provider)\n"
             "```\n"
         )
 
@@ -119,8 +122,8 @@ class PhoenixTraceLlamaIndexLoader(Loader):
     def exec_module(self, module: ModuleType) -> None:
         raise ImportError(
             "The legacy `phoenix.trace.llama_index` instrumentor module has been removed.\n"
-            "Please use the `phoenix.otel` package to directly configure OpenTelemetry and "
-            "instrument the LlamaIndex SDK with OpenInference:\n\n"
+            "Please use OpenInference to instrument the LlamaIndex SDK. Additionally, the "
+            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
             "https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex"
             "\n\n"
             "Example usage:\n\n"
