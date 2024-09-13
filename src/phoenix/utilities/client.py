@@ -22,7 +22,7 @@ class VersionedClient(httpx.Client):
             self.headers.update(env_headers)
         if "authorization" not in [k.lower() for k in self.headers]:
             if api_key := get_env_phoenix_api_key():
-                self.headers["Authorization"] = f"Bearer {api_key}"
+                self.headers["authorization"] = f"Bearer {api_key}"
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
@@ -86,7 +86,7 @@ class VersionedAsyncClient(httpx.AsyncClient):
             self.headers.update(env_headers)
         if "authorization" not in [k.lower() for k in self.headers]:
             if api_key := get_env_phoenix_api_key():
-                self.headers["Authorization"] = f"Bearer {api_key}"
+                self.headers["authorization"] = f"Bearer {api_key}"
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
