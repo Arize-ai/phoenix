@@ -16,6 +16,10 @@ class AuthMethod(Enum):
     LOCAL = "LOCAL"
 
 
+class IdentityProviderName(Enum):
+    LOCAL = "local"
+
+
 COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], Type[Enum]] = {
     models.UserRole.name: UserRole,
 }
