@@ -5,6 +5,7 @@ import secrets
 from functools import partial
 
 from sqlalchemy import (
+    and_,
     distinct,
     insert,
     select,
@@ -19,7 +20,7 @@ from phoenix.auth import (
     compute_password_hash,
 )
 from phoenix.db import models
-from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
+from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, IdentityProviderName, UserRole
 from phoenix.server.types import DbSessionFactory
 
 
@@ -38,6 +39,7 @@ class Facilitator:
         async with self._db() as session:
             for fn in (
                 _ensure_enums,
+                _ensure_identity_providers,
                 _ensure_user_roles,
             ):
                 async with session.begin_nested():
@@ -61,6 +63,26 @@ async def _ensure_enums(session: AsyncSession) -> None:
         await session.execute(insert(table), [{column.key: v} for v in missing])
 
 
+async def _ensure_identity_providers(session: AsyncSession) -> None:
+    """
+    Ensures that the local identity provider is present in the database.
+    """
+    local_idp = await session.scalar(
+        select(models.IdentityProvider).where(
+            models.IdentityProvider.name == IdentityProviderName.LOCAL.value
+        )
+    )
+    if local_idp is None:
+        local_idp = models.IdentityProvider(
+            name=IdentityProviderName.LOCAL.value, auth_method=AuthMethod.LOCAL.value
+        )
+        session.add(
+            models.IdentityProvider(
+                name=IdentityProviderName.LOCAL.value, auth_method=AuthMethod.LOCAL.value
+            )
+        )
+
+
 async def _ensure_user_roles(session: AsyncSession) -> None:
     """
     Ensure that the system and admin roles are present in the database. If they are not, they will
@@ -79,13 +101,23 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
             select(distinct(models.UserRole.name)).join_from(models.User, models.UserRole)
         )
     ]
+    local_idp_id = (
+        select(models.IdentityProvider.id)
+        .where(
+            and_(
+                models.IdentityProvider.name == IdentityProviderName.LOCAL.value,
+                models.IdentityProvider.auth_method == AuthMethod.LOCAL.value,
+            )
+        )
+        .scalar_subquery()
+    )
     if (system_role := UserRole.SYSTEM.value) not in existing_roles and (
         system_role_id := role_ids.get(system_role)
     ) is not None:
         system_user = models.User(
             user_role_id=system_role_id,
             email="system@localhost",
-            auth_method=AuthMethod.LOCAL.value,
+            identity_provider_id=local_idp_id,
             reset_password=False,
         )
         session.add(system_user)
@@ -100,7 +132,7 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
             user_role_id=admin_role_id,
             username=DEFAULT_ADMIN_USERNAME,
             email=DEFAULT_ADMIN_EMAIL,
-            auth_method=AuthMethod.LOCAL.value,
+            identity_provider_id=local_idp_id,
             password_salt=salt,
             password_hash=hash_,
             reset_password=True,
