@@ -1,5 +1,10 @@
 export {};
 
+type OAuthIdp = {
+  id: string;
+  displayName: string;
+};
+
 declare global {
   interface Window {
     Config: {
@@ -15,6 +20,7 @@ declare global {
         nSamples: number;
       };
       authenticationEnabled: boolean;
+      oAuthIdps: OAuthIdp[];
     };
   }
 }

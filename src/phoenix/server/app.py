@@ -20,7 +20,9 @@ from typing import (
     List,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
@@ -50,6 +52,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     SERVER_DIR,
+    OAuthClientConfig,
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
@@ -90,7 +93,12 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
-from phoenix.server.api.routers import auth_router, create_embeddings_router, create_v1_router
+from phoenix.server.api.routers import (
+    auth_router,
+    create_embeddings_router,
+    create_v1_router,
+    oauth_router,
+)
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
@@ -98,6 +106,7 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.oauth import OAuthClients
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -143,6 +152,11 @@ ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
 
 
+class OAuthIdp(TypedDict):
+    id: str
+    displayName: str
+
+
 class AppConfig(NamedTuple):
     has_inferences: bool
     """ Whether the model has inferences (e.g. a primary dataset) """
@@ -154,6 +168,7 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    oauth_idps: Sequence[OAuthIdp]
 
 
 class Static(StaticFiles):
@@ -202,6 +217,7 @@ class Static(StaticFiles):
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
+                    "oauth_idps": self._app_config.oauth_idps,
                 },
             )
         except Exception as e:
@@ -608,6 +624,7 @@ def create_app(
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
+    oauth_client_configs: Optional[List[OAuthClientConfig]] = None,
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
@@ -720,9 +737,14 @@ def create_app(
     app.include_router(graphql_router)
     if authentication_enabled:
         app.include_router(auth_router)
+        app.include_router(oauth_router)
     app.add_middleware(GZipMiddleware)
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
     if serve_ui and web_manifest_path.is_file():
+        oauth_idps = [
+            OAuthIdp(id=config.idp_id, displayName=config.display_name)
+            for config in oauth_client_configs or []
+        ]
         app.mount(
             "/",
             app=Static(
@@ -736,6 +758,7 @@ def create_app(
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
+                    oauth_idps=oauth_idps,
                 ),
             ),
             name="static",
@@ -744,6 +767,7 @@ def create_app(
     app.state.export_path = export_path
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
+    app.state.oauth_clients = OAuthClients.from_configs(oauth_client_configs or [])
     app.state.db = db
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)

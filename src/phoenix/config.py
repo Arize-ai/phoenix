@@ -1,14 +1,20 @@
 import os
 import re
 import tempfile
+from dataclasses import dataclass
 from datetime import timedelta
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+from typing_extensions import TypeAlias
 
 from phoenix.utilities.re import parse_env_headers
+
+IdpId: TypeAlias = str
+EnvVarName: TypeAlias = str
+EnvVarValue: TypeAlias = str
 
 logger = getLogger(__name__)
 
@@ -201,6 +207,72 @@ def get_env_refresh_token_expiry() -> timedelta:
         )
 
 
+@dataclass(frozen=True)
+class OAuthClientConfig:
+    idp_id: str
+    display_name: str
+    client_id: str
+    client_secret: str
+    server_metadata_url: Optional[str] = None
+    authorize_url: Optional[str] = None
+    access_token_url: Optional[str] = None
+
+    @classmethod
+    def from_env(cls, idp_id: str) -> "OAuthClientConfig":
+        idp_id_upper = idp_id.upper()
+        if (
+            client_id := os.getenv(client_id_env_var := f"PHOENIX_OAUTH_{idp_id_upper}_CLIENT_ID")
+        ) is None:
+            raise ValueError(
+                f"A client id must be set for the {idp_id} OAuth IDP "
+                f"via the {client_id_env_var} environment variable"
+            )
+        if (
+            client_secret := os.getenv(
+                client_secret_env_var := f"PHOENIX_OAUTH_{idp_id_upper}_CLIENT_SECRET"
+            )
+        ) is None:
+            raise ValueError(
+                f"A client secret must be set for the {idp_id} OAuth IDP "
+                f"via the {client_secret_env_var} environment variable"
+            )
+        return cls(
+            idp_id=idp_id,
+            display_name=os.getenv(
+                f"PHOENIX_OAUTH_{idp_id_upper}_DISPLAY_NAME", get_default_idp_display_name(idp_id)
+            ),
+            client_id=client_id,
+            client_secret=client_secret,
+            server_metadata_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_SERVER_METADATA_URL"),
+            access_token_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_ACCESS_TOKEN_URL"),
+            authorize_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_AUTHORIZE_URL"),
+        )
+
+    def __post_init__(self) -> None:
+        assert self.idp_id
+        if not self.display_name:
+            raise ValueError(f"OAuth display name for {self.idp_id} cannot be empty")
+        if not self.client_id:
+            raise ValueError(f"OAuth client id for {self.idp_id} cannot be empty")
+        if not self.client_secret:
+            raise ValueError(f"OAuth client secret for {self.idp_id} cannot be empty")
+
+
+def get_env_oauth_settings() -> List[OAuthClientConfig]:
+    """
+    Get OAuth settings from environment variables.
+    """
+
+    idp_ids = set()
+    pattern = re.compile(
+        r"^PHOENIX_OAUTH_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL|ACCESS_TOKEN_URL|AUTHORIZE_URL)$"
+    )
+    for env_var in os.environ:
+        if (match := pattern.match(env_var)) is not None and (idp_id := match.group(1).lower()):
+            idp_ids.add(idp_id)
+    return [OAuthClientConfig.from_env(idp_id) for idp_id in sorted(idp_ids)]
+
+
 def _parse_duration(duration_str: str) -> timedelta:
     """
     Parses a duration string into a timedelta object, assuming the duration is
@@ -383,6 +455,10 @@ def get_web_base_url() -> str:
     if session := active_session():
         return session.url
     return get_base_url()
+
+
+def get_default_idp_display_name(ipd_id: IdpId) -> str:
+    return ipd_id.replace("_", " ").title()
 
 
 DEFAULT_PROJECT_NAME = "default"
