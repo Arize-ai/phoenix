@@ -13,6 +13,12 @@ function isUserRole(role: unknown): role is UserRole {
 type RolePickerProps<T> = {
   onChange: (role: UserRole) => void;
   role: UserRole;
+  /**
+   * Whether to include a label for the picker
+   * This may be set to false in cases where the picker is rendered in a table for instance
+   * @default true
+   */
+  includeLabel?: boolean;
 } & Omit<
   PickerProps<T>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
@@ -21,11 +27,12 @@ type RolePickerProps<T> = {
 export function RolePicker<T>({
   onChange,
   role,
+  includeLabel = true,
   ...pickerProps
 }: RolePickerProps<T>) {
   return (
     <Picker
-      label="Role"
+      label={includeLabel ? "Role" : undefined}
       className="role-picker"
       defaultSelectedKey={role}
       aria-label="User Role"
