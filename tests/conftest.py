@@ -1,6 +1,6 @@
 import asyncio
 import contextlib
-from asyncio import AbstractEventLoop, get_running_loop
+from asyncio import AbstractEventLoop
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
@@ -197,11 +197,6 @@ async def app(
         )
         manager = await stack.enter_async_context(LifespanManager(app))
         yield manager.app
-
-
-@pytest.fixture
-async def loop() -> AbstractEventLoop:
-    return get_running_loop()
 
 
 @pytest.fixture

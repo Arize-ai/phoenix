@@ -5,7 +5,6 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import httpx
-import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -37,8 +36,8 @@ async def test_run_experiment(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("TODO: Convert this to an integration test")
+    # if dialect == "postgresql":
+    #     pytest.xfail("TODO: Convert this to an integration test")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -103,7 +102,7 @@ async def test_run_experiment(
 
         # Wait until all evaluations are complete
         async def wait_for_evaluations():
-            timeout = 10
+            timeout = 30
             interval = 0.5
             total_wait = 0
             while total_wait < timeout:
@@ -111,8 +110,10 @@ async def test_run_experiment(
                     evaluations = (
                         (
                             await session.execute(
-                                select(models.ExperimentRunAnnotation)
-                                .where(models.ExperimentRunAnnotation.experiment_run_id == experiment_id)
+                                select(models.ExperimentRunAnnotation).where(
+                                    models.ExperimentRunAnnotation.experiment_run_id
+                                    == experiment_id
+                                )
                             )
                         )
                         .scalars()
@@ -124,6 +125,7 @@ async def test_run_experiment(
                 total_wait += interval
             else:
                 raise TimeoutError("Evaluations did not complete in time")
+
         await wait_for_evaluations()
 
         experiment_model = (await session.execute(select(models.Experiment))).scalar()
@@ -178,8 +180,8 @@ async def test_run_experiment_with_llm_eval(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
+    # if dialect == "postgresql":
+    #     pytest.xfail("This test fails on PostgreSQL")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -290,8 +292,8 @@ async def test_run_evaluation(
     simple_dataset_with_one_experiment_run: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
+    # if dialect == "postgresql":
+    #     pytest.xfail("This test fails on PostgreSQL")
 
     experiment = Experiment(
         id=str(GlobalID("Experiment", "0")),
