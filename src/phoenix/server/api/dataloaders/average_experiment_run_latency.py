@@ -50,5 +50,5 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
             }
         return [
             avg_latencies.get(experiment_id, ValueError(f"Unknown experiment: {experiment_id}"))
-            for experiment_id in experiment_ids
+            for experiment_id in keys
         ]

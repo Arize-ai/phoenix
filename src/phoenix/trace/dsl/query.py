@@ -247,7 +247,11 @@ class Explosion(_HasTmpSuffix, Projection):
         if records.empty:
             df = df.set_index(self.index_keys[0])
             return df
-        df_explode = pd.DataFrame.from_records(records.to_list(), index=records.index)
+        not_na = records.notna()
+        df_explode = pd.DataFrame.from_records(
+            records.loc[not_na].to_list(),
+            index=records.index[not_na],
+        )
         if dialect is SupportedSQLDialect.SQLITE:
             df = _outer_join(df, df_explode)
         elif dialect is SupportedSQLDialect.POSTGRESQL:

@@ -25,7 +25,7 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        run_ids = tuple(set(keys))
+        run_ids = keys
         annotations: DefaultDict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             async for run_id, annotation in await session.stream(
@@ -36,5 +36,5 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
                 annotations[run_id].append(annotation)
         return [
             sorted(annotations[run_id], key=lambda annotation: annotation.name, reverse=True)
-            for run_id in run_ids
+            for run_id in keys
         ]

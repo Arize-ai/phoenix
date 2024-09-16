@@ -44,4 +44,4 @@ class ExperimentSequenceNumberDataLoader(DataLoader[Key, Result]):
                 experiment_id: sequence_number
                 async for experiment_id, sequence_number in await session.stream(stmt)
             }
-        return [result.get(experiment_id) for experiment_id in experiment_ids]
+        return [result.get(experiment_id) for experiment_id in keys]

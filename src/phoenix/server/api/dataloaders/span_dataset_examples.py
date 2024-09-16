@@ -33,4 +33,4 @@ class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
                 .where(models.Span.id.in_(span_rowids))
             ):
                 dataset_examples[span_rowid].append(dataset_example)
-        return [dataset_examples.get(span_rowid, []) for span_rowid in span_rowids]
+        return [dataset_examples.get(span_rowid, []) for span_rowid in keys]
