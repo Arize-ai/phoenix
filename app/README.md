@@ -9,6 +9,7 @@ To build and develop the web application, you must first install the dependencie
 ```shell
 pnpm install --frozen-lockfile
 ```
+
 NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions specified in `pnpm-lock.yaml` and will not re-build the lockfile.
 
 ## Develop
@@ -18,6 +19,8 @@ To develop the UI, you must run the `app` in conjunction with the backend server
 ```
 pnpm run dev
 ```
+
+Before running the script above you should configure your running environment by creating a `.env` file in the root of the project.
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the (package.json)[./package.json] file so that the server is serving the appropriate fixture data.
 
@@ -41,6 +44,7 @@ pnpm run lint
 pnpm run prettier:check
 pnpm test
 ```
+
 NB: [prettier](https://prettier.io/) is also enforced via [pre-commit](https://pre-commit.com/) hooks.
 
 ## Architecture
