@@ -7,9 +7,12 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
-from fastapi import Response
+from starlette.responses import Response
+from typing_extensions import TypeVar
 
 from phoenix.config import get_env_phoenix_use_secure_cookies
+
+ResponseType = TypeVar("ResponseType", bound=Response)
 
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
@@ -66,8 +69,8 @@ def validate_password_format(password: str) -> None:
 
 
 def set_access_token_cookie(
-    *, response: Response, access_token: str, max_age: timedelta
-) -> Response:
+    *, response: ResponseType, access_token: str, max_age: timedelta
+) -> ResponseType:
     return _set_token_cookie(
         response=response,
         cookie_name=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
@@ -77,8 +80,8 @@ def set_access_token_cookie(
 
 
 def set_refresh_token_cookie(
-    *, response: Response, refresh_token: str, max_age: timedelta
-) -> Response:
+    *, response: ResponseType, refresh_token: str, max_age: timedelta
+) -> ResponseType:
     return _set_token_cookie(
         response=response,
         cookie_name=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
@@ -88,8 +91,8 @@ def set_refresh_token_cookie(
 
 
 def _set_token_cookie(
-    response: Response, cookie_name: str, cookie_max_age: timedelta, token: str
-) -> Response:
+    response: ResponseType, cookie_name: str, cookie_max_age: timedelta, token: str
+) -> ResponseType:
     response.set_cookie(
         key=cookie_name,
         value=token,

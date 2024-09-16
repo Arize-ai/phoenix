@@ -53,5 +53,5 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
         email=user.email,
         created_at=user.created_at,
         user_role_id=user.user_role_id,
-        auth_method=AuthMethod(user.auth_method),
+        auth_method=AuthMethod("MEMBER"),
     )
