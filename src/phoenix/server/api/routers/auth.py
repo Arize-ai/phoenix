@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -17,18 +17,14 @@ from phoenix.auth import (
     set_access_token_cookie,
     set_refresh_token_cookie,
 )
-from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
-from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
-    AccessTokenAttributes,
     AccessTokenClaims,
-    RefreshTokenAttributes,
     RefreshTokenClaims,
     TokenStore,
-    UserId,
 )
 
 rate_limiter = ServerRateLimiter(
@@ -47,6 +43,7 @@ router = APIRouter(
 async def login(request: Request) -> Response:
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
+    token_store: JwtStore = request.app.state.get_token_store()
     data = await request.json()
     email = data.get("email")
     password = data.get("password")
@@ -74,27 +71,12 @@ async def login(request: Request) -> Response:
     if not await loop.run_in_executor(None, password_is_valid):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
 
-    issued_at = datetime.now(timezone.utc)
-    refresh_token_claims = RefreshTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + refresh_token_expiry,
-        attributes=RefreshTokenAttributes(
-            user_role=UserRole(user.role.name),
-        ),
+    access_token, refresh_token = await create_access_and_refresh_tokens(
+        token_store=token_store,
+        user=user,
+        access_token_expiry=access_token_expiry,
+        refresh_token_expiry=refresh_token_expiry,
     )
-    token_store: JwtStore = request.app.state.get_token_store()
-    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
-    access_token_claims = AccessTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + access_token_expiry,
-        attributes=AccessTokenAttributes(
-            user_role=UserRole(user.role.name),
-            refresh_token_id=refresh_token_id,
-        ),
-    )
-    access_token, _ = await token_store.create_access_token(access_token_claims)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
@@ -156,27 +138,12 @@ async def refresh_tokens(request: Request) -> Response:
             )
         ) is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
-    user_role = UserRole(user.role.name)
-    issued_at = datetime.now(timezone.utc)
-    refresh_token_claims = RefreshTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + refresh_token_expiry,
-        attributes=RefreshTokenAttributes(
-            user_role=user_role,
-        ),
+    access_token, refresh_token = await create_access_and_refresh_tokens(
+        token_store=token_store,
+        user=user,
+        access_token_expiry=access_token_expiry,
+        refresh_token_expiry=refresh_token_expiry,
     )
-    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
-    access_token_claims = AccessTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + access_token_expiry,
-        attributes=AccessTokenAttributes(
-            user_role=user_role,
-            refresh_token_id=refresh_token_id,
-        ),
-    )
-    access_token, _ = await token_store.create_access_token(access_token_claims)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
