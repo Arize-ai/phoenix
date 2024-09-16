@@ -101,6 +101,31 @@ async def test_run_experiment(
         )
         assert experiment_id
 
+        # Wait until all evaluations are complete
+        async def wait_for_evaluations():
+            timeout = 10
+            interval = 0.5
+            total_wait = 0
+            while total_wait < timeout:
+                async with db() as session:
+                    evaluations = (
+                        (
+                            await session.execute(
+                                select(models.ExperimentRunAnnotation)
+                                .where(models.ExperimentRunAnnotation.experiment_run_id == experiment_id)
+                            )
+                        )
+                        .scalars()
+                        .all()
+                    )
+                    if len(evaluations) >= len(evaluators):
+                        break
+                await asyncio.sleep(interval)
+                total_wait += interval
+            else:
+                raise TimeoutError("Evaluations did not complete in time")
+        await wait_for_evaluations()
+
         experiment_model = (await session.execute(select(models.Experiment))).scalar()
         assert experiment_model, "An experiment was run"
         assert experiment_model.dataset_id == 0
