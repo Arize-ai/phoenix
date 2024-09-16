@@ -134,17 +134,17 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           hatch run test:tests --run-postgres
-        continue-on-error: true
+        continue-on-error: false
       - name: Run tests (macOS)
         if: runner.os == 'macOS'
         run: |
           hatch run test:tests
-        continue-on-error: true
+        continue-on-error: false
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         run: |
           hatch run test:tests
-        continue-on-error: true
+        continue-on-error: false
   integration-test:
     runs-on: ${{ matrix.os }}
     needs: changes

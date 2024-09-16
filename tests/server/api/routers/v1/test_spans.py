@@ -20,8 +20,8 @@ async def test_span_round_tripping_with_docs(
     dialect: str,
     span_data_with_documents: Any,
 ) -> None:
-    if dialect == "sqlite":
-        pytest.xfail("TODO: Convert this to an integration test")
+    # if dialect == "sqlite":
+    #     pytest.xfail("TODO: Convert this to an integration test")
 
     df = cast(pd.DataFrame, px_client.get_spans_dataframe())
     new_ids = {span_id: getrandbits(64).to_bytes(8, "big").hex() for span_id in df.index}
