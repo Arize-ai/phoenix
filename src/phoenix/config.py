@@ -74,8 +74,17 @@ ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY = "PHOENIX_ACCESS_TOKEN_EXPIRY"
 ENV_PHOENIX_REFRESH_TOKEN_EXPIRY = "PHOENIX_REFRESH_TOKEN_EXPIRY"
+
+ENV_PHOENIX_SMTP_ENABLED = "PHOENIX_SMTP_ENABLED"
+ENV_PHOENIX_SMTP_USERNAME = "PHOENIX_SMTP_USERNAME"
+ENV_PHOENIX_SMTP_PASSWORD = "PHOENIX_SMTP_PASSWORD"
+ENV_PHOENIX_SMTP_MAIL_FROM = "PHOENIX_SMTP_MAIL_FROM"
+ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOST"
+ENV_PHOENIX_SMTP_PORT = "PHOENIX_SMTP_PORT"
+ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -173,6 +182,23 @@ def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
     return enable_auth, phoenix_secret
 
 
+def get_env_password_reset_token_expiry() -> timedelta:
+    """
+    Gets the password reset token expiry.
+    """
+    if (
+        password_reset_token_expiry := os.environ.get(ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY)
+    ) is None:
+        return timedelta(minutes=15)
+    try:
+        return _parse_duration(password_reset_token_expiry)
+    except ValueError as error:
+        raise ValueError(
+            f"Error reading {ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY} "
+            f"environment variable: {str(error)}"
+        )
+
+
 def get_env_access_token_expiry() -> timedelta:
     """
     Gets the access token expiry.
@@ -199,6 +225,46 @@ def get_env_refresh_token_expiry() -> timedelta:
         raise ValueError(
             f"Error reading {ENV_PHOENIX_REFRESH_TOKEN_EXPIRY} environment variable: {str(error)}"
         )
+
+
+def get_env_smtp_enabled() -> bool:
+    return bool(get_boolean_env_var(ENV_PHOENIX_SMTP_ENABLED))
+
+
+def get_env_smtp_username() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_SMTP_USERNAME)
+
+
+def get_env_smtp_password() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_SMTP_PASSWORD)
+
+
+def get_env_smtp_mail_from() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_SMTP_MAIL_FROM)
+
+
+def get_env_smtp_hostname() -> str:
+    if (v := os.getenv(ENV_PHOENIX_SMTP_HOSTNAME)) is None:
+        return "127.0.0.1"
+    return v
+
+
+def get_env_smtp_port() -> int:
+    port = os.getenv(ENV_PHOENIX_SMTP_PORT)
+    if port is None:
+        return 587
+    if not port.isnumeric():
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_SMTP_PORT}: {port}. "
+            f"Value must be an integer."
+        )
+    return int(port)
+
+
+def get_env_smtp_validate_certs() -> bool:
+    if (v := get_boolean_env_var(ENV_PHOENIX_SMTP_VALIDATE_CERTS)) is None:
+        return True
+    return bool(v)
 
 
 def _parse_duration(duration_str: str) -> timedelta:

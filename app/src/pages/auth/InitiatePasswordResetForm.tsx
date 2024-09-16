@@ -1,27 +1,24 @@
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
-import { getReturnUrl } from "@phoenix/utils/routingUtils";
-
-type LoginFormParams = {
+type InitiatePasswordResetFormParams = {
   email: string;
-  password: string;
 };
 
-export function LoginForm() {
-  const navigate = useNavigate();
+export function InitiatePasswordResetForm() {
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
-    async (params: LoginFormParams) => {
+    async (params: InitiatePasswordResetFormParams) => {
+      setMessage(null);
       setError(null);
       setIsLoading(true);
       try {
-        const response = await fetch("/auth/login", {
+        const response = await fetch("/auth/initiate-password-reset", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -29,25 +26,29 @@ export function LoginForm() {
           body: JSON.stringify(params),
         });
         if (!response.ok) {
-          setError("Invalid login");
+          setError("Failed attempt");
           return;
         }
       } catch (error) {
-        setError("Invalid login");
+        setError("Failed attempt");
         return;
       } finally {
         setIsLoading(() => false);
       }
-      const returnUrl = getReturnUrl();
-      navigate(returnUrl);
+      setMessage("Check your emails");
     },
-    [navigate, setError]
+    [setMessage, setError]
   );
-  const { control, handleSubmit } = useForm<LoginFormParams>({
-    defaultValues: { email: "", password: "" },
+  const { control, handleSubmit } = useForm<InitiatePasswordResetFormParams>({
+    defaultValues: { email: "" },
   });
   return (
     <>
+      {message ? (
+        <View paddingBottom="size-100">
+          <Alert variant="success">{message}</Alert>{" "}
+        </View>
+      ) : null}
       {error ? (
         <View paddingBottom="size-100">
           <Alert variant="danger">{error}</Alert>{" "}
@@ -69,26 +70,6 @@ export function LoginForm() {
             />
           )}
         />
-        <Controller
-          name="password"
-          control={control}
-          render={({ field: { onChange, value } }) => (
-            <TextField
-              label="Password"
-              name="password"
-              type="password"
-              isRequired
-              onChange={onChange}
-              value={value}
-              placeholder="your password"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSubmit(onSubmit)();
-                }
-              }}
-            />
-          )}
-        />
         <div
           css={css`
             margin-top: var(--ac-global-dimension-size-400);
@@ -103,14 +84,7 @@ export function LoginForm() {
             loading={isLoading}
             onClick={handleSubmit(onSubmit)}
           >
-            Login
-          </Button>
-          <Button
-            variant="quiet"
-            loading={isLoading}
-            onClick={() => navigate("/initiate-password-reset")}
-          >
-            Reset Password
+            Send Reset Email
           </Button>
         </div>
       </Form>

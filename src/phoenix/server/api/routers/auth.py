@@ -1,30 +1,44 @@
 import asyncio
+import secrets
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import and_, select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import joinedload
-from starlette.status import HTTP_204_NO_CONTENT, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.status import (
+    HTTP_204_NO_CONTENT,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_503_SERVICE_UNAVAILABLE,
+)
 
 from phoenix.auth import (
+    DEFAULT_SECRET_LENGTH,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     Token,
+    compute_password_hash,
     delete_access_token_cookie,
     delete_refresh_token_cookie,
     is_valid_password,
     set_access_token_cookie,
     set_refresh_token_cookie,
+    validate_password_format,
 )
+from phoenix.db import enums, models
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
+from phoenix.server.api.exceptions import Conflict
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.jwt_store import JwtStore
+from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
+    PasswordResetTokenClaims,
     RefreshTokenAttributes,
     RefreshTokenClaims,
     TokenStore,
@@ -37,7 +51,16 @@ rate_limiter = ServerRateLimiter(
     partition_seconds=60,
     active_partitions=2,
 )
-login_rate_limiter = fastapi_rate_limiter(rate_limiter, paths=["/login"])
+login_rate_limiter = fastapi_rate_limiter(
+    rate_limiter,
+    paths=[
+        "/login",
+        "/logout",
+        "/refresh",
+        "/initiate-password-reset",
+        "/reset-password",
+    ],
+)
 router = APIRouter(
     prefix="/auth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
 )
@@ -56,9 +79,7 @@ async def login(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         user = await session.scalar(
-            select(OrmUser)
-            .where(and_(OrmUser.email == email, OrmUser.deleted_at.is_(None)))
-            .options(joinedload(OrmUser.role))
+            _select_active_user().filter_by(email=email).options(joinedload(OrmUser.role))
         )
         if (
             user is None
@@ -83,7 +104,7 @@ async def login(request: Request) -> Response:
             user_role=UserRole(user.role.name),
         ),
     )
-    token_store: JwtStore = request.app.state.get_token_store()
+    token_store: TokenStore = request.app.state.get_token_store()
     refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
     access_token_claims = AccessTokenClaims(
         subject=UserId(user.id),
@@ -110,7 +131,8 @@ async def logout(
     request: Request,
 ) -> Response:
     token_store: TokenStore = request.app.state.get_token_store()
-    assert isinstance(user := request.user, PhoenixUser)
+    if not isinstance(user := request.user, PhoenixUser):
+        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
     await token_store.log_out(user.identity)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = delete_access_token_cookie(response)
@@ -124,7 +146,7 @@ async def refresh_tokens(request: Request) -> Response:
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     if (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) is None:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
-    token_store: JwtStore = request.app.state.get_token_store()
+    token_store: TokenStore = request.app.state.get_token_store()
     refresh_token_claims = await token_store.read(Token(refresh_token))
     if (
         not isinstance(refresh_token_claims, RefreshTokenClaims)
@@ -150,9 +172,7 @@ async def refresh_tokens(request: Request) -> Response:
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(
-                select(OrmUser)
-                .where(and_(OrmUser.id == user_id, OrmUser.deleted_at.is_(None)))
-                .options(joinedload(OrmUser.role))
+                _select_active_user().filter_by(id=user_id).options(joinedload(OrmUser.role))
             )
         ) is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
@@ -185,6 +205,85 @@ async def refresh_tokens(request: Request) -> Response:
         response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
     )
     return response
+
+
+@router.post("/initiate-password-reset")
+async def initiate_password_reset(request: Request) -> Response:
+    sender: EmailSender = request.app.state.email_sender
+    if sender is None:
+        raise HTTPException(
+            status_code=HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SMTP unavailable",
+        )
+    assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
+    data = await request.json()
+    if not (email := data.get("email")):
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Email required",
+        )
+    async with request.app.state.db() as session:
+        user = await session.scalar(_select_active_user().filter_by(email=email))
+    if user is None:
+        return Response(status_code=HTTP_204_NO_CONTENT)
+    password_reset_token_claims = PasswordResetTokenClaims(
+        subject=UserId(user.id),
+        issued_at=datetime.now(timezone.utc),
+        expiration_time=datetime.now(timezone.utc) + token_expiry,
+    )
+    token_store: TokenStore = request.app.state.get_token_store()
+    token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
+    await sender.send_password_reset_email(email, token)
+    return Response(status_code=HTTP_204_NO_CONTENT)
+
+
+@router.post("/reset-password")
+async def reset_password(request: Request) -> Response:
+    data = await request.json()
+    token_store: TokenStore = request.app.state.get_token_store()
+    if (
+        not (token := data.get("token"))
+        or not isinstance((claims := await token_store.read(token)), PasswordResetTokenClaims)
+        or not claims.expiration_time
+        or claims.expiration_time < datetime.now(timezone.utc)
+    ):
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid reset token",
+        )
+    assert (user_id := claims.subject)
+    async with request.app.state.db() as session:
+        user = await session.scalar(_select_active_user().filter_by(id=int(user_id)))
+    if user is None:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Invalid reset token",
+        )
+    if user.auth_method != enums.AuthMethod.LOCAL.value:
+        raise Conflict("Cannot modify password")
+    if not (password := data.get("password")):
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password required",
+        )
+    validate_password_format(password)
+    user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+    loop = asyncio.get_running_loop()
+    user.password_hash = await loop.run_in_executor(
+        None, partial(compute_password_hash, password=password, salt=user.password_salt)
+    )
+    async with request.app.state.db() as session:
+        session.add(user)
+        await session.flush()
+    response = Response(status_code=HTTP_204_NO_CONTENT)
+    assert (token_id := claims.token_id)
+    await token_store.revoke(token_id)
+    await token_store.log_out(UserId(user.id))
+    return response
+
+
+def _select_active_user() -> Select[Tuple[models.User]]:
+    return select(models.User).where(models.User.deleted_at.is_(None))
 
 
 LOGIN_FAILED_MESSAGE = "Invalid email and/or password"

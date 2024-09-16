@@ -1,5 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import { redirect } from "react-router";
+import { LoaderFunctionArgs } from "react-router-dom";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -8,7 +9,11 @@ import { resetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQue
 /**
  * Makes sure the user is logged in
  */
-export async function resetPasswordLoader() {
+export async function resetPasswordLoader(args: LoaderFunctionArgs) {
+  const { token } = args.params;
+  if (!token) {
+    return null;
+  }
   const loaderData = await fetchQuery<resetPasswordLoaderQuery>(
     RelayEnvironment,
     graphql`

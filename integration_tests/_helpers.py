@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from email.message import Message
 from functools import cached_property
 from io import BytesIO
 from subprocess import PIPE, STDOUT
@@ -30,10 +31,12 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
 
+import bs4
 import httpx
+import jwt
 import pytest
 from httpx import HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
@@ -252,6 +255,9 @@ class _ApiKey(str):
 
 
 class _Token(_String, ABC): ...
+
+
+class _PasswordResetToken(_Token): ...
 
 
 class _AccessToken(_Token, _CanLogOut[None]):
@@ -692,7 +698,7 @@ def _delete_users(
 ) -> None:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
     query = "mutation($userIds:[GlobalID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _gql(auth, query=query, variables=dict(userIds=user_ids))
+    _gql(auth, query=query, variables={"userIds": user_ids})
 
 
 def _patch_user_gid(
@@ -831,6 +837,25 @@ def _log_out(
     resp.raise_for_status()
 
 
+def _initiate_password_reset(
+    email: _Email,
+    /,
+) -> None:
+    json_ = dict(email=email)
+    resp = _httpx_client().post("auth/initiate-password-reset", json=json_)
+    resp.raise_for_status()
+
+
+def _reset_password(
+    token: _PasswordResetToken,
+    /,
+    password: _Password,
+) -> None:
+    json_ = dict(token=token, password=password)
+    resp = _httpx_client().post("auth/reset-password", json=json_)
+    resp.raise_for_status()
+
+
 def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename: str) -> None:
     resp = _httpx_client(auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()
@@ -862,3 +887,29 @@ _DENIED = pytest.raises(Unauthorized)
 _EXPECTATION_401 = pytest.raises(HTTPStatusError, match="401 Unauthorized")
 _EXPECTATION_403 = pytest.raises(HTTPStatusError, match="403 Forbidden")
 _EXPECTATION_404 = pytest.raises(HTTPStatusError, match="404 Not Found")
+
+
+def _extract_password_reset_token(msg: Message) -> _PasswordResetToken:
+    assert (soup := _extract_html(msg))
+    assert isinstance((link := soup.find(id="reset-url")), bs4.Tag)
+    assert isinstance((url := link.get("href")), str)
+    assert url
+    params = parse_qs(urlparse(url).query)
+    assert (tokens := params["token"])
+    assert (token := tokens[0])
+    decoded = jwt.decode(token, options=dict(verify_signature=False))
+    assert (jti := decoded["jti"])
+    assert jti.startswith("PasswordResetToken")
+    return _PasswordResetToken(token)
+
+
+def _extract_html(msg: Message) -> Optional[bs4.BeautifulSoup]:
+    for part in msg.walk():
+        if (
+            part.get_content_type() == "text/html"
+            and (payload := part.get_payload(decode=True))
+            and isinstance(payload, bytes)
+        ):
+            content = payload.decode(part.get_content_charset() or "utf-8")
+            return bs4.BeautifulSoup(content, "html.parser")
+    return None
