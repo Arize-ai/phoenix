@@ -20,7 +20,7 @@ To develop the UI, you must run the `app` in conjunction with the backend server
 pnpm run dev
 ```
 
-Before running the script above you should configure your running environment by creating a `.env` file in the root of the project.
+Before running the script above you should configure your running environment by creating a `.env` file in the root of the project. You can find an example of the `.env` file in the `.env.example` file.
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the (package.json)[./package.json] file so that the server is serving the appropriate fixture data.
 

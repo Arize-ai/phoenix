@@ -100,8 +100,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
-    "prettier:check": "prettier --check './src/**/*'",
-    "print": "echo 'Hello, World!' + $PHOENIX_ENABLE_AUTH"
+    "prettier:check": "prettier --check './src/**/*'"
   },
   "packageManager": "pnpm@9.8.0",
   "pnpm": {
