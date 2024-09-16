@@ -182,7 +182,7 @@ Read more about comparison dataset Schemas here: [How many schemas do I need?](h
 #### c) Wrap into Inferences object
 
 ```python
-prod_ds = px.Inferences(dataframe=prod_df, schema=schema, name="production")
+prod_ds = px.Inferences(dataframe=prod_df, schema=prod_schema, name="production")
 ```
 
 #### **d) Launch Phoenix with both Inferences!**
