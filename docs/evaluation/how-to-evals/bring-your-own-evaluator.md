@@ -63,7 +63,7 @@ from phoenix.evals import (
 # It will remove text such as ",,," or "..."
 # Will ensure the binary value expected from the template is returned
 rails = ["irrelevant", "relevant"]
-#MultiClass would be rails = ["irrelevant", "relevant", "semi-relevant"] 
+#MultiClass would be rails = ["irrelevant", "relevant", "semi-relevant"]
 relevance_classifications = llm_classify(
     dataframe=<YOUR_DATAFRAME_GOES_HERE>,
     template=CATEGORICAL_TEMPLATE,
@@ -73,10 +73,6 @@ relevance_classifications = llm_classify(
 ```
 
 The classify uses a `snap_to_rails` function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
-
-{% hint style="warning" %}
-When selecting classification labels to use, avoid using any labels that contain the whole text of another label - for example "_relevant_" and "ir_relevant_". This will create some results to be incorrectly marked as "UNPARSEABLE". Instead, use entirely different values - for example "relevant" and "unrelated".
-{% endhint %}
 
 ```
 #Rails examples
@@ -106,12 +102,12 @@ The Phoenix library does support numeric score Evals if you would like to use th
 
 ```
 SCORE_TEMPLATE = """
-You are a helpful AI bot that checks for grammatical, spelling and typing errors 
-in a document context. You are going to return a continous score for the 
-document based on the percent of grammatical and typing errors. The score should be 
-between 10 and 1. A score of 1 will be no grammatical errors in any word, 
-a score of 2 will be 20% of words have errors, a 5 score will be 50% errors, 
-a score of 7 is 70%, and a 10 score will be all words in the context have a 
+You are a helpful AI bot that checks for grammatical, spelling and typing errors
+in a document context. You are going to return a continous score for the
+document based on the percent of grammatical and typing errors. The score should be
+between 10 and 1. A score of 1 will be no grammatical errors in any word,
+a score of 2 will be 20% of words have errors, a 5 score will be 50% errors,
+a score of 7 is 70%, and a 10 score will be all words in the context have a
 grammatical errors.
 
 The following is the document context.
@@ -122,7 +118,7 @@ The following is the document context.
 
 #QUESTION
 Please return a score between 10 and 1.
-You will return no other text or language besides the score. Only return the score. 
+You will return no other text or language besides the score. Only return the score.
 Please return in a format that is "the score is: 10" or "the score is: 1"
 """
 ```
