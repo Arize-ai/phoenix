@@ -2,7 +2,7 @@ import inspect
 import os
 import sys
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -439,12 +439,12 @@ def _normalized_endpoint(
     return parsed, parsed.geturl()
 
 
-def _get_class_signature(fn: Callable) -> inspect.Signature:
+def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
     if sys.version_info >= (3, 9):
         return inspect.signature(fn)
     elif sys.version_info >= (3, 8):
         init_signature = inspect.signature(fn.__init__)
-        new_params = list(init_signature.parameters.values())[1:]
+        new_params = list(init_signature.parameters.values())[1:]  # Skip 'self'
         new_sig = init_signature.replace(parameters=new_params)
         return new_sig
     else:
