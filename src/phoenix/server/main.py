@@ -26,7 +26,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
-    get_env_oauth_settings,
+    get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
     get_env_refresh_token_expiry,
@@ -418,7 +418,7 @@ if __name__ == "__main__":
         refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
-        oauth_client_configs=get_env_oauth_settings(),
+        oauth2_client_configs=get_env_oauth2_settings(),
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

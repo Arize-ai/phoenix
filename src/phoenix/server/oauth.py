@@ -2,18 +2,18 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Generic, List, Optional, Tuple
 
 from authlib.integrations.starlette_client import OAuth
-from authlib.integrations.starlette_client import StarletteOAuth2App as OAuthClient
+from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
 from typing_extensions import TypeAlias, TypeVar
 
-from phoenix.config import OAuthClientConfig
+from phoenix.config import OAuth2ClientConfig
 
 
-class OAuthClients:
+class OAuth2Clients:
     def __init__(self) -> None:
-        self._clients: Dict[str, OAuthClient] = {}
-        self._oauth = OAuth(cache=_OAuthClientTTLCache[str, Any]())
+        self._clients: Dict[str, OAuth2Client] = {}
+        self._oauth = OAuth(cache=_OAuth2ClientTTLCache[str, Any]())
 
-    def add_client(self, config: OAuthClientConfig) -> None:
+    def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_name}")
         client = self._oauth.register(
@@ -23,20 +23,20 @@ class OAuthClients:
             server_metadata_url=config.server_metadata_url,
             client_kwargs={"scope": "openid email profile"},
         )
-        assert isinstance(client, OAuthClient)
+        assert isinstance(client, OAuth2Client)
         self._clients[config.idp_name] = client
 
-    def get_client(self, idp_name: str) -> OAuthClient:
+    def get_client(self, idp_name: str) -> OAuth2Client:
         if (client := self._clients.get(idp_name)) is None:
             raise ValueError(f"unknown or unregistered oauth client: {idp_name}")
         return client
 
     @classmethod
-    def from_configs(cls, configs: List[OAuthClientConfig]) -> "OAuthClients":
-        oauth_clients = cls()
+    def from_configs(cls, configs: List[OAuth2ClientConfig]) -> "OAuth2Clients":
+        oauth2_clients = cls()
         for config in configs:
-            oauth_clients.add_client(config)
-        return oauth_clients
+            oauth2_clients.add_client(config)
+        return oauth2_clients
 
 
 _CacheKey = TypeVar("_CacheKey")
@@ -45,7 +45,7 @@ _Expiry: TypeAlias = datetime
 _MINUTE = timedelta(minutes=1)
 
 
-class _OAuthClientTTLCache(Generic[_CacheKey, _CacheValue]):
+class _OAuth2ClientTTLCache(Generic[_CacheKey, _CacheValue]):
     """
     A TTL cache satisfying the interface required by the Authlib Starlette
     integration. Provides an alternative to starlette session middleware.

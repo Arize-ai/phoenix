@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any, Dict, Optional
 
 from authlib.integrations.starlette_client import OAuthError
-from authlib.integrations.starlette_client import StarletteOAuth2App as OAuthClient
+from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy import and_, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +32,7 @@ rate_limiter = ServerRateLimiter(
 )
 login_rate_limiter = fastapi_rate_limiter(rate_limiter, paths=["/login"])
 router = APIRouter(
-    prefix="/oauth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
+    prefix="/oauth2", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
 )
 
 
@@ -42,11 +42,11 @@ async def login(
     idp_name: Annotated[str, Path(min_length=1, pattern=ALPHANUMS_AND_UNDERSCORES)],
 ) -> RedirectResponse:
     if not isinstance(
-        oauth_client := request.app.state.oauth_clients.get_client(idp_name), OAuthClient
+        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
         raise HTTPException(HTTP_404_NOT_FOUND, f"Unknown IDP: {idp_name}")
     redirect_uri = request.url_for("create_tokens", idp_name=idp_name)
-    response: RedirectResponse = await oauth_client.authorize_redirect(request, redirect_uri)
+    response: RedirectResponse = await oauth2_client.authorize_redirect(request, redirect_uri)
     return response
 
 
@@ -59,17 +59,17 @@ async def create_tokens(
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: JwtStore = request.app.state.get_token_store()
     if not isinstance(
-        oauth_client := request.app.state.oauth_clients.get_client(idp_name), OAuthClient
+        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
         raise HTTPException(HTTP_404_NOT_FOUND, f"Unknown IDP: {idp_name}")
     try:
-        token = await oauth_client.authorize_access_token(request)
+        token = await oauth2_client.authorize_access_token(request)
     except OAuthError as error:
         raise HTTPException(HTTP_401_UNAUTHORIZED, detail=str(error))
     if (user_info := _get_user_info(token)) is None:
         raise HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
-            detail=f"OAuth IDP {idp_name} does not support OpenID Connect.",
+            detail=f"OAuth2 IDP {idp_name} does not support OpenID Connect.",
         )
     async with request.app.state.db() as session:
         try:
@@ -192,12 +192,12 @@ async def _ensure_email_and_username_are_not_used_by_other_idps(
         if user.email == email:
             raise EmailAlreadyInUse(
                 f"An account for {email} is already in use. "
-                f"This email cannot be re-used with {idp_name} OAuth."
+                f"This email cannot be re-used with {idp_name} OAuth2."
             )
         if username and user.username == username:
             raise UsernameAlreadyInUse(
                 f"An account already exists with username {username}. "
-                f"This username cannot be re-used with {idp_name} OAuth."
+                f"This username cannot be re-used with {idp_name} OAuth2."
             )
     return None
 

@@ -1,6 +1,6 @@
 export {};
 
-type OAuthIdp = {
+type OAuth2Idp = {
   name: string;
   displayName: string;
 };
@@ -20,7 +20,7 @@ declare global {
         nSamples: number;
       };
       authenticationEnabled: boolean;
-      oAuthIdps: OAuthIdp[];
+      oAuth2Idps: OAuth2Idp[];
     };
   }
 }
