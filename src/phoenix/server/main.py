@@ -32,6 +32,7 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
+from phoenix.logging import setup_logging
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -60,7 +61,7 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+# logger.addHandler(logging.NullHandler())
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -133,6 +134,9 @@ if __name__ == "__main__":
 
     # Initialize the settings for the Server
     Settings.log_migrations = True
+
+    # Setup logging
+    setup_logging()
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)

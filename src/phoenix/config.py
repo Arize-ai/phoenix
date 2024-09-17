@@ -1,9 +1,12 @@
 import os
 import re
 import tempfile
+from enum import Enum
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from phoenix.utilities.logging import log_a_list
 
 from .utilities.re import parse_env_headers
 
@@ -55,6 +58,10 @@ See e.g. https://www.postgresql.org/docs/current/ddl-schemas.html
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
 Whether to enable Prometheus. Defaults to false.
+"""
+ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
+"""
+The logging mode (either 'default' or 'structured').
 """
 
 # Phoenix server OpenTelemetry instrumentation environment variables
@@ -329,6 +336,21 @@ def get_web_base_url() -> str:
     if session := active_session():
         return session.url
     return get_base_url()
+
+
+class LoggingMode(Enum):
+    DEFAULT = "default"
+    STRUCTURED = "structured"
+
+
+def get_env_logging_mode() -> LoggingMode:
+    logging_mode = os.getenv(ENV_LOGGING_MODE) or LoggingMode.DEFAULT.value
+    if (logging_mode_lower := logging_mode.lower()) in LoggingMode._value2member_map_:
+        return LoggingMode(logging_mode_lower)
+    raise ValueError(
+        f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
+        f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} (case-insensitive)."
+    )
 
 
 DEFAULT_PROJECT_NAME = "default"
