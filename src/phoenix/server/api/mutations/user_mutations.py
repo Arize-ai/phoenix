@@ -309,11 +309,9 @@ def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
 def _is_locally_authenticated_user(user: models.User) -> bool:
     """
     Returns true if the user is authenticated locally, i.e., not through an
-    OAuth2 provider, and false otherwise.
+    OAuth2 identity provider, and false otherwise.
     """
-    return (
-        user.oauth2_identity_provider_name is None and user.oauth2_identity_provider_user_id is None
-    )
+    return user.oauth2_client_id is None and user.oauth2_user_id is None
 
 
 def _user_operation_error_message(

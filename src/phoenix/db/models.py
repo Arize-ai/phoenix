@@ -641,10 +641,8 @@ class User(Base):
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
-    oauth2_identity_provider_name: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
-    oauth2_identity_provider_user_id: Mapped[Optional[str]] = mapped_column(
-        index=True, nullable=True
-    )
+    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -658,8 +656,8 @@ class User(Base):
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         UniqueConstraint(
-            "oauth2_identity_provider_name",
-            "oauth2_identity_provider_user_id",
+            "oauth2_client_id",
+            "oauth2_user_id",
         ),
         dict(sqlite_autoincrement=True),
     )
