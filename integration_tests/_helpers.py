@@ -630,14 +630,27 @@ def _random_schema(
 ) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     try:
-        engine.connect()
+        engine.connect().close()
     except OperationalError as exc:
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
+        if "too many clients" in str(exc):
+            pass
+        else:
+            pytest.skip(f"PostgreSQL unavailable: {exc}")
+    engine.dispose()
     schema = f"_{secrets.token_hex(15)}"
     yield schema
-    with engine.connect() as conn:
-        conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
-        conn.commit()
+    time_limit = time() + 30
+    while time() < time_limit:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
+                conn.commit()
+        except OperationalError as exc:
+            if "too many clients" in str(exc):
+                sleep(1)
+                continue
+            raise
+        break
     engine.dispose()
 
 
