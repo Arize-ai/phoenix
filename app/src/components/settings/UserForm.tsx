@@ -25,17 +25,9 @@ export function UserForm({
   password,
   role,
   isSubmitting,
-  isEmailReadonly = false,
 }: {
   onSubmit: (data: UserFormParams) => void;
   isSubmitting: boolean;
-  /**
-   * Whether or not the email field should be readonly
-   * A users email cannot be changed after creation
-   * So, this should be set to true when editing a user
-   * @default false
-   */
-  isEmailReadonly?: boolean;
 } & Partial<UserFormParams>) {
   const {
     control,
@@ -81,7 +73,6 @@ export function UserForm({
               <TextField
                 label="Email"
                 type="email"
-                isReadOnly={isEmailReadonly}
                 name={name}
                 isRequired
                 description="The user's email address. Must be unique."
