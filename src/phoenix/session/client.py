@@ -90,7 +90,7 @@ class Client(TraceDataExtractor):
         if api_key:
             headers = {
                 **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},
-                "authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {api_key}",
             }
         host = get_env_host()
         if host == "0.0.0.0":
