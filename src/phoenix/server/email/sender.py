@@ -6,7 +6,7 @@ from phoenix.config import get_base_url
 from phoenix.server.email.types import SmtpConfig
 from phoenix.server.types import PasswordResetToken
 
-TEMPLATE_FOLDER = Path(__file__).parent
+TEMPLATE_FOLDER = Path(__file__).parent / "templates"
 
 
 class FastMailSender:

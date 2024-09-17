@@ -45,5 +45,4 @@ class EmailSender(Protocol):
         self,
         email: str,
         token: PasswordResetToken,
-    ) -> None:
-        raise NotImplementedError()
+    ) -> None: ...
