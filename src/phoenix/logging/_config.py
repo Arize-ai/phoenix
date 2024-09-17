@@ -16,7 +16,7 @@ def setup_logging():
     Configures logging for the specified logging mode.
     """
     logging_mode = get_env_logging_mode()
-    logging_mode = LoggingMode.STRUCTURED
+    logging_mode = LoggingMode.DEFAULT
     if logging_mode is LoggingMode.DEFAULT:
         _setup_default_logging()
     elif logging_mode is LoggingMode.STRUCTURED:
@@ -44,7 +44,7 @@ def _setup_structured_logging():
     for handler in root_logger.handlers:
         root_logger.removeHandler(handler)
         handler.close()
-    print("A", root_logger.handlers)
+    # print("A", root_logger.handlers)
 
     fmt_keys = {
         "level": "levelname",
@@ -59,21 +59,21 @@ def _setup_structured_logging():
     formatter = MyJSONFormatter(fmt_keys=fmt_keys)
 
     stdout_handler = logging.StreamHandler(stdout)
-    print("B", root_logger.handlers)
+    # print("B", root_logger.handlers)
     stdout_handler.setFormatter(formatter)
-    print("C", root_logger.handlers)
+    # print("C", root_logger.handlers)
 
     log_queue = queue.Queue()
     queue_handler = logging.handlers.QueueHandler(log_queue)
     root_logger.addHandler(queue_handler)
-    print("D", root_logger.handlers)
+    # print("D", root_logger.handlers)
 
     queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler)
     if queue_listener is not None:
         queue_listener.start()
         # atexit.register(queue_listener.stop)
     root_logger.info("Structured logging ready")
-    print("E", root_logger.handlers)
+    # print("E", root_logger.handlers)
 
 
 LOG_RECORD_BUILTIN_ATTRS = {

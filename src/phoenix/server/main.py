@@ -59,21 +59,22 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
-print("KEKE")
-logger = logging.getLogger()
+# print("KEKE")
+# print(__name__)
+logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-print("logger", logger)
-print("handlers", logger.handlers)
-print("hasHandlers", logger.hasHandlers())
+# print("logger", logger)
+# print("handlers", logger.handlers)
+# print("hasHandlers", logger.hasHandlers())
 logger_dict = logging.root.manager.loggerDict
-print("logger_dict", logger_dict)
-print("logger_dict.keys()", [key for key in logger_dict.keys() if "phoenix" in key])
+# print("logger_dict", logger_dict)
+# print("logger_dict.keys()", [key for key in logger_dict.keys() if "phoenix" in key])
 l = logging.getLogger("phoenix.server.app")
-print("l", l)
-print("l.handlers", l.handlers)
+# print("l", l)
+# print("l.handlers", l.handlers)
 child = logger.getChild("phoenix.server.app")
-print("child", child)
-print("child.handlers", child.handlers)
+# print("child", child)
+# print("child.handlers", child.handlers)
 
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
@@ -135,7 +136,9 @@ def _get_pid_file() -> Path:
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
-if __name__ == "__main__":
+
+def main():
+    print("CHECK 0")
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -147,6 +150,7 @@ if __name__ == "__main__":
 
     # Initialize the settings for the Server
     Settings.log_migrations = True
+    print("CHECK A")
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
@@ -166,6 +170,7 @@ if __name__ == "__main__":
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    print("CHECK B")
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
         "--with-fixture",
@@ -244,7 +249,7 @@ if __name__ == "__main__":
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
-    export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    export_path = Path(args.export_path) if args.export_path else Path(EXPORT_DIR)
 
     force_fixture_ingestion = False
     scaffold_datasets = False
@@ -408,3 +413,7 @@ if __name__ == "__main__":
 
     # Start the server
     server.run()
+
+
+if __name__ == "__main__":
+    main()
