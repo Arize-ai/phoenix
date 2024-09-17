@@ -147,6 +147,13 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+demo_o1_preview_timeseries_testing_fixture = TracesFixture(
+    name="demo_o1_preview_timeseries_evals",
+    project_name="demo_o1_preview_timeseries",
+    description="Shows the traces for a timeseries evaluation of o1-preview",
+    file_name="o1-preview-testing-traces.parquet",
+)
+
 demo_llama_index_rag_llm_fixture = TracesFixture(
     name="demo_llama_index_rag_llm",
     project_name="demo_llama_index_rag_llm",
@@ -252,6 +259,7 @@ random_fixture = TracesFixture(
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
+    demo_o1_preview_timeseries_testing_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
