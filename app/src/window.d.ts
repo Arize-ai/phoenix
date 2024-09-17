@@ -1,7 +1,7 @@
 export {};
 
 type OAuthIdp = {
-  id: string;
+  name: string;
   displayName: string;
 };
 

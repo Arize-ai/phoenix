@@ -14,7 +14,6 @@ from typing_extensions import TypeAlias
 
 from phoenix.utilities.re import parse_env_headers
 
-IdpId: TypeAlias = str
 EnvVarName: TypeAlias = str
 EnvVarValue: TypeAlias = str
 
@@ -211,53 +210,54 @@ def get_env_refresh_token_expiry() -> timedelta:
 
 @dataclass(frozen=True)
 class OAuthClientConfig:
-    idp_id: str
+    idp_name: str
     display_name: str
     client_id: str
     client_secret: str
     server_metadata_url: str
 
     @classmethod
-    def from_env(cls, idp_id: str) -> "OAuthClientConfig":
-        idp_id_upper = idp_id.upper()
+    def from_env(cls, idp_name: str) -> "OAuthClientConfig":
+        idp_name_upper = idp_name.upper()
         if (
-            client_id := os.getenv(client_id_env_var := f"PHOENIX_OAUTH_{idp_id_upper}_CLIENT_ID")
+            client_id := os.getenv(client_id_env_var := f"PHOENIX_OAUTH_{idp_name_upper}_CLIENT_ID")
         ) is None:
             raise ValueError(
-                f"A client id must be set for the {idp_id} OAuth IDP "
+                f"A client id must be set for the {idp_name} OAuth IDP "
                 f"via the {client_id_env_var} environment variable"
             )
         if (
             client_secret := os.getenv(
-                client_secret_env_var := f"PHOENIX_OAUTH_{idp_id_upper}_CLIENT_SECRET"
+                client_secret_env_var := f"PHOENIX_OAUTH_{idp_name_upper}_CLIENT_SECRET"
             )
         ) is None:
             raise ValueError(
-                f"A client secret must be set for the {idp_id} OAuth IDP "
+                f"A client secret must be set for the {idp_name} OAuth IDP "
                 f"via the {client_secret_env_var} environment variable"
             )
         if (
             server_metadata_url := (
                 os.getenv(
                     server_metadata_url_env_var
-                    := f"PHOENIX_OAUTH_{idp_id_upper}_SERVER_METADATA_URL",
+                    := f"PHOENIX_OAUTH_{idp_name_upper}_SERVER_METADATA_URL",
                 )
-                or _get_default_server_metadata_url(idp_id)
+                or _get_default_server_metadata_url(idp_name)
             )
         ) is None:
             raise ValueError(
-                f"A server metadata URL must be set for the {idp_id} OAuth IDP "
+                f"A server metadata URL must be set for the {idp_name} OAuth IDP "
                 f"via the {server_metadata_url_env_var} environment variable"
             )
         if urlparse(server_metadata_url).scheme != "https":
             raise ValueError(
-                f"Server metadata URL for {idp_id} OAuth IDP "
+                f"Server metadata URL for {idp_name} OAuth IDP "
                 "must be a valid URL using the https protocol"
             )
         return cls(
-            idp_id=idp_id,
+            idp_name=idp_name,
             display_name=os.getenv(
-                f"PHOENIX_OAUTH_{idp_id_upper}_DISPLAY_NAME", _get_default_idp_display_name(idp_id)
+                f"PHOENIX_OAUTH_{idp_name_upper}_DISPLAY_NAME",
+                _get_default_idp_display_name(idp_name),
             ),
             client_id=client_id,
             client_secret=client_secret,
@@ -265,13 +265,13 @@ class OAuthClientConfig:
         )
 
     def __post_init__(self) -> None:
-        assert self.idp_id
+        assert self.idp_name
         if not self.display_name:
-            raise ValueError(f"OAuth display name for {self.idp_id} cannot be empty")
+            raise ValueError(f"OAuth display name for {self.idp_name} cannot be empty")
         if not self.client_id:
-            raise ValueError(f"OAuth client id for {self.idp_id} cannot be empty")
+            raise ValueError(f"OAuth client id for {self.idp_name} cannot be empty")
         if not self.client_secret:
-            raise ValueError(f"OAuth client secret for {self.idp_id} cannot be empty")
+            raise ValueError(f"OAuth client secret for {self.idp_name} cannot be empty")
 
 
 def get_env_oauth_settings() -> List[OAuthClientConfig]:
@@ -279,14 +279,14 @@ def get_env_oauth_settings() -> List[OAuthClientConfig]:
     Get OAuth settings from environment variables.
     """
 
-    idp_ids = set()
+    idp_names = set()
     pattern = re.compile(
         r"^PHOENIX_OAUTH_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
     )
     for env_var in os.environ:
-        if (match := pattern.match(env_var)) is not None and (idp_id := match.group(1).lower()):
-            idp_ids.add(idp_id)
-    return [OAuthClientConfig.from_env(idp_id) for idp_id in sorted(idp_ids)]
+        if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
+            idp_names.add(idp_name)
+    return [OAuthClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 
 
 def _parse_duration(duration_str: str) -> timedelta:
@@ -479,16 +479,16 @@ class OAuth2Idp(Enum):
     GOOGLE = "google"
 
 
-def _get_default_idp_display_name(idp_id: IdpId) -> str:
-    if idp_id == OAuth2Idp.AWS_COGNITO.value:
+def _get_default_idp_display_name(idp_name: str) -> str:
+    if idp_name == OAuth2Idp.AWS_COGNITO.value:
         return "AWS Cognito"
-    if idp_id == OAuth2Idp.AZURE_AD.value:
+    if idp_name == OAuth2Idp.AZURE_AD.value:
         return "Azure AD"
-    return idp_id.replace("_", " ").title()
+    return idp_name.replace("_", " ").title()
 
 
-def _get_default_server_metadata_url(idp_id: IdpId) -> Optional[str]:
-    if idp_id == OAuth2Idp.GOOGLE.value:
+def _get_default_server_metadata_url(idp_name: str) -> Optional[str]:
+    if idp_name == OAuth2Idp.GOOGLE.value:
         return "https://accounts.google.com/.well-known/openid-configuration"
     return None
 
