@@ -4,12 +4,12 @@ from typing import Any, Dict, Optional
 
 from authlib.integrations.starlette_client import OAuthError
 from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, Path, Request
 from sqlalchemy import and_, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from starlette.datastructures import URL
 from starlette.responses import RedirectResponse
-from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 from typing_extensions import Annotated
 
 from phoenix.auth import (
@@ -44,7 +44,7 @@ async def login(
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
-        raise HTTPException(HTTP_404_NOT_FOUND, f"Unknown IDP: {idp_name}")
+        return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     redirect_uri = request.url_for("create_tokens", idp_name=idp_name)
     response: RedirectResponse = await oauth2_client.authorize_redirect(request, redirect_uri)
     return response
@@ -61,23 +61,22 @@ async def create_tokens(
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
-        raise HTTPException(HTTP_404_NOT_FOUND, f"Unknown IDP: {idp_name}")
+        return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     try:
         token = await oauth2_client.authorize_access_token(request)
     except OAuthError as error:
-        raise HTTPException(HTTP_401_UNAUTHORIZED, detail=str(error))
+        return _redirect_to_login(error=str(error))
     if (user_info := _get_user_info(token)) is None:
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail=f"OAuth2 IDP {idp_name} does not support OpenID Connect.",
+        return _redirect_to_login(
+            error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect."
         )
-    async with request.app.state.db() as session:
-        try:
+    try:
+        async with request.app.state.db() as session:
             user = await _ensure_user_exists_and_is_up_to_date(
                 session, idp_name=idp_name, user_info=user_info
             )
-        except (EmailAlreadyInUse, UsernameAlreadyInUse) as error:
-            raise HTTPException(HTTP_401_UNAUTHORIZED, detail=str(error))
+    except (EmailAlreadyInUse, UsernameAlreadyInUse) as error:
+        return _redirect_to_login(error=str(error))
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
         token_store=token_store,
@@ -174,31 +173,21 @@ async def _get_user(
     return user
 
 
-async def _ensure_email_and_username_are_not_used_by_other_idps(
-    session: AsyncSession, /, *, email: str, username: Optional[str], idp_id: int, idp_name: str
+async def _ensure_email_and_username_are_not_in_use(
+    session: AsyncSession, /, *, email: str, username: Optional[str]
 ) -> None:
-    # todo: simplify query
     conflicting_users = (
         await session.scalars(
             select(models.User).where(
-                and_(
-                    or_(models.User.email == email, models.User.username == username),
-                    models.User.identity_provider_id != idp_id,
-                )
+                or_(models.User.email == email, models.User.username == username)
             )
         )
     ).all()
     for user in conflicting_users:
         if user.email == email:
-            raise EmailAlreadyInUse(
-                f"An account for {email} is already in use. "
-                f"This email cannot be re-used with {idp_name} OAuth2."
-            )
+            raise EmailAlreadyInUse(f"An account for {email} is already in use.")
         if username and user.username == username:
-            raise UsernameAlreadyInUse(
-                f"An account already exists with username {username}. "
-                f"This username cannot be re-used with {idp_name} OAuth2."
-            )
+            raise UsernameAlreadyInUse(f'An account already exists with username "{username}".')
     return None
 
 
@@ -209,12 +198,10 @@ async def _create_user(
     user_info: UserInfo,
     idp: models.IdentityProvider,
 ) -> models.User:
-    await _ensure_email_and_username_are_not_used_by_other_idps(
+    await _ensure_email_and_username_are_not_in_use(
         session,
         email=user_info.email,
         username=user_info.username,
-        idp_id=idp.id,
-        idp_name=idp.name,
     )
     member_role_id = (
         select(models.UserRole.id)
@@ -279,3 +266,10 @@ class EmailAlreadyInUse(Exception):
 
 class UsernameAlreadyInUse(Exception):
     pass
+
+
+def _redirect_to_login(*, error: str) -> RedirectResponse:
+    """
+    Creates a RedirectResponse to the login page to display an error message.
+    """
+    return RedirectResponse(url=URL("/login").include_query_params(error=error))
