@@ -91,21 +91,10 @@ class UserMutationMixin:
         validate_password_format(password := input.password)
         salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
         password_hash = await info.context.hash_password(password, salt)
-        local_idp_id = (
-            select(models.IdentityProvider.id)
-            .where(
-                and_(
-                    models.IdentityProvider.name == enums.IdentityProviderName.LOCAL.value,
-                    models.IdentityProvider.auth_method == enums.AuthMethod.LOCAL.value,
-                )
-            )
-            .scalar_subquery()
-        )
         user = models.User(
             reset_password=True,
             username=input.username or None,
             email=email,
-            identity_provider_id=local_idp_id,
             password_hash=password_hash,
             password_salt=salt,
         )
@@ -148,10 +137,7 @@ class UserMutationMixin:
                     raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
             if password := input.new_password:
-                if (
-                    (idp := user.identity_provider).name != enums.IdentityProviderName.LOCAL.value
-                    or idp.auth_method != enums.AuthMethod.LOCAL.value
-                ):
+                if not _is_locally_authenticated_user(user):
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
@@ -184,10 +170,7 @@ class UserMutationMixin:
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if password := input.new_password:
-                if (
-                    (idp := user.identity_provider).name != enums.IdentityProviderName.LOCAL.value
-                    or idp.auth_method != enums.AuthMethod.LOCAL.value
-                ):
+                if not _is_locally_authenticated_user(user):
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password
@@ -319,7 +302,17 @@ def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
     return (
         select(models.User)
         .where(and_(models.User.id == user_id, models.User.deleted_at.is_(None)))
-        .options(joinedload(models.User.role), joinedload(models.User.identity_provider))
+        .options(joinedload(models.User.role))
+    )
+
+
+def _is_locally_authenticated_user(user: models.User) -> bool:
+    """
+    Returns true if the user is authenticated locally, i.e., not through an
+    OAuth2 provider, and false otherwise.
+    """
+    return (
+        user.oauth2_identity_provider_name is None and user.oauth2_identity_provider_user_id is None
     )
 
 

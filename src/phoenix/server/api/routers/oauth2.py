@@ -17,7 +17,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
 )
 from phoenix.db import models
-from phoenix.db.enums import AuthMethod, UserRole
+from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
@@ -123,49 +123,26 @@ def _get_user_info(token: Dict[str, Any]) -> Optional[UserInfo]:
     )
 
 
-async def _ensure_identity_provider_exists(
-    session: AsyncSession, /, *, idp_name: str
-) -> models.IdentityProvider:
-    idp = await session.scalar(
-        select(models.IdentityProvider).where(
-            and_(
-                models.IdentityProvider.name == idp_name,
-                models.IdentityProvider.auth_method == AuthMethod.OAUTH.value,
-            )
-        )
-    )
-    if idp is not None:
-        return idp
-    idp = await session.scalar(
-        insert(models.IdentityProvider)
-        .returning(models.IdentityProvider)
-        .values(name=idp_name, auth_method=AuthMethod.OAUTH.value)
-    )
-    assert isinstance(idp, models.IdentityProvider)
-    return idp
-
-
 async def _ensure_user_exists_and_is_up_to_date(
     session: AsyncSession, /, *, idp_name: str, user_info: UserInfo
 ) -> models.User:
-    idp = await _ensure_identity_provider_exists(session, idp_name=idp_name)
-    user = await _get_user(session, idp_id=idp.id, idp_user_id=user_info.idp_user_id)
+    user = await _get_user(session, idp_name=idp_name, idp_user_id=user_info.idp_user_id)
     if user is None:
-        user = await _create_user(session, user_info=user_info, idp=idp)
+        user = await _create_user(session, user_info=user_info, idp_name=idp_name)
     elif _db_user_is_outdated(user=user, user_info=user_info):
         user = await _update_user(session, user_id=user.id, user_info=user_info)
     return user
 
 
 async def _get_user(
-    session: AsyncSession, /, *, idp_id: int, idp_user_id: str
+    session: AsyncSession, /, *, idp_name: str, idp_user_id: str
 ) -> Optional[models.User]:
     user = await session.scalar(
         select(models.User)
         .where(
             and_(
-                models.User.identity_provider_id == idp_id,
-                models.User.identity_provider_user_id == idp_user_id,
+                models.User.oauth2_identity_provider_name == idp_name,
+                models.User.oauth2_identity_provider_user_id == idp_user_id,
             )
         )
         .options(joinedload(models.User.role))
@@ -208,7 +185,7 @@ async def _create_user(
     /,
     *,
     user_info: UserInfo,
-    idp: models.IdentityProvider,
+    idp_name: str,
 ) -> models.User:
     await _ensure_email_and_username_are_not_in_use(
         session,
@@ -225,8 +202,8 @@ async def _create_user(
         .returning(models.User.id)
         .values(
             user_role_id=member_role_id,
-            identity_provider_id=idp.id,
-            identity_provider_user_id=user_info.idp_user_id,
+            oauth2_identity_provider_name=idp_name,
+            oauth2_identity_provider_user_id=user_info.idp_user_id,
             username=user_info.username,
             email=user_info.email,
             profile_picture_url=user_info.profile_picture_url,
