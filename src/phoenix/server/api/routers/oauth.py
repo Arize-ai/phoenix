@@ -66,18 +66,25 @@ async def create_tokens(
         token = await oauth_client.authorize_access_token(request)
     except OAuthError as error:
         raise HTTPException(HTTP_401_UNAUTHORIZED, detail=str(error))
-    user_info = _get_user_info(token)
-    async with request.app.state.db() as session:
-        user = await _ensure_user_exists_and_is_up_to_date(
-            session, idp_name=idp_name, user_info=user_info
+    if (user_info := _get_user_info(token)) is None:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail=f"OAuth IDP {idp_name} does not support OpenID Connect.",
         )
+    async with request.app.state.db() as session:
+        try:
+            user = await _ensure_user_exists_and_is_up_to_date(
+                session, idp_name=idp_name, user_info=user_info
+            )
+        except (EmailAlreadyInUse, UsernameAlreadyInUse) as error:
+            raise HTTPException(HTTP_401_UNAUTHORIZED, detail=str(error))
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
         token_store=token_store,
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(url="/")
+    response = RedirectResponse(url="/")  # todo: sanitize a return url
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -95,11 +102,12 @@ class UserInfo:
     profile_picture_url: Optional[str]
 
 
-def _get_user_info(token: Dict[str, Any]) -> UserInfo:
+def _get_user_info(token: Dict[str, Any]) -> Optional[UserInfo]:
     assert isinstance(token.get("access_token"), str)
     assert isinstance(token_type := token.get("token_type"), str)
     assert token_type.lower() == "bearer"
-    assert isinstance(user_info := token.get("userinfo"), dict)
+    if (user_info := token.get("userinfo")) is None:
+        return None
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
     assert isinstance(email := user_info.get("email"), str)
@@ -213,9 +221,9 @@ async def _create_user(
         .where(models.UserRole.name == UserRole.MEMBER.value)
         .scalar_subquery()
     )
-    user = await session.scalar(
+    user_id = await session.scalar(
         insert(models.User)
-        .returning(models.User)
+        .returning(models.User.id)
         .values(
             user_role_id=member_role_id,
             identity_provider_id=idp.id,
@@ -227,8 +235,11 @@ async def _create_user(
             password_salt=None,
             reset_password=False,
         )
-        .options(joinedload(models.User.role))
     )
+    assert isinstance(user_id, int)
+    user = await session.scalar(
+        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
+    )  # query user for joined load
     assert isinstance(user, models.User)
     return user
 
@@ -236,10 +247,9 @@ async def _create_user(
 async def _update_user(
     session: AsyncSession, /, *, user_id: int, user_info: UserInfo
 ) -> models.User:
-    user = await session.scalar(
+    await session.execute(
         update(models.User)
         .where(models.User.id == user_id)
-        .returning(models.User)
         .values(
             username=user_info.username,
             email=user_info.email,
@@ -247,6 +257,10 @@ async def _update_user(
         )
         .options(joinedload(models.User.role))
     )
+    assert isinstance(user_id, int)
+    user = await session.scalar(
+        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
+    )  # query user for joined load
     assert isinstance(user, models.User)
     return user
 

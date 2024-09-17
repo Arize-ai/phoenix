@@ -3,9 +3,11 @@ import re
 import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, overload
+from urllib.parse import urlparse
 
 from typing_extensions import TypeAlias
 
@@ -330,9 +332,7 @@ class OAuthClientConfig:
     display_name: str
     client_id: str
     client_secret: str
-    server_metadata_url: Optional[str] = None
-    authorize_url: Optional[str] = None
-    access_token_url: Optional[str] = None
+    server_metadata_url: str
 
     @classmethod
     def from_env(cls, idp_id: str) -> "OAuthClientConfig":
@@ -353,16 +353,32 @@ class OAuthClientConfig:
                 f"A client secret must be set for the {idp_id} OAuth IDP "
                 f"via the {client_secret_env_var} environment variable"
             )
+        if (
+            server_metadata_url := (
+                os.getenv(
+                    server_metadata_url_env_var
+                    := f"PHOENIX_OAUTH_{idp_id_upper}_SERVER_METADATA_URL",
+                )
+                or _get_default_server_metadata_url(idp_id)
+            )
+        ) is None:
+            raise ValueError(
+                f"A server metadata URL must be set for the {idp_id} OAuth IDP "
+                f"via the {server_metadata_url_env_var} environment variable"
+            )
+        if urlparse(server_metadata_url).scheme != "https":
+            raise ValueError(
+                f"Server metadata URL for {idp_id} OAuth IDP "
+                "must be a valid URL using the https protocol"
+            )
         return cls(
             idp_id=idp_id,
             display_name=os.getenv(
-                f"PHOENIX_OAUTH_{idp_id_upper}_DISPLAY_NAME", get_default_idp_display_name(idp_id)
+                f"PHOENIX_OAUTH_{idp_id_upper}_DISPLAY_NAME", _get_default_idp_display_name(idp_id)
             ),
             client_id=client_id,
             client_secret=client_secret,
-            server_metadata_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_SERVER_METADATA_URL"),
-            access_token_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_ACCESS_TOKEN_URL"),
-            authorize_url=os.getenv(f"PHOENIX_OAUTH_{idp_id_upper}_AUTHORIZE_URL"),
+            server_metadata_url=server_metadata_url,
         )
 
     def __post_init__(self) -> None:
@@ -382,7 +398,7 @@ def get_env_oauth_settings() -> List[OAuthClientConfig]:
 
     idp_ids = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL|ACCESS_TOKEN_URL|AUTHORIZE_URL)$"
+        r"^PHOENIX_OAUTH_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_id := match.group(1).lower()):
@@ -558,8 +574,24 @@ def get_web_base_url() -> str:
     return get_base_url()
 
 
-def get_default_idp_display_name(ipd_id: IdpId) -> str:
-    return ipd_id.replace("_", " ").title()
+class OAuth2Idp(Enum):
+    AWS_COGNITO = "aws_cognito"
+    AZURE_AD = "azure_ad"
+    GOOGLE = "google"
+
+
+def _get_default_idp_display_name(idp_id: IdpId) -> str:
+    if idp_id == OAuth2Idp.AWS_COGNITO.value:
+        return "AWS Cognito"
+    if idp_id == OAuth2Idp.AZURE_AD.value:
+        return "Azure AD"
+    return idp_id.replace("_", " ").title()
+
+
+def _get_default_server_metadata_url(idp_id: IdpId) -> Optional[str]:
+    if idp_id == OAuth2Idp.GOOGLE.value:
+        return "https://accounts.google.com/.well-known/openid-configuration"
+    return None
 
 
 DEFAULT_PROJECT_NAME = "default"
