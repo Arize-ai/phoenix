@@ -31,6 +31,7 @@ def _setup_default_logging():
     """
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+    root_logger.info("Default logging ready")
 
 
 def _setup_structured_logging():
@@ -63,6 +64,7 @@ def _setup_structured_logging():
     if queue_listener is not None:
         queue_listener.start()
         # atexit.register(queue_listener.stop)
+    root_logger.info("Structured logging ready")
 
 
 LOG_RECORD_BUILTIN_ATTRS = {
