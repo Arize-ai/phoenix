@@ -154,7 +154,7 @@ _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
 
 
 class OAuthIdp(TypedDict):
-    id: str
+    name: str
     displayName: str
 
 
@@ -745,7 +745,7 @@ def create_app(
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
     if serve_ui and web_manifest_path.is_file():
         oauth_idps = [
-            OAuthIdp(id=config.idp_id, displayName=config.display_name)
+            OAuthIdp(name=config.idp_name, displayName=config.display_name)
             for config in oauth_client_configs or []
         ]
         app.mount(

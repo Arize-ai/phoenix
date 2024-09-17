@@ -7,30 +7,28 @@ from typing_extensions import TypeAlias, TypeVar
 
 from phoenix.config import OAuthClientConfig
 
-IdpId: TypeAlias = str
-
 
 class OAuthClients:
     def __init__(self) -> None:
-        self._clients: Dict[IdpId, OAuthClient] = {}
+        self._clients: Dict[str, OAuthClient] = {}
         self._oauth = OAuth(cache=_OAuthClientTTLCache[str, Any]())
 
     def add_client(self, config: OAuthClientConfig) -> None:
-        if (idp_id := config.idp_id) in self._clients:
-            raise ValueError(f"oauth client already registered: {idp_id}")
+        if (idp_name := config.idp_name) in self._clients:
+            raise ValueError(f"oauth client already registered: {idp_name}")
         client = self._oauth.register(
-            idp_id,
+            idp_name,
             client_id=config.client_id,
             client_secret=config.client_secret,
             server_metadata_url=config.server_metadata_url,
             client_kwargs={"scope": "openid email profile"},
         )
         assert isinstance(client, OAuthClient)
-        self._clients[config.idp_id] = client
+        self._clients[config.idp_name] = client
 
-    def get_client(self, idp_id: IdpId) -> OAuthClient:
-        if (client := self._clients.get(idp_id)) is None:
-            raise ValueError(f"unknown or unregistered oauth client: {idp_id}")
+    def get_client(self, idp_name: str) -> OAuthClient:
+        if (client := self._clients.get(idp_name)) is None:
+            raise ValueError(f"unknown or unregistered oauth client: {idp_name}")
         return client
 
     @classmethod
