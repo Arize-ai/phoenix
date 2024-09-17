@@ -29,6 +29,7 @@ import {
   LoginPage,
   ModelPage,
   ModelRoot,
+  PlaygroundPage,
   ProfilePage,
   projectLoader,
   ProjectPage,
@@ -147,6 +148,13 @@ const router = createBrowserRouter(
               />
             </Route>
           </Route>
+          <Route
+            path="/playground"
+            element={<PlaygroundPage />}
+            handle={{
+              crumb: () => "Playground",
+            }}
+          />
           <Route
             path="/apis"
             element={<APIsPage />}
