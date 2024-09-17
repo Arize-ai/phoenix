@@ -3,10 +3,10 @@ import React from "react";
 import { Flex, View } from "@arizeai/components";
 
 import { AuthLayout } from "./AuthLayout";
-import { InitiatePasswordResetForm } from "./InitiatePasswordResetForm";
+import { ForgotPasswordForm } from "./ForgotPasswordForm";
 import { PhoenixLogo } from "./PhoenixLogo";
 
-export function InitiatePasswordResetPage() {
+export function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -14,7 +14,7 @@ export function InitiatePasswordResetPage() {
           <PhoenixLogo />
         </View>
       </Flex>
-      <InitiatePasswordResetForm />
+      <ForgotPasswordForm />
     </AuthLayout>
   );
 }

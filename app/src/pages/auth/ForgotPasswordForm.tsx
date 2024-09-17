@@ -8,7 +8,7 @@ type InitiatePasswordResetFormParams = {
   email: string;
 };
 
-export function InitiatePasswordResetForm() {
+export function ForgotPasswordForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -35,7 +35,9 @@ export function InitiatePasswordResetForm() {
       } finally {
         setIsLoading(() => false);
       }
-      setMessage("Check your emails");
+      setMessage(
+        "A link to reset your password has been sent. Check your email for details."
+      );
     },
     [setMessage, setError]
   );
@@ -46,12 +48,12 @@ export function InitiatePasswordResetForm() {
     <>
       {message ? (
         <View paddingBottom="size-100">
-          <Alert variant="success">{message}</Alert>{" "}
+          <Alert variant="success">{message}</Alert>
         </View>
       ) : null}
       {error ? (
         <View paddingBottom="size-100">
-          <Alert variant="danger">{error}</Alert>{" "}
+          <Alert variant="danger">{error}</Alert>
         </View>
       ) : null}
       <Form>
@@ -84,7 +86,7 @@ export function InitiatePasswordResetForm() {
             loading={isLoading}
             onClick={handleSubmit(onSubmit)}
           >
-            Send Reset Email
+            Submit
           </Button>
         </div>
       </Form>

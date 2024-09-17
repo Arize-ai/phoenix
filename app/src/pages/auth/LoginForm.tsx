@@ -50,7 +50,7 @@ export function LoginForm() {
     <>
       {error ? (
         <View paddingBottom="size-100">
-          <Alert variant="danger">{error}</Alert>{" "}
+          <Alert variant="danger">{error}</Alert>
         </View>
       ) : null}
       <Form>
@@ -108,9 +108,9 @@ export function LoginForm() {
           <Button
             variant="quiet"
             loading={isLoading}
-            onClick={() => navigate("/initiate-password-reset")}
+            onClick={() => navigate("/forgot-password")}
           >
-            Reset Password
+            Forgot password?
           </Button>
         </div>
       </Form>

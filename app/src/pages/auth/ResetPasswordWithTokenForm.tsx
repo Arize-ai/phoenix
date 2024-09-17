@@ -70,12 +70,12 @@ export function ResetPasswordWithTokenForm({
     <>
       {message ? (
         <View paddingBottom="size-100">
-          <Alert variant="success">{message}</Alert>{" "}
+          <Alert variant="success">{message}</Alert>
         </View>
       ) : null}
       {error ? (
         <View paddingBottom="size-100">
-          <Alert variant="danger">{error}</Alert>{" "}
+          <Alert variant="danger">{error}</Alert>
         </View>
       ) : null}
       <Form onSubmit={handleSubmit(onSubmit)}>

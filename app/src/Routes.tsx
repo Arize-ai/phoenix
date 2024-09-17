@@ -25,8 +25,8 @@ import {
   ExperimentComparePage,
   experimentsLoader,
   ExperimentsPage,
+  ForgotPasswordPage,
   homeLoader,
-  InitiatePasswordResetPage,
   LoginPage,
   ModelPage,
   ModelRoot,
@@ -51,10 +51,7 @@ const router = createBrowserRouter(
         element={<ResetPasswordPage />}
         loader={resetPasswordLoader}
       />
-      <Route
-        path="/initiate-password-reset"
-        element={<InitiatePasswordResetPage />}
-      />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
         <Route element={<Layout />}>
           <Route
