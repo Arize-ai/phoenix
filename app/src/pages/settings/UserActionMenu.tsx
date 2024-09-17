@@ -10,12 +10,14 @@ import {
   Text,
 } from "@arizeai/components";
 
+import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 
 type UserActionMenuProps = {
   userId: string;
   onUserDeleted: () => void;
+  authMethod: AuthMethod;
 };
 
 enum UserAction {
@@ -23,8 +25,12 @@ enum UserAction {
   RESET_PASSWORD = "resetPassword",
 }
 
+function isLocalAuth(authMethod: AuthMethod): authMethod is "LOCAL" {
+  return authMethod === "LOCAL";
+}
+
 export function UserActionMenu(props: UserActionMenuProps) {
-  const { userId, onUserDeleted } = props;
+  const { userId, onUserDeleted, authMethod } = props;
   const [dialog, setDialog] = useState<ReactNode>(null);
 
   const onDelete = useCallback(() => {
@@ -79,17 +85,21 @@ export function UserActionMenu(props: UserActionMenuProps) {
             <Text>Delete</Text>
           </Flex>
         </Item>
-        <Item key={UserAction.RESET_PASSWORD}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.Edit2Outline />} />
-            <Text>Reset Password</Text>
-          </Flex>
-        </Item>
+        {isLocalAuth(authMethod) ? (
+          <Item key={UserAction.RESET_PASSWORD}>
+            <Flex
+              direction={"row"}
+              gap="size-75"
+              justifyContent={"start"}
+              alignItems={"center"}
+            >
+              <Icon svg={<Icons.Edit2Outline />} />
+              <Text>Reset Password</Text>
+            </Flex>
+          </Item>
+        ) : (
+          <></>
+        )}
       </ActionMenu>
       <DialogContainer
         type="modal"

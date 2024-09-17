@@ -58,6 +58,10 @@ interface ApiKey {
   expiresAt: DateTime
 }
 
+enum AuthMethod {
+  LOCAL
+}
+
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
@@ -1465,6 +1469,7 @@ type User implements Node {
   email: String!
   username: String
   createdAt: DateTime!
+  authMethod: AuthMethod!
   role: UserRole!
   apiKeys: [UserApiKey!]!
 }

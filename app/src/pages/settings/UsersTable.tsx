@@ -1,11 +1,19 @@
-import React, { ReactNode, startTransition, useMemo, useState } from "react";
+import React, {
+  ReactNode,
+  startTransition,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { css } from "@emotion/react";
 
 import { DialogContainer, Flex, Icon, Icons } from "@arizeai/components";
 
@@ -13,11 +21,21 @@ import { RolePicker } from "@phoenix/components/settings/RolePicker";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { isUserRole, normalizeUserRole } from "@phoenix/constants";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
 import { UserActionMenu } from "./UserActionMenu";
 import { UserRoleChangeDialog } from "./UserRoleChangeDialog";
+
+const USER_TABLE_ROW_HEIGHT = 55;
+
+/**
+ * Rows may render different content depending on the user so we normalize the height
+ */
+const userTableRowCSS = css`
+  height: ${USER_TABLE_ROW_HEIGHT}px;
+`;
 
 const isDefaultAdminUser = (user: {
   email: string;
@@ -40,6 +58,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               email
               username
               createdAt
+              authMethod
               role {
                 name
               }
@@ -58,18 +77,19 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       username: user.username,
       createdAt: user.createdAt,
       role: user.role.name,
+      authMethod: user.authMethod,
     }));
   }, [data]);
 
-  const refetchTableData = () => {
+  const refetchTableData = useCallback(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "network-only" });
     });
-  };
+  }, [refetch]);
 
   type TableRow = (typeof tableData)[number];
-  const table = useReactTable<TableRow>({
-    columns: [
+  const columns = useMemo((): ColumnDef<TableRow>[] => {
+    return [
       {
         header: "email",
         accessorKey: "email",
@@ -81,7 +101,10 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       {
         header: "role",
         accessorKey: "role",
-        cell: ({ row, getValue }) => {
+        cell: ({ row }) => {
+          if (isDefaultAdminUser(row.original)) {
+            return normalizeUserRole(row.original.role);
+          }
           return (
             <RolePicker
               includeLabel={false}
@@ -100,7 +123,9 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                   />
                 );
               }}
-              role={getValue()}
+              role={
+                isUserRole(row.original.role) ? row.original.role : undefined
+              }
             />
           );
         },
@@ -123,6 +148,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               <UserActionMenu
                 userId={row.original.id}
                 onUserDeleted={refetchTableData}
+                authMethod={row.original.authMethod}
               />
             </Flex>
           );
@@ -131,7 +157,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           textAlign: "right",
         },
       },
-    ],
+    ];
+  }, [refetchTableData]);
+
+  const table = useReactTable<TableRow>({
+    columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -187,7 +217,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr key={row.id} css={userTableRowCSS}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>

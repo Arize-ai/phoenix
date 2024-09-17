@@ -3,6 +3,7 @@ import { graphql, useMutation } from "react-relay";
 
 import { Button, Dialog, Flex, Text, View } from "@arizeai/components";
 
+import { normalizeUserRole } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import {
@@ -75,8 +76,8 @@ export function UserRoleChangeDialog({
       <View padding="size-200">
         <Text>
           {`Are you sure you want to change the role for ${email} from `}{" "}
-          <b>{currentRole.toLocaleLowerCase()}</b> to{" "}
-          <b>{newRole.toLocaleLowerCase()}</b>?
+          <b>{normalizeUserRole(currentRole)}</b> to{" "}
+          <b>{normalizeUserRole(newRole)}</b>?
         </Text>
       </View>
       <View

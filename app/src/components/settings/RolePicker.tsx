@@ -1,20 +1,23 @@
 import React from "react";
+import { css } from "@emotion/react";
 
 import { Item, Picker, PickerProps } from "@arizeai/components";
 
-import { UserRole } from "@phoenix/constants";
+import { isUserRole, normalizeUserRole, UserRole } from "@phoenix/constants";
 
 const UserRoles = Object.values(UserRole);
 
-function isUserRole(role: unknown): role is UserRole {
-  return typeof role === "string" && role in UserRole;
-}
+const hiddenLabelCSS = css`
+  .ac-field-label {
+    display: none;
+  }
+`;
 
 type RolePickerProps<T> = {
   onChange: (role: UserRole) => void;
-  role: UserRole;
+  role?: UserRole;
   /**
-   * Whether to include a label for the picker
+   * Whether to display a label for the picker
    * This may be set to false in cases where the picker is rendered in a table for instance
    * @default true
    */
@@ -32,9 +35,10 @@ export function RolePicker<T>({
 }: RolePickerProps<T>) {
   return (
     <Picker
-      label={includeLabel ? "Role" : undefined}
+      css={!includeLabel ? hiddenLabelCSS : undefined}
+      label={"Role"}
       className="role-picker"
-      defaultSelectedKey={role}
+      defaultSelectedKey={role ?? undefined}
       aria-label="User Role"
       onSelectionChange={(key) => {
         if (isUserRole(key)) {
@@ -45,7 +49,7 @@ export function RolePicker<T>({
       {...pickerProps}
     >
       {UserRoles.map((role) => {
-        return <Item key={role}>{role.toLocaleLowerCase()}</Item>;
+        return <Item key={role}>{normalizeUserRole(role)}</Item>;
       })}
     </Picker>
   );
