@@ -7,6 +7,8 @@ import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
 import { getReturnUrl } from "@phoenix/utils/routingUtils";
 
+import { Link } from "../../components";
+
 type LoginFormParams = {
   email: string;
   password: string;
@@ -50,7 +52,7 @@ export function LoginForm() {
     <>
       {error ? (
         <View paddingBottom="size-100">
-          <Alert variant="danger">{error}</Alert>
+          <Alert variant="danger">{error}</Alert>{" "}
         </View>
       ) : null}
       <Form>
@@ -105,13 +107,7 @@ export function LoginForm() {
           >
             Login
           </Button>
-          <Button
-            variant="quiet"
-            loading={isLoading}
-            onClick={() => navigate("/forgot-password")}
-          >
-            Forgot password?
-          </Button>
+          <Link to={"/forgot-password"}>Forgot password?</Link>
         </div>
       </Form>
     </>
