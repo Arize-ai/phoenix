@@ -25,7 +25,7 @@ from typing_extensions import assert_never
 from ._helpers import (
     _DEFAULT_ADMIN,
     _MEMBER,
-    TEST_NAME,
+    _TEST_NAME,
     _Email,
     _GetUser,
     _grpc_span_exporter,
@@ -175,6 +175,6 @@ def _get_user(
 
 @pytest.fixture(autouse=True)
 def _test_name(request: SubRequest) -> None:
-    token = TEST_NAME.set(request.node.name)
+    token = _TEST_NAME.set(request.node.name)
     yield
-    TEST_NAME.reset(token)
+    _TEST_NAME.reset(token)

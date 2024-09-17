@@ -498,7 +498,7 @@ def _get_token_from_cookie(cookie: str) -> str:
     return cookie.split(";", 1)[0].split("=", 1)[1]
 
 
-TEST_NAME: ContextVar[str] = ContextVar("test_name")
+_TEST_NAME: ContextVar[str] = ContextVar("test_name")
 
 
 class _LogTransport(httpx.BaseTransport):
@@ -508,7 +508,7 @@ class _LogTransport(httpx.BaseTransport):
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         info = BytesIO()
         info.write(f"{'-'*50}\n".encode())
-        info.write(f"{TEST_NAME.get()}\n".encode())
+        info.write(f"{_TEST_NAME.get()}\n".encode())
         response = self._transport.handle_request(request)
         info.write(f"{response.status_code} {request.method} {request.url}\n".encode())
         info.write(f"{request.headers}\n".encode())
