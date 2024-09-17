@@ -624,7 +624,7 @@ def _random_schema(
 ) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     try:
-        engine.connect()
+        engine.connect().close()
     except OperationalError as exc:
         if "too many clients" in str(exc):
             pass
