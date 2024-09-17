@@ -28,11 +28,13 @@ from phoenix.auth import (
     set_refresh_token_cookie,
     validate_password_format,
 )
+from phoenix.config import get_base_url
 from phoenix.db import enums, models
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
 from phoenix.server.api.exceptions import Conflict
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 from phoenix.server.types import (
@@ -57,8 +59,8 @@ login_rate_limiter = fastapi_rate_limiter(
         "/login",
         "/logout",
         "/refresh",
-        "/initiate-password-reset",
-        "/reset-password",
+        "/password-reset-email",
+        "/password-reset",
     ],
 )
 router = APIRouter(
@@ -207,7 +209,7 @@ async def refresh_tokens(request: Request) -> Response:
     return response
 
 
-@router.post("/initiate-password-reset")
+@router.post("/password-reset-email")
 async def initiate_password_reset(request: Request) -> Response:
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
@@ -233,11 +235,11 @@ async def initiate_password_reset(request: Request) -> Response:
     )
     token_store: TokenStore = request.app.state.get_token_store()
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
-    await sender.send_password_reset_email(email, token)
+    await sender.send_password_reset_email(email, PasswordResetTemplateBody(token, get_base_url()))
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
-@router.post("/reset-password")
+@router.post("/password-reset")
 async def reset_password(request: Request) -> Response:
     data = await request.json()
     token_store: TokenStore = request.app.state.get_token_store()

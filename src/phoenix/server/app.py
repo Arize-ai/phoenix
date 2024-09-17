@@ -52,7 +52,6 @@ from phoenix.config import (
     SERVER_DIR,
     get_env_host,
     get_env_port,
-    get_env_smtp_enabled,
     server_instrumentation_is_enabled,
 )
 from phoenix.core.model_schema import Model
@@ -97,8 +96,7 @@ from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
-from phoenix.server.email.sender import FastMailSender
-from phoenix.server.email.types import SmtpConfig
+from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
@@ -612,6 +610,7 @@ def create_app(
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
+    email_sender: Optional[EmailSender] = None,
 ) -> FastAPI:
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
@@ -750,9 +749,7 @@ def create_app(
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.db = db
-    app.state.email_sender = (
-        FastMailSender(SmtpConfig.from_env()) if get_env_smtp_enabled() else None
-    )
+    app.state.email_sender = email_sender
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

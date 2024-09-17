@@ -34,7 +34,7 @@ export function ResetPasswordWithTokenForm({
       setError(null);
       setIsLoading(true);
       try {
-        const response = await fetch("/auth/reset-password", {
+        const response = await fetch("/auth/password-reset", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

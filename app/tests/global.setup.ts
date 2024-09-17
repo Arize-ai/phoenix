@@ -10,7 +10,7 @@ test("first time login expects reset password", async ({ page }) => {
   await page.getByRole("button", { name: "Login" }).click();
 
   // Reset the password
-  await page.waitForURL("**/reset-password");
+  await page.waitForURL("**/password-reset");
   await page.getByLabel("Old Password").fill("admin");
   await page.getByLabel("New Password").fill("admin123");
   await page.getByLabel("Confirm Password").fill("admin123");

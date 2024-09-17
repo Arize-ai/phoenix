@@ -78,12 +78,12 @@ ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY = "PHOENIX_ACCESS_TOKEN_EXPIRY"
 ENV_PHOENIX_REFRESH_TOKEN_EXPIRY = "PHOENIX_REFRESH_TOKEN_EXPIRY"
 
-ENV_PHOENIX_SMTP_ENABLED = "PHOENIX_SMTP_ENABLED"
+
+ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOST"
+ENV_PHOENIX_SMTP_PORT = "PHOENIX_SMTP_PORT"
 ENV_PHOENIX_SMTP_USERNAME = "PHOENIX_SMTP_USERNAME"
 ENV_PHOENIX_SMTP_PASSWORD = "PHOENIX_SMTP_PASSWORD"
 ENV_PHOENIX_SMTP_MAIL_FROM = "PHOENIX_SMTP_MAIL_FROM"
-ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOST"
-ENV_PHOENIX_SMTP_PORT = "PHOENIX_SMTP_PORT"
 ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 
 
@@ -227,10 +227,6 @@ def get_env_refresh_token_expiry() -> timedelta:
         )
 
 
-def get_env_smtp_enabled() -> bool:
-    return bool(get_boolean_env_var(ENV_PHOENIX_SMTP_ENABLED))
-
-
 def get_env_smtp_username() -> Optional[str]:
     return os.getenv(ENV_PHOENIX_SMTP_USERNAME)
 
@@ -243,10 +239,8 @@ def get_env_smtp_mail_from() -> Optional[str]:
     return os.getenv(ENV_PHOENIX_SMTP_MAIL_FROM)
 
 
-def get_env_smtp_hostname() -> str:
-    if (v := os.getenv(ENV_PHOENIX_SMTP_HOSTNAME)) is None:
-        return "127.0.0.1"
-    return v
+def get_env_smtp_hostname() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_SMTP_HOSTNAME)
 
 
 def get_env_smtp_port() -> int:

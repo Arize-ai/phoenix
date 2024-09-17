@@ -18,7 +18,7 @@ export function ForgotPasswordForm() {
       setError(null);
       setIsLoading(true);
       try {
-        const response = await fetch("/auth/initiate-password-reset", {
+        const response = await fetch("/auth/password-reset-email", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -47,7 +47,7 @@ const router = createBrowserRouter(
     <Route path="/" errorElement={<ErrorElement />}>
       <Route path="/login" element={<LoginPage />} />
       <Route
-        path="/reset-password"
+        path="/password-reset"
         element={<ResetPasswordPage />}
         loader={resetPasswordLoader}
       />

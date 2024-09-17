@@ -85,7 +85,7 @@ export function ViewerProfileCard() {
           variant="default"
           size="compact"
           onClick={() => {
-            navigate("/reset-password");
+            navigate("/password-reset");
           }}
         >
           Reset Password

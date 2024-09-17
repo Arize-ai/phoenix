@@ -24,7 +24,7 @@ export async function authenticatedRootLoader() {
   ).toPromise();
 
   if (loaderData?.viewer?.passwordNeedsReset) {
-    const redirectUrl = createRedirectUrlWithReturn("/reset-password");
+    const redirectUrl = createRedirectUrlWithReturn("/password-reset");
     return redirect(redirectUrl);
   }
   return loaderData;

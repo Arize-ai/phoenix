@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -28,9 +29,9 @@ from opentelemetry.sdk.environment_variables import (
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from phoenix.config import ENV_PHOENIX_SMTP_MAIL_FROM
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
-from phoenix.server.email.types import SmtpConfig
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -138,7 +139,6 @@ class TestPasswordReset:
         _get_user: _GetUser,
         _passwords: Iterator[_Password],
         _smtpd: smtpdfix.AuthController,
-        _smtp_config: SmtpConfig,
     ) -> None:
         u = _get_user(role_or_user)
         logged_in_user = u.log_in()
@@ -147,7 +147,7 @@ class TestPasswordReset:
         assert len(_smtpd.messages) == 1
         msg: Message = _smtpd._messages.pop()
         assert msg["to"] == u.email
-        assert msg["from"] == _smtp_config.mail_from
+        assert msg["from"] == os.environ[ENV_PHOENIX_SMTP_MAIL_FROM]
         token = _extract_password_reset_token(msg)
         new_password = next(_passwords)
         assert new_password != u.password
@@ -167,20 +167,20 @@ class TestPasswordReset:
         new_profile = replace(u.profile, password=new_password)
         replace(u, profile=new_profile).log_in().create_api_key()
 
-    # @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
-    # def test_deleted_user_should_not_receive_email_after_initiating_password_reset(
-    #     self,
-    #     role_or_user: _RoleOrUser,
-    #     _get_user: _GetUser,
-    #     _passwords: Iterator[_Password],
-    #     _smtpd: smtpdfix.AuthController,
-    #     _smtp_config: SmtpConfig,
-    # ) -> None:
-    #     u = _get_user(role_or_user)
-    #     logged_in_user = u.log_in()
-    #     logged_in_user.create_api_key()
-    #     _DEFAULT_ADMIN.delete_users(u)
-    #     _initiate_password_reset(u.email)
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_deleted_user_should_not_receive_email_after_initiating_password_reset(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _passwords: Iterator[_Password],
+        _smtpd: smtpdfix.AuthController,
+    ) -> None:
+        u = _get_user(role_or_user)
+        logged_in_user = u.log_in()
+        logged_in_user.create_api_key()
+        _DEFAULT_ADMIN.delete_users(u)
+        _initiate_password_reset(u.email)
+
     #
     # @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     # def test_deleted_user_should_not_be_able_to_reset_password_using_token_from_email(

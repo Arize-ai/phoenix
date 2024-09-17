@@ -865,7 +865,7 @@ def _initiate_password_reset(
     /,
 ) -> None:
     json_ = dict(email=email)
-    resp = _httpx_client().post("auth/initiate-password-reset", json=json_)
+    resp = _httpx_client().post("auth/password-reset-email", json=json_)
     resp.raise_for_status()
 
 
@@ -875,7 +875,7 @@ def _reset_password(
     password: _Password,
 ) -> None:
     json_ = dict(token=token, password=password)
-    resp = _httpx_client().post("auth/reset-password", json=json_)
+    resp = _httpx_client().post("auth/password-reset", json=json_)
     resp.raise_for_status()
 
 
