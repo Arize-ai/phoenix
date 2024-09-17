@@ -117,9 +117,11 @@ from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-logger.addHandler(logging.NullHandler())
+# logger.addHandler(logging.NullHandler())
+print("in app.py logger", logger)
+print("in app.py logger.handlers", logger.handlers)
 
 router = APIRouter(include_in_schema=False)
 
