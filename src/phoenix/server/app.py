@@ -630,7 +630,9 @@ def create_app(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
+    bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
@@ -663,7 +665,7 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
-    bulk_inserter = BulkInserter(
+    bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
         event_queue=dml_event_handler,

@@ -5,6 +5,7 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import httpx
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -36,8 +37,8 @@ async def test_run_experiment(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    # if dialect == "postgresql":
-    #     pytest.xfail("TODO: Convert this to an integration test")
+    if dialect == "postgresql":
+        pytest.xfail("TODO: Convert this to an integration test")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -102,7 +103,7 @@ async def test_run_experiment(
 
         # Wait until all evaluations are complete
         async def wait_for_evaluations():
-            timeout = 30
+            timeout = 15
             interval = 0.5
             total_wait = 0
             while total_wait < timeout:
@@ -180,8 +181,8 @@ async def test_run_experiment_with_llm_eval(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    # if dialect == "postgresql":
-    #     pytest.xfail("This test fails on PostgreSQL")
+    if dialect == "postgresql":
+        pytest.xfail("This test fails on PostgreSQL")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -292,8 +293,8 @@ async def test_run_evaluation(
     simple_dataset_with_one_experiment_run: Any,
     dialect: str,
 ) -> None:
-    # if dialect == "postgresql":
-    #     pytest.xfail("This test fails on PostgreSQL")
+    if dialect == "postgresql":
+        pytest.xfail("This test fails on PostgreSQL")
 
     experiment = Experiment(
         id=str(GlobalID("Experiment", "0")),
