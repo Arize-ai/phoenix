@@ -180,4 +180,5 @@ Now that you have tracing setup, all invocations of pipelines will be streamed t
 
 * [Example Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/chat\_completions.py)
 * [Example Async Chat Completions](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-groq/examples/async\_chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack)
+* [Tutorial](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/groq\_tracing\_tutorial.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq)
