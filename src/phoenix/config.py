@@ -569,15 +569,15 @@ def get_web_base_url() -> str:
 
 class OAuth2Idp(Enum):
     AWS_COGNITO = "aws_cognito"
-    AZURE_AD = "azure_ad"
     GOOGLE = "google"
+    MICROSOFT_ENTRA_ID = "microsoft_entra_id"
 
 
 def _get_default_idp_display_name(idp_name: str) -> str:
     if idp_name == OAuth2Idp.AWS_COGNITO.value:
         return "AWS Cognito"
-    if idp_name == OAuth2Idp.AZURE_AD.value:
-        return "Azure AD"
+    if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
+        return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
 
 
