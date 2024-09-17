@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.34.0...arize-phoenix-v4.35.0) (2024-09-17)
+
+
+### Features
+
+* adds o1 testing demo project ([#4636](https://github.com/Arize-ai/phoenix/issues/4636)) ([8140eaf](https://github.com/Arize-ai/phoenix/commit/8140eafba457b443aa4684bd2ecf978ed0dc85df))
+
 ## [4.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.2...arize-phoenix-v4.34.0) (2024-09-17)
 
 
