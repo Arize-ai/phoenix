@@ -46,8 +46,8 @@ def upgrade() -> None:
         sa.Column("password_hash", sa.LargeBinary, nullable=True),
         sa.Column("password_salt", sa.LargeBinary, nullable=True),
         sa.Column("reset_password", sa.Boolean, nullable=False),
-        sa.Column("oauth2_identity_provider_name", sa.String, nullable=True, index=True),
-        sa.Column("oauth2_identity_provider_user_id", sa.String, nullable=True, index=True),
+        sa.Column("oauth2_client_id", sa.String, nullable=True, index=True),
+        sa.Column("oauth2_user_id", sa.String, nullable=True, index=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -68,8 +68,8 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         sa.UniqueConstraint(
-            "oauth2_identity_provider_name",
-            "oauth2_identity_provider_user_id",
+            "oauth2_client_id",
+            "oauth2_user_id",
         ),
         sqlite_autoincrement=True,
     )

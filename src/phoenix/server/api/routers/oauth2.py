@@ -73,7 +73,9 @@ async def create_tokens(
     try:
         async with request.app.state.db() as session:
             user = await _ensure_user_exists_and_is_up_to_date(
-                session, idp_name=idp_name, user_info=user_info
+                session,
+                oauth2_client_id=str(oauth2_client.client_id),
+                user_info=user_info,
             )
     except (EmailAlreadyInUse, UsernameAlreadyInUse) as error:
         return _redirect_to_login(error=str(error))
@@ -124,25 +126,29 @@ def _get_user_info(token: Dict[str, Any]) -> Optional[UserInfo]:
 
 
 async def _ensure_user_exists_and_is_up_to_date(
-    session: AsyncSession, /, *, idp_name: str, user_info: UserInfo
+    session: AsyncSession, /, *, oauth2_client_id: str, user_info: UserInfo
 ) -> models.User:
-    user = await _get_user(session, idp_name=idp_name, idp_user_id=user_info.idp_user_id)
+    user = await _get_user(
+        session,
+        oauth2_client_id=oauth2_client_id,
+        idp_user_id=user_info.idp_user_id,
+    )
     if user is None:
-        user = await _create_user(session, user_info=user_info, idp_name=idp_name)
+        user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
     elif _db_user_is_outdated(user=user, user_info=user_info):
         user = await _update_user(session, user_id=user.id, user_info=user_info)
     return user
 
 
 async def _get_user(
-    session: AsyncSession, /, *, idp_name: str, idp_user_id: str
+    session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str
 ) -> Optional[models.User]:
     user = await session.scalar(
         select(models.User)
         .where(
             and_(
-                models.User.oauth2_identity_provider_name == idp_name,
-                models.User.oauth2_identity_provider_user_id == idp_user_id,
+                models.User.oauth2_client_id == oauth2_client_id,
+                models.User.oauth2_user_id == idp_user_id,
             )
         )
         .options(joinedload(models.User.role))
@@ -184,8 +190,8 @@ async def _create_user(
     session: AsyncSession,
     /,
     *,
+    oauth2_client_id: str,
     user_info: UserInfo,
-    idp_name: str,
 ) -> models.User:
     await _ensure_email_and_username_are_not_in_use(
         session,
@@ -202,8 +208,8 @@ async def _create_user(
         .returning(models.User.id)
         .values(
             user_role_id=member_role_id,
-            oauth2_identity_provider_name=idp_name,
-            oauth2_identity_provider_user_id=user_info.idp_user_id,
+            oauth2_client_id=oauth2_client_id,
+            oauth2_user_id=user_info.idp_user_id,
             username=user_info.username,
             email=user_info.email,
             profile_picture_url=user_info.profile_picture_url,
