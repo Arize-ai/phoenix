@@ -86,6 +86,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|  Authentication: {{ auth_enabled }}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -94,11 +95,6 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |    - Schema: {{ schema }}
 {% endif -%}
 """)
-
-_EXPERIMENTAL_WARNING = """
-🚨 WARNING: Phoenix is running in experimental mode. 🚨
-|  Authentication enabled: {auth_enabled}
-"""
 
 
 def _write_pid_file_when_ready(
@@ -361,9 +357,8 @@ if __name__ == "__main__":
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
+        auth_enabled=authentication_enabled,
     )
-    if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(

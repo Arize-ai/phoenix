@@ -38,7 +38,7 @@ import bs4
 import httpx
 import jwt
 import pytest
-from httpx import HTTPStatusError
+from httpx import Headers, HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -138,7 +138,7 @@ class _User:
         self,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], Headers]:
         return _gql(self, query=query, variables=variables)
 
     def create_user(
@@ -647,10 +647,10 @@ def _gql(
     *,
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> Tuple[Dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}))
     resp = _httpx_client(auth).post("graphql", json=json_)
-    return _json(resp)
+    return _json(resp), resp.headers
 
 
 def _get_gql_spans(
@@ -660,8 +660,9 @@ def _get_gql_spans(
 ) -> Dict[_ProjectName, List[Dict[str, Any]]]:
     out = "name spans{edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert not resp_dict.get("errors")
+    assert not headers.get("set-cookie")
     return {
         project["node"]["name"]: [span["node"] for span in project["node"]["spans"]["edges"]]
         for project in resp_dict["data"]["projects"]["edges"]
@@ -683,10 +684,11 @@ def _create_user(
         args.append(f'username:"{username}"')
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == email
     assert user["role"]["name"] == role.value
+    assert not headers.get("set-cookie")
     return _User(_GqlId(user["id"]), role, profile)
 
 
@@ -698,7 +700,8 @@ def _delete_users(
 ) -> None:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
     query = "mutation($userIds:[GlobalID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _gql(auth, query=query, variables={"userIds": user_ids})
+    _, headers = _gql(auth, query=query, variables=dict(userIds=user_ids))
+    assert not headers.get("set-cookie")
 
 
 def _patch_user_gid(
@@ -719,7 +722,7 @@ def _patch_user_gid(
         args.append(f"newRole:{new_role.value}")
     out = "user{id username role{name}}"
     query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert (data := resp_dict["data"]["patchUser"])
     assert (result := data["user"])
     assert result["id"] == gid
@@ -727,6 +730,7 @@ def _patch_user_gid(
         assert result["username"] == new_username
     if new_role:
         assert result["role"]["name"] == new_role.value
+    assert not headers.get("set-cookie")
 
 
 def _patch_user(
@@ -771,11 +775,15 @@ def _patch_viewer(
         args.append(f'newUsername:"{new_username}"')
     out = "user{username}"
     query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert (data := resp_dict["data"]["patchViewer"])
     assert (user := data["user"])
     if new_username:
         assert user["username"] == new_username
+    if new_password:
+        assert headers.get("set-cookie")
+    else:
+        assert not headers.get("set-cookie")
 
 
 def _create_api_key(
@@ -792,12 +800,13 @@ def _create_api_key(
     args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
     field = f"create{kind}ApiKey"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert (data := resp_dict["data"][field])
     assert (key := data["apiKey"])
     assert key["name"] == name
     exp_t = datetime.fromisoformat(key["expiresAt"]) if key["expiresAt"] else None
     assert exp_t == expires_at
+    assert not headers.get("set-cookie")
     return _ApiKey(data["jwt"], _GqlId(key["id"]), kind)
 
 
@@ -811,8 +820,9 @@ def _delete_api_key(
     gid = api_key.gid
     args, out = f'id:"{gid}"', "apiKeyId"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, headers = _gql(auth, query=query)
     assert resp_dict["data"][field]["apiKeyId"] == gid
+    assert not headers.get("set-cookie")
 
 
 def _log_in(
