@@ -1,4 +1,5 @@
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import { Flex, View } from "@arizeai/components";
@@ -26,6 +27,7 @@ const oAuthLoginButtonListCSS = css`
 export function LoginPage() {
   const oAuth2Idps = window.Config.oAuth2Idps;
   const hasOAuth2Idps = oAuth2Idps.length > 0;
+  const [searchParams, setSearchParams] = useSearchParams();
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -33,7 +35,10 @@ export function LoginPage() {
           <PhoenixLogo />
         </View>
       </Flex>
-      <LoginForm />
+      <LoginForm
+        initialError={searchParams.get("error")}
+        onSubmit={() => setSearchParams({})}
+      />
       {hasOAuth2Idps && (
         <>
           <div css={separatorCSS}>or</div>
