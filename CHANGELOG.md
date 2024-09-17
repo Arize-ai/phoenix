@@ -1,5 +1,32 @@
 # Changelog
 
+## [4.35.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.35.0...arize-phoenix-v4.35.1) (2024-09-17)
+
+
+### Bug Fixes
+
+* submodule packaging for bazel ([#4643](https://github.com/Arize-ai/phoenix/issues/4643)) ([f780d34](https://github.com/Arize-ai/phoenix/commit/f780d3475e50c523f45ab4df5ca32321c748740c))
+
+## [4.35.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.34.0...arize-phoenix-v4.35.0) (2024-09-17)
+
+
+### Features
+
+* adds o1 testing demo project ([#4636](https://github.com/Arize-ai/phoenix/issues/4636)) ([8140eaf](https://github.com/Arize-ai/phoenix/commit/8140eafba457b443aa4684bd2ecf978ed0dc85df))
+
+## [4.34.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.2...arize-phoenix-v4.34.0) (2024-09-17)
+
+
+### Features
+
+* finer grain last N time range ([#4632](https://github.com/Arize-ai/phoenix/issues/4632)) ([021f4e8](https://github.com/Arize-ai/phoenix/commit/021f4e84442b0b4b298906a0d441472cba98f55e))
+
+
+### Documentation
+
+* create groq_tracing_tutorial.ipynb ([#4615](https://github.com/Arize-ai/phoenix/issues/4615)) ([5883c5a](https://github.com/Arize-ai/phoenix/commit/5883c5af296bc77f5249ec955b397ef041041507))
+* **quickstart:** convert Phoenix inferences instructions to notebook ([#4593](https://github.com/Arize-ai/phoenix/issues/4593)) ([1e9541a](https://github.com/Arize-ai/phoenix/commit/1e9541a142bd040be726f78d530ceef796c2593c))
+
 ## [4.33.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.33.1...arize-phoenix-v4.33.2) (2024-09-12)
 
 
