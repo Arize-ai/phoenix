@@ -9,8 +9,6 @@ from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.auth import (
-    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
-    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     compute_password_hash,
 )
 from phoenix.core.model_schema import Model
@@ -145,9 +143,6 @@ class Context(BaseContext):
     async def log_out(self, user_id: int) -> None:
         assert self.token_store is not None
         await self.token_store.log_out(UserId(user_id))
-        response = self.get_response()
-        response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
-        response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
 
     @cached_property
     def user(self) -> PhoenixUser:
