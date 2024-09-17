@@ -368,7 +368,8 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
     assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
     assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
-    assert "'model': 'gpt-4', 'temperature': 0.0" in out, "Model information should be printed"
+    assert "'model': 'gpt-4'" in out, "Model information should be printed"
+    assert "'temperature': 0.0" in out, "Model information should be printed"
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 

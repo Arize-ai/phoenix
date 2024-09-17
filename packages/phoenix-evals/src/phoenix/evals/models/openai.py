@@ -46,6 +46,16 @@ class AzureOptions:
     azure_ad_token_provider: Optional[Callable[[], str]]
 
 
+def _model_supports_temperature(model: str) -> bool:
+    """OpenAI 01 models do not support temperature."""
+    return "o1-" not in model
+
+
+def _model_supports_max_tokens(model: str) -> bool:
+    """OpenAI 01 models do not support max_tokens."""
+    return "o1-" not in model
+
+
 @dataclass
 class OpenAIModel(BaseModel):
     """
@@ -380,15 +390,26 @@ class OpenAIModel(BaseModel):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
-        return {
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
+        params = {
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
             "timeout": self.request_timeout,
         }
+        if _model_supports_max_tokens(self.model):
+            params.update(
+                {
+                    "max_tokens": self.max_tokens,
+                }
+            )
+        if _model_supports_temperature(self.model):
+            params.update(
+                {
+                    "temperature": self.temperature,
+                }
+            )
+        return params
 
     @property
     def supports_function_calling(self) -> bool:
