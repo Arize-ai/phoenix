@@ -209,7 +209,7 @@ def get_env_refresh_token_expiry() -> timedelta:
 
 
 @dataclass(frozen=True)
-class OAuthClientConfig:
+class OAuth2ClientConfig:
     idp_name: str
     display_name: str
     client_id: str
@@ -217,46 +217,48 @@ class OAuthClientConfig:
     server_metadata_url: str
 
     @classmethod
-    def from_env(cls, idp_name: str) -> "OAuthClientConfig":
+    def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
         idp_name_upper = idp_name.upper()
-        if (
-            client_id := os.getenv(client_id_env_var := f"PHOENIX_OAUTH_{idp_name_upper}_CLIENT_ID")
-        ) is None:
+        if not (
+            client_id := os.getenv(
+                client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID"
+            )
+        ):
             raise ValueError(
-                f"A client id must be set for the {idp_name} OAuth IDP "
+                f"A client id must be set for the {idp_name} OAuth2 IDP "
                 f"via the {client_id_env_var} environment variable"
             )
-        if (
+        if not (
             client_secret := os.getenv(
-                client_secret_env_var := f"PHOENIX_OAUTH_{idp_name_upper}_CLIENT_SECRET"
+                client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
             )
-        ) is None:
+        ):
             raise ValueError(
-                f"A client secret must be set for the {idp_name} OAuth IDP "
+                f"A client secret must be set for the {idp_name} OAuth2 IDP "
                 f"via the {client_secret_env_var} environment variable"
             )
-        if (
+        if not (
             server_metadata_url := (
                 os.getenv(
                     server_metadata_url_env_var
-                    := f"PHOENIX_OAUTH_{idp_name_upper}_SERVER_METADATA_URL",
+                    := f"PHOENIX_OAUTH2_{idp_name_upper}_SERVER_METADATA_URL",
                 )
                 or _get_default_server_metadata_url(idp_name)
             )
-        ) is None:
+        ):
             raise ValueError(
-                f"A server metadata URL must be set for the {idp_name} OAuth IDP "
+                f"A server metadata URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {server_metadata_url_env_var} environment variable"
             )
         if urlparse(server_metadata_url).scheme != "https":
             raise ValueError(
-                f"Server metadata URL for {idp_name} OAuth IDP "
+                f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
             )
         return cls(
             idp_name=idp_name,
             display_name=os.getenv(
-                f"PHOENIX_OAUTH_{idp_name_upper}_DISPLAY_NAME",
+                f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
                 _get_default_idp_display_name(idp_name),
             ),
             client_id=client_id,
@@ -264,29 +266,20 @@ class OAuthClientConfig:
             server_metadata_url=server_metadata_url,
         )
 
-    def __post_init__(self) -> None:
-        assert self.idp_name
-        if not self.display_name:
-            raise ValueError(f"OAuth display name for {self.idp_name} cannot be empty")
-        if not self.client_id:
-            raise ValueError(f"OAuth client id for {self.idp_name} cannot be empty")
-        if not self.client_secret:
-            raise ValueError(f"OAuth client secret for {self.idp_name} cannot be empty")
 
-
-def get_env_oauth_settings() -> List[OAuthClientConfig]:
+def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
     """
-    Get OAuth settings from environment variables.
+    Get OAuth2 settings from environment variables.
     """
 
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
-    return [OAuthClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+    return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 
 
 def _parse_duration(duration_str: str) -> timedelta:

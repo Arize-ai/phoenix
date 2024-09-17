@@ -8,7 +8,7 @@ import { LoginForm } from "./LoginForm";
 import { PhoenixLogo } from "./PhoenixLogo";
 
 export function LoginPage() {
-  const oAuthIdps = window.Config.oAuthIdps;
+  const oAuth2Idps = window.Config.oAuth2Idps;
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -17,10 +17,10 @@ export function LoginPage() {
         </View>
       </Flex>
       <LoginForm />
-      {oAuthIdps.map((idp) => (
-        <OAuthLoginForm
-          key={idp.id}
-          idpId={idp.id}
+      {oAuth2Idps.map((idp) => (
+        <OAuth2LoginForm
+          key={idp.name}
+          idpName={idp.name}
           idpDisplayName={idp.displayName}
         />
       ))}
@@ -28,13 +28,16 @@ export function LoginPage() {
   );
 }
 
-type OAuthLoginFormProps = {
-  idpId: string;
+type OAuth2LoginFormProps = {
+  idpName: string;
   idpDisplayName: string;
 };
-export function OAuthLoginForm({ idpId, idpDisplayName }: OAuthLoginFormProps) {
+export function OAuth2LoginForm({
+  idpName,
+  idpDisplayName,
+}: OAuth2LoginFormProps) {
   return (
-    <Form key={idpId} action={`/oauth/${idpId}/login`} method="post">
+    <Form action={`/oauth2/${idpName}/login`} method="post">
       <div
         css={css`
           margin-top: var(--ac-global-dimension-size-400);
