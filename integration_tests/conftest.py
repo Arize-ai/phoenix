@@ -24,6 +24,7 @@ from typing_extensions import assert_never
 
 from ._helpers import (
     _DEFAULT_ADMIN,
+    _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
     _Email,
@@ -175,6 +176,7 @@ def _get_user(
 
 @pytest.fixture(autouse=True)
 def _test_name(request: SubRequest) -> Iterator[str]:
+    _HTTPX_OP_IDX.set(0)
     name = request.node.name
     token = _TEST_NAME.set(name)
     yield name
