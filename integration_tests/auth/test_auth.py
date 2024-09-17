@@ -329,21 +329,29 @@ class TestPatchViewer:
         _passwords: Iterator[_Password],
     ) -> None:
         u = _get_user(role)
-        logged_in_user = u.log_in()
+        logged_in_users = [u.log_in(), u.log_in()]
         new_password = f"new_password_{next(_passwords)}"
-        assert new_password != logged_in_user.password
-        _patch_viewer(
-            (old_token := logged_in_user.tokens),
-            (old_password := logged_in_user.password),
+        assert new_password != logged_in_users[0].password
+        new_access_token, new_refresh_token = _patch_viewer(
+            (old_token := logged_in_users[0].tokens),
+            (old_password := logged_in_users[0].password),
             new_password=new_password,
         )
+        assert new_access_token and new_access_token != logged_in_users[0].tokens.access_token
+        assert new_refresh_token and new_refresh_token != logged_in_users[0].tokens.refresh_token
         another_password = f"another_password_{next(_passwords)}"
         with _EXPECTATION_401:
+            # old token no longer works, even if password is current
             _patch_viewer(old_token, new_password, new_password=another_password)
         with _EXPECTATION_401:
-            _log_in(old_password, email=logged_in_user.email)
-        new_tokens = _log_in(new_password, email=logged_in_user.email)
+            # other logged-in tokens no longer works
+            logged_in_users[1].create_api_key()
+        with _EXPECTATION_401:
+            # old password no longer works
+            _log_in(old_password, email=logged_in_users[0].email)
+        new_tokens = _log_in(new_password, email=logged_in_users[0].email)
         with pytest.raises(Exception):
+            # old password is no longer current, even if token is current
             _patch_viewer(new_tokens, old_password, new_password=another_password)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))

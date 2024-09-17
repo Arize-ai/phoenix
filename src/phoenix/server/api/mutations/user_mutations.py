@@ -188,6 +188,7 @@ class UserMutationMixin:
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
+            await info.context.log_in(user)
         return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore

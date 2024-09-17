@@ -1,9 +1,21 @@
-from typing import List
+from datetime import datetime, timedelta, timezone
+from typing import List, Tuple
 
 from sqlalchemy import delete
 
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.db.enums import UserRole
+from phoenix.server.types import (
+    AccessToken,
+    AccessTokenAttributes,
+    AccessTokenClaims,
+    DbSessionFactory,
+    RefreshToken,
+    RefreshTokenAttributes,
+    RefreshTokenClaims,
+    TokenStore,
+    UserId,
+)
 
 
 async def delete_projects(
@@ -34,3 +46,32 @@ async def delete_traces(
     )
     async with db() as session:
         return list(await session.scalars(stmt))
+
+
+async def log_in(
+    user: models.User,
+    token_store: TokenStore,
+    refresh_token_expiry: timedelta,
+    access_token_expiry: timedelta,
+) -> Tuple[AccessToken, RefreshToken]:
+    issued_at = datetime.now(timezone.utc)
+    refresh_token_claims = RefreshTokenClaims(
+        subject=UserId(user.id),
+        issued_at=issued_at,
+        expiration_time=issued_at + refresh_token_expiry,
+        attributes=RefreshTokenAttributes(
+            user_role=UserRole(user.role.name),
+        ),
+    )
+    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
+    access_token_claims = AccessTokenClaims(
+        subject=UserId(user.id),
+        issued_at=issued_at,
+        expiration_time=issued_at + access_token_expiry,
+        attributes=AccessTokenAttributes(
+            user_role=UserRole(user.role.name),
+            refresh_token_id=refresh_token_id,
+        ),
+    )
+    access_token, _ = await token_store.create_access_token(access_token_claims)
+    return access_token, refresh_token

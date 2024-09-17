@@ -135,7 +135,7 @@ class _User:
         self,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    ) -> Tuple[Dict[str, Any], Optional[_AccessToken], Optional[_RefreshToken]]:
         return _gql(self, query=query, variables=variables)
 
     def create_user(
@@ -190,7 +190,7 @@ class _User:
         *,
         new_username: Optional[_Username] = None,
         new_password: Optional[_Password] = None,
-    ) -> None:
+    ) -> Tuple[Optional[_AccessToken], Optional[_RefreshToken]]:
         return _patch_viewer(
             self,
             self.password,
@@ -641,10 +641,16 @@ def _gql(
     *,
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
-) -> Dict[str, Any]:
+) -> Tuple[Dict[str, Any], Optional[_AccessToken], Optional[_RefreshToken]]:
     json_ = dict(query=query, variables=dict(variables or {}))
     resp = _httpx_client(auth).post("graphql", json=json_)
-    return _json(resp)
+    access_token = resp.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+    refresh_token = resp.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    return (
+        _json(resp),
+        _AccessToken(access_token) if access_token else None,
+        _RefreshToken(refresh_token) if refresh_token else None,
+    )
 
 
 def _get_gql_spans(
@@ -654,7 +660,7 @@ def _get_gql_spans(
 ) -> Dict[_ProjectName, List[Dict[str, Any]]]:
     out = "name spans{edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, *_ = _gql(auth, query=query)
     assert not resp_dict.get("errors")
     return {
         project["node"]["name"]: [span["node"] for span in project["node"]["spans"]["edges"]]
@@ -677,7 +683,7 @@ def _create_user(
         args.append(f'username:"{username}"')
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, *_ = _gql(auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == email
     assert user["role"]["name"] == role.value
@@ -713,7 +719,7 @@ def _patch_user_gid(
         args.append(f"newRole:{new_role.value}")
     out = "user{id username role{name}}"
     query = "mutation{patchUser(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, *_ = _gql(auth, query=query)
     assert (data := resp_dict["data"]["patchUser"])
     assert (result := data["user"])
     assert result["id"] == gid
@@ -755,7 +761,7 @@ def _patch_viewer(
     *,
     new_username: Optional[_Username] = None,
     new_password: Optional[_Password] = None,
-) -> None:
+) -> Tuple[Optional[_AccessToken], Optional[_RefreshToken]]:
     args = []
     if new_password:
         args.append(f'newPassword:"{new_password}"')
@@ -765,11 +771,15 @@ def _patch_viewer(
         args.append(f'newUsername:"{new_username}"')
     out = "user{username}"
     query = "mutation{patchViewer(input:{" + ",".join(args) + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, access_token, refresh_token = _gql(auth, query=query)
     assert (data := resp_dict["data"]["patchViewer"])
     assert (user := data["user"])
     if new_username:
         assert user["username"] == new_username
+    if new_password:
+        assert access_token is not None
+        assert refresh_token is not None
+    return access_token, refresh_token
 
 
 def _create_api_key(
@@ -786,7 +796,7 @@ def _create_api_key(
     args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
     field = f"create{kind}ApiKey"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, *_ = _gql(auth, query=query)
     assert (data := resp_dict["data"][field])
     assert (key := data["apiKey"])
     assert key["name"] == name
@@ -805,7 +815,7 @@ def _delete_api_key(
     gid = api_key.gid
     args, out = f'id:"{gid}"', "apiKeyId"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
-    resp_dict = _gql(auth, query=query)
+    resp_dict, *_ = _gql(auth, query=query)
     assert resp_dict["data"][field]["apiKeyId"] == gid
 
 

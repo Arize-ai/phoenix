@@ -1,5 +1,6 @@
 from asyncio import get_running_loop
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, Optional, cast
@@ -12,6 +13,8 @@ from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     compute_password_hash,
+    set_access_token_cookie,
+    set_refresh_token_cookie,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
@@ -42,6 +45,7 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.api.utils import log_in
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import (
@@ -100,6 +104,8 @@ class Context(BaseContext):
     auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None
+    access_token_expiry: Optional[timedelta] = None
+    refresh_token_expiry: Optional[timedelta] = None
 
     def get_secret(self) -> str:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
@@ -141,6 +147,28 @@ class Context(BaseContext):
     async def hash_password(password: str, salt: bytes) -> bytes:
         compute = partial(compute_password_hash, password=password, salt=salt)
         return await get_running_loop().run_in_executor(None, compute)
+
+    async def log_in(self, user: models.User) -> None:
+        assert (token_store := self.token_store) is not None
+        assert self.access_token_expiry is not None
+        assert self.refresh_token_expiry is not None
+        access_token, refresh_token = await log_in(
+            user,
+            token_store,
+            self.access_token_expiry,
+            self.refresh_token_expiry,
+        )
+        response = self.get_response()
+        set_access_token_cookie(
+            response=response,
+            access_token=access_token,
+            max_age=self.access_token_expiry,
+        )
+        set_refresh_token_cookie(
+            response=response,
+            refresh_token=refresh_token,
+            max_age=self.refresh_token_expiry,
+        )
 
     async def log_out(self, user_id: int) -> None:
         assert self.token_store is not None

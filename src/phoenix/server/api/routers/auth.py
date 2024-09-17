@@ -19,6 +19,7 @@ from phoenix.auth import (
 )
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
+from phoenix.server.api.utils import log_in
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
@@ -73,28 +74,13 @@ async def login(request: Request) -> Response:
     )
     if not await loop.run_in_executor(None, password_is_valid):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED_MESSAGE)
-
-    issued_at = datetime.now(timezone.utc)
-    refresh_token_claims = RefreshTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + refresh_token_expiry,
-        attributes=RefreshTokenAttributes(
-            user_role=UserRole(user.role.name),
-        ),
+    token_store: TokenStore = request.app.state.get_token_store()
+    access_token, refresh_token = await log_in(
+        user,
+        token_store,
+        refresh_token_expiry,
+        access_token_expiry,
     )
-    token_store: JwtStore = request.app.state.get_token_store()
-    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
-    access_token_claims = AccessTokenClaims(
-        subject=UserId(user.id),
-        issued_at=issued_at,
-        expiration_time=issued_at + access_token_expiry,
-        attributes=AccessTokenAttributes(
-            user_role=UserRole(user.role.name),
-            refresh_token_id=refresh_token_id,
-        ),
-    )
-    access_token, _ = await token_store.create_access_token(access_token_claims)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry

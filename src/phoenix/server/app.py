@@ -440,6 +440,8 @@ def create_graphql_router(
     read_only: bool = False,
     secret: Optional[str] = None,
     token_store: Optional[TokenStore] = None,
+    access_token_expiry: Optional[timedelta] = None,
+    refresh_token_expiry: Optional[timedelta] = None,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
     """Creates the GraphQL router.
 
@@ -529,6 +531,8 @@ def create_graphql_router(
             auth_enabled=authentication_enabled,
             secret=secret,
             token_store=token_store,
+            access_token_expiry=access_token_expiry,
+            refresh_token_expiry=refresh_token_expiry,
         )
 
     return GraphQLRouter(
@@ -687,6 +691,8 @@ def create_app(
         read_only=read_only,
         secret=secret,
         token_store=token_store,
+        access_token_expiry=access_token_expiry,
+        refresh_token_expiry=refresh_token_expiry,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
