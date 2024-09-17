@@ -12,12 +12,21 @@ type LoginFormParams = {
   password: string;
 };
 
-export function LoginForm() {
+type LoginFormProps = {
+  initialError: string | null;
+  /**
+   * Callback function called when the form is submitted
+   */
+  onSubmit?: () => void;
+};
+export function LoginForm(props: LoginFormProps) {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
+  const { initialError, onSubmit: propsOnSubmit } = props;
+  const [error, setError] = useState<string | null>(initialError);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
     async (params: LoginFormParams) => {
+      propsOnSubmit?.();
       setError(null);
       setIsLoading(true);
       try {
@@ -41,7 +50,7 @@ export function LoginForm() {
       const returnUrl = getReturnUrl();
       navigate(returnUrl);
     },
-    [navigate, setError]
+    [navigate, propsOnSubmit, setError]
   );
   const { control, handleSubmit } = useForm<LoginFormParams>({
     defaultValues: { email: "", password: "" },
