@@ -1,18 +1,14 @@
-# A collection of printing and logging utilities
 import atexit
 import datetime as dt
 import json
 import logging
 import logging.config
 import logging.handlers
-import pathlib
 import queue
 from sys import stderr, stdout
 
 # from typing import override
 from phoenix.config import LoggingMode, get_env_logging_mode
-
-CONFIG_FILE = "structured-logging.json"
 
 
 def setup_logging():
