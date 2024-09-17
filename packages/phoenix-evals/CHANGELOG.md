@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.15.1...arize-phoenix-evals-v0.16.0) (2024-09-17)
+
+
+### Features
+
+* OpenAI support for o1 preview ([#4633](https://github.com/Arize-ai/phoenix/issues/4633)) ([1ad7b79](https://github.com/Arize-ai/phoenix/commit/1ad7b79d95bd362ca15f34f2cebe7e1332a19846))
+
+
+### Bug Fixes
+
+* Ensure correct dataloader results ordering ([#4524](https://github.com/Arize-ai/phoenix/issues/4524)) ([f9239d6](https://github.com/Arize-ai/phoenix/commit/f9239d63af9d06c04430f9dca808caf08d152d3d))
+
 ## [0.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.15.0...arize-phoenix-evals-v0.15.1) (2024-08-27)
 
 
