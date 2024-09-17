@@ -66,13 +66,13 @@ logger.addHandler(logging.NullHandler())
 # print("logger", logger)
 # print("handlers", logger.handlers)
 # print("hasHandlers", logger.hasHandlers())
-logger_dict = logging.root.manager.loggerDict
+# logger_dict = logging.root.manager.loggerDict
 # print("logger_dict", logger_dict)
 # print("logger_dict.keys()", [key for key in logger_dict.keys() if "phoenix" in key])
-l = logging.getLogger("phoenix.server.app")
+# l = logging.getLogger("phoenix.server.app")
 # print("l", l)
 # print("l.handlers", l.handlers)
-child = logger.getChild("phoenix.server.app")
+# child = logger.getChild("phoenix.server.app")
 # print("child", child)
 # print("child.handlers", child.handlers)
 
