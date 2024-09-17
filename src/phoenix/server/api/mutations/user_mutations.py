@@ -16,6 +16,8 @@ from phoenix.auth import (
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     PASSWORD_REQUIREMENTS,
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     validate_email_format,
     validate_password_format,
 )
@@ -188,6 +190,9 @@ class UserMutationMixin:
         assert user
         if input.new_password:
             await info.context.log_out(user.id)
+            response = info.context.get_response()
+            response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+            response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
