@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.5.0...arize-phoenix-otel-v0.5.1) (2024-09-17)
+
+
+### Bug Fixes
+
+* Clarify type annotation ([#4626](https://github.com/Arize-ai/phoenix/issues/4626)) ([1931360](https://github.com/Arize-ai/phoenix/commit/1931360e839ee6f18d5722d94cf3a81224348aa8))
+
 ## [0.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.4.1...arize-phoenix-otel-v0.5.0) (2024-09-12)
 
 
