@@ -258,7 +258,7 @@ def get_env_smtp_port() -> int:
 def get_env_smtp_validate_certs() -> bool:
     if (v := get_boolean_env_var(ENV_PHOENIX_SMTP_VALIDATE_CERTS)) is None:
         return True
-    return bool(v)
+    return v
 
 
 def _parse_duration(duration_str: str) -> timedelta:
