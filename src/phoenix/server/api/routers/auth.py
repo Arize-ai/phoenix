@@ -263,7 +263,7 @@ async def reset_password(request: Request) -> Response:
     if user.auth_method != enums.AuthMethod.LOCAL.value:
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Password cannot be modified",
+            detail="Password can only be modified by your identity provider",
         )
     if not (password := data.get("password")):
         raise HTTPException(
