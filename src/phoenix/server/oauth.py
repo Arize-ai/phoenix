@@ -1,6 +1,4 @@
-from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from types import MappingProxyType
 from typing import Any, Dict, Generic, List, Optional, Tuple
 
 from authlib.integrations.starlette_client import OAuth
@@ -20,22 +18,11 @@ class OAuthClients:
     def add_client(self, config: OAuthClientConfig) -> None:
         if (idp_id := config.idp_id) in self._clients:
             raise ValueError(f"oauth client already registered: {idp_id}")
-        config = _apply_oauth_config_defaults(config)
-        server_metadata_url = config.server_metadata_url
-        authorize_url = config.authorize_url
-        access_token_url = config.access_token_url
-        if not (server_metadata_url or (authorize_url and access_token_url)):
-            raise ValueError(
-                f"{idp_id} OAuth client must have either a server metadata URL,"
-                " or authorize and access token URLs"
-            )
         client = self._oauth.register(
             idp_id,
             client_id=config.client_id,
             client_secret=config.client_secret,
-            server_metadata_url=server_metadata_url,
-            authorize_url=authorize_url,
-            access_token_url=access_token_url,
+            server_metadata_url=config.server_metadata_url,
             client_kwargs={"scope": "openid email profile"},
         )
         assert isinstance(client, OAuthClient)
@@ -53,38 +40,6 @@ class OAuthClients:
             oauth_clients.add_client(config)
         return oauth_clients
 
-
-@dataclass
-class OAuthClientDefaultConfig:
-    idp_id: IdpId
-    display_name: Optional[str] = None
-    server_metadata_url: Optional[str] = None
-    authorize_url: Optional[str] = None
-    access_token_url: Optional[str] = None
-
-
-def _apply_oauth_config_defaults(config: OAuthClientConfig) -> OAuthClientConfig:
-    if (default_config := _OAUTH_CLIENT_DEFAULT_CONFIGS.get(config.idp_id)) is None:
-        return config
-    return OAuthClientConfig(
-        **{
-            **{k: v for k, v in asdict(default_config).items() if v is not None},
-            **{k: v for k, v in asdict(config).items() if v is not None},
-        }
-    )
-
-
-_OAUTH_CLIENT_DEFAULT_CONFIGS = MappingProxyType(
-    {
-        config.idp_id: config
-        for config in (
-            OAuthClientDefaultConfig(
-                idp_id="google",
-                server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-            ),
-        )
-    }
-)
 
 _CacheKey = TypeVar("_CacheKey")
 _CacheValue = TypeVar("_CacheValue")
