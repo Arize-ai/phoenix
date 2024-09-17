@@ -365,6 +365,19 @@ class TestPatchViewer:
 
 
 class TestPatchUser:
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("new_role", list(UserRoleInput))
+    def test_cannot_change_role_of_default_admin(
+        self,
+        role_or_user: _RoleOrUser,
+        new_role: UserRoleInput,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        logged_in_user = u.log_in()
+        with pytest.raises(Exception, match="role"):
+            logged_in_user.patch_user(_DEFAULT_ADMIN, new_role=new_role)
+
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
