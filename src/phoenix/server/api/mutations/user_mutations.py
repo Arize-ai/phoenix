@@ -24,7 +24,7 @@ from phoenix.auth import (
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import Conflict, NotFound
+from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
@@ -131,6 +131,8 @@ class UserMutationMixin:
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if input.new_role:
+                if user.email == DEFAULT_ADMIN_EMAIL:
+                    raise Unauthorized("Cannot modify role for the default admin user")
                 user_role_id = await session.scalar(_select_role_id_by_name(input.new_role.value))
                 if user_role_id is None:
                     raise NotFound(f"Role {input.new_role.value} not found")
