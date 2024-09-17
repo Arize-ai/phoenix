@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from authlib.integrations.starlette_client import OAuthError
 from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
 from fastapi import APIRouter, Depends, Path, Request
-from sqlalchemy import and_, insert, or_, select, update
+from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.datastructures import URL
@@ -176,18 +176,30 @@ async def _get_user(
 async def _ensure_email_and_username_are_not_in_use(
     session: AsyncSession, /, *, email: str, username: Optional[str]
 ) -> None:
-    conflicting_users = (
-        await session.scalars(
-            select(models.User).where(
-                or_(models.User.email == email, models.User.username == username)
-            )
+    [(email_exists, username_exists)] = (
+        await session.execute(
+            select(
+                cast(
+                    func.coalesce(
+                        func.max(case((models.User.email == email, 1), else_=0)),
+                        0,
+                    ),
+                    Boolean,
+                ).label("email_exists"),
+                cast(
+                    func.coalesce(
+                        func.max(case((models.User.username == username, 1), else_=0)),
+                        0,
+                    ),
+                    Boolean,
+                ).label("username_exists"),
+            ).where(or_(models.User.email == email, models.User.username == username))
         )
     ).all()
-    for user in conflicting_users:
-        if user.email == email:
-            raise EmailAlreadyInUse(f"An account for {email} is already in use.")
-        if username and user.username == username:
-            raise UsernameAlreadyInUse(f'An account already exists with username "{username}".')
+    if email_exists:
+        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
+    if username_exists:
+        raise UsernameAlreadyInUse(f'An account already exists with username "{username}".')
     return None
 
 
