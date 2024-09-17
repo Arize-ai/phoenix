@@ -12,11 +12,6 @@ class UserRole(Enum):
     MEMBER = "MEMBER"
 
 
-class AuthMethod(Enum):
-    LOCAL = "LOCAL"
-    OAUTH = "OAUTH"
-
-
 class IdentityProviderName(Enum):
     LOCAL = "local"
 

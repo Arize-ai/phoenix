@@ -20,27 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "identity_providers",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "name",
-            sa.String,
-            index=True,
-            nullable=False,
-        ),
-        sa.Column(
-            "auth_method",
-            sa.String,
-            sa.CheckConstraint("auth_method IN ('LOCAL', 'OAUTH')", "valid_auth_method"),
-            index=True,
-            nullable=False,
-        ),
-        sa.UniqueConstraint(
-            "name",
-            "auth_method",
-        ),
-    )
-    op.create_table(
         "user_roles",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
@@ -61,20 +40,14 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column(
-            "identity_provider_id",
-            sa.Integer,
-            sa.ForeignKey("identity_providers.id", ondelete="CASCADE"),
-            index=True,
-            nullable=False,
-        ),
-        sa.Column("identity_provider_user_id", sa.Integer, index=True, nullable=True),
         sa.Column("username", sa.String, nullable=True, unique=True, index=True),
         sa.Column("email", sa.String, nullable=False, unique=True, index=True),
         sa.Column("profile_picture_url", sa.String, nullable=True),
         sa.Column("password_hash", sa.LargeBinary, nullable=True),
         sa.Column("password_salt", sa.LargeBinary, nullable=True),
         sa.Column("reset_password", sa.Boolean, nullable=False),
+        sa.Column("oauth2_identity_provider_name", sa.String, nullable=True, index=True),
+        sa.Column("oauth2_identity_provider_user_id", sa.String, nullable=True, index=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -95,8 +68,8 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         sa.UniqueConstraint(
-            "identity_provider_id",
-            "identity_provider_user_id",
+            "oauth2_identity_provider_name",
+            "oauth2_identity_provider_user_id",
         ),
         sqlite_autoincrement=True,
     )
@@ -176,4 +149,3 @@ def downgrade() -> None:
     op.drop_table("password_reset_tokens")
     op.drop_table("users")
     op.drop_table("user_roles")
-    op.drop_table("identity_providers")

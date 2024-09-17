@@ -620,24 +620,6 @@ class ExperimentRunAnnotation(Base):
     )
 
 
-class IdentityProvider(Base):
-    __tablename__ = "identity_providers"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(index=True, nullable=False)
-    auth_method: Mapped[str] = mapped_column(
-        CheckConstraint("auth_method IN ('LOCAL', 'OAUTH')", name="valid_auth_method"),
-        index=True,
-    )
-    users: Mapped[List["User"]] = relationship("User", back_populates="identity_provider")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "auth_method",
-        ),
-    )
-
-
 class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -653,21 +635,16 @@ class User(Base):
         index=True,
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
-    identity_provider_id: Mapped[int] = mapped_column(
-        ForeignKey("identity_providers.id", ondelete="CASCADE"),
-        index=True,
-        nullable=False,
-    )
-    identity_provider: Mapped["IdentityProvider"] = relationship(
-        "IdentityProvider", back_populates="users"
-    )
-    identity_provider_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
     username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
     profile_picture_url: Mapped[Optional[str]]
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
+    oauth2_identity_provider_name: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_identity_provider_user_id: Mapped[Optional[str]] = mapped_column(
+        index=True, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -686,8 +663,8 @@ class User(Base):
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         UniqueConstraint(
-            "identity_provider_id",
-            "identity_provider_user_id",
+            "oauth2_identity_provider_name",
+            "oauth2_identity_provider_user_id",
         ),
         dict(sqlite_autoincrement=True),
     )
