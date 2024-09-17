@@ -1,6 +1,8 @@
 import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
+
 export type MarkdownDisplayMode = "text" | "markdown";
 
 export interface PreferencesProps {
@@ -14,6 +16,10 @@ export interface PreferencesProps {
    * @default true
    */
   traceStreamingEnabled: boolean;
+  /**
+   * The last N time range to load data for
+   */
+  lastNTimeRangeKey: LastNTimeRangeKey;
   /**
    * Whether or not to automatically refresh projects
    * @default true
@@ -42,6 +48,10 @@ export interface PreferencesState extends PreferencesProps {
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
   /**
+   * Setter for the last N time range to load data for
+   */
+  setLastNTimeRangeKey: (lastNTimeRangeKey: LastNTimeRangeKey) => void;
+  /**
    * Setter for enabling/disabling project auto refresh
    * @param projectsAutoRefreshEnabled
    */
@@ -69,6 +79,10 @@ export const createPreferencesStore = (
     traceStreamingEnabled: true,
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
       set({ traceStreamingEnabled });
+    },
+    lastNTimeRangeKey: "7d",
+    setLastNTimeRangeKey: (lastNTimeRangeKey) => {
+      set({ lastNTimeRangeKey });
     },
     projectsAutoRefreshEnabled: true,
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
