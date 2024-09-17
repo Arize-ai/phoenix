@@ -32,7 +32,6 @@ from phoenix.config import get_base_url
 from phoenix.db import enums, models
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
-from phoenix.server.api.exceptions import Conflict
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
@@ -262,7 +261,10 @@ async def reset_password(request: Request) -> Response:
             detail="Invalid reset token",
         )
     if user.auth_method != enums.AuthMethod.LOCAL.value:
-        raise Conflict("Cannot modify password")
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password cannot be modified",
+        )
     if not (password := data.get("password")):
         raise HTTPException(
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
