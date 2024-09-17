@@ -174,7 +174,8 @@ def _get_user(
 
 
 @pytest.fixture(autouse=True)
-def _test_name(request: SubRequest) -> None:
-    token = _TEST_NAME.set(request.node.name)
-    yield
+def _test_name(request: SubRequest) -> Iterator[str]:
+    name = request.node.name
+    token = _TEST_NAME.set(name)
+    yield name
     _TEST_NAME.reset(token)
