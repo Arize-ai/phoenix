@@ -5,6 +5,7 @@ import secrets
 import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from functools import cached_property
@@ -497,6 +498,10 @@ def _get_token_from_cookie(cookie: str) -> str:
     return cookie.split(";", 1)[0].split("=", 1)[1]
 
 
+_TEST_NAME: ContextVar[str] = ContextVar("test_name")
+_HTTPX_OP_IDX: ContextVar[int] = ContextVar("httpx_operation_index", default=0)
+
+
 class _LogTransport(httpx.BaseTransport):
     def __init__(self, transport: httpx.BaseTransport) -> None:
         self._transport = transport
@@ -504,10 +509,15 @@ class _LogTransport(httpx.BaseTransport):
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         info = BytesIO()
         info.write(f"{'-'*50}\n".encode())
-        info.write(f"{datetime.now(timezone.utc).isoformat()}\n".encode())
+        op_idx = _HTTPX_OP_IDX.get()
+        _HTTPX_OP_IDX.set(op_idx + 1)
+        info.write(f"({op_idx})".encode())
+        info.write(f"{_TEST_NAME.get()}\n".encode())
         response = self._transport.handle_request(request)
         info.write(f"{response.status_code} {request.method} {request.url}\n".encode())
         info.write(f"{request.headers}\n".encode())
+        info.write(request.read())
+        info.write(b"\n")
         info.write(f"{response.headers}\n".encode())
         return _LogResponse(
             info=info,
