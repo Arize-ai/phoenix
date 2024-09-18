@@ -50,7 +50,7 @@ export function DeleteUserDialog({
     <Dialog title="Delete User" isDismissable onDismiss={onClose}>
       <View padding="size-200">
         <Text color="danger">
-          {`Are you sure you want to delete this user? This action cannot be undone. The user will be permanently blocked, and cannot be reactivated with the same email or username.`}
+          {`Are you sure you want to delete this user? This action cannot be undone.`}
         </Text>
       </View>
       <View
