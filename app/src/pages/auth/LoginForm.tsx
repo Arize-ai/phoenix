@@ -5,9 +5,8 @@ import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
+import { Link } from "@phoenix/components";
 import { getReturnUrl } from "@phoenix/utils/routingUtils";
-
-import { Link } from "../../components";
 
 type LoginFormParams = {
   email: string;

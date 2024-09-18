@@ -648,7 +648,7 @@ class User(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    password_reset_tokens: Mapped["PasswordResetToken"] = relationship(
+    password_reset_token: Mapped["PasswordResetToken"] = relationship(
         "PasswordResetToken",
         back_populates="user",
         uselist=False,
@@ -672,7 +672,7 @@ class PasswordResetToken(Base):
         unique=True,
         index=True,
     )
-    user: Mapped["User"] = relationship("User", back_populates="password_reset_tokens")
+    user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)

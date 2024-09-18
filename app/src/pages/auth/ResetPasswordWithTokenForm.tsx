@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 
 import {
   Alert,
@@ -25,6 +26,7 @@ interface ResetPasswordWithTokenFormProps {
 export function ResetPasswordWithTokenForm({
   resetToken,
 }: ResetPasswordWithTokenFormProps) {
+  const navigate = useNavigate();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -52,8 +54,9 @@ export function ResetPasswordWithTokenForm({
         setIsLoading(() => false);
       }
       setMessage("Success");
+      navigate("/login");
     },
-    [setMessage, setError]
+    [setMessage, setError, navigate]
   );
   const {
     control,

@@ -29,7 +29,7 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.types import AccessTokenId, ApiKeyId, RefreshTokenId
+from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
 
 
 @strawberry.input
@@ -269,6 +269,14 @@ class UserMutationMixin:
                 raise Conflict("Cannot delete the default admin user")
             if num_resolved_user_ids < len(user_ids):
                 raise NotFound("Some user IDs could not be found")
+            password_reset_token_ids = [
+                PasswordResetTokenId(id_)
+                async for id_ in await session.stream_scalars(
+                    delete(models.PasswordResetToken)
+                    .where(models.PasswordResetToken.user_id.in_(user_ids))
+                    .returning(models.PasswordResetToken.id)
+                )
+            ]
             access_token_ids = [
                 AccessTokenId(id_)
                 async for id_ in await session.stream_scalars(
@@ -298,7 +306,12 @@ class UserMutationMixin:
                 .where(models.User.id.in_(user_ids))
                 .values(deleted_at=func.now())
             )
-        await token_store.revoke(*access_token_ids, *refresh_token_ids, *api_key_ids)
+        await token_store.revoke(
+            *password_reset_token_ids,
+            *access_token_ids,
+            *refresh_token_ids,
+            *api_key_ids,
+        )
 
 
 def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:

@@ -16,6 +16,10 @@ from phoenix.config import (
     ENV_PHOENIX_SMTP_PORT,
     ENV_PHOENIX_SMTP_USERNAME,
     ENV_PHOENIX_SMTP_VALIDATE_CERTS,
+    get_env_smtp_hostname,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
 )
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
@@ -51,7 +55,7 @@ def _app(
         yield
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def _smtpd(
     _app: Any,
     tmp_path_factory: pytest.TempPathFactory,
@@ -60,12 +64,12 @@ def _smtpd(
     cert, _ = _generate_certs(path, separate_key=False)
     os.environ["SMTPD_SSL_CERTIFICATE_FILE"] = str(cert.resolve())
     config = Config()
-    config.login_username = os.environ[ENV_PHOENIX_SMTP_USERNAME]
-    config.login_password = os.environ[ENV_PHOENIX_SMTP_PASSWORD]
+    config.login_username = get_env_smtp_username()
+    config.login_password = get_env_smtp_password()
     config.use_starttls = True
     with SMTPDFix(
-        hostname=os.environ[ENV_PHOENIX_SMTP_HOSTNAME],
-        port=int(os.environ[ENV_PHOENIX_SMTP_PORT]),
+        hostname=get_env_smtp_hostname(),
+        port=get_env_smtp_port(),
         config=config,
     ) as controller:
         yield controller

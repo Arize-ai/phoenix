@@ -31,7 +31,6 @@ from phoenix.auth import (
 from phoenix.config import get_base_url
 from phoenix.db import enums, models
 from phoenix.db.enums import UserRole
-from phoenix.db.models import User as OrmUser
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
@@ -80,7 +79,7 @@ async def login(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         user = await session.scalar(
-            _select_active_user().filter_by(email=email).options(joinedload(OrmUser.role))
+            _select_active_user().filter_by(email=email).options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -173,7 +172,7 @@ async def refresh_tokens(request: Request) -> Response:
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(
-                _select_active_user().filter_by(id=user_id).options(joinedload(OrmUser.role))
+                _select_active_user().filter_by(id=user_id).options(joinedload(models.User.role))
             )
         ) is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
@@ -210,23 +209,26 @@ async def refresh_tokens(request: Request) -> Response:
 
 @router.post("/password-reset-email")
 async def initiate_password_reset(request: Request) -> Response:
-    sender: EmailSender = request.app.state.email_sender
-    if sender is None:
-        raise HTTPException(
-            status_code=HTTP_503_SERVICE_UNAVAILABLE,
-            detail="SMTP unavailable",
-        )
-    assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     data = await request.json()
     if not (email := data.get("email")):
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Email required",
-        )
+        raise MISSING_EMAIL
+    sender: EmailSender = request.app.state.email_sender
+    if sender is None:
+        raise UNAVAILABLE
+    assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     async with request.app.state.db() as session:
-        user = await session.scalar(_select_active_user().filter_by(email=email))
-    if user is None:
+        user = await session.scalar(
+            _select_active_user()
+            .filter_by(email=email)
+            .options(
+                joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
+            )
+        )
+    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+        # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
+    if user.password_reset_token:
+        raise RESET_IN_PROGRESS
     password_reset_token_claims = PasswordResetTokenClaims(
         subject=UserId(user.id),
         issued_at=datetime.now(timezone.utc),
@@ -241,6 +243,8 @@ async def initiate_password_reset(request: Request) -> Response:
 @router.post("/password-reset")
 async def reset_password(request: Request) -> Response:
     data = await request.json()
+    if not (password := data.get("password")):
+        raise MISSING_PASSWORD
     token_store: TokenStore = request.app.state.get_token_store()
     if (
         not (token := data.get("token"))
@@ -248,28 +252,13 @@ async def reset_password(request: Request) -> Response:
         or not claims.expiration_time
         or claims.expiration_time < datetime.now(timezone.utc)
     ):
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail="Invalid reset token",
-        )
+        raise INVALID_TOKEN
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
         user = await session.scalar(_select_active_user().filter_by(id=int(user_id)))
-    if user is None:
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail="Invalid reset token",
-        )
-    if user.auth_method != enums.AuthMethod.LOCAL.value:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Password can only be modified by your identity provider",
-        )
-    if not (password := data.get("password")):
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="New password required",
-        )
+    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+        # Withold privileged information
+        return Response(status_code=HTTP_204_NO_CONTENT)
     validate_password_format(password)
     user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
     loop = asyncio.get_running_loop()
@@ -291,3 +280,23 @@ def _select_active_user() -> Select[Tuple[models.User]]:
 
 
 LOGIN_FAILED_MESSAGE = "Invalid email and/or password"
+
+MISSING_EMAIL = HTTPException(
+    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    detail="Email required",
+)
+MISSING_PASSWORD = HTTPException(
+    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    detail="Password required",
+)
+UNAVAILABLE = HTTPException(
+    status_code=HTTP_503_SERVICE_UNAVAILABLE,
+)
+RESET_IN_PROGRESS = HTTPException(
+    status_code=HTTP_503_SERVICE_UNAVAILABLE,
+    detail="Password reset already in progress",
+)
+INVALID_TOKEN = HTTPException(
+    status_code=HTTP_401_UNAUTHORIZED,
+    detail="Invalid token",
+)

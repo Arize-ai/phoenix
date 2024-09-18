@@ -31,6 +31,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
@@ -39,6 +40,7 @@ import bs4
 import httpx
 import jwt
 import pytest
+import smtpdfix
 from httpx import Headers, HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
@@ -59,6 +61,7 @@ from phoenix.config import (
     get_env_database_schema,
     get_env_grpc_port,
     get_env_host,
+    get_env_smtp_mail_from,
 )
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
@@ -218,6 +221,15 @@ class _User:
     def export_embeddings(self, filename: str) -> None:
         _export_embeddings(self, filename=filename)
 
+    @overload
+    def initiate_password_reset(self) -> None: ...
+    @overload
+    def initiate_password_reset(self, smtpd: smtpdfix.AuthController) -> _PasswordResetToken: ...
+    def initiate_password_reset(
+        self, smtpd: Optional[smtpdfix.AuthController] = None
+    ) -> Optional[_PasswordResetToken]:
+        return _initiate_password_reset(self.email, smtpd=smtpd)
+
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
 _DEFAULT_ADMIN = _User(
@@ -258,7 +270,9 @@ class _ApiKey(str):
 class _Token(_String, ABC): ...
 
 
-class _PasswordResetToken(_Token): ...
+class _PasswordResetToken(_Token):
+    def reset(self, password: _Password, /) -> None:
+        return _reset_password(self, password=password)
 
 
 class _AccessToken(_Token, _CanLogOut[None]):
@@ -873,10 +887,20 @@ def _log_out(
 def _initiate_password_reset(
     email: _Email,
     /,
-) -> None:
+    smtpd: Optional[smtpdfix.AuthController] = None,
+) -> Optional[_PasswordResetToken]:
+    old_msg_count = len(smtpd.messages) if smtpd is not None else 0
     json_ = dict(email=email)
     resp = _httpx_client().post("auth/password-reset-email", json=json_)
     resp.raise_for_status()
+    if smtpd is None:
+        return None
+    new_msg_count = len(smtpd.messages) - old_msg_count
+    assert new_msg_count == 1
+    msg = smtpd.messages[-1]
+    assert msg["to"] == email
+    assert msg["from"] == get_env_smtp_mail_from()
+    return _extract_password_reset_token(msg)
 
 
 def _reset_password(
