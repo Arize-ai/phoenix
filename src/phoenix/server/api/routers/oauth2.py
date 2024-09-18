@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional
@@ -6,6 +5,8 @@ from typing import Any, Dict, Optional
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
 from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
+from authlib.jose import jwt
+from authlib.jose.errors import BadSignatureError
 from fastapi import APIRouter, Path, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,13 +35,14 @@ async def login(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
 ) -> RedirectResponse:
+    secret = request.app.state.get_secret()
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
         return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     redirect_uri = request.url_for("create_tokens", idp_name=idp_name)
     state = _generate_state_for_oauth2_authorization_code_flow(
-        return_url=request.query_params.get("returnUrl")
+        secret=secret, return_url=request.query_params.get("returnUrl")
     )
     response: RedirectResponse = await oauth2_client.authorize_redirect(
         request, redirect_uri, state=state
@@ -54,6 +56,7 @@ async def create_tokens(
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     state: str,
 ) -> RedirectResponse:
+    secret = request.app.state.get_secret()
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: JwtStore = request.app.state.get_token_store()
@@ -84,7 +87,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(url=_get_return_url(state) or "/")
+    response = RedirectResponse(url=_get_return_url(secret=secret, state=state) or "/")
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -282,25 +285,34 @@ class UsernameAlreadyInUse(Exception):
     pass
 
 
-def _generate_state_for_oauth2_authorization_code_flow(return_url: Optional[str]) -> str:
+def _generate_state_for_oauth2_authorization_code_flow(
+    *, secret: str, return_url: Optional[str]
+) -> str:
     """
-    Generates a JSON string containing the OAuth2 state and return URL. This
-    allows us to pass the return URL to the OAuth2 authorization server via the
-    `state` query and have it returned to us in the callback without needing to
+    Generates a JWT whose payload contains both an OAuth2 state (generated using
+    the `authlib` default algorithm) and a return URL. This allows us to pass
+    the return URL to the OAuth2 authorization server via the `state` query
+    parameter and have it returned to us in the callback without needing to
     maintain state.
     """
-    return json.dumps({"state": generate_token(), _RETURN_URL: return_url})
+    header = {"alg": _JWT_ALGORITHM}
+    payload = {"state": generate_token()}
+    if return_url is not None:
+        payload[_RETURN_URL] = return_url
+    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=secret)
+    return jwt_bytes.decode()
 
 
-def _get_return_url(state: str) -> Optional[str]:
+def _get_return_url(*, secret: str, state: str) -> Optional[str]:
     """
     Parses the return URL from the OAuth2 state.
     """
     try:
-        return_url = json.loads(state).get(_RETURN_URL)
+        payload = jwt.decode(state, secret)
+        return_url = payload.get(_RETURN_URL)
         assert isinstance(return_url, str) or return_url is None
         return return_url
-    except json.JSONDecodeError:
+    except BadSignatureError:
         return None
 
 
@@ -312,3 +324,4 @@ def _redirect_to_login(*, error: str) -> RedirectResponse:
 
 
 _RETURN_URL = "return_url"
+_JWT_ALGORITHM = "HS256"
