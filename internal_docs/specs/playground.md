@@ -4,6 +4,11 @@ Authors: @mikeldking
 
 As a user of Phoenix I don't want to have to go back to my IDE to iterate on a prompt. I don’t have to worry about programming languages or dependencies. I want to be able to use the data stored in Phoenix (spans, datasets) and run them through prompt(s) and prompt template(s).
 
+## Terminology
+
+- **operation ** Refers to how the LLM is invoked (chat, completion). We will consider chat to be higher priority (https://opentelemetry.io/docs/specs/semconv/attributes-registry/gen-ai/)
+- playground input source - refers to whether the input to the template is "manual" e.g. modifiable by the user or "dataset".
+
 ## Use-cases
 
 A user may want to use the playground to:
@@ -14,10 +19,6 @@ A user may want to use the playground to:
 - A/B Testing of models and templates
 - evaluation template creation: run an evaluation template on a single chosen production span or Dataset - Workflow is testing your Evals and be able to save as experiment
 - Synthetic data Generation - Use to generate synthetic data, add columns to current rows of data in a dataset, to help create test data
-
-## Terminology
-
-- **operation ** Refers to how the LLM is invoked (chat, completion). We will consider chat to be higher priority (https://opentelemetry.io/docs/specs/semconv/attributes-registry/gen-ai/)
 
 ### Prompt Template
 
@@ -31,13 +32,13 @@ As an AI engineer that is already using Phoenix tracing, I want the ability to t
 
 - llm vendor
 - llm name
-- invocation parameters
+- operation type (chat, text_completion)
 - invocation parameters
 - messages and roles
 - tools
-- output schema (missing?)
+- output schema
 
-The above values will have to be translated from the semantic attributes to a corresponding values for a single invocation.
+The above values will have to be translated from the span to a corresponding values in the playground for invocation.
 
 ### A/B Testing
 
@@ -55,3 +56,20 @@ In some cases I want to have things in A / B sync’d and sometimes I don’t. F
 ### Evaluation Template
 
 As an AI engineer I want to ask questions about a previously recorded synthesis (e.g. LLM span)
+
+## Technical Features
+
+The following technical features are required for the playground:
+
+**Frontend**
+
+- Credential storage in local storage
+- Span attribute to playground state translation
+
+**Backend**
+
+- LLM invocation interface (GraphQL or other)
+- Span recording during synthesis
+- Playground "session" tracking
+- Playground dataset invocation tracking
+- Streaming of synthesis results
