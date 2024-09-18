@@ -889,17 +889,15 @@ def _log_out(
 
 def _initiate_password_reset(
     email: _Email,
-    smtpd: Optional[smtpdfix.AuthController] = None,
+    smtpd: smtpdfix.AuthController,
     /,
     *,
     should_receive_email: bool = True,
 ) -> Optional[_PasswordResetToken]:
-    old_msg_count = len(smtpd.messages) if smtpd is not None else 0
+    old_msg_count = len(smtpd.messages)
     json_ = dict(email=email)
     resp = _httpx_client().post("auth/password-reset-email", json=json_)
     resp.raise_for_status()
-    if smtpd is None:
-        return None
     new_msg_count = len(smtpd.messages) - old_msg_count
     assert new_msg_count == int(should_receive_email)
     if not should_receive_email:
