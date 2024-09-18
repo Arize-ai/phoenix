@@ -59,6 +59,7 @@ from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.migrate import migrate
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
@@ -120,9 +121,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.NullHandler())
-# print("in app.py logger", logger)
-# print("in app.py logger.handlers", logger.handlers)
-print("APP A")
 
 router = APIRouter(include_in_schema=False)
 
@@ -138,8 +136,6 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
-
-print("APP B")
 
 
 class AppConfig(NamedTuple):
@@ -208,9 +204,6 @@ class Static(StaticFiles):
         return response
 
 
-print("APP C")
-
-
 class HeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
@@ -247,8 +240,6 @@ async def version() -> PlainTextResponse:
 
 DB_MUTEX: Optional[asyncio.Lock] = None
 
-print("APP D")
-
 
 def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
@@ -270,9 +261,6 @@ class ScaffolderConfig:
     force_fixture_ingestion: bool = False
     scaffold_datasets: bool = False
     phoenix_url: str = f"http://{get_env_host()}:{get_env_port()}"
-
-
-print("APP E")
 
 
 class Scaffolder(DaemonTask):
@@ -307,27 +295,6 @@ class Scaffolder(DaemonTask):
         Determines whether to load fixtures and handles them.
         """
         if await self._should_load_fixtures():
-            l = logging.getLogger()
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix")
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix.server")
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix.inferences")
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix.server.app")
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix.server.main")
-            print(l)
-            print(l.handlers)
-            l = logging.getLogger("phoenix.inferences.inferences")
-            print(l)
-            print(l.handlers)
             logger.info("Loading trace fixtures...")
             await self._handle_tracing_fixtures()
             logger.info("Finished loading fixtures.")
@@ -405,9 +372,6 @@ class Scaffolder(DaemonTask):
             logger.error(f"Error processing dataset fixture: {e}")
 
 
-print("APP F")
-
-
 def _lifespan(
     *,
     db: DbSessionFactory,
@@ -463,15 +427,9 @@ def _lifespan(
     return lifespan
 
 
-print("APP G")
-
-
 @router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
-
-
-print("APP H")
 
 
 def create_graphql_router(
@@ -585,7 +543,7 @@ def create_engine_and_run_migrations(
     database_url: str,
 ) -> AsyncEngine:
     try:
-        return create_engine(database_url)
+        return create_engine(connection_str=database_url, migrate=True, echo=False)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -600,9 +558,6 @@ def create_engine_and_run_migrations(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-
-
-print("APP I")
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
@@ -776,9 +731,6 @@ def create_app(
     return app
 
 
-print("APP J")
-
-
 def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional[str]) -> FastAPI:
     """
     Dynamically updates the app's `state` to include useful fields and methods
@@ -796,6 +748,3 @@ def _update_app_state(app: FastAPI, /, *, db: DbSessionFactory, secret: Optional
 
     app.state.get_secret = MethodType(get_secret, app.state)
     return app
-
-
-print("APP K")

@@ -43,6 +43,15 @@ def print_loggers(key: str, st: int) -> None:
     l = logging.getLogger("phoenix.inferences.inferences")
     print(l)
     print(l.handlers)
+    l = logging.getLogger("sqlalchemy")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("sqlalchemy.engine")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("sqlalchemy.engine.Engine")
+    print(l)
+    print(l.handlers)
     sleep(st)
 
 

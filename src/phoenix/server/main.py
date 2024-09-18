@@ -29,10 +29,13 @@ from phoenix.config import (
     get_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
+    get_env_db_logging_level,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
+    get_env_log_migrations,
+    get_env_logging_level,
     get_env_logging_mode,
     get_env_port,
     get_pids_path,
@@ -69,22 +72,8 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
-# print("KEKE")
-# print(__name__)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-# print("logger", logger)
-# print("handlers", logger.handlers)
-# print("hasHandlers", logger.hasHandlers())
-# logger_dict = logging.root.manager.loggerDict
-# print("logger_dict", logger_dict)
-# print("logger_dict.keys()", [key for key in logger_dict.keys() if "phoenix" in key])
-# l = logging.getLogger("phoenix.server.app")
-# print("l", l)
-# print("l.handlers", l.handlers)
-# child = logger.getChild("phoenix.server.app")
-# print("child", child)
-# print("child.handlers", child.handlers)
 
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
@@ -158,9 +147,6 @@ def main():
     reference_inferences: Optional[Inferences] = None
     corpus_inferences: Optional[Inferences] = None
 
-    # Initialize the settings for the Server
-    Settings.log_migrations = True
-
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
@@ -179,7 +165,6 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    print("CHECK B")
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
         "--with-fixture",
@@ -431,42 +416,51 @@ def main():
     server.run()
 
 
+# TODO: Figure out how to marry Settings.log_migrations with the application loggers
 def setup_logging():
     """
     Configures logging for the specified logging mode.
     """
-    logging_mode = get_env_logging_mode()
-    logging_mode = LoggingMode.STRUCTURED
-    if logging_mode is LoggingMode.DEFAULT:
-        _setup_default_logging()
-    elif logging_mode is LoggingMode.STRUCTURED:
-        _setup_structured_logging()
+    logging_mode = Settings.logging_mode
+    if logging_mode is LoggingMode.AS_LIBRARY:
+        _setup_library_logging()
+    elif logging_mode is LoggingMode.AS_APPLICATION:
+        _setup_application_logging()
     else:
         raise ValueError(f"Unsupported logging mode: {logging_mode}")
 
 
-def _setup_default_logging():
+def _setup_library_logging():
     """
-    Configures default logging.
+    Configures logging if Phoenix is used as a library
     """
-    root_logger = logging.getLogger("phoenix")
-    root_logger.setLevel(logging.INFO)
-    root_logger.info("Default logging ready")
+    logger = logging.getLogger("phoenix")
+    logger.setLevel(Settings.logging_level)
+    db_logger = logging.getLogger("sqlalchemy")
+    db_logger.setLevel(Settings.db_logging_level)
+    logger.info("Default logging ready")
 
 
-def _setup_structured_logging():
+def _setup_application_logging():
     """
-    Configures structured logging.
+    Configures logging if Phoenix is used as an application
     """
-    # root_logger = logging.getLogger()
-    # root_logger.setLevel(logging.INFO)
-    # # Remove all existing handlers
-    # for handler in root_logger.handlers[:]:
-    #     root_logger.removeHandler(handler)
-    #     handler.close()
-    # print("A", root_logger.handlers)
-    root_logger = logging.getLogger("phoenix")
-    root_logger.setLevel(logging.INFO)
+    root_logger = logging.getLogger()
+    # Remove all existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        handler.close()
+
+    sql_engine_logger = logging.getLogger("sqlalchemy.engine.Engine")
+    # Remove all existing handlers
+    for handler in sql_engine_logger.handlers[:]:
+        sql_engine_logger.removeHandler(handler)
+        handler.close()
+
+    phoenix_logger = logging.getLogger("phoenix")
+    phoenix_logger.setLevel(Settings.logging_level)
+    sql_logger = logging.getLogger("sqlalchemy")
+    sql_logger.setLevel(Settings.db_logging_level)
 
     fmt_keys = {
         "level": "levelname",
@@ -481,20 +475,18 @@ def _setup_structured_logging():
     formatter = MyJSONFormatter(fmt_keys=fmt_keys)
 
     stdout_handler = logging.StreamHandler(stdout)
-    # print("B", root_logger.handlers)
     stdout_handler.setFormatter(formatter)
-    # print("C", root_logger.handlers)
 
     log_queue = queue.Queue()
     queue_handler = logging.handlers.QueueHandler(log_queue)
-    root_logger.addHandler(queue_handler)
-    # print("D", root_logger.handlers)
+    phoenix_logger.addHandler(queue_handler)
+    sql_logger.addHandler(queue_handler)
 
     queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler)
     if queue_listener is not None:
         queue_listener.start()
-        # atexit.register(queue_listener.stop)
-    root_logger.info("Structured logging ready")
+        atexit.register(queue_listener.stop)
+    phoenix_logger.info("Structured logging ready")
     print_loggers("INSIDE_SETTING", 1)
 
 
@@ -599,8 +591,15 @@ def print_loggers(key: str, st: int) -> None:
     sleep(st)
 
 
+def initialize_settings() -> None:
+    # Settings.logging_mode = get_env_logging_mode()
+    Settings.logging_mode = LoggingMode.AS_LIBRARY
+    Settings.logging_level = get_env_logging_level()
+    Settings.db_logging_level = get_env_db_logging_level()
+    Settings.log_migrations = True  # get_env_log_migrations()
+
+
 if __name__ == "__main__":
-    print_loggers("BEFORE", 1)
+    initialize_settings()
     setup_logging()
-    print_loggers("AFTER", 1)
     main()
