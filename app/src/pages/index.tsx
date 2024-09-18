@@ -19,5 +19,6 @@ export * from "./settings";
 export * from "./apis";
 export * from "./auth";
 export * from "./profile";
+export * from "./playground";
 export * from "./AuthenticatedRoot";
 export * from "./authenticatedRootLoader";
