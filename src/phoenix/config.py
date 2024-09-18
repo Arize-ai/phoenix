@@ -108,7 +108,7 @@ The email address to use as the sender when sending emails. Should be set if SMT
 """
 ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
-Whether to validate SMTP server certificates. Defaults to false.
+Whether to validate SMTP server certificates. Defaults to true.
 """
 
 
@@ -314,7 +314,7 @@ def get_env_smtp_port() -> int:
 
 
 def get_env_smtp_validate_certs() -> bool:
-    return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, False)
+    return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
