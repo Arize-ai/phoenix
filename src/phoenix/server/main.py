@@ -10,6 +10,7 @@ from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
+from fastapi_mail import ConnectionConfig
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
@@ -28,8 +29,15 @@ from phoenix.config import (
     get_env_log_migrations,
     get_env_logging_level,
     get_env_logging_mode,
+    get_env_password_reset_token_expiry,
     get_env_port,
     get_env_refresh_token_expiry,
+    get_env_smtp_hostname,
+    get_env_smtp_mail_from,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+    get_env_smtp_validate_certs,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -50,6 +58,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.email.sender import EMAIL_TEMPLATE_FOLDER, FastMailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -354,6 +363,25 @@ def main() -> None:
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    email_sender = None
+    if mail_sever := get_env_smtp_hostname():
+        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = FastMailSender(
+            ConnectionConfig(
+                MAIL_USERNAME=mail_username,
+                MAIL_PASSWORD=mail_password,
+                MAIL_FROM=mail_from,
+                MAIL_SERVER=mail_sever,
+                MAIL_PORT=get_env_smtp_port(),
+                VALIDATE_CERTS=get_env_smtp_validate_certs(),
+                USE_CREDENTIALS=True,
+                MAIL_STARTTLS=True,
+                MAIL_SSL_TLS=False,
+                TEMPLATE_FOLDER=EMAIL_TEMPLATE_FOLDER,
+            )
+        )
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -371,9 +399,11 @@ def main() -> None:
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
         refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
+        email_sender=email_sender,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

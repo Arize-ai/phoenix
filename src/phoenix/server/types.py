@@ -143,6 +143,9 @@ class LastUpdatedAt:
         self._cache[table][id_] = datetime.now(timezone.utc)
 
 
+class PasswordResetToken(Token): ...
+
+
 class AccessToken(Token): ...
 
 
@@ -159,6 +162,10 @@ class UserTokenAttributes(TokenAttributes):
 
 @dataclass(frozen=True)
 class RefreshTokenAttributes(UserTokenAttributes): ...
+
+
+@dataclass(frozen=True)
+class PasswordResetTokenAttributes(UserTokenAttributes): ...
 
 
 @dataclass(frozen=True)
@@ -199,6 +206,11 @@ class TokenId(_DbId, ABC):
 
 
 @final
+class PasswordResetTokenId(TokenId):
+    table = models.PasswordResetToken
+
+
+@final
 class AccessTokenId(TokenId):
     table = models.AccessToken
 
@@ -222,6 +234,12 @@ class UserId(_DbId):
 class UserClaimSet(ClaimSet):
     subject: Optional[UserId] = None
     attributes: Optional[UserTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class PasswordResetTokenClaims(UserClaimSet):
+    token_id: Optional[PasswordResetTokenId] = None
+    attributes: Optional[PasswordResetTokenAttributes] = None
 
 
 @dataclass(frozen=True)
@@ -251,6 +269,10 @@ class CanLogOutUser(Protocol):
 
 
 class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
+    async def create_password_reset_token(
+        self,
+        claims: PasswordResetTokenClaims,
+    ) -> Tuple[PasswordResetToken, PasswordResetTokenId]: ...
     async def create_access_token(
         self,
         claims: AccessTokenClaims,

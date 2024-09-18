@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from functools import cached_property, singledispatchmethod
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 import jwt
 from sqlalchemy import Select, delete, select
@@ -28,6 +28,10 @@ from phoenix.server.types import (
     ApiKeyId,
     DaemonTask,
     DbSessionFactory,
+    PasswordResetToken,
+    PasswordResetTokenAttributes,
+    PasswordResetTokenClaims,
+    PasswordResetTokenId,
     RefreshToken,
     RefreshTokenAttributes,
     RefreshTokenClaims,
@@ -53,6 +57,7 @@ class JwtStore:
         self._db = db
         self._secret = secret
         args = (db, secret, algorithm, sleep_seconds)
+        self._password_reset_token_store = _PasswordResetTokenStore(*args, **kwargs)
         self._access_token_store = _AccessTokenStore(*args, **kwargs)
         self._refresh_token_store = _RefreshTokenStore(*args, **kwargs)
         self._api_key_store = _ApiKeyStore(*args, **kwargs)
@@ -88,6 +93,10 @@ class JwtStore:
         return None
 
     @_get.register
+    async def _(self, token_id: PasswordResetTokenId) -> Optional[ClaimSet]:
+        return await self._password_reset_token_store.get(token_id)
+
+    @_get.register
     async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
         return await self._access_token_store.get(token_id)
 
@@ -104,6 +113,10 @@ class JwtStore:
         return None
 
     @_evict.register
+    async def _(self, token_id: PasswordResetTokenId) -> Optional[ClaimSet]:
+        return await self._password_reset_token_store.evict(token_id)
+
+    @_evict.register
     async def _(self, token_id: AccessTokenId) -> Optional[ClaimSet]:
         return await self._access_token_store.evict(token_id)
 
@@ -114,6 +127,12 @@ class JwtStore:
     @_evict.register
     async def _(self, token_id: ApiKeyId) -> Optional[ClaimSet]:
         return await self._api_key_store.evict(token_id)
+
+    async def create_password_reset_token(
+        self,
+        claim: PasswordResetTokenClaims,
+    ) -> Tuple[PasswordResetToken, PasswordResetTokenId]:
+        return await self._password_reset_token_store.create(claim)
 
     async def create_access_token(
         self,
@@ -136,21 +155,29 @@ class JwtStore:
     async def revoke(self, *token_ids: TokenId) -> None:
         if not token_ids:
             return
+        password_reset_token_ids: List[PasswordResetTokenId] = []
         access_token_ids: List[AccessTokenId] = []
         refresh_token_ids: List[RefreshTokenId] = []
         api_key_ids: List[ApiKeyId] = []
         for token_id in token_ids:
+            if isinstance(token_id, PasswordResetTokenId):
+                password_reset_token_ids.append(token_id)
             if isinstance(token_id, AccessTokenId):
                 access_token_ids.append(token_id)
             elif isinstance(token_id, RefreshTokenId):
                 refresh_token_ids.append(token_id)
             elif isinstance(token_id, ApiKeyId):
                 api_key_ids.append(token_id)
-        await gather(
-            self._access_token_store.revoke(*access_token_ids),
-            self._refresh_token_store.revoke(*refresh_token_ids),
-            self._api_key_store.revoke(*api_key_ids),
-        )
+        coroutines: List[Coroutine[None, None, None]] = []
+        if password_reset_token_ids:
+            coroutines.append(self._password_reset_token_store.revoke(*password_reset_token_ids))
+        if access_token_ids:
+            coroutines.append(self._access_token_store.revoke(*access_token_ids))
+        if refresh_token_ids:
+            coroutines.append(self._refresh_token_store.revoke(*refresh_token_ids))
+        if api_key_ids:
+            coroutines.append(self._api_key_store.revoke(*api_key_ids))
+        await gather(*coroutines)
 
     async def log_out(self, user_id: UserId) -> None:
         for cls in (AccessTokenId, RefreshTokenId):
@@ -166,6 +193,7 @@ _TokenIdT = TypeVar("_TokenIdT", bound=TokenId)
 _ClaimSetT = TypeVar("_ClaimSetT", bound=ClaimSet)
 _RecordT = TypeVar(
     "_RecordT",
+    models.PasswordResetToken,
     models.AccessToken,
     models.RefreshToken,
     models.ApiKey,
@@ -284,6 +312,45 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             self._tasks.append(create_task(sleep(self._seconds)))
             await self._tasks[-1]
             self._tasks.pop()
+
+
+class _PasswordResetTokenStore(
+    _Store[
+        PasswordResetTokenClaims,
+        PasswordResetToken,
+        PasswordResetTokenId,
+        models.PasswordResetToken,
+    ]
+):
+    _table = models.PasswordResetToken
+    _token_id = PasswordResetTokenId
+    _token = PasswordResetToken
+
+    def _from_db(
+        self,
+        record: models.PasswordResetToken,
+        user_role: UserRole,
+    ) -> Tuple[PasswordResetTokenId, PasswordResetTokenClaims]:
+        token_id = PasswordResetTokenId(record.id)
+        return token_id, PasswordResetTokenClaims(
+            token_id=token_id,
+            subject=UserId(record.user_id),
+            issued_at=record.created_at,
+            expiration_time=record.expires_at,
+            attributes=PasswordResetTokenAttributes(
+                user_role=user_role,
+            ),
+        )
+
+    def _to_db(self, claim: PasswordResetTokenClaims) -> models.PasswordResetToken:
+        assert claim.expiration_time
+        assert claim.subject
+        user_id = int(claim.subject)
+        return models.PasswordResetToken(
+            user_id=user_id,
+            created_at=claim.issued_at,
+            expires_at=claim.expiration_time,
+        )
 
 
 class _AccessTokenStore(

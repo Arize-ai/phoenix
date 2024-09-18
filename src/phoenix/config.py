@@ -5,9 +5,7 @@ import tempfile
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-import pandas as pd
+from typing import Dict, List, Optional, Tuple, overload
 
 from phoenix.utilities.logging import log_a_list
 
@@ -95,8 +93,44 @@ ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
-ENV_PHOENIX_ACCESS_TOKEN_EXPIRY = "PHOENIX_ACCESS_TOKEN_EXPIRY"
-ENV_PHOENIX_REFRESH_TOKEN_EXPIRY = "PHOENIX_REFRESH_TOKEN_EXPIRY"
+ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before access tokens expire.
+"""
+ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before refresh tokens expire.
+"""
+ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before password reset tokens expire.
+"""
+
+# SMTP settings
+ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
+"""
+The SMTP server hostname to use for sending emails. SMTP is disabled if this is not set.
+"""
+ENV_PHOENIX_SMTP_PORT = "PHOENIX_SMTP_PORT"
+"""
+The SMTP server port to use for sending emails. Defaults to 587.
+"""
+ENV_PHOENIX_SMTP_USERNAME = "PHOENIX_SMTP_USERNAME"
+"""
+The SMTP server username to use for sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_PASSWORD = "PHOENIX_SMTP_PASSWORD"
+"""
+The SMTP server password to use for sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_MAIL_FROM = "PHOENIX_SMTP_MAIL_FROM"
+"""
+The email address to use as the sender when sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
+"""
+Whether to validate SMTP server certificates. Defaults to true.
+"""
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -138,12 +172,16 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
-def get_boolean_env_var(env_var: str) -> Optional[bool]:
+@overload
+def _bool_val(env_var: str) -> Optional[bool]: ...
+@overload
+def _bool_val(env_var: str, default: bool) -> bool: ...
+def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     """
-    Parses a boolean environment variable, returning None if the variable is not set.
+    Parses a boolean environment variable, returning `default` if the variable is not set.
     """
     if (value := os.environ.get(env_var)) is None:
-        return None
+        return default
     assert (lower := value.lower()) in (
         "true",
         "false",
@@ -151,11 +189,49 @@ def get_boolean_env_var(env_var: str) -> Optional[bool]:
     return lower == "true"
 
 
+@overload
+def _float_val(env_var: str) -> Optional[float]: ...
+@overload
+def _float_val(env_var: str, default: float) -> float: ...
+def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]:
+    """
+    Parses a numeric environment variable, returning `default` if the variable is not set.
+    """
+    if (value := os.environ.get(env_var)) is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(
+            f"Invalid value for environment variable {env_var}: {value}. "
+            f"Value must be a number."
+        )
+
+
+@overload
+def _int_val(env_var: str) -> Optional[int]: ...
+@overload
+def _int_val(env_var: str, default: int) -> int: ...
+def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
+    """
+    Parses a numeric environment variable, returning `default` if the variable is not set.
+    """
+    if (value := os.environ.get(env_var)) is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(
+            f"Invalid value for environment variable {env_var}: {value}. "
+            f"Value must be an integer."
+        )
+
+
 def get_env_enable_auth() -> bool:
     """
     Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
-    return get_boolean_env_var(ENV_PHOENIX_ENABLE_AUTH) is True
+    return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
 
 
 def get_env_phoenix_secret() -> Optional[str]:
@@ -173,7 +249,7 @@ def get_env_phoenix_secret() -> Optional[str]:
 
 
 def get_env_phoenix_use_secure_cookies() -> bool:
-    return bool(get_boolean_env_var(ENV_PHOENIX_USE_SECURE_COOKIES))
+    return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
@@ -194,48 +270,72 @@ def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
     return enable_auth, phoenix_secret
 
 
+def get_env_password_reset_token_expiry() -> timedelta:
+    """
+    Gets the password reset token expiry.
+    """
+    from phoenix.auth import DEFAULT_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
+
+
 def get_env_access_token_expiry() -> timedelta:
     """
     Gets the access token expiry.
     """
-    if (access_token_expiry := os.environ.get(ENV_PHOENIX_ACCESS_TOKEN_EXPIRY)) is None:
-        return timedelta(minutes=10)
-    try:
-        return _parse_duration(access_token_expiry)
-    except ValueError as error:
-        raise ValueError(
-            f"Error reading {ENV_PHOENIX_ACCESS_TOKEN_EXPIRY} environment variable: {str(error)}"
-        )
+    from phoenix.auth import DEFAULT_ACCESS_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_ACCESS_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
 
 
 def get_env_refresh_token_expiry() -> timedelta:
     """
     Gets the refresh token expiry.
     """
-    if (refresh_token_expiry := os.environ.get(ENV_PHOENIX_REFRESH_TOKEN_EXPIRY)) is None:
-        return timedelta(weeks=1)
-    try:
-        return _parse_duration(refresh_token_expiry)
-    except ValueError as error:
-        raise ValueError(
-            f"Error reading {ENV_PHOENIX_REFRESH_TOKEN_EXPIRY} environment variable: {str(error)}"
-        )
+    from phoenix.auth import DEFAULT_REFRESH_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_REFRESH_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
 
 
-def _parse_duration(duration_str: str) -> timedelta:
-    """
-    Parses a duration string into a timedelta object, assuming the duration is
-    in seconds if no unit is provided.
-    """
-    try:
-        duration = timedelta(seconds=float(duration_str))
-    except ValueError:
-        duration = pd.Timedelta(duration_str)
-    if pd.isnull(duration):
-        raise ValueError("duration cannot be null")
-    if duration <= timedelta(0):
-        raise ValueError("duration must be positive")
-    return duration
+def get_env_smtp_username() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_USERNAME) or ""
+
+
+def get_env_smtp_password() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_PASSWORD) or ""
+
+
+def get_env_smtp_mail_from() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_MAIL_FROM) or ""
+
+
+def get_env_smtp_hostname() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_HOSTNAME) or ""
+
+
+def get_env_smtp_port() -> int:
+    port = _int_val(ENV_PHOENIX_SMTP_PORT, 587)
+    assert 0 < port <= 65_535
+    return port
+
+
+def get_env_smtp_validate_certs() -> bool:
+    return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
