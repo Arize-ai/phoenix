@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
-type InitiatePasswordResetFormParams = {
+type ForgotPasswordFormParams = {
   email: string;
 };
 
@@ -13,7 +13,7 @@ export function ForgotPasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
-    async (params: InitiatePasswordResetFormParams) => {
+    async (params: ForgotPasswordFormParams) => {
       setMessage(null);
       setError(null);
       setIsLoading(true);
@@ -41,7 +41,7 @@ export function ForgotPasswordForm() {
     },
     [setMessage, setError]
   );
-  const { control, handleSubmit } = useForm<InitiatePasswordResetFormParams>({
+  const { control, handleSubmit } = useForm<ForgotPasswordFormParams>({
     defaultValues: { email: "" },
   });
   return (
