@@ -13,8 +13,6 @@ from phoenix.settings import Settings
 from ._formatter import PhoenixJSONFormatter
 
 
-# TODO: Figure out how to marry Settings.log_migrations with the application loggers
-# TODO: Missing stderr handler
 def setup_logging():
     """
     Configures logging for the specified logging mode.
@@ -90,54 +88,3 @@ def _setup_application_logging():
         queue_listener.start()
         atexit.register(queue_listener.stop)
     phoenix_logger.info("Structured logging ready")
-
-
-# {
-#   "version": 1,
-#   "disable_existing_loggers": false,
-#   "formatters": {
-#     "json": {
-#       "()": "phoenix.logging._config.MyJSONFormatter",
-#       "fmt_keys": {
-#         "level": "levelname",
-#         "message": "message",
-#         "timestamp": "timestamp",
-#         "logger": "name",
-#         "module": "module",
-#         "function": "funcName",
-#         "line": "lineno",
-#         "thread_name": "threadName"
-#       }
-#     }
-#   },
-#   "filters": {
-#     "no_errors": {
-#       "()": "phoenix.logging._config.NonErrorFilter"
-#     }
-#   },
-#   "handlers": {
-#     "stdout": {
-#       "class": "logging.StreamHandler",
-#       "level": "DEBUG",
-#       "filters": ["no_errors"],
-#       "formatter": "json",
-#       "stream": "ext://sys.stdout"
-#     },
-#     "stderr": {
-#       "class": "logging.StreamHandler",
-#       "level": "WARNING",
-#       "formatter": "json",
-#       "stream": "ext://sys.stderr"
-#     },
-#     "queue_handler": {
-#       "class": "logging.handlers.QueueHandler",
-#       "queue": "ext://queue.Queue"
-#     }
-#   },
-#   "loggers": {
-#     "root": {
-#       "level": "DEBUG",
-#       "handlers": ["queue_handler"]
-#     }
-#   }
-# }

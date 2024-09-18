@@ -59,7 +59,6 @@ from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.migrate import migrate
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders

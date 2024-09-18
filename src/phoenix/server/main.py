@@ -1,6 +1,5 @@
 import atexit
 import codecs
-import datetime as dt
 import logging
 import logging.config
 import logging.handlers
@@ -18,11 +17,8 @@ from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
-
-# from typing import override
 from phoenix.config import (
     EXPORT_DIR,
-    LoggingMode,
     get_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,

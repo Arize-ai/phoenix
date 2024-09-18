@@ -120,7 +120,6 @@ def aio_sqlite_engine(
     if not migrate:
         return engine
     if database.startswith(":memory:"):
-        pass
         try:
             asyncio.get_running_loop()
         except RuntimeError:
