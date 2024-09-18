@@ -648,6 +648,11 @@ class User(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    password_reset_token: Mapped["PasswordResetToken"] = relationship(
+        "PasswordResetToken",
+        back_populates="user",
+        uselist=False,
+    )
     access_tokens: Mapped[List["AccessToken"]] = relationship("AccessToken", back_populates="user")
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
         "RefreshToken", back_populates="user"
@@ -657,6 +662,20 @@ class User(Base):
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         dict(sqlite_autoincrement=True),
     )
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
 class RefreshToken(Base):

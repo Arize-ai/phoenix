@@ -9,6 +9,7 @@ from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from email.message import Message
 from functools import cached_property
 from io import BytesIO
 from subprocess import PIPE, STDOUT
@@ -32,12 +33,14 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
 
+import bs4
 import httpx
 import jwt
 import pytest
+import smtpdfix
 from httpx import Headers, HTTPStatusError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
@@ -58,6 +61,7 @@ from phoenix.config import (
     get_env_database_schema,
     get_env_grpc_port,
     get_env_host,
+    get_env_smtp_mail_from,
 )
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
@@ -217,6 +221,19 @@ class _User:
     def export_embeddings(self, filename: str) -> None:
         _export_embeddings(self, filename=filename)
 
+    def initiate_password_reset(
+        self,
+        smtpd: smtpdfix.AuthController,
+        /,
+        *,
+        should_receive_email: bool = True,
+    ) -> Optional[_PasswordResetToken]:
+        return _initiate_password_reset(
+            self.email,
+            smtpd,
+            should_receive_email=should_receive_email,
+        )
+
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
 _DEFAULT_ADMIN = _User(
@@ -255,6 +272,11 @@ class _ApiKey(str):
 
 
 class _Token(_String, ABC): ...
+
+
+class _PasswordResetToken(_Token):
+    def reset(self, password: _Password, /) -> None:
+        return _reset_password(self, password=password)
 
 
 class _AccessToken(_Token, _CanLogOut[None]):
@@ -856,6 +878,37 @@ def _log_out(
     resp.raise_for_status()
 
 
+def _initiate_password_reset(
+    email: _Email,
+    smtpd: smtpdfix.AuthController,
+    /,
+    *,
+    should_receive_email: bool = True,
+) -> Optional[_PasswordResetToken]:
+    old_msg_count = len(smtpd.messages)
+    json_ = dict(email=email)
+    resp = _httpx_client().post("auth/password-reset-email", json=json_)
+    resp.raise_for_status()
+    new_msg_count = len(smtpd.messages) - old_msg_count
+    assert new_msg_count == int(should_receive_email)
+    if not should_receive_email:
+        return None
+    msg = smtpd.messages[-1]
+    assert msg["to"] == email
+    assert msg["from"] == get_env_smtp_mail_from()
+    return _extract_password_reset_token(msg)
+
+
+def _reset_password(
+    token: _PasswordResetToken,
+    /,
+    password: _Password,
+) -> None:
+    json_ = dict(token=token, password=password)
+    resp = _httpx_client().post("auth/password-reset", json=json_)
+    resp.raise_for_status()
+
+
 def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename: str) -> None:
     resp = _httpx_client(auth).get("/exports", params={"filename": filename})
     resp.raise_for_status()
@@ -912,3 +965,29 @@ def _decode_token_ids(
         jwt.decode(v, options={"verify_signature": False})["jti"]
         for v in _extract_tokens(headers, key).values()
     ]
+
+
+def _extract_password_reset_token(msg: Message) -> _PasswordResetToken:
+    assert (soup := _extract_html(msg))
+    assert isinstance((link := soup.find(id="reset-url")), bs4.Tag)
+    assert isinstance((url := link.get("href")), str)
+    assert url
+    params = parse_qs(urlparse(url).query)
+    assert (tokens := params["token"])
+    assert (token := tokens[0])
+    decoded = jwt.decode(token, options=dict(verify_signature=False))
+    assert (jti := decoded["jti"])
+    assert jti.startswith("PasswordResetToken")
+    return _PasswordResetToken(token)
+
+
+def _extract_html(msg: Message) -> Optional[bs4.BeautifulSoup]:
+    for part in msg.walk():
+        if (
+            part.get_content_type() == "text/html"
+            and (payload := part.get_payload(decode=True))
+            and isinstance(payload, bytes)
+        ):
+            content = payload.decode(part.get_content_charset() or "utf-8")
+            return bs4.BeautifulSoup(content, "html.parser")
+    return None

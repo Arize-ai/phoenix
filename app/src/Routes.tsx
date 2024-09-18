@@ -25,6 +25,7 @@ import {
   ExperimentComparePage,
   experimentsLoader,
   ExperimentsPage,
+  ForgotPasswordPage,
   homeLoader,
   LoginPage,
   ModelPage,
@@ -37,6 +38,7 @@ import {
   ProjectsRoot,
   resetPasswordLoader,
   ResetPasswordPage,
+  ResetPasswordWithTokenPage,
   SettingsPage,
   TracePage,
   TracingRoot,
@@ -51,6 +53,11 @@ const router = createBrowserRouter(
         element={<ResetPasswordPage />}
         loader={resetPasswordLoader}
       />
+      <Route
+        path="/reset-password-with-token"
+        element={<ResetPasswordWithTokenPage />}
+      />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
         <Route element={<Layout />}>
           <Route

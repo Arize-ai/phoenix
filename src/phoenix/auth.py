@@ -184,6 +184,9 @@ DEFAULT_ADMIN_USERNAME = "admin"
 DEFAULT_ADMIN_EMAIL = "admin@localhost"
 DEFAULT_ADMIN_PASSWORD = "admin"
 DEFAULT_SECRET_LENGTH = 32
+DEFAULT_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 15
+DEFAULT_ACCESS_TOKEN_EXPIRY_MINUTES = 10
+DEFAULT_REFRESH_TOKEN_EXPIRY_MINUTES = 60 * 24 * 7
 """The default length of a secret key in bytes."""
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+[.][^@\s]+\Z")
 """The regular expression pattern for a valid email address."""
