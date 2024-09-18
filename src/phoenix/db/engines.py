@@ -1,10 +1,8 @@
 import asyncio
 import json
-import logging
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from time import sleep
 from typing import Any, Callable
 
 import aiosqlite

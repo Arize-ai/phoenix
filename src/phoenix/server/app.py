@@ -119,7 +119,6 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
@@ -605,6 +604,7 @@ def create_app(
     secret: Optional[str] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
+    logger.info(f"Server umap params: {umap_params}")
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (

@@ -1,54 +1,104 @@
-# import atexit
-# import datetime as dt
-# import json
-# import logging
-# import logging.config
-# import logging.handlers
-# import queue
-# from sys import stderr, stdout
-#
-# # from typing import override
-# from phoenix.config import LoggingMode, get_env_logging_mode
-#
-#
-# def setup_logging():
-#     """
-#     Configures logging for the specified logging mode.
-#     """
-#     logging_mode = get_env_logging_mode()
-#     logging_mode = LoggingMode.STRUCTURED
-#     if logging_mode is LoggingMode.DEFAULT:
-#         _setup_default_logging()
-#     elif logging_mode is LoggingMode.STRUCTURED:
-#         _setup_structured_logging()
-#     else:
-#         raise ValueError(f"Unsupported logging mode: {logging_mode}")
-#
-#
-# def _setup_default_logging():
-#     """
-#     Configures default logging.
-#     """
-#     root_logger = logging.getLogger("phoenix")
-#     root_logger.setLevel(logging.INFO)
-#     root_logger.info("Default logging ready")
-#
-#
-# def _setup_structured_logging():
-#     """
-#     Configures structured logging.
-#     """
-#     root_logger = logging.getLogger()
-#     root_logger.setLevel(logging.INFO)
-#     # Remove all existing handlers
-#     for handler in root_logger.handlers[:]:
-#         root_logger.removeHandler(handler)
-#         handler.close()
-#     # print("A", root_logger.handlers)
-#     # root_logger = logging.getLogger("phoenix")
-#     # root_logger.setLevel(logging.INFO)
-#
-#     fmt_keys = {
+import atexit
+import logging
+import logging.config
+import logging.handlers
+import queue
+from sys import stderr, stdout
+
+# from typing import override
+from phoenix.config import LoggingMode, get_env_logging_mode
+from phoenix.logging._filter import NonErrorFilter
+from phoenix.settings import Settings
+
+from ._formatter import PhoenixJSONFormatter
+
+
+# TODO: Figure out how to marry Settings.log_migrations with the application loggers
+# TODO: Missing stderr handler
+def setup_logging():
+    """
+    Configures logging for the specified logging mode.
+    """
+    logging_mode = Settings.logging_mode
+    if logging_mode is LoggingMode.AS_LIBRARY:
+        _setup_library_logging()
+    elif logging_mode is LoggingMode.AS_APPLICATION:
+        _setup_application_logging()
+    else:
+        raise ValueError(f"Unsupported logging mode: {logging_mode}")
+
+
+def _setup_library_logging():
+    """
+    Configures logging if Phoenix is used as a library
+    """
+    logger = logging.getLogger("phoenix")
+    logger.setLevel(Settings.logging_level)
+    db_logger = logging.getLogger("sqlalchemy")
+    db_logger.setLevel(Settings.db_logging_level)
+    logger.info("Default logging ready")
+
+
+def _setup_application_logging():
+    """
+    Configures logging if Phoenix is used as an application
+    """
+    root_logger = logging.getLogger()
+    # Remove all existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        handler.close()
+
+    sql_engine_logger = logging.getLogger("sqlalchemy.engine.Engine")
+    # Remove all existing handlers
+    for handler in sql_engine_logger.handlers[:]:
+        sql_engine_logger.removeHandler(handler)
+        handler.close()
+
+    phoenix_logger = logging.getLogger("phoenix")
+    phoenix_logger.setLevel(Settings.logging_level)
+    sql_logger = logging.getLogger("sqlalchemy")
+    sql_logger.setLevel(Settings.db_logging_level)
+
+    fmt_keys = {
+        "level": "levelname",
+        "message": "message",
+        "timestamp": "timestamp",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "line": "lineno",
+        "thread_name": "threadName",
+    }
+    formatter = PhoenixJSONFormatter(fmt_keys=fmt_keys)
+
+    stdout_handler = logging.StreamHandler(stdout)
+    stdout_handler.setFormatter(formatter)
+    stdout_handler.setLevel(Settings.logging_level)
+    stdout_handler.addFilter(NonErrorFilter())
+    stderr_handler = logging.StreamHandler(stderr)
+    stderr_handler.setFormatter(formatter)
+    stderr_handler.setLevel(logging.WARNING)
+
+    log_queue = queue.Queue()
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    phoenix_logger.addHandler(queue_handler)
+    sql_logger.addHandler(queue_handler)
+
+    queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler, stderr_handler)
+    if queue_listener is not None:
+        queue_listener.start()
+        atexit.register(queue_listener.stop)
+    phoenix_logger.info("Structured logging ready")
+
+
+# {
+#   "version": 1,
+#   "disable_existing_loggers": false,
+#   "formatters": {
+#     "json": {
+#       "()": "phoenix.logging._config.MyJSONFormatter",
+#       "fmt_keys": {
 #         "level": "levelname",
 #         "message": "message",
 #         "timestamp": "timestamp",
@@ -56,118 +106,38 @@
 #         "module": "module",
 #         "function": "funcName",
 #         "line": "lineno",
-#         "thread_name": "threadName",
+#         "thread_name": "threadName"
+#       }
 #     }
-#     formatter = MyJSONFormatter(fmt_keys=fmt_keys)
-#
-#     stdout_handler = logging.StreamHandler(stdout)
-#     # print("B", root_logger.handlers)
-#     stdout_handler.setFormatter(formatter)
-#     # print("C", root_logger.handlers)
-#
-#     log_queue = queue.Queue()
-#     queue_handler = logging.handlers.QueueHandler(log_queue)
-#     root_logger.addHandler(queue_handler)
-#     # print("D", root_logger.handlers)
-#
-#     queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler)
-#     if queue_listener is not None:
-#         queue_listener.start()
-#         # atexit.register(queue_listener.stop)
-#     root_logger.info("Structured logging ready")
-#     l = logging.getLogger()
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix")
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix.server")
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix.inferences")
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix.server.app")
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix.server.main")
-#     print(l)
-#     print(l.handlers)
-#     l = logging.getLogger("phoenix.inferences.inferences")
-#     print(l)
-#     print(l.handlers)
-#
-#     # print("E", root_logger.handlers)
-#
-#
-# LOG_RECORD_BUILTIN_ATTRS = {
-#     "args",
-#     "asctime",
-#     "created",
-#     "exc_info",
-#     "exc_text",
-#     "filename",
-#     "funcName",
-#     "levelname",
-#     "levelno",
-#     "lineno",
-#     "module",
-#     "msecs",
-#     "message",
-#     "msg",
-#     "name",
-#     "pathname",
-#     "process",
-#     "processName",
-#     "relativeCreated",
-#     "stack_info",
-#     "thread",
-#     "threadName",
-#     "taskName",
+#   },
+#   "filters": {
+#     "no_errors": {
+#       "()": "phoenix.logging._config.NonErrorFilter"
+#     }
+#   },
+#   "handlers": {
+#     "stdout": {
+#       "class": "logging.StreamHandler",
+#       "level": "DEBUG",
+#       "filters": ["no_errors"],
+#       "formatter": "json",
+#       "stream": "ext://sys.stdout"
+#     },
+#     "stderr": {
+#       "class": "logging.StreamHandler",
+#       "level": "WARNING",
+#       "formatter": "json",
+#       "stream": "ext://sys.stderr"
+#     },
+#     "queue_handler": {
+#       "class": "logging.handlers.QueueHandler",
+#       "queue": "ext://queue.Queue"
+#     }
+#   },
+#   "loggers": {
+#     "root": {
+#       "level": "DEBUG",
+#       "handlers": ["queue_handler"]
+#     }
+#   }
 # }
-#
-#
-# class MyJSONFormatter(logging.Formatter):
-#     def __init__(
-#         self,
-#         *,
-#         fmt_keys: dict[str, str] | None = None,
-#     ):
-#         super().__init__()
-#         self.fmt_keys = fmt_keys if fmt_keys is not None else {}
-#
-#     # @override
-#     def format(self, record: logging.LogRecord) -> str:
-#         message = self._prepare_log_dict(record)
-#         return json.dumps(message, default=str)
-#
-#     def _prepare_log_dict(self, record: logging.LogRecord):
-#         always_fields = {
-#             "message": record.getMessage(),
-#             "timestamp": dt.datetime.fromtimestamp(record.created, tz=dt.timezone.utc).isoformat(),
-#         }
-#         if record.exc_info is not None:
-#             always_fields["exc_info"] = self.formatException(record.exc_info)
-#
-#         if record.stack_info is not None:
-#             always_fields["stack_info"] = self.formatStack(record.stack_info)
-#
-#         message = {
-#             key: msg_val
-#             if (msg_val := always_fields.pop(val, None)) is not None
-#             else getattr(record, val)
-#             for key, val in self.fmt_keys.items()
-#         }
-#         message.update(always_fields)
-#
-#         for key, val in record.__dict__.items():
-#             if key not in LOG_RECORD_BUILTIN_ATTRS:
-#                 message[key] = val
-#
-#         return message
-#
-#
-# class NonErrorFilter(logging.Filter):
-#     # @override
-#     def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
-#         return record.levelno <= logging.INFO
