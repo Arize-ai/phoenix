@@ -390,14 +390,30 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     if not logging_level:
         return default_level
 
-    valid_values = [level for level in logging.getLevelNamesMapping() if level != "NOTSET"]  # type: ignore
+    # levelNamesMapping = logging.getLevelNamesMapping() is not supported in python 3.8
+    # but is supported in 3.12. Hence, we get CI type errors if we don't used type:ignore for 3.8
+    # but we also get them fro 3.12 if we do use type:ignore.
+    # To go around this, we define the mapping ourselves and will remove this once we drop support
+    # for older python versions
+    levelNamesMapping = {
+        "CRITICAL": logging.CRITICAL,
+        "FATAL": logging.FATAL,
+        "ERROR": logging.ERROR,
+        "WARN": logging.WARNING,
+        "WARNING": logging.WARNING,
+        "INFO": logging.INFO,
+        "DEBUG": logging.DEBUG,
+        "NOTSET": logging.NOTSET,
+    }
+
+    valid_values = [level for level in levelNamesMapping if level != "NOTSET"]
 
     if logging_level.upper() not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
             f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
         )
-    return logging.getLevelNamesMapping()[logging_level.upper()]  # type: ignore
+    return levelNamesMapping[logging_level.upper()]
 
 
 def get_env_log_migrations() -> bool:
