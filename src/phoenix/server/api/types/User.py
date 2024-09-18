@@ -10,6 +10,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 
 from .UserRole import UserRole, to_gql_user_role
@@ -23,6 +24,7 @@ class User(Node):
     username: Optional[str]
     created_at: datetime
     user_role_id: Private[int]
+    auth_method: AuthMethod
 
     @strawberry.field
     async def role(self, info: Info[Context, None]) -> UserRole:
@@ -51,4 +53,5 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
         email=user.email,
         created_at=user.created_at,
         user_role_id=user.user_role_id,
+        auth_method=AuthMethod(user.auth_method),
     )

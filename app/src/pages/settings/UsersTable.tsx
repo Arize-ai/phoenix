@@ -1,21 +1,41 @@
-import React, { startTransition, useMemo } from "react";
+import React, {
+  ReactNode,
+  startTransition,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { DialogContainer, Flex, Icon, Icons } from "@arizeai/components";
 
+import { RolePicker } from "@phoenix/components/settings/RolePicker";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { isUserRole, normalizeUserRole } from "@phoenix/constants";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
-import { DeleteUserButton } from "./DeleteUserButton";
+import { UserActionMenu } from "./UserActionMenu";
+import { UserRoleChangeDialog } from "./UserRoleChangeDialog";
+
+const USER_TABLE_ROW_HEIGHT = 55;
+
+/**
+ * Rows may render different content depending on the user so we normalize the height
+ */
+const userTableRowCSS = css`
+  height: ${USER_TABLE_ROW_HEIGHT}px;
+`;
 
 const isDefaultAdminUser = (user: {
   email: string;
@@ -23,6 +43,7 @@ const isDefaultAdminUser = (user: {
 }) => user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const [data, refetch] = useRefetchableFragment<
     UsersTableQuery,
     UsersTable_users$key
@@ -37,6 +58,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               email
               username
               createdAt
+              authMethod
               role {
                 name
               }
@@ -54,13 +76,20 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       email: user.email,
       username: user.username,
       createdAt: user.createdAt,
-      roleName: user.role.name.toLocaleLowerCase(),
+      role: user.role.name,
+      authMethod: user.authMethod,
     }));
   }, [data]);
 
+  const refetchTableData = useCallback(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "network-only" });
+    });
+  }, [refetch]);
+
   type TableRow = (typeof tableData)[number];
-  const table = useReactTable<TableRow>({
-    columns: [
+  const columns = useMemo((): ColumnDef<TableRow>[] => {
+    return [
       {
         header: "email",
         accessorKey: "email",
@@ -71,7 +100,35 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       },
       {
         header: "role",
-        accessorKey: "roleName",
+        accessorKey: "role",
+        cell: ({ row }) => {
+          if (isDefaultAdminUser(row.original)) {
+            return normalizeUserRole(row.original.role);
+          }
+          return (
+            <RolePicker
+              includeLabel={false}
+              onChange={(key) => {
+                if (key === row.original.role) {
+                  return;
+                }
+                setDialog(
+                  <UserRoleChangeDialog
+                    onClose={() => setDialog(null)}
+                    onRoleChanged={refetchTableData}
+                    currentRole={row.original.role}
+                    newRole={key}
+                    email={row.original.email}
+                    userId={row.original.id}
+                  />
+                );
+              }}
+              role={
+                isUserRole(row.original.role) ? row.original.role : undefined
+              }
+            />
+          );
+        },
       },
       {
         header: "created at",
@@ -88,13 +145,10 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           }
           return (
             <Flex direction="row" justifyContent="end" width="100%">
-              <DeleteUserButton
+              <UserActionMenu
                 userId={row.original.id}
-                onDeleted={() => {
-                  startTransition(() => {
-                    refetch({}, { fetchPolicy: "network-only" });
-                  });
-                }}
+                onUserDeleted={refetchTableData}
+                authMethod={row.original.authMethod}
               />
             </Flex>
           );
@@ -103,7 +157,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           textAlign: "right",
         },
       },
-    ],
+    ];
+  }, [refetchTableData]);
+
+  const table = useReactTable<TableRow>({
+    columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -159,7 +217,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr key={row.id} css={userTableRowCSS}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
@@ -175,6 +233,13 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
           })}
         </tbody>
       )}
+      <DialogContainer
+        onDismiss={() => setDialog(null)}
+        isDismissable
+        type="modal"
+      >
+        {dialog}
+      </DialogContainer>
     </table>
   );
 }
