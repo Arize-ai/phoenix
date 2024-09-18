@@ -31,7 +31,6 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    overload,
 )
 from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
@@ -221,14 +220,18 @@ class _User:
     def export_embeddings(self, filename: str) -> None:
         _export_embeddings(self, filename=filename)
 
-    @overload
-    def initiate_password_reset(self) -> None: ...
-    @overload
-    def initiate_password_reset(self, smtpd: smtpdfix.AuthController) -> _PasswordResetToken: ...
     def initiate_password_reset(
-        self, smtpd: Optional[smtpdfix.AuthController] = None
+        self,
+        smtpd: smtpdfix.AuthController,
+        /,
+        *,
+        should_receive_email: bool = True,
     ) -> Optional[_PasswordResetToken]:
-        return _initiate_password_reset(self.email, smtpd=smtpd)
+        return _initiate_password_reset(
+            self.email,
+            smtpd,
+            should_receive_email=should_receive_email,
+        )
 
 
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
@@ -886,8 +889,10 @@ def _log_out(
 
 def _initiate_password_reset(
     email: _Email,
-    /,
     smtpd: Optional[smtpdfix.AuthController] = None,
+    /,
+    *,
+    should_receive_email: bool = True,
 ) -> Optional[_PasswordResetToken]:
     old_msg_count = len(smtpd.messages) if smtpd is not None else 0
     json_ = dict(email=email)
@@ -896,7 +901,9 @@ def _initiate_password_reset(
     if smtpd is None:
         return None
     new_msg_count = len(smtpd.messages) - old_msg_count
-    assert new_msg_count == 1
+    assert new_msg_count == int(should_receive_email)
+    if not should_receive_email:
+        return None
     msg = smtpd.messages[-1]
     assert msg["to"] == email
     assert msg["from"] == get_env_smtp_mail_from()

@@ -131,9 +131,10 @@ class TestPasswordReset:
     def test_initiate_password_reset_does_not_reveal_whether_user_exists(
         self,
         _emails: Iterator[_Email],
+        _smtpd: smtpdfix.AuthController,
     ) -> None:
         email = next(_emails)
-        _initiate_password_reset(email)
+        assert not _initiate_password_reset(email, _smtpd, should_receive_email=False)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_initiate_password_reset_does_not_change_existing_password(
@@ -169,7 +170,8 @@ class TestPasswordReset:
         u = _get_user(role_or_user)
         new_password = next(_passwords)
         assert new_password != u.password
-        u.initiate_password_reset(_smtpd).reset(new_password)
+        assert (token := u.initiate_password_reset(_smtpd))
+        token.reset(new_password)
         assert u.initiate_password_reset(_smtpd)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -185,7 +187,7 @@ class TestPasswordReset:
         assert new_password != u.password
         newer_password = next(_passwords)
         assert newer_password != new_password
-        token = u.initiate_password_reset(_smtpd)
+        assert (token := u.initiate_password_reset(_smtpd))
         token.reset(new_password)
         with _EXPECTATION_401:
             token.reset(newer_password)
@@ -201,7 +203,7 @@ class TestPasswordReset:
         u = _get_user(role_or_user)
         logged_in_user = u.log_in()
         logged_in_user.create_api_key()
-        token = u.initiate_password_reset(_smtpd)
+        assert (token := u.initiate_password_reset(_smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
         token.reset(new_password)
@@ -226,8 +228,7 @@ class TestPasswordReset:
         logged_in_user = u.log_in()
         logged_in_user.create_api_key()
         _DEFAULT_ADMIN.delete_users(u)
-        u.initiate_password_reset()
-        assert len(_smtpd.messages) == 0
+        assert not u.initiate_password_reset(_smtpd, should_receive_email=False)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_deleted_user_cannot_reset_password_using_token_from_email(
@@ -240,7 +241,7 @@ class TestPasswordReset:
         u = _get_user(role_or_user)
         logged_in_user = u.log_in()
         logged_in_user.create_api_key()
-        token = u.initiate_password_reset(_smtpd)
+        assert (token := u.initiate_password_reset(_smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
         _DEFAULT_ADMIN.delete_users(u)

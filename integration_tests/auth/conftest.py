@@ -55,7 +55,7 @@ def _app(
         yield
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def _smtpd(
     _app: Any,
     tmp_path_factory: pytest.TempPathFactory,
