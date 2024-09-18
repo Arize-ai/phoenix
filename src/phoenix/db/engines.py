@@ -24,44 +24,6 @@ from phoenix.settings import Settings
 sqlean.extensions.enable("text", "stats")
 
 
-def print_loggers(key: str, st: int) -> None:
-    if st < 3:
-        return
-    print(" ")
-    print(key)
-    l = logging.getLogger()
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.inferences")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server.app")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server.main")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.inferences.inferences")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("sqlalchemy")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("sqlalchemy.engine")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("sqlalchemy.engine.Engine")
-    print(l)
-    print(l.handlers)
-    sleep(st)
-
-
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
@@ -110,15 +72,11 @@ def create_engine(
     Factory to create a SQLAlchemy engine from a URL string.
     """
     print(f"{echo=}")
-    print_loggers("IN CREATE ENGINE A", 1)
     url = make_url(connection_str)
-    print_loggers("IN CREATE ENGINE C", 1)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
     backend = SupportedSQLDialect(url.get_backend_name())
-    print_loggers("IN CREATE ENGINE D", 1)
     url = get_async_db_url(url.render_as_string(hide_password=False))
-    print_loggers("IN CREATE ENGINE E", 1)
     # If Phoenix is run as an application, we want to pass echo=False and let
     # the configured sqlalchemy logger handle the migration logs
     print(f"{Settings.logging_mode=}")
@@ -129,15 +87,12 @@ def create_engine(
     migration_echo = Settings.log_migrations and Settings.logging_mode != LoggingMode.AS_APPLICATION
     print(f"{migration_echo=}")
     if backend is SupportedSQLDialect.SQLITE:
-        print_loggers("IN CREATE ENGINE F1", 1)
         return aio_sqlite_engine(url=url, migrate=migrate, echo=echo, migration_echo=migration_echo)
     elif backend is SupportedSQLDialect.POSTGRESQL:
-        print_loggers("IN CREATE ENGINE F2", 1)
         return aio_postgresql_engine(
             url=url, migrate=migrate, echo=echo, migration_echo=migration_echo
         )
     else:
-        print_loggers("IN CREATE ENGINE F3", 1)
         assert_never(backend)
 
 
@@ -148,15 +103,12 @@ def aio_sqlite_engine(
     shared_cache: bool = True,
     migration_echo: bool = True,
 ) -> AsyncEngine:
-    print_loggers("IN aio_sqlit_engine A", 1)
     database = url.database or ":memory:"
     if database.startswith("file:"):
         database = database[5:]
     if database.startswith(":memory:") and shared_cache:
         url = url.set(query={**url.query, "cache": "shared"}, database=":memory:")
     database = url.render_as_string().partition("///")[-1]
-
-    print_loggers("IN aio_sqlit_engine B", 1)
 
     def async_creator() -> aiosqlite.Connection:
         conn = aiosqlite.Connection(
@@ -166,7 +118,6 @@ def aio_sqlite_engine(
         conn.daemon = True
         return conn
 
-    print_loggers("IN aio_sqlit_engine C", 1)
     engine = create_async_engine(
         url=url,
         echo=echo,
@@ -175,7 +126,6 @@ def aio_sqlite_engine(
         poolclass=StaticPool,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
-    print_loggers("IN aio_sqlit_engine D", 1)
     if not migrate:
         return engine
     if database.startswith(":memory:"):
@@ -186,19 +136,14 @@ def aio_sqlite_engine(
             asyncio.run(init_models(engine))
         else:
             asyncio.create_task(init_models(engine))
-        print_loggers("IN aio_sqlit_engine D1", 1)
     else:
-        print_loggers("IN aio_sqlit_engine D2-a", 3)
         sync_engine = sqlalchemy.create_engine(
             url=url.set(drivername="sqlite"),
             echo=migration_echo,
             json_serializer=_dumps,
             creator=lambda: sqlean.connect(f"file:{database}", uri=True),
         )
-        print_loggers("IN aio_sqlit_engine D2-b", 3)
         migrate_in_thread(sync_engine)
-        print_loggers("IN aio_sqlit_engine D2-c", 3)
-    print_loggers("IN aio_sqlit_engine E", 1)
     return engine
 
 

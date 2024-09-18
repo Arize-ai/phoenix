@@ -137,7 +137,6 @@ DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_
 
 
 def main():
-    print_loggers("IN MAIN A", 1)
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -302,7 +301,6 @@ def main():
             )
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
-    print_loggers("IN MAIN C", 1)
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -343,7 +341,6 @@ def main():
                 target=send_dataset_fixtures,
                 args=(f"http://{host}:{port}", dataset_fixtures),
             ).start()
-    print_loggers("IN MAIN C1", 1)
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
@@ -357,17 +354,13 @@ def main():
 
         start_prometheus()
 
-    print_loggers("IN MAIN C2", 1)
     working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
-    print_loggers("IN MAIN C3", 1)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
-    print_loggers("IN MAIN C4", 1)
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
-    print_loggers("IN MAIN D", 1)
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
@@ -389,7 +382,6 @@ def main():
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
-    print_loggers("IN MAIN E", 1)
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -487,7 +479,6 @@ def _setup_application_logging():
         queue_listener.start()
         atexit.register(queue_listener.stop)
     phoenix_logger.info("Structured logging ready")
-    print_loggers("INSIDE_SETTING", 1)
 
 
 LOG_RECORD_BUILTIN_ATTRS = {
@@ -561,34 +552,6 @@ class NonErrorFilter(logging.Filter):
     # @override
     def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
         return record.levelno <= logging.INFO
-
-
-def print_loggers(key: str, st: int) -> None:
-    return
-    print(" ")
-    print(key)
-    l = logging.getLogger()
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.inferences")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server.app")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.server.main")
-    print(l)
-    print(l.handlers)
-    l = logging.getLogger("phoenix.inferences.inferences")
-    print(l)
-    print(l.handlers)
-    sleep(st)
 
 
 def initialize_settings() -> None:
