@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from authlib.integrations.starlette_client import OAuthError
 from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Path, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -20,26 +20,17 @@ from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
 
-ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
+_LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 
-rate_limiter = ServerRateLimiter(
-    per_second_rate_limit=0.2,
-    enforcement_window_seconds=30,
-    partition_seconds=60,
-    active_partitions=2,
-)
-login_rate_limiter = fastapi_rate_limiter(rate_limiter, paths=["/login"])
-router = APIRouter(
-    prefix="/oauth2", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
-)
+
+router = APIRouter(prefix="/oauth2", include_in_schema=False)
 
 
 @router.post("/{idp_name}/login")
 async def login(
     request: Request,
-    idp_name: Annotated[str, Path(min_length=1, pattern=ALPHANUMS_AND_UNDERSCORES)],
+    idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
 ) -> RedirectResponse:
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
@@ -53,7 +44,7 @@ async def login(
 @router.get("/{idp_name}/tokens")
 async def create_tokens(
     request: Request,
-    idp_name: Annotated[str, Path(min_length=1, pattern=ALPHANUMS_AND_UNDERSCORES)],
+    idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
 ) -> RedirectResponse:
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
@@ -63,10 +54,10 @@ async def create_tokens(
     ):
         return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     try:
-        token = await oauth2_client.authorize_access_token(request)
+        token_data = await oauth2_client.authorize_access_token(request)
     except OAuthError as error:
         return _redirect_to_login(error=str(error))
-    if (user_info := _get_user_info(token)) is None:
+    if (user_info := _get_user_info(token_data)) is None:
         return _redirect_to_login(
             error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect."
         )
@@ -103,11 +94,14 @@ class UserInfo:
     profile_picture_url: Optional[str]
 
 
-def _get_user_info(token: Dict[str, Any]) -> Optional[UserInfo]:
-    assert isinstance(token.get("access_token"), str)
-    assert isinstance(token_type := token.get("token_type"), str)
+def _get_user_info(token_data: Dict[str, Any]) -> Optional[UserInfo]:
+    """
+    Parses token data and extracts user info if available.
+    """
+    assert isinstance(token_data.get("access_token"), str)
+    assert isinstance(token_type := token_data.get("token_type"), str)
     assert token_type.lower() == "bearer"
-    if (user_info := token.get("userinfo")) is None:
+    if (user_info := token_data.get("userinfo")) is None:
         return None
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
@@ -135,7 +129,7 @@ async def _ensure_user_exists_and_is_up_to_date(
     )
     if user is None:
         user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
-    elif _db_user_is_outdated(user=user, user_info=user_info):
+    elif not _user_is_up_to_date(user=user, user_info=user_info):
         user = await _update_user(session, user_id=user.id, user_info=user_info)
     return user
 
@@ -143,6 +137,10 @@ async def _ensure_user_exists_and_is_up_to_date(
 async def _get_user(
     session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str
 ) -> Optional[models.User]:
+    """
+    Retrieves the user uniquely identified by the given OAuth2 client ID and IDP
+    user ID.
+    """
     user = await session.scalar(
         select(models.User)
         .where(
@@ -156,9 +154,80 @@ async def _get_user(
     return user
 
 
+async def _create_user(
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    user_info: UserInfo,
+) -> models.User:
+    """
+    Creates a new user with the user info from the IDP.
+    """
+    await _ensure_email_and_username_are_not_in_use(
+        session,
+        email=user_info.email,
+        username=user_info.username,
+    )
+    member_role_id = (
+        select(models.UserRole.id)
+        .where(models.UserRole.name == UserRole.MEMBER.value)
+        .scalar_subquery()
+    )
+    user_id = await session.scalar(
+        insert(models.User)
+        .returning(models.User.id)
+        .values(
+            user_role_id=member_role_id,
+            oauth2_client_id=oauth2_client_id,
+            oauth2_user_id=user_info.idp_user_id,
+            username=user_info.username,
+            email=user_info.email,
+            profile_picture_url=user_info.profile_picture_url,
+        )
+    )
+    assert isinstance(user_id, int)
+    user = await session.scalar(
+        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
+    )  # query user again for joined load
+    assert isinstance(user, models.User)
+    return user
+
+
+async def _update_user(
+    session: AsyncSession, /, *, user_id: int, user_info: UserInfo
+) -> models.User:
+    """
+    Updates an existing user with user info from the IDP.
+    """
+    await _ensure_email_and_username_are_not_in_use(
+        session,
+        email=user_info.email,
+        username=user_info.username,
+    )
+    await session.execute(
+        update(models.User)
+        .where(models.User.id == user_id)
+        .values(
+            username=user_info.username,
+            email=user_info.email,
+            profile_picture_url=user_info.profile_picture_url,
+        )
+        .options(joinedload(models.User.role))
+    )
+    user = await session.scalar(
+        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
+    )  # query user again for joined load
+    assert isinstance(user, models.User)
+    return user
+
+
 async def _ensure_email_and_username_are_not_in_use(
     session: AsyncSession, /, *, email: str, username: Optional[str]
 ) -> None:
+    """
+    Raises an error if the email or username are already in use.
+    """
     [(email_exists, username_exists)] = (
         await session.execute(
             select(
@@ -183,75 +252,17 @@ async def _ensure_email_and_username_are_not_in_use(
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     if username_exists:
         raise UsernameAlreadyInUse(f'An account already exists with username "{username}".')
-    return None
 
 
-async def _create_user(
-    session: AsyncSession,
-    /,
-    *,
-    oauth2_client_id: str,
-    user_info: UserInfo,
-) -> models.User:
-    await _ensure_email_and_username_are_not_in_use(
-        session,
-        email=user_info.email,
-        username=user_info.username,
-    )
-    member_role_id = (
-        select(models.UserRole.id)
-        .where(models.UserRole.name == UserRole.MEMBER.value)
-        .scalar_subquery()
-    )
-    user_id = await session.scalar(
-        insert(models.User)
-        .returning(models.User.id)
-        .values(
-            user_role_id=member_role_id,
-            oauth2_client_id=oauth2_client_id,
-            oauth2_user_id=user_info.idp_user_id,
-            username=user_info.username,
-            email=user_info.email,
-            profile_picture_url=user_info.profile_picture_url,
-            password_hash=None,
-            password_salt=None,
-            reset_password=False,
-        )
-    )
-    assert isinstance(user_id, int)
-    user = await session.scalar(
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
-    )  # query user for joined load
-    assert isinstance(user, models.User)
-    return user
-
-
-async def _update_user(
-    session: AsyncSession, /, *, user_id: int, user_info: UserInfo
-) -> models.User:
-    await session.execute(
-        update(models.User)
-        .where(models.User.id == user_id)
-        .values(
-            username=user_info.username,
-            email=user_info.email,
-            profile_picture_url=user_info.profile_picture_url,
-        )
-        .options(joinedload(models.User.role))
-    )
-    assert isinstance(user_id, int)
-    user = await session.scalar(
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
-    )  # query user for joined load
-    assert isinstance(user, models.User)
-    return user
-
-
-def _db_user_is_outdated(*, user: models.User, user_info: UserInfo) -> bool:
+def _user_is_up_to_date(*, user: models.User, user_info: UserInfo) -> bool:
+    """
+    Determines whether the user's tuple in the database is up-to-date with the
+    IDP's user info.
+    """
     return (
-        user.email != user_info.email
-        or user.username != user_info.username
-        or user.profile_picture_url != user_info.profile_picture_url
+        user.email == user_info.email
+        and user.username == user_info.username
+        and user.profile_picture_url == user_info.profile_picture_url
     )
 
 

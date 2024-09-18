@@ -12,10 +12,6 @@ class UserRole(Enum):
     MEMBER = "MEMBER"
 
 
-class IdentityProviderName(Enum):
-    LOCAL = "local"
-
-
 COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], Type[Enum]] = {
     models.UserRole.name: UserRole,
 }

@@ -6,7 +6,7 @@ import { Flex, View } from "@arizeai/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { LoginForm } from "./LoginForm";
-import { OAuth2Login } from "./Oauth2Login";
+import { OAuth2Login } from "./OAuth2Login";
 import { PhoenixLogo } from "./PhoenixLogo";
 
 const separatorCSS = css`

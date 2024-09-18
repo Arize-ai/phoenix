@@ -10,12 +10,8 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
-from typing_extensions import TypeAlias
 
 from phoenix.utilities.re import parse_env_headers
-
-EnvVarName: TypeAlias = str
-EnvVarValue: TypeAlias = str
 
 logger = getLogger(__name__)
 
@@ -211,7 +207,7 @@ def get_env_refresh_token_expiry() -> timedelta:
 @dataclass(frozen=True)
 class OAuth2ClientConfig:
     idp_name: str
-    display_name: str
+    idp_display_name: str
     client_id: str
     client_secret: str
     server_metadata_url: str
@@ -257,7 +253,7 @@ class OAuth2ClientConfig:
             )
         return cls(
             idp_name=idp_name,
-            display_name=os.getenv(
+            idp_display_name=os.getenv(
                 f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
                 _get_default_idp_display_name(idp_name),
             ),
@@ -473,6 +469,9 @@ class OAuth2Idp(Enum):
 
 
 def _get_default_idp_display_name(idp_name: str) -> str:
+    """
+    Get the default display name for an OAuth2 IDP.
+    """
     if idp_name == OAuth2Idp.AWS_COGNITO.value:
         return "AWS Cognito"
     if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
@@ -481,6 +480,9 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 
 def _get_default_server_metadata_url(idp_name: str) -> Optional[str]:
+    """
+    Gets the default server metadata URL for an OAuth2 IDP.
+    """
     if idp_name == OAuth2Idp.GOOGLE.value:
         return "https://accounts.google.com/.well-known/openid-configuration"
     return None
