@@ -70,26 +70,40 @@ export function LoginForm() {
             />
           )}
         />
-        <Controller
-          name="password"
-          control={control}
-          render={({ field: { onChange, value } }) => (
-            <TextField
-              label="Password"
-              name="password"
-              type="password"
-              isRequired
-              onChange={onChange}
-              value={value}
-              placeholder="your password"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSubmit(onSubmit)();
-                }
-              }}
-            />
-          )}
-        />
+        <div
+          css={css`
+            position: relative;
+            a {
+              position: absolute;
+              float: right;
+              right: 0;
+              top: var(--ac-global-dimension-size-50);
+              font-size: 12px;
+            }
+          `}
+        >
+          <Controller
+            name="password"
+            control={control}
+            render={({ field: { onChange, value } }) => (
+              <TextField
+                label="Password"
+                name="password"
+                type="password"
+                isRequired
+                onChange={onChange}
+                value={value}
+                placeholder="your password"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSubmit(onSubmit)();
+                  }
+                }}
+              />
+            )}
+          />
+          <Link to="/forgot-password">Forgot your password?</Link>
+        </div>
         <div
           css={css`
             margin-top: var(--ac-global-dimension-size-400);
@@ -106,7 +120,6 @@ export function LoginForm() {
           >
             Login
           </Button>
-          <Link to={"/forgot-password"}>Forgot password?</Link>
         </div>
       </Form>
     </>

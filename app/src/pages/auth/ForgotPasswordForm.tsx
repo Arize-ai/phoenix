@@ -8,6 +8,8 @@ type ForgotPasswordFormParams = {
   email: string;
 };
 
+const DEFAULT_ERROR_MESSAGE =
+  "Failed to send password reset email. Please contact your administrator.";
 export function ForgotPasswordForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,11 +28,11 @@ export function ForgotPasswordForm() {
           body: JSON.stringify(params),
         });
         if (!response.ok) {
-          setError("Failed attempt");
+          setError(DEFAULT_ERROR_MESSAGE);
           return;
         }
       } catch (error) {
-        setError("Failed attempt");
+        setError(DEFAULT_ERROR_MESSAGE);
         return;
       } finally {
         setIsLoading(() => false);
