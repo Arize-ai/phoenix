@@ -137,9 +137,10 @@ async def create_access_and_refresh_tokens(
     refresh_token_expiry: timedelta,
 ) -> Tuple[AccessToken, RefreshToken]:
     issued_at = datetime.now(timezone.utc)
+    user_id = UserId(user.id)
     user_role = UserRole(user.role.name)
     refresh_token_claims = RefreshTokenClaims(
-        subject=UserId(user.id),
+        subject=user_id,
         issued_at=issued_at,
         expiration_time=issued_at + refresh_token_expiry,
         attributes=RefreshTokenAttributes(
@@ -148,7 +149,7 @@ async def create_access_and_refresh_tokens(
     )
     refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
     access_token_claims = AccessTokenClaims(
-        subject=UserId(user.id),
+        subject=user_id,
         issued_at=issued_at,
         expiration_time=issued_at + access_token_expiry,
         attributes=AccessTokenAttributes(

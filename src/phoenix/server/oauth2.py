@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, Generic, List, Optional, Tuple
+from typing import Any, Dict, Generic, Iterable, Optional, Tuple
 
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
@@ -28,11 +28,11 @@ class OAuth2Clients:
 
     def get_client(self, idp_name: str) -> OAuth2Client:
         if (client := self._clients.get(idp_name)) is None:
-            raise ValueError(f"unknown or unregistered oauth client: {idp_name}")
+            raise ValueError(f"unknown or unregistered OAuth2 client: {idp_name}")
         return client
 
     @classmethod
-    def from_configs(cls, configs: List[OAuth2ClientConfig]) -> "OAuth2Clients":
+    def from_configs(cls, configs: Iterable[OAuth2ClientConfig]) -> "OAuth2Clients":
         oauth2_clients = cls()
         for config in configs:
             oauth2_clients.add_client(config)
@@ -51,7 +51,7 @@ class _OAuth2ClientTTLCache(Generic[_CacheKey, _CacheValue]):
     integration. Provides an alternative to starlette session middleware.
     """
 
-    def __init__(self, cleanup_interval: timedelta = 10 * _MINUTE) -> None:
+    def __init__(self, cleanup_interval: timedelta = 1 * _MINUTE) -> None:
         self._data: Dict[_CacheKey, Tuple[_CacheValue, _Expiry]] = {}
         self._last_cleanup_time = datetime.now()
         self._cleanup_interval = cleanup_interval
@@ -61,6 +61,7 @@ class _OAuth2ClientTTLCache(Generic[_CacheKey, _CacheValue]):
         Retrieves the value associated with the given key if it exists and has
         not expired, otherwise, returns None.
         """
+        self._remove_expired_keys_if_cleanup_interval_exceeded()
         if (value_and_expiry := self._data.get(key)) is None:
             return None
         value, expiry = value_and_expiry

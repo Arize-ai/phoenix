@@ -745,7 +745,7 @@ def create_app(
     web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
     if serve_ui and web_manifest_path.is_file():
         oauth2_idps = [
-            OAuth2Idp(name=config.idp_name, displayName=config.display_name)
+            OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)
             for config in oauth2_client_configs or []
         ]
         app.mount(
