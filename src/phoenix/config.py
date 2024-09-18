@@ -11,6 +11,7 @@ from phoenix.utilities.logging import log_a_list
 from .utilities.re import parse_env_headers
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"

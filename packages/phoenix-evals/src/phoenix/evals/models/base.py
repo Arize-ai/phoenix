@@ -16,6 +16,7 @@ def is_list_of(lst: Sequence[object], tp: T) -> bool:
 
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 TQDM_BAR_FORMAT = (
     "Eta:{eta} |{bar}| {percentage:3.1f}% "

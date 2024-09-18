@@ -15,6 +15,7 @@ from phoenix.evals.templates import (
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def _no_op_parser(response: str, response_index: int) -> Dict[str, str]:

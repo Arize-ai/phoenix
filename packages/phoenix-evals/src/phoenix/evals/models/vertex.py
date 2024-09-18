@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from google.auth.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 # https://cloud.google.com/vertex-ai/docs/generative-ai/learn/models

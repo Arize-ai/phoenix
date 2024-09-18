@@ -41,6 +41,7 @@ from phoenix.evals.utils import (
 )
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 ColumnName: TypeAlias = str

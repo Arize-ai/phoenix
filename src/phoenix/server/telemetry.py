@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import TYPE_CHECKING
 
@@ -8,9 +9,9 @@ from phoenix.config import (
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
-from logging import getLogger
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def normalize_http_collector_endpoint(endpoint: str) -> str:

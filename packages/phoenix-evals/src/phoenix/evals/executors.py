@@ -25,6 +25,7 @@ from tqdm.auto import tqdm
 from phoenix.evals.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class Unset:
