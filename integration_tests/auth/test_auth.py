@@ -10,14 +10,13 @@ from typing import (
     Iterator,
     Literal,
     Optional,
+    Sequence,
     Set,
-    Tuple,
     TypeVar,
 )
 
 import jwt
 import pytest
-from faker import Faker
 from httpx import HTTPStatusError
 from opentelemetry.sdk.environment_variables import (
     OTEL_EXPORTER_OTLP_HEADERS,
@@ -25,7 +24,6 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
@@ -49,7 +47,9 @@ from .._helpers import (
     _export_embeddings,
     _GetUser,
     _GqlId,
+    _grpc_span_exporter,
     _Headers,
+    _http_span_exporter,
     _log_in,
     _LoggedInUser,
     _Password,
@@ -59,7 +59,6 @@ from .._helpers import (
     _RefreshToken,
     _RoleOrUser,
     _SpanExporterFactory,
-    _start_span,
     _Username,
 )
 
@@ -552,6 +551,36 @@ class TestDeleteUsers:
             logged_in_user.delete_users(phantom, user)
         user.log_in()
 
+    @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
+    @pytest.mark.parametrize("role", list(UserRoleInput))
+    def test_user_deletion_deletes_all_tokens(
+        self,
+        role_or_user: _RoleOrUser,
+        role: UserRoleInput,
+        _get_user: _GetUser,
+        _spans: Sequence[ReadableSpan],
+    ) -> None:
+        u = _get_user(role_or_user)
+        doer = u.log_in()
+        user = _get_user(role)
+        logged_in_user = user.log_in()
+        tokens = logged_in_user.tokens
+        user_api_key = logged_in_user.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporters = [
+            _http_span_exporter(headers=headers),
+            _grpc_span_exporter(headers=headers),
+        ]
+        for exporter in exporters:
+            assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        doer.delete_users(user)
+        for exporter in exporters:
+            assert exporter.export(_spans) is SpanExportResult.FAILURE
+        with _EXPECTATION_401:
+            logged_in_user.create_api_key()
+        with _EXPECTATION_401:
+            tokens.refresh()
+
 
 class TestCreateApiKey:
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN, _DEFAULT_ADMIN])
@@ -706,13 +735,6 @@ class TestGraphQLQuery:
 
 
 class TestSpanExporters:
-    @pytest.fixture
-    def _spans(self, _fake: Faker) -> Tuple[ReadableSpan, ...]:
-        memory = InMemorySpanExporter()
-        project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
-        _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
-        return memory.get_finished_spans()
-
     @pytest.mark.parametrize(
         "use_api_key,expires_at,expected",
         [
@@ -730,7 +752,7 @@ class TestSpanExporters:
         expires_at: Optional[datetime],
         expected: SpanExportResult,
         _span_exporter: _SpanExporterFactory,
-        _spans: Tuple[ReadableSpan, ...],
+        _spans: Sequence[ReadableSpan],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.delenv(OTEL_EXPORTER_OTLP_HEADERS, False)
