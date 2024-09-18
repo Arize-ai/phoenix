@@ -1,11 +1,17 @@
 import atexit
 import codecs
+import datetime as dt
+import json
 import logging
+import logging.config
+import logging.handlers
 import os
+import queue
 import sys
 from argparse import ArgumentParser
 from importlib.metadata import version
 from pathlib import Path
+from sys import stderr, stdout
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
@@ -15,8 +21,11 @@ from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
+
+# from typing import override
 from phoenix.config import (
     EXPORT_DIR,
+    LoggingMode,
     get_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
@@ -24,6 +33,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
+    get_env_logging_mode,
     get_env_port,
     get_pids_path,
     get_working_dir,
@@ -138,7 +148,7 @@ DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_
 
 
 def main():
-    print("CHECK 0")
+    print_loggers("IN MAIN A", 1)
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -150,7 +160,6 @@ def main():
 
     # Initialize the settings for the Server
     Settings.log_migrations = True
-    print("CHECK A")
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
@@ -308,6 +317,7 @@ def main():
             )
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
+    print_loggers("IN MAIN C", 1)
     host: Optional[str] = args.host or get_env_host()
     display_host = host or "localhost"
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
@@ -348,6 +358,7 @@ def main():
                 target=send_dataset_fixtures,
                 args=(f"http://{host}:{port}", dataset_fixtures),
             ).start()
+    print_loggers("IN MAIN C1", 1)
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
@@ -361,13 +372,17 @@ def main():
 
         start_prometheus()
 
+    print_loggers("IN MAIN C2", 1)
     working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
+    print_loggers("IN MAIN C3", 1)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    print_loggers("IN MAIN C4", 1)
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
+    print_loggers("IN MAIN D", 1)
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
@@ -389,6 +404,7 @@ def main():
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    print_loggers("IN MAIN E", 1)
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -415,5 +431,176 @@ def main():
     server.run()
 
 
+def setup_logging():
+    """
+    Configures logging for the specified logging mode.
+    """
+    logging_mode = get_env_logging_mode()
+    logging_mode = LoggingMode.STRUCTURED
+    if logging_mode is LoggingMode.DEFAULT:
+        _setup_default_logging()
+    elif logging_mode is LoggingMode.STRUCTURED:
+        _setup_structured_logging()
+    else:
+        raise ValueError(f"Unsupported logging mode: {logging_mode}")
+
+
+def _setup_default_logging():
+    """
+    Configures default logging.
+    """
+    root_logger = logging.getLogger("phoenix")
+    root_logger.setLevel(logging.INFO)
+    root_logger.info("Default logging ready")
+
+
+def _setup_structured_logging():
+    """
+    Configures structured logging.
+    """
+    # root_logger = logging.getLogger()
+    # root_logger.setLevel(logging.INFO)
+    # # Remove all existing handlers
+    # for handler in root_logger.handlers[:]:
+    #     root_logger.removeHandler(handler)
+    #     handler.close()
+    # print("A", root_logger.handlers)
+    root_logger = logging.getLogger("phoenix")
+    root_logger.setLevel(logging.INFO)
+
+    fmt_keys = {
+        "level": "levelname",
+        "message": "message",
+        "timestamp": "timestamp",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "line": "lineno",
+        "thread_name": "threadName",
+    }
+    formatter = MyJSONFormatter(fmt_keys=fmt_keys)
+
+    stdout_handler = logging.StreamHandler(stdout)
+    # print("B", root_logger.handlers)
+    stdout_handler.setFormatter(formatter)
+    # print("C", root_logger.handlers)
+
+    log_queue = queue.Queue()
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    root_logger.addHandler(queue_handler)
+    # print("D", root_logger.handlers)
+
+    queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler)
+    if queue_listener is not None:
+        queue_listener.start()
+        # atexit.register(queue_listener.stop)
+    root_logger.info("Structured logging ready")
+    print_loggers("INSIDE_SETTING", 1)
+
+
+LOG_RECORD_BUILTIN_ATTRS = {
+    "args",
+    "asctime",
+    "created",
+    "exc_info",
+    "exc_text",
+    "filename",
+    "funcName",
+    "levelname",
+    "levelno",
+    "lineno",
+    "module",
+    "msecs",
+    "message",
+    "msg",
+    "name",
+    "pathname",
+    "process",
+    "processName",
+    "relativeCreated",
+    "stack_info",
+    "thread",
+    "threadName",
+    "taskName",
+}
+
+
+class MyJSONFormatter(logging.Formatter):
+    def __init__(
+        self,
+        *,
+        fmt_keys: dict[str, str] | None = None,
+    ):
+        super().__init__()
+        self.fmt_keys = fmt_keys if fmt_keys is not None else {}
+
+    # @override
+    def format(self, record: logging.LogRecord) -> str:
+        message = self._prepare_log_dict(record)
+        return json.dumps(message, default=str)
+
+    def _prepare_log_dict(self, record: logging.LogRecord):
+        always_fields = {
+            "message": record.getMessage(),
+            "timestamp": dt.datetime.fromtimestamp(record.created, tz=dt.timezone.utc).isoformat(),
+        }
+        if record.exc_info is not None:
+            always_fields["exc_info"] = self.formatException(record.exc_info)
+
+        if record.stack_info is not None:
+            always_fields["stack_info"] = self.formatStack(record.stack_info)
+
+        message = {
+            key: msg_val
+            if (msg_val := always_fields.pop(val, None)) is not None
+            else getattr(record, val)
+            for key, val in self.fmt_keys.items()
+        }
+        message.update(always_fields)
+
+        for key, val in record.__dict__.items():
+            if key not in LOG_RECORD_BUILTIN_ATTRS:
+                message[key] = val
+
+        return message
+
+
+class NonErrorFilter(logging.Filter):
+    # @override
+    def filter(self, record: logging.LogRecord) -> bool | logging.LogRecord:
+        return record.levelno <= logging.INFO
+
+
+def print_loggers(key: str, st: int) -> None:
+    return
+    print(" ")
+    print(key)
+    l = logging.getLogger()
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix.server")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix.inferences")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix.server.app")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix.server.main")
+    print(l)
+    print(l.handlers)
+    l = logging.getLogger("phoenix.inferences.inferences")
+    print(l)
+    print(l.handlers)
+    sleep(st)
+
+
 if __name__ == "__main__":
+    print_loggers("BEFORE", 1)
+    setup_logging()
+    print_loggers("AFTER", 1)
     main()
