@@ -378,17 +378,16 @@ if __name__ == "__main__":
     )
     email_sender = None
     if mail_sever := get_env_smtp_hostname():
-        assert (mail_username := get_env_smtp_username()) is not None, "SMTP username is required"
-        assert (mail_password := get_env_smtp_password()) is not None, "SMTP password is required"
-        assert (mail_port := get_env_smtp_port()) is not None, "SMTP port is required"
-        assert (mail_from := get_env_smtp_mail_from()) is not None, "SMTP mail_from is required"
+        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
         email_sender = FastMailSender(
             ConnectionConfig(
                 MAIL_USERNAME=mail_username,
                 MAIL_PASSWORD=mail_password,
                 MAIL_FROM=mail_from,
                 MAIL_SERVER=mail_sever,
-                MAIL_PORT=mail_port,
+                MAIL_PORT=get_env_smtp_port(),
                 VALIDATE_CERTS=get_env_smtp_validate_certs(),
                 USE_CREDENTIALS=True,
                 MAIL_STARTTLS=True,
