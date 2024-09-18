@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5baead45bba9527405fa14e5e6df2d6f>>
+ * @generated SignedSource<<f20d50865a6c9bb771863424806a477e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,13 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type AuthMethod = "LOCAL";
 import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {
   readonly users: {
     readonly edges: ReadonlyArray<{
       readonly user: {
+        readonly authMethod: AuthMethod;
         readonly createdAt: string;
         readonly email: string;
         readonly id: string;
@@ -100,6 +102,13 @@ const node: ReaderFragment = {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "authMethod",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "UserRole",
                   "kind": "LinkedField",
                   "name": "role",
@@ -129,6 +138,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "8ee32a96431dda537d1322a7623a8107";
+(node as any).hash = "708ed551407313a5657fd95d5ba5ac9f";
 
 export default node;

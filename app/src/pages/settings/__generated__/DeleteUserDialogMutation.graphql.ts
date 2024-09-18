@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f00e8a917dff0a8df7c51f36bc2f92f>>
+ * @generated SignedSource<<5fa2c9e899d0fc2d6e37f1f7a047e870>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,15 +12,15 @@ import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type DeleteUsersInput = {
   userIds: ReadonlyArray<string>;
 };
-export type DeleteUserButtonMutation$variables = {
+export type DeleteUserDialogMutation$variables = {
   input: DeleteUsersInput;
 };
-export type DeleteUserButtonMutation$data = {
+export type DeleteUserDialogMutation$data = {
   readonly deleteUsers: any | null;
 };
-export type DeleteUserButtonMutation = {
-  response: DeleteUserButtonMutation$data;
-  variables: DeleteUserButtonMutation$variables;
+export type DeleteUserDialogMutation = {
+  response: DeleteUserDialogMutation$data;
+  variables: DeleteUserDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -51,7 +51,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DeleteUserButtonMutation",
+    "name": "DeleteUserDialogMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -60,20 +60,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "DeleteUserButtonMutation",
+    "name": "DeleteUserDialogMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "9c580e6fdf5c72a5b9bc1a11aa523b87",
+    "cacheID": "00d3d0f3855e92e529bc446d0f426123",
     "id": null,
     "metadata": {},
-    "name": "DeleteUserButtonMutation",
+    "name": "DeleteUserDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteUserButtonMutation(\n  $input: DeleteUsersInput!\n) {\n  deleteUsers(input: $input)\n}\n"
+    "text": "mutation DeleteUserDialogMutation(\n  $input: DeleteUsersInput!\n) {\n  deleteUsers(input: $input)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d9741f45b81bebe929c19f0378c17a0";
+(node as any).hash = "a718ceab0ec0a7d461f6cd5e5b178a1f";
 
 export default node;

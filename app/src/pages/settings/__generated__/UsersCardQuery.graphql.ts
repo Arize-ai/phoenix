@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb1d77197ecb892027e7df9a8167f18b>>
+ * @generated SignedSource<<37ee21921a5dc5c7fe1f088ac6555fb2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -96,6 +96,13 @@ const node: ConcreteRequest = {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "authMethod",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "UserRole",
                     "kind": "LinkedField",
                     "name": "role",
@@ -123,12 +130,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "3f0bf033ced909f3b3bd00f99d0903fe",
+    "cacheID": "514b97e778d3d23110eb3e361e3fddef",
     "id": null,
     "metadata": {},
     "name": "UsersCardQuery",
     "operationKind": "query",
-    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 
