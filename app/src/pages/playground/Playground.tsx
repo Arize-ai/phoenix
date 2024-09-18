@@ -5,13 +5,10 @@ import { css } from "@emotion/react";
 import { Button, Flex, Heading, View } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import {
-  PlaygroundContext,
-  PlaygroundProvider,
-} from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundModeRadioGroup } from "./PlaygroundModeRadioGroup";
+import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { PlaygroundTools } from "./PlaygroundTools";
@@ -36,7 +33,7 @@ export function Playground() {
           <View>
             <Flex direction="row" gap="size-200" alignItems="center">
               <Heading level={1}>Playground</Heading>
-              <PlaygroundModeRadioGroup />
+              <PlaygroundOperationTypeRadioGroup />
             </Flex>
           </View>
           <Button variant="default">API Keys</Button>

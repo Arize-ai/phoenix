@@ -5,10 +5,10 @@ import { Card } from "@arizeai/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export function PlaygroundTemplate() {
-  const invocationMode = usePlaygroundContext((state) => state.invocationMode);
+  const operationType = usePlaygroundContext((state) => state.operationType);
   return (
     <Card title="Template" collapsible variant="compact">
-      {invocationMode === "chat" ? (
+      {operationType === "chat" ? (
         <div>Chat Template goes here</div>
       ) : (
         <div>Completion Template goes here</div>

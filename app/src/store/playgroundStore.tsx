@@ -1,30 +1,31 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
-export type InvocationMode = "chat" | "completion";
+export type GenAIOperationType = "chat" | "text_completion";
 export interface PlaygroundProps {
   /**
-   * How the LLM API should be invoked. Distinguishes between chat and completion.
+   * How the LLM API should be invoked. Distinguishes between chat and text_completion.
+   * @see https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/
    * @default "chat"
    */
-  invocationMode: InvocationMode;
+  operationType: GenAIOperationType;
 }
 
 export interface PlaygroundState extends PlaygroundProps {
   /**
    * Setter for the invocation mode
-   * @param invocationMode
+   * @param operationType
    */
-  setInvocationMode: (invocationMode: InvocationMode) => void;
+  setOperationType: (operationType: GenAIOperationType) => void;
 }
 
 export const createPlaygroundStore = (
   initialProps?: Partial<PlaygroundProps>
 ) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set) => ({
-    invocationMode: "chat",
-    setInvocationMode: (invocationMode: InvocationMode) =>
-      set({ invocationMode }),
+    operationType: "chat",
+    setOperationType: (operationType: GenAIOperationType) =>
+      set({ operationType }),
     ...initialProps,
   });
   return create(devtools(playgroundStore));
