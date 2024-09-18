@@ -364,7 +364,8 @@ def get_env_logging_mode() -> LoggingMode:
         return LoggingMode(logging_mode_lower)
     raise ValueError(
         f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
-        f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} (case-insensitive)."
+        f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+        "(case-insensitive)."
     )
 
 

@@ -32,7 +32,6 @@ from phoenix.config import (
     get_env_logging_mode,
     get_env_port,
     get_pids_path,
-    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
@@ -134,7 +133,6 @@ def main():
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
-    simulate_streaming: Optional[bool] = None
 
     primary_inferences: Inferences = EMPTY_INFERENCES
     reference_inferences: Optional[Inferences] = None
@@ -266,7 +264,6 @@ def main():
             reference_inferences = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "demo":
         fixture_name = args.fixture
         primary_inferences, reference_inferences, corpus_inferences = get_inferences(
@@ -274,7 +271,6 @@ def main():
             args.no_internet,
         )
         trace_dataset_name = args.trace_fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
         if args.with_fixture:
@@ -296,12 +292,6 @@ def main():
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
-    display_host = host or "localhost"
-    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
-    # does not support this directly unless the host is set to None.
-    if host and ":" in host:
-        # format IPv6 hosts in brackets
-        display_host = f"[{host}]"
     if host == "::":
         # TODO(dustin): why is this necessary? it's not type compliant
         host = None
@@ -347,7 +337,6 @@ def main():
 
         start_prometheus()
 
-    working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)

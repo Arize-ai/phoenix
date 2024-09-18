@@ -6,7 +6,7 @@ import queue
 from sys import stderr, stdout
 
 # from typing import override
-from phoenix.config import LoggingMode, get_env_logging_mode
+from phoenix.config import LoggingMode
 from phoenix.logging._filter import NonErrorFilter
 from phoenix.settings import Settings
 
