@@ -308,7 +308,7 @@ def _get_return_url(*, secret: str, state: str) -> Optional[str]:
     Parses the return URL from the OAuth2 state.
     """
     try:
-        payload = jwt.decode(state, secret)
+        payload = jwt.decode(s=state, key=secret)
         return_url = payload.get(_RETURN_URL)
         assert isinstance(return_url, str) or return_url is None
         return return_url
