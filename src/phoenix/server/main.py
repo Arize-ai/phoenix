@@ -129,7 +129,7 @@ def _get_pid_file() -> Path:
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 
-def main():
+def main() -> None:
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None

@@ -13,7 +13,7 @@ from phoenix.settings import Settings
 from ._formatter import PhoenixJSONFormatter
 
 
-def setup_logging():
+def setup_logging() -> None:
     """
     Configures logging for the specified logging mode.
     """
@@ -26,7 +26,7 @@ def setup_logging():
         raise ValueError(f"Unsupported logging mode: {logging_mode}")
 
 
-def _setup_library_logging():
+def _setup_library_logging() -> None:
     """
     Configures logging if Phoenix is used as a library
     """
@@ -37,7 +37,7 @@ def _setup_library_logging():
     logger.info("Default logging ready")
 
 
-def _setup_application_logging():
+def _setup_application_logging() -> None:
     """
     Configures logging if Phoenix is used as an application
     """
@@ -78,7 +78,7 @@ def _setup_application_logging():
     stderr_handler.setFormatter(formatter)
     stderr_handler.setLevel(logging.WARNING)
 
-    log_queue = queue.Queue()
+    log_queue = queue.Queue()  # type:ignore
     queue_handler = logging.handlers.QueueHandler(log_queue)
     phoenix_logger.addHandler(queue_handler)
     sql_logger.addHandler(queue_handler)

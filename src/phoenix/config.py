@@ -390,14 +390,14 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     if not logging_level:
         return default_level
 
-    valid_values = [level for level in logging.getLevelNamesMapping() if level != "NOTSET"]
+    valid_values = [level for level in logging.getLevelNamesMapping() if level != "NOTSET"]  # type: ignore
 
     if logging_level.upper() not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
             f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
         )
-    return logging.getLevelNamesMapping()[logging_level.upper()]
+    return logging.getLevelNamesMapping()[logging_level.upper()]  # type: ignore
 
 
 def get_env_log_migrations() -> bool:
