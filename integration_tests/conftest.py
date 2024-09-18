@@ -9,6 +9,8 @@ import pytest
 from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
 from faker import Faker
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 from phoenix.config import (
     ENV_PHOENIX_GRPC_PORT,
@@ -36,6 +38,7 @@ from ._helpers import (
     _random_schema,
     _RoleOrUser,
     _SpanExporterFactory,
+    _start_span,
     _User,
     _UserFactory,
     _UserGenerator,
@@ -172,6 +175,14 @@ def _get_user(
             assert_never(role_or_user)
 
     return _
+
+
+@pytest.fixture
+def _spans(_fake: Faker) -> Tuple[ReadableSpan, ...]:
+    memory = InMemorySpanExporter()
+    project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
+    _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()
+    return memory.get_finished_spans()
 
 
 @pytest.fixture(autouse=True)
