@@ -15,7 +15,6 @@ from typing import (
     TypeVar,
 )
 
-import httpx
 import jwt
 import pytest
 import smtpdfix
@@ -148,16 +147,22 @@ class TestPasswordReset:
         u.log_in()
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
-    def test_password_reset_cannot_be_initiated_again_while_in_progress(
+    def test_password_reset_can_be_initiated_multiple_times(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
+        _passwords: Iterator[_Password],
         _smtpd: smtpdfix.AuthController,
     ) -> None:
         u = _get_user(role_or_user)
-        assert u.initiate_password_reset(_smtpd)
-        with pytest.raises(httpx.HTTPStatusError):
-            assert u.initiate_password_reset(_smtpd)
+        new_password = next(_passwords)
+        assert new_password != u.password
+        tokens = [u.initiate_password_reset(_smtpd) for _ in range(2)]
+        for token in tokens[:-1]:
+            with _EXPECTATION_401:
+                token.reset(new_password)
+        # only the most recent one will work
+        tokens[-1].reset(new_password)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_password_reset_can_be_initiated_immediately_after_password_reset(
