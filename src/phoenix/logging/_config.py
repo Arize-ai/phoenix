@@ -5,6 +5,8 @@ import logging.handlers
 import queue
 from sys import stderr, stdout
 
+from typing_extensions import assert_never
+
 from phoenix.config import LoggingMode
 from phoenix.logging._filter import NonErrorFilter
 from phoenix.settings import Settings
@@ -22,7 +24,7 @@ def setup_logging() -> None:
     elif logging_mode is LoggingMode.STRUCTURED:
         _setup_application_logging()
     else:
-        raise ValueError(f"Unsupported logging mode: {logging_mode}")
+        assert_never(logging_mode)
 
 
 def _setup_library_logging() -> None:
@@ -69,10 +71,13 @@ def _setup_application_logging() -> None:
     }
     formatter = PhoenixJSONFormatter(fmt_keys=fmt_keys)
 
+    # stdout handler
     stdout_handler = logging.StreamHandler(stdout)
     stdout_handler.setFormatter(formatter)
     stdout_handler.setLevel(Settings.logging_level)
     stdout_handler.addFilter(NonErrorFilter())
+
+    # stderr handler
     stderr_handler = logging.StreamHandler(stderr)
     stderr_handler.setFormatter(formatter)
     stderr_handler.setLevel(logging.WARNING)
