@@ -18,6 +18,7 @@ from phoenix.auth import (
     PASSWORD_REQUIREMENTS,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    is_locally_authenticated,
     validate_email_format,
     validate_password_format,
 )
@@ -137,7 +138,7 @@ class UserMutationMixin:
                     raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
             if password := input.new_password:
-                if not _is_locally_authenticated_user(user):
+                if not is_locally_authenticated(user):
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
@@ -170,7 +171,7 @@ class UserMutationMixin:
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if password := input.new_password:
-                if not _is_locally_authenticated_user(user):
+                if not is_locally_authenticated(user):
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password
@@ -323,14 +324,6 @@ def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
         .where(and_(models.User.id == user_id, models.User.deleted_at.is_(None)))
         .options(joinedload(models.User.role))
     )
-
-
-def _is_locally_authenticated_user(user: models.User) -> bool:
-    """
-    Returns true if the user is authenticated locally, i.e., not through an
-    OAuth2 identity provider, and false otherwise.
-    """
-    return user.oauth2_client_id is None and user.oauth2_user_id is None
 
 
 def _user_operation_error_message(

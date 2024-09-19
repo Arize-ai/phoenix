@@ -11,6 +11,7 @@ from starlette.responses import Response
 from typing_extensions import TypeVar
 
 from phoenix.config import get_env_phoenix_use_secure_cookies
+from phoenix.db.models import User as OrmUser
 
 ResponseType = TypeVar("ResponseType", bound=Response)
 
@@ -66,6 +67,14 @@ def validate_password_format(password: str) -> None:
     Checks that the password has a valid format.
     """
     PASSWORD_REQUIREMENTS.validate(password)
+
+
+def is_locally_authenticated(user: OrmUser) -> bool:
+    """
+    Returns true if the user is authenticated locally, i.e., not through an
+    OAuth2 identity provider, and false otherwise.
+    """
+    return user.oauth2_client_id is None and user.oauth2_user_id is None
 
 
 def set_access_token_cookie(
