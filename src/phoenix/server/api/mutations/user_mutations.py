@@ -269,14 +269,6 @@ class UserMutationMixin:
                 raise Conflict("Cannot delete the default admin user")
             if num_resolved_user_ids < len(user_ids):
                 raise NotFound("Some user IDs could not be found")
-            password_reset_token_ids = [
-                PasswordResetTokenId(id_)
-                async for id_ in await session.stream_scalars(
-                    delete(models.PasswordResetToken)
-                    .where(models.PasswordResetToken.user_id.in_(user_ids))
-                    .returning(models.PasswordResetToken.id)
-                )
-            ]
             access_token_ids = [
                 AccessTokenId(id_)
                 async for id_ in await session.stream_scalars(
@@ -307,7 +299,6 @@ class UserMutationMixin:
                 .values(deleted_at=func.now())
             )
         await token_store.revoke(
-            *password_reset_token_ids,
             *access_token_ids,
             *refresh_token_ids,
             *api_key_ids,
