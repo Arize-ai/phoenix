@@ -158,6 +158,7 @@ class TestPasswordReset:
         new_password = next(_passwords)
         assert new_password != u.password
         tokens = [u.initiate_password_reset(_smtpd) for _ in range(2)]
+        assert len(tokens) > 1
         for token in tokens[:-1]:
             with _EXPECTATION_401:
                 token.reset(new_password)
