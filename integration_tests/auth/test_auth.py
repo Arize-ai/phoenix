@@ -64,6 +64,7 @@ from .._helpers import (
     _RoleOrUser,
     _SpanExporterFactory,
     _Username,
+    _will_be_asked_to_reset_password,
 )
 
 NOW = datetime.now(timezone.utc)
@@ -215,7 +216,9 @@ class TestPasswordReset:
             logged_in_user.create_api_key()
         # new password should work
         new_profile = replace(u.profile, password=new_password)
-        replace(u, profile=new_profile).log_in().create_api_key()
+        new_u = replace(u, profile=new_profile)
+        new_u.log_in()
+        assert not _will_be_asked_to_reset_password(new_u)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_deleted_user_will_not_receive_email_after_initiating_password_reset(
@@ -394,6 +397,7 @@ class TestCreateUser:
             new_user = logged_in_user.create_user(role, profile=profile)
         if not e:
             new_user.log_in()
+            assert _will_be_asked_to_reset_password(new_user)
 
     @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
     @pytest.mark.parametrize("role", list(UserRoleInput))
@@ -464,11 +468,17 @@ class TestPatchViewer:
         )
         another_password = f"another_password_{next(_passwords)}"
         with _EXPECTATION_401:
+            # old tokens should no longer work
             _patch_viewer(old_token, new_password, new_password=another_password)
         with _EXPECTATION_401:
-            _log_in(old_password, email=logged_in_user.email)
-        new_tokens = _log_in(new_password, email=logged_in_user.email)
+            # old password should no longer work
+            u.log_in()
+        new_profile = replace(u.profile, password=new_password)
+        new_u = replace(u, profile=new_profile)
+        new_tokens = new_u.log_in()
+        assert not _will_be_asked_to_reset_password(new_u)
         with pytest.raises(Exception):
+            # old password should no longer work, even with new tokens
             _patch_viewer(new_tokens, old_password, new_password=another_password)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
@@ -559,12 +569,16 @@ class TestPatchUser:
         with expectation as e:
             logged_in_user.patch_user(non_self, new_password=new_password)
         if e:
+            # password should still work
             non_self.log_in()
             return
-        email = non_self.email
         with _EXPECTATION_401:
-            _log_in(old_password, email=email)
-        _log_in(new_password, email=email)
+            # old password should no longer work
+            non_self.log_in()
+        new_profile = replace(non_self.profile, password=new_password)
+        new_non_self = replace(non_self, profile=new_profile)
+        new_non_self.log_in()
+        assert _will_be_asked_to_reset_password(new_non_self)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",

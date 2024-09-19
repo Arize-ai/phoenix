@@ -856,6 +856,15 @@ def _delete_api_key(
     assert not headers.get("set-cookie")
 
 
+def _will_be_asked_to_reset_password(
+    user: _User,
+) -> bool:
+    query = "query($gid:GlobalID!){node(id:$gid){... on User{passwordNeedsReset}}}"
+    variables = dict(gid=user.gid)
+    resp_dict, _ = user.log_in().gql(query, variables)
+    return cast(bool, resp_dict["data"]["node"]["passwordNeedsReset"])
+
+
 def _log_in(
     password: _Password,
     /,
