@@ -5,7 +5,6 @@ from re import compile
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 # Environment variables specific to the subpackage
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"

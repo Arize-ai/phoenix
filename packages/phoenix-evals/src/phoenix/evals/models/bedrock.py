@@ -10,7 +10,6 @@ from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 MINIMUM_BOTO_VERSION = "1.28.58"
 
