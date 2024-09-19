@@ -265,6 +265,7 @@ async def reset_password(request: Request) -> Response:
     user.password_hash = await loop.run_in_executor(
         None, partial(compute_password_hash, password=password, salt=user.password_salt)
     )
+    user.reset_password = False
     async with request.app.state.db() as session:
         session.add(user)
         await session.flush()
