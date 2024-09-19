@@ -2,27 +2,35 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional
 
+from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
-from authlib.integrations.starlette_client import StarletteOAuth2App as OAuth2Client
-from fastapi import APIRouter, Path, Request
+from fastapi import APIRouter, Cookie, Path, Query, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.datastructures import URL
 from starlette.responses import RedirectResponse
+from starlette.status import HTTP_302_FOUND
 from typing_extensions import Annotated
 
 from phoenix.auth import (
+    DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
+    PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+    PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    delete_oauth2_nonce_cookie,
+    delete_oauth2_state_cookie,
     set_access_token_cookie,
+    set_oauth2_nonce_cookie,
+    set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.oauth2 import OAuth2Client
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
-
 
 router = APIRouter(prefix="/oauth2", include_in_schema=False)
 
@@ -36,8 +44,24 @@ async def login(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
         return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
-    redirect_uri = request.url_for("create_tokens", idp_name=idp_name)
-    response: RedirectResponse = await oauth2_client.authorize_redirect(request, redirect_uri)
+    authorization_url_data = await oauth2_client.create_authorization_url(
+        redirect_uri=_get_create_tokens_endpoint(request=request, idp_name=idp_name),
+        state=generate_token(),
+    )
+    assert isinstance(authorization_url := authorization_url_data.get("url"), str)
+    assert isinstance(state := authorization_url_data.get("state"), str)
+    assert isinstance(nonce := authorization_url_data.get("nonce"), str)
+    response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
+    response = set_oauth2_state_cookie(
+        response=response,
+        state=state,
+        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+    )
+    response = set_oauth2_nonce_cookie(
+        response=response,
+        nonce=nonce,
+        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+    )
     return response
 
 
@@ -45,7 +69,18 @@ async def login(
 async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
+    state: str = Query(),
+    authorization_code: str = Query(alias="code"),
+    stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
+    stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
 ) -> RedirectResponse:
+    if state != stored_state:
+        return _redirect_to_login(
+            error=(
+                "Received invalid state parameter during "
+                "OAuth2 authorization code flow for IDP {idp_name}."
+            )
+        )
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: JwtStore = request.app.state.get_token_store()
@@ -54,13 +89,20 @@ async def create_tokens(
     ):
         return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     try:
-        token_data = await oauth2_client.authorize_access_token(request)
+        token_data = await oauth2_client.fetch_access_token(
+            state=state,
+            code=authorization_code,
+            redirect_uri=_get_create_tokens_endpoint(request=request, idp_name=idp_name),
+        )
     except OAuthError as error:
         return _redirect_to_login(error=str(error))
-    if (user_info := _get_user_info(token_data)) is None:
+    _validate_token_data(token_data)
+    if "id_token" not in token_data:
         return _redirect_to_login(
             error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect."
         )
+    user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+    user_info = _parse_user_info(user_info)
     try:
         async with request.app.state.db() as session:
             user = await _ensure_user_exists_and_is_up_to_date(
@@ -76,13 +118,15 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(url="/")  # todo: sanitize a return url
+    response = RedirectResponse(url="/", status_code=HTTP_302_FOUND)  # todo: sanitize a return url
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
     response = set_refresh_token_cookie(
         response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
     )
+    response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_nonce_cookie(response)
     return response
 
 
@@ -94,15 +138,19 @@ class UserInfo:
     profile_picture_url: Optional[str]
 
 
-def _get_user_info(token_data: Dict[str, Any]) -> Optional[UserInfo]:
+def _validate_token_data(token_data: Dict[str, Any]) -> None:
     """
-    Parses token data and extracts user info if available.
+    Performs basic validations on the token data returned by the IDP.
     """
     assert isinstance(token_data.get("access_token"), str)
     assert isinstance(token_type := token_data.get("token_type"), str)
     assert token_type.lower() == "bearer"
-    if (user_info := token_data.get("userinfo")) is None:
-        return None
+
+
+def _parse_user_info(user_info: Dict[str, Any]) -> UserInfo:
+    """
+    Parses user info from the IDP's ID token.
+    """
     assert isinstance(subject := user_info.get("sub"), (str, int))
     idp_user_id = str(subject)
     assert isinstance(email := user_info.get("email"), str)
@@ -278,4 +326,15 @@ def _redirect_to_login(*, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    return RedirectResponse(url=URL("/login").include_query_params(error=error))
+    url = URL("/login").include_query_params(error=error)
+    response = RedirectResponse(url=url)
+    response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_nonce_cookie(response)
+    return response
+
+
+def _get_create_tokens_endpoint(*, request: Request, idp_name: str) -> str:
+    """
+    Gets the endpoint for create tokens route.
+    """
+    return str(request.url_for(create_tokens.__name__, idp_name=idp_name))

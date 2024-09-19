@@ -22,6 +22,8 @@ from phoenix.auth import (
     Token,
     compute_password_hash,
     delete_access_token_cookie,
+    delete_oauth2_nonce_cookie,
+    delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
     is_valid_password,
     set_access_token_cookie,
@@ -122,6 +124,8 @@ async def logout(
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)
+    response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_nonce_cookie(response)
     return response
 
 
