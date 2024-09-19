@@ -382,7 +382,6 @@ def get_env_db_logging_level() -> int:
     return _get_logging_level(
         env_var=ENV_DB_LOGGING_LEVEL,
         default_level=logging.WARNING,
-        # default_level=logging.INFO,
     )
 
 
