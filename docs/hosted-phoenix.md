@@ -6,8 +6,8 @@ We now offer a hosted version of Phoenix to make it easier for developers to use
 
 ### Example Notebooks:
 
-* [Tracing an OpenAI app](https://github.com/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_openai\_tutorial.ipynb)
-* [Tracing a LlamaIndex app](https://github.com/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_llamaindex\_tutorial.ipynb)
+* [Tracing an OpenAI app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_openai\_tutorial.ipynb)
+* [Tracing a LlamaIndex app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_llamaindex\_tutorial.ipynb)
 
 ### The main differences for Hosted Phoenix:
 
