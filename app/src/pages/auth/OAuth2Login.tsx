@@ -6,6 +6,7 @@ import { Button } from "@arizeai/components";
 type OAuth2LoginProps = {
   idpName: string;
   idpDisplayName: string;
+  returnUrl?: string | null;
 };
 
 const loginCSS = css`
@@ -30,10 +31,14 @@ const loginCSS = css`
   }
 `;
 
-export function OAuth2Login({ idpName, idpDisplayName }: OAuth2LoginProps) {
+export function OAuth2Login({
+  idpName,
+  idpDisplayName,
+  returnUrl,
+}: OAuth2LoginProps) {
   return (
     <form
-      action={`/oauth2/${idpName}/login`}
+      action={`/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`}
       method="post"
       css={loginCSS}
       data-provider={idpName}

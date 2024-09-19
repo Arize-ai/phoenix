@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional
 
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
+from authlib.jose import jwt
+from authlib.jose.errors import BadSignatureError
 from fastapi import APIRouter, Cookie, Path, Query, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,14 +41,18 @@ router = APIRouter(prefix="/oauth2", include_in_schema=False)
 async def login(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
+    return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
+    secret = request.app.state.get_secret()
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
         return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(request=request, idp_name=idp_name),
-        state=generate_token(),
+        state=_generate_state_for_oauth2_authorization_code_flow(
+            secret=secret, return_url=return_url
+        ),
     )
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
@@ -74,6 +80,7 @@ async def create_tokens(
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),
 ) -> RedirectResponse:
+    secret = request.app.state.get_secret()
     if state != stored_state:
         return _redirect_to_login(
             error=(
@@ -118,7 +125,9 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(url="/", status_code=HTTP_302_FOUND)  # todo: sanitize a return url
+    response = RedirectResponse(
+        url=_get_return_url(secret=secret, state=state) or "/", status_code=HTTP_302_FOUND
+    )
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -338,3 +347,38 @@ def _get_create_tokens_endpoint(*, request: Request, idp_name: str) -> str:
     Gets the endpoint for create tokens route.
     """
     return str(request.url_for(create_tokens.__name__, idp_name=idp_name))
+
+
+def _generate_state_for_oauth2_authorization_code_flow(
+    *, secret: str, return_url: Optional[str]
+) -> str:
+    """
+    Generates a JWT whose payload contains both an OAuth2 state (generated using
+    the `authlib` default algorithm) and a return URL. This allows us to pass
+    the return URL to the OAuth2 authorization server via the `state` query
+    parameter and have it returned to us in the callback without needing to
+    maintain state.
+    """
+    header = {"alg": _JWT_ALGORITHM}
+    payload = {"state": generate_token()}
+    if return_url is not None:
+        payload[_RETURN_URL] = return_url
+    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=secret)
+    return jwt_bytes.decode()
+
+
+def _get_return_url(*, secret: str, state: str) -> Optional[str]:
+    """
+    Parses the return URL from the OAuth2 state.
+    """
+    try:
+        payload = jwt.decode(s=state, key=secret)
+        return_url = payload.get(_RETURN_URL)
+        assert isinstance(return_url, str) or return_url is None
+        return return_url
+    except BadSignatureError:
+        return None
+
+
+_RETURN_URL = "return_url"
+_JWT_ALGORITHM = "HS256"

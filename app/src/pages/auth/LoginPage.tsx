@@ -28,6 +28,7 @@ export function LoginPage() {
   const oAuth2Idps = window.Config.oAuth2Idps;
   const hasOAuth2Idps = oAuth2Idps.length > 0;
   const [searchParams, setSearchParams] = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl");
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -49,6 +50,7 @@ export function LoginPage() {
                   key={idp.name}
                   idpName={idp.name}
                   idpDisplayName={idp.displayName}
+                  returnUrl={returnUrl}
                 />
               </li>
             ))}
