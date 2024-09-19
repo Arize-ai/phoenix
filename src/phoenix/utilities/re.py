@@ -4,7 +4,6 @@ from typing import Dict, List
 from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 # Optional whitespace
 _OWS = r"[ \t]*"

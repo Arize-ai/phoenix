@@ -1,8 +1,5 @@
 import atexit
 import codecs
-import logging
-import logging.config
-import logging.handlers
 import os
 import sys
 from argparse import ArgumentParser

@@ -51,7 +51,6 @@ from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 

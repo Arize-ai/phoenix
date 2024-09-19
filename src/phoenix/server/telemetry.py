@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 def normalize_http_collector_endpoint(endpoint: str) -> str:

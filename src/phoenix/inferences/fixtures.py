@@ -18,7 +18,6 @@ from phoenix.inferences.schema import (
 )
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class InferencesRole(Enum):

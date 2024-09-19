@@ -30,7 +30,6 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class Insertable(Protocol):

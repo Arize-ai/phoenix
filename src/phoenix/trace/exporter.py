@@ -20,7 +20,6 @@ from phoenix.config import (
 )
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 

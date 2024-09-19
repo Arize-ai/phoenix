@@ -13,7 +13,6 @@ from phoenix.trace.errors import IncompatibleLibraryVersionError
 from phoenix.trace.exporter import _OpenInferenceExporter
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 LLAMA_INDEX_MODERN_VERSION = (0, 10, 0)
 INSTRUMENTATION_MODERN_VERSION = (1, 0, 0)
