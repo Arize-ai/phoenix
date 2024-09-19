@@ -396,8 +396,8 @@ class TestCreateUser:
         with expectation as e:
             new_user = logged_in_user.create_user(role, profile=profile)
         if not e:
-            assert _will_be_asked_to_reset_password(new_user)
             new_user.log_in()
+            assert _will_be_asked_to_reset_password(new_user)
 
     @pytest.mark.parametrize("role_or_user", [_ADMIN, _DEFAULT_ADMIN])
     @pytest.mark.parametrize("role", list(UserRoleInput))
@@ -473,7 +473,8 @@ class TestPatchViewer:
         with _EXPECTATION_401:
             # old password should no longer work
             u.log_in()
-        new_u = replace(u, profile=replace(u.profile, password=new_password))
+        new_profile = replace(u.profile, password=new_password)
+        new_u = replace(u, profile=new_profile)
         new_tokens = new_u.log_in()
         with pytest.raises(Exception):
             # old password should no longer work, even with new tokens
@@ -568,13 +569,16 @@ class TestPatchUser:
         with expectation as e:
             logged_in_user.patch_user(non_self, new_password=new_password)
         if e:
+            # password should still work
             non_self.log_in()
             return
-        email = non_self.email
+        new_profile = replace(non_self.profile, password=new_password)
+        new_non_self = replace(non_self, profile=new_profile)
+        new_non_self.log_in()
+        assert _will_be_asked_to_reset_password(new_non_self)
+        email = new_non_self.email
         with _EXPECTATION_401:
             _log_in(old_password, email=email)
-        _log_in(new_password, email=email)
-        assert _will_be_asked_to_reset_password(u)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
