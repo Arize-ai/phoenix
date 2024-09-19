@@ -106,7 +106,7 @@ export function LoginForm() {
         </div>
         <div
           css={css`
-            margin-top: var(--ac-global-dimension-size-400);
+            margin-top: var(--ac-global-dimension-size-200);
             margin-bottom: var(--ac-global-dimension-size-50);
             button {
               width: 100%;

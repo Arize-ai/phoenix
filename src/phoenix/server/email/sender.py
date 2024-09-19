@@ -18,7 +18,7 @@ class FastMailSender:
         values: PasswordResetTemplateBody,
     ) -> None:
         message = MessageSchema(
-            subject="Password Reset Request",
+            subject="Phoenix Password Reset Request",
             recipients=[email],
             template_body=asdict(values),
             subtype="html",
