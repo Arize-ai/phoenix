@@ -6,7 +6,7 @@ As a user of Phoenix I don't want to have to go back to my IDE to iterate on a p
 
 ## Terminology
 
-- **operation ** Refers to how the LLM is invoked (chat, completion). We will consider chat to be higher priority (https://opentelemetry.io/docs/specs/semconv/attributes-registry/gen-ai/)
+- **operation ** Refers to how the LLM is invoked (chat, text_completion). We will consider chat to be higher priority (https://opentelemetry.io/docs/specs/semconv/attributes-registry/gen-ai/)
 - playground input source - refers to whether the input to the template is "manual" e.g. modifiable by the user or "dataset".
 
 ## Use-cases
@@ -14,8 +14,8 @@ As a user of Phoenix I don't want to have to go back to my IDE to iterate on a p
 A user may want to use the playground to:
 
 - Test a prompt template
-- LLM Replay: replay a template or prompt change on an LLM Span
-- Run a template change on a dataset (sweep over a set of inputs)
+- LLM Replay: replay a template or prompt change on an LLM Span - to live debug an improvement
+- Run a template change on a dataset (sweep over a set of inputs) - e.g. a prompt change experiment
 - A/B Testing of models and templates
 - evaluation template creation: run an evaluation template on a single chosen production span or Dataset - Workflow is testing your Evals and be able to save as experiment
 - Synthetic data Generation - Use to generate synthetic data, add columns to current rows of data in a dataset, to help create test data
@@ -39,6 +39,52 @@ As an AI engineer that is already using Phoenix tracing, I want the ability to t
 - output schema
 
 The above values will have to be translated from the span to a corresponding values in the playground for invocation.
+
+Below is a typical attribute payload for an chat llm span:
+
+```typescript
+{
+
+  llm: {
+    output_messages: [
+      {
+        message: {
+          content: "This is an AI Answer",
+          role: "assistant",
+        },
+      },
+    ],
+    model_name: "gpt-3.5-turbo",
+    token_count: { completion: 9.0, prompt: 1881.0, total: 1890.0 },
+    input_messages: [
+      {
+        message: {
+          content: "You are a chatbot",
+          role: "system",
+        },
+      },
+      {
+        message: {
+          content: "Anser me the following question. Are you sentient?",
+          role: "user",
+        },
+      },
+    ],
+    invocation_parameters:
+      '{"context_window": 16384, "num_output": -1, "is_chat_model": true, "is_function_calling_model": true, "model_name": "gpt-3.5-turbo"}',
+  },
+  openinference: { span: { kind: "LLM" } },
+};
+```
+
+For chat the following mapping will be used:
+
+- llm.input_messages -> invocation.messages
+- llm.invocation_parameters -> invocation.parameters
+- llm.model_name -> invocation.model (e.g. vendor + model_name )
+- llm.tools -> invocation.tools
+- llm.tool_selection (missing) -> playground.tool_selection (default to auto)
+- ???? -> invocation (output schema for JSON mode)
 
 ### A/B Testing
 
