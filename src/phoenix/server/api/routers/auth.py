@@ -39,6 +39,7 @@ from phoenix.server.types import (
     AccessTokenAttributes,
     AccessTokenClaims,
     PasswordResetTokenClaims,
+    PasswordResetTokenId,
     RefreshTokenAttributes,
     RefreshTokenClaims,
     TokenStore,
@@ -227,14 +228,14 @@ async def initiate_password_reset(request: Request) -> Response:
     if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
+    token_store: TokenStore = request.app.state.get_token_store()
     if user.password_reset_token:
-        raise RESET_IN_PROGRESS
+        await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
     password_reset_token_claims = PasswordResetTokenClaims(
         subject=UserId(user.id),
         issued_at=datetime.now(timezone.utc),
         expiration_time=datetime.now(timezone.utc) + token_expiry,
     )
-    token_store: TokenStore = request.app.state.get_token_store()
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
     await sender.send_password_reset_email(email, PasswordResetTemplateBody(token, get_base_url()))
     return Response(status_code=HTTP_204_NO_CONTENT)
@@ -292,10 +293,6 @@ MISSING_PASSWORD = HTTPException(
 )
 UNAVAILABLE = HTTPException(
     status_code=HTTP_503_SERVICE_UNAVAILABLE,
-)
-RESET_IN_PROGRESS = HTTPException(
-    status_code=HTTP_503_SERVICE_UNAVAILABLE,
-    detail="Password reset already in progress",
 )
 INVALID_TOKEN = HTTPException(
     status_code=HTTP_401_UNAUTHORIZED,
