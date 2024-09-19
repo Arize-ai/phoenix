@@ -191,33 +191,35 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.11.2",
-  "tenacity",
-  "pandas>=1.0",
-  "pandas-stubs==2.0.3.230814",
-  "types-tabulate",
-  "types-psutil",
-  "types-tqdm",
-  "types-protobuf",
-  "types-setuptools",
-  "types-cachetools",
-  "openai>=1.0.0",
-  "litellm>=1.0.3",
-  "prometheus_client",
   "grpcio",
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",
+  "litellm>=1.0.3",
+  "mypy==1.11.2",
+  "openai>=1.0.0",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-semantic-conventions",
   "opentelemetry-instrumentation-fastapi",
-  "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-sdk",
+  "opentelemetry-semantic-conventions",
+  "pandas-stubs==2.0.3.230814",
+  "pandas>=1.0",
+  "prometheus_client",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
-  "requests",  # this is needed to type-check third-party packages
   "pydantic==1.10.17; python_version=='3.8'",  # lower minor versions of pydantic break strawberry mypy plugin
   "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
   "pydantic==2.8.2; python_version=='3.12'",
+  "pypistats",  # this is needed to type-check third-party packages
+  "requests",  # this is needed to type-check third-party packages
+  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
+  "tenacity",
+  "types-cachetools",
+  "types-protobuf",
+  "types-psutil",
+  "types-requests",
+  "types-setuptools",
+  "types-tabulate",
+  "types-tqdm",
 ]
 
 [[tool.hatch.envs.type.matrix]]
@@ -388,7 +390,7 @@ exclude = [
   "sdist/",
   "tests/",
   "tutorials/",
-  "examples/manually-instrumented-chatbot/"
+  "examples/manually-instrumented-chatbot/",
 ]
 
 [[tool.mypy.overrides]]
@@ -410,6 +412,7 @@ module = [
   "grpc.*",
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
+  "pypistats",
 ]
 ignore_missing_imports = true
 
