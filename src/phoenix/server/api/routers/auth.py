@@ -225,12 +225,12 @@ async def initiate_password_reset(request: Request) -> Response:
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )
         )
-    token_store: TokenStore = request.app.state.get_token_store()
-    if user.password_reset_token:
-        await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
     if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
+    token_store: TokenStore = request.app.state.get_token_store()
+    if user.password_reset_token:
+        await token_store.revoke(PasswordResetTokenId(user.password_reset_token.id))
     password_reset_token_claims = PasswordResetTokenClaims(
         subject=UserId(user.id),
         issued_at=datetime.now(timezone.utc),
