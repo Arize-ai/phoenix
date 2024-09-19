@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@arizeai/components";
+import { Flex, Heading } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
-import { PhoenixLogo } from "./PhoenixLogo";
 
 export function ForgotPasswordPage() {
   const [resetSent, setResetSent] = useState<boolean>(false);
