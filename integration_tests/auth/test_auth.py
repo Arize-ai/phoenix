@@ -158,12 +158,15 @@ class TestPasswordReset:
         new_password = next(_passwords)
         assert new_password != u.password
         tokens = [u.initiate_password_reset(_smtpd) for _ in range(2)]
-        assert len(tokens) > 1
-        for token in tokens[:-1]:
-            with _EXPECTATION_401:
-                token.reset(new_password)
-        # only the most recent one will work
-        tokens[-1].reset(new_password)
+        assert sum(map(bool, tokens)) > 1
+        for i, token in enumerate(tokens):
+            assert token
+            if i < len(tokens) - 1:
+                with _EXPECTATION_401:
+                    token.reset(new_password)
+                continue
+            # only the last one works
+            token.reset(new_password)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     def test_password_reset_can_be_initiated_immediately_after_password_reset(
