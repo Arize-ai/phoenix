@@ -99,6 +99,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
     >
       <ActionMenu
         align="end"
+        aria-label="User Actions"
         buttonSize="compact"
         onAction={(action) => {
           switch (action) {
