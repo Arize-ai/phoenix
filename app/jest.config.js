@@ -8,6 +8,7 @@ module.exports = {
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],
   },
+  testPathIgnorePatterns: ["\\.spec\\.ts$"],
   transformIgnorePatterns: [".*node_modules/.pnpm/(?!d3)@"],
   moduleNameMapper: {
     "^@phoenix/(.*)$": "<rootDir>/src/$1",
