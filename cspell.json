@@ -23,6 +23,7 @@
         "HDBSCAN",
         "httpx",
         "Instrumentor",
+        "instrumentors",
         "langchain",
         "litellm",
         "llamaindex",

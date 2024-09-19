@@ -8,13 +8,15 @@ type ForgotPasswordFormParams = {
   email: string;
 };
 
-export function ForgotPasswordForm() {
-  const [message, setMessage] = useState<string | null>(null);
+export function ForgotPasswordForm({
+  onResetSent,
+}: {
+  onResetSent: () => void;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
     async (params: ForgotPasswordFormParams) => {
-      setMessage(null);
       setError(null);
       setIsLoading(true);
       try {
@@ -26,31 +28,22 @@ export function ForgotPasswordForm() {
           body: JSON.stringify(params),
         });
         if (!response.ok) {
-          setError("Failed attempt");
+          const message = await response.text();
+          setError(message);
           return;
         }
-      } catch (error) {
-        setError("Failed attempt");
-        return;
+        onResetSent();
       } finally {
         setIsLoading(() => false);
       }
-      setMessage(
-        "A link to reset your password has been sent. Check your email for details."
-      );
     },
-    [setMessage, setError]
+    [onResetSent, setError]
   );
   const { control, handleSubmit } = useForm<ForgotPasswordFormParams>({
     defaultValues: { email: "" },
   });
   return (
     <>
-      {message ? (
-        <View paddingBottom="size-100">
-          <Alert variant="success">{message}</Alert>
-        </View>
-      ) : null}
       {error ? (
         <View paddingBottom="size-100">
           <Alert variant="danger">{error}</Alert>
@@ -69,12 +62,13 @@ export function ForgotPasswordForm() {
               onChange={onChange}
               value={value}
               placeholder="your email address"
+              description="Enter the email address associated with your account."
             />
           )}
         />
         <div
           css={css`
-            margin-top: var(--ac-global-dimension-size-400);
+            margin-top: var(--ac-global-dimension-size-200);
             margin-bottom: var(--ac-global-dimension-size-50);
             button {
               width: 100%;
@@ -86,7 +80,7 @@ export function ForgotPasswordForm() {
             loading={isLoading}
             onClick={handleSubmit(onSubmit)}
           >
-            Submit
+            Send
           </Button>
         </div>
       </Form>
