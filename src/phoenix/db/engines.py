@@ -64,7 +64,7 @@ def get_async_db_url(connection_str: str) -> URL:
 def create_engine(
     connection_str: str,
     migrate: bool = True,
-    echo: bool = False,
+    log_to_stdout: bool = False,
 ) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
@@ -76,12 +76,22 @@ def create_engine(
     url = get_async_db_url(url.render_as_string(hide_password=False))
     # If Phoenix is run as an application, we want to pass echo=False and let
     # the configured sqlalchemy logger handle the migration logs
-    migration_echo = Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
+    log_migrations_to_stdout = (
+        Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
+    )
     if backend is SupportedSQLDialect.SQLITE:
-        return aio_sqlite_engine(url=url, migrate=migrate, echo=echo, migration_echo=migration_echo)
+        return aio_sqlite_engine(
+            url=url,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations_to_stdout=log_migrations_to_stdout,
+        )
     elif backend is SupportedSQLDialect.POSTGRESQL:
         return aio_postgresql_engine(
-            url=url, migrate=migrate, echo=echo, migration_echo=migration_echo
+            url=url,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations_to_stdout=log_migrations_to_stdout,
         )
     else:
         assert_never(backend)
@@ -90,9 +100,9 @@ def create_engine(
 def aio_sqlite_engine(
     url: URL,
     migrate: bool = True,
-    echo: bool = False,
     shared_cache: bool = True,
-    migration_echo: bool = True,
+    log_to_stdout: bool = False,
+    log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
     database = url.database or ":memory:"
     if database.startswith("file:"):
@@ -111,7 +121,7 @@ def aio_sqlite_engine(
 
     engine = create_async_engine(
         url=url,
-        echo=echo,
+        echo=log_to_stdout,
         json_serializer=_dumps,
         async_creator=async_creator,
         poolclass=StaticPool,
@@ -129,7 +139,7 @@ def aio_sqlite_engine(
     else:
         sync_engine = sqlalchemy.create_engine(
             url=url.set(drivername="sqlite"),
-            echo=migration_echo,
+            echo=log_migrations_to_stdout,
             json_serializer=_dumps,
             creator=lambda: sqlean.connect(f"file:{database}", uri=True),
         )
@@ -149,15 +159,15 @@ def set_postgresql_search_path(schema: str) -> Callable[[Connection, Any], None]
 def aio_postgresql_engine(
     url: URL,
     migrate: bool = True,
-    echo: bool = False,
-    migration_echo: bool = True,
+    log_to_stdout: bool = False,
+    log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
+    engine = create_async_engine(url=url, echo=log_to_stdout, json_serializer=_dumps)
     if not migrate:
         return engine
     sync_engine = sqlalchemy.create_engine(
         url=url.set(drivername="postgresql+psycopg"),
-        echo=migration_echo,
+        echo=log_migrations_to_stdout,
         json_serializer=_dumps,
     )
     if schema := get_env_database_schema():
