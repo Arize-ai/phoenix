@@ -1,3 +1,5 @@
+import { llmSpanToInvocation } from "../spanUtils";
+
 const chatCompletionLLMSpanAttributes = {
   //   input: {
   //     mime_type: "application/json",

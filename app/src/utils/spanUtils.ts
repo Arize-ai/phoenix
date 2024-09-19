@@ -1,3 +1,3 @@
-function llmSpanToInvocation(span: Any): Any {
+export function llmSpanToInvocation(_span: unknown): unknown {
   return {};
 }

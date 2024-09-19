@@ -5,14 +5,16 @@ import { Card } from "@arizeai/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export function PlaygroundTemplate() {
-  const operationType = usePlaygroundContext((state) => state.operationType);
+  // TODO: remove the hard coding of the first instance
+  const playgrounds = usePlaygroundContext((state) => state.playgrounds);
+  const playground = playgrounds[0];
+  if (!playground) {
+    return null;
+  }
+
   return (
     <Card title="Template" collapsible variant="compact">
-      {operationType === "chat" ? (
-        <div>Chat Template goes here</div>
-      ) : (
-        <div>Completion Template goes here</div>
-      )}
+      {JSON.stringify(playground.template)}
     </Card>
   );
 }
