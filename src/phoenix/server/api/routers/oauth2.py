@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
@@ -82,12 +82,12 @@ async def create_tokens(
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
     if state != stored_state:
-        return _redirect_to_login(
-            error=(
-                "Received invalid state parameter during "
-                "OAuth2 authorization code flow for IDP {idp_name}."
-            )
-        )
+        return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
+    signature_is_valid, return_url = _validate_signature_and_parse_return_url(
+        secret=secret, state=state
+    )
+    if not signature_is_valid:
+        return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: JwtStore = request.app.state.get_token_store()
@@ -125,9 +125,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(
-        url=_get_return_url(secret=secret, state=state) or "/", status_code=HTTP_302_FOUND
-    )
+    response = RedirectResponse(url=return_url or "/", status_code=HTTP_302_FOUND)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -367,18 +365,28 @@ def _generate_state_for_oauth2_authorization_code_flow(
     return jwt_bytes.decode()
 
 
-def _get_return_url(*, secret: str, state: str) -> Optional[str]:
+def _validate_signature_and_parse_return_url(
+    *, secret: str, state: str
+) -> Tuple[bool, Optional[str]]:
     """
-    Parses the return URL from the OAuth2 state.
+    Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
+    signature_is_valid: bool
+    return_url: Optional[str]
     try:
         payload = jwt.decode(s=state, key=secret)
         return_url = payload.get(_RETURN_URL)
         assert isinstance(return_url, str) or return_url is None
-        return return_url
+        signature_is_valid = True
+        return signature_is_valid, return_url
     except BadSignatureError:
-        return None
+        signature_is_valid = False
+        return_url = None
+        return signature_is_valid, return_url
 
 
 _RETURN_URL = "return_url"
 _JWT_ALGORITHM = "HS256"
+_INVALID_OAUTH2_STATE_MESSAGE = (
+    "Received invalid state parameter during OAuth2 authorization code flow for IDP {idp_name}."
+)
