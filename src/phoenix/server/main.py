@@ -65,10 +65,6 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
-
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
 ██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗

@@ -42,12 +42,6 @@ def _setup_application_logging() -> None:
     """
     Configures logging if Phoenix is used as an application
     """
-    root_logger = logging.getLogger()
-    # Remove all existing handlers
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-        handler.close()
-
     sql_engine_logger = logging.getLogger("sqlalchemy.engine.Engine")
     # Remove all existing handlers
     for handler in sql_engine_logger.handlers[:]:
@@ -56,8 +50,15 @@ def _setup_application_logging() -> None:
 
     phoenix_logger = logging.getLogger("phoenix")
     phoenix_logger.setLevel(Settings.logging_level)
+    phoenix_logger.propagate = False  # Do not pass records to the root logger
     sql_logger = logging.getLogger("sqlalchemy")
     sql_logger.setLevel(Settings.db_logging_level)
+    sql_logger.propagate = False  # Do not pass records to the root logger
+
+    log_queue = queue.Queue()  # type:ignore
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    phoenix_logger.addHandler(queue_handler)
+    sql_logger.addHandler(queue_handler)
 
     fmt_keys = {
         "level": "levelname",
@@ -81,11 +82,6 @@ def _setup_application_logging() -> None:
     stderr_handler = logging.StreamHandler(stderr)
     stderr_handler.setFormatter(formatter)
     stderr_handler.setLevel(logging.WARNING)
-
-    log_queue = queue.Queue()  # type:ignore
-    queue_handler = logging.handlers.QueueHandler(log_queue)
-    phoenix_logger.addHandler(queue_handler)
-    sql_logger.addHandler(queue_handler)
 
     queue_listener = logging.handlers.QueueListener(log_queue, stdout_handler, stderr_handler)
     if queue_listener is not None:
