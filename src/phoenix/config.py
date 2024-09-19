@@ -359,14 +359,16 @@ class LoggingMode(Enum):
 
 
 def get_env_logging_mode() -> LoggingMode:
-    logging_mode = os.getenv(ENV_LOGGING_MODE) or LoggingMode.DEFAULT.value
-    if (logging_mode_lower := logging_mode.lower()) in LoggingMode._value2member_map_:
-        return LoggingMode(logging_mode_lower)
-    raise ValueError(
-        f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
-        f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
-        "(case-insensitive)."
-    )
+    if (logging_mode := os.getenv(ENV_LOGGING_MODE)) is None:
+        return LoggingMode.DEFAULT
+    try:
+        return LoggingMode(logging_mode.lower().strip())
+    except ValueError:
+        raise ValueError(
+            f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
+            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+            "(case-insensitive)."
+        )
 
 
 def get_env_logging_level() -> int:
