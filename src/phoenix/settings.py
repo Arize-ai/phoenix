@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 
 from phoenix.config import LoggingMode
@@ -12,9 +13,9 @@ class _Settings:
     # By default, Phoenix does not configure its loggers and acts as a library
     logging_mode: LoggingMode = field(default=LoggingMode.DEFAULT)
     # By default, log level is INFO
-    logging_level: int = field(default=10)
+    logging_level: int = field(default=logging.INFO)
     # By default, log level is WARNING
-    db_logging_level: int = field(default=30)
+    db_logging_level: int = field(default=logging.WARNING)
 
 
 # Singleton instance of the settings
