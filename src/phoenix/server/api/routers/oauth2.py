@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional, Tuple
@@ -6,7 +7,7 @@ from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
 from authlib.jose import jwt
 from authlib.jose.errors import BadSignatureError
-from fastapi import APIRouter, Cookie, Path, Query, Request
+from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -31,10 +32,43 @@ from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.oauth2 import OAuth2Client
+from phoenix.server.rate_limiters import (
+    ServerRateLimiter,
+    fastapi_ip_rate_limiter,
+    fastapi_route_rate_limiter,
+)
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 
-router = APIRouter(prefix="/oauth2", include_in_schema=False)
+login_rate_limiter = ServerRateLimiter(
+    per_second_rate_limit=0.2,
+    enforcement_window_seconds=30,
+    partition_seconds=60,
+    active_partitions=2,
+)
+login_rate_limiter = fastapi_ip_rate_limiter(
+    login_rate_limiter,
+    paths=[
+        "oauth2/login",
+    ],
+)
+
+token_rate_limiter = ServerRateLimiter(
+    per_second_rate_limit=0.5,
+    enforcement_window_seconds=30,
+    partition_seconds=60,
+    active_partitions=2,
+)
+token_rate_limiter = fastapi_route_rate_limiter(
+    token_rate_limiter,
+    paths=[re.compile(r"/oauth2/[a-z0-9_]+/tokens")],
+)
+
+router = APIRouter(
+    prefix="/oauth2",
+    include_in_schema=False,
+    dependencies=[Depends(login_rate_limiter), Depends(token_rate_limiter)],
+)
 
 
 @router.post("/{idp_name}/login")

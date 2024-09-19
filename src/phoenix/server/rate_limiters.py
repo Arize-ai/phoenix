@@ -1,7 +1,8 @@
+import re
 import time
 from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Coroutine, DefaultDict, List, Optional
+from typing import Any, Callable, Coroutine, DefaultDict, List, Optional, Union
 
 from fastapi import HTTPException, Request
 
@@ -136,7 +137,7 @@ class ServerRateLimiter:
         rate_limiter.make_request_if_ready()
 
 
-def fastapi_rate_limiter(
+def fastapi_ip_rate_limiter(
     rate_limiter: ServerRateLimiter, paths: Optional[List[str]] = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
@@ -153,5 +154,22 @@ def fastapi_rate_limiter(
     return dependency
 
 
-def path_match(path: str, match_pattern: str) -> bool:
+def fastapi_route_rate_limiter(
+    rate_limiter: ServerRateLimiter, paths: Optional[List[Union[str, re.Pattern]]] = None
+) -> Callable[[Request], Coroutine[Any, Any, Request]]:
+    async def dependency(request: Request) -> Request:
+        for match_path in paths:
+            if path_match(request.url.path, match_path):
+                try:
+                    rate_limiter.make_request(str(match_path))
+                except UnavailableTokensError:
+                    raise HTTPException(status_code=429, detail="Too Many Requests")
+        return request
+
+    return dependency
+
+
+def path_match(path: str, match_pattern: Union[str, re.Pattern]) -> bool:
+    if isinstance(match_pattern, re.Pattern):
+        return bool(match_pattern.match(path))
     return path == match_pattern

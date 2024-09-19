@@ -37,7 +37,7 @@ from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_to
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_rate_limiter
+from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
 from phoenix.server.types import (
     AccessTokenClaims,
     PasswordResetTokenClaims,
@@ -53,14 +53,14 @@ rate_limiter = ServerRateLimiter(
     partition_seconds=60,
     active_partitions=2,
 )
-login_rate_limiter = fastapi_rate_limiter(
+login_rate_limiter = fastapi_ip_rate_limiter(
     rate_limiter,
     paths=[
-        "/login",
-        "/logout",
-        "/refresh",
-        "/password-reset-email",
-        "/password-reset",
+        "/auth/login",
+        "/auth/logout",
+        "/auth/refresh",
+        "/auth/password-reset-email",
+        "/auth/password-reset",
     ],
 )
 router = APIRouter(
