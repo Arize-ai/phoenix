@@ -8,8 +8,6 @@ type ForgotPasswordFormParams = {
   email: string;
 };
 
-const DEFAULT_ERROR_MESSAGE =
-  "Failed to send password reset email. Please contact your administrator.";
 export function ForgotPasswordForm({
   onResetSent,
 }: {
