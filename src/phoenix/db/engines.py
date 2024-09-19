@@ -76,7 +76,7 @@ def create_engine(
     url = get_async_db_url(url.render_as_string(hide_password=False))
     # If Phoenix is run as an application, we want to pass echo=False and let
     # the configured sqlalchemy logger handle the migration logs
-    migration_echo = Settings.log_migrations and Settings.logging_mode != LoggingMode.AS_APPLICATION
+    migration_echo = Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
     if backend is SupportedSQLDialect.SQLITE:
         return aio_sqlite_engine(url=url, migrate=migrate, echo=echo, migration_echo=migration_echo)
     elif backend is SupportedSQLDialect.POSTGRESQL:

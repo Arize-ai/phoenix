@@ -18,9 +18,9 @@ def setup_logging() -> None:
     Configures logging for the specified logging mode.
     """
     logging_mode = Settings.logging_mode
-    if logging_mode is LoggingMode.AS_LIBRARY:
+    if logging_mode is LoggingMode.DEFAULT:
         _setup_library_logging()
-    elif logging_mode is LoggingMode.AS_APPLICATION:
+    elif logging_mode is LoggingMode.STRUCTURED:
         _setup_application_logging()
     else:
         raise ValueError(f"Unsupported logging mode: {logging_mode}")

@@ -71,7 +71,7 @@ database logging see ENV_DB_LOGGING_LEVEL. Defaults to info.
 """
 ENV_DB_LOGGING_LEVEL = "PHOENIX_DB_LOGGING_LEVEL"
 """
-The logging level ('debug', 'info', 'warning', 'error', 'critical') for the Phoenix database.
+The logging level ('debug', 'info', 'warning', 'error', 'critical') for the Phoenix ORM.
 Defaults to warning.
 """
 ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
@@ -354,12 +354,12 @@ def get_web_base_url() -> str:
 
 
 class LoggingMode(Enum):
-    AS_LIBRARY = "default"
-    AS_APPLICATION = "structured"
+    DEFAULT = "default"
+    STRUCTURED = "structured"
 
 
 def get_env_logging_mode() -> LoggingMode:
-    logging_mode = os.getenv(ENV_LOGGING_MODE) or LoggingMode.AS_LIBRARY.value
+    logging_mode = os.getenv(ENV_LOGGING_MODE) or LoggingMode.DEFAULT.value
     if (logging_mode_lower := logging_mode.lower()) in LoggingMode._value2member_map_:
         return LoggingMode(logging_mode_lower)
     raise ValueError(
