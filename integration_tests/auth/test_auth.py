@@ -217,7 +217,7 @@ class TestPasswordReset:
         # new password should work
         new_profile = replace(u.profile, password=new_password)
         new_u = replace(u, profile=new_profile)
-        new_u.log_in().create_api_key()
+        new_u.log_in()
         assert not _will_be_asked_to_reset_password(new_u)
 
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -476,10 +476,10 @@ class TestPatchViewer:
         new_profile = replace(u.profile, password=new_password)
         new_u = replace(u, profile=new_profile)
         new_tokens = new_u.log_in()
+        assert not _will_be_asked_to_reset_password(new_u)
         with pytest.raises(Exception):
             # old password should no longer work, even with new tokens
             _patch_viewer(new_tokens, old_password, new_password=another_password)
-        assert not _will_be_asked_to_reset_password(new_u)
 
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_change_username(
@@ -572,13 +572,13 @@ class TestPatchUser:
             # password should still work
             non_self.log_in()
             return
+        with _EXPECTATION_401:
+            # old password should no longer work
+            non_self.log_in()
         new_profile = replace(non_self.profile, password=new_password)
         new_non_self = replace(non_self, profile=new_profile)
         new_non_self.log_in()
         assert _will_be_asked_to_reset_password(new_non_self)
-        email = new_non_self.email
-        with _EXPECTATION_401:
-            _log_in(old_password, email=email)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
