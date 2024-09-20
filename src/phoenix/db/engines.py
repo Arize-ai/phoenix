@@ -74,8 +74,8 @@ def create_engine(
         raise ValueError("Failed to parse database from connection string")
     backend = SupportedSQLDialect(url.get_backend_name())
     url = get_async_db_url(url.render_as_string(hide_password=False))
-    # If Phoenix is run as an application, we want to pass echo=False and let
-    # the configured sqlalchemy logger handle the migration logs
+    # If Phoenix is run as an application, we want to pass log_migrations_to_stdout=False
+    # and let the configured sqlalchemy logger handle the migration logs
     log_migrations_to_stdout = (
         Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
     )
