@@ -350,3 +350,27 @@ def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:
     )
     with pytest.raises(InvalidParquetMetadataError):
         _parse_schema_metadata(schema)
+
+
+def test_to_span_fully_unflattens_all_dot_separators() -> None:
+    spans = [
+        Span(
+            name="1",
+            parent_id=None,
+            start_time=datetime(year=2000, month=1, day=1, hour=0, minute=1),
+            end_time=datetime(year=2000, month=1, day=1, hour=0, minute=2),
+            span_kind=SpanKind.LLM,
+            status_code=SpanStatusCode.OK,
+            status_message="status-message-1",
+            attributes={
+                "llm.input_messages": [{"message.content": "hello", "message.role": "user"}]
+            },
+            events=[],
+            context=SpanContext(trace_id="1", span_id="1"),
+            conversation=None,
+        )
+    ]
+    actual = list(TraceDataset.from_spans(spans).to_spans())
+    assert actual[0].attributes["llm"] == {
+        "input_messages": [{"message": {"content": "hello", "role": "user"}}]
+    }

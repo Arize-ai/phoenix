@@ -17,7 +17,7 @@ from pyarrow import Schema, Table, parquet
 
 from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR, TRACE_DATASETS_DIR
 from phoenix.datetime_utils import normalize_timestamps
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
@@ -173,12 +173,15 @@ class TraceDataset:
             is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
             attribute_keys = row.index[is_attribute]
             attributes = unflatten(
-                row.loc[is_attribute]
-                .rename(
-                    {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                flatten(
+                    row.loc[is_attribute]
+                    .rename(
+                        {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                    )
+                    .dropna()
+                    .to_dict(),
+                    recurse_on_sequence=True,
                 )
-                .dropna()
-                .items()
             )
             is_context = row.index.str.startswith(CONTEXT_PREFIX)
             context_keys = row.index[is_context]
