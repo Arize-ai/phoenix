@@ -8,6 +8,7 @@ import pytest
 from faker import Faker
 from phoenix.auth import DEFAULT_SECRET_LENGTH
 from phoenix.config import (
+    ENV_PHOENIX_DISABLE_RATE_LIMIT,
     ENV_PHOENIX_ENABLE_AUTH,
     ENV_PHOENIX_SECRET,
     ENV_PHOENIX_SMTP_HOSTNAME,
@@ -41,6 +42,7 @@ def _app(
 ) -> Iterator[None]:
     values = (
         (ENV_PHOENIX_ENABLE_AUTH, "true"),
+        (ENV_PHOENIX_DISABLE_RATE_LIMIT, "true"),
         (ENV_PHOENIX_SECRET, _secret),
         (ENV_PHOENIX_SMTP_HOSTNAME, "127.0.0.1"),
         (ENV_PHOENIX_SMTP_PORT, str(pick_unused_port())),
