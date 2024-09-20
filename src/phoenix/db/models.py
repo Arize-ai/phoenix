@@ -20,7 +20,6 @@ from sqlalchemy import (
     func,
     insert,
     not_,
-    or_,
     select,
     text,
 )
@@ -39,8 +38,6 @@ from sqlalchemy.sql import expression
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-
-SYSTEM_USER_EMAIL = "system@localhost"
 
 
 class AuthMethod(Enum):
@@ -670,24 +667,26 @@ class User(Base):
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
     @hybrid_property
-    def auth_method(self) -> str:
-        if (self.email == SYSTEM_USER_EMAIL) or self.password_hash is not None:
+    def auth_method(self) -> Optional[str]:
+        if self.password_hash is not None:
             return AuthMethod.LOCAL.value
-        else:
+        elif self.oauth2_client_id is not None:
             return AuthMethod.OAUTH2.value
+        return None
 
     @auth_method.inplace.expression
     @classmethod
-    def _auth_method_expression(cls) -> ColumnElement[str]:
+    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
         return case(
             (
-                or_(
-                    cls.email == SYSTEM_USER_EMAIL,
-                    not_(cls.password_hash.is_(None)),
-                ),
+                not_(cls.password_hash.is_(None)),
                 AuthMethod.LOCAL.value,
             ),
-            else_=AuthMethod.OAUTH2.value,
+            (
+                not_(cls.oauth2_client_id.is_(None)),
+                AuthMethod.OAUTH2.value,
+            ),
+            else_=None,
         )
 
     __table_args__ = (

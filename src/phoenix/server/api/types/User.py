@@ -46,6 +46,7 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
     """
     Converts an ORM user to a GraphQL user.
     """
+    assert user.auth_method is not None
     return User(
         id_attr=user.id,
         password_needs_reset=user.reset_password,
