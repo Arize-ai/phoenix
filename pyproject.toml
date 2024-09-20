@@ -163,7 +163,6 @@ dependencies = [
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
   "pytest==8.3.2",
-  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
