@@ -51,12 +51,12 @@ export function UsersCard() {
                   setDialog(null);
                 }}
                 onNewUserCreated={(email) => {
+                  setDialog(null);
                   notifySuccess({
                     title: "User added",
                     message: `User ${email} has been added.`,
                   });
                   setFetchKey((prev) => prev + 1);
-                  setDialog(null);
                 }}
                 onNewUserCreationError={(error) => {
                   notifyError({

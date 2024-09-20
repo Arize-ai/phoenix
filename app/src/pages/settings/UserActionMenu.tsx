@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useState } from "react";
+import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
 import {
   ActionMenu,
@@ -51,6 +51,43 @@ export function UserActionMenu(props: UserActionMenuProps) {
       <ResetPasswordDialog userId={userId} onClose={() => setDialog(null)} />
     );
   }, [userId]);
+
+  const actionMenuItems = useMemo(() => {
+    const deleteUserItemEl = (
+      <Item key={UserAction.DELETE}>
+        <Flex
+          direction={"row"}
+          gap="size-75"
+          justifyContent={"start"}
+          alignItems={"center"}
+        >
+          <Icon svg={<Icons.TrashOutline />} />
+          <Text>Delete</Text>
+        </Flex>
+      </Item>
+    );
+
+    const resetPasswordItemEl = (
+      <Item key={UserAction.RESET_PASSWORD}>
+        <Flex
+          direction={"row"}
+          gap="size-75"
+          justifyContent={"start"}
+          alignItems={"center"}
+        >
+          <Icon svg={<Icons.Refresh />} />
+          <Text>Reset Password</Text>
+        </Flex>
+      </Item>
+    );
+
+    const actionMenuItems = [deleteUserItemEl];
+    if (isLocalAuth(authMethod)) {
+      actionMenuItems.push(resetPasswordItemEl);
+    }
+    return actionMenuItems;
+  }, [authMethod]);
+
   return (
     <div
       // TODO: add this logic to the ActionMenu component
@@ -62,6 +99,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
     >
       <ActionMenu
         align="end"
+        aria-label="User Actions"
         buttonSize="compact"
         onAction={(action) => {
           switch (action) {
@@ -74,32 +112,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           }
         }}
       >
-        <Item key={UserAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
-        {isLocalAuth(authMethod) ? (
-          <Item key={UserAction.RESET_PASSWORD}>
-            <Flex
-              direction={"row"}
-              gap="size-75"
-              justifyContent={"start"}
-              alignItems={"center"}
-            >
-              <Icon svg={<Icons.Edit2Outline />} />
-              <Text>Reset Password</Text>
-            </Flex>
-          </Item>
-        ) : (
-          <></>
-        )}
+        {actionMenuItems}
       </ActionMenu>
       <DialogContainer
         type="modal"

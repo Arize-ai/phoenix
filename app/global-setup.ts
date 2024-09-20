@@ -1,10 +1,10 @@
-import { test } from "@playwright/test";
+import { chromium, type FullConfig } from "@playwright/test";
 
-test.describe.configure({ mode: "serial" });
-
-test("first time login expects reset password", async ({ page }) => {
-  await page.goto("http://localhost:6006/login");
-
+async function globalSetup(config: FullConfig) {
+  const { baseURL } = config.projects[0].use;
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin");
   await page.getByRole("button", { name: "Login" }).click();
@@ -15,17 +15,15 @@ test("first time login expects reset password", async ({ page }) => {
   await page.getByLabel("New Password").fill("admin123");
   await page.getByLabel("Confirm Password").fill("admin123");
   await page.getByRole("button", { name: "Reset Password" }).click();
-});
 
-test("create a member", async ({ page }) => {
-  await page.goto("http://localhost:6006/login");
+  await page.goto(`${baseURL}/login`);
 
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin123");
   await page.getByRole("button", { name: "Login" }).click();
   await page.waitForURL("**/projects/**");
   // Reset the password
-  await page.goto("/settings");
+  await page.goto(`${baseURL}/settings`);
   await page.waitForURL("**/settings");
   await page.getByRole("button", { name: "Add User" }).click();
 
@@ -33,10 +31,13 @@ test("create a member", async ({ page }) => {
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password *", { exact: true }).fill("member123");
   await page.getByLabel("Confirm Password").fill("member123");
-  await page.getByLabel("member", { exact: true }).click();
+
+  await page.getByRole("dialog").getByLabel("member", { exact: true }).click();
   await page.getByRole("option", { name: "member" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Add User" })
     .click();
-});
+}
+
+export default globalSetup;
