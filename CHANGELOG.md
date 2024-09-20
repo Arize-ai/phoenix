@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.36.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.35.2...arize-phoenix-v4.36.0) (2024-09-20)
+
+
+### Features
+
+* Add environment variable setting for structured logging ([#4635](https://github.com/Arize-ai/phoenix/issues/4635)) ([a50ca10](https://github.com/Arize-ai/phoenix/commit/a50ca1018014567d44835680a4daaaa07551d27c))
+
+
+### Bug Fixes
+
+* close db connection after migration ([#4702](https://github.com/Arize-ai/phoenix/issues/4702)) ([b8b724a](https://github.com/Arize-ai/phoenix/commit/b8b724af725830e30094fd521c897599abd864c8))
+
 ## [4.35.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.35.1...arize-phoenix-v4.35.2) (2024-09-20)
 
 
