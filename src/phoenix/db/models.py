@@ -658,6 +658,19 @@ class User(Base):
         "RefreshToken", back_populates="user"
     )
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
+
+    @hybrid_property
+    def auth_method(self) -> str:
+        if self.password_hash is None:
+            return "OAUTH2"
+        else:
+            return "LOCAL"
+
+    @auth_method.inplace.expression
+    @classmethod
+    def _auth_method_expression(cls) -> ColumnElement[str]:
+        return case((cls.password_hash.is_(None), "OAUTH2"), else_="LOCAL")
+
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         UniqueConstraint(
