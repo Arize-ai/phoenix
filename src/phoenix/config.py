@@ -91,6 +91,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
@@ -233,6 +234,13 @@ def get_env_enable_auth() -> bool:
     Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+
+
+def get_env_disable_rate_limit() -> bool:
+    """
+    Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
 def get_env_phoenix_secret() -> Optional[str]:
