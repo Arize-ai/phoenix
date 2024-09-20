@@ -251,13 +251,15 @@ async def version() -> PlainTextResponse:
 DB_MUTEX: Optional[asyncio.Lock] = None
 
 
-def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+def _db(
+    engine: AsyncEngine, bypass_lock: bool = False
+) -> Callable[[], AsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
     async def factory() -> AsyncIterator[AsyncSession]:
         async with contextlib.AsyncExitStack() as stack:
-            if DB_MUTEX:
+            if not bypass_lock and DB_MUTEX:
                 await stack.enter_async_context(DB_MUTEX)
             yield await stack.enter_async_context(Session.begin())
 
@@ -628,7 +630,9 @@ def create_app(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
+    bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
@@ -661,7 +665,7 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
-    bulk_inserter = BulkInserter(
+    bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
         event_queue=dml_event_handler,
