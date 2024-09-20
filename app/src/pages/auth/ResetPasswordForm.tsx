@@ -50,7 +50,10 @@ export function ResetPasswordForm() {
           },
         },
         onCompleted: () => {
-          const to = createRedirectUrlWithReturn("/login");
+          const to = createRedirectUrlWithReturn({
+            path: "/login",
+            searchParams: { message: "Password has been reset." },
+          });
           navigate(to);
         },
         onError: (error) => {

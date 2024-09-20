@@ -2,7 +2,7 @@ import React from "react";
 import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Flex, View } from "@arizeai/components";
+import { Alert, Flex, View } from "@arizeai/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { LoginForm } from "./LoginForm";
@@ -29,6 +29,7 @@ export function LoginPage() {
   const hasOAuth2Idps = oAuth2Idps.length > 0;
   const [searchParams, setSearchParams] = useSearchParams();
   const returnUrl = searchParams.get("returnUrl");
+  const message = searchParams.get("message");
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -36,9 +37,22 @@ export function LoginPage() {
           <PhoenixLogo />
         </View>
       </Flex>
+      {message && (
+        <View paddingBottom="size-100">
+          <Alert variant="success">{message}</Alert>
+        </View>
+      )}
       <LoginForm
         initialError={searchParams.get("error")}
-        onSubmit={() => setSearchParams({})}
+        onSubmit={() => {
+          setSearchParams((prevSearchParams) => {
+            // Clear message and error
+            const newSearchParams = new URLSearchParams(prevSearchParams);
+            newSearchParams.delete("message");
+            newSearchParams.delete("error");
+            return newSearchParams;
+          });
+        }}
       />
       {hasOAuth2Idps && (
         <>
