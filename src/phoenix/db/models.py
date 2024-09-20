@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional, TypedDict
 
 from sqlalchemy import (
@@ -18,6 +19,7 @@ from sqlalchemy import (
     case,
     func,
     insert,
+    not_,
     select,
     text,
 )
@@ -36,6 +38,11 @@ from sqlalchemy.sql import expression
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+
+
+class AuthMethod(Enum):
+    LOCAL = "LOCAL"
+    OAUTH2 = "OAUTH2"
 
 
 class JSONB(JSON):
@@ -658,6 +665,30 @@ class User(Base):
         "RefreshToken", back_populates="user"
     )
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
+
+    @hybrid_property
+    def auth_method(self) -> Optional[str]:
+        if self.password_hash is not None:
+            return AuthMethod.LOCAL.value
+        elif self.oauth2_client_id is not None:
+            return AuthMethod.OAUTH2.value
+        return None
+
+    @auth_method.inplace.expression
+    @classmethod
+    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
+        return case(
+            (
+                not_(cls.password_hash.is_(None)),
+                AuthMethod.LOCAL.value,
+            ),
+            (
+                not_(cls.oauth2_client_id.is_(None)),
+                AuthMethod.OAUTH2.value,
+            ),
+            else_=None,
+        )
+
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
         UniqueConstraint(
