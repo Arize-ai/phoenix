@@ -1,6 +1,8 @@
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional, Tuple
+from urllib.parse import unquote
 
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
@@ -114,6 +116,8 @@ async def create_tokens(
     )
     if not signature_is_valid:
         return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
+    if return_url is not None and not _is_relative_url(unquote(return_url)):
+        return _redirect_to_login(error="Attempting login with unsafe return URL.")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -402,14 +406,20 @@ def _validate_signature_and_parse_return_url(
     return_url: Optional[str]
     try:
         payload = jwt.decode(s=state, key=secret)
+        signature_is_valid = True
         return_url = payload.get(_RETURN_URL)
         assert isinstance(return_url, str) or return_url is None
-        signature_is_valid = True
-        return signature_is_valid, return_url
     except BadSignatureError:
         signature_is_valid = False
         return_url = None
-        return signature_is_valid, return_url
+    return signature_is_valid, return_url
+
+
+def _is_relative_url(url: str) -> bool:
+    """
+    Determines whether the URL is relative.
+    """
+    return bool(_RELATIVE_URL_PATTERN.match(url))
 
 
 _RETURN_URL = "return_url"
@@ -417,3 +427,4 @@ _JWT_ALGORITHM = "HS256"
 _INVALID_OAUTH2_STATE_MESSAGE = (
     "Received invalid state parameter during OAuth2 authorization code flow for IDP {idp_name}."
 )
+_RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")
