@@ -1,11 +1,13 @@
 import json
+import os
+import sys
 
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from dotenv import load_dotenv
 from openai import OpenAI
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
-
 from prompt_templates.data_analysis_template import PROMPT_TEMPLATE, SYSTEM_PROMPT
 from skills.skill import Skill
 
@@ -14,11 +16,7 @@ load_dotenv()
 
 class AnalyzeData(Skill):
     def __init__(self):
-        super().__init__(
-            self.NAME, 
-            self.ANALYZE_DATA_FUNCTION_DICT, 
-            self.data_analyzer
-        )
+        super().__init__(self.NAME, self.ANALYZE_DATA_FUNCTION_DICT, self.data_analyzer)
 
     NAME = "data_analyzer"
     ANALYZE_DATA_FUNCTION_DICT = {
@@ -43,14 +41,15 @@ class AnalyzeData(Skill):
     # Define the data analysis tool function
     def data_analyzer(self, args):
         """Provides insights, trends, or analysis based on the data and prompt.
-        
+
         Args:
-            args (dict): A dictionary containing the data to analyze and the original user prompt that the data is based on.
-        
+            args (dict): A dictionary containing the data to analyze and
+            the original user prompt that the data is based on.
+
         Returns:
             str: The analysis result.
         """
-        
+
         if isinstance(args, dict) and "prompt" in args and "data" in args:
             prompt = args["prompt"]
             data = args["data"]
@@ -60,9 +59,9 @@ class AnalyzeData(Skill):
                 prompt = args["prompt"].strip()
                 data = args["data"].strip()
             except ValueError:
-                return "Invalid input: expected a dictionary with 'prompt' and 'data' keys or a string."
+                return "Invalid input: expected a dictionary or a string."
         else:
-            return "Invalid input: expected a dictionary with 'prompt' and 'data' keys or a string."
+            return "Invalid input: expected a dictionary or a string."
 
         client = OpenAI()
 

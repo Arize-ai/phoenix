@@ -1,9 +1,15 @@
-from router import router
+import os
+import sys
+
 import gradio as gr
-from utils.instrument import instrument, Framework
+from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from openinference.semconv.trace import SpanAttributes
+
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
+from router import router
+from utils.instrument import Framework, instrument
+
 
 def gradio_interface(message, history):
     tracer = trace.get_tracer(__name__)
@@ -19,9 +25,11 @@ def gradio_interface(message, history):
         span.set_status(trace.Status(trace.StatusCode.OK))
         return agent_response
 
+
 def launch_app():
     iface = gr.ChatInterface(fn=gradio_interface, title="Data Analyst Agent")
     iface.launch()
+
 
 if __name__ == "__main__":
     instrument(project_name="code-based-agent", framework=Framework.CODE_BASED)

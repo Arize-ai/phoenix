@@ -1,19 +1,20 @@
+import os
+import sys
+
 from langchain_core.tools import tool
 from openai import OpenAI
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 
-import sys
-import os
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 from db.database import get_schema, get_table, run_query
 from prompt_templates.sql_generator_template import SYSTEM_PROMPT
-from langchain_core.tools import tool
+
 
 @tool
-def generate_and_run_sql_query(query:str):
+def generate_and_run_sql_query(query: str):
     """Generates and runs an SQL query based on the prompt.
 
     Args:
@@ -22,7 +23,7 @@ def generate_and_run_sql_query(query:str):
     Returns:
         str: The result of the SQL query.
     """
-    
+
     def _sanitize_query(query):
         # Remove triple backticks from the query if present
         query = query.strip()
@@ -33,7 +34,7 @@ def generate_and_run_sql_query(query:str):
         elif query.endswith("```"):
             query = query[:-3].strip()
         return query
-    
+
     if isinstance(query, dict) and "prompt" in query:
         prompt = query["prompt"]
     elif isinstance(query, str):
@@ -55,9 +56,7 @@ def generate_and_run_sql_query(query:str):
             messages=[
                 {
                     "role": "system",
-                    "content": SYSTEM_PROMPT.format(
-                        SCHEMA=schema, TABLE=table
-                    ),
+                    "content": SYSTEM_PROMPT.format(SCHEMA=schema, TABLE=table),
                 },
                 {"role": "user", "content": prompt},
             ],

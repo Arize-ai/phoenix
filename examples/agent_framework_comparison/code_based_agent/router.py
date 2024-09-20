@@ -1,7 +1,8 @@
 import json
-import sys
 import os
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+import sys
+
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,7 +10,6 @@ from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
 from prompt_templates.router_template import SYSTEM_PROMPT
 from skills.skill_map import SkillMap
 
@@ -32,8 +32,7 @@ def router(messages, parent_context):
         span.set_attribute(SpanAttributes.LLM_TOOLS, str(skill_map.get_function_list()))
 
         if not any(
-            isinstance(message, dict) and message.get("role") == "system"
-            for message in messages
+            isinstance(message, dict) and message.get("role") == "system" for message in messages
         ):
             system_prompt = {"role": "system", "content": SYSTEM_PROMPT}
             messages.append(system_prompt)
@@ -89,6 +88,4 @@ def handle_tool_calls(tool_calls, messages, tracer):
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, function_result)
 
         # Append the result to the message history
-        messages.append(
-            {"role": "tool", "content": function_result, "tool_call_id": tool_call.id}
-        )
+        messages.append({"role": "tool", "content": function_result, "tool_call_id": tool_call.id})

@@ -1,27 +1,28 @@
 import json
 
 from dotenv import load_dotenv
+from langchain_core.tools import tool
 from openai import OpenAI
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
-
 from prompt_templates.data_analysis_template import PROMPT_TEMPLATE, SYSTEM_PROMPT
-from langchain_core.tools import tool
 
 load_dotenv()
+
 
 @tool
 def data_analyzer(args):
     """Provides insights, trends, or analysis based on the data and prompt.
-    
+
     Args:
-        args (dict): A dictionary containing the data to analyze and the original user prompt that the data is based on.
-    
+        args (dict): A dictionary containing the data to analyze and the original user prompt
+        that the data is based on.
+
     Returns:
         str: The analysis result.
     """
-    
+
     if isinstance(args, dict) and "prompt" in args and "data" in args:
         prompt = args["prompt"]
         data = args["data"]
