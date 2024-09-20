@@ -46,21 +46,13 @@ from phoenix.server.types import (
     UserId,
 )
 
-rate_limiter = ServerRateLimiter(
-    per_second_rate_limit=0.2,
-    enforcement_window_seconds=30,
-    partition_seconds=60,
-    active_partitions=2,
-)
 login_rate_limiter = fastapi_ip_rate_limiter(
-    rate_limiter,
-    paths=[
-        "/auth/login",
-        "/auth/logout",
-        "/auth/refresh",
-        "/auth/password-reset-email",
-        "/auth/password-reset",
-    ],
+    ServerRateLimiter(
+        per_second_rate_limit=0.2,
+        enforcement_window_seconds=30,
+        partition_seconds=60,
+        active_partitions=2,
+    )
 )
 router = APIRouter(
     prefix="/auth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
