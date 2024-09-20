@@ -66,7 +66,18 @@ def upgrade() -> None:
             sa.TIMESTAMP(timezone=True),
             nullable=True,
         ),
-        sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        sa.CheckConstraint(
+            "(password_hash IS NULL) = (password_salt IS NULL)",
+            name="password_hash_and_salt",
+        ),
+        sa.CheckConstraint(
+            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
+            name="oauth2_client_id_and_user_id",
+        ),
+        sa.CheckConstraint(
+            "password_hash IS NULL or oauth2_client_id IS NULL",
+            name="at_most_one_auth_method",
+        ),
         sa.UniqueConstraint(
             "oauth2_client_id",
             "oauth2_user_id",
