@@ -48,7 +48,7 @@ from phoenix.server.types import (
 
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=0.2,
-    enforcement_window_seconds=30,
+    enforcement_window_seconds=60,
     partition_seconds=60,
     active_partitions=2,
 )
