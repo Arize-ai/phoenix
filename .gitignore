@@ -30,4 +30,4 @@ pyrightconfig.json
 tutorials/internal/demo_llama_index/*.json
 .env
 .conda
-examples/agent-framework-comparison/db/*.db
+examples/agent_framework_comparison/db/*.db

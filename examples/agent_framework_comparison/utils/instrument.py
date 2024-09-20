@@ -2,6 +2,8 @@ import os
 from enum import Enum
 
 from openinference.instrumentation.openai import OpenAIInstrumentor
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 from phoenix.otel import register
 
@@ -21,12 +23,8 @@ def instrument(project_name="code-based-agent", framework=Framework.CODE_BASED):
     tracer_provider = register(project_name=project_name)
 
     if framework == Framework.LLAMA_INDEX:
-        from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
     elif framework == Framework.LANGGRAPH:
-        from openinference.instrumentation.langchain import LangChainInstrumentor
-
         LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
     else:
         OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)

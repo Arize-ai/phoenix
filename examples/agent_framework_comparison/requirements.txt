@@ -1,7 +1,7 @@
 openai
 gradio
 python-dotenv
-"arize-phoenix>=4.29.0"
+arize-phoenix>=4.29.0
 openinference-instrumentation
 langchain
 langchain_openai
