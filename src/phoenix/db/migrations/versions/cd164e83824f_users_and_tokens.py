@@ -27,6 +27,7 @@ def upgrade() -> None:
             sa.String,
             nullable=False,
             unique=True,
+            index=True,
         ),
     )
     op.create_table(
@@ -41,15 +42,12 @@ def upgrade() -> None:
         ),
         sa.Column("username", sa.String, nullable=True, unique=True, index=True),
         sa.Column("email", sa.String, nullable=False, unique=True, index=True),
-        sa.Column(
-            "auth_method",
-            sa.String,
-            sa.CheckConstraint("auth_method IN ('LOCAL')", "valid_auth_method"),
-            nullable=False,
-        ),
+        sa.Column("profile_picture_url", sa.String, nullable=True),
         sa.Column("password_hash", sa.LargeBinary, nullable=True),
         sa.Column("password_salt", sa.LargeBinary, nullable=True),
         sa.Column("reset_password", sa.Boolean, nullable=False),
+        sa.Column("oauth2_client_id", sa.String, nullable=True, index=True),
+        sa.Column("oauth2_user_id", sa.String, nullable=True, index=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -69,6 +67,10 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        sa.UniqueConstraint(
+            "oauth2_client_id",
+            "oauth2_user_id",
+        ),
         sqlite_autoincrement=True,
     )
     op.create_table(

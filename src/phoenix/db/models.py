@@ -623,7 +623,7 @@ class ExperimentRunAnnotation(Base):
 class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
     users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
 
@@ -637,12 +637,12 @@ class User(Base):
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
     username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
-    auth_method: Mapped[str] = mapped_column(
-        CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
-    )
+    profile_picture_url: Mapped[Optional[str]]
     password_hash: Mapped[Optional[bytes]]
     password_salt: Mapped[Optional[bytes]]
     reset_password: Mapped[bool]
+    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -660,6 +660,10 @@ class User(Base):
     api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        UniqueConstraint(
+            "oauth2_client_id",
+            "oauth2_user_id",
+        ),
         dict(sqlite_autoincrement=True),
     )
 

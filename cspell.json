@@ -22,6 +22,7 @@
         "graphiql",
         "HDBSCAN",
         "httpx",
+        "Idps",
         "Instrumentor",
         "instrumentors",
         "langchain",
