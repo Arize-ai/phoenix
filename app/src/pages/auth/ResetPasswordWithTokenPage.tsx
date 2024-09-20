@@ -15,7 +15,8 @@ export function ResetPasswordWithTokenPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   if (!token) {
-    return navigate("/login");
+    navigate("/login");
+    return null;
   }
   return (
     <AuthLayout>
