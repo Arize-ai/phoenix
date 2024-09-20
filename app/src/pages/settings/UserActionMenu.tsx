@@ -75,7 +75,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           justifyContent={"start"}
           alignItems={"center"}
         >
-          <Icon svg={<Icons.TrashOutline />} />
+          <Icon svg={<Icons.Refresh />} />
           <Text>Reset Password</Text>
         </Flex>
       </Item>
