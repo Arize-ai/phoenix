@@ -25,14 +25,13 @@ from phoenix.auth import (
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     delete_refresh_token_cookie,
-    is_locally_authenticated,
     is_valid_password,
     set_access_token_cookie,
     set_refresh_token_cookie,
     validate_password_format,
 )
 from phoenix.config import get_base_url, get_env_disable_rate_limit
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
@@ -198,7 +197,7 @@ async def initiate_password_reset(request: Request) -> Response:
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )
         )
-    if user is None or not is_locally_authenticated(user):
+    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -230,7 +229,7 @@ async def reset_password(request: Request) -> Response:
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
         user = await session.scalar(_select_active_user().filter_by(id=int(user_id)))
-    if user is None or not is_locally_authenticated(user):
+    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     validate_password_format(password)

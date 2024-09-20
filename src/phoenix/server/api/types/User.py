@@ -7,7 +7,6 @@ from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
-from phoenix.auth import is_locally_authenticated
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
@@ -47,6 +46,7 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
     """
     Converts an ORM user to a GraphQL user.
     """
+    assert user.auth_method is not None
     return User(
         id_attr=user.id,
         password_needs_reset=user.reset_password,
@@ -54,5 +54,5 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
         email=user.email,
         created_at=user.created_at,
         user_role_id=user.user_role_id,
-        auth_method=AuthMethod.LOCAL if is_locally_authenticated(user) else AuthMethod.OAUTH2,
+        auth_method=AuthMethod(user.auth_method),
     )

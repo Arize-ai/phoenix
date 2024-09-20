@@ -4,6 +4,9 @@ from typing import Mapping, Type
 from sqlalchemy.orm import InstrumentedAttribute
 
 from phoenix.db import models
+from phoenix.db.models import AuthMethod
+
+__all__ = ["AuthMethod", "UserRole", "COLUMN_ENUMS"]
 
 
 class UserRole(Enum):
