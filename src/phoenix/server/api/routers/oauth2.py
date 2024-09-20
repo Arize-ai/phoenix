@@ -1,4 +1,3 @@
-import re
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional, Tuple
@@ -40,38 +39,31 @@ from phoenix.server.rate_limiters import (
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 
-login_rate_limiter = ServerRateLimiter(
-    per_second_rate_limit=0.2,
-    enforcement_window_seconds=30,
-    partition_seconds=60,
-    active_partitions=2,
-)
 login_rate_limiter = fastapi_ip_rate_limiter(
-    login_rate_limiter,
-    paths=[
-        "oauth2/login",
-    ],
+    ServerRateLimiter(
+        per_second_rate_limit=0.2,
+        enforcement_window_seconds=30,
+        partition_seconds=60,
+        active_partitions=2,
+    ),
 )
 
-token_rate_limiter = ServerRateLimiter(
-    per_second_rate_limit=0.5,
-    enforcement_window_seconds=30,
-    partition_seconds=60,
-    active_partitions=2,
-)
-token_rate_limiter = fastapi_route_rate_limiter(
-    token_rate_limiter,
-    paths=[re.compile(r"/oauth2/[a-z0-9_]+/tokens")],
+create_tokens_rate_limiter = fastapi_route_rate_limiter(
+    ServerRateLimiter(
+        per_second_rate_limit=0.5,
+        enforcement_window_seconds=30,
+        partition_seconds=60,
+        active_partitions=2,
+    )
 )
 
 router = APIRouter(
     prefix="/oauth2",
     include_in_schema=False,
-    dependencies=[Depends(login_rate_limiter), Depends(token_rate_limiter)],
 )
 
 
-@router.post("/{idp_name}/login")
+@router.post("/{idp_name}/login", dependencies=[Depends(login_rate_limiter)])
 async def login(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
@@ -105,7 +97,7 @@ async def login(
     return response
 
 
-@router.get("/{idp_name}/tokens")
+@router.get("/{idp_name}/tokens", dependencies=[Depends(create_tokens_rate_limiter)])
 async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
