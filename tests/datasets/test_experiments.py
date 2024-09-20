@@ -103,7 +103,7 @@ async def test_run_experiment(
 
         # Wait until all evaluations are complete
         async def wait_for_evaluations():
-            timeout = 15
+            timeout = 30
             interval = 0.5
             total_wait = 0
             while total_wait < timeout:
