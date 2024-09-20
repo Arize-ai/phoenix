@@ -26,7 +26,7 @@ enum UserAction {
 }
 
 function isLocalAuth(authMethod: AuthMethod): authMethod is "LOCAL" {
-  return Math.random() > 0.5;
+  return authMethod === "LOCAL";
 }
 
 export function UserActionMenu(props: UserActionMenuProps) {

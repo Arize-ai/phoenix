@@ -29,7 +29,7 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
+from phoenix.server.types import AccessTokenId, ApiKeyId, RefreshTokenId
 
 
 @strawberry.input

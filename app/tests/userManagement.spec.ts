@@ -32,14 +32,17 @@ test("can create a user", async ({ page }) => {
 
   // Check if the user is created
   await expect(page.getByRole("cell", { name: email })).toBeVisible();
+  // This is not working in chromimum as the action menu never opens on click, need to investigate more why this is happening.
+  //   await page.getByRole("button", { name: "Close notice" }).click();
+  //   await expect(page.getByRole("dialog")).not.toBeVisible();
+  //   const newUserRow = await page.locator("tr", {
+  //     has: page.locator(`text=${email.split("@")[0]}`),
+  //   });
+  //   await newUserRow
+  //     .getByLabel("User actions")
+  //     .locator("xpath=..")
+  //     .click({ force: true });
+  //   await page.getByRole("menuitem", { name: "Delete" }).click();
+  //   await page.getByRole("button", { name: "Delete user" }).click();
+  //   await expect(page.getByRole("cell", { name: email })).not.toBeVisible();
 });
-
-// test("delete the member", async ({ page }) => {
-//   // Reset the password
-//   await page.goto("/settings");
-//   await page.waitForURL("**/settings");
-
-//   await page.getByLabel("User Actions").click();
-//   await page.getByRole("menuitem", { name: "Delete" }).click();
-//   await page.getByRole("button", { name: "Delete user" }).click();
-// });
