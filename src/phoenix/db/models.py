@@ -690,7 +690,18 @@ class User(Base):
         )
 
     __table_args__ = (
-        CheckConstraint("password_hash is null or password_salt is not null", name="salt"),
+        CheckConstraint(
+            "(password_hash IS NULL) = (password_salt IS NULL)",
+            name="password_hash_and_salt",
+        ),
+        CheckConstraint(
+            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
+            name="oauth2_client_id_and_user_id",
+        ),
+        CheckConstraint(
+            "password_hash IS NULL or oauth2_client_id IS NULL",
+            name="at_most_one_auth_method",
+        ),
         UniqueConstraint(
             "oauth2_client_id",
             "oauth2_user_id",
