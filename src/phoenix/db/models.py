@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional, TypedDict
 
 from sqlalchemy import (
@@ -18,6 +19,8 @@ from sqlalchemy import (
     case,
     func,
     insert,
+    not_,
+    or_,
     select,
     text,
 )
@@ -36,6 +39,13 @@ from sqlalchemy.sql import expression
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+
+SYSTEM_USER_EMAIL = "system@localhost"
+
+
+class AuthMethod(Enum):
+    LOCAL = "LOCAL"
+    OAUTH2 = "OAUTH2"
 
 
 class JSONB(JSON):
@@ -661,15 +671,24 @@ class User(Base):
 
     @hybrid_property
     def auth_method(self) -> str:
-        if self.password_hash is None:
-            return "OAUTH2"
+        if (self.email == SYSTEM_USER_EMAIL) or self.password_hash is not None:
+            return AuthMethod.LOCAL.value
         else:
-            return "LOCAL"
+            return AuthMethod.OAUTH2.value
 
     @auth_method.inplace.expression
     @classmethod
     def _auth_method_expression(cls) -> ColumnElement[str]:
-        return case((cls.password_hash.is_(None), "OAUTH2"), else_="LOCAL")
+        return case(
+            (
+                or_(
+                    cls.email == SYSTEM_USER_EMAIL,
+                    not_(cls.password_hash.is_(None)),
+                ),
+                AuthMethod.LOCAL.value,
+            ),
+            else_=AuthMethod.OAUTH2.value,
+        )
 
     __table_args__ = (
         CheckConstraint("password_hash is null or password_salt is not null", name="salt"),

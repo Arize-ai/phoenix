@@ -20,6 +20,7 @@ from phoenix.auth import (
 )
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
+from phoenix.db.models import SYSTEM_USER_EMAIL
 from phoenix.server.types import DbSessionFactory
 
 
@@ -84,7 +85,7 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
     ) is not None:
         system_user = models.User(
             user_role_id=system_role_id,
-            email="system@localhost",
+            email=SYSTEM_USER_EMAIL,
             reset_password=False,
         )
         session.add(system_user)
