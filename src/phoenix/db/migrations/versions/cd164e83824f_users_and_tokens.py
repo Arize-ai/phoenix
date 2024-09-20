@@ -75,12 +75,8 @@ def upgrade() -> None:
             name="oauth2_client_id_and_user_id",
         ),
         sa.CheckConstraint(
-            """
-                (CASE WHEN password_hash IS NOT NULL THEN 1 ELSE 0 END) +
-                (CASE WHEN oauth2_client_id IS NOT NULL THEN 1 ELSE 0 END) +
-                (CASE WHEN password_hash IS NULL THEN 1 ELSE 0 END) = 1
-            """,
-            name="local_auth_or_oauth2_or_system_user",
+            "password_hash IS NULL or oauth2_client_id IS NULL",
+            name="at_most_one_auth_method",
         ),
         sa.UniqueConstraint(
             "oauth2_client_id",
