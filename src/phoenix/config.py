@@ -69,8 +69,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
-# Auth is under active development. Phoenix users are strongly advised not to
-# set these environment variables until the feature is officially released.
+# Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
