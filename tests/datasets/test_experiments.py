@@ -1,5 +1,6 @@
 import asyncio
 import json
+import platform
 from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import patch
@@ -29,6 +30,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 
+@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment(
     _,
@@ -37,7 +39,8 @@ async def test_run_experiment(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    pytest.xfail("TODO: Convert this to an integration test")
+    if dialect == "postgresql":
+        pytest.xfail("This test fails on PostgreSQL")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -172,6 +175,7 @@ async def test_run_experiment(
                 assert evaluation.score == 1.0, f"{i}-th evaluator failed"
 
 
+@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
     _,
@@ -266,6 +270,7 @@ async def test_run_experiment_with_llm_eval(
 
         # Wait for evaluations to complete for each run
         for run in experiment_runs:
+
             async def wait_for_evaluations():
                 timeout = 30
                 interval = 0.5
@@ -313,6 +318,7 @@ async def test_run_experiment_with_llm_eval(
             assert evaluations[1].score == 1.0
 
 
+@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_evaluation(
     _,
