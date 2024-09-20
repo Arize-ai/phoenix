@@ -263,6 +263,35 @@ async def test_run_experiment_with_llm_eval(
                 .all()
             )
         assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
+
+        # Wait for evaluations to complete for each run
+        for run in experiment_runs:
+            async def wait_for_evaluations():
+                timeout = 30
+                interval = 0.5
+                total_wait = 0
+                while total_wait < timeout:
+                    async with db() as session:
+                        evaluations = (
+                            (
+                                await session.execute(
+                                    select(models.ExperimentRunAnnotation).where(
+                                        models.ExperimentRunAnnotation.experiment_run_id == run.id
+                                    )
+                                )
+                            )
+                            .scalars()
+                            .all()
+                        )
+                        if len(evaluations) >= 2:  # Expecting 2 evaluations
+                            break
+                    await asyncio.sleep(interval)
+                    total_wait += interval
+                else:
+                    raise TimeoutError("Evaluations did not complete in time")
+
+            await wait_for_evaluations()
+
         for run in experiment_runs:
             assert run.output == {"task_output": "doesn't matter, this is the output"}
 
