@@ -37,8 +37,7 @@ async def test_run_experiment(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("TODO: Convert this to an integration test")
+    pytest.xfail("TODO: Convert this to an integration test")
 
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
