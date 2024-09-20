@@ -4,6 +4,8 @@ import { useSearchParams } from "react-router-dom";
 
 import { Flex, View } from "@arizeai/components";
 
+import { Link } from "@phoenix/components";
+
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";
 import { ResetPasswordWithTokenForm } from "./ResetPasswordWithTokenForm";
@@ -24,6 +26,11 @@ export function ResetPasswordWithTokenPage() {
         </View>
       </Flex>
       <ResetPasswordWithTokenForm resetToken={token} />
+      <View paddingTop="size-200">
+        <Flex direction="column" alignItems="center" justifyContent="center">
+          <Link to="/login">Back to Login</Link>
+        </Flex>
+      </View>
     </AuthLayout>
   );
 }

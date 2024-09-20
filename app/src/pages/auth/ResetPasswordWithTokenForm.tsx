@@ -1,15 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Button,
-  Flex,
-  Form,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
 const MIN_PASSWORD_LENGTH = 4;
 
@@ -23,16 +17,16 @@ interface ResetPasswordWithTokenFormProps {
   resetToken: string;
 }
 
+const DEFAULT_ERROR_MESSAGE = "An error occurred. Please try resetting again.";
+
 export function ResetPasswordWithTokenForm({
   resetToken,
 }: ResetPasswordWithTokenFormProps) {
   const navigate = useNavigate();
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const onSubmit = useCallback(
     async ({ resetToken, newPassword }: ResetPasswordWithTokenFormParams) => {
-      setMessage(null);
       setError(null);
       setIsLoading(true);
       try {
@@ -44,19 +38,21 @@ export function ResetPasswordWithTokenForm({
           body: JSON.stringify({ token: resetToken, password: newPassword }),
         });
         if (!response.ok) {
-          setError("Failed attempt");
+          const text = await response.text();
+          setError(text);
           return;
         }
       } catch (error) {
-        setError("Failed attempt");
+        setError(DEFAULT_ERROR_MESSAGE);
         return;
       } finally {
         setIsLoading(() => false);
       }
-      setMessage("Success");
-      navigate("/login");
+      navigate(
+        `/login?message=${encodeURIComponent("Password has been reset.")}`
+      );
     },
-    [setMessage, setError, navigate]
+    [setError, navigate]
   );
   const {
     control,
@@ -71,11 +67,6 @@ export function ResetPasswordWithTokenForm({
   });
   return (
     <>
-      {message ? (
-        <View paddingBottom="size-100">
-          <Alert variant="success">{message}</Alert>
-        </View>
-      ) : null}
       {error ? (
         <View paddingBottom="size-100">
           <Alert variant="danger">{error}</Alert>
@@ -140,17 +131,23 @@ export function ResetPasswordWithTokenForm({
             />
           )}
         />
-        <View paddingTop="size-200">
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <Button
-              variant={isDirty ? "primary" : "default"}
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? "Resetting..." : "Reset Password"}
-            </Button>
-          </Flex>
-        </View>
+        <div
+          css={css`
+            margin-top: var(--ac-global-dimension-size-200);
+            margin-bottom: var(--ac-global-dimension-size-50);
+            button {
+              width: 100%;
+            }
+          `}
+        >
+          <Button
+            variant={isDirty ? "primary" : "default"}
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading ? "Resetting..." : "Reset Password"}
+          </Button>
+        </div>
       </Form>
     </>
   );

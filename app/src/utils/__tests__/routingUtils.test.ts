@@ -76,20 +76,31 @@ describe("routingUtils", () => {
 
   describe("createRedirectUrlWithReturn", () => {
     it("should append the returnUrl to the path", () => {
-      const path = "/account";
-      const returnUrl =
-        "/organizations/QWNjb3VudE9yZGluaXphdGlvbjoxNTg=/spaces/U3BhY2U6MTU4";
+      const path = "/login";
+      const returnUrl = "/projects/QWNjb3VudE9yZGluaXphdGlvbjoxNTg=";
       windowSpy.mockReturnValueOnce({
         href: `http://localhost:6006?returnUrl=${returnUrl}`,
       });
-      expect(createRedirectUrlWithReturn(path)).toEqual(
+      expect(createRedirectUrlWithReturn({ path })).toEqual(
         `${path}?returnUrl=${encodeURIComponent(returnUrl)}`
       );
     });
 
     it("should just return the path if there is no returnUrl param", () => {
       const path = "/account?test=true";
-      expect(createRedirectUrlWithReturn(path)).toEqual(path);
+      expect(createRedirectUrlWithReturn({ path })).toEqual(path);
+    });
+
+    it("should support additional params", () => {
+      const path = "/login";
+      expect(
+        createRedirectUrlWithReturn({
+          path,
+          searchParams: {
+            message: "Password has been reset.",
+          },
+        })
+      ).toEqual(`${path}?message=Password+has+been+reset.`);
     });
   });
 

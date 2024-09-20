@@ -17,16 +17,24 @@ export const createReturnUrlQueryParam = (): string => {
 
 /**
  * Takes a path and the current search params and creates a redirect url with the return url query parameter
- * @param {string} path - the path to redirect to
- * @returns
+ *
  */
-export const createRedirectUrlWithReturn = (path: string) => {
+export const createRedirectUrlWithReturn = ({
+  path,
+  searchParams,
+}: {
+  path: string;
+  searchParams?: Record<string, string>;
+}) => {
   const url = new URL(window.location.href);
   const returnUrl = url.searchParams.get(RETURN_URL_URL_PARAM);
-  const returnParam = returnUrl
-    ? `?${RETURN_URL_URL_PARAM}=${encodeURIComponent(returnUrl)}`
-    : "";
-  return `${path}${returnParam}`;
+
+  const params = new URLSearchParams(searchParams || {});
+  if (returnUrl) {
+    params.set(RETURN_URL_URL_PARAM, returnUrl);
+  }
+  const paramsString = params.toString();
+  return `${path}${paramsString ? `?${paramsString}` : ""}`;
 };
 
 /**
