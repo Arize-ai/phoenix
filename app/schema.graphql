@@ -60,6 +60,7 @@ interface ApiKey {
 
 enum AuthMethod {
   LOCAL
+  OAUTH2
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin

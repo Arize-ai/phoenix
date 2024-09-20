@@ -62,6 +62,7 @@ dependencies = [
   "fastapi-mail",
   "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pyjwt",
+  "authlib",
 ]
 dynamic = ["version"]
 
@@ -407,6 +408,7 @@ module = [
   "grpc.*",
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
+  "authlib.*",
 ]
 ignore_missing_imports = true
 

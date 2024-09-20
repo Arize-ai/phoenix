@@ -19,7 +19,7 @@ from phoenix.auth import (
     compute_password_hash,
 )
 from phoenix.db import models
-from phoenix.db.enums import COLUMN_ENUMS, AuthMethod, UserRole
+from phoenix.db.enums import COLUMN_ENUMS, UserRole
 from phoenix.server.types import DbSessionFactory
 
 
@@ -85,7 +85,6 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
         system_user = models.User(
             user_role_id=system_role_id,
             email="system@localhost",
-            auth_method=AuthMethod.LOCAL.value,
             reset_password=False,
         )
         session.add(system_user)
@@ -100,7 +99,6 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
             user_role_id=admin_role_id,
             username=DEFAULT_ADMIN_USERNAME,
             email=DEFAULT_ADMIN_EMAIL,
-            auth_method=AuthMethod.LOCAL.value,
             password_salt=salt,
             password_hash=hash_,
             reset_password=True,

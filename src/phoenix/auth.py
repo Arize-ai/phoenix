@@ -7,9 +7,13 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
-from fastapi import Response
+from starlette.responses import Response
+from typing_extensions import TypeVar
 
 from phoenix.config import get_env_phoenix_use_secure_cookies
+from phoenix.db.models import User as OrmUser
+
+ResponseType = TypeVar("ResponseType", bound=Response)
 
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
@@ -65,34 +69,64 @@ def validate_password_format(password: str) -> None:
     PASSWORD_REQUIREMENTS.validate(password)
 
 
+def is_locally_authenticated(user: OrmUser) -> bool:
+    """
+    Returns true if the user is authenticated locally, i.e., not through an
+    OAuth2 identity provider, and false otherwise.
+    """
+    return user.oauth2_client_id is None and user.oauth2_user_id is None
+
+
 def set_access_token_cookie(
-    *, response: Response, access_token: str, max_age: timedelta
-) -> Response:
-    return _set_token_cookie(
+    *, response: ResponseType, access_token: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
         response=response,
         cookie_name=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
         cookie_max_age=max_age,
-        token=access_token,
+        value=access_token,
     )
 
 
 def set_refresh_token_cookie(
-    *, response: Response, refresh_token: str, max_age: timedelta
-) -> Response:
-    return _set_token_cookie(
+    *, response: ResponseType, refresh_token: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
         response=response,
         cookie_name=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
         cookie_max_age=max_age,
-        token=refresh_token,
+        value=refresh_token,
     )
 
 
-def _set_token_cookie(
-    response: Response, cookie_name: str, cookie_max_age: timedelta, token: str
-) -> Response:
+def set_oauth2_state_cookie(
+    *, response: ResponseType, state: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+        cookie_max_age=max_age,
+        value=state,
+    )
+
+
+def set_oauth2_nonce_cookie(
+    *, response: ResponseType, nonce: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+        cookie_max_age=max_age,
+        value=nonce,
+    )
+
+
+def _set_cookie(
+    response: ResponseType, cookie_name: str, cookie_max_age: timedelta, value: str
+) -> ResponseType:
     response.set_cookie(
         key=cookie_name,
-        value=token,
+        value=value,
         secure=get_env_phoenix_use_secure_cookies(),
         httponly=True,
         samesite="strict",
@@ -101,13 +135,23 @@ def _set_token_cookie(
     return response
 
 
-def delete_access_token_cookie(response: Response) -> Response:
+def delete_access_token_cookie(response: ResponseType) -> ResponseType:
     response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
     return response
 
 
-def delete_refresh_token_cookie(response: Response) -> Response:
+def delete_refresh_token_cookie(response: ResponseType) -> ResponseType:
     response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    return response
+
+
+def delete_oauth2_state_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(key=PHOENIX_OAUTH2_STATE_COOKIE_NAME)
+    return response
+
+
+def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME)
     return response
 
 
@@ -206,6 +250,16 @@ PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 """The name of the cookie that stores the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
+PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
+"""The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
+PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
+"""The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
+DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES = 15
+"""
+The default amount of time in minutes that can elapse between the initial
+redirect to the IDP and the invocation of the callback URL during the OAuth2
+authorization code flow.
+"""
 
 
 class Token(str): ...

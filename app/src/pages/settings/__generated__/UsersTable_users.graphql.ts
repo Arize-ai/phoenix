@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f20d50865a6c9bb771863424806a477e>>
+ * @generated SignedSource<<1ecb9d526bace62adc934d30278eb434>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type AuthMethod = "LOCAL";
+export type AuthMethod = "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {
   readonly users: {

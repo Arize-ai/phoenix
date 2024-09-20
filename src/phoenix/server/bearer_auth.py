@@ -1,13 +1,19 @@
 from abc import ABC
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
-from typing import Any, Awaitable, Callable, Optional, Tuple
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Optional,
+    Tuple,
+)
 
 import grpc
-from fastapi import Request
+from fastapi import HTTPException, Request
 from grpc_interceptor import AsyncServerInterceptor
 from grpc_interceptor.exceptions import Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
-from starlette.exceptions import HTTPException
 from starlette.requests import HTTPConnection
 from starlette.status import HTTP_401_UNAUTHORIZED
 
@@ -18,7 +24,20 @@ from phoenix.auth import (
     Token,
 )
 from phoenix.db import enums
-from phoenix.server.types import AccessTokenClaims, ApiKeyClaims, UserClaimSet, UserId
+from phoenix.db.enums import UserRole
+from phoenix.db.models import User as OrmUser
+from phoenix.server.types import (
+    AccessToken,
+    AccessTokenAttributes,
+    AccessTokenClaims,
+    ApiKeyClaims,
+    RefreshToken,
+    RefreshTokenAttributes,
+    RefreshTokenClaims,
+    TokenStore,
+    UserClaimSet,
+    UserId,
+)
 
 
 class HasTokenStore(ABC):
@@ -108,3 +127,35 @@ async def is_authenticated(request: Request) -> None:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
     if claims.status is not ClaimSetStatus.VALID:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+
+async def create_access_and_refresh_tokens(
+    *,
+    token_store: TokenStore,
+    user: OrmUser,
+    access_token_expiry: timedelta,
+    refresh_token_expiry: timedelta,
+) -> Tuple[AccessToken, RefreshToken]:
+    issued_at = datetime.now(timezone.utc)
+    user_id = UserId(user.id)
+    user_role = UserRole(user.role.name)
+    refresh_token_claims = RefreshTokenClaims(
+        subject=user_id,
+        issued_at=issued_at,
+        expiration_time=issued_at + refresh_token_expiry,
+        attributes=RefreshTokenAttributes(
+            user_role=user_role,
+        ),
+    )
+    refresh_token, refresh_token_id = await token_store.create_refresh_token(refresh_token_claims)
+    access_token_claims = AccessTokenClaims(
+        subject=user_id,
+        issued_at=issued_at,
+        expiration_time=issued_at + access_token_expiry,
+        attributes=AccessTokenAttributes(
+            user_role=user_role,
+            refresh_token_id=refresh_token_id,
+        ),
+    )
+    access_token, _ = await token_store.create_access_token(access_token_claims)
+    return access_token, refresh_token

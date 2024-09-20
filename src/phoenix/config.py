@@ -1,10 +1,13 @@
 import os
 import re
 import tempfile
+from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from logging import getLogger
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, overload
+from urllib.parse import urlparse
 
 from phoenix.utilities.re import parse_env_headers
 
@@ -66,8 +69,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
-# Auth is under active development. Phoenix users are strongly advised not to
-# set these environment variables until the feature is officially released.
+# Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
@@ -317,6 +319,80 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+@dataclass(frozen=True)
+class OAuth2ClientConfig:
+    idp_name: str
+    idp_display_name: str
+    client_id: str
+    client_secret: str
+    server_metadata_url: str
+
+    @classmethod
+    def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
+        idp_name_upper = idp_name.upper()
+        if not (
+            client_id := os.getenv(
+                client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID"
+            )
+        ):
+            raise ValueError(
+                f"A client id must be set for the {idp_name} OAuth2 IDP "
+                f"via the {client_id_env_var} environment variable"
+            )
+        if not (
+            client_secret := os.getenv(
+                client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
+            )
+        ):
+            raise ValueError(
+                f"A client secret must be set for the {idp_name} OAuth2 IDP "
+                f"via the {client_secret_env_var} environment variable"
+            )
+        if not (
+            server_metadata_url := (
+                os.getenv(
+                    server_metadata_url_env_var
+                    := f"PHOENIX_OAUTH2_{idp_name_upper}_SERVER_METADATA_URL",
+                )
+                or _get_default_server_metadata_url(idp_name)
+            )
+        ):
+            raise ValueError(
+                f"A server metadata URL must be set for the {idp_name} OAuth2 IDP "
+                f"via the {server_metadata_url_env_var} environment variable"
+            )
+        if urlparse(server_metadata_url).scheme != "https":
+            raise ValueError(
+                f"Server metadata URL for {idp_name} OAuth2 IDP "
+                "must be a valid URL using the https protocol"
+            )
+        return cls(
+            idp_name=idp_name,
+            idp_display_name=os.getenv(
+                f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
+                _get_default_idp_display_name(idp_name),
+            ),
+            client_id=client_id,
+            client_secret=client_secret,
+            server_metadata_url=server_metadata_url,
+        )
+
+
+def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
+    """
+    Get OAuth2 settings from environment variables.
+    """
+
+    idp_names = set()
+    pattern = re.compile(
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
+    )
+    for env_var in os.environ:
+        if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
+            idp_names.add(idp_name)
+    return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
@@ -483,6 +559,32 @@ def get_web_base_url() -> str:
     if session := active_session():
         return session.url
     return get_base_url()
+
+
+class OAuth2Idp(Enum):
+    AWS_COGNITO = "aws_cognito"
+    GOOGLE = "google"
+    MICROSOFT_ENTRA_ID = "microsoft_entra_id"
+
+
+def _get_default_idp_display_name(idp_name: str) -> str:
+    """
+    Get the default display name for an OAuth2 IDP.
+    """
+    if idp_name == OAuth2Idp.AWS_COGNITO.value:
+        return "AWS Cognito"
+    if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
+        return "Microsoft Entra ID"
+    return idp_name.replace("_", " ").title()
+
+
+def _get_default_server_metadata_url(idp_name: str) -> Optional[str]:
+    """
+    Gets the default server metadata URL for an OAuth2 IDP.
+    """
+    if idp_name == OAuth2Idp.GOOGLE.value:
+        return "https://accounts.google.com/.well-known/openid-configuration"
+    return None
 
 
 DEFAULT_PROJECT_NAME = "default"
