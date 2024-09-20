@@ -265,6 +265,7 @@ async def _create_user(
             username=user_info.username,
             email=user_info.email,
             profile_picture_url=user_info.profile_picture_url,
+            reset_password=False,
         )
     )
     assert isinstance(user_id, int)
