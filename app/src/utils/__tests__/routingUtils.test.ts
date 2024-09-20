@@ -90,6 +90,18 @@ describe("routingUtils", () => {
       const path = "/account?test=true";
       expect(createRedirectUrlWithReturn({ path })).toEqual(path);
     });
+
+    it("should support additional params", () => {
+      const path = "/login";
+      expect(
+        createRedirectUrlWithReturn({
+          path,
+          searchParams: {
+            message: "Password has been reset.",
+          },
+        })
+      ).toEqual(`${path}?message=Password+has+been+reset.`);
+    });
   });
 
   describe("createReturnUrlQueryParam", () => {
