@@ -163,7 +163,6 @@ dependencies = [
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
   "pytest==8.3.2",
-  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -249,7 +248,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
-tests = "pytest -n auto {args}"
+tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
@@ -257,13 +256,13 @@ python = ["3.8", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
 addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
   "--new-first",
   "--showlocals",
-  "--exitfirst",
 ]
 testpaths = [
   "tests",
