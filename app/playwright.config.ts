@@ -46,6 +46,12 @@ export default defineConfig({
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
     },
+    {
+      name: "rate limit",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["chromium", "firefox", "webkit"],
+      testMatch: "**/*.rate-limit.spec.ts",
+    },
     /* Test against mobile viewports. */
     // {
     //   name: 'Mobile Chrome',

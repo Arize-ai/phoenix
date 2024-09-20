@@ -39,7 +39,11 @@ export function LoginForm(props: LoginFormProps) {
           body: JSON.stringify(params),
         });
         if (!response.ok) {
-          setError("Invalid login");
+          const errorMessage =
+            response.status === 429
+              ? "Too many requests. Please try again later."
+              : "Invalid login";
+          setError(errorMessage);
           return;
         }
       } catch (error) {

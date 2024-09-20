@@ -28,6 +28,7 @@ from phoenix.auth import (
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
+from phoenix.config import get_env_disable_rate_limit
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
@@ -64,8 +65,15 @@ router = APIRouter(
     include_in_schema=False,
 )
 
+if not get_env_disable_rate_limit():
+    login_dependencies = [Depends(login_rate_limiter)]
+    create_tokens_dependencies = [Depends(create_tokens_rate_limiter)]
+else:
+    login_dependencies = []
+    create_tokens_dependencies = []
 
-@router.post("/{idp_name}/login", dependencies=[Depends(login_rate_limiter)])
+
+@router.post("/{idp_name}/login", dependencies=login_dependencies)
 async def login(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
@@ -99,7 +107,7 @@ async def login(
     return response
 
 
-@router.get("/{idp_name}/tokens", dependencies=[Depends(create_tokens_rate_limiter)])
+@router.get("/{idp_name}/tokens", dependencies=create_tokens_dependencies)
 async def create_tokens(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],

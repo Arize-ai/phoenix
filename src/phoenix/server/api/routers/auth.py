@@ -31,7 +31,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
     validate_password_format,
 )
-from phoenix.config import get_base_url
+from phoenix.config import get_base_url, get_env_disable_rate_limit
 from phoenix.db import models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
@@ -48,23 +48,23 @@ from phoenix.server.types import (
 
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=0.2,
-    enforcement_window_seconds=30,
+    enforcement_window_seconds=60,
     partition_seconds=60,
     active_partitions=2,
 )
 login_rate_limiter = fastapi_ip_rate_limiter(
     rate_limiter,
     paths=[
-        "/login",
-        "/logout",
-        "/refresh",
-        "/password-reset-email",
-        "/password-reset",
+        "/auth/login",
+        "/auth/logout",
+        "/auth/refresh",
+        "/auth/password-reset-email",
+        "/auth/password-reset",
     ],
 )
-router = APIRouter(
-    prefix="/auth", include_in_schema=False, dependencies=[Depends(login_rate_limiter)]
-)
+
+auth_dependencies = [Depends(login_rate_limiter)] if not get_env_disable_rate_limit() else []
+router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_dependencies)
 
 
 @router.post("/login")
