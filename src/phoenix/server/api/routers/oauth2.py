@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.datastructures import URL
 from starlette.responses import RedirectResponse
+from starlette.routing import Router
 from starlette.status import HTTP_302_FOUND
 from typing_extensions import Annotated
 
@@ -383,7 +384,9 @@ def _get_create_tokens_endpoint(*, request: Request, idp_name: str) -> str:
     """
     Gets the endpoint for create tokens route.
     """
-    return str(request.url_for(create_tokens.__name__, idp_name=idp_name))
+    router: Router = request.scope["router"]
+    url_path = router.url_path_for(create_tokens.__name__, idp_name=idp_name)
+    return str(url_path.make_absolute_url(base_url=request.app.state.base_url or request.base_url))
 
 
 def _generate_state_for_oauth2_authorization_code_flow(
