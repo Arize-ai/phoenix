@@ -84,6 +84,7 @@ def set_access_token_cookie(
         response=response,
         cookie_name=PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
         cookie_max_age=max_age,
+        samesite="strict",
         value=access_token,
     )
 
@@ -95,6 +96,7 @@ def set_refresh_token_cookie(
         response=response,
         cookie_name=PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
         cookie_max_age=max_age,
+        samesite="strict",
         value=refresh_token,
     )
 
@@ -106,6 +108,7 @@ def set_oauth2_state_cookie(
         response=response,
         cookie_name=PHOENIX_OAUTH2_STATE_COOKIE_NAME,
         cookie_max_age=max_age,
+        samesite="lax",
         value=state,
     )
 
@@ -117,19 +120,25 @@ def set_oauth2_nonce_cookie(
         response=response,
         cookie_name=PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
         cookie_max_age=max_age,
+        samesite="lax",
         value=nonce,
     )
 
 
 def _set_cookie(
-    response: ResponseType, cookie_name: str, cookie_max_age: timedelta, value: str
+    *,
+    response: ResponseType,
+    cookie_name: str,
+    cookie_max_age: timedelta,
+    samesite: Literal["strict", "lax"],
+    value: str,
 ) -> ResponseType:
     response.set_cookie(
         key=cookie_name,
         value=value,
         secure=get_env_phoenix_use_secure_cookies(),
         httponly=True,
-        samesite="strict",
+        samesite=samesite,
         max_age=int(cookie_max_age.total_seconds()),
     )
     return response
