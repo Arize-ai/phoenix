@@ -143,7 +143,7 @@ def dialect(request: SubRequest) -> str:
 @pytest.fixture(scope="function")
 async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
     engine = aio_sqlite_engine(
-        make_url("sqlite+aiosqlite:///:memory:"), migrate=False, shared_cache=False
+        make_url("sqlite+aiosqlite:///:memory:"), migrate=False, shared_cache=True
     )
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.drop_all)
