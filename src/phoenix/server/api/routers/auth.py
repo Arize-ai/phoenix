@@ -48,7 +48,7 @@ from phoenix.server.types import (
 
 login_rate_limiter = fastapi_ip_rate_limiter(
     ServerRateLimiter(
-        per_second_rate_limit=0.2,
+        per_second_rate_limit=1.0,
         enforcement_window_seconds=30,
         partition_seconds=60,
         active_partitions=2,
