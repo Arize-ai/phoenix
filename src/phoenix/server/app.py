@@ -118,8 +118,6 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.NullHandler())
 
 router = APIRouter(include_in_schema=False)
 
@@ -542,7 +540,7 @@ def create_engine_and_run_migrations(
     database_url: str,
 ) -> AsyncEngine:
     try:
-        return create_engine(database_url)
+        return create_engine(connection_str=database_url, migrate=True, log_to_stdout=False)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -604,6 +602,7 @@ def create_app(
     secret: Optional[str] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> FastAPI:
+    logger.info(f"Server umap params: {umap_params}")
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (

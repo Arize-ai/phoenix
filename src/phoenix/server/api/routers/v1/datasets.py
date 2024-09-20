@@ -71,7 +71,6 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 DATASET_NODE_NAME = DatasetNodeType.__name__
 DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__

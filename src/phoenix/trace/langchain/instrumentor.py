@@ -13,7 +13,6 @@ from phoenix.config import get_env_project_name
 from phoenix.trace.exporter import _OpenInferenceExporter
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 __all__ = ("LangChainInstrumentor",)
 

@@ -14,7 +14,6 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.settings import Settings
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 def printif(condition: bool, text: str) -> None:

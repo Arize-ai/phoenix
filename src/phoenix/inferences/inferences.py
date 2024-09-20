@@ -34,7 +34,6 @@ from .schema import (
 from .validation import validate_inferences_inputs
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 # A schema like object. Not recommended to use this directly
 SchemaLike: TypeAlias = Any

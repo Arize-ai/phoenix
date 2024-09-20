@@ -1,10 +1,10 @@
+import logging
 import os
 import urllib
-from logging import getLogger
 from re import compile
 from typing import Dict, List, Optional
 
-_logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Environment variables specific to the subpackage
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -72,13 +72,13 @@ def parse_env_headers(s: str) -> Dict[str, str]:
             encoded_header = f"{urllib.parse.quote(name)}={urllib.parse.quote(value)}"
             match = _HEADER_PATTERN.fullmatch(encoded_header.strip())
             if not match:
-                _logger.warning(
+                logger.warning(
                     "Header format invalid! Header values in environment variables must be "
                     "URL encoded: %s",
                     f"{name}: ****",
                 )
                 continue
-            _logger.warning(
+            logger.warning(
                 "Header values in environment variables should be URL encoded, attempting to "
                 "URL encode header: {name}: ****"
             )

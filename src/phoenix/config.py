@@ -1,13 +1,16 @@
+import logging
 import os
 import re
 import tempfile
-from logging import getLogger
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from phoenix.utilities.logging import log_a_list
+
 from .utilities.re import parse_env_headers
 
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
@@ -55,6 +58,24 @@ See e.g. https://www.postgresql.org/docs/current/ddl-schemas.html
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
 Whether to enable Prometheus. Defaults to false.
+"""
+ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
+"""
+The logging mode (either 'default' or 'structured').
+"""
+ENV_LOGGING_LEVEL = "PHOENIX_LOGGING_LEVEL"
+"""
+The logging level ('debug', 'info', 'warning', 'error', 'critical') for the Phoenix backend. For
+database logging see ENV_DB_LOGGING_LEVEL. Defaults to info.
+"""
+ENV_DB_LOGGING_LEVEL = "PHOENIX_DB_LOGGING_LEVEL"
+"""
+The logging level ('debug', 'info', 'warning', 'error', 'critical') for the Phoenix ORM.
+Defaults to warning.
+"""
+ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
+"""
+Whether or not to log migrations. Defaults to true.
 """
 
 # Phoenix server OpenTelemetry instrumentation environment variables
@@ -329,6 +350,75 @@ def get_web_base_url() -> str:
     if session := active_session():
         return session.url
     return get_base_url()
+
+
+class LoggingMode(Enum):
+    DEFAULT = "default"
+    STRUCTURED = "structured"
+
+
+def get_env_logging_mode() -> LoggingMode:
+    if (logging_mode := os.getenv(ENV_LOGGING_MODE)) is None:
+        return LoggingMode.DEFAULT
+    try:
+        return LoggingMode(logging_mode.lower().strip())
+    except ValueError:
+        raise ValueError(
+            f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
+            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+            "(case-insensitive)."
+        )
+
+
+def get_env_logging_level() -> int:
+    return _get_logging_level(
+        env_var=ENV_LOGGING_LEVEL,
+        default_level=logging.INFO,
+    )
+
+
+def get_env_db_logging_level() -> int:
+    return _get_logging_level(
+        env_var=ENV_DB_LOGGING_LEVEL,
+        default_level=logging.WARNING,
+    )
+
+
+def _get_logging_level(env_var: str, default_level: int) -> int:
+    logging_level = os.getenv(env_var)
+    if not logging_level:
+        return default_level
+
+    # levelNamesMapping = logging.getLevelNamesMapping() is not supported in python 3.8
+    # but is supported in 3.12. Hence, we define the mapping ourselves and will remove
+    # this once we drop support for older python versions
+    levelNamesMapping = logging._nameToLevel.copy()
+
+    valid_values = [level for level in levelNamesMapping if level != "NOTSET"]
+
+    if logging_level.upper() not in valid_values:
+        raise ValueError(
+            f"Invalid value `{logging_level}` for env var `{env_var}`. "
+            f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
+        )
+    return levelNamesMapping[logging_level.upper()]
+
+
+def get_env_log_migrations() -> bool:
+    log_migrations = os.getenv(ENV_LOG_MIGRATIONS)
+    # Default to True
+    if log_migrations is None:
+        return True
+
+    if log_migrations.lower() == "true":
+        return True
+    elif log_migrations.lower() == "false":
+        return False
+    else:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_LOG_MIGRATIONS}: "
+            f"{log_migrations}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
+        )
 
 
 DEFAULT_PROJECT_NAME = "default"

@@ -1,9 +1,9 @@
-from logging import getLogger
+import logging
 from re import compile, split
 from typing import Dict, List
 from urllib.parse import unquote
 
-_logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Optional whitespace
 _OWS = r"[ \t]*"
@@ -35,7 +35,7 @@ def parse_env_headers(s: str) -> Dict[str, str]:
             continue
         match = _HEADER_PATTERN.fullmatch(header.strip())
         if not match:
-            _logger.warning(
+            logger.warning(
                 "Header format invalid! Header values in environment variables must be "
                 "URL encoded: %s",
                 header,
