@@ -126,6 +126,7 @@ def set_oauth2_nonce_cookie(
 
 
 def _set_cookie(
+    *,
     response: ResponseType,
     cookie_name: str,
     cookie_max_age: timedelta,
