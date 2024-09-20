@@ -8,6 +8,8 @@ module.exports = {
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],
   },
+  // .spec.ts files are for playwright e2e tests, jest unit tests are labeled with .test.ts
+  testPathIgnorePatterns: ["\\.spec\\.ts$"],
   transformIgnorePatterns: [".*node_modules/.pnpm/(?!d3)@"],
   moduleNameMapper: {
     "^@phoenix/(.*)$": "<rootDir>/src/$1",
