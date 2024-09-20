@@ -36,7 +36,6 @@ from phoenix.db import models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
-from phoenix.server.jwt_store import JwtStore
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
 from phoenix.server.types import (
     AccessTokenClaims,
@@ -72,7 +71,7 @@ router = APIRouter(
 async def login(request: Request) -> Response:
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
-    token_store: JwtStore = request.app.state.get_token_store()
+    token_store: TokenStore = request.app.state.get_token_store()
     data = await request.json()
     email = data.get("email")
     password = data.get("password")

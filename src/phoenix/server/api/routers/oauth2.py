@@ -29,13 +29,13 @@ from phoenix.auth import (
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.jwt_store import JwtStore
 from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
     fastapi_route_rate_limiter,
 )
+from phoenix.server.types import TokenStore
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 
@@ -116,7 +116,7 @@ async def create_tokens(
         return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
-    token_store: JwtStore = request.app.state.get_token_store()
+    token_store: TokenStore = request.app.state.get_token_store()
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
