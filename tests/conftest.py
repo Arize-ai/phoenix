@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import tempfile
 from asyncio import AbstractEventLoop
 from functools import partial
 from importlib.metadata import version
@@ -142,14 +143,15 @@ def dialect(request: SubRequest) -> str:
 
 @pytest.fixture(scope="function")
 async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
-    engine = aio_sqlite_engine(
-        make_url("sqlite+aiosqlite:///:memory:"), migrate=False, shared_cache=True
-    )
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
-        await conn.run_sync(models.Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
+    with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
+        engine = aio_sqlite_engine(
+            make_url(f"sqlite+aiosqlite:///{temp_db.name}"), migrate=False
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.drop_all)
+            await conn.run_sync(models.Base.metadata.create_all)
+        yield engine
+        await engine.dispose()
 
 
 @pytest.fixture(scope="function")
