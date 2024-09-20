@@ -55,11 +55,11 @@ rate_limiter = ServerRateLimiter(
 login_rate_limiter = fastapi_ip_rate_limiter(
     rate_limiter,
     paths=[
-        "/login",
-        "/logout",
-        "/refresh",
-        "/password-reset-email",
-        "/password-reset",
+        "/auth/login",
+        "/auth/logout",
+        "/auth/refresh",
+        "/auth/password-reset-email",
+        "/auth/password-reset",
     ],
 )
 router = APIRouter(
