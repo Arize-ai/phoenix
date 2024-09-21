@@ -7,7 +7,6 @@ from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, overload
-from urllib.parse import urlparse
 from warnings import warn
 
 from phoenix.utilities.logging import log_a_list
@@ -366,52 +365,13 @@ class OAuth2ClientConfig:
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
-        idp_name_upper = idp_name.upper()
-        if not (
-            client_id := os.getenv(
-                client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID"
-            )
-        ):
-            raise ValueError(
-                f"A client id must be set for the {idp_name} OAuth2 IDP "
-                f"via the {client_id_env_var} environment variable"
-            )
-        if not (
-            client_secret := os.getenv(
-                client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
-            )
-        ):
-            raise ValueError(
-                f"A client secret must be set for the {idp_name} OAuth2 IDP "
-                f"via the {client_secret_env_var} environment variable"
-            )
-        if not (
-            server_metadata_url := (
-                os.getenv(
-                    server_metadata_url_env_var
-                    := f"PHOENIX_OAUTH2_{idp_name_upper}_SERVER_METADATA_URL",
-                )
-                or _get_default_server_metadata_url(idp_name)
-            )
-        ):
-            raise ValueError(
-                f"A server metadata URL must be set for the {idp_name} OAuth2 IDP "
-                f"via the {server_metadata_url_env_var} environment variable"
-            )
-        if urlparse(server_metadata_url).scheme != "https":
-            raise ValueError(
-                f"Server metadata URL for {idp_name} OAuth2 IDP "
-                "must be a valid URL using the https protocol"
-            )
+        idp = OAuth2Idp(idp_name)
         return cls(
             idp_name=idp_name,
-            idp_display_name=os.getenv(
-                f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
-                _get_default_idp_display_name(idp_name),
-            ),
-            client_id=client_id,
-            client_secret=client_secret,
-            server_metadata_url=server_metadata_url,
+            idp_display_name=idp.display_name,
+            client_id=idp[OAuth2IdpSetting.CLIENT_ID],
+            client_secret=idp[OAuth2IdpSetting.CLIENT_SECRET],
+            server_metadata_url=idp.server_metadata_url,
         )
 
 
@@ -421,9 +381,8 @@ def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
     """
 
     idp_names = set()
-    pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
-    )
+    settings = [setting.value for setting in OAuth2IdpSetting]
+    pattern = re.compile(rf"^PHOENIX_OAUTH2_(\w+)_({"|".join(settings)})$")
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
@@ -685,31 +644,98 @@ def get_env_log_migrations() -> bool:
         )
 
 
-class OAuth2Idp(Enum):
+DEFAULT_PROJECT_NAME = "default"
+_KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
+
+
+class OAuth2IdpSetting(Enum):
+    CLIENT_ID = "CLIENT_ID"
+    CLIENT_SECRET = "CLIENT_SECRET"
+    SERVER_METADATA_URL = "SERVER_METADATA_URL"
+    DISPLAY_NAME = "DISPLAY_NAME"
+    DIRECTORY_ID = "DIRECTORY_ID"
+    USER_POOL_ID = "USER_POOL_ID"
+
+
+class KnownOAuth2Idp(Enum):
     AWS_COGNITO = "aws_cognito"
     GOOGLE = "google"
     MICROSOFT_ENTRA_ID = "microsoft_entra_id"
 
 
-def _get_default_idp_display_name(idp_name: str) -> str:
-    """
-    Get the default display name for an OAuth2 IDP.
-    """
-    if idp_name == OAuth2Idp.AWS_COGNITO.value:
-        return "AWS Cognito"
-    if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
-        return "Microsoft Entra ID"
-    return idp_name.replace("_", " ").title()
+class OAuth2Idp:
+    MISSING_ENV_VAR = "Missing OAuth2 setting, please set the {env_var_name} environment variable."
+
+    def __init__(self, idp_name: str) -> None:
+        self.name = idp_name.lower()
+        self._name_upper = idp_name.upper()
+
+    @property
+    def display_name(self) -> str:
+        if self.name == KnownOAuth2Idp.AWS_COGNITO.value:
+            return "AWS Cognito"
+        if self.name == KnownOAuth2Idp.MICROSOFT_ENTRA_ID.value:
+            return "Microsoft Entra ID"
+        return self.name.replace("_", " ").title()
+
+    @property
+    def server_metadata_url(self) -> str:
+        url = self.get(OAuth2IdpSetting.SERVER_METADATA_URL) or self._infer_server_metadata_url()
+        if url is None:
+            raise ValueError(
+                self.MISSING_ENV_VAR.format(
+                    env_var_name=self._env_var(OAuth2IdpSetting.SERVER_METADATA_URL)
+                )
+            )
+        if not url.startswith("https://"):
+            raise ValueError(
+                f"{self._env_var(OAuth2IdpSetting.SERVER_METADATA_URL)} must be a valid URL "
+                "using the https protocol"
+            )
+        return url
+
+    def _infer_server_metadata_url(self) -> Optional[str]:
+        """
+        For some OAuth2 IDPs, we can infer the server metadata URL from other settings.
+        """
+        if self.name == KnownOAuth2Idp.AWS_COGNITO.value:
+            aws_cognito_user_pool_id = self[OAuth2IdpSetting.USER_POOL_ID]
+            aws_cognito_region = _extract_aws_cognito_region(aws_cognito_user_pool_id)
+            return f"https://cognito-idp.{aws_cognito_region}.amazonaws.com/{aws_cognito_user_pool_id}/.well-known/openid-configuration"
+        if self.name == KnownOAuth2Idp.GOOGLE.value:
+            return "https://accounts.google.com/.well-known/openid-configuration"
+        if self.name == KnownOAuth2Idp.MICROSOFT_ENTRA_ID.value:
+            microsoft_entra_id_directory_id = self[OAuth2IdpSetting.DIRECTORY_ID]
+            return f"https://login.microsoftonline.com/{microsoft_entra_id_directory_id}/v2.0/.well-known/openid-configuration"
+        return None
+
+    def get(
+        self,
+        setting: OAuth2IdpSetting,
+    ) -> Optional[str]:
+        """
+        Gets the value of an OAuth2 IDP setting.
+        """
+        return os.getenv(self._env_var(setting))
+
+    def __getitem__(
+        self,
+        setting: OAuth2IdpSetting,
+    ) -> str:
+        env_var_name = self._env_var(setting)
+        if (value := os.getenv(env_var_name)) is None:
+            raise ValueError(self.MISSING_ENV_VAR.format(env_var_name=env_var_name))
+        return value
+
+    def _env_var(self, setting: OAuth2IdpSetting) -> str:
+        return f"PHOENIX_OAUTH2_{self._name_upper}_{setting.value}"
 
 
-def _get_default_server_metadata_url(idp_name: str) -> Optional[str]:
+def _extract_aws_cognito_region(aws_cognito_user_pool_id: str) -> str:
     """
-    Gets the default server metadata URL for an OAuth2 IDP.
+    Extracts region from AWS Cognito user pool ID.
     """
-    if idp_name == OAuth2Idp.GOOGLE.value:
-        return "https://accounts.google.com/.well-known/openid-configuration"
-    return None
-
-
-DEFAULT_PROJECT_NAME = "default"
-_KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
+    if "_" not in aws_cognito_user_pool_id:
+        raise ValueError("Expected the AWS Cognito pool ID to be in the format '<region>_<hash>'")
+    region, _ = aws_cognito_user_pool_id.split("_", 1)
+    return region
