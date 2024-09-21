@@ -2,10 +2,9 @@ import asyncio
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from starlette.status import (
     HTTP_204_NO_CONTENT,
@@ -80,7 +79,7 @@ async def login(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         user = await session.scalar(
-            _select_active_user().filter_by(email=email).options(joinedload(models.User.role))
+            select(models.User).filter_by(email=email).options(joinedload(models.User.role))
         )
         if (
             user is None
@@ -160,7 +159,7 @@ async def refresh_tokens(request: Request) -> Response:
     async with request.app.state.db() as session:
         if (
             user := await session.scalar(
-                _select_active_user().filter_by(id=user_id).options(joinedload(models.User.role))
+                select(models.User).filter_by(id=user_id).options(joinedload(models.User.role))
             )
         ) is None:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
@@ -191,7 +190,7 @@ async def initiate_password_reset(request: Request) -> Response:
     assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     async with request.app.state.db() as session:
         user = await session.scalar(
-            _select_active_user()
+            select(models.User)
             .filter_by(email=email)
             .options(
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
@@ -228,7 +227,7 @@ async def reset_password(request: Request) -> Response:
         raise INVALID_TOKEN
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
-        user = await session.scalar(_select_active_user().filter_by(id=int(user_id)))
+        user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
     if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
@@ -247,10 +246,6 @@ async def reset_password(request: Request) -> Response:
     await token_store.revoke(token_id)
     await token_store.log_out(UserId(user.id))
     return response
-
-
-def _select_active_user() -> Select[Tuple[models.User]]:
-    return select(models.User).where(models.User.deleted_at.is_(None))
 
 
 LOGIN_FAILED_MESSAGE = "Invalid email and/or password"

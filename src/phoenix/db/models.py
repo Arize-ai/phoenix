@@ -654,7 +654,6 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     password_reset_token: Mapped[Optional["PasswordResetToken"]] = relationship(
         "PasswordResetToken",
         back_populates="user",
