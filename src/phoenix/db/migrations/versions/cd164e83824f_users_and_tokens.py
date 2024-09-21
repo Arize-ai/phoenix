@@ -61,11 +61,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.Column(
-            "deleted_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=True,
-        ),
         sa.CheckConstraint(
             "(password_hash IS NULL) = (password_salt IS NULL)",
             name="password_hash_and_salt",

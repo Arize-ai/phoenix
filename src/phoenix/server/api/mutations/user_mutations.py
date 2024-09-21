@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional, Tuple
 
 import strawberry
-from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select, update
+from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
@@ -258,7 +258,6 @@ class UserMutationMixin:
                     .where(
                         and_(
                             models.User.id.in_(user_ids),
-                            models.User.deleted_at.is_(None),
                             models.User.user_role_id != system_user_role_id,
                         )
                     )
@@ -271,40 +270,30 @@ class UserMutationMixin:
             password_reset_token_ids = [
                 PasswordResetTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    delete(models.PasswordResetToken)
-                    .where(models.PasswordResetToken.user_id.in_(user_ids))
-                    .returning(models.PasswordResetToken.id)
+                    select(models.PasswordResetToken.id).where(
+                        models.PasswordResetToken.user_id.in_(user_ids)
+                    )
                 )
             ]
             access_token_ids = [
                 AccessTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    delete(models.AccessToken)
-                    .where(models.AccessToken.user_id.in_(user_ids))
-                    .returning(models.AccessToken.id)
+                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_ids))
                 )
             ]
             refresh_token_ids = [
                 RefreshTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    delete(models.RefreshToken)
-                    .where(models.RefreshToken.user_id.in_(user_ids))
-                    .returning(models.RefreshToken.id)
+                    select(models.RefreshToken.id).where(models.RefreshToken.user_id.in_(user_ids))
                 )
             ]
             api_key_ids = [
                 ApiKeyId(id_)
                 async for id_ in await session.stream_scalars(
-                    delete(models.ApiKey)
-                    .where(models.ApiKey.user_id.in_(user_ids))
-                    .returning(models.ApiKey.id)
+                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_ids))
                 )
             ]
-            await session.execute(
-                update(models.User)
-                .where(models.User.id.in_(user_ids))
-                .values(deleted_at=func.now())
-            )
+            await session.execute(delete(models.User).where(models.User.id.in_(user_ids)))
         await token_store.revoke(
             *password_reset_token_ids,
             *access_token_ids,
@@ -319,9 +308,7 @@ def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:
 
 def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
     return (
-        select(models.User)
-        .where(and_(models.User.id == user_id, models.User.deleted_at.is_(None)))
-        .options(joinedload(models.User.role))
+        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )
 
 

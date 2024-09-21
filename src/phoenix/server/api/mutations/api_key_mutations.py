@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import strawberry
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -71,9 +71,7 @@ class ApiKeyMutationMixin:
             system_user = await session.scalar(
                 select(models.User)
                 .join(models.UserRole)  # Join User with UserRole
-                .where(
-                    and_(models.UserRole.name == user_role.value, models.User.deleted_at.is_(None))
-                )  # Filter where role is SYSTEM
+                .where(models.UserRole.name == user_role.value)  # Filter where role is SYSTEM
                 .order_by(models.User.id)
                 .limit(1)
             )

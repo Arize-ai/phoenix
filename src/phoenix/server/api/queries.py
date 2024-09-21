@@ -96,12 +96,7 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(
-                and_(
-                    models.UserRole.name != enums.UserRole.SYSTEM.value,
-                    models.User.deleted_at.is_(None),
-                )
-            )
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
@@ -477,9 +472,7 @@ class Query:
             async with info.context.db() as session:
                 if not (
                     user := await session.scalar(
-                        select(models.User).where(
-                            and_(models.User.id == node_id, models.User.deleted_at.is_(None))
-                        )
+                        select(models.User).where(models.User.id == node_id)
                     )
                 ):
                     raise NotFound(f"Unknown user: {id}")
@@ -499,9 +492,7 @@ class Query:
             if (
                 user := await session.scalar(
                     select(models.User)
-                    .where(
-                        and_(models.User.id == int(user.identity), models.User.deleted_at.is_(None))
-                    )
+                    .where(models.User.id == int(user.identity))
                     .options(joinedload(models.User.role))
                 )
             ) is None:
