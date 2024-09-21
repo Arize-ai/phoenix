@@ -388,6 +388,7 @@ exclude = [
   "dist/",
   "scripts/data/",
   "scripts/analytics/",
+  "examples/",
   "sdist/",
   "tests/",
   "tutorials/",
