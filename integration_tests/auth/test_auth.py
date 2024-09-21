@@ -54,6 +54,7 @@ from .._helpers import (
     _http_span_exporter,
     _initiate_password_reset,
     _log_in,
+    _log_out,
     _LoggedInUser,
     _Password,
     _patch_user,
@@ -297,6 +298,9 @@ class TestLogOut:
         u = _get_user(role_or_user)
         refresh_token = u.log_in().tokens.refresh_token
         refresh_token.log_out()
+
+    def test_log_out_does_not_raise_exception(self) -> None:
+        _log_out()
 
 
 class TestLoggedInTokens:
