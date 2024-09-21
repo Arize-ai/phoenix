@@ -19,6 +19,7 @@ from phoenix.config import (
     EXPORT_DIR,
     get_env_access_token_expiry,
     get_env_auth_settings,
+    get_env_base_url,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
@@ -406,6 +407,7 @@ def main() -> None:
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
+        base_url=get_env_base_url(),
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

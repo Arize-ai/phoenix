@@ -629,6 +629,7 @@ def create_app(
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
+    base_url: Optional[str] = None,
 ) -> FastAPI:
     logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -775,6 +776,7 @@ def create_app(
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
+    app.state.base_url = base_url
     app.state.db = db
     app.state.email_sender = email_sender
     app = _add_get_secret_method(app=app, secret=secret)
