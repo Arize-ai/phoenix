@@ -383,15 +383,14 @@ plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
 exclude = [
   "api_reference",
-  "packages/",
-  "src/phoenix/evals/",
   "dist/",
-  "scripts/data/",
-  "scripts/analytics/",
+  "examples/",
+  "packages/",
+  "scripts/",
   "sdist/",
+  "src/phoenix/evals/",
   "tests/",
   "tutorials/",
-  "examples/manually-instrumented-chatbot/",
 ]
 
 [[tool.mypy.overrides]]

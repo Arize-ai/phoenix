@@ -1,9 +1,9 @@
 import os
 from enum import Enum
 
-from openinference.instrumentation.openai import OpenAIInstrumentor
 from openinference.instrumentation.langchain import LangChainInstrumentor
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
 from phoenix.otel import register
 
