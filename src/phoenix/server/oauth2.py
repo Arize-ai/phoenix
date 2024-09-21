@@ -32,7 +32,7 @@ class OAuth2Clients:
         client = OAuth2Client(
             client_id=config.client_id,
             client_secret=config.client_secret,
-            server_metadata_url=config.server_metadata_url,
+            server_metadata_url=config.oidc_config_url,
             client_kwargs={"scope": "openid email profile"},
         )
         assert isinstance(client, OAuth2Client)

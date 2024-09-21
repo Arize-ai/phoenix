@@ -362,7 +362,7 @@ class OAuth2ClientConfig:
     idp_display_name: str
     client_id: str
     client_secret: str
-    server_metadata_url: str
+    oidc_config_url: str
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -386,19 +386,17 @@ class OAuth2ClientConfig:
                 f"via the {client_secret_env_var} environment variable"
             )
         if not (
-            server_metadata_url := (
+            oidc_config_url := (
                 os.getenv(
-                    server_metadata_url_env_var
-                    := f"PHOENIX_OAUTH2_{idp_name_upper}_SERVER_METADATA_URL",
+                    oidc_config_url_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_OIDC_CONFIG_URL",
                 )
-                or _get_default_server_metadata_url(idp_name)
             )
         ):
             raise ValueError(
-                f"A server metadata URL must be set for the {idp_name} OAuth2 IDP "
-                f"via the {server_metadata_url_env_var} environment variable"
+                f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
+                f"via the {oidc_config_url_env_var} environment variable"
             )
-        if urlparse(server_metadata_url).scheme != "https":
+        if urlparse(oidc_config_url).scheme != "https":
             raise ValueError(
                 f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
@@ -411,7 +409,7 @@ class OAuth2ClientConfig:
             ),
             client_id=client_id,
             client_secret=client_secret,
-            server_metadata_url=server_metadata_url,
+            oidc_config_url=oidc_config_url,
         )
 
 
@@ -422,7 +420,7 @@ def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
 
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|SERVER_METADATA_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
@@ -700,15 +698,6 @@ def _get_default_idp_display_name(idp_name: str) -> str:
     if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
         return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
-
-
-def _get_default_server_metadata_url(idp_name: str) -> Optional[str]:
-    """
-    Gets the default server metadata URL for an OAuth2 IDP.
-    """
-    if idp_name == OAuth2Idp.GOOGLE.value:
-        return "https://accounts.google.com/.well-known/openid-configuration"
-    return None
 
 
 DEFAULT_PROJECT_NAME = "default"
