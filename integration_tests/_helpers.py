@@ -53,6 +53,8 @@ from phoenix.auth import (
     DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+    PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
 )
 from phoenix.config import (
@@ -887,6 +889,9 @@ def _log_out(
 ) -> None:
     resp = _httpx_client(auth).post("auth/logout")
     resp.raise_for_status()
+    tokens = _extract_tokens(resp.headers, "set-cookie")
+    for k in _COOKIE_NAMES:
+        assert tokens[k] == '""'
 
 
 def _initiate_password_reset(
@@ -960,12 +965,7 @@ def _extract_tokens(
     if not (cookies := headers.get(key)):
         return {}
     parts = re.split(r"[ ,;=]", cookies)
-    return {
-        k: v
-        for k, v in zip(parts[:-1], parts[1:])
-        if v.strip('"')
-        and k in (PHOENIX_ACCESS_TOKEN_COOKIE_NAME, PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
-    }
+    return {k: v for k, v in zip(parts[:-1], parts[1:]) if k in _COOKIE_NAMES}
 
 
 def _decode_token_ids(
@@ -975,6 +975,7 @@ def _decode_token_ids(
     return [
         jwt.decode(v, options={"verify_signature": False})["jti"]
         for v in _extract_tokens(headers, key).values()
+        if v != '""'
     ]
 
 
@@ -1002,3 +1003,11 @@ def _extract_html(msg: Message) -> Optional[bs4.BeautifulSoup]:
             content = payload.decode(part.get_content_charset() or "utf-8")
             return bs4.BeautifulSoup(content, "html.parser")
     return None
+
+
+_COOKIE_NAMES = (
+    PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+)
