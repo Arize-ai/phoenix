@@ -284,7 +284,9 @@ class _AccessToken(_Token, _CanLogOut[None]):
         _log_out(self)
 
 
-class _RefreshToken(_Token): ...
+class _RefreshToken(_Token, _CanLogOut[None]):
+    def log_out(self) -> None:
+        _log_out(self)
 
 
 @dataclass(frozen=True)

@@ -117,9 +117,19 @@ async def logout(
     request: Request,
 ) -> Response:
     token_store: TokenStore = request.app.state.get_token_store()
-    if not isinstance(user := request.user, PhoenixUser):
+    if isinstance(user := request.user, PhoenixUser):
+        user_id = user.identity
+    elif (refresh_token := request.cookies.get(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)) and (
+        isinstance(
+            refresh_token_claims := await token_store.read(Token(refresh_token)),
+            RefreshTokenClaims,
+        )
+        and isinstance(subject := refresh_token_claims.subject, UserId)
+    ):
+        user_id = subject
+    else:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
-    await token_store.log_out(user.identity)
+    await token_store.log_out(user_id)
     response = Response(status_code=HTTP_204_NO_CONTENT)
     response = delete_access_token_cookie(response)
     response = delete_refresh_token_cookie(response)

@@ -288,6 +288,16 @@ class TestLogOut:
             with _EXPECTATION_401:
                 logged_in_user.create_api_key()
 
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_can_log_out_with_only_refresh_token(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        refresh_token = u.log_in().tokens.refresh_token
+        refresh_token.log_out()
+
 
 class TestLoggedInTokens:
     class _JtiSet(Generic[_TokenT]):
