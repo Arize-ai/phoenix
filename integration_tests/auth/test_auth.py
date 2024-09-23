@@ -54,6 +54,7 @@ from .._helpers import (
     _http_span_exporter,
     _initiate_password_reset,
     _log_in,
+    _log_out,
     _LoggedInUser,
     _Password,
     _patch_user,
@@ -287,6 +288,19 @@ class TestLogOut:
         for logged_in_user in logged_in_users:
             with _EXPECTATION_401:
                 logged_in_user.create_api_key()
+
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    def test_can_log_out_with_only_refresh_token(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(role_or_user)
+        refresh_token = u.log_in().tokens.refresh_token
+        refresh_token.log_out()
+
+    def test_log_out_does_not_raise_exception(self) -> None:
+        _log_out()
 
 
 class TestLoggedInTokens:
