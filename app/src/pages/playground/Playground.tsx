@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 import { Button, Flex, Heading, View } from "@arizeai/components";
@@ -36,19 +36,15 @@ export function Playground() {
 }
 
 function PlaygroundInstances() {
-  const numInstances = usePlaygroundContext((state) => state.instances.length);
-  const indices = useMemo(
-    () => Array.from({ length: numInstances }, (_, i) => i),
-    [numInstances]
-  );
+  const instances = usePlaygroundContext((state) => state.instances);
   return (
     <Flex direction="row" alignItems="stretch" height="100%">
       <PanelGroup direction="horizontal">
-        {indices.map((i) => (
+        {instances.map((instance, i) => (
           <>
             {i !== 0 && <PanelResizeHandle css={resizeHandleCSS} />}
             <Panel defaultSize={50}>
-              <PlaygroundInstance key={i} playgroundInstanceIndex={i} />
+              <PlaygroundInstance key={i} playgroundInstanceId={instance.id} />
             </Panel>
           </>
         ))}

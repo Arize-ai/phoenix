@@ -3,6 +3,8 @@ import { devtools } from "zustand/middleware";
 
 export type GenAIOperationType = "chat" | "text_completion";
 
+let playgroundInstanceIdIndex = 0;
+
 /**
  * The input mode for the playground
  * @example "manual" or "dataset"
@@ -31,10 +33,12 @@ export type ChatMessage = {
  * @see https://platform.openai.com/docs/guides/chat-completions
  */
 export type PlaygroundChatTemplate = {
+  __type: "chat";
   messages: ChatMessage[];
 };
 
 export type PlaygroundTextCompletionTemplate = {
+  __type: "text_completion";
   prompt: string;
 };
 
@@ -55,7 +59,7 @@ export interface PlaygroundProps {
    * The current playground instances(s)
    * Defaults to a single instance until a second instance is added
    */
-  instances: Array<PlaygroundInstance | undefined>;
+  instances: Array<PlaygroundInstance>;
 }
 
 /**
@@ -66,11 +70,23 @@ export interface PlaygroundProps {
  * - output (experiment or spans)
  */
 export interface PlaygroundInstance {
+  /**
+   * An ID to uniquely identify the instance
+   */
+  id: number;
   template: PlaygroundTemplate;
   tools: unknown;
   input: unknown;
   output: unknown;
 }
+
+/**
+ * All actions for a playground instance must contain the index of the playground
+ */
+interface PlaygroundInstanceActionParams {
+  index: number;
+}
+interface AddMessageParams extends PlaygroundInstanceActionParams {}
 
 export interface PlaygroundState extends PlaygroundProps {
   /**
@@ -86,9 +102,19 @@ export interface PlaygroundState extends PlaygroundProps {
    * Add a comparison instance to the playground
    */
   addInstance: () => void;
+  /**
+   * Delete a specific instance of the playground
+   * @param instanceId the instance to delete
+   */
+  deleteInstance: (instanceId: number) => void;
+  /**
+   * Add a message to a playground instance
+   */
+  addMessage: (params: AddMessageParams) => void;
 }
 
 const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
+  __type: "chat",
   messages: [
     {
       role: "system",
@@ -96,13 +122,14 @@ const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
     },
     {
       role: "user",
-      content: "{question}",
+      content: "{{question}}",
     },
   ],
 };
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
-  prompt: "What is the meaning of life?",
+  __type: "text_completion",
+  prompt: "{{question}}",
 };
 
 export const createPlaygroundStore = (
@@ -114,6 +141,7 @@ export const createPlaygroundStore = (
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [
       {
+        id: playgroundInstanceIdIndex++,
         template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
         tools: {},
         input: {},
@@ -126,6 +154,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
+              id: playgroundInstanceIdIndex++,
               template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
               tools: {},
               input: {},
@@ -137,6 +166,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
+              id: playgroundInstanceIdIndex++,
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
               input: {},
@@ -158,8 +188,41 @@ export const createPlaygroundStore = (
           instance,
           {
             ...instance,
+            id: playgroundInstanceIdIndex++,
           },
         ],
+      });
+    },
+    deleteInstance: (instanceId: number) => {
+      const instances = get().instances;
+      set({
+        instances: instances.filter((instance) => instance.id !== instanceId),
+      });
+    },
+    addMessage: ({ index }) => {
+      const instances = get().instances;
+      const mainInstance = instances[index];
+      if (!mainInstance) {
+        return;
+      }
+      // Update the given instance
+      set({
+        instances: instances.map((instance, i) => {
+          if (
+            index === i &&
+            instance?.template &&
+            instance?.template.__type === "chat"
+          ) {
+            return {
+              ...instance,
+              messages: [
+                ...instance.template.messages,
+                { role: "user", content: "{question}" },
+              ],
+            };
+          }
+          return instance;
+        }),
       });
     },
     ...initialProps,

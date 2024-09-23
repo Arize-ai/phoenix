@@ -84,7 +84,7 @@ For chat the following mapping will be used:
 - llm.model_name -> invocation.model (e.g. vendor + model_name )
 - llm.tools -> invocation.tools
 - llm.tool_selection (missing) -> playground.tool_selection (default to auto)
-- ???? -> invocation (output schema for JSON mode)
+- (TBD) -> invocation.output_schema (output schema for JSON mode)
 
 ### A/B Testing
 
@@ -119,3 +119,10 @@ The following technical features are required for the playground:
 - Playground "session" tracking
 - Playground dataset invocation tracking
 - Streaming of synthesis results
+
+## Tracing Needs
+
+In order for spans -> playground invocation to be seamless, we must capture all necessary invocation parameters. This includes:
+
+- LLM/genai system - e.g. openai / anthropic etc.
+- Output Schema - LLMs can adhere to OpenAPI schemas

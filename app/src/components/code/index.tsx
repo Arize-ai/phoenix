@@ -1,6 +1,7 @@
 export * from "./JSONEditor";
 export * from "./JSONBlock";
 export * from "./PythonBlock";
+export * from "./HandlebarsEditor";
 export * from "./PythonBlockWithCopy";
 export * from "./CodeWrap";
 export * from "./TypeScriptBlock";
