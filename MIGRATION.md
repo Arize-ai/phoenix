@@ -1,6 +1,27 @@
 # Migrations
 
-## Migrating from legacy `phoenix.Dataset` to `phoenix.Inferences`
+## v4.x to v5.0.0
+
+Phoenix 5 introduces authentication. By default authentication is disabled and Phoenix will operate exactly as previous versions. Phoenix's authentication is designed to be as flexible as possible and can be adopted incrementally.
+
+With authentication enabled, all API and UI access will be gated with credentials or API keys. Because of this, you will encounter some down time so please plan accordingly.
+
+### Enabling Authentication
+
+To get started, simply set two environment variables for your deployment:
+
+```shell
+export PHOENIX_ENABLE_AUTH=True
+export PHOENIX_SECRET=a-sufficiently-long-secret
+```
+
+Once these environment variables are set, Phoenix scaffold and admin login and the entire server will be protected. Log in as the admin user and create a system key to use with your application(s). All API keys should be added as headers to your requests via the `Authorization` header using the `Bearer` scheme.
+
+For more details, please see the [authentication setup guide](https://docs.arize.com/phoenix/setup/authentication).
+
+## v3.x to v4.0.0
+
+### Migrating from legacy `phoenix.Dataset` to `phoenix.Inferences`
 
 - `phoenix.Dataset` has been renamed to `phoenix.Inferences`
 - `phoenix.ExampleDataset` has been renamed to `phoenix.ExampleInferences`
@@ -96,10 +117,9 @@ from phoenix.evals import classify, generate
 from phoenix.evals import default_templates, templates
 ```
 
-
 ## v2.x to v3.0.0
 
--   **v3.0.0** - Phoenix now exclusively uses [OpenInference](https://github.com/Arize-ai/openinference) for instrumentation. OpenInference uses OpenTelemetry Protocol as the means for sending traces to a collector.
+- **v3.0.0** - Phoenix now exclusively uses [OpenInference](https://github.com/Arize-ai/openinference) for instrumentation. OpenInference uses OpenTelemetry Protocol as the means for sending traces to a collector.
 
 ### OpenAI Tracing
 
@@ -121,9 +141,11 @@ OpenAIInstrumentor(tracer).instrument()  # tracer argument is no longer supporte
 ```python
 from phoenix.trace.openai import OpenAIInstrumentor
 
-OpenAIInstrumentor().instrument() 
+OpenAIInstrumentor().instrument()
 ```
---- 
+
+---
+
 #### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
 ##### Old (v2.x)
@@ -146,10 +168,13 @@ from phoenix.trace.openai import OpenAIInstrumentor
 os.environ["PHOENIX_PORT"] = "12345"
 OpenAIInstrumentor().instrument()
 ```
+
 ---
+
 #### Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
 ##### Old (v2.x)
+
 ```python
 from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.tracer import Tracer  # no longer supported
@@ -159,12 +184,15 @@ TraceDataset.from_spans(tracer.get_spans())  # no longer supported
 ```
 
 ##### New (v3.0.0)
+
 ```python
 import phoenix as px
 
 px.Client().get_spans_dataframe()
 ```
+
 ---
+
 ### LlamaIndex Tracing
 
 #### The standard way of instrumenting your LlamaIndex application remains the same between 2.x and 3.x:
@@ -174,7 +202,9 @@ from llama_index import set_global_handler
 
 set_global_handler("arize_phoenix")
 ```
+
 ---
+
 #### User should not pass Phoenix handler to a callback manager. Use the `set_global_handler` method above.
 
 ```python
@@ -184,7 +214,9 @@ from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no lo
 callback_handler = OpenInferenceTraceCallbackHandler()  # no longer supported
 CallbackManager(handlers=[callback_handler])  # no longer supported
 ```
+
 ---
+
 #### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
 ##### Old (v2.x)
@@ -207,10 +239,13 @@ os.environ["PHOENIX_HOST"] = "127.0.0.1"
 os.environ["PHOENIX_PORT"] = "6007"
 set_global_handler("arize_phoenix")
 ```
+
 ---
+
 #### Calling `.get_spans()` on a handler is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
 #### Old (v2.x)
+
 ```python
 from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no longer supported
@@ -220,12 +255,15 @@ TraceDataset.from_spans(handler.get_spans())  # .get_spans() no longer supported
 ```
 
 ##### New (v3.0.0)
+
 ```python
 import phoenix as px
 
 px.Client().get_spans_dataframe()
 ```
+
 ---
+
 ### LangChain Tracing
 
 #### `phoenix.trace.langchain.OpenInferenceTracer` is defunct and should be removed.
@@ -247,7 +285,8 @@ from phoenix.trace.langchain import LangChainInstrumentor
 LangChainInstrumentor().instrument()
 ```
 
---- 
+---
+
 #### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
 ##### Old (v2.x)
@@ -268,10 +307,13 @@ from phoenix.trace.langchain import LangChainInstrumentor
 os.environ["PHOENIX_PORT"] = "12345"
 LangChainInstrumentor().instrument()
 ```
+
 ---
+
 #### Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
 ##### Old (v2.x)
+
 ```python
 from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.langchain import OpenInferenceTracer  # no longer supported
@@ -281,6 +323,7 @@ TraceDataset.from_spans(tracer.get_spans())  # .get_spans() no longer supported
 ```
 
 ##### New (v3.0.0)
+
 ```python
 import phoenix as px
 
@@ -289,4 +332,4 @@ px.Client().get_spans_dataframe()
 
 ## v0.x to v1.0.0
 
--   **v1.0.0** - Phoenix now exclusively supports the `openai>=1.0.0` sdk. If you are using an older version of the OpenAI SDK, you can continue to use `arize-phoenix==0.1.1`. However, we recommend upgrading to the latest version of the OpenAI SDK as it contains many improvements. If you are using Phoenix with LlamaIndex and and LangChain, you will have to upgrade to the versions of these packages that support the OpenAI `1.0.0` SDK as well (`llama-index>=0.8.64`, `langchain>=0.0.334`)
+- **v1.0.0** - Phoenix now exclusively supports the `openai>=1.0.0` sdk. If you are using an older version of the OpenAI SDK, you can continue to use `arize-phoenix==0.1.1`. However, we recommend upgrading to the latest version of the OpenAI SDK as it contains many improvements. If you are using Phoenix with LlamaIndex and and LangChain, you will have to upgrade to the versions of these packages that support the OpenAI `1.0.0` SDK as well (`llama-index>=0.8.64`, `langchain>=0.0.334`)
