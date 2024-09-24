@@ -15,7 +15,9 @@ from typing import (
 
 from fastapi import HTTPException, Request
 
+from phoenix.config import get_env_enable_prometheus
 from phoenix.exceptions import PhoenixException
+from phoenix.server.prometheus import RATE_LIMITER_CACHE_SIZE, RATE_LIMITER_THROTTLES
 
 
 class UnavailableTokensError(PhoenixException):
@@ -55,6 +57,8 @@ class TokenBucket:
 
     def make_request_if_ready(self) -> None:
         if self.available_tokens() < 1:
+            if get_env_enable_prometheus():
+                RATE_LIMITER_THROTTLES.inc()
             raise UnavailableTokensError
         self.tokens -= 1
 
@@ -144,6 +148,8 @@ class ServerRateLimiter:
         self._cleanup_expired_limiters(request_time)
         rate_limiter = self._fetch_token_bucket(key, request_time)
         rate_limiter.make_request_if_ready()
+        if get_env_enable_prometheus():
+            RATE_LIMITER_CACHE_SIZE.set(sum(len(partition) for partition in self.cache_partitions))
 
 
 def fastapi_ip_rate_limiter(

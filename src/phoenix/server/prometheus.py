@@ -50,6 +50,26 @@ BULK_LOADER_EXCEPTIONS = Counter(
     documentation="Total count of bulk loader exceptions",
 )
 
+RATE_LIMITER_CACHE_SIZE = Gauge(
+    name="rate_limiter_cache_size",
+    documentation="Current size of the rate limiter cache",
+)
+
+RATE_LIMITER_THROTTLES = Counter(
+    name="rate_limiter_throttles_total",
+    documentation="Total count of rate limiter throttles",
+)
+
+JWT_STORE_TOKENS_ACTIVE = Gauge(
+    name="jwt_store_tokens_active",
+    documentation="Current number of refresh tokens in the JWT store",
+)
+
+JWT_STORE_API_KEYS_ACTIVE = Gauge(
+    name="jwt_store_api_keys_active",
+    documentation="Current number of API keys in the JWT store",
+)
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
