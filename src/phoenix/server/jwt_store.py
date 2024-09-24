@@ -253,11 +253,13 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         if claims := self._claims.get(token_id):
             return claims
+        stmt = self._update_stmt.where(self._table.id == int(token_id))
         async with self._db() as session:
-            record = await session.scalar(self._update_stmt.where(self._table.id == int(token_id)))
+            record = (await session.execute(stmt)).first()
         if not record:
             return None
-        _, claims = self._from_db(record, record.User.role)
+        token, role = record
+        _, claims = self._from_db(token, UserRole(role))
         self._claims[token_id] = claims
         return claims
 
