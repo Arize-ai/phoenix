@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from functools import cached_property, singledispatchmethod
 from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
-import jwt
+from authlib.jose import jwt
+from authlib.jose.errors import BadSignatureError
 from sqlalchemy import Select, delete, select
 
 from phoenix.auth import (
@@ -75,12 +76,10 @@ class JwtStore:
     async def read(self, token: Token) -> Optional[ClaimSet]:
         try:
             payload = jwt.decode(
-                token,
-                self._secret,
-                algorithms=[JWT_ALGORITHM],
-                options={"verify_exp": False},
+                s=token,
+                key=self._secret,
             )
-        except jwt.DecodeError:
+        except BadSignatureError:
             return None
         if (jti := payload.get("jti")) is None:
             return None
@@ -247,7 +246,9 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         payload: Dict[str, Any] = dict(jti=claim.token_id)
         if claim.expiration_time:
             payload["exp"] = int(claim.expiration_time.timestamp())
-        return jwt.encode(payload, self._secret, algorithm=self._algorithm)
+        header = {"alg": self._algorithm}
+        jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=self._secret)
+        return jwt_bytes.decode()
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         return self._claims.get(token_id)
