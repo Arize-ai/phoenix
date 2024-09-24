@@ -38,6 +38,7 @@ export function ViewerProvider({
           id
           username
           email
+          profilePictureUrl
           role {
             name
           }

@@ -22,6 +22,7 @@ class User(Node):
     password_needs_reset: bool
     email: str
     username: Optional[str]
+    profile_picture_url: Optional[str]
     created_at: datetime
     user_role_id: Private[int]
     auth_method: AuthMethod
@@ -52,6 +53,7 @@ def to_gql_user(user: models.User, api_keys: Optional[List[models.ApiKey]] = Non
         password_needs_reset=user.reset_password,
         username=user.username,
         email=user.email,
+        profile_picture_url=user.profile_picture_url,
         created_at=user.created_at,
         user_role_id=user.user_role_id,
         auth_method=AuthMethod(user.auth_method),

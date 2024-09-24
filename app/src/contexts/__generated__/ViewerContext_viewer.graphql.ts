@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee9672b89d0875c89b646a1081277a2e>>
+ * @generated SignedSource<<a513998c3ff43ed2c9e1a8da78d85ad8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type ViewerContext_viewer$data = {
   readonly viewer: {
     readonly email: string;
     readonly id: string;
+    readonly profilePictureUrl: string | null;
     readonly role: {
       readonly name: string;
     };
@@ -73,6 +74,13 @@ const node: ReaderFragment = {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "profilePictureUrl",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "UserRole",
           "kind": "LinkedField",
           "name": "role",
@@ -101,6 +109,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "60a8f9b353f4cc5c8734971ca698d497";
+(node as any).hash = "0fda3314d35e251b11f0ed180df72f44";
 
 export default node;

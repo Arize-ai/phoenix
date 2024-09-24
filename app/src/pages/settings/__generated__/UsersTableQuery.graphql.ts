@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80a32ba700b1cbe237ebe97f1b8b8ea8>>
+ * @generated SignedSource<<14677e94a55e0161a8ef310df2add7e5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -103,6 +103,13 @@ const node: ConcreteRequest = {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "profilePictureUrl",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "UserRole",
                     "kind": "LinkedField",
                     "name": "role",
@@ -130,15 +137,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "5e796e57f3e3e1116cface9708d1c95c",
+    "cacheID": "d3f85064b63f026a47a8ef139638b933",
     "id": null,
     "metadata": {},
     "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersTableQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "708ed551407313a5657fd95d5ba5ac9f";
+(node as any).hash = "acd5e44c43deb927fea733697593c97d";
 
 export default node;
