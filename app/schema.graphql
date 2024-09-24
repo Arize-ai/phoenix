@@ -1469,6 +1469,7 @@ type User implements Node {
   passwordNeedsReset: Boolean!
   email: String!
   username: String
+  profilePictureUrl: String
   createdAt: DateTime!
   authMethod: AuthMethod!
   role: UserRole!

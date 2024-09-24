@@ -21,6 +21,7 @@ import { RolePicker } from "@phoenix/components/settings/RolePicker";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isUserRole, normalizeUserRole } from "@phoenix/constants";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
@@ -29,6 +30,15 @@ import { UserActionMenu } from "./UserActionMenu";
 import { UserRoleChangeDialog } from "./UserRoleChangeDialog";
 
 const USER_TABLE_ROW_HEIGHT = 55;
+
+const emailLinkCSS = css`
+  text-decoration: none;
+  color: var(--ac-global-color-grey-600);
+  font-size: 12px;
+  &:hover {
+    text-decoration: underline;
+  }
+`;
 
 /**
  * Rows may render different content depending on the user so we normalize the height
@@ -59,6 +69,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
               username
               createdAt
               authMethod
+              profilePictureUrl
               role {
                 name
               }
@@ -75,6 +86,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       id: user.id,
       email: user.email,
       username: user.username,
+      profilePictureUrl: user.profilePictureUrl,
       createdAt: user.createdAt,
       role: user.role.name,
       authMethod: user.authMethod,
@@ -91,12 +103,27 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
   const columns = useMemo((): ColumnDef<TableRow>[] => {
     return [
       {
-        header: "email",
-        accessorKey: "email",
+        header: "user",
+        accessorKey: "username",
+        cell: ({ row }) => (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <UserPicture
+              name={row.original.username || row.original.email}
+              profilePictureUrl={row.original.profilePictureUrl}
+              size={20}
+            />
+            <span>{row.original.username || "--"}</span>
+            <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
+              {row.original.email}
+            </a>
+          </Flex>
+        ),
       },
       {
-        header: "username",
-        accessorKey: "username",
+        header: "method",
+        accessorKey: "authMethod",
+        size: 10,
+        cell: ({ row }) => row.original.authMethod.toLowerCase(),
       },
       {
         header: "role",

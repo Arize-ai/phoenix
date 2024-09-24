@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ecb9d526bace62adc934d30278eb434>>
+ * @generated SignedSource<<01c84f5aee7d2d115906b2c34d583db5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type UsersTable_users$data = {
         readonly createdAt: string;
         readonly email: string;
         readonly id: string;
+        readonly profilePictureUrl: string | null;
         readonly role: {
           readonly name: string;
         };
@@ -109,6 +110,13 @@ const node: ReaderFragment = {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "profilePictureUrl",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "UserRole",
                   "kind": "LinkedField",
                   "name": "role",
@@ -138,6 +146,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "708ed551407313a5657fd95d5ba5ac9f";
+(node as any).hash = "acd5e44c43deb927fea733697593c97d";
 
 export default node;

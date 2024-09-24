@@ -14,11 +14,11 @@ import {
   View,
 } from "@arizeai/components";
 
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { ViewerProfileCardMutation } from "./__generated__/ViewerProfileCardMutation.graphql";
-import { ProfilePicture } from "./ProfilePicture";
 
 type EditProfileFormParams = {
   username: string;
@@ -94,7 +94,10 @@ export function ViewerProfileCard() {
     >
       <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
         <Flex direction="row" gap="size-200" alignItems="center">
-          <ProfilePicture name={viewer.username || viewer.email} />
+          <UserPicture
+            name={viewer.username || viewer.email}
+            profilePictureUrl={viewer.profilePictureUrl}
+          />
           <Flex direction="column" gap="size-50">
             <Heading level={2} weight="heavy">
               {viewer.username || viewer.email}
