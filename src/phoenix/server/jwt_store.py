@@ -250,7 +250,15 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
-        return self._claims.get(token_id)
+        if claims := self._claims.get(token_id):
+            return claims
+        async with self._db() as session:
+            record = await session.scalar(self._update_stmt.where(self._table.id == int(token_id)))
+        if not record:
+            return None
+        _, claims = self._from_db(record, record.User.role)
+        self._claims[token_id] = claims
+        return claims
 
     async def evict(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         return self._claims.pop(token_id, None)
