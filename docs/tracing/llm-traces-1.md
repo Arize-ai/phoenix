@@ -46,6 +46,45 @@ The `launch_app` command will spit out a URL for you to view the Phoenix UI. You
 Now that phoenix is up and running, you can setup tracing for your AI application so that you can debug your application as the traces stream in.
 
 {% tabs %}
+{% tab title="OpenAI" %}
+```bash
+pip install openai
+```
+
+```python
+import phoenix as px
+from phoenix.trace.openai import OpenAIInstrumentor
+
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
+
+# Initialize OpenAI auto-instrumentation
+OpenAIInstrumentor().instrument()
+
+import os
+from openai import OpenAI
+
+# Initialize an OpenAI client
+client = OpenAI(api_key='')
+
+# Define a conversation with a user message
+conversation = [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Hello, can you help me with something?"}
+]
+
+# Generate a response from the assistant
+response = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=conversation,
+)
+
+# Extract and print the assistant's reply
+# The traces will be available in the Phoenix App for the above messsages
+assistant_reply = response.choices[0].message.content
+```
+{% endtab %}
+
 {% tab title="LlamaIndex" %}
 To use llama-index's one click, you must install the small integration first:
 
@@ -172,42 +211,59 @@ response = rag_chain.invoke("What is Task Decomposition?")
 See the [integration guide](integrations-tracing/langchain.md#traces) for details
 {% endtab %}
 
-{% tab title="OpenAI" %}
+{% tab title="Groq" %}
+**Install packages:**
+
 ```bash
-pip install openai
+pip install arize-phoenix openinference-instrumentation-groq groq
 ```
+
+**Launch Phoenix:**
 
 ```python
 import phoenix as px
-from phoenix.trace.openai import OpenAIInstrumentor
+px.launch_app()
+```
 
-# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
-session = px.launch_app()
+**Connect your notebook to Phoenix:**
 
-# Initialize OpenAI auto-instrumentation
-OpenAIInstrumentor().instrument()
+```python
+from phoenix.otel import register
 
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+)
+```
+
+**Initialize the GroqInstrumentor before your application code.**
+
+```python
+from openinference.instrumentation.groq import GroqInstrumentor
+
+GroqInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+#### Run Groq
+
+```python
 import os
-from openai import OpenAI
+from groq import Groq
 
-# Initialize an OpenAI client
-client = OpenAI(api_key='')
-
-# Define a conversation with a user message
-conversation = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Hello, can you help me with something?"}
-]
-
-# Generate a response from the assistant
-response = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=conversation,
+client = Groq(
+    # This is the default and can be omitted
+    api_key=os.environ.get("GROQ_API_KEY"),
 )
 
-# Extract and print the assistant's reply
-# The traces will be available in the Phoenix App for the above messsages
-assistant_reply = response.choices[0].message.content
+chat_completion = client.chat.completions.create(
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain the importance of low latency LLMs",
+        }
+    ],
+    model="mixtral-8x7b-32768",
+)
+print(chat_completion.choices[0].message.content)
 ```
 {% endtab %}
 {% endtabs %}

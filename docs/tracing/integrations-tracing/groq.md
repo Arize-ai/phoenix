@@ -4,7 +4,7 @@ description: Instrument LLM applications built with Groq
 
 # Groq
 
-Phoenix provides auto-instrumentation for [Groq](https://github.com/groq/groq-python)
+[Groq](http://groq.com/) provides low latency and lightning-fast inference for AI models. Arize supports instrumenting Groq API calls, including role types such as system, user, and assistant messages, as well as tool use. You can create a free GroqCloud account and [generate a Groq API Key here](https://console.groq.com) to get started.
 
 ## Launch Phoenix
 
