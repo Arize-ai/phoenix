@@ -6,6 +6,8 @@ Phoenix 5 introduces authentication. By default authentication is disabled and P
 
 With authentication enabled, all API and UI access will be gated with credentials or API keys. Because of this, you will encounter some down time so please plan accordingly.
 
+Phoenix 5 also fully de-couples instrumentation from the Phoenix package. All instrumentation should be installed and run via the OpenInference package. This allows for more flexibility in instrumentation and allows Phoenix to focus on its core functionality.
+
 ### Enabling Authentication
 
 To get started, simply set two environment variables for your deployment:
@@ -18,6 +20,28 @@ export PHOENIX_SECRET=a-sufficiently-long-secret
 Once these environment variables are set, Phoenix scaffold and admin login and the entire server will be protected. Log in as the admin user and create a system key to use with your application(s). All API keys should be added as headers to your requests via the `Authorization` header using the `Bearer` scheme.
 
 For more details, please see the [authentication setup guide](https://docs.arize.com/phoenix/setup/authentication).
+
+### Migrating to OpenInference
+
+If you are using Phoenix's `phoenix.trace` modules for LlamaIndex, LangChain, or OpenAI, you will need to migrate to OpenInference. OpenInference is a separate set of packages that provides instrumentation for Phoenix. Phoenix 5 no longer supports LlamaIndex or LangChain instrumentation from the `phoenix.trace` module.
+
+**Before**
+
+```python
+from phoenix.trace.openai import OpenAIInstrumentor
+
+OpenAIInstrumentor().instrument()
+```
+
+**After**
+
+```python
+from openinference.instrumentation.openai import OpenAIInstrumentor
+
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+For an extensive list of supported instrumentation, please see the [OpenInference](https://github.com/Arize-ai/openinference)
 
 ## v3.x to v4.0.0
 
