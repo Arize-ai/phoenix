@@ -28,11 +28,11 @@ jobs:
         run: pnpm run build
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.12
-      - name: Install Phoenix
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install .
+          python-version: 3.9
+      - uses: yezz123/setup-uv@v4
+        with:
+          uv-version: 0.4.8
+      - run: uv pip install .
       - name: Run Playwright tests
         working-directory: ./app
         run: pnpm exec playwright test
