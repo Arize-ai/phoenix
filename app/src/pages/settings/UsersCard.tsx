@@ -77,7 +77,7 @@ export function UsersCard() {
     >
       <Suspense
         fallback={
-          <View padding="size-e00">
+          <View padding="size-200">
             <Loading />
           </View>
         }
