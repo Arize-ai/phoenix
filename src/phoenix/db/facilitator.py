@@ -16,6 +16,8 @@ from phoenix.auth import (
     DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
+    DEFAULT_SYSTEM_EMAIL,
+    DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
 )
 from phoenix.db import models
@@ -84,7 +86,8 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
     ) is not None:
         system_user = models.User(
             user_role_id=system_role_id,
-            email="system@localhost",
+            username=DEFAULT_SYSTEM_USERNAME,
+            email=DEFAULT_SYSTEM_EMAIL,
             reset_password=False,
         )
         session.add(system_user)
