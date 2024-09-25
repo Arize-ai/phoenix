@@ -40,7 +40,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("username", sa.String, nullable=True, unique=True, index=True),
+        sa.Column("username", sa.String, nullable=False, unique=True, index=True),
         sa.Column("email", sa.String, nullable=False, unique=True, index=True),
         sa.Column("profile_picture_url", sa.String, nullable=True),
         sa.Column("password_hash", sa.LargeBinary, nullable=True),

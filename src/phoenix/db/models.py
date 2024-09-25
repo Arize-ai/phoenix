@@ -642,7 +642,7 @@ class User(Base):
         index=True,
     )
     role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
-    username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
+    username: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
     profile_picture_url: Mapped[Optional[str]]
     password_hash: Mapped[Optional[bytes]]
