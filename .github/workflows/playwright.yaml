@@ -32,6 +32,7 @@ jobs:
       - uses: yezz123/setup-uv@v4
         with:
           uv-version: 0.4.8
+          uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install .
       - name: Run Playwright tests
         working-directory: ./app
