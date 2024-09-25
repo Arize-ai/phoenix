@@ -156,6 +156,14 @@ export function ResetPasswordForm() {
       <View paddingTop="size-200">
         <Flex direction="row" gap="size-100" justifyContent="end">
           <Button
+            variant="default"
+            onClick={() => {
+              navigate(-1);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
             disabled={isCommitting}
