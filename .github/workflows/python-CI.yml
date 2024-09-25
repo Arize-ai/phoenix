@@ -64,7 +64,7 @@ jobs:
           uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
   lint:
@@ -175,9 +175,9 @@ jobs:
           uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py38-ci-integration_tests
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests
         if: ${{ matrix.os != 'ubuntu-latest' }}
         timeout-minutes: 15
-      - run: tox run-parallel --parallel-no-spinner -e py38-ci-integration_tests,py312-ci-integration_tests
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests,py312-ci-integration_tests
         if: ${{ matrix.os == 'ubuntu-latest' }}
         timeout-minutes: 15
