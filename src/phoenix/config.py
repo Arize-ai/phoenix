@@ -8,7 +8,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, overload
 from urllib.parse import urlparse
-from warnings import warn
 
 from phoenix.utilities.logging import log_a_list
 
@@ -107,14 +106,6 @@ The duration, in minutes, before refresh tokens expire.
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before password reset tokens expire.
-"""
-ENV_PHOENIX_BASE_URL = "PHOENIX_BASE_URL"
-"""
-The URL used to access Phoenix from a browser. This is needed to ensure that the
-`redirect_uri` parameter is correct during OAuth2 authorization code flows if an
-OAuth2 IDP is configured. If you have a reverse proxy in front of Phoenix that
-exposes Phoenix through a subpath, ensure that the subpath appears at the end of
-this URL. Strongly consider using HTTPS since HTTP is insecure.
 """
 
 # SMTP settings
@@ -426,24 +417,6 @@ def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
-
-
-def get_env_base_url() -> Optional[str]:
-    """
-    Gets base URL from environment variable.
-    """
-    if (base_url := os.getenv(ENV_PHOENIX_BASE_URL)) is None:
-        return None
-    if base_url.startswith("http://"):
-        warn(
-            "The Phoenix base URL is configured using HTTP, which is insecure. "
-            "Consider using HTTPS."
-        )
-    elif not base_url.startswith("https://"):
-        raise ValueError(
-            f"{ENV_PHOENIX_BASE_URL} must be a valid URL using the HTTP or HTTPS protocols."
-        )
-    return base_url
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
