@@ -35,16 +35,19 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
       testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
+      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
       testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
       testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
