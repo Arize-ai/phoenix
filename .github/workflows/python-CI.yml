@@ -2,7 +2,7 @@ name: Python CI
 
 on:
   push:
-    branches: [ main, auth ]
+    branches: [main, auth]
   pull_request:
     paths:
       - "src/**"
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: |
-            3.8
+            3.9
             3.12
       - uses: yezz123/setup-uv@v4
         with:
@@ -75,10 +75,10 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Set up python 3.8
+      - name: Set up python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip==${{ env.pip-version }}
@@ -113,8 +113,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [ macos-12, windows-latest, ubuntu-latest ]
-        python-version: [ "3.8" ]
+        os: [macos-12, windows-latest, ubuntu-latest]
+        python-version: ["3.9"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -151,7 +151,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
+        os: [ubuntu-latest, windows-latest, windows-2019, macos-12]
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
@@ -169,7 +169,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - uses: yezz123/setup-uv@v4
         with:
           uv-version: 0.4.8
