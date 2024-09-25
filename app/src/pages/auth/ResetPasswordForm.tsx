@@ -4,7 +4,7 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Form, TextField, View } from "@arizeai/components";
+import { Button, Form, TextField, View } from "@arizeai/components";
 
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
@@ -29,11 +29,7 @@ export function ResetPasswordForm() {
       }
     }
   `);
-  const {
-    control,
-    handleSubmit,
-    formState: { isDirty },
-  } = useForm<ResetPasswordFormParams>({
+  const { control, handleSubmit } = useForm<ResetPasswordFormParams>({
     defaultValues: {
       currentPassword: "",
       newPassword: "",
