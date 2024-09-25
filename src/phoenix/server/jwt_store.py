@@ -19,7 +19,6 @@ from phoenix.auth import (
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.enums import UserRole
-from phoenix.server.prometheus import JWT_STORE_API_KEYS_ACTIVE, JWT_STORE_TOKENS_ACTIVE
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -449,6 +448,8 @@ class _RefreshTokenStore(
     async def _update(self) -> None:
         await super()._update()
         if get_env_enable_prometheus():
+            from phoenix.server.prometheus import JWT_STORE_TOKENS_ACTIVE
+
             JWT_STORE_TOKENS_ACTIVE.set(len(self._claims))
 
 
@@ -498,4 +499,6 @@ class _ApiKeyStore(
     async def _update(self) -> None:
         await super()._update()
         if get_env_enable_prometheus():
+            from phoenix.server.prometheus import JWT_STORE_API_KEYS_ACTIVE
+
             JWT_STORE_API_KEYS_ACTIVE.set(len(self._claims))
