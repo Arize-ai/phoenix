@@ -2,8 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
-import { Button, Flex, Form, TextField, View } from "@arizeai/components";
+import { Button, Form, TextField, View } from "@arizeai/components";
 
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
@@ -28,11 +29,7 @@ export function ResetPasswordForm() {
       }
     }
   `);
-  const {
-    control,
-    handleSubmit,
-    formState: { isDirty },
-  } = useForm<ResetPasswordFormParams>({
+  const { control, handleSubmit } = useForm<ResetPasswordFormParams>({
     defaultValues: {
       currentPassword: "",
       newPassword: "",
@@ -154,15 +151,28 @@ export function ResetPasswordForm() {
         )}
       />
       <View paddingTop="size-200">
-        <Flex direction="row" gap="size-100" justifyContent="end">
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            gap: var(--ac-global-dimension-size-200);
+            & > * {
+              width: 50%;
+            }
+          `}
+        >
           <Button
-            variant={isDirty ? "primary" : "default"}
-            type="submit"
-            disabled={isCommitting}
+            variant="default"
+            onClick={() => {
+              navigate(-1);
+            }}
           >
+            Cancel
+          </Button>
+          <Button variant={"primary"} type="submit" disabled={isCommitting}>
             {isCommitting ? "Resetting..." : "Reset Password"}
           </Button>
-        </Flex>
+        </div>
       </View>
     </Form>
   );
