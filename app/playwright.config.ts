@@ -37,14 +37,17 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
       name: "firefox",
       use: { ...devices["Desktop Firefox"] },
+      testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+      testIgnore: "**/*.rate-limit.spec.ts",
     },
     {
       name: "rate limit",
