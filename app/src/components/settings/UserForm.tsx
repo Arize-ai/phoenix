@@ -87,6 +87,9 @@ export function UserForm({
           <Controller
             name="username"
             control={control}
+            rules={{
+              required: "Email is required",
+            }}
             render={({
               field: { name, onChange, onBlur, value },
               fieldState: { invalid, error },
@@ -94,7 +97,8 @@ export function UserForm({
               <TextField
                 label="Username"
                 name={name}
-                description="The user's username. Optional."
+                isRequired
+                description="A unique username."
                 errorMessage={error?.message}
                 validationState={invalid ? "invalid" : "valid"}
                 onChange={onChange}
