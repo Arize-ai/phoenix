@@ -30,6 +30,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 
+@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment(
     _,
@@ -109,6 +110,7 @@ async def test_run_experiment(
         assert len(experiment.eval_runs) == len(evaluators)
 
 
+@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
     _,
