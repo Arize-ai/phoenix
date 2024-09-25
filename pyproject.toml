@@ -221,7 +221,7 @@ dependencies = [
 ]
 
 [[tool.hatch.envs.type.matrix]]
-python = ["3.8", "3.9", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.style]
 detached = true
@@ -230,7 +230,7 @@ dependencies = [
 ]
 
 [[tool.hatch.envs.style.matrix]]
-python = ["3.8", "3.9", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
@@ -250,7 +250,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
