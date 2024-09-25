@@ -12,7 +12,7 @@ const MIN_PASSWORD_LENGTH = 4;
 
 export type UserFormParams = {
   email: string;
-  username: string | null;
+  username: string;
   password: string;
   confirmPassword: string;
   role: UserRole;
@@ -36,7 +36,7 @@ export function UserForm({
   } = useForm<UserFormParams>({
     defaultValues: {
       email: email ?? "",
-      username: username ?? null,
+      username: username ?? "",
       password: password ?? "",
       confirmPassword: "",
       role: role ?? UserRole.MEMBER,
