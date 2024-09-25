@@ -18,6 +18,7 @@ test("can create a user", async ({ page }) => {
   const email = `member-${randomUUID()}@localhost.com`;
   // Add the user
   await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Username *").fill(email);
   await page.getByLabel("Password *", { exact: true }).fill("member123");
   await page.getByLabel("Confirm Password").fill("member123");
   await page.getByRole("dialog").getByLabel("member", { exact: true }).click();

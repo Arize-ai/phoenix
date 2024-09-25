@@ -92,7 +92,7 @@ _Username: TypeAlias = str
 class _Profile:
     email: _Email
     password: _Password
-    username: Optional[_Username] = None
+    username: _Username
 
 
 class _String(str, ABC):

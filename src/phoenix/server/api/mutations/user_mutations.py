@@ -35,7 +35,7 @@ from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, 
 @strawberry.input
 class CreateUserInput:
     email: str
-    username: Optional[str] = UNSET
+    username: str
     password: str
     role: UserRoleInput
 
@@ -93,7 +93,7 @@ class UserMutationMixin:
         password_hash = await info.context.hash_password(password, salt)
         user = models.User(
             reset_password=True,
-            username=input.username or None,
+            username=input.username,
             email=email,
             password_hash=password_hash,
             password_salt=salt,
