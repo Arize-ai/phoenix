@@ -450,7 +450,7 @@ class _RefreshTokenStore(
         if get_env_enable_prometheus():
             from phoenix.server.prometheus import JWT_STORE_TOKENS_ACTIVE
 
-            JWT_STORE_TOKENS_ACTIVE.set(len(self._claims))
+            JWT_STORE_TOKENS_ACTIVE.set(len(self._claims._cache))
 
 
 class _ApiKeyStore(
@@ -501,4 +501,4 @@ class _ApiKeyStore(
         if get_env_enable_prometheus():
             from phoenix.server.prometheus import JWT_STORE_API_KEYS_ACTIVE
 
-            JWT_STORE_API_KEYS_ACTIVE.set(len(self._claims))
+            JWT_STORE_API_KEYS_ACTIVE.set(len(self._claims._cache))
