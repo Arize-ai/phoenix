@@ -25,6 +25,8 @@ For more details, please see the [authentication setup guide](https://docs.arize
 
 If you are using Phoenix's `phoenix.trace` modules for LlamaIndex, LangChain, or OpenAI, you will need to migrate to OpenInference. OpenInference is a separate set of packages that provides instrumentation for Phoenix. Phoenix 5 no longer supports LlamaIndex or LangChain instrumentation from the `phoenix.trace` module.
 
+Phoenix now includes a `phoenix.otel` module that provides simplified setup for OpenTelemetry. See the [`phoenix.otel` documentation](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python) for more details.
+
 **Before**
 
 ```python
