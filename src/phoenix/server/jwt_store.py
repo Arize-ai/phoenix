@@ -245,8 +245,6 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
 
     def _encode(self, claim: ClaimSet) -> str:
         payload: Dict[str, Any] = dict(jti=claim.token_id)
-        if claim.expiration_time:
-            payload["exp"] = int(claim.expiration_time.timestamp())
         header = {"alg": self._algorithm}
         jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=self._secret)
         return jwt_bytes.decode()

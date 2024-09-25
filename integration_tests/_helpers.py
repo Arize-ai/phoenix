@@ -527,14 +527,18 @@ class _LogTransport(httpx.BaseTransport):
             _HTTPX_OP_IDX.set(op_idx + 1)
             info.write(f"({op_idx})".encode())
             info.write(f"{test_name}\n".encode())
-        response = self._transport.handle_request(request)
-        info.write(f"{response.status_code} {request.method} {request.url}\n".encode())
+        info.write(f"{request.method} {request.url}\n".encode())
         if token_ids := _decode_token_ids(request.headers):
             info.write(f"{' '.join(token_ids)}\n".encode())
         info.write(f"{request.headers}\n".encode())
         info.write(request.read())
         info.write(b"\n")
-        info.write(f"{response.headers}\n".encode())
+        try:
+            response = self._transport.handle_request(request)
+        except BaseException:
+            print(info.getvalue().decode())
+            raise
+        info.write(f"{response.status_code} {response.headers}\n".encode())
         if returned_token_ids := _decode_token_ids(response.headers, "set-cookie"):
             info.write(f"{' '.join(returned_token_ids)}\n".encode())
         return _LogResponse(
