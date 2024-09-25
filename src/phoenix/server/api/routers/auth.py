@@ -32,7 +32,6 @@ from phoenix.auth import (
 from phoenix.config import get_base_url, get_env_disable_rate_limit
 from phoenix.db import enums, models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
-from phoenix.server.email.templates.types import PasswordResetTemplateBody
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
 from phoenix.server.types import (
@@ -218,7 +217,8 @@ async def initiate_password_reset(request: Request) -> Response:
         expiration_time=datetime.now(timezone.utc) + token_expiry,
     )
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
-    await sender.send_password_reset_email(email, PasswordResetTemplateBody(token, get_base_url()))
+    base_url = request.headers.get("referer") or get_base_url()
+    await sender.send_password_reset_email(email, base_url, token)
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
