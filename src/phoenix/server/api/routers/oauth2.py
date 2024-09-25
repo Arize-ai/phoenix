@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from random import randrange
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
@@ -363,7 +363,7 @@ def _get_create_tokens_endpoint(*, request: Request, idp_name: str) -> str:
     """
     router: Router = request.scope["router"]
     url_path = router.url_path_for(create_tokens.__name__, idp_name=idp_name)
-    return str(url_path.make_absolute_url(base_url=request.app.state.base_url or request.base_url))
+    return str(url_path.make_absolute_url(base_url=_get_origin_url(request)))
 
 
 def _generate_state_for_oauth2_authorization_code_flow(
@@ -415,6 +415,16 @@ def _with_random_suffix(string: str) -> str:
     Appends a random suffix.
     """
     return f"{string}-{randrange(10_000, 100_000)}"
+
+
+def _get_origin_url(request: Request) -> URL:
+    """
+    Infers the origin URL from the request.
+    """
+    if (referer := request.headers.get("referer")) is None:
+        return request.base_url
+    parsed_url = urlparse(referer)
+    return URL(f"{parsed_url.scheme}://{parsed_url.netloc}")
 
 
 _RETURN_URL = "return_url"
