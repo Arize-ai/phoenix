@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 import time
@@ -10,7 +9,6 @@ from time import sleep
 from typing import Any, Dict, Iterator, Set, Tuple, Type
 
 import numpy as np
-import phoenix.trace.v1 as pb
 from faker import Faker
 from openinference.semconv.trace import (
     DocumentAttributes,
@@ -23,10 +21,12 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry import trace  # Use the default tracer provider
-from opentelemetry.trace import Tracer, SpanContext, StatusCode, Status
+from opentelemetry.trace import SpanContext, Status, StatusCode, Tracer
 from opentelemetry.util import types
-from phoenix.trace import Evaluations
 from typing_extensions import TypeAlias
+
+import phoenix.trace.v1 as pb
+from phoenix.trace import Evaluations
 
 logging.basicConfig(level=logging.INFO)
 
@@ -84,9 +84,7 @@ def _gen_spans(
         span.set_attributes(dict(_gen_attributes(span_kind, num_docs)))
         span.set_status(status)
         if status_code is StatusCode.ERROR:
-            exc = Exception(
-                fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1))
-            )
+            exc = Exception(fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)))
             span.record_exception(exc)
         if not recurse_depth:
             return
@@ -181,18 +179,14 @@ def _gen_messages(
         yield f"{prefix}.{i}.{MessageAttributes.MESSAGE_ROLE}", role
         if role == "assistant" and random() < 0.25:
             for j in range(randint(1, 10)):
-                tool_call_prefix = (
-                    f"{prefix}.{i}.{MessageAttributes.MESSAGE_TOOL_CALLS}"
-                )
+                tool_call_prefix = f"{prefix}.{i}.{MessageAttributes.MESSAGE_TOOL_CALLS}"
                 yield (
                     f"{tool_call_prefix}.{j}.{ToolCallAttributes.TOOL_CALL_FUNCTION_NAME}",
                     fake.job(),
                 )
                 yield (
                     f"{tool_call_prefix}.{j}.{ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                    json.dumps(
-                        fake.pydict(randint(0, 10), allowed_types=(float, int, str))
-                    ),
+                    json.dumps(fake.pydict(randint(0, 10), allowed_types=(float, int, str))),
                 )
             continue
         yield (
@@ -236,9 +230,7 @@ def _gen_documents(
         if random() < 0.4:
             yield (
                 f"{prefix}.{i}.{DocumentAttributes.DOCUMENT_METADATA}",
-                json.dumps(
-                    fake.pydict(randint(0, 10), allowed_types=(float, int, str))
-                ),
+                json.dumps(fake.pydict(randint(0, 10), allowed_types=(float, int, str))),
             )
 
 
