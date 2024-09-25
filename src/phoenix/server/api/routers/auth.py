@@ -2,6 +2,8 @@ import asyncio
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from pathlib import Path
+from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
@@ -29,7 +31,7 @@ from phoenix.auth import (
     set_refresh_token_cookie,
     validate_password_format,
 )
-from phoenix.config import get_base_url, get_env_disable_rate_limit
+from phoenix.config import get_base_url, get_env_disable_rate_limit, get_env_host_root_path
 from phoenix.db import enums, models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
@@ -217,8 +219,12 @@ async def initiate_password_reset(request: Request) -> Response:
         expiration_time=datetime.now(timezone.utc) + token_expiry,
     )
     token, _ = await token_store.create_password_reset_token(password_reset_token_claims)
-    base_url = request.headers.get("referer") or get_base_url()
-    await sender.send_password_reset_email(email, base_url, token)
+    url = urlparse(request.headers.get("referer") or get_base_url())
+    path = Path(get_env_host_root_path()) / "reset-password-with-token"
+    query_string = urlencode(dict(token=token))
+    components = (url.scheme, url.netloc, path.as_posix(), "", query_string, "")
+    reset_url = urlunparse(components)
+    await sender.send_password_reset_email(email, reset_url)
     return Response(status_code=HTTP_204_NO_CONTENT)
 
 
