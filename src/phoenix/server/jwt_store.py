@@ -8,7 +8,7 @@ from functools import cached_property, singledispatchmethod
 from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 from authlib.jose import jwt
-from authlib.jose.errors import BadSignatureError
+from authlib.jose.errors import JoseError
 from sqlalchemy import Select, delete, select
 
 from phoenix.auth import (
@@ -80,7 +80,7 @@ class JwtStore:
                 s=token,
                 key=self._secret,
             )
-        except BadSignatureError:
+        except JoseError:
             return None
         if (jti := payload.get("jti")) is None:
             return None
