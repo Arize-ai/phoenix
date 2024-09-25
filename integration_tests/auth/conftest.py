@@ -22,7 +22,6 @@ from phoenix.config import (
     get_env_smtp_port,
     get_env_smtp_username,
 )
-from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 
@@ -30,12 +29,15 @@ from .._helpers import _Secret, _server
 
 
 @pytest.fixture(scope="module")
-def _secret() -> _Secret:
+def _secret(
+    _env_phoenix_sql_database_url: Any,
+) -> _Secret:
     return secrets.token_hex(DEFAULT_SECRET_LENGTH)
 
 
 @pytest.fixture(autouse=True, scope="module")
 def _app(
+    _ports: Iterator[int],
     _secret: _Secret,
     _env_phoenix_sql_database_url: Any,
     _fake: Faker,
@@ -45,7 +47,7 @@ def _app(
         (ENV_PHOENIX_DISABLE_RATE_LIMIT, "true"),
         (ENV_PHOENIX_SECRET, _secret),
         (ENV_PHOENIX_SMTP_HOSTNAME, "127.0.0.1"),
-        (ENV_PHOENIX_SMTP_PORT, str(pick_unused_port())),
+        (ENV_PHOENIX_SMTP_PORT, str(next(_ports))),
         (ENV_PHOENIX_SMTP_USERNAME, "test"),
         (ENV_PHOENIX_SMTP_PASSWORD, "test"),
         (ENV_PHOENIX_SMTP_MAIL_FROM, _fake.email()),

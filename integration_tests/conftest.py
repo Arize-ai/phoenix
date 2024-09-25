@@ -2,7 +2,7 @@ import os
 from contextlib import ExitStack
 from dataclasses import asdict
 from itertools import count, starmap
-from typing import Generator, Iterator, Optional, Tuple, cast
+from typing import Generator, Iterator, List, Optional, Tuple, cast
 from unittest import mock
 
 import pytest
@@ -46,6 +46,19 @@ from ._helpers import (
 )
 
 
+@pytest.fixture(scope="session")
+def _ports() -> Iterator[int]:
+    def _(used: List[int]) -> Iterator[int]:
+        while True:
+            port = pick_unused_port()
+            if port not in used:
+                print("PORT", port)
+                used.append(port)
+                yield port
+
+    return _([])
+
+
 @pytest.fixture(
     scope="session",
     params=[
@@ -75,11 +88,15 @@ def _fake() -> Faker:
 
 
 @pytest.fixture(autouse=True, scope="module")
-def _env(tmp_path_factory: TempPathFactory) -> Iterator[None]:
+def _env(
+    _sql_database_url: URL,
+    _ports: Iterator[int],
+    tmp_path_factory: TempPathFactory,
+) -> Iterator[None]:
     tmp = tmp_path_factory.getbasetemp()
     values = (
-        (ENV_PHOENIX_PORT, str(pick_unused_port())),
-        (ENV_PHOENIX_GRPC_PORT, str(pick_unused_port())),
+        (ENV_PHOENIX_PORT, str(next(_ports))),
+        (ENV_PHOENIX_GRPC_PORT, str(next(_ports))),
         (ENV_PHOENIX_WORKING_DIR, str(tmp)),
     )
     with mock.patch.dict(os.environ, values):
