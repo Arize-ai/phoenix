@@ -179,7 +179,6 @@ async def test_run_experiment_with_llm_eval(
             GlobalID.from_id(experiment.id), "Experiment"
         )
         assert experiment_id
-        breakpoint()
         assert len(experiment.runs) == 1, "Experiment has 1 example"
         runs = [run for run in experiment.runs.values()]
         assert runs[0].output == "doesn't matter, this is the output"
