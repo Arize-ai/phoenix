@@ -8,7 +8,7 @@ from urllib.parse import unquote, urlparse
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
 from authlib.jose import jwt
-from authlib.jose.errors import BadSignatureError
+from authlib.jose.errors import BadSignatureError, DecodeError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -397,7 +397,7 @@ def _validate_signature_and_parse_return_url(
         signature_is_valid = True
         return_url = payload.get(_RETURN_URL)
         assert isinstance(return_url, str) or return_url is None
-    except BadSignatureError:
+    except (BadSignatureError, DecodeError):
         signature_is_valid = False
         return_url = None
     return signature_is_valid, return_url
