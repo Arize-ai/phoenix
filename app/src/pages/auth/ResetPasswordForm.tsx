@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
 import { Button, Flex, Form, TextField, View } from "@arizeai/components";
 
@@ -154,7 +155,16 @@ export function ResetPasswordForm() {
         )}
       />
       <View paddingTop="size-200">
-        <Flex direction="row" gap="size-100" justifyContent="end">
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            gap: var(--ac-global-dimension-size-200);
+            & > * {
+              width: 50%;
+            }
+          `}
+        >
           <Button
             variant="default"
             onClick={() => {
@@ -163,14 +173,10 @@ export function ResetPasswordForm() {
           >
             Cancel
           </Button>
-          <Button
-            variant={isDirty ? "primary" : "default"}
-            type="submit"
-            disabled={isCommitting}
-          >
+          <Button variant={"primary"} type="submit" disabled={isCommitting}>
             {isCommitting ? "Resetting..." : "Reset Password"}
           </Button>
-        </Flex>
+        </div>
       </View>
     </Form>
   );
