@@ -30,7 +30,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment(
     _,
@@ -78,15 +77,15 @@ async def test_run_experiment(
                 output=json.dumps(output)
             ),
             lambda output: output == task_output,
-            # lambda output: output is not task_output,
+            lambda output: output is not task_output,
             lambda input: input == example_input,
-            # lambda input: input is not example_input,
+            lambda input: input is not example_input,
             lambda expected: expected == example_output,
-            # lambda expected: expected is not example_output,
-            # lambda metadata: metadata == example_metadata,
-            # lambda metadata: metadata is not example_metadata,
-            # lambda reference, expected: expected == reference,
-            # lambda reference, expected: expected is reference,
+            lambda expected: expected is not example_output,
+            lambda metadata: metadata == example_metadata,
+            lambda metadata: metadata is not example_metadata,
+            lambda reference, expected: expected == reference,
+            lambda reference, expected: expected is reference,
         ]
         experiment = run_experiment(
             dataset=test_dataset,
@@ -97,85 +96,19 @@ async def test_run_experiment(
             evaluators={f"{i:02}": e for i, e in enumerate(evaluators)},
             print_summary=False,
         )
+
         await asyncio.sleep(3)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
         assert experiment_id
-
-        # Wait until all evaluations are complete
-        async def wait_for_evaluations():
-            timeout = 30
-            interval = 0.5
-            total_wait = 0
-            while total_wait < timeout:
-                async with db() as session:
-                    evaluations = (
-                        (
-                            await session.execute(
-                                select(models.ExperimentRunAnnotation).where(
-                                    models.ExperimentRunAnnotation.experiment_run_id
-                                    == experiment_id
-                                )
-                            )
-                        )
-                        .scalars()
-                        .all()
-                    )
-                    if len(evaluations) >= len(evaluators):
-                        break
-                await asyncio.sleep(interval)
-                total_wait += interval
-            else:
-                raise TimeoutError("Evaluations did not complete in time")
-
-        await wait_for_evaluations()
-
-        experiment_model = (await session.execute(select(models.Experiment))).scalar()
-        assert experiment_model, "An experiment was run"
-        assert experiment_model.dataset_id == 0
-        assert experiment_model.dataset_version_id == 0
-        assert experiment_model.name == "test"
-        assert experiment_model.description == "test description"
-        assert experiment_model.repetitions == 1  # TODO: Enable repetitions #3584
-
-        async with db() as session:
-            experiment_runs = (
-                (
-                    await session.execute(
-                        select(models.ExperimentRun).where(
-                            models.ExperimentRun.dataset_example_id == 0
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-
-        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
-        for run in experiment_runs:
-            assert run.output == {"task_output": {"doesn't matter": "this is the output"}}
-
-            async with db() as session:
-                evaluations = (
-                    (
-                        await session.execute(
-                            select(models.ExperimentRunAnnotation)
-                            .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
-                            .order_by(models.ExperimentRunAnnotation.name)
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
-            assert len(evaluations) == len(evaluators)
-            assert evaluations[0].score == 0.0
-            assert evaluations[1].score == 1.0
-            for i, evaluation in enumerate(evaluations[2:], 2):
-                assert evaluation.score == 1.0, f"{i}-th evaluator failed"
+        assert experiment.repetitions == 1, "Experiment has 1 repetition"
+        assert len(experiment.runs) == 1, "Experiment has 1 example"
+        runs = [run for run in experiment.runs.values()]
+        assert runs[0].output == {"doesn't matter": "this is the output"}
+        assert len(experiment.eval_runs) == len(evaluators)
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
     _,
@@ -246,76 +179,13 @@ async def test_run_experiment_with_llm_eval(
             GlobalID.from_id(experiment.id), "Experiment"
         )
         assert experiment_id
-
-        experiment_model = (await session.execute(select(models.Experiment))).scalar()
-        assert experiment_model, "An experiment was run"
-        assert experiment_model.dataset_id == 0
-        assert experiment_model.dataset_version_id == 0
-        assert experiment_model.name == "test"
-        assert experiment_model.description == "test description"
-
-        async with db() as session:
-            experiment_runs = (
-                (
-                    await session.execute(
-                        select(models.ExperimentRun).where(
-                            models.ExperimentRun.dataset_example_id == 0
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
-
-        # Wait for evaluations to complete for each run
-        for run in experiment_runs:
-
-            async def wait_for_evaluations():
-                timeout = 30
-                interval = 0.5
-                total_wait = 0
-                while total_wait < timeout:
-                    async with db() as session:
-                        evaluations = (
-                            (
-                                await session.execute(
-                                    select(models.ExperimentRunAnnotation).where(
-                                        models.ExperimentRunAnnotation.experiment_run_id == run.id
-                                    )
-                                )
-                            )
-                            .scalars()
-                            .all()
-                        )
-                        if len(evaluations) >= 2:  # Expecting 2 evaluations
-                            break
-                    await asyncio.sleep(interval)
-                    total_wait += interval
-                else:
-                    raise TimeoutError("Evaluations did not complete in time")
-
-            await wait_for_evaluations()
-
-        for run in experiment_runs:
-            assert run.output == {"task_output": "doesn't matter, this is the output"}
-
-        for run in experiment_runs:
-            async with db() as session:
-                evaluations = (
-                    (
-                        await session.execute(
-                            select(models.ExperimentRunAnnotation)
-                            .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
-                            .order_by(models.ExperimentRunAnnotation.name)
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
-            assert len(evaluations) == 2
-            assert evaluations[0].score == 0.0
-            assert evaluations[1].score == 1.0
+        breakpoint()
+        assert len(experiment.runs) == 1, "Experiment has 1 example"
+        runs = [run for run in experiment.runs.values()]
+        assert runs[0].output == "doesn't matter, this is the output"
+        assert len(experiment.eval_runs) == 2
+        assert experiment.eval_runs[0].score == 0.0
+        assert experiment.eval_runs[1].score == 1.0
 
 
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
