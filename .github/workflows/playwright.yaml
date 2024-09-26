@@ -14,12 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Install PNPM
+        uses: pnpm/action-setup@v3
         with:
+          version: 9.8.0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
           node-version: lts/*
+          cache: "pnpm"
       - name: Install dependencies
         working-directory: ./app
-        run: npm install -g pnpm && pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Install Playwright Browsers
         working-directory: ./app
         run: pnpm exec playwright install --with-deps
