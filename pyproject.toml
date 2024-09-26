@@ -205,8 +205,6 @@ dependencies = [
   "pandas>=1.0",
   "prometheus_client",
   "py-grpc-prometheus",
-  "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
-  "pydantic==2.8.2; python_version=='3.12'",
   "pypistats",  # this is needed to type-check third-party packages
   "requests",  # this is needed to type-check third-party packages
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
