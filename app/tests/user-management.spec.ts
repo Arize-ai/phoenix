@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "crypto";
 
-test.beforeEach(async ({ page }) => {
-  page.goto("http://localhost:6006/login");
+test.beforeEach(async ({ page, baseURL }) => {
+  page.goto(`${baseURL}/login`);
 
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin123");
-  await page.getByRole("button", { name: "Login" }).click();
-  await page.waitForURL("**/projects/**");
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await page.waitForURL("**/projects*");
 });
 
 test("can create a user", async ({ page }) => {
