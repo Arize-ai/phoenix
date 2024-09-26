@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional, TypedDict
 
 from sqlalchemy import (
@@ -18,6 +19,7 @@ from sqlalchemy import (
     case,
     func,
     insert,
+    not_,
     select,
     text,
 )
@@ -34,8 +36,13 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
-from phoenix.config import ENABLE_AUTH, get_env_database_schema
+from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+
+
+class AuthMethod(Enum):
+    LOCAL = "LOCAL"
+    OAUTH2 = "OAUTH2"
 
 
 class JSONB(JSON):
@@ -620,65 +627,143 @@ class ExperimentRunAnnotation(Base):
     )
 
 
-# todo: unnest the following models when auth is released (https://github.com/Arize-ai/phoenix/issues/4183)
-if ENABLE_AUTH:
+class UserRole(Base):
+    __tablename__ = "user_roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
+    users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
-    class UserRole(Base):
-        __tablename__ = "user_roles"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        name: Mapped[str] = mapped_column(unique=True)
-        users: Mapped[List["User"]] = relationship("User", back_populates="role")
 
-    class User(Base):
-        __tablename__ = "users"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        user_role_id: Mapped[int] = mapped_column(
-            ForeignKey("user_roles.id"),
-            index=True,
-        )
-        role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
-        username: Mapped[Optional[str]] = mapped_column(nullable=True, unique=True, index=True)
-        email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
-        auth_method: Mapped[str] = mapped_column(
-            CheckConstraint("auth_method IN ('LOCAL')", name="valid_auth_method")
-        )
-        password_hash: Mapped[Optional[str]]
-        reset_password: Mapped[bool]
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-        updated_at: Mapped[datetime] = mapped_column(
-            UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-        )
-        deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-        api_keys: Mapped[List["APIKey"]] = relationship("APIKey", back_populates="user")
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_role_id: Mapped[int] = mapped_column(
+        ForeignKey("user_roles.id", ondelete="CASCADE"),
+        index=True,
+    )
+    role: Mapped["UserRole"] = relationship("UserRole", back_populates="users")
+    username: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    profile_picture_url: Mapped[Optional[str]]
+    password_hash: Mapped[Optional[bytes]]
+    password_salt: Mapped[Optional[bytes]]
+    reset_password: Mapped[bool]
+    oauth2_client_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    oauth2_user_id: Mapped[Optional[str]] = mapped_column(index=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    password_reset_token: Mapped[Optional["PasswordResetToken"]] = relationship(
+        "PasswordResetToken",
+        back_populates="user",
+        uselist=False,
+    )
+    access_tokens: Mapped[List["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="user"
+    )
+    api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
-    class APIKey(Base):
-        __tablename__ = "api_keys"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        user_id: Mapped[int] = mapped_column(
-            ForeignKey("users.id"),
-            index=True,
-        )
-        user: Mapped["User"] = relationship("User", back_populates="api_keys")
-        name: Mapped[str]
-        description: Mapped[Optional[str]]
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-        expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    @hybrid_property
+    def auth_method(self) -> Optional[str]:
+        if self.password_hash is not None:
+            return AuthMethod.LOCAL.value
+        elif self.oauth2_client_id is not None:
+            return AuthMethod.OAUTH2.value
+        return None
 
-    # todo: standardize audit table format (https://github.com/Arize-ai/phoenix/issues/4185)
-    class AuditAPIKey(Base):
-        __tablename__ = "audit_api_keys"
-        id: Mapped[int] = mapped_column(primary_key=True)
-        api_key_id: Mapped[int] = mapped_column(
-            ForeignKey("api_keys.id"),
-            nullable=False,
-            index=True,
+    @auth_method.inplace.expression
+    @classmethod
+    def _auth_method_expression(cls) -> ColumnElement[Optional[str]]:
+        return case(
+            (
+                not_(cls.password_hash.is_(None)),
+                AuthMethod.LOCAL.value,
+            ),
+            (
+                not_(cls.oauth2_client_id.is_(None)),
+                AuthMethod.OAUTH2.value,
+            ),
+            else_=None,
         )
-        user_id: Mapped[int] = mapped_column(
-            ForeignKey("users.id"),
-            nullable=False,
-            index=True,
-        )
-        action: Mapped[str] = mapped_column(
-            CheckConstraint("action IN ('CREATE', 'DELETE')", name="valid_action")
-        )
-        created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "(password_hash IS NULL) = (password_salt IS NULL)",
+            name="password_hash_and_salt",
+        ),
+        CheckConstraint(
+            "(oauth2_client_id IS NULL) = (oauth2_user_id IS NULL)",
+            name="oauth2_client_id_and_user_id",
+        ),
+        CheckConstraint(
+            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
+            name="exactly_one_auth_method",
+        ),
+        UniqueConstraint(
+            "oauth2_client_id",
+            "oauth2_user_id",
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="refresh_tokens")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class AccessToken(Base):
+    __tablename__ = "access_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="access_tokens")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    refresh_token_id: Mapped[int] = mapped_column(
+        ForeignKey("refresh_tokens.id", ondelete="CASCADE"),
+        index=True,
+        unique=True,
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    user: Mapped["User"] = relationship("User", back_populates="api_keys")
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
+    __table_args__ = (dict(sqlite_autoincrement=True),)

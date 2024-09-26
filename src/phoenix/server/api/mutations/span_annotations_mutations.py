@@ -6,11 +6,11 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
-from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -25,7 +25,7 @@ class SpanAnnotationMutationPayload:
 
 @strawberry.type
 class SpanAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def create_span_annotations(
         self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
@@ -59,7 +59,7 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_span_annotations(
         self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
@@ -99,7 +99,7 @@ class SpanAnnotationMutationMixin:
                     info.context.event_queue.put(SpanAnnotationInsertEvent((span_annotation.id,)))
         return SpanAnnotationMutationPayload(span_annotations=patched_annotations, query=Query())
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_span_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> SpanAnnotationMutationPayload:

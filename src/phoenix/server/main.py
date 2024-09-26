@@ -10,13 +10,15 @@ from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
+from fastapi_mail import ConnectionConfig
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
-    get_auth_settings,
+    get_env_access_token_expiry,
+    get_env_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
@@ -27,7 +29,16 @@ from phoenix.config import (
     get_env_log_migrations,
     get_env_logging_level,
     get_env_logging_mode,
+    get_env_oauth2_settings,
+    get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_refresh_token_expiry,
+    get_env_smtp_hostname,
+    get_env_smtp_mail_from,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+    get_env_smtp_validate_certs,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -48,6 +59,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.email.sender import EMAIL_TEMPLATE_FOLDER, FastMailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -83,6 +95,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
+|  Authentication: {{ auth_enabled }}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -91,11 +104,6 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |    - Schema: {{ schema }}
 {% endif -%}
 """)
-
-_EXPERIMENTAL_WARNING = """
-🚨 WARNING: Phoenix is running in experimental mode. 🚨
-|  Authentication enabled: {auth_enabled}
-"""
 
 
 def _write_pid_file_when_ready(
@@ -298,7 +306,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_auth_settings()
+    authentication_enabled, secret = get_env_auth_settings()
 
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
@@ -345,9 +353,8 @@ def main() -> None:
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
+        auth_enabled=authentication_enabled,
     )
-    if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -357,6 +364,25 @@ def main() -> None:
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    email_sender = None
+    if mail_sever := get_env_smtp_hostname():
+        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = FastMailSender(
+            ConnectionConfig(
+                MAIL_USERNAME=mail_username,
+                MAIL_PASSWORD=mail_password,
+                MAIL_FROM=mail_from,
+                MAIL_SERVER=mail_sever,
+                MAIL_PORT=get_env_smtp_port(),
+                VALIDATE_CERTS=get_env_smtp_validate_certs(),
+                USE_CREDENTIALS=True,
+                MAIL_STARTTLS=True,
+                MAIL_SSL_TLS=False,
+                TEMPLATE_FOLDER=EMAIL_TEMPLATE_FOLDER,
+            )
+        )
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -374,7 +400,12 @@ def main() -> None:
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        password_reset_token_expiry=get_env_password_reset_token_expiry(),
+        access_token_expiry=get_env_access_token_expiry(),
+        refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
+        email_sender=email_sender,
+        oauth2_client_configs=get_env_oauth2_settings(),
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

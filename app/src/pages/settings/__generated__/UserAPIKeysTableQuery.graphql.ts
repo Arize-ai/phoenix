@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53068c46a6b3b61488315dff4e4ad437>>
+ * @generated SignedSource<<550ecd760d5cc4c3278fa26b4c1c001b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -83,6 +83,24 @@ const node: ConcreteRequest = {
             "kind": "ScalarField",
             "name": "expiresAt",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "user",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "email",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -90,15 +108,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "cd87c66812c50e80c23448d835b9ab43",
+    "cacheID": "e70d413b072841dff8565a332590a549",
     "id": null,
     "metadata": {},
     "name": "UserAPIKeysTableQuery",
     "operationKind": "query",
-    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n"
+    "text": "query UserAPIKeysTableQuery {\n  ...UserAPIKeysTableFragment\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "b74ea37cf5a935ebe3ce165a42a5fbf7";
+(node as any).hash = "c2b3a579bcb0ba915523ecb35cae3b44";
 
 export default node;

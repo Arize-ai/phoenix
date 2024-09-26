@@ -9,15 +9,15 @@ import {
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
-import { DeleteAPIKeyButton } from "./DeleteAPIKeyButton";
 
 export function SystemAPIKeysTable({
   query,
@@ -43,6 +43,7 @@ export function SystemAPIKeysTable({
     query
   );
 
+  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
     mutation SystemAPIKeysTableDeleteAPIKeyMutation(
@@ -50,7 +51,7 @@ export function SystemAPIKeysTable({
     ) {
       deleteSystemApiKey(input: $input) {
         __typename
-        id
+        apiKeyId
       }
     }
   `);
@@ -76,9 +77,15 @@ export function SystemAPIKeysTable({
             );
           });
         },
+        onError: (error) => {
+          notifyError({
+            title: "Error deleting system key",
+            message: error.message,
+          });
+        },
       });
     },
-    [commit, notifySuccess]
+    [commit, notifyError, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -128,7 +135,7 @@ export function SystemAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch, handleDelete]);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

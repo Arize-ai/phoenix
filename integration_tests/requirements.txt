@@ -1,7 +1,12 @@
+beautifulsoup4
 faker
 httpx
 openinference-semantic-conventions
 opentelemetry-sdk
 portpicker
 psutil
+pyjwt
+pytest-randomly
+pytest-smtpd
+types-beautifulsoup4
 types-psutil

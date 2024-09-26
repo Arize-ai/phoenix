@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo } from "react";
-import { Outlet } from "react-router";
+import React, { Suspense, useCallback, useMemo } from "react";
+import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons } from "@arizeai/components";
@@ -10,11 +10,14 @@ import {
   DocsLink,
   GitHubLink,
   NavBreadcrumb,
+  NavButton,
   NavLink,
   SideNavbar,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
+import { useNotifyError } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 const layoutCSS = css`
@@ -77,7 +80,23 @@ function SideNav() {
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
+  const notifyError = useNotifyError();
   const { authenticationEnabled } = useFunctionality();
+  const navigate = useNavigate();
+  const onLogout = useCallback(async () => {
+    const response = await fetch("/auth/logout", {
+      method: "POST",
+    });
+    if (response.ok) {
+      navigate("/login");
+      return;
+    }
+    notifyError({
+      title: "Logout Failed",
+      message: "Failed to log out: " + response.statusText,
+    });
+  }, [navigate, notifyError]);
+  const playgroundEnabled = useFeatureFlag("playground");
   return (
     <SideNavbar>
       <Brand />
@@ -106,6 +125,15 @@ function SideNav() {
               icon={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
+          {playgroundEnabled && (
+            <li>
+              <NavLink
+                to="/playground"
+                text="Playground"
+                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              />
+            </li>
+          )}
           <li>
             <NavLink
               to="/apis"
@@ -132,13 +160,22 @@ function SideNav() {
             <ThemeToggle />
           </li>
           {authenticationEnabled && (
-            <li>
-              <NavLink
-                to="/profile"
-                text="Profile"
-                icon={<Icon svg={<Icons.PersonOutline />} />}
-              />
-            </li>
+            <>
+              <li>
+                <NavLink
+                  to="/profile"
+                  text="Profile"
+                  icon={<Icon svg={<Icons.PersonOutline />} />}
+                />
+              </li>
+              <li>
+                <NavButton
+                  text="Log Out"
+                  icon={<Icon svg={<Icons.LogOut />} />}
+                  onClick={onLogout}
+                />
+              </li>
+            </>
           )}
         </ul>
       </Flex>

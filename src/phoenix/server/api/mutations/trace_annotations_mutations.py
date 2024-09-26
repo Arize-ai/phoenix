@@ -6,11 +6,11 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
-from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
@@ -25,7 +25,7 @@ class TraceAnnotationMutationPayload:
 
 @strawberry.type
 class TraceAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def create_trace_annotations(
         self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -59,7 +59,7 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_trace_annotations(
         self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
@@ -98,7 +98,7 @@ class TraceAnnotationMutationMixin:
                     info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
         return TraceAnnotationMutationPayload(trace_annotations=patched_annotations, query=Query())
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_trace_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> TraceAnnotationMutationPayload:

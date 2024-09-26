@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: 3.8
       - run: pip install tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py38-test-integration_tests
+      - run: tox run-parallel --parallel-no-spinner -e py39-test-integration_tests
       - uses: slackapi/slack-github-action@v1
         if: failure()
         env:

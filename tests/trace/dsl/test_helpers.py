@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,7 @@ from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_docum
 async def test_get_retrieved_documents(
     px_client: Client,
     default_project: Any,
-    acall: Callable[..., Awaitable[Any]],
+    abc_project: Any,
 ) -> None:
     expected = pd.DataFrame(
         {
@@ -23,7 +23,7 @@ async def test_get_retrieved_documents(
             "document_score": [1, np.nan, 2, np.nan, np.nan, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = await acall(get_retrieved_documents, px_client)
+    actual = get_retrieved_documents(px_client)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
@@ -33,7 +33,7 @@ async def test_get_retrieved_documents(
 async def test_get_qa_with_reference(
     px_client: Client,
     default_project: Any,
-    acall: Callable[..., Awaitable[Any]],
+    abc_project: Any,
 ) -> None:
     expected = pd.DataFrame(
         {
@@ -43,7 +43,7 @@ async def test_get_qa_with_reference(
             "reference": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    actual = await acall(get_qa_with_reference, px_client)
+    actual = get_qa_with_reference(px_client)
     actual["reference"] = actual["reference"].map(lambda s: "\n\n".join(sorted(s.split("\n\n"))))
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),

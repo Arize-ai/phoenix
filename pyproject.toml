@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.8, <3.13"
+requires-python = ">=3.9, <3.13"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,7 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -40,6 +39,7 @@ dependencies = [
   "wrapt",
   "protobuf>=3.20, <6.0",
   "grpcio",
+  "grpc-interceptor",
   "tqdm",
   "httpx",
   "opentelemetry-sdk",
@@ -48,9 +48,6 @@ dependencies = [
   "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.9",
   "openinference-instrumentation>=0.1.12",
-  "openinference-instrumentation-langchain>=0.1.26",
-  "openinference-instrumentation-llama-index>=2.2.1",
-  "openinference-instrumentation-openai>=0.1.11",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
@@ -59,10 +56,11 @@ dependencies = [
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
-  "arize-phoenix-otel>=0.4.1",
+  "arize-phoenix-otel>=0.5.1",
   "fastapi",
+  "fastapi-mail",
   "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pyjwt",
+  "authlib",
 ]
 dynamic = ["version"]
 
@@ -70,12 +68,12 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox==4.18.0",
-  "tox-uv==1.11.2",
-  "uv==0.4.2",
+  "tox==4.18.1",
+  "tox-uv==1.11.3",
+  "uv==0.4.8",
   "jupyter",
   "nbqa",
-  "ruff==0.6.3",
+  "ruff==0.6.4",
   "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
@@ -163,7 +161,6 @@ dependencies = [
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
   "pytest==8.3.2",
-  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -174,12 +171,11 @@ dependencies = [
   "openai>=1.0.0",
   "tenacity",
   "protobuf==3.20",  # version minimum (for tests)
+  "grpc-interceptor[testing]",
   "responses",
   "tiktoken",
   "typing-extensions==4.5.0; python_version=='3.8'",
   "typing-extensions==4.6.0; python_version=='3.9'",
-  "pydantic==1.9.0; python_version<='3.9'",  # minimum version of pydantic compatible with openai
-  "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
@@ -206,9 +202,6 @@ dependencies = [
   "pandas>=1.0",
   "prometheus_client",
   "py-grpc-prometheus",
-  "pydantic==1.10.17; python_version=='3.8'",  # lower minor versions of pydantic break strawberry mypy plugin
-  "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
-  "pydantic==2.8.2; python_version=='3.12'",
   "pypistats",  # this is needed to type-check third-party packages
   "requests",  # this is needed to type-check third-party packages
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
@@ -223,16 +216,16 @@ dependencies = [
 ]
 
 [[tool.hatch.envs.type.matrix]]
-python = ["3.8", "3.9", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.3",
+  "ruff==0.6.4",
 ]
 
 [[tool.hatch.envs.style.matrix]]
-python = ["3.8", "3.9", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
@@ -248,21 +241,21 @@ dependencies = [
 ]
 
 [tool.hatch.envs.default.scripts]
-tests = "pytest -n auto {args}"
+tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
 addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
   "--new-first",
   "--showlocals",
-  "--exitfirst",
 ]
 testpaths = [
   "tests",
@@ -306,8 +299,6 @@ clean = [
 ]
 
 [tool.hatch.envs.auth.scripts]
-link = "cd src/phoenix/db/migrations/versions && ln -s ../future_versions/cd164e83824f_users_and_tokens.py cd164e83824f_users_and_tokens.py && echo 'created auth migration symlink'"
-unlink = "rm src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py && echo 'removed auth migration symlink'"
 up = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
 down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
 
@@ -323,7 +314,6 @@ testpypi = [
   "twine upload  --verbose --repository testpypi dist/*",
 ]
 pypi = [
-  "if [ -L src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py ]; then echo 'remove auth migration symlink before publishing with `hatch run auth:unlink`'; exit 1; fi",
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
@@ -413,6 +403,7 @@ module = [
   "py_grpc_prometheus.*",
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
+  "authlib.*",
 ]
 ignore_missing_imports = true
 

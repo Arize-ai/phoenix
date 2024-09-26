@@ -41,7 +41,7 @@ export function UsersCard() {
     <Card
       title="Users"
       variant="compact"
-      bodyStyle={{ padding: 0 }}
+      bodyStyle={{ padding: 0, overflowX: "auto" }}
       extra={
         <Button
           onClick={() => {
@@ -51,12 +51,12 @@ export function UsersCard() {
                   setDialog(null);
                 }}
                 onNewUserCreated={(email) => {
+                  setDialog(null);
                   notifySuccess({
                     title: "User added",
                     message: `User ${email} has been added.`,
                   });
                   setFetchKey((prev) => prev + 1);
-                  setDialog(null);
                 }}
                 onNewUserCreationError={(error) => {
                   notifyError({
@@ -77,7 +77,7 @@ export function UsersCard() {
     >
       <Suspense
         fallback={
-          <View padding="size-e00">
+          <View padding="size-200">
             <Loading />
           </View>
         }

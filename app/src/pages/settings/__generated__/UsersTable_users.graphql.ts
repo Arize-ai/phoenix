@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f6a03d56a2b1c81095de0c7a7fceabc>>
+ * @generated SignedSource<<9a4a3188884ba01b55a83dab79eb7d5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,18 +8,22 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type AuthMethod = "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {
   readonly users: {
     readonly edges: ReadonlyArray<{
       readonly user: {
+        readonly authMethod: AuthMethod;
         readonly createdAt: string;
         readonly email: string;
+        readonly id: string;
+        readonly profilePictureUrl: string | null;
         readonly role: {
           readonly name: string;
         };
-        readonly username: string | null;
+        readonly username: string;
       };
     }>;
   };
@@ -30,10 +34,18 @@ export type UsersTable_users$key = {
   readonly " $fragmentSpreads": FragmentRefs<"UsersTable_users">;
 };
 
+import UsersTableQuery_graphql from './UsersTableQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": UsersTableQuery_graphql
+    }
+  },
   "name": "UsersTable_users",
   "selections": [
     {
@@ -64,6 +76,13 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "email",
                   "storageKey": null
                 },
@@ -79,6 +98,20 @@ const node: ReaderFragment = {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "authMethod",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "profilePictureUrl",
                   "storageKey": null
                 },
                 {
@@ -113,6 +146,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "a87302705dfc7b091db312313f46ec4f";
+(node as any).hash = "acd5e44c43deb927fea733697593c97d";
 
 export default node;

@@ -7,12 +7,13 @@ import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
+from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
-from phoenix.db import models
+from phoenix.db import enums, models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
 )
@@ -32,8 +33,9 @@ from phoenix.db.models import (
     Trace as OrmTrace,
 )
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
@@ -69,14 +71,14 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.User import User
-from phoenix.server.api.types.UserApiKey import UserApiKey
+from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
 
 @strawberry.type
 class Query:
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
         self,
         info: Info[Context, None],
@@ -94,25 +96,13 @@ class Query:
         stmt = (
             select(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
         async with info.context.db() as session:
             users = await session.stream_scalars(stmt)
-            data = [
-                User(
-                    id_attr=user.id,
-                    email=user.email,
-                    username=user.username,
-                    created_at=user.created_at,
-                    role=UserRole(
-                        id_attr=user.role.id,
-                        name=user.role.name,
-                    ),
-                )
-                async for user in users
-            ]
+            data = [to_gql_user(user) async for user in users]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -122,7 +112,7 @@ class Query:
     ) -> List[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
-                select(models.UserRole).where(models.UserRole.name != "SYSTEM")
+                select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
             )
         return [
             UserRole(
@@ -132,37 +122,25 @@ class Query:
             for role in roles
         ]
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
-        # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name != "SYSTEM")
+            .where(models.UserRole.name != enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [
-            UserApiKey(
-                id_attr=api_key.id,
-                user_id=api_key.user_id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
-            )
-            for api_key in api_keys
-        ]
+        return [to_gql_api_key(api_key) for api_key in api_keys]
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
-        # TODO(auth): add access control
         stmt = (
-            select(models.APIKey)
+            select(models.ApiKey)
             .join(models.User)
             .join(models.UserRole)
-            .where(models.UserRole.name == "SYSTEM")
+            .where(models.UserRole.name == enums.UserRole.SYSTEM.value)
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
@@ -488,7 +466,38 @@ class Query:
                 ):
                     raise NotFound(f"Unknown experiment run: {id}")
             return to_gql_experiment_run(run)
+        elif type_name == User.__name__:
+            if int((user := info.context.user).identity) != node_id and not user.is_admin:
+                raise Unauthorized(MSG_ADMIN_ONLY)
+            async with info.context.db() as session:
+                if not (
+                    user := await session.scalar(
+                        select(models.User).where(models.User.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown user: {id}")
+            return to_gql_user(user)
         raise NotFound(f"Unknown node type: {type_name}")
+
+    @strawberry.field
+    async def viewer(self, info: Info[Context, None]) -> Optional[User]:
+        request = info.context.get_request()
+        try:
+            user = request.user
+        except AssertionError:
+            return None
+        if isinstance(user, UnauthenticatedUser):
+            return None
+        async with info.context.db() as session:
+            if (
+                user := await session.scalar(
+                    select(models.User)
+                    .where(models.User.id == int(user.identity))
+                    .options(joinedload(models.User.role))
+                )
+            ) is None:
+                return None
+        return to_gql_user(user)
 
     @strawberry.field
     def clusters(

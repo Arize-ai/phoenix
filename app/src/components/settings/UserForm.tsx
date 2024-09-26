@@ -12,8 +12,9 @@ const MIN_PASSWORD_LENGTH = 4;
 
 export type UserFormParams = {
   email: string;
-  username: string | null;
+  username: string;
   password: string;
+  confirmPassword: string;
   role: UserRole;
 };
 
@@ -35,8 +36,9 @@ export function UserForm({
   } = useForm<UserFormParams>({
     defaultValues: {
       email: email ?? "",
-      username: username ?? null,
+      username: username ?? "",
       password: password ?? "",
+      confirmPassword: "",
       role: role ?? UserRole.MEMBER,
     },
   });
@@ -85,6 +87,9 @@ export function UserForm({
           <Controller
             name="username"
             control={control}
+            rules={{
+              required: "Email is required",
+            }}
             render={({
               field: { name, onChange, onBlur, value },
               fieldState: { invalid, error },
@@ -92,7 +97,8 @@ export function UserForm({
               <TextField
                 label="Username"
                 name={name}
-                description="The user's username. Optional."
+                isRequired
+                description="A unique username."
                 errorMessage={error?.message}
                 validationState={invalid ? "invalid" : "valid"}
                 onChange={onChange}
@@ -118,6 +124,7 @@ export function UserForm({
               <TextField
                 label="Password"
                 type="password"
+                isRequired
                 description="Password must be at least 4 characters"
                 name={name}
                 errorMessage={error?.message}
@@ -125,6 +132,36 @@ export function UserForm({
                 onChange={onChange}
                 onBlur={onBlur}
                 defaultValue={value}
+              />
+            )}
+          />
+          <Controller
+            name="confirmPassword"
+            control={control}
+            rules={{
+              required: "Please confirm your password",
+              minLength: {
+                value: MIN_PASSWORD_LENGTH,
+                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+              },
+              validate: (value, formValues) =>
+                value === formValues.password || "Passwords do not match",
+            }}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                label="Confirm Password"
+                isRequired
+                type="password"
+                description="Confirm the new password"
+                name={name}
+                errorMessage={error?.message}
+                validationState={invalid ? "invalid" : "valid"}
+                onChange={onChange}
+                onBlur={onBlur}
+                defaultValue={value ?? undefined}
               />
             )}
           />

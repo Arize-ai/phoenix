@@ -2,9 +2,12 @@ import logging
 import os
 import re
 import tempfile
+from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, overload
+from urllib.parse import urlparse
 
 from phoenix.utilities.logging import log_a_list
 
@@ -86,10 +89,50 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
 
-# Auth is under active development. Phoenix users are strongly advised not to
-# set these environment variables until the feature is officially released.
-ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH = "DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
-ENV_DANGEROUSLY_SET_PHOENIX_SECRET = "DANGEROUSLY_SET_PHOENIX_SECRET"
+# Authentication settings
+ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
+ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
+ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
+ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
+ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before access tokens expire.
+"""
+ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before refresh tokens expire.
+"""
+ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
+"""
+The duration, in minutes, before password reset tokens expire.
+"""
+
+# SMTP settings
+ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
+"""
+The SMTP server hostname to use for sending emails. SMTP is disabled if this is not set.
+"""
+ENV_PHOENIX_SMTP_PORT = "PHOENIX_SMTP_PORT"
+"""
+The SMTP server port to use for sending emails. Defaults to 587.
+"""
+ENV_PHOENIX_SMTP_USERNAME = "PHOENIX_SMTP_USERNAME"
+"""
+The SMTP server username to use for sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_PASSWORD = "PHOENIX_SMTP_PASSWORD"
+"""
+The SMTP server password to use for sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_MAIL_FROM = "PHOENIX_SMTP_MAIL_FROM"
+"""
+The email address to use as the sender when sending emails. Should be set if SMTP is enabled.
+"""
+ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
+"""
+Whether to validate SMTP server certificates. Defaults to true.
+"""
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -131,12 +174,16 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
-def get_boolean_env_var(env_var: str) -> Optional[bool]:
+@overload
+def _bool_val(env_var: str) -> Optional[bool]: ...
+@overload
+def _bool_val(env_var: str, default: bool) -> bool: ...
+def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     """
-    Parses a boolean environment variable, returning None if the variable is not set.
+    Parses a boolean environment variable, returning `default` if the variable is not set.
     """
     if (value := os.environ.get(env_var)) is None:
-        return None
+        return default
     assert (lower := value.lower()) in (
         "true",
         "false",
@@ -144,42 +191,232 @@ def get_boolean_env_var(env_var: str) -> Optional[bool]:
     return lower == "true"
 
 
+@overload
+def _float_val(env_var: str) -> Optional[float]: ...
+@overload
+def _float_val(env_var: str, default: float) -> float: ...
+def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]:
+    """
+    Parses a numeric environment variable, returning `default` if the variable is not set.
+    """
+    if (value := os.environ.get(env_var)) is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(
+            f"Invalid value for environment variable {env_var}: {value}. "
+            f"Value must be a number."
+        )
+
+
+@overload
+def _int_val(env_var: str) -> Optional[int]: ...
+@overload
+def _int_val(env_var: str, default: int) -> int: ...
+def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
+    """
+    Parses a numeric environment variable, returning `default` if the variable is not set.
+    """
+    if (value := os.environ.get(env_var)) is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(
+            f"Invalid value for environment variable {env_var}: {value}. "
+            f"Value must be an integer."
+        )
+
+
 def get_env_enable_auth() -> bool:
     """
-    Gets the value of the DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH environment variable.
+    Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
-    return get_boolean_env_var(ENV_DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH) is True
+    return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+
+
+def get_env_disable_rate_limit() -> bool:
+    """
+    Gets the value of the PHOENIX_DISABLE_RATE_LIMIT environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_DISABLE_RATE_LIMIT, False)
 
 
 def get_env_phoenix_secret() -> Optional[str]:
     """
-    Gets the value of the DANGEROUSLY_SET_PHOENIX_SECRET environment variable
+    Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
-    phoenix_secret = os.environ.get(ENV_DANGEROUSLY_SET_PHOENIX_SECRET)
+    phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
         return None
-    # todo: add validation for the phoenix secret
+    from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+
+    REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
     return phoenix_secret
 
 
-def get_auth_settings() -> Tuple[bool, Optional[str]]:
+def get_env_phoenix_use_secure_cookies() -> bool:
+    return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
+
+
+def get_env_phoenix_api_key() -> Optional[str]:
+    return os.environ.get(ENV_PHOENIX_API_KEY)
+
+
+def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
     enable_auth = get_env_enable_auth()
     phoenix_secret = get_env_phoenix_secret()
-    if enable_auth:
-        assert phoenix_secret, (
-            "DANGEROUSLY_SET_PHOENIX_SECRET must be set "
-            "when auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
-        )
-    else:
-        assert not phoenix_secret, (
-            "DANGEROUSLY_SET_PHOENIX_SECRET cannot be set "
-            "unless auth is enabled with DANGEROUSLY_SET_PHOENIX_ENABLE_AUTH"
+    if enable_auth and not phoenix_secret:
+        raise ValueError(
+            f"`{ENV_PHOENIX_SECRET}` must be set when "
+            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
     return enable_auth, phoenix_secret
+
+
+def get_env_password_reset_token_expiry() -> timedelta:
+    """
+    Gets the password reset token expiry.
+    """
+    from phoenix.auth import DEFAULT_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
+
+
+def get_env_access_token_expiry() -> timedelta:
+    """
+    Gets the access token expiry.
+    """
+    from phoenix.auth import DEFAULT_ACCESS_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_ACCESS_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
+
+
+def get_env_refresh_token_expiry() -> timedelta:
+    """
+    Gets the refresh token expiry.
+    """
+    from phoenix.auth import DEFAULT_REFRESH_TOKEN_EXPIRY_MINUTES
+
+    minutes = _float_val(
+        ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES,
+        DEFAULT_REFRESH_TOKEN_EXPIRY_MINUTES,
+    )
+    assert minutes > 0
+    return timedelta(minutes=minutes)
+
+
+def get_env_smtp_username() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_USERNAME) or ""
+
+
+def get_env_smtp_password() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_PASSWORD) or ""
+
+
+def get_env_smtp_mail_from() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_MAIL_FROM) or "noreply@arize.com"
+
+
+def get_env_smtp_hostname() -> str:
+    return os.getenv(ENV_PHOENIX_SMTP_HOSTNAME) or ""
+
+
+def get_env_smtp_port() -> int:
+    port = _int_val(ENV_PHOENIX_SMTP_PORT, 587)
+    assert 0 < port <= 65_535
+    return port
+
+
+def get_env_smtp_validate_certs() -> bool:
+    return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
+
+
+@dataclass(frozen=True)
+class OAuth2ClientConfig:
+    idp_name: str
+    idp_display_name: str
+    client_id: str
+    client_secret: str
+    oidc_config_url: str
+
+    @classmethod
+    def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
+        idp_name_upper = idp_name.upper()
+        if not (
+            client_id := os.getenv(
+                client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID"
+            )
+        ):
+            raise ValueError(
+                f"A client id must be set for the {idp_name} OAuth2 IDP "
+                f"via the {client_id_env_var} environment variable"
+            )
+        if not (
+            client_secret := os.getenv(
+                client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
+            )
+        ):
+            raise ValueError(
+                f"A client secret must be set for the {idp_name} OAuth2 IDP "
+                f"via the {client_secret_env_var} environment variable"
+            )
+        if not (
+            oidc_config_url := (
+                os.getenv(
+                    oidc_config_url_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_OIDC_CONFIG_URL",
+                )
+            )
+        ):
+            raise ValueError(
+                f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
+                f"via the {oidc_config_url_env_var} environment variable"
+            )
+        if urlparse(oidc_config_url).scheme != "https":
+            raise ValueError(
+                f"Server metadata URL for {idp_name} OAuth2 IDP "
+                "must be a valid URL using the https protocol"
+            )
+        return cls(
+            idp_name=idp_name,
+            idp_display_name=os.getenv(
+                f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
+                _get_default_idp_display_name(idp_name),
+            ),
+            client_id=client_id,
+            client_secret=client_secret,
+            oidc_config_url=oidc_config_url,
+        )
+
+
+def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
+    """
+    Get OAuth2 settings from environment variables.
+    """
+
+    idp_names = set()
+    pattern = re.compile(
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+    )
+    for env_var in os.environ:
+        if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
+            idp_names.add(idp_name)
+    return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -204,8 +441,6 @@ ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
 INFERENCES_DIR = ROOT_DIR / "inferences"
 TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
-
-ENABLE_AUTH, PHOENIX_SECRET = get_auth_settings()
 
 
 def ensure_working_dir() -> None:
@@ -419,6 +654,23 @@ def get_env_log_migrations() -> bool:
             f"Invalid value for environment variable {ENV_LOG_MIGRATIONS}: "
             f"{log_migrations}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
         )
+
+
+class OAuth2Idp(Enum):
+    AWS_COGNITO = "aws_cognito"
+    GOOGLE = "google"
+    MICROSOFT_ENTRA_ID = "microsoft_entra_id"
+
+
+def _get_default_idp_display_name(idp_name: str) -> str:
+    """
+    Get the default display name for an OAuth2 IDP.
+    """
+    if idp_name == OAuth2Idp.AWS_COGNITO.value:
+        return "AWS Cognito"
+    if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
+        return "Microsoft Entra ID"
+    return idp_name.replace("_", " ").title()
 
 
 DEFAULT_PROJECT_NAME = "default"

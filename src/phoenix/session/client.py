@@ -35,7 +35,6 @@ from pyarrow import ArrowInvalid, Table
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
     get_env_port,
@@ -64,6 +63,7 @@ class Client(TraceDataExtractor):
         endpoint: Optional[str] = None,
         warn_if_server_not_running: bool = True,
         headers: Optional[Mapping[str, str]] = None,
+        api_key: Optional[str] = None,
         **kwargs: Any,  # for backward-compatibility
     ):
         """
@@ -85,7 +85,12 @@ class Client(TraceDataExtractor):
             )
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
-        headers = headers or get_env_client_headers()
+        headers = dict(headers or {})
+        if api_key:
+            headers = {
+                **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},
+                "Authorization": f"Bearer {api_key}",
+            }
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
