@@ -5,7 +5,6 @@ from typing import Any, Dict
 from unittest.mock import patch
 
 import httpx
-import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
