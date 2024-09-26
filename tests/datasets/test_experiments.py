@@ -98,7 +98,7 @@ async def test_run_experiment(
             print_summary=False,
         )
 
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -177,6 +177,7 @@ async def test_run_experiment_with_llm_eval(
                 HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
             ],
         )
+        await asyncio.sleep(5)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
