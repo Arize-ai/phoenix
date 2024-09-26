@@ -765,5 +765,5 @@ class ApiKey(Base):
     name: Mapped[str]
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, index=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
