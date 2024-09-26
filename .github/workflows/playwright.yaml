@@ -19,6 +19,10 @@ jobs:
         with:
           version: 9.8.0
           cache: "pnpm"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: "pnpm"
       - name: Install dependencies
         working-directory: ./app
         run: pnpm install --frozen-lockfile
