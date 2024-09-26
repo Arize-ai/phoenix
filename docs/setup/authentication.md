@@ -22,14 +22,14 @@ By default Phoenix will create an admin user account. To get started:
 
 1. Log in as the admin user. The email should be **admin@localhost** and the password will be **admin**
 2. Set a new password for admin. You will be prompted to set a new password. Use a sufficiently complex password and save it in a safe place.
-3. Go to the settings page on the left nav and create your first system API key. This API key can be used to log traces, use the Phoenix client,  and programmatically hit Phoenix's APIs. Store the system API key in a safe place.
+3. Go to the settings page on the left nav and create your first system API key. This API key can be used to log traces, use the Phoenix client, and programmatically hit Phoenix's APIs. Store the system API key in a safe place.
 4. In your application code, make sure to set the proper authentication headers with the system API key. Phoenix respects headers in the form of [bearer auth](https://swagger.io/docs/specification/authentication/bearer-authentication/), meaning that you should set the header in the form **Authorization: Bearer \<token>.** Note that if you are using the Phoenix Client or Phoenix Otel, you simply need to set the **PHOENIX\_API\_KEY** environment variable.
 
 Re-deploy your application with the API key created above and you will see traces stream in as before.
 
 ## User Management
 
-Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of two roles `admin` or `member`, see [permissions](authentication.md#permissions)  below to learn more about the permissions for each role. &#x20;
+Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of two roles `admin` or `member`, see [permissions](authentication.md#permissions) below to learn more about the permissions for each role.
 
 Only admins can manage phoenix users. They can add, delete, and reset the passwords of other members. To manage users go to the `/settings` page.
 
@@ -66,7 +66,7 @@ This table only shows actions that a **Member** is not permitted to do. Actions 
 
 ## API Keys
 
-There are two kinds of API keys in Phoenix: `system` and `user`.&#x20;
+There are two kinds of API keys in Phoenix: `system` and `user`.
 
 ### System Keys
 
@@ -90,7 +90,7 @@ If authentication is enabled on Phoenix, all interactions with the server need t
 * Runing experiments
 * Sending OpenInference traces (more details below)
 
-### Sending OpenInference traces&#x20;
+### Sending OpenInference traces
 
 API Keys also need to be included on OpenInference traces sent to the Phoenix server. If you've set the `PHOENIX_API_KEY` environment variable, the `phoenix.otel` module will automatically include an `authorization` header with the API key:
 
@@ -142,7 +142,7 @@ export PHOENIX_SMTP_PASSWORD=XXXXXXXXXXXXXXXXX
 
 If SMTP is not configured, you have a few options to recover your forgotten password:
 
-* Contact an administrator and request that they reset your password.  Admins can reset user passwords on the `settings` page.
+* Contact an administrator and request that they reset your password. Admins can reset user passwords on the `settings` page.
 * As a last resort, you can manually update the database tuple that contains your password salt and hash.
 
 ## Configuring OAuth2
@@ -158,10 +158,6 @@ export PHOENIX_ENABLE_AUTH=True
 export PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=XXXXXXXXXXXXXXXXX
 export PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=GXXXXXXXXXXXXXXXXX
 export PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
-e
-export PHOENIX_SMTP_HOSTNAME=smtp.sendgrid.net
-export PHOENIX_SMTP_PORT=587
-export PHOENIX_SMTP_USERNAME=apikey
-export PHOENIX_SMTP_PASSWORD=XXXXXXXXXXXXXXXXX
 ```
 
+Supported OAuth2 Providers include: Google, Auth0, AWS Cognito, [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id), and any other OAuth provider that supports[ OpenID Connect](https://openid.net/developers/how-connect-works/)
