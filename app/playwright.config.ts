@@ -11,7 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  // globalSetup: require.resolve("./global-setup"),
+  globalSetup: require.resolve("./global-setup"),
   testDir: "./tests",
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -24,7 +24,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "https://phoenix-auth-production.up.railway.app",
+    baseURL: "http:localhost:6006",
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -81,6 +81,6 @@ export default defineConfig({
   webServer: {
     command: "pnpm run dev:server:test",
     url: "http://localhost:6006",
-    reuseExistingServer: true, // !process.env.CI,
+    reuseExistingServer: !process.env.CI,
   },
 });
