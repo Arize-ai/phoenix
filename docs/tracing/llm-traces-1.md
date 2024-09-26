@@ -4,6 +4,8 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 # Quickstart: Tracing
 
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing\_quickstart\_openai.ipynb)
+
 ## Overview
 
 Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use and has first-class instrumentation for a variety of frameworks ( [LlamaIndex](integrations-tracing/llamaindex.md), [LangChain](integrations-tracing/langchain.md),[ DSPy](integrations-tracing/dspy.md)),  SDKs ([OpenAI](integrations-tracing/openai.md), [Bedrock](integrations-tracing/bedrock.md), [Mistral](integrations-tracing/mistralai.md), [Vertex](integrations-tracing/vertexai.md)), and Languages (Python, Javascript). You can also [manually instrument](how-to-tracing/manual-instrumentation/) your application using the OpenTelemetry SDK.

@@ -1,7 +1,7 @@
 # Authentication
 
 {% hint style="warning" %}
-Authentication is coming in Phoenix 5.0 and currently in a feature branch
+Authentication is available in Phoenix 5.0
 {% endhint %}
 
 By default Phoenix deploys with authentication disabled as you may be just trying Phoenix for the very first time or have Phoenix deployed in a VPC. However you might want to further protect access to your data via authentication. Below are the steps.
@@ -52,7 +52,7 @@ Mutations are operations that enable users to create, update, or delete data wit
 Neither an **Admin** nor **Member** is permitted to change email addresses.
 {% endhint %}
 
-<table><thead><tr><th width="549">Action</th><th width="100" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>Create User</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Delete User</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Change Own Password</td><td align="center">Yes</td><td align="center">Yes</td></tr><tr><td>Change Other's Password</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Change Own Username</td><td align="center">Yes</td><td align="center">Yes</td></tr><tr><td>Change Other's Username</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Change Own Email</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Change Other's Email</td><td align="center">No</td><td align="center">No</td></tr><tr><td>Create System API Keys</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Delete System API Keys</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Create Own User API Keys</td><td align="center">Yes</td><td align="center">Yes</td></tr><tr><td>Delete Own User API Keys</td><td align="center">Yes</td><td align="center">Yes</td></tr><tr><td>Delete Other's User API Keys</td><td align="center">Yes</td><td align="center">No</td></tr></tbody></table>
+<table><thead><tr><th width="549">Action</th><th width="100" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>Create User</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Delete User</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Change Own Password</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Password</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Change Own Username</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Change Other's Username</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Create System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Delete System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Create Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Own User API Keys</td><td align="center">✅ Yes</td><td align="center">✅ Yes</td></tr><tr><td>Delete Other's User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr></tbody></table>
 
 ### Queries
 
@@ -134,5 +134,5 @@ Using SMTP ensures that your password recovery emails are delivered reliably and
 
 If SMTP is not configured, you have a few options to recover your forgotten password:
 
-* Contact an administrator and request that they reset your password.  Admins can reset user passwords on the `./settings` page.
+* Contact an administrator and request that they reset your password.  Admins can reset user passwords on the `settings` page.
 * As a last resort, you can manually update the database tuple that contains your password salt and hash.
