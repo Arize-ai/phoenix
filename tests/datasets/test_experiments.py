@@ -1,6 +1,5 @@
 import asyncio
 import json
-import platform
 from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import patch
@@ -11,13 +10,13 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
     HelpfulnessEvaluator,
     create_evaluator,
 )
+from phoenix.experiments.functions import async_evaluate_experiment, async_run_experiment
 from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
@@ -30,7 +29,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment(
     _,
@@ -39,9 +37,6 @@ async def test_run_experiment(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
-
     example_input = {"input": "fancy input 1"}
     example_output = {"output": "fancy output 1"}
     example_metadata = {"metadata": "fancy metadata 1"}
@@ -73,18 +68,18 @@ async def test_run_experiment(
             lambda output: ContainsKeyword(keyword="doesn't matter").evaluate(
                 output=json.dumps(output)
             ),
-            # lambda output: output == task_output,
+            lambda output: output == task_output,
             lambda output: output is not task_output,
             lambda input: input == example_input,
             lambda input: input is not example_input,
-            # lambda expected: expected == example_output,
-            # lambda expected: expected is not example_output,
-            # lambda metadata: metadata == example_metadata,
-            # lambda metadata: metadata is not example_metadata,
-            # lambda reference, expected: expected == reference,
-            # lambda reference, expected: expected is reference,
+            lambda expected: expected == example_output,
+            lambda expected: expected is not example_output,
+            lambda metadata: metadata == example_metadata,
+            lambda metadata: metadata is not example_metadata,
+            lambda reference, expected: expected == reference,
+            lambda reference, expected: expected is reference,
         ]
-        experiment = run_experiment(
+        experiment = await async_run_experiment(
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -94,7 +89,6 @@ async def test_run_experiment(
             print_summary=False,
         )
 
-        await asyncio.sleep(5)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -103,10 +97,9 @@ async def test_run_experiment(
         assert len(experiment.runs) == 1, "Experiment has 1 example"
         runs = [run for run in experiment.runs.values()]
         assert runs[0].output == {"doesn't matter": "this is the output"}
-        # assert len(experiment.eval_runs) == len(evaluators)  # this assertion is flaky
+        assert len(experiment.eval_runs) == len(evaluators)
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
     _,
@@ -115,9 +108,6 @@ async def test_run_experiment_with_llm_eval(
     simple_dataset: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
-
     test_dataset = Dataset(
         id=str(GlobalID("Dataset", "0")),
         version_id=str(GlobalID("DatasetVersion", "0")),
@@ -158,7 +148,7 @@ async def test_run_experiment_with_llm_eval(
             assert isinstance(example, Example)
             return "doesn't matter, this is the output"
 
-        experiment = run_experiment(
+        experiment = await async_run_experiment(
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -169,7 +159,6 @@ async def test_run_experiment_with_llm_eval(
                 HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
             ],
         )
-        await asyncio.sleep(5)
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -182,7 +171,6 @@ async def test_run_experiment_with_llm_eval(
         # assert experiment.eval_runs[1].result.score == 1.0
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_evaluation(
     _,
@@ -191,9 +179,6 @@ async def test_run_evaluation(
     simple_dataset_with_one_experiment_run: Any,
     dialect: str,
 ) -> None:
-    if dialect == "postgresql":
-        pytest.xfail("This test fails on PostgreSQL")
-
     experiment = Experiment(
         id=str(GlobalID("Experiment", "0")),
         dataset_id=str(GlobalID("Dataset", "0")),
@@ -202,7 +187,7 @@ async def test_run_evaluation(
         project_name="test",
     )
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
-        evaluate_experiment(experiment, evaluators=[lambda _: _])
+        await async_evaluate_experiment(experiment, evaluators=[lambda _: _])
         await asyncio.sleep(1)  # Wait for the evaluations to be inserted
         async with db() as session:
             evaluations = list(await session.scalars(select(models.ExperimentRunAnnotation)))
