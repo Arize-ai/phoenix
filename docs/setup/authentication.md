@@ -1,6 +1,6 @@
 # Authentication
 
-{% hint style="warning" %}
+{% hint style="info" %}
 Authentication is available in Phoenix 5.0
 {% endhint %}
 
@@ -62,7 +62,7 @@ Queries are operations that allow users to retrieve and view data from the syste
 This table only shows actions that a **Member** is not permitted to do. Actions without restrictions are omitted.
 {% endhint %}
 
-<table><thead><tr><th width="548">Action</th><th width="98" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>List All System API Keys</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>List All User API Keys</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>List All Users</td><td align="center">Yes</td><td align="center">No</td></tr><tr><td>Fetch Other User's Info, e.g. emails</td><td align="center">Yes</td><td align="center">No</td></tr></tbody></table>
+<table><thead><tr><th width="548">Action</th><th width="98" align="center">Admin</th><th align="center">Member</th></tr></thead><tbody><tr><td>List All System API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>List All User API Keys</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>List All Users</td><td align="center">✅ Yes</td><td align="center">No</td></tr><tr><td>Fetch Other User's Info, e.g. emails</td><td align="center">✅ Yes</td><td align="center">No</td></tr></tbody></table>
 
 ## API Keys
 
@@ -123,7 +123,7 @@ If setting `authorization` headers explicitly, ensure that the header field is *
 ## Password Recovery
 
 {% hint style="info" %}
-The password recovery methods described in this section apply when recovering a locally authenticated user's password. To recover a password for a user logged in via a third-party identity provider such as Google
+The password recovery methods described in this section apply when recovering a locally authenticated user's password. In order recover a password for a user logged in via a third-party identity provider such as Google, you will have to consult the documentation of these identity providers
 {% endhint %}
 
 ### With SMTP (Simple Mail Transfer Protocol)
@@ -136,3 +136,24 @@ If SMTP is not configured, you have a few options to recover your forgotten pass
 
 * Contact an administrator and request that they reset your password.  Admins can reset user passwords on the `settings` page.
 * As a last resort, you can manually update the database tuple that contains your password salt and hash.
+
+## Configuring OAuth2
+
+You can configure Phoenix to use OAuth2 such as Google and AWS Cognito as the identity provider for your Phoenix. By default all users that sign in with OAuth will be assigned the member role.\
+\
+Below is an example configuration to enable OAuth2 for Google.
+
+```properties
+export PHOENIX_SECRET=XXXXXXXXXXXXXXXXX
+export PHOENIX_ENABLE_AUTH=True
+
+export PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=XXXXXXXXXXXXXXXXX
+export PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=GXXXXXXXXXXXXXXXXX
+export PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+e
+export PHOENIX_SMTP_HOSTNAME=smtp.sendgrid.net
+export PHOENIX_SMTP_PORT=587
+export PHOENIX_SMTP_USERNAME=apikey
+export PHOENIX_SMTP_PASSWORD=XXXXXXXXXXXXXXXXX
+```
+
