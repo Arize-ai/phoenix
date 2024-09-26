@@ -59,7 +59,8 @@ dependencies = [
   "arize-phoenix-otel>=0.5.1",
   "fastapi",
   "fastapi-mail",
-  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+#  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic>=2",
   "authlib",
 ]
 dynamic = ["version"]
@@ -129,6 +130,32 @@ container = [
   "uvloop; platform_system != 'Windows'",
 ]
 test = [
+  "numpy",
+  "pandas==2.2.2; python_version>='3.9'",
+  "pandas==1.4.0; python_version<'3.9'",
+  "pytest==8.3.2",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary,pool]",
+  "arize",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tenacity",
+  "protobuf==3.20",  # version minimum (for tests)
+  "grpc-interceptor[testing]",
+  "responses",
+  "tiktoken",
+  "typing-extensions==4.5.0; python_version=='3.8'",
+  "typing-extensions==4.6.0; python_version=='3.9'",
+  "httpx", # For OpenAI testing
+  "respx", # For OpenAI testing
+  "nest-asyncio", # for executor testing
+  "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
+  "asgi-lifespan",
+  "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
