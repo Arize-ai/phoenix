@@ -2,7 +2,7 @@ name: Python Cron
 
 on:
   schedule:
-    - cron: "*/15 15-23 * * *"
+    - cron: "*/15 15-23 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -22,13 +22,11 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: auth
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - run: pip install tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py39-test-integration_tests
+      - run: tox run-parallel --parallel-no-spinner -e test-integration_tests
       - uses: slackapi/slack-github-action@v1
         if: failure()
         env:
