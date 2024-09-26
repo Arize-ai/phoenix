@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a513998c3ff43ed2c9e1a8da78d85ad8>>
+ * @generated SignedSource<<b404e55614d071f40b1328bc81b05cc5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type ViewerContext_viewer$data = {
     readonly role: {
       readonly name: string;
     };
-    readonly username: string | null;
+    readonly username: string;
     readonly " $fragmentSpreads": FragmentRefs<"APIKeysTableFragment">;
   } | null;
   readonly " $fragmentType": "ViewerContext_viewer";
