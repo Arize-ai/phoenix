@@ -4,6 +4,14 @@ description: >-
   example.
 ---
 
+# Setup
+
+Make sure you have Phoenix and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
+
+```bash
+pip install arize-phoenix openinference-instrumentation-openai openai
+```
+
 # Run Experiments
 
 The key steps of running an experiment are:
@@ -116,7 +124,7 @@ def generate_query(question):
 
 def execute_query(query):
     return conn.query(query).fetchdf().to_dict(orient="records")
-    
+
 
 def text2sql(question):
     results = error = None
@@ -164,9 +172,12 @@ def has_results(output) -> bool:
 Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examine in the Phoenix UI:
 
 ```python
-from phoenix.trace.openai import OpenAIInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
-OpenAIInstrumentor().instrument()
+from phoenix.otel import register
+
+tracer_provider = register()
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 #### Run the Task and Evaluators
