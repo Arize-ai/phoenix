@@ -21,7 +21,7 @@ class User(Node):
     id_attr: NodeID[int]
     password_needs_reset: bool
     email: str
-    username: Optional[str]
+    username: str
     profile_picture_url: Optional[str]
     created_at: datetime
     user_role_id: Private[int]

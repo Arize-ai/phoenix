@@ -1468,7 +1468,7 @@ type User implements Node {
   id: GlobalID!
   passwordNeedsReset: Boolean!
   email: String!
-  username: String
+  username: String!
   profilePictureUrl: String
   createdAt: DateTime!
   authMethod: AuthMethod!

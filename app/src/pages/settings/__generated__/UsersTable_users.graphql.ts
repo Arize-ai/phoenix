@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01c84f5aee7d2d115906b2c34d583db5>>
+ * @generated SignedSource<<9a4a3188884ba01b55a83dab79eb7d5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type UsersTable_users$data = {
         readonly role: {
           readonly name: string;
         };
-        readonly username: string | null;
+        readonly username: string;
       };
     }>;
   };

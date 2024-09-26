@@ -47,10 +47,8 @@ const userTableRowCSS = css`
   height: ${USER_TABLE_ROW_HEIGHT}px;
 `;
 
-const isDefaultAdminUser = (user: {
-  email: string;
-  username?: string | null;
-}) => user.email === "admin@localhost" || user.username === "admin";
+const isDefaultAdminUser = (user: { email: string; username: string }) =>
+  user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
@@ -108,11 +106,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         cell: ({ row }) => (
           <Flex direction="row" gap="size-50" alignItems="center">
             <UserPicture
-              name={row.original.username || row.original.email}
+              name={row.original.username}
               profilePictureUrl={row.original.profilePictureUrl}
               size={20}
             />
-            <span>{row.original.username || "--"}</span>
+            <span>{row.original.username}</span>
             <a href={`mailto:${row.original.email}`} css={emailLinkCSS}>
               {row.original.email}
             </a>
