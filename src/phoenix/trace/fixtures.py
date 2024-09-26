@@ -278,8 +278,8 @@ random_fixture = TracesFixture(
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
-    demo_code_based_agent_fixture,
     demo_langgraph_agent_fixture,
+    demo_code_based_agent_fixture,
     demo_llamaindex_workflows_agent_fixture,
     demo_o1_preview_timeseries_testing_fixture,
     llama_index_rag_fixture,
