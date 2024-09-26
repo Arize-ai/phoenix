@@ -1,16 +1,13 @@
-import json
 import os
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
 from openinference.instrumentation import using_prompt_template
-from openinference.semconv.trace import SpanAttributes
-from opentelemetry import trace
 from prompt_templates.data_analysis_template import PROMPT_TEMPLATE, SYSTEM_PROMPT
 
 load_dotenv()
@@ -27,7 +24,7 @@ def data_analyzer(original_prompt: str, data: str):
     Returns:
         str: The analysis result.
     """
-    
+
     with using_prompt_template(
         template=PROMPT_TEMPLATE,
         variables={"PROMPT": original_prompt, "DATA": data},

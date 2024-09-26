@@ -8,6 +8,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from router import router
+
 from utils.instrument import Framework, instrument
 
 

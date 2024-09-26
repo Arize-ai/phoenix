@@ -1,12 +1,10 @@
 import os
 import sys
 
-from langchain_core.tools import tool
-from openinference.instrumentation import using_prompt_template
-from openinference.semconv.trace import SpanAttributes
-from opentelemetry import trace
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from openinference.instrumentation import using_prompt_template
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
@@ -47,7 +45,6 @@ def _generate_and_run_sql_query(original_prompt: str, retry: bool = False):
         variables={"SCHEMA": schema, "TABLE": table},
         version="v0.1",
     ):
-
         model = ChatOpenAI(model="gpt-4o")
         messages = [
             SystemMessage(content=SYSTEM_PROMPT.format(SCHEMA=schema, TABLE=table)),
