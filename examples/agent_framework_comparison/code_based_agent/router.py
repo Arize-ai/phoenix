@@ -29,7 +29,6 @@ def router(messages, parent_context):
         span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, "CHAIN")
         span.set_attribute(SpanAttributes.INPUT_VALUE, str(messages))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, "application/json")
-        span.set_attribute(SpanAttributes.LLM_TOOLS, str(skill_map.get_function_list()))
 
         if not any(
             isinstance(message, dict) and message.get("role") == "system" for message in messages

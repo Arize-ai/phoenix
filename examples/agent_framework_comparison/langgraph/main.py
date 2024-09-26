@@ -17,5 +17,5 @@ def launch_app():
 
 
 if __name__ == "__main__":
-    instrument(project_name="langgraph-agent", framework=Framework.LANGGRAPH)
+    instrument(project_name="langgraph-agent-demo", framework=Framework.LANGGRAPH)
     launch_app()

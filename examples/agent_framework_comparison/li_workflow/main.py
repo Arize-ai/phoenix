@@ -17,7 +17,7 @@ async def gradio_interface(message, history):
 
 
 def launch_app():
-    iface = gr.ChatInterface(fn=gradio_interface, title="Data Analyst Agent")
+    iface = gr.ChatInterface(fn=gradio_interface, title="LlamaIndex Workflow Agent")
     iface.launch()
 
 
