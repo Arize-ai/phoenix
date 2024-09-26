@@ -177,8 +177,6 @@ dependencies = [
   "tiktoken",
   "typing-extensions==4.5.0; python_version=='3.8'",
   "typing-extensions==4.6.0; python_version=='3.9'",
-  "pydantic==1.9.0; python_version<='3.9'",  # minimum version of pydantic compatible with openai
-  "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
