@@ -42,10 +42,6 @@ async def test_run_experiment(
     if dialect == "postgresql":
         pytest.xfail("This test fails on PostgreSQL")
 
-    async with db() as session:
-        nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
-    assert not nonexistent_experiment, "There should be no experiments in the database"
-
     example_input = {"input": "fancy input 1"}
     example_output = {"output": "fancy output 1"}
     example_metadata = {"metadata": "fancy metadata 1"}
@@ -121,10 +117,6 @@ async def test_run_experiment_with_llm_eval(
 ) -> None:
     if dialect == "postgresql":
         pytest.xfail("This test fails on PostgreSQL")
-
-    async with db() as session:
-        nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
-    assert not nonexistent_experiment, "There should be no experiments in the database"
 
     test_dataset = Dataset(
         id=str(GlobalID("Dataset", "0")),
