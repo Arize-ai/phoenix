@@ -42,6 +42,7 @@ from .._helpers import (
     _SYSTEM_USER_GID,
     _AccessToken,
     _ApiKey,
+    _create_api_key,
     _create_user,
     _DefaultAdminTokenSequestration,
     _Email,
@@ -344,6 +345,16 @@ class TestLoggedInTokens:
         with other_user.log_in() as logged_in_user:
             access_tokens.add(logged_in_user.tokens.access_token)
             refresh_tokens.add(logged_in_user.tokens.refresh_token)
+
+    def test_corrupt_tokens_are_not_accepted(self) -> None:
+        parts = _DEFAULT_ADMIN.log_in().tokens.access_token.split(".")
+        # delete last 3 characters because base64 could have up to 2 padding characters
+        bad_headers = _AccessToken(f"{parts[0][:-3]}.{parts[1]}.{parts[2]}")
+        with _EXPECTATION_401:
+            _create_api_key(bad_headers)
+        bad_payload = _AccessToken(f"{parts[0]}.{parts[1][:-3]}.{parts[2]}")
+        with _EXPECTATION_401:
+            _create_api_key(bad_payload)
 
 
 class TestRefreshToken:

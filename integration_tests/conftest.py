@@ -52,7 +52,6 @@ def _ports() -> Iterator[int]:
         while True:
             port = pick_unused_port()
             if port not in used:
-                print("PORT", port)
                 used.append(port)
                 yield port
 

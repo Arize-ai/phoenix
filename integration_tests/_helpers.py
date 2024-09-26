@@ -42,6 +42,7 @@ import jwt
 import pytest
 import smtpdfix
 from httpx import Headers, HTTPStatusError
+from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
@@ -976,11 +977,16 @@ def _decode_token_ids(
     headers: Headers,
     key: Literal["cookie", "set-cookie"] = "cookie",
 ) -> List[str]:
-    return [
-        jwt.decode(v, options={"verify_signature": False})["jti"]
-        for v in _extract_tokens(headers, key).values()
-        if v != '""'
-    ]
+    ans = []
+    for v in _extract_tokens(headers, key).values():
+        if v == '""':
+            continue
+        try:
+            token = jwt.decode(v, options={"verify_signature": False})["jti"]
+        except DecodeError:
+            continue
+        ans.append(token)
+    return ans
 
 
 def _extract_password_reset_token(msg: Message) -> _PasswordResetToken:
