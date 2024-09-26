@@ -110,7 +110,7 @@ async def test_run_experiment(
         assert len(experiment.eval_runs) == len(evaluators)
 
 
-@pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
+# @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
     _,
@@ -186,8 +186,8 @@ async def test_run_experiment_with_llm_eval(
         runs = [run for run in experiment.runs.values()]
         assert runs[0].output == "doesn't matter, this is the output"
         assert len(experiment.eval_runs) == 2
-        assert experiment.eval_runs[0].score == 0.0
-        assert experiment.eval_runs[1].score == 1.0
+        assert experiment.eval_runs[0].result.score == 0.0
+        assert experiment.eval_runs[1].result.score == 1.0
 
 
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
