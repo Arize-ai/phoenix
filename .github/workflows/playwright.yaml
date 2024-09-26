@@ -14,14 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: "pnpm"
       - name: Install PNPM
         uses: pnpm/action-setup@v3
         with:
           version: 9.8.0
+          cache: "pnpm"
       - name: Install dependencies
         working-directory: ./app
         run: pnpm install --frozen-lockfile
