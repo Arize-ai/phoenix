@@ -89,6 +89,8 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
             username=DEFAULT_SYSTEM_USERNAME,
             email=DEFAULT_SYSTEM_EMAIL,
             reset_password=False,
+            password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+            password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
         )
         session.add(system_user)
     if (admin_role := UserRole.ADMIN.value) not in existing_roles and (

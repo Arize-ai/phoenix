@@ -698,8 +698,8 @@ class User(Base):
             name="oauth2_client_id_and_user_id",
         ),
         CheckConstraint(
-            "password_hash IS NULL or oauth2_client_id IS NULL",
-            name="at_most_one_auth_method",
+            "(password_hash IS NULL) != (oauth2_client_id IS NULL)",
+            name="exactly_one_auth_method",
         ),
         UniqueConstraint(
             "oauth2_client_id",
