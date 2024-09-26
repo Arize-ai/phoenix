@@ -145,6 +145,27 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+demo_code_based_agent_fixture = TracesFixture(
+    name="demo_code_based_agent",
+    project_name="code_based_agent_demo",
+    description="Shows traces captured from a code-based agent.",
+    file_name="agent-demo-traces.parquet",
+)
+
+demo_langgraph_agent_fixture = TracesFixture(
+    name="demo_langgraph_agent",
+    project_name="langgraph_agent_demo",
+    description="Shows traces captured from a Langgraph agent.",
+    file_name="langgraph-demo-traces.parquet",
+)
+
+demo_llamaindex_workflows_agent_fixture = TracesFixture(
+    name="demo_llamaindex_workflows_agent",
+    project_name="llamaindex_workflows_agent_demo",
+    description="Shows traces captured from a LlamaIndex Workflows agent.",
+    file_name="llamaindex-workflow-demo-traces.parquet",
+)
+
 demo_o1_preview_timeseries_testing_fixture = TracesFixture(
     name="demo_o1_preview_timeseries_evals",
     project_name="demo_o1_preview_timeseries",
@@ -257,6 +278,9 @@ random_fixture = TracesFixture(
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
+    demo_code_based_agent_fixture,
+    demo_langgraph_agent_fixture,
+    demo_llamaindex_workflows_agent_fixture,
     demo_o1_preview_timeseries_testing_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
