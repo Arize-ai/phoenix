@@ -41,7 +41,7 @@ export function UsersCard() {
     <Card
       title="Users"
       variant="compact"
-      bodyStyle={{ padding: 0 }}
+      bodyStyle={{ padding: 0, overflowX: "auto" }}
       extra={
         <Button
           onClick={() => {

@@ -11,6 +11,7 @@ export function GlobalStyles() {
           font-family: "Roboto";
           font-size: ${theme.typography.sizes.medium.fontSize}px;
           margin: 0;
+          overflow: hidden;
           #root,
           #root > div[data-overlay-container="true"],
           #root > div[data-overlay-container="true"] > .ac-theme {
