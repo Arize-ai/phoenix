@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("that login gets rate limited after too many attempts", async ({ page }) => {
+test("that login gets rate limited after too many attempts", async ({
+  page,
+}) => {
   await page.goto("/login");
   await page.waitForURL("**/login");
 
@@ -11,7 +13,9 @@ test("that login gets rate limited after too many attempts", async ({ page }) =>
 
   const numberOfAttempts = 10;
   for (let i = 0; i < numberOfAttempts; i++) {
-    await page.getByRole("button", { name: "Login" }).click();
+    await page.getByRole("button", { name: "Login", exact: true }).click();
   }
-  await expect(page.getByText("Too many requests. Please try again later.")).toBeVisible();
+  await expect(
+    page.getByText("Too many requests. Please try again later.")
+  ).toBeVisible();
 });

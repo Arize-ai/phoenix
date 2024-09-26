@@ -49,7 +49,7 @@ export function ForgotPasswordForm({
           <Alert variant="danger">{error}</Alert>
         </View>
       ) : null}
-      <Form>
+      <Form onSubmit={handleSubmit(onSubmit)}>
         <Controller
           name="email"
           control={control}
@@ -75,11 +75,7 @@ export function ForgotPasswordForm({
             }
           `}
         >
-          <Button
-            variant="primary"
-            loading={isLoading}
-            onClick={handleSubmit(onSubmit)}
-          >
+          <Button variant="primary" type={"submit"} loading={isLoading}>
             Send
           </Button>
         </div>

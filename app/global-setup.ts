@@ -7,7 +7,7 @@ async function globalSetup(config: FullConfig) {
   page.goto(`${baseURL}/login`);
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
 
   // Reset the password
   await page.waitForURL("**/reset-password");
@@ -20,7 +20,7 @@ async function globalSetup(config: FullConfig) {
 
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin123");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await page.waitForURL("**/projects/**");
   // Reset the password
   await page.goto(`${baseURL}/settings`);

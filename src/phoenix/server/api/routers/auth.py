@@ -197,7 +197,7 @@ async def initiate_password_reset(request: Request) -> Response:
         raise MISSING_EMAIL
     sender: EmailSender = request.app.state.email_sender
     if sender is None:
-        raise UNAVAILABLE
+        raise SMTP_UNAVAILABLE
     assert isinstance(token_expiry := request.app.state.password_reset_token_expiry, timedelta)
     async with request.app.state.db() as session:
         user = await session.scalar(
@@ -274,8 +274,9 @@ MISSING_PASSWORD = HTTPException(
     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
     detail="Password required",
 )
-UNAVAILABLE = HTTPException(
+SMTP_UNAVAILABLE = HTTPException(
     status_code=HTTP_503_SERVICE_UNAVAILABLE,
+    detail="SMTP server not configured",
 )
 INVALID_TOKEN = HTTPException(
     status_code=HTTP_401_UNAUTHORIZED,
