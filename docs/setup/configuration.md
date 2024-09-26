@@ -35,6 +35,15 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 
+#### SMTP Configuration for Password Reset (When Auth Is Enabled)
+
+* **PHOENIX\_SMTP\_HOSTNAME:** The SMTP hostname to use for sending password reset emails.
+* **PHOENIX\_SMTP\_PORT:** The SMTP port. Defaults to `587`.
+* **PHOENIX\_SMTP\_USERNAME:** The SMTP username.
+* **PHOENIX\_SMTP\_PASSWORD:** The SMTP password.
+* **PHOENIX\_SMTP\_MAIL\_FROM:** The `from` address in the emails. Defaults to `noreply@arize.com`.
+* **PHOENIX\_SMTP\_VALIDATE\_CERTS:** Whether to validate the SMTP server's certificate. Defaults to `true`.
+
 ### Client Configuration
 
 The following environment variables will control your client or notebook environment.

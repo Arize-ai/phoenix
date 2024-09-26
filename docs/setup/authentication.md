@@ -110,7 +110,7 @@ from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProces
 endpoint = "http://127.0.0.1:6006/v1/traces"
 tracer_provider = trace_sdk.TracerProvider()
 exporter = OTLPSpanExporter(
-    endpoint, 
+    endpoint,
     headers={"authorization": "Bearer <SYSTEM-OR-USER-KEY>"},
 )
 tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
@@ -128,7 +128,15 @@ The password recovery methods described in this section apply when recovering a 
 
 ### With SMTP (Simple Mail Transfer Protocol)
 
-Using SMTP ensures that your password recovery emails are delivered reliably and securely. SMTP is the standard protocol for sending emails, making sure that you receive the reset link promptly in your inbox.
+Using SMTP ensures that your password recovery emails are delivered reliably and securely. SMTP is the standard protocol for sending emails, making sure that you receive the reset link promptly in your inbox.\
+\
+Below is an example configuration to enable SMTP for `sendgrid`.
+
+```properties
+export PHOENIX_SMTP_HOSTNAME=smtp.sendgrid.net
+export PHOENIX_SMTP_USERNAME=apikey
+export PHOENIX_SMTP_PASSWORD=XXXXXXXXXXXXXXXXX
+```
 
 ### Without SMTP
 
