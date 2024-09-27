@@ -10,10 +10,13 @@ import {
   PlaygroundOutputSubscription,
   PlaygroundOutputSubscription$data,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PlaygroundInstanceProps } from "./types";
 
-export function PlaygroundOutput() {
-  // TODO: Tie this to a specific instance
-  const instance = usePlaygroundContext((state) => state.instances[0]);
+interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
+
+export function PlaygroundOutput(props: PlaygroundOutputProps) {
+  const instanceId = props.playgroundInstanceId;
+  const instance = usePlaygroundContext((state) => state.instances[instanceId]);
   if (!instance) {
     return null;
   }
@@ -55,10 +58,10 @@ function useChatCompletionSubscription({
         }
       },
       onCompleted: () => {
-        alert("completed");
+        // TODO: clear the run
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [runId]
   );
   return useSubscription(config);

@@ -131,9 +131,13 @@ export interface PlaygroundState extends PlaygroundProps {
     patch: Partial<PlaygroundInstance>;
   }) => void;
   /**
-   * Run the active playgrounds
+   * Run all the active playground Instances
    */
-  runPlaygrounds: () => void;
+  runPlaygroundInstances: () => void;
+  /**
+   * Run a specific playground instance
+   */
+  runPlaygroundInstance: (instanceId: number) => void;
 }
 
 const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
@@ -263,13 +267,27 @@ export const createPlaygroundStore = (
         }),
       });
     },
-    runPlaygrounds: () => {
+    runPlaygroundInstances: () => {
       const instances = get().instances;
       set({
         instances: instances.map((instance) => ({
           ...instance,
           activeRunId: playgroundRunIdIndex++,
         })),
+      });
+    },
+    runPlaygroundInstance: (instanceId: number) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              activeRunId: playgroundRunIdIndex++,
+            };
+          }
+          return instance;
+        }),
       });
     },
     ...initialProps,
