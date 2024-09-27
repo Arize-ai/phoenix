@@ -1,25 +1,16 @@
 import React from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { css } from "@emotion/react";
 
 import { Button, Flex, Heading, View } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+} from "@phoenix/contexts/PlaygroundContext";
 
-import { PlaygroundInput } from "./PlaygroundInput";
+import { PlaygroundInstance } from "./PlaygroundInstance";
 import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
-import { PlaygroundOutput } from "./PlaygroundOutput";
-import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { PlaygroundTools } from "./PlaygroundTools";
-
-const panelContentCSS = css`
-  padding: var(--ac-global-dimension-size-200);
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
-`;
 
 export function Playground() {
   return (
@@ -39,17 +30,25 @@ export function Playground() {
           <Button variant="default">API Keys</Button>
         </Flex>
       </View>
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={50} order={1} css={panelContentCSS}>
-          <PlaygroundTemplate />
-          <PlaygroundTools />
-        </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={50} order={2} css={panelContentCSS}>
-          <PlaygroundInput />
-          <PlaygroundOutput />
-        </Panel>
-      </PanelGroup>
+      <PlaygroundInstances />
     </PlaygroundProvider>
+  );
+}
+
+function PlaygroundInstances() {
+  const instances = usePlaygroundContext((state) => state.instances);
+  return (
+    <Flex direction="row" alignItems="stretch" height="100%">
+      <PanelGroup direction="horizontal">
+        {instances.map((instance, i) => (
+          <>
+            {i !== 0 && <PanelResizeHandle css={resizeHandleCSS} />}
+            <Panel defaultSize={50}>
+              <PlaygroundInstance key={i} playgroundInstanceId={instance.id} />
+            </Panel>
+          </>
+        ))}
+      </PanelGroup>
+    </Flex>
   );
 }
