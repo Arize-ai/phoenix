@@ -9,7 +9,6 @@ import React, {
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
-import { is } from "@react-three/fiber/dist/declarations/src/core/utils";
 import { nord } from "@uiw/codemirror-theme-nord";
 import { EditorView } from "@uiw/react-codemirror";
 import CodeMirror from "@uiw/react-codemirror";
