@@ -5,6 +5,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
+import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
@@ -175,7 +176,12 @@ const router = createBrowserRouter(
                 element={<SpanPlaygroundPage />}
                 loader={spanPlaygroundPageLoader}
                 handle={{
-                  crumb: () => "some span id",
+                  crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
+                    if (data.span.__typename === "Span") {
+                      return data.span.context.spanId;
+                    }
+                    return "unknown";
+                  },
                 }}
               />
             </Route>

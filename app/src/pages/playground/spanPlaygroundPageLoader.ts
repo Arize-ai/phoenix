@@ -19,6 +19,9 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
         span: node(id: $spanId) {
           __typename
           ... on Span {
+            context {
+              spanId
+            }
             attributes
           }
         }

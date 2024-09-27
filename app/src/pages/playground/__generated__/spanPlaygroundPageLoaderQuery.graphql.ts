@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3f3c9866ab1ec659390ed676165e982e>>
+ * @generated SignedSource<<60eb99c48e6f8167b1c74edc2a90ce62>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,9 @@ export type spanPlaygroundPageLoaderQuery$data = {
   readonly span: {
     readonly __typename: "Span";
     readonly attributes: string;
+    readonly context: {
+      readonly spanId: string;
+    };
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -52,6 +55,24 @@ v2 = {
 v3 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanContext",
+      "kind": "LinkedField",
+      "name": "context",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "spanId",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -120,16 +141,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eef0a863246b48d821ba0046f632ba63",
+    "cacheID": "0736806d2ffe427d21f6183b6c707f1f",
     "id": null,
     "metadata": {},
     "name": "spanPlaygroundPageLoaderQuery",
     "operationKind": "query",
-    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      attributes\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      context {\n        spanId\n      }\n      attributes\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bf660db86b5401e5057d733d9ee8dd23";
+(node as any).hash = "a49841a5261bf37a73f4dddf55f49311";
 
 export default node;
