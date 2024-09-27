@@ -94,7 +94,7 @@ export interface PlaygroundInstance {
  * All actions for a playground instance must contain the index of the playground
  */
 interface PlaygroundInstanceActionParams {
-  index: number;
+  playgroundInstanceId: number;
 }
 interface AddMessageParams extends PlaygroundInstanceActionParams {}
 
@@ -216,17 +216,14 @@ export const createPlaygroundStore = (
         instances: instances.filter((instance) => instance.id !== instanceId),
       });
     },
-    addMessage: ({ index }) => {
+    addMessage: ({ playgroundInstanceId }) => {
       const instances = get().instances;
-      const mainInstance = instances[index];
-      if (!mainInstance) {
-        return;
-      }
+
       // Update the given instance
       set({
-        instances: instances.map((instance, i) => {
+        instances: instances.map((instance) => {
           if (
-            index === i &&
+            instance.id === playgroundInstanceId &&
             instance?.template &&
             instance?.template.__type === "chat"
           ) {
