@@ -166,27 +166,19 @@ const router = createBrowserRouter(
           >
             <Route index element={<PlaygroundPage />} />
             <Route
-              path="spans"
+              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              element={<SpanPlaygroundPage />}
+              loader={spanPlaygroundPageLoader}
               handle={{
-                crumb: () => "spans",
+                crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
+                  if (data.span.__typename === "Span") {
+                    return `span ${data.span.context.spanId}`;
+                  }
+                  return "span unknown";
+                },
               }}
-            >
-              <Route
-                path=":spanId"
-                element={<SpanPlaygroundPage />}
-                loader={spanPlaygroundPageLoader}
-                handle={{
-                  crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
-                    if (data.span.__typename === "Span") {
-                      return data.span.context.spanId;
-                    }
-                    return "unknown";
-                  },
-                }}
-              />
-            </Route>
+            />
           </Route>
-
           <Route
             path="/apis"
             element={<APIsPage />}
