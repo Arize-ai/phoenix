@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 export type GenAIOperationType = "chat" | "text_completion";
 
 let playgroundInstanceIdIndex = 0;
+let playgroundRunIdIndex = 0;
 
 /**
  * The input mode for the playground
@@ -88,6 +89,7 @@ export interface PlaygroundInstance {
   tools: unknown;
   input: PlaygroundInput;
   output: unknown;
+  activeRunId: number | null;
 }
 
 /**
@@ -128,6 +130,10 @@ export interface PlaygroundState extends PlaygroundProps {
     instanceId: number;
     patch: Partial<PlaygroundInstance>;
   }) => void;
+  /**
+   * Run the active playgrounds
+   */
+  runPlaygrounds: () => void;
 }
 
 const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
@@ -163,6 +169,7 @@ export const createPlaygroundStore = (
         tools: {},
         input: { variables: {} },
         output: {},
+        activeRunId: null,
       },
     ],
     setOperationType: (operationType: GenAIOperationType) => {
@@ -176,6 +183,7 @@ export const createPlaygroundStore = (
               tools: {},
               input: { variables: {} },
               output: {},
+              activeRunId: null,
             },
           ],
         });
@@ -188,6 +196,7 @@ export const createPlaygroundStore = (
               tools: {},
               input: { variables: {} },
               output: {},
+              activeRunId: null,
             },
           ],
         });
@@ -206,6 +215,7 @@ export const createPlaygroundStore = (
           {
             ...instance,
             id: playgroundInstanceIdIndex++,
+            activeRunId: null,
           },
         ],
       });
@@ -251,6 +261,15 @@ export const createPlaygroundStore = (
           }
           return instance;
         }),
+      });
+    },
+    runPlaygrounds: () => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => ({
+          ...instance,
+          activeRunId: playgroundRunIdIndex++,
+        })),
       });
     },
     ...initialProps,

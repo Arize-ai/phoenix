@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Button, Card, Icon, Icons } from "@arizeai/components";
+import { Button, Card, Icon, Icons, View } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -13,6 +13,7 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const id = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
+  const runPlaygrounds = usePlaygroundContext((state) => state.runPlaygrounds);
   const playground = instances.find((instance) => instance.id === id);
   if (!playground) {
     throw new Error(`Playground instance ${id} not found`);
@@ -24,6 +25,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       title="Template"
       collapsible
       variant="compact"
+      bodyStyle={{ padding: 0 }}
       extra={
         instances.length >= NUM_MAX_PLAYGROUND_INSTANCES ? (
           <DeleteButton {...props} />
@@ -37,6 +39,17 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       ) : (
         "Completion Template"
       )}
+      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
+        <Button
+          variant="primary"
+          onClick={() => {
+            // TODO: Only run this one instance
+            runPlaygrounds();
+          }}
+        >
+          Run
+        </Button>
+      </View>
     </Card>
   );
 }
