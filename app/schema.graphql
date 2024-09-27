@@ -65,6 +65,10 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+input ChatCompletionInput {
+  message: String!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -1370,6 +1374,10 @@ enum SpanStatusCode {
   OK
   ERROR
   UNSET
+}
+
+type Subscription {
+  chatCompletion(input: ChatCompletionInput!): String!
 }
 
 type SystemApiKey implements ApiKey & Node {
