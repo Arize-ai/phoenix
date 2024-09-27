@@ -5,9 +5,9 @@ env:
 
 on:
   push:
-    branches: [auth, main]
+    branches: [ main, playground ]
   pull_request:
-    branches: [auth, main]
+    branches: [ main, playground ]
 jobs:
   test:
     timeout-minutes: 60

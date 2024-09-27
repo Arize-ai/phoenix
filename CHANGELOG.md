@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.0.0...arize-phoenix-v5.1.0) (2024-09-27)
+
+
+### Features
+
+* update fixtures.py to include new demos ([#4772](https://github.com/Arize-ai/phoenix/issues/4772)) ([e616fcc](https://github.com/Arize-ai/phoenix/commit/e616fcc12c5855c364d10832d97cd4503c58ddf3))
+
+
+### Bug Fixes
+
+* fixes to the langgraph example agent ([#4771](https://github.com/Arize-ai/phoenix/issues/4771)) ([d457f70](https://github.com/Arize-ai/phoenix/commit/d457f708fb9c1edc177727aed52e82fc52badedd))
+
 ## [5.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.36.0...arize-phoenix-v5.0.0) (2024-09-26)
 
 
