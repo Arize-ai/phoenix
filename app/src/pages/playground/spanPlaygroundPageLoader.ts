@@ -4,9 +4,6 @@ import { LoaderFunctionArgs } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import { spanPlaygroundPageLoaderQuery } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
-/**
- *
- */
 export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
   const { spanId } = args.params;
   if (!spanId || typeof spanId !== "string") {
