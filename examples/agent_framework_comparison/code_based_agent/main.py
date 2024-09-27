@@ -8,6 +8,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from router import router
+
 from utils.instrument import Framework, instrument
 
 
@@ -32,5 +33,5 @@ def launch_app():
 
 
 if __name__ == "__main__":
-    instrument(project_name="code-based-agent", framework=Framework.CODE_BASED)
+    instrument(project_name="agent-demo", framework=Framework.CODE_BASED)
     launch_app()

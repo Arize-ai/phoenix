@@ -79,4 +79,4 @@ def get_table():
 
 
 if __name__ == "__main__":
-    print(run_query("SELECT name FROM pragma_table_info('traces')"))
+    print(run_query("SELECT attributes.retrieval.documents FROM traces"))

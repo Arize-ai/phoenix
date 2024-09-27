@@ -4,6 +4,7 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 import gradio as gr
 from langgraph.router import run_agent
+
 from utils.instrument import Framework, instrument
 
 
@@ -17,5 +18,5 @@ def launch_app():
 
 
 if __name__ == "__main__":
-    instrument(project_name="langgraph-agent", framework=Framework.LANGGRAPH)
+    instrument(project_name="langgraph-agent-demo", framework=Framework.LANGGRAPH)
     launch_app()
