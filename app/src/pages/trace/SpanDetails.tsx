@@ -9,6 +9,7 @@ import React, {
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
+import { is } from "@react-three/fiber/dist/declarations/src/core/utils";
 import { nord } from "@uiw/codemirror-theme-nord";
 import { EditorView } from "@uiw/react-codemirror";
 import CodeMirror from "@uiw/react-codemirror";
@@ -63,6 +64,7 @@ import {
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   AttributeDocument,
@@ -148,6 +150,8 @@ export function SpanDetails({
   spanNodeId: string;
   projectId: string;
 }) {
+  const isPromptPlaygroundEnabled = useFeatureFlag("playground");
+  const navigate = useNavigate();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
       query SpanDetailsQuery($spanId: GlobalID!) {
@@ -244,6 +248,18 @@ export function SpanDetails({
             <Text>{span.name}</Text>
           </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
+            {isPromptPlaygroundEnabled ? (
+              <Button
+                variant="default"
+                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+                disabled={span.spanKind !== "llm"}
+                onClick={() => {
+                  navigate(`/playground/spans/${span.id}`);
+                }}
+              >
+                Playground
+              </Button>
+            ) : null}
             <SpanCodeDropdown
               traceId={span.context.traceId}
               spanId={span.context.spanId}
