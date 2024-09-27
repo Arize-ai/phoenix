@@ -5,6 +5,7 @@ import { Button, Card, Icon, Icons } from "@arizeai/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -32,7 +33,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         )
       }
     >
-      {template.__type === "chat" ? "Chat Template" : "Completion Template"}
+      {template.__type === "chat" ? (
+        <PlaygroundChatTemplate {...props} />
+      ) : (
+        "Completion Template"
+      )}
     </Card>
   );
 }

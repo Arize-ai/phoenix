@@ -62,6 +62,16 @@ export interface PlaygroundProps {
   instances: Array<PlaygroundInstance>;
 }
 
+type DatasetInput = {
+  datasetId: string;
+};
+
+type ManualInput = {
+  variables: Record<string, string>;
+};
+
+type PlaygroundInput = DatasetInput | ManualInput;
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -76,7 +86,7 @@ export interface PlaygroundInstance {
   id: number;
   template: PlaygroundTemplate;
   tools: unknown;
-  input: unknown;
+  input: PlaygroundInput;
   output: unknown;
 }
 
@@ -111,6 +121,13 @@ export interface PlaygroundState extends PlaygroundProps {
    * Add a message to a playground instance
    */
   addMessage: (params: AddMessageParams) => void;
+  /**
+   * Update an instance of the playground
+   */
+  updateInstance: (params: {
+    instanceId: number;
+    patch: Partial<PlaygroundInstance>;
+  }) => void;
 }
 
 const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
@@ -144,7 +161,7 @@ export const createPlaygroundStore = (
         id: playgroundInstanceIdIndex++,
         template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
         tools: {},
-        input: {},
+        input: { variables: {} },
         output: {},
       },
     ],
@@ -157,7 +174,7 @@ export const createPlaygroundStore = (
               id: playgroundInstanceIdIndex++,
               template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
               tools: {},
-              input: {},
+              input: { variables: {} },
               output: {},
             },
           ],
@@ -169,7 +186,7 @@ export const createPlaygroundStore = (
               id: playgroundInstanceIdIndex++,
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
-              input: {},
+              input: { variables: {} },
               output: {},
             },
           ],
@@ -219,6 +236,20 @@ export const createPlaygroundStore = (
                 ...instance.template.messages,
                 { role: "user", content: "{question}" },
               ],
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstance: ({ instanceId, patch }) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              ...patch,
             };
           }
           return instance;
