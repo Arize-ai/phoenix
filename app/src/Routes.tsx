@@ -40,6 +40,8 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SettingsPage,
+  SpanPlaygroundPage,
+  spanPlaygroundPageLoader,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -157,11 +159,28 @@ const router = createBrowserRouter(
           </Route>
           <Route
             path="/playground"
-            element={<PlaygroundPage />}
             handle={{
               crumb: () => "Playground",
             }}
-          />
+          >
+            <Route index element={<PlaygroundPage />} />
+            <Route
+              path="spans"
+              handle={{
+                crumb: () => "spans",
+              }}
+            >
+              <Route
+                path=":spanId"
+                element={<SpanPlaygroundPage />}
+                loader={spanPlaygroundPageLoader}
+                handle={{
+                  crumb: () => "some span id",
+                }}
+              />
+            </Route>
+          </Route>
+
           <Route
             path="/apis"
             element={<APIsPage />}
