@@ -12,7 +12,6 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const id = props.playgroundInstanceId;
-  // TODO: remove the hard coding of the first instance
   const instances = usePlaygroundContext((state) => state.instances);
   const playground = instances.find((instance) => instance.id === id);
   if (!playground) {
