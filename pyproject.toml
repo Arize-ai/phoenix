@@ -22,11 +22,11 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
+  "numpy<2",  # https://github.com/TutteInstitute/fast_hdbscan/issues/17#issuecomment-2380859314
   "pandas>=1.0",
   "jinja2",
   "umap-learn",
-  "hdbscan>=0.8.33",
+  "fast-hdbscan",
   "starlette",
   "uvicorn",
   "psutil",
@@ -385,7 +385,7 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = [
-  "hdbscan",
+  "fast_hdbscan",
   "umap",
   "numba.*",
   "scipy.*",
