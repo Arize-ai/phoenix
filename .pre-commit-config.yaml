@@ -39,3 +39,10 @@ repos:
           - eslint-plugin-react@7.33.2
           - eslint-plugin-react-hooks@4.6.0
           - eslint-plugin-simple-import-sort@10.0.0
+  - repo: local
+    hooks:
+      - id: forbid-commit-to-main-branch
+        name: Check branch before committing
+        entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Cannot commit to main branch."; exit 1; }'
+        language: system
+        stages: [ commit ]
