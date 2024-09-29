@@ -27,6 +27,7 @@ dependencies = [
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.38",
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "starlette",
   "uvicorn",
   "psutil",
