@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.16.0...arize-phoenix-evals-v0.16.1) (2024-09-27)
+
+
+### Bug Fixes
+
+* Use python string formatting for standard template delimiters ([#4781](https://github.com/Arize-ai/phoenix/issues/4781)) ([26b422f](https://github.com/Arize-ai/phoenix/commit/26b422f70dd5e7b295f79a30a82dab1cc1ed9173))
+
+## [0.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.15.1...arize-phoenix-evals-v0.16.0) (2024-09-17)
+
+
+### Features
+
+* OpenAI support for o1 preview ([#4633](https://github.com/Arize-ai/phoenix/issues/4633)) ([1ad7b79](https://github.com/Arize-ai/phoenix/commit/1ad7b79d95bd362ca15f34f2cebe7e1332a19846))
+
+
+### Bug Fixes
+
+* Ensure correct dataloader results ordering ([#4524](https://github.com/Arize-ai/phoenix/issues/4524)) ([f9239d6](https://github.com/Arize-ai/phoenix/commit/f9239d63af9d06c04430f9dca808caf08d152d3d))
+
 ## [0.15.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.15.0...arize-phoenix-evals-v0.15.1) (2024-08-27)
 
 

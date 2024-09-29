@@ -87,6 +87,7 @@
                 nSamples: parseInt("{{n_samples}}"),
               },
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
+              oAuth2Idps: {{ oauth2_idps | tojson }},
           }),
           writable: false
       });

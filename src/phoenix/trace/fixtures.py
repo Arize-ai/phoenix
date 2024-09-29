@@ -38,8 +38,6 @@ from phoenix.trace.utils import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.NullHandler())
 
 
 class EvaluationResultSchema(NamedTuple):
@@ -147,6 +145,34 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+demo_code_based_agent_fixture = TracesFixture(
+    name="demo_code_based_agent",
+    project_name="demo_code_based_agent",
+    description="Shows traces captured from a code-based agent.",
+    file_name="agent-demo-traces.parquet",
+)
+
+demo_langgraph_agent_fixture = TracesFixture(
+    name="demo_langgraph_agent",
+    project_name="demo_langgraph_agent",
+    description="Shows traces captured from a Langgraph agent.",
+    file_name="langgraph-demo-traces.parquet",
+)
+
+demo_llamaindex_workflows_agent_fixture = TracesFixture(
+    name="demo_llamaindex_workflows_agent",
+    project_name="demo_llamaindex_workflows_agent",
+    description="Shows traces captured from a LlamaIndex Workflows agent.",
+    file_name="llamaindex-workflow-demo-traces.parquet",
+)
+
+demo_o1_preview_timeseries_testing_fixture = TracesFixture(
+    name="demo_o1_preview_timeseries_evals",
+    project_name="demo_o1_preview_timeseries",
+    description="Shows the traces for a timeseries evaluation of o1-preview",
+    file_name="o1-traces-preview-testing.parquet",
+)
+
 demo_llama_index_rag_llm_fixture = TracesFixture(
     name="demo_llama_index_rag_llm",
     project_name="demo_llama_index_rag_llm",
@@ -252,6 +278,10 @@ random_fixture = TracesFixture(
 TRACES_FIXTURES: List[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
+    demo_langgraph_agent_fixture,
+    demo_code_based_agent_fixture,
+    demo_llamaindex_workflows_agent_fixture,
+    demo_o1_preview_timeseries_testing_fixture,
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import (
     Any,
@@ -12,14 +15,17 @@ from typing import (
     List,
     Optional,
     Protocol,
+    Tuple,
     Type,
     TypeVar,
+    final,
 )
 
 from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.db import models
+from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
+from phoenix.db import enums, models
 from phoenix.db.helpers import SupportedSQLDialect
 
 
@@ -87,6 +93,12 @@ class DaemonTask(ABC):
                 task.cancel()
         self._tasks.clear()
 
+    async def __aenter__(self) -> None:
+        await self.start()
+
+    async def __aexit__(self, *args: Any, **kwargs: Any) -> None:
+        await self.stop()
+
     @abstractmethod
     async def _run(self) -> None: ...
 
@@ -129,3 +141,147 @@ class LastUpdatedAt:
 
     def set(self, table: Type[models.Base], id_: int) -> None:
         self._cache[table][id_] = datetime.now(timezone.utc)
+
+
+class PasswordResetToken(Token): ...
+
+
+class AccessToken(Token): ...
+
+
+class RefreshToken(Token): ...
+
+
+class ApiKey(Token): ...
+
+
+@dataclass(frozen=True)
+class UserTokenAttributes(TokenAttributes):
+    user_role: enums.UserRole
+
+
+@dataclass(frozen=True)
+class RefreshTokenAttributes(UserTokenAttributes): ...
+
+
+@dataclass(frozen=True)
+class PasswordResetTokenAttributes(UserTokenAttributes): ...
+
+
+@dataclass(frozen=True)
+class AccessTokenAttributes(UserTokenAttributes):
+    refresh_token_id: RefreshTokenId
+
+
+@dataclass(frozen=True)
+class ApiKeyAttributes(UserTokenAttributes):
+    name: str
+    description: Optional[str] = None
+
+
+class _DbId(str, ABC):
+    table: Type[models.Base]
+
+    def __new__(cls, id_: int) -> _DbId:
+        assert isinstance(id_, int)
+        return super().__new__(cls, f"{cls.table.__name__}:{id_}")
+
+    def __int__(self) -> int:
+        return int(self.split(":")[1])
+
+    def __deepcopy__(self, memo: Any) -> _DbId:
+        return self
+
+
+class TokenId(_DbId, ABC):
+    @classmethod
+    def parse(cls, value: str) -> Optional[TokenId]:
+        table_name, _, id_ = value.partition(":")
+        if not id_.isnumeric():
+            return None
+        for sub in cls.__subclasses__():
+            if sub.table.__name__ == table_name:
+                return sub(int(id_))
+        return None
+
+
+@final
+class PasswordResetTokenId(TokenId):
+    table = models.PasswordResetToken
+
+
+@final
+class AccessTokenId(TokenId):
+    table = models.AccessToken
+
+
+@final
+class RefreshTokenId(TokenId):
+    table = models.RefreshToken
+
+
+@final
+class ApiKeyId(TokenId):
+    table = models.ApiKey
+
+
+@final
+class UserId(_DbId):
+    table = models.User
+
+
+@dataclass(frozen=True)
+class UserClaimSet(ClaimSet):
+    subject: Optional[UserId] = None
+    attributes: Optional[UserTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class PasswordResetTokenClaims(UserClaimSet):
+    token_id: Optional[PasswordResetTokenId] = None
+    attributes: Optional[PasswordResetTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class AccessTokenClaims(UserClaimSet):
+    token_id: Optional[AccessTokenId] = None
+    attributes: Optional[AccessTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class RefreshTokenClaims(UserClaimSet):
+    token_id: Optional[RefreshTokenId] = None
+    attributes: Optional[RefreshTokenAttributes] = None
+
+
+@dataclass(frozen=True)
+class ApiKeyClaims(UserClaimSet):
+    token_id: Optional[ApiKeyId] = None
+    attributes: Optional[ApiKeyAttributes] = None
+
+
+class CanRevokeTokens(Protocol):
+    async def revoke(self, *token_ids: TokenId) -> None: ...
+
+
+class CanLogOutUser(Protocol):
+    async def log_out(self, user_id: UserId) -> None: ...
+
+
+class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
+    async def create_password_reset_token(
+        self,
+        claims: PasswordResetTokenClaims,
+    ) -> Tuple[PasswordResetToken, PasswordResetTokenId]: ...
+    async def create_access_token(
+        self,
+        claims: AccessTokenClaims,
+    ) -> Tuple[AccessToken, AccessTokenId]: ...
+    async def create_refresh_token(
+        self,
+        claims: RefreshTokenClaims,
+    ) -> Tuple[RefreshToken, RefreshTokenId]: ...
+    async def create_api_key(
+        self,
+        claims: ApiKeyClaims,
+    ) -> Tuple[ApiKey, ApiKeyId]: ...

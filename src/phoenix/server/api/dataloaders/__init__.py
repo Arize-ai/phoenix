@@ -25,6 +25,8 @@ from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_row_ids import TraceRowIdsDataLoader
+from .user_roles import UserRolesDataLoader
+from .users import UsersDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
@@ -50,6 +52,8 @@ __all__ = [
     "TraceRowIdsDataLoader",
     "ProjectByNameDataLoader",
     "SpanAnnotationsDataLoader",
+    "UsersDataLoader",
+    "UserRolesDataLoader",
 ]
 
 

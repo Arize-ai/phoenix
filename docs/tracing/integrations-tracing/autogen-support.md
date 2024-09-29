@@ -8,12 +8,24 @@ AutoGen is a new agent framework from Microsoft that allows for complex Agent cr
 
 The AutoGen Agent framework allows creation of multiple agents and connection of those agents to work together to accomplish tasks.
 
+First install dependencies
+
+```shell
+pip install openinference-instrumentation-openai arize-phoenix-otel
+```
+
+Then instrument the application
+```
+
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
+from phoenix.otel import register
 import phoenix as px
 
 px.launch_app()
-OpenAIInstrumentor().instrument()
+
+tracer_provider = register()
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 The Phoenix support is simple in its first incarnation but allows for capturing all of the prompt and responses that occur under the framework between each agent.

@@ -2,12 +2,12 @@ name: Python CI
 
 on:
   push:
-    branches: [main, auth]
+    branches: [ main, playground ]
   pull_request:
     paths:
       - "src/**"
       - "tests/**"
-      - "integration_tests/server/**"
+      - "integration_tests/**"
       - "tutorials/**"
       - "pyproject.toml"
       - "packages/**"
@@ -39,7 +39,7 @@ jobs:
             phoenix:
               - "src/**"
               - "tests/**"
-              - "integration_tests/server/**"
+              - "integration_tests/**"
               - "tutorials/**"
               - "pyproject.toml"
             packages:
@@ -57,14 +57,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: |
-            3.8
+            3.9
             3.12
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
-      - run: tox run-parallel --parallel-no-spinner -e py38-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
+      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
         if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
   lint:
@@ -75,10 +75,10 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Set up python 3.8
+      - name: Set up python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip==${{ env.pip-version }}
@@ -114,7 +114,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-12, windows-latest, ubuntu-latest]
-        python-version: ["3.8"]
+        python-version: ["3.9"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -134,15 +134,17 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           hatch run test:tests --run-postgres
+        continue-on-error: false
       - name: Run tests (macOS)
         if: runner.os == 'macOS'
         run: |
           hatch run test:tests
+        continue-on-error: false
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         run: |
           hatch run test:tests
-
+        continue-on-error: false
   integration-test:
     runs-on: ${{ matrix.os }}
     needs: changes
@@ -150,15 +152,32 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, windows-2019, macos-12]
+    services:
+      postgres:
+        # Applying this workaround: https://github.com/actions/runner/issues/822
+        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        env:
+          POSTGRES_PASSWORD: phoenix
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
       - uses: yezz123/setup-uv@v4
         with:
-          uv-version: 0.3.0
+          uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.0 tox-uv==1.11.2
-      - run: tox run -e ci-integration_tests -- server
-        timeout-minutes: 10
+      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        timeout-minutes: 15
+      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests,py312-ci-integration_tests
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        timeout-minutes: 15

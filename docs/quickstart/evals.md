@@ -1,7 +1,3 @@
----
-description: Evaluate your LLM application with Phoenix
----
-
 # Quickstart: Evals
 
 This quickstart guide will show you through the basics of evaluating data from your LLM application.
@@ -150,4 +146,4 @@ results_df.head()
 
 **Note:** You'll only be able to log evaluations to the Phoenix UI if you used a trace or span dataset exported from Phoenix as your dataset in this quickstart. If you've used your own outside dataset, you won't be able to log these results to Phoenix.
 
-Provided you started from a trace dataset, you can log your evaluation results to Phoenix using these instructions: https://docs.arize.com/phoenix/tracing/how-to-tracing/llm-evaluations
+Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](https://docs.arize.com/phoenix/tracing/how-to-tracing/llm-evaluations)

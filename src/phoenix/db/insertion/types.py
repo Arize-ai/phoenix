@@ -29,7 +29,7 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory
 
-logger = logging.getLogger("__name__")
+logger = logging.getLogger(__name__)
 
 
 class Insertable(Protocol):

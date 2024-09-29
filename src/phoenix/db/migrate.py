@@ -14,7 +14,6 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.settings import Settings
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 def printif(condition: bool, text: str) -> None:
@@ -48,8 +47,10 @@ def migrate(
         alembic_cfg.set_main_option("script_location", scripts_location)
         url = str(engine.url).replace("%", "%%")
         alembic_cfg.set_main_option("sqlalchemy.url", url)
-        alembic_cfg.attributes["connection"] = engine.connect()
-        command.upgrade(alembic_cfg, "head")
+        with engine.connect() as conn:
+            alembic_cfg.attributes["connection"] = conn
+            command.upgrade(alembic_cfg, "head")
+        engine.dispose()
         printif(log_migrations, "---------------------------")
         printif(log_migrations, "✅ Migrations complete.")
     except BaseException as e:

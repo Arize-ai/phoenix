@@ -24,7 +24,6 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import DataManipulationEvent
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 DatasetId: TypeAlias = int
 DatasetVersionId: TypeAlias = int

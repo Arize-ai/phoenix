@@ -41,7 +41,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_base_url, get_env_client_headers
+from phoenix.config import get_base_url
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
@@ -77,13 +77,10 @@ from phoenix.utilities.json import jsonify
 
 
 def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
-    headers = get_env_client_headers()
     return VersionedClient(
         base_url=get_base_url(),
-        headers=headers,
     ), VersionedAsyncClient(
         base_url=get_base_url(),
-        headers=headers,
     )
 
 
@@ -153,7 +150,7 @@ def run_experiment(
             experiment. Defaults to None.
         rate_limit_errors (Optional[BaseException | Sequence[BaseException]]): An exception or
             sequence of exceptions to adaptively throttle on. Defaults to None.
-        dry_run (bool | int): R the experiment in dry-run mode. When set, experiment results will
+        dry_run (bool | int): Run the experiment in dry-run mode. When set, experiment results will
             not be recorded in Phoenix. If True, the experiment will run on a random dataset
             example. If an integer, the experiment will run on a random sample of the dataset
             examples of the given size. Defaults to False.

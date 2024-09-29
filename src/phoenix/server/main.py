@@ -1,6 +1,5 @@
 import atexit
 import codecs
-import logging
 import os
 import sys
 from argparse import ArgumentParser
@@ -11,25 +10,42 @@ from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
+from fastapi_mail import ConnectionConfig
+from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
-    get_auth_settings,
+    get_env_access_token_expiry,
+    get_env_auth_settings,
     get_env_database_connection_str,
+    get_env_database_schema,
+    get_env_db_logging_level,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
+    get_env_log_migrations,
+    get_env_logging_level,
+    get_env_logging_mode,
+    get_env_oauth2_settings,
+    get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_refresh_token_expiry,
+    get_env_smtp_hostname,
+    get_env_smtp_mail_from,
+    get_env_smtp_password,
+    get_env_smtp_port,
+    get_env_smtp_username,
+    get_env_smtp_validate_certs,
     get_pids_path,
-    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
+from phoenix.logging import setup_logging
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -43,6 +59,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.email.sender import EMAIL_TEMPLATE_FOLDER, FastMailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -57,17 +74,14 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
-_WELCOME_MESSAGE = """
+_WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
 ██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
 ██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
 ██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
 ██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
-╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{version}
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{{ version }}
 
 |
 |  🌎 Join our Community 🌎
@@ -80,17 +94,16 @@ _WELCOME_MESSAGE = """
 |  https://docs.arize.com/phoenix
 |
 |  🚀 Phoenix Server 🚀
-|  Phoenix UI: {ui_path}
+|  Phoenix UI: {{ ui_path }}
+|  Authentication: {{ auth_enabled }}
 |  Log traces:
-|    - gRPC: {grpc_path}
-|    - HTTP: {http_path}
-|  Storage: {storage}
-"""
-
-_EXPERIMENTAL_WARNING = """
-🚨 WARNING: Phoenix is running in experimental mode. 🚨
-|  Authentication enabled: {auth_enabled}
-"""
+|    - gRPC: {{ grpc_path }}
+|    - HTTP: {{ http_path }}
+|  Storage: {{ storage }}
+{% if schema -%}
+|    - Schema: {{ schema }}
+{% endif -%}
+""")
 
 
 def _write_pid_file_when_ready(
@@ -116,18 +129,15 @@ def _get_pid_file() -> Path:
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
-if __name__ == "__main__":
+
+def main() -> None:
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
-    simulate_streaming: Optional[bool] = None
 
     primary_inferences: Inferences = EMPTY_INFERENCES
     reference_inferences: Optional[Inferences] = None
     corpus_inferences: Optional[Inferences] = None
-
-    # Initialize the settings for the Server
-    Settings.log_migrations = True
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
@@ -225,7 +235,7 @@ if __name__ == "__main__":
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )
-    export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    export_path = Path(args.export_path) if args.export_path else Path(EXPORT_DIR)
 
     force_fixture_ingestion = False
     scaffold_datasets = False
@@ -255,7 +265,6 @@ if __name__ == "__main__":
             reference_inferences = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "demo":
         fixture_name = args.fixture
         primary_inferences, reference_inferences, corpus_inferences = get_inferences(
@@ -263,7 +272,6 @@ if __name__ == "__main__":
             args.no_internet,
         )
         trace_dataset_name = args.trace_fixture
-        simulate_streaming = args.simulate_streaming
     elif args.command == "serve":
         # We use sets to avoid duplicates
         if args.with_fixture:
@@ -285,12 +293,6 @@ if __name__ == "__main__":
         force_fixture_ingestion = args.force_fixture_ingestion
         scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
-    display_host = host or "localhost"
-    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
-    # does not support this directly unless the host is set to None.
-    if host and ":" in host:
-        # format IPv6 hosts in brackets
-        display_host = f"[{host}]"
     if host == "::":
         # TODO(dustin): why is this necessary? it's not type compliant
         host = None
@@ -304,7 +306,7 @@ if __name__ == "__main__":
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_auth_settings()
+    authentication_enabled, secret = get_env_auth_settings()
 
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
@@ -331,13 +333,11 @@ if __name__ == "__main__":
         n_samples=int(umap_params_list[2]),
     )
 
-    logger.info(f"Server umap params: {umap_params}")
     if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
         start_prometheus()
 
-    working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
@@ -346,15 +346,15 @@ if __name__ == "__main__":
     )
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
-    msg = _WELCOME_MESSAGE.format(
+    msg = _WELCOME_MESSAGE.render(
         version=version("arize-phoenix"),
         ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
+        schema=get_env_database_schema(),
+        auth_enabled=authentication_enabled,
     )
-    if authentication_enabled:
-        msg += _EXPERIMENTAL_WARNING.format(auth_enabled=True)
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -364,6 +364,25 @@ if __name__ == "__main__":
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
+    email_sender = None
+    if mail_sever := get_env_smtp_hostname():
+        assert (mail_username := get_env_smtp_username()), "SMTP username is required"
+        assert (mail_password := get_env_smtp_password()), "SMTP password is required"
+        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = FastMailSender(
+            ConnectionConfig(
+                MAIL_USERNAME=mail_username,
+                MAIL_PASSWORD=mail_password,
+                MAIL_FROM=mail_from,
+                MAIL_SERVER=mail_sever,
+                MAIL_PORT=get_env_smtp_port(),
+                VALIDATE_CERTS=get_env_smtp_validate_certs(),
+                USE_CREDENTIALS=True,
+                MAIL_STARTTLS=True,
+                MAIL_SSL_TLS=False,
+                TEMPLATE_FOLDER=EMAIL_TEMPLATE_FOLDER,
+            )
+        )
     app = create_app(
         db=factory,
         export_path=export_path,
@@ -381,10 +400,28 @@ if __name__ == "__main__":
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
         secret=secret,
+        password_reset_token_expiry=get_env_password_reset_token_expiry(),
+        access_token_expiry=get_env_access_token_expiry(),
+        refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
+        email_sender=email_sender,
+        oauth2_client_configs=get_env_oauth2_settings(),
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Start the server
     server.run()
+
+
+def initialize_settings() -> None:
+    Settings.logging_mode = get_env_logging_mode()
+    Settings.logging_level = get_env_logging_level()
+    Settings.db_logging_level = get_env_db_logging_level()
+    Settings.log_migrations = get_env_log_migrations()
+
+
+if __name__ == "__main__":
+    initialize_settings()
+    setup_logging()
+    main()

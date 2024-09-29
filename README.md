@@ -29,14 +29,16 @@
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
 
--   **_Tracing_** - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
--   **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
--   **_Datasets_** -  Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
--   **_Experiments_** -  Track and evaluate changes to prompts, LLMs, and retrieval.
+- **_Tracing_** - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
+- **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
+- **_Datasets_** - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
+- **_Experiments_** - Track and evaluate changes to prompts, LLMs, and retrieval.
 
 Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, Haystack, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
+
+<img alt="phoenix_overview.gif" width="100%" src="https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/phoenix_overview.gif?raw=true">
 
 ## Installation
 
@@ -52,13 +54,14 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 
 Join our community to connect with thousands of AI builders.
 
--   🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
--   💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
--   🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
--   🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
--   𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
--   💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
--   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
+- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
+- 📚 Read our [documentation](https://docs.arize.com/phoenix).
+- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 
 ## Breaking Changes
 

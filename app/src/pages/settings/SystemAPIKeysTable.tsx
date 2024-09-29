@@ -1,5 +1,5 @@
-import React, { startTransition, useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import React, { startTransition, useCallback, useMemo } from "react";
+import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -9,14 +9,15 @@ import {
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
+import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
-import { DeleteSystemAPIKeyButton } from "./DeleteSystemAPIKeyButton";
 
 export function SystemAPIKeysTable({
   query,
@@ -40,6 +41,51 @@ export function SystemAPIKeysTable({
       }
     `,
     query
+  );
+
+  const notifyError = useNotifyError();
+  const notifySuccess = useNotifySuccess();
+  const [commit] = useMutation(graphql`
+    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
+      $input: DeleteApiKeyInput!
+    ) {
+      deleteSystemApiKey(input: $input) {
+        __typename
+        apiKeyId
+      }
+    }
+  `);
+  const handleDelete = useCallback(
+    (id: string) => {
+      commit({
+        variables: {
+          input: {
+            id,
+          },
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "System key deleted",
+            message: "The system key has been deleted and is no longer active.",
+          });
+          startTransition(() => {
+            refetch(
+              {},
+              {
+                fetchPolicy: "network-only",
+              }
+            );
+          });
+        },
+        onError: (error) => {
+          notifyError({
+            title: "Error deleting system key",
+            message: error.message,
+          });
+        },
+      });
+    },
+    [commit, notifyError, notifySuccess, refetch]
   );
 
   const tableData = useMemo(() => {
@@ -75,17 +121,9 @@ export function SystemAPIKeysTable({
         cell: ({ row }) => {
           return (
             <Flex direction="row" justifyContent="end" width="100%">
-              <DeleteSystemAPIKeyButton
-                id={row.original.id}
-                onDeleted={() => {
-                  startTransition(() => {
-                    refetch(
-                      {},
-                      {
-                        fetchPolicy: "network-only",
-                      }
-                    );
-                  });
+              <DeleteAPIKeyButton
+                handleDelete={() => {
+                  handleDelete(row.original.id);
                 }}
               />
             </Flex>
@@ -97,7 +135,7 @@ export function SystemAPIKeysTable({
       },
     ];
     return cols;
-  }, [refetch]);
+  }, [handleDelete]);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

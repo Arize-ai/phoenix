@@ -9,6 +9,7 @@ To build and develop the web application, you must first install the dependencie
 ```shell
 pnpm install --frozen-lockfile
 ```
+
 NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions specified in `pnpm-lock.yaml` and will not re-build the lockfile.
 
 ## Develop
@@ -18,6 +19,8 @@ To develop the UI, you must run the `app` in conjunction with the backend server
 ```
 pnpm run dev
 ```
+
+Before running the script above you should configure your running environment by creating a `.env` file in the root of the project. You can find an example of the `.env` file in the `.env.example` file.
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the (package.json)[./package.json] file so that the server is serving the appropriate fixture data.
 
@@ -33,15 +36,30 @@ The web build ensures that the UI as well as the data-fetching layer is fully ty
 
 ## Test
 
-The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. In addition to static type checking, the app also leverages [jest](https://jestjs.io/) as a unit testing framework. The following `pnpm` commands correspond to the above safeguards.
+The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. For unit testing, the app leverages [jest](https://jestjs.io/) as a unit testing framework. Lastly, for integration tests (e.g. end-to-end or e2e), [playwright](playwright.dev) is used. The following `pnpm` commands correspond to the above safeguards.
 
 ```shell
 pnpm run typecheck
 pnpm run lint
 pnpm run prettier:check
 pnpm test
+pnpm run test:e2e
 ```
+
 NB: [prettier](https://prettier.io/) is also enforced via [pre-commit](https://pre-commit.com/) hooks.
+
+### Integration Tests
+
+The integration tests run against the phoenix server built in "production" mode. Meaning you will have to have phoenix installed in your local python environment.
+
+```shell
+# from the root of the repository
+pip install -e .
+
+# from the app directory
+pnpm run build
+pnpm run test:e2e
+```
 
 ## Architecture
 

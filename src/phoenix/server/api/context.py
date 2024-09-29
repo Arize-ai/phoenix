@@ -1,11 +1,18 @@
+from asyncio import get_running_loop
 from dataclasses import dataclass
+from functools import cached_property, partial
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
+from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
+from phoenix.auth import (
+    compute_password_hash,
+)
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
@@ -30,9 +37,18 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceRowIdsDataLoader,
+    UserRolesDataLoader,
+    UsersDataLoader,
 )
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanGetLastUpdatedAt, CanPutItem, DbSessionFactory
+from phoenix.server.types import (
+    CanGetLastUpdatedAt,
+    CanPutItem,
+    DbSessionFactory,
+    TokenStore,
+    UserId,
+)
 
 
 @dataclass
@@ -59,6 +75,8 @@ class DataLoaders:
     token_counts: TokenCountDataLoader
     trace_row_ids: TraceRowIdsDataLoader
     project_by_name: ProjectByNameDataLoader
+    users: UsersDataLoader
+    user_roles: UserRolesDataLoader
 
 
 class _NoOp:
@@ -77,7 +95,9 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    auth_enabled: bool = False
     secret: Optional[str] = None
+    token_store: Optional[TokenStore] = None
 
     def get_secret(self) -> str:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
@@ -92,6 +112,14 @@ class Context(BaseContext):
             )
         return self.secret
 
+    def get_request(self) -> StarletteRequest:
+        """
+        A type-safe way to get the request object. Throws an error if the request is not set.
+        """
+        if not isinstance(request := self.request, StarletteRequest):
+            raise ValueError("no request is set")
+        return request
+
     def get_response(self) -> StarletteResponse:
         """
         A type-safe way to get the response object. Throws an error if the response is not set.
@@ -99,3 +127,23 @@ class Context(BaseContext):
         if (response := self.response) is None:
             raise ValueError("no response is set")
         return response
+
+    async def is_valid_password(self, password: str, user: models.User) -> bool:
+        return (
+            (hash_ := user.password_hash) is not None
+            and (salt := user.password_salt) is not None
+            and hash_ == await self.hash_password(password, salt)
+        )
+
+    @staticmethod
+    async def hash_password(password: str, salt: bytes) -> bytes:
+        compute = partial(compute_password_hash, password=password, salt=salt)
+        return await get_running_loop().run_in_executor(None, compute)
+
+    async def log_out(self, user_id: int) -> None:
+        assert self.token_store is not None
+        await self.token_store.log_out(UserId(user_id))
+
+    @cached_property
+    def user(self) -> PhoenixUser:
+        return cast(PhoenixUser, self.get_request().user)

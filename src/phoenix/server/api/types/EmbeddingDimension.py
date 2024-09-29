@@ -422,17 +422,17 @@ class EmbeddingDimension(Node):
             if isinstance(inferences_role, InferencesRole):
                 dataset = model[inferences_role.value]
                 embedding_metadata = EmbeddingMetadata(
-                    prediction_id=dataset[PREDICTION_ID][row_id],
-                    link_to_data=dataset[self.dimension.link_to_data][row_id],
-                    raw_data=dataset[self.dimension.raw_data][row_id],
+                    prediction_id=dataset[PREDICTION_ID].iloc[row_id],
+                    link_to_data=dataset[self.dimension.link_to_data].iloc[row_id],
+                    raw_data=dataset[self.dimension.raw_data].iloc[row_id],
                 )
             elif (corpus := info.context.corpus) is not None:
                 dataset = corpus[PRIMARY]
                 dimension = cast(ms.EmbeddingDimension, corpus[PROMPT])
                 embedding_metadata = EmbeddingMetadata(
-                    prediction_id=dataset[PREDICTION_ID][row_id],
-                    link_to_data=dataset[dimension.link_to_data][row_id],
-                    raw_data=dataset[dimension.raw_data][row_id],
+                    prediction_id=dataset[PREDICTION_ID].iloc[row_id],
+                    link_to_data=dataset[dimension.link_to_data].iloc[row_id],
+                    raw_data=dataset[dimension.raw_data].iloc[row_id],
                 )
             else:
                 continue
@@ -445,10 +445,10 @@ class EmbeddingDimension(Node):
                     event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(
-                        prediction_label=dataset[PREDICTION_LABEL][row_id],
-                        prediction_score=dataset[PREDICTION_SCORE][row_id],
-                        actual_label=dataset[ACTUAL_LABEL][row_id],
-                        actual_score=dataset[ACTUAL_SCORE][row_id],
+                        prediction_label=dataset[PREDICTION_LABEL].iloc[row_id],
+                        prediction_score=dataset[PREDICTION_SCORE].iloc[row_id],
+                        actual_label=dataset[ACTUAL_LABEL].iloc[row_id],
+                        actual_score=dataset[ACTUAL_SCORE].iloc[row_id],
                     ),
                     embedding_metadata=embedding_metadata,
                 )

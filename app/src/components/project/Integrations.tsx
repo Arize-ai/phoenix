@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import {
   AnthropicSVG,
+  BedrockSVG,
   CrewAISVG,
   DSPYSVG,
   GroqSVG,
@@ -157,6 +158,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic",
     icon: <AnthropicSVG />,
+  },
+  {
+    name: "Bedrock",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-bedrock",
+    icon: <BedrockSVG />,
   },
   {
     name: "Groq",

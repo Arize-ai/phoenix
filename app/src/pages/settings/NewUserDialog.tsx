@@ -34,7 +34,12 @@ export function NewUserDialog({
     (data: UserFormParams) => {
       commit({
         variables: {
-          input: data,
+          input: {
+            email: data.email,
+            username: data.username,
+            password: data.password,
+            role: data.role,
+          },
         },
         onCompleted: (response) => {
           onNewUserCreated(response.createUser.user.email);

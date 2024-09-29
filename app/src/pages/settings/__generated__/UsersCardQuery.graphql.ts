@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d4d387e015d37cc173f1296a745d953>>
+ * @generated SignedSource<<b119f8ccec43e3573b6bc1816c1fffca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -69,6 +69,13 @@ const node: ConcreteRequest = {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "id",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "email",
                     "storageKey": null
                   },
@@ -84,6 +91,20 @@ const node: ConcreteRequest = {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "authMethod",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "profilePictureUrl",
                     "storageKey": null
                   },
                   {
@@ -116,12 +137,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "475e4a6a89583e17246b7f9fe5b0cb84",
+    "cacheID": "926faf98cad4bc437a919677347e277c",
     "id": null,
     "metadata": {},
     "name": "UsersCardQuery",
     "operationKind": "query",
-    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        email\n        username\n        createdAt\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersCardQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 

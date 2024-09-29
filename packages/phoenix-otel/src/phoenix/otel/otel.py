@@ -1,7 +1,8 @@
 import inspect
 import os
+import sys
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -19,7 +20,12 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProce
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
 
-from .settings import get_env_client_headers, get_env_collector_endpoint, get_env_project_name
+from .settings import (
+    get_env_client_headers,
+    get_env_collector_endpoint,
+    get_env_phoenix_auth_header,
+    get_env_project_name,
+)
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
@@ -45,7 +51,7 @@ def register(
 
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used. The
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used. The
             export protocol will be inferred from the endpoint.
         project_name (str, optional): The name of the project to which spans will be associated. If
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
@@ -96,7 +102,7 @@ class TracerProvider(_TracerProvider):
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If
             specified, a default SpanProcessor will be created and added to this TracerProvider.
-            If not provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be
+            If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be
             used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
             specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
             URL.
@@ -106,14 +112,14 @@ class TracerProvider(_TracerProvider):
     def __init__(
         self, *args: Any, endpoint: Optional[str] = None, verbose: bool = True, **kwargs: Any
     ):
-        sig = inspect.signature(_TracerProvider)
+        sig = _get_class_signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
         if bound_args.arguments.get("resource") is None:
             bound_args.arguments["resource"] = Resource.create(
                 {PROJECT_NAME: get_env_project_name()}
             )
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
         parsed_url, endpoint = _normalized_endpoint(endpoint)
         self._default_processor = False
@@ -197,7 +203,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
             infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
             the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
         headers (dict, optional): Optional headers to include in the request to the collector.
@@ -242,7 +248,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
             infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
             the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
         headers (dict, optional): Optional headers to include in the request to the collector.
@@ -282,24 +288,44 @@ class HTTPSpanExporter(_HTTPSpanExporter):
 
     Args:
         endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
-            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to infer which
             collector endpoint to use, defaults to the HTTP endpoint.
         headers: Headers to send when exporting. If not provided, the `PHOENIX_CLIENT_HEADERS`
             or `OTEL_EXPORTER_OTLP_HEADERS` environment variables will be used.
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        sig = inspect.signature(_HTTPSpanExporter)
+        sig = _get_class_signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
 
         if not bound_args.arguments.get("headers"):
-            bound_args.arguments["headers"] = get_env_client_headers()
+            env_headers = get_env_client_headers()
+            auth_header = get_env_phoenix_auth_header()
+            headers = {
+                **(env_headers or dict()),
+                **(auth_header or dict()),
+            }
+            bound_args.arguments["headers"] = headers if headers else None
+        else:
+            headers = dict()
+            for header_field, value in bound_args.arguments["headers"].items():
+                headers[header_field.lower()] = value
+
+            # If the auth header is not in the headers, add it
+            if "authorization" not in headers:
+                auth_header = get_env_phoenix_auth_header()
+                bound_args.arguments["headers"] = {
+                    **headers,
+                    **(auth_header or dict()),
+                }
+            else:
+                bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
 
 class GRPCSpanExporter(_GRPCSpanExporter):
@@ -311,7 +337,7 @@ class GRPCSpanExporter(_GRPCSpanExporter):
 
     Args:
         endpoint (str, optional): OpenTelemetry Collector receiver endpoint. If not provided, the
-            `PHOENIX_OTEL_COLLECTOR_ENDPOINT` environment variable will be used to infer which
+            `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to infer which
             collector endpoint to use, defaults to the gRPC endpoint.
         insecure: Connection type
         credentials: Credentials object for server authentication
@@ -322,17 +348,37 @@ class GRPCSpanExporter(_GRPCSpanExporter):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        sig = inspect.signature(_GRPCSpanExporter)
+        sig = _get_class_signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
 
         if not bound_args.arguments.get("headers"):
-            bound_args.arguments["headers"] = get_env_client_headers()
+            env_headers = get_env_client_headers()
+            auth_header = get_env_phoenix_auth_header()
+            headers = {
+                **(env_headers or dict()),
+                **(auth_header or dict()),
+            }
+            bound_args.arguments["headers"] = headers if headers else None
+        else:
+            headers = dict()
+            for header_field, value in bound_args.arguments["headers"].items():
+                headers[header_field.lower()] = value
+
+            # If the auth header is not in the headers, add it
+            if "authorization" not in headers:
+                auth_header = get_env_phoenix_auth_header()
+                bound_args.arguments["headers"] = {
+                    **headers,
+                    **(auth_header or dict()),
+                }
+            else:
+                bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
-        super().__init__(**bound_args.arguments)
+        super().__init__(*bound_args.args, **bound_args.kwargs)
 
 
 def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
@@ -358,8 +404,8 @@ def _exporter_transport(exporter: SpanExporter) -> str:
 
 def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
     if isinstance(headers, dict):
-        return {key.lower(): "****" for key, _ in headers.items()}
-    return {key.lower(): "****" for key, _ in headers}
+        return {key: "****" for key, _ in headers.items()}
+    return {key: "****" for key, _ in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
@@ -391,3 +437,15 @@ def _normalized_endpoint(
         parsed = urlparse(endpoint)
     parsed = cast(ParseResult, parsed)
     return parsed, parsed.geturl()
+
+
+def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
+    if sys.version_info >= (3, 9):
+        return inspect.signature(fn)
+    elif sys.version_info >= (3, 8):
+        init_signature = inspect.signature(fn.__init__)
+        new_params = list(init_signature.parameters.values())[1:]  # Skip 'self'
+        new_sig = init_signature.replace(parameters=new_params)
+        return new_sig
+    else:
+        raise RuntimeError("Unsupported Python version")

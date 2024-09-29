@@ -1,9 +1,12 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Card } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
-import { LogoutButton } from "./LogoutButton";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
+
+import { ViewerAPIKeys } from "./ViewerAPIKeys";
+import { ViewerProfileCard } from "./ViewerProfileCard";
 
 const profilePageCSS = css`
   overflow-y: auto;
@@ -20,12 +23,18 @@ const profilePageInnerCSS = css`
 `;
 
 export function ProfilePage() {
+  const { viewer } = useViewer();
+  if (!viewer) {
+    return null;
+  }
+
   return (
     <main css={profilePageCSS}>
       <div css={profilePageInnerCSS}>
-        <Card title="Profile" extra={<LogoutButton />} variant="compact">
-          Profile goes here
-        </Card>
+        <Flex direction="column" gap="size-200">
+          <ViewerProfileCard />
+          <ViewerAPIKeys viewer={viewer} />
+        </Flex>
       </div>
     </main>
   );

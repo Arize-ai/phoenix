@@ -12,7 +12,6 @@ import psutil
 from phoenix.config import SERVER_DIR, get_pids_path, get_running_pid
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class Service:

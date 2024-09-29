@@ -1,0 +1,51 @@
+name: Playwright Tests
+
+env:
+  pip-version: 24.2
+
+on:
+  push:
+    branches: [ main, playground ]
+  pull_request:
+    branches: [ main, playground ]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9.8.0
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache-dependency-path: ./app/pnpm-lock.yaml
+          node-version: lts/*
+          cache: "pnpm"
+      - name: Install dependencies
+        working-directory: ./app
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Browsers
+        working-directory: ./app
+        run: pnpm exec playwright install --with-deps
+      - name: Build the app
+        working-directory: ./app
+        run: pnpm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install Phoenix
+        run: |
+          python -m pip install --upgrade pip==${{ env.pip-version }}
+          pip install .
+      - name: Run Playwright tests
+        working-directory: ./app
+        run: pnpm exec playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: app/playwright-report/
+          retention-days: 30

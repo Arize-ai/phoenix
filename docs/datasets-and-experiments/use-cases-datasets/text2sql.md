@@ -7,7 +7,7 @@
 Let's work through a Text2SQL use case where we are starting from scratch without a nice and clean dataset of questions, SQL queries, or expected responses.
 
 ```shell
-pip install 'arize-phoenix>=4.6.0' openai duckdb datasets pyarrow pydantic nest_asyncio --quiet
+pip install 'arize-phoenix>=4.6.0' openai duckdb datasets pyarrow pydantic nest_asyncio openinference-instrumentation-openai --quiet
 ```
 
 Let's first start a phoenix server. Note that this is not necessary if you have a phoenix server running already.
@@ -21,9 +21,12 @@ px.launch_app()
 Let's also setup tracing for OpenAI as we will be using their API to perform the synthesis.
 
 ```python
-from phoenix.trace.openai import OpenAIInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
-OpenAIInstrumentor().instrument()
+from phoenix.otel import register
+
+tracer_provider = register()
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 Let's make sure we can run async code in the notebook.
