@@ -4,6 +4,8 @@ description: Tracing the execution of LLM applications using Telemetry
 
 # Overview: Tracing
 
+Phoenix's open-source, OTEL-compatible LLM tracing integrations automatically capture data from OpenAI, Langchain, LlamaIndex, and dozens of other frameworks.
+
 LLM tracing records the paths taken by requests as they propagate through multiple steps or components of an LLM application. For example, when a user interacts with an LLM application, tracing can capture the sequence of operations, such as document retrieval, embedding generation, language model invocation, and response generation to provide a detailed timeline of the request's execution.
 
 Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](../tracing/integrations-tracing/llamaindex.md), [LangChain](../tracing/integrations-tracing/langchain.md),[ DSPy](../tracing/integrations-tracing/dspy.md)),  SDKs ([OpenAI](../tracing/integrations-tracing/openai.md), [Bedrock](../tracing/integrations-tracing/bedrock.md), [Mistral](../tracing/integrations-tracing/mistralai.md), [Vertex](../tracing/integrations-tracing/vertexai.md)), and Languages. (Python, Javascript, etc.)

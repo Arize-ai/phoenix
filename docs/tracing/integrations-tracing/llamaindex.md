@@ -16,7 +16,7 @@ To get started, pip install the following.
 
 {% code overflow="wrap" %}
 ```
-pip install "llama-index-core>=0.10.43" "openinference-instrumentation-llama-index>=2" "opentelemetry-proto>=1.12.0" opentelemetry-exporter-otlp opentelemetry-sdk
+pip install "llama-index-core>=0.10.43" "openinference-instrumentation-llama-index>=2" "opentelemetry-proto>=1.12.0" arize-phoenix-otel
 ```
 {% endcode %}
 
@@ -26,14 +26,12 @@ Note that the `endpoint` variable below should the address of the Phoenix receiv
 
 ```python
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.otel import register
 
-endpoint = "http://127.0.0.1:6006/v1/traces"  # Phoenix receiver address
-
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:6006",
+)
 
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
@@ -99,12 +97,6 @@ llama_index.set_global_handler("arize_phoenix")
 {% endtabs %}
 
 By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix Server.
-
-To view the traces in Phoenix, simply open the UI in your browser.
-
-```python
-px.active_session().url
-```
 
 For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
 

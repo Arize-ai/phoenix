@@ -2,13 +2,12 @@
 
 {% embed url="https://www.youtube.com/watch?embeds_referring_euri=https://cdn.iframe.ly/&feature=emb_title&source_ve_path=MjM4NTE&v=LLKMxeGcZCA" %}
 
-We now offer a hosted version of Phoenix to make it easier for developers to use Phoenix to trace their LLM applications and avoid setting up infrastructure. You can use our Colab links to follow along.
+We now offer a hosted version of Phoenix to make it easier for developers to use Phoenix to trace their LLM applications and avoid setting up infrastructure.
 
-| Framework                  |                                                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Llamaindex                 | [Colab](https://colab.research.google.com/gist/exiao/7306d3c22a1f914650e8b23451859110/hosted-phoenix.ipynb?authuser=2#scrollTo=u4-cym\_JUfow)                   |
-| Llamaindex with Llamacloud | [Colab](https://colab.research.google.com/github/run-llama/llamacloud-demo/blob/main/examples/tracing/llamacloud\_tracing\_phoenix.ipynb#scrollTo=mLtP7bOsCkVt) |
-| OpenAI                     | [Colab](https://colab.research.google.com/gist/exiao/322535cb53c28d2871e78e98ea10c060/hosted-phoenix.ipynb?authuser=2#scrollTo=rUObjr\_Eww9x)                   |
+### Example Notebooks:
+
+* [Tracing an OpenAI app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_openai\_tutorial.ipynb)
+* [Tracing a LlamaIndex app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_llamaindex\_tutorial.ipynb)
 
 ### The main differences for Hosted Phoenix:
 
@@ -32,73 +31,57 @@ Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer log
 
 Get your API keys from your Phoenix application on the left hand side.&#x20;
 
-Here's the full sample code for LlamaIndex and OpenAI instrumentation. You can see all of our automatic tracing options [here](tracing/how-to-tracing/instrumentation/).
+Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](tracing/how-to-tracing/instrumentation/) as well.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
 Install the following libraries
 
 ```
-!pip install opentelemetry-sdk opentelemetry-exporter-otlp
-!pip install "arize-phoenix[evals,llama-index]" "openai>=1" gcsfs nest-asyncio "openinference-instrumentation-llama-index>=2.0.0"
+!pip install arize-phoenix "openai>=1" "openinference-instrumentation-llama-index>=2.0.0"
 ```
 
 Use the following python code to start instrumentation.
 
 ```python
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+# setup Arize Phoenix for logging/observability
+import os
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from phoenix.otel import register
 
-# Setup authentication and endpoint
-os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-endpoint = "https://app.phoenix.arize.com/v1/traces"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
-# Setup tracing with OpenTelemetry
-span_phoenix_processor = SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
+# Configuration is picked up from your environment variables
+tracer_provider = register()
 
-# Start instrumentation
+# Instrument LlamaIndex. This allows Phoenix to collect traces from LlamaIndex queries.
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_check=True)
 ```
-
-Checkout our colab tutorial here:
-
-{% embed url="https://colab.research.google.com/gist/exiao/7306d3c22a1f914650e8b23451859110/hosted-phoenix.ipynb" %}
 {% endtab %}
 
 {% tab title="OpenAI" %}
 Install the following libraries
 
 ```bash
-pip install arize-otel openinference-instrumentation-openai openai
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
 ```
 
-Then, use our library `arize-otel`, which sets up OpenTelemetry tracing with Hosted Phoenix. Run the following code to start instrumentation.
+Use the following python code to connect to Phoenix
 
 ```python
-import os
-from arize_otel import register_otel, Endpoints
 from openinference.instrumentation.openai import OpenAIInstrumentor
+from phoenix.otel import register
 
-# Setup OTEL tracing for hosted Phoenix
-# Endpoints.HOSTED_PHOENIX = "https://app.phoenix.arize.com"
-PHOENIX_API_KEY = os.environ["PHOENIX_API_KEY"]
-register_otel(
-    endpoints=[Endpoints.HOSTED_PHOENIX],
-    api_key=PHOENIX_API_KEY
-)
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+
+# Setup OTEL tracing for hosted Phoenix. The register function will automatically detect the endpoint and headers from your environment variables.
+tracer_provider = register()
 
 # Turn on instrumentation for OpenAI
-OpenAIInstrumentor().instrument()
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_check=True)
 ```
-
-Checkout our colab tutorial here:
-
-{% embed url="https://colab.research.google.com/gist/exiao/322535cb53c28d2871e78e98ea10c060/hosted-phoenix.ipynb" %}
 {% endtab %}
 {% endtabs %}
 
@@ -110,11 +93,6 @@ You'll need to add the following environment variable to authenticate to hosted 
 
 ```python
 os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=..."
-```
-
-Here's more sample code.
-
-```python
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
@@ -141,9 +119,3 @@ Currently accounts are setup to be used specifically for one developer. We will 
 ### Pricing
 
 Hosted Phoenix is free for all developers. We will add a paid tier in the future which increases your data retention and also give you access to more storage.
-
-### Are there other demos available?
-
-Yes. This demo and [accompanying blog](https://arize.com/blog/how-to-host-phoenix-persistence/) show how to deploy Phoenix via Docker/Kubernetes:
-
-{% embed url="https://www.youtube.com/watch?v=9hNrosMqirQ" %}
