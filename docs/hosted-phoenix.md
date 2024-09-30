@@ -106,7 +106,7 @@ phoenix_df = px_client.get_spans_dataframe()
 
 ### Will hosted Phoenix be on the latest version of Phoenix?
 
-On account creation, we will always use the latest version of Phoenix. We try to keep all instances of hosted Phoenix up to date and run upgrades for them when new versions are available. There will be a few minutes of downtime during these periods.
+We update the Phoenix version used by Hosted Phoenix on a weekly basis.
 
 ### Data retention
 
