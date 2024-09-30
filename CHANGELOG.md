@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.1.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.1...arize-phoenix-v5.1.2) (2024-09-30)
+
+
+### Bug Fixes
+
+* update LangGraph agent fixtures path ([#4808](https://github.com/Arize-ai/phoenix/issues/4808)) ([8188dfd](https://github.com/Arize-ai/phoenix/commit/8188dfdfb819a36998e14bf89ea3ac9a231e2075))
+
 ## [5.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.0...arize-phoenix-v5.1.1) (2024-09-30)
 
 
