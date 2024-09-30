@@ -8,7 +8,7 @@ Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Becau
 
 
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Python</strong></td><td>Instrumentation using OTEL Python SDK</td><td><a href="../../../.gitbook/assets/python.png">python.png</a></td><td><a href="custom-spans/">custom-spans</a></td></tr><tr><td><strong>TypeScript / JavaScript</strong></td><td>Instrumentation using OTEL Node SDK</td><td><a href="../../../.gitbook/assets/javascript.png">javascript.png</a></td><td><a href="javascript.md">javascript.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Python</strong></td><td>Instrumentation using OTEL Python SDK</td><td><a href="../../../.gitbook/assets/python.png">python.png</a></td><td><a href="custom-spans.md">custom-spans.md</a></td></tr><tr><td><strong>TypeScript / JavaScript</strong></td><td>Instrumentation using OTEL Node SDK</td><td><a href="../../../.gitbook/assets/javascript.png">javascript.png</a></td><td><a href="javascript.md">javascript.md</a></td></tr></tbody></table>
 
 ## Example OTEL Spans
 

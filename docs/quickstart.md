@@ -144,7 +144,7 @@ import os
 from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
-os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 
 # configure the Phoenix tracer
 register(

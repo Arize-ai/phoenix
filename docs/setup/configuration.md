@@ -30,9 +30,19 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
   * PostgreSQL, e.g. `postgresql://@host/dbname?user=user&password=password` or `postgresql://user:password@host/dbname`
   * SQLite, e.g. `sqlite:///path/to/database.db`
+* **PHOENIX\_SQL\_DATABASE\_SCHEMA:** An optional string specifying the PostgreSQL [schema](https://www.postgresql.org/docs/current/ddl-schemas.html) for the database tables. Similar to folders, schemas help organize tables outside the default `public` schema. If the specified schema does not exist, it will be created. This option is ignored when using SQLite.
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
+
+#### SMTP Configuration for Password Reset (When Auth Is Enabled)
+
+* **PHOENIX\_SMTP\_HOSTNAME:** The SMTP hostname to use for sending password reset emails.
+* **PHOENIX\_SMTP\_PORT:** The SMTP port. Defaults to `587`.
+* **PHOENIX\_SMTP\_USERNAME:** The SMTP username.
+* **PHOENIX\_SMTP\_PASSWORD:** The SMTP password.
+* **PHOENIX\_SMTP\_MAIL\_FROM:** The `from` address in the emails. Defaults to `noreply@arize.com`.
+* **PHOENIX\_SMTP\_VALIDATE\_CERTS:** Whether to validate the SMTP server's certificate. Defaults to `true`.
 
 ### Client Configuration
 

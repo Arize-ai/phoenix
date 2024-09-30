@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.0...arize-phoenix-v5.1.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* support numpy 2 ([#4798](https://github.com/Arize-ai/phoenix/issues/4798)) ([c4baea4](https://github.com/Arize-ai/phoenix/commit/c4baea40af5058b5aefcef3f283aba53b8770199))
+
 ## [5.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.0.0...arize-phoenix-v5.1.0) (2024-09-27)
 
 
