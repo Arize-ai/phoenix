@@ -156,7 +156,7 @@ demo_langgraph_agent_fixture = TracesFixture(
     name="demo_langgraph_agent",
     project_name="demo_langgraph_agent",
     description="Shows traces captured from a Langgraph agent.",
-    file_name="langgraph-demo-traces.parquet",
+    file_name="langgraph-demo-traces-format-updated.parquet",
 )
 
 demo_llamaindex_workflows_agent_fixture = TracesFixture(
