@@ -62,8 +62,6 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.17
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
