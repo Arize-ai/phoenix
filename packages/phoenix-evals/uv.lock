@@ -239,7 +239,7 @@ requires-dist = [
     { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "pandas" },
     { name = "pandas", marker = "extra == 'test'" },
-    { name = "pandas-stubs", marker = "extra == 'test'" },
+    { name = "pandas-stubs", marker = "extra == 'test'", specifier = "<=2.0.2.230605" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-asyncio", marker = "extra == 'test'" },
     { name = "pytest-randomly", marker = "extra == 'test'" },
