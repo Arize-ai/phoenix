@@ -2,7 +2,7 @@ import React, {
   createContext,
   PropsWithChildren,
   useContext,
-  useRef,
+  useState,
 } from "react";
 import { useZustand } from "use-zustand";
 
@@ -19,14 +19,9 @@ export function DatasetProvider({
   children,
   ...props
 }: PropsWithChildren<InitialDatasetStoreProps>) {
-  const storeRef = useRef<DatasetStore>();
-  if (!storeRef.current) {
-    storeRef.current = createDatasetStore(props);
-  }
+  const [store] = useState<DatasetStore>(() => createDatasetStore(props));
   return (
-    <DatasetContext.Provider value={storeRef.current}>
-      {children}
-    </DatasetContext.Provider>
+    <DatasetContext.Provider value={store}>{children}</DatasetContext.Provider>
   );
 }
 

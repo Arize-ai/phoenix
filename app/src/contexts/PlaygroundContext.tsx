@@ -1,4 +1,4 @@
-import React, { createContext, PropsWithChildren, useRef } from "react";
+import React, { createContext, PropsWithChildren, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -14,12 +14,9 @@ export function PlaygroundProvider({
   children,
   ...props
 }: PropsWithChildren<Partial<PlaygroundProps>>) {
-  const storeRef = useRef<PlaygroundStore>();
-  if (!storeRef.current) {
-    storeRef.current = createPlaygroundStore(props);
-  }
+  const [store] = useState<PlaygroundStore>(() => createPlaygroundStore(props));
   return (
-    <PlaygroundContext.Provider value={storeRef.current}>
+    <PlaygroundContext.Provider value={store}>
       {children}
     </PlaygroundContext.Provider>
   );
