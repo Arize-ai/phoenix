@@ -1,4 +1,4 @@
-import React, { createContext, PropsWithChildren, useRef } from "react";
+import React, { createContext, PropsWithChildren, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -14,14 +14,10 @@ export function TracingProvider({
   children,
   ...props
 }: PropsWithChildren<Partial<TracingProps>>) {
-  const storeRef = useRef<TracingStore>();
-  if (!storeRef.current) {
-    storeRef.current = createTracingStore(props);
-  }
+  const [store] = useState<TracingStore>(() => createTracingStore(props));
+
   return (
-    <TracingContext.Provider value={storeRef.current}>
-      {children}
-    </TracingContext.Provider>
+    <TracingContext.Provider value={store}>{children}</TracingContext.Provider>
   );
 }
 

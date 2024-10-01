@@ -153,7 +153,7 @@ export function ExperimentsTable({
           annotationSummaryMap,
         };
       }),
-    [data]
+    [data.experiments.edges]
   );
   type TableRow = (typeof tableData)[number];
   const baseColumns: ColumnDef<TableRow>[] = [

@@ -1,4 +1,4 @@
-import React, { createContext, PropsWithChildren, useRef } from "react";
+import React, { createContext, PropsWithChildren, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -14,12 +14,12 @@ export function PreferencesProvider({
   children,
   ...props
 }: PropsWithChildren<Partial<PreferencesProps>>) {
-  const storeRef = useRef<PreferencesStore>();
-  if (!storeRef.current) {
-    storeRef.current = createPreferencesStore(props);
-  }
+  const [store] = useState<PreferencesStore>(() =>
+    createPreferencesStore(props)
+  );
+
   return (
-    <PreferencesContext.Provider value={storeRef.current}>
+    <PreferencesContext.Provider value={store.current}>
       {children}
     </PreferencesContext.Provider>
   );
