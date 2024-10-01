@@ -39,3 +39,7 @@ repos:
           - eslint-plugin-react@7.33.2
           - eslint-plugin-react-hooks@4.6.0
           - eslint-plugin-simple-import-sort@10.0.0
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.4.17
+    hooks:
+      - id: uv-lock

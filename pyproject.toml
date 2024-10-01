@@ -69,9 +69,9 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox==4.18.1",
-  "tox-uv==1.11.3",
-  "uv==0.4.8",
+  "tox==4.20.0",
+  "tox-uv==1.13.0",
+  "uv==0.4.17",
   "jupyter",
   "nbqa",
   "ruff==0.6.4",
@@ -81,7 +81,7 @@ dev = [
   "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
-  "pytest==8.3.2",
+  "pytest==8.3.3",
   "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
@@ -130,6 +130,27 @@ container = [
   "uvloop; platform_system != 'Windows'",
 ]
 test = [
+  "numpy",
+  "pandas",
+  "pytest==8.3.3",
+  "pytest-asyncio",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary,pool]",
+  "arize",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tenacity",
+  "protobuf==3.20",  # version minimum (for tests)
+  "grpc-interceptor[testing]",
+  "responses",
+  "tiktoken",
+  "httpx", # For OpenAI testing
+  "respx", # For OpenAI testing
+  "nest-asyncio", # for executor testing
+  "asgi-lifespan",
+  "Faker>=26.0.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
@@ -178,7 +199,7 @@ dependencies = [
   "numpy",
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
-  "pytest==8.3.2",
+  "pytest==8.3.3",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
