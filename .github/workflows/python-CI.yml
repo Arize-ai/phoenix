@@ -127,10 +127,11 @@ jobs:
       - run: uv sync --extra test
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: uv run pytest -x -ra tests --run-postgres
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_unit_test-linux
         if: runner.os == 'Linux'
         timeout-minutes: 15
-      - run: uv run pytest -n auto -x -ra tests
+      - run: tox r -e ci_unit_test-non_linux
         if: runner.os != 'Linux'
         timeout-minutes: 15
 
@@ -141,9 +142,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-12 ]
         py: [ 3.9, 3.12 ]
-    defaults:
-      run:
-        working-directory: integration_tests
     runs-on: ${{ matrix.os }}
     services:
       postgres:
@@ -160,13 +158,14 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - run: uv run pytest -n auto -x -ra .
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_integration_test
         timeout-minutes: 15

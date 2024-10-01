@@ -160,6 +160,8 @@ test = [
   "respx", # For OpenAI testing
   "tenacity",
   "tiktoken",
+  "types-beautifulsoup4",
+  "types-psutil",
   "uvloop; platform_system != 'Windows'",
 ]
 

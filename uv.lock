@@ -444,6 +444,8 @@ test = [
     { name = "respx" },
     { name = "tenacity" },
     { name = "tiktoken" },
+    { name = "types-beautifulsoup4" },
+    { name = "types-psutil" },
     { name = "uvloop", marker = "platform_system != 'Windows'" },
 ]
 
@@ -562,6 +564,8 @@ requires-dist = [
     { name = "tox", marker = "extra == 'dev'", specifier = "==4.20.0" },
     { name = "tox-uv", marker = "extra == 'dev'", specifier = "==1.13.0" },
     { name = "tqdm" },
+    { name = "types-beautifulsoup4", marker = "extra == 'test'" },
+    { name = "types-psutil", marker = "extra == 'test'" },
     { name = "types-tabulate", marker = "extra == 'dev'" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5" },
     { name = "typing-extensions", marker = "python_full_version >= '3.12'", specifier = ">=4.6" },
@@ -6120,6 +6124,36 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c5/58/a79003b91ac2c6890fc5d90145c662fd5771c6f11447f116b63300436bc9/typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722", size = 98953 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/2b/886d13e742e514f704c33c4caa7df0f3b89e5a25ef8db02aa9ca3d9535d5/typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b", size = 47288 },
+]
+
+[[package]]
+name = "types-beautifulsoup4"
+version = "4.12.0.20240907"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "types-html5lib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/e3/138900d35df4e673935239f0259f4b984f11db32c99ceb4f6819c47a7cfc/types-beautifulsoup4-4.12.0.20240907.tar.gz", hash = "sha256:8d023b86530922070417a1d4c4d91678ab0ff2439b3b2b2cffa3b628b49ebab1", size = 11525 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/ce/bea8ea21414287b7fc0ad2fccdb571ad8e2f438d1a1d486d146e906ea041/types_beautifulsoup4-4.12.0.20240907-py3-none-any.whl", hash = "sha256:32f5ac48514b488f15241afdd7d2f73f0baf3c54e874e23b66708503dd288489", size = 12081 },
+]
+
+[[package]]
+name = "types-html5lib"
+version = "1.1.11.20240806"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/ac/a2ca5366f0337ae9c947d611c19116bd56e845976782aaa35247e2a699e8/types-html5lib-1.1.11.20240806.tar.gz", hash = "sha256:8060dc98baf63d6796a765bbbc809fff9f7a383f6e3a9add526f814c086545ef", size = 11269 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/df/ee52df5c2cb7f40f6b9d45fc11cc9256d3e237e04d57e2d797b448815fc7/types_html5lib-1.1.11.20240806-py3-none-any.whl", hash = "sha256:575c4fd84ba8eeeaa8520c7e4c7042b7791f5ec3e9c0a5d5c418124c42d9e7e4", size = 17260 },
+]
+
+[[package]]
+name = "types-psutil"
+version = "6.0.0.20240901"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/22/78fe4575849f1a65bbc3b08a4717716690fe8d6e4c24f69f9cf381843aef/types-psutil-6.0.0.20240901.tar.gz", hash = "sha256:437affa76670363db9ffecfa4f153cc6900bf8a7072b3420f3bc07a593f92226", size = 15117 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/6a/db0a065339eeb6d3412539fe9744d28a236212d416bd8ca0a061c2db0dbd/types_psutil-6.0.0.20240901-py3-none-any.whl", hash = "sha256:20af311bfb0386a018a27ae47dc952119d7c0e849ff72b6aa24fc0433afb92a6", size = 18576 },
 ]
 
 [[package]]
