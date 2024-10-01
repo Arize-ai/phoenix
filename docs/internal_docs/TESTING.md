@@ -60,7 +60,6 @@ The most important thing about E2E tests is that they are the closest thing to a
 
 ## Resources
 
-
 -   [Code is not an asset](https://robinbb.com/blog/code-is-not-an-asset/)
 -   [Testing trophy and testing classifications](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications)
 -   [Making tests resilient to change (data-testid)](https://kentcdodds.com/blog/making-your-ui-tests-resilient-to-change)
