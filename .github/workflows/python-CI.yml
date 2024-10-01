@@ -71,7 +71,7 @@ jobs:
       - run: uv sync --extra test
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
-      - run: uv run mypy .
+      - run: uv run mypy src/phoenix/evals
       - run: uv run pytest -n auto -x -ra tests
         timeout-minutes: 15
 
@@ -96,7 +96,7 @@ jobs:
       - run: uv sync --extra test
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
-      - run: uv run mypy .
+      - run: uv run mypy src/phoenix/otel
       - run: uv run pytest -n auto -x -ra tests
         timeout-minutes: 15
 

@@ -346,7 +346,7 @@ addopts = [
   "--showlocals",
 ]
 testpaths = [
-  "tests",
+  "tests/unit",
 ]
 
 [tool.coverage.run]
