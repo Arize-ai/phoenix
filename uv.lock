@@ -545,7 +545,6 @@ requires-dist = [
     { name = "opentelemetry-semantic-conventions", marker = "extra == 'test'" },
     { name = "pandas", specifier = ">=1.0" },
     { name = "pandas", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "pandas", marker = "extra == 'test'" },
     { name = "pandas", marker = "extra == 'test'", specifier = ">=1.0" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = "==2.2.2.240603" },
     { name = "pandas-stubs", marker = "extra == 'test'", specifier = "==2.2.2.240603" },
