@@ -69,6 +69,7 @@ jobs:
         with:
           version: 0.4.17
       - run: uv sync --extra test
+      - run: uv pip list
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
       - run: uv run mypy src/phoenix/evals
