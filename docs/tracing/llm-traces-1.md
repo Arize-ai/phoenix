@@ -1,20 +1,23 @@
-# Overview
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, regardless of what framework you use, and has first-class instrumentation for a variety of frameworks (LlamaIndex, LangChain, DSPy),  SDKs (OpenAI, Bedrock, Mistral, Vertex), and Languages (Python, Javascript). You can also manually instrument your application using the OpenTelemetry SDK.
+# Quickstart: Tracing
+
+## Overview
+
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, regardless of what framework you use, and has first-class instrumentation for a variety of frameworks (LlamaIndex, LangChain, DSPy), SDKs (OpenAI, Bedrock, Mistral, Vertex), and Languages (Python, Javascript). You can also manually instrument your application using the OpenTelemetry SDK.
 
 This example will walk you through how to use Phoenix to trace OpenAI requests.
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing\_quickstart\_openai.ipynb)
 
-## Overview
+
+### Overview
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing_quickstart_openai.ipynb" %}
 
 ```python
 !pip install -q "arize-phoenix>=4.29.0"
 ```
 
-# Launch Phoenix
+## Launch Phoenix
 
-{% tabs %}
-{% tab title="OpenAI" %}
 ```bash
 pip install openai
 ```
@@ -51,11 +54,8 @@ response = client.chat.completions.create(
 # The traces will be available in the Phoenix App for the above messsages
 assistant_reply = response.choices[0].message.content
 ```
-{% endtab %}
 
-{% tab title="LlamaIndex" %}
 To use llama-index's one click, you must install the small integration first:
-
 
 ```python
 # Check if PHOENIX_API_KEY is present in the environment variables.
@@ -77,29 +77,27 @@ else:
 
 Now that we have Phoenix configured, we can register that instance with OpenTelemetry, which will allow us to collect traces from our application here.
 
-
 ```python
 from phoenix.otel import register
 
 tracer_provider = register()
 ```
 
-# Instrument your application
+## Instrument your application
 
 Now we need to indicate which methods and attributes we want to trace. Phoenix has a number of built-in tracers for popular frameworks, and provides tools to manually instrument your application if needed. See [here for a list of integrations](https://docs.arize.com/phoenix/tracing/integrations-tracing)
 
 Here we're using OpenAI, so we'll the built-in OpenAI instrumentor we provide.
-
 
 ```python
 !pip install -q openinference-instrumentation-openai openai
 ```
 
 See the [integration guide](integrations-tracing/langchain.md#traces) for details
-{% endtab %}
 
-{% tab title="Groq" %}
-**Install packages:**
+
+
+\*\*Install packages:\*\*
 
 ```bash
 pip install arize-phoenix openinference-instrumentation-groq groq
@@ -130,7 +128,7 @@ from openinference.instrumentation.groq import GroqInstrumentor
 GroqInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-#### Run Groq
+**Run Groq**
 
 ```python
 import os
@@ -153,10 +151,9 @@ chat_completion = client.chat.completions.create(
 print(chat_completion.choices[0].message.content)
 ```
 
-# Use OpenAI as normal
+## Use OpenAI as normal
 
 From here we can use OpenAI as normal. All of our requests will be traced and reported to Phoenix automatically.
-
 
 ```python
 # Add OpenAI API Key
@@ -168,7 +165,6 @@ if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
 
 os.environ["OPENAI_API_KEY"] = openai_api_key
 ```
-
 
 ```python
 import openai
