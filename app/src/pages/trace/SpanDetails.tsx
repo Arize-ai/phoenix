@@ -608,7 +608,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         }}
         titleSeparator={false}
         variant="compact"
-        // @ts-expect-error force putting the title in as a string
         title={modelNameTitleEl}
       >
         <Tabs>
@@ -1158,7 +1157,6 @@ function DocumentItem({
       bodyStyle={{
         padding: 0,
       }}
-      // @ts-expect-error force putting the title in as a string
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
@@ -1404,7 +1402,6 @@ function LLMToolSchema({
 
   return (
     <Card
-      // @ts-expect-error force putting the title in as a string
       title={titleEl}
       titleExtra={<Counter variant="light">#{index + 1}</Counter>}
       {...defaultCardProps}
