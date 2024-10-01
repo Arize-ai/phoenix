@@ -2,7 +2,7 @@ import logging
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Mapping, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -56,9 +56,9 @@ class Metric(ABC):
             Can be a list or slice (e.g. `slice(100, 200)`) of integers.
         """
         subset_rows = slice(None) if subset_rows is None else subset_rows
-        df = df.iloc[
-            subset_rows,
-            sorted(
+        df = df.iloc[  # type: ignore[assignment]
+            subset_rows,  # type: ignore[index]
+            sorted(  # type: ignore[type-var]
                 {
                     df.columns.get_loc(name)
                     for name in map(str, self.operands())
@@ -82,4 +82,4 @@ def multi_calculate(
     """
     Calculates multiple metrics on the same dataframe.
     """
-    return pd.Series({calc.id(): calc(df) for calc in calcs})
+    return cast("pd.Series[Any]", pd.Series({calc.id(): calc(df) for calc in calcs}))

@@ -79,7 +79,7 @@ dev = [
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
-  "pandas-stubs==2.2.2.240603",
+  "pandas-stubs",
   "pytest==8.3.3",
   "pytest-xdist",
   "pytest-asyncio",
@@ -138,9 +138,7 @@ test = [
   "grpcio",
   "httpx",
   "litellm>=1.0.3",
-  "mypy==1.11.2",
   "nest-asyncio", # for executor testing
-  "numpy",
   "openai>=1.0.0",
   "openinference-semantic-conventions",
   "opentelemetry-exporter-otlp",
@@ -149,10 +147,7 @@ test = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
-  "opentelemetry-sdk",
   "opentelemetry-semantic-conventions",
-  "pandas-stubs==2.2.2.240603",
-  "pandas>=1.0",
   "portpicker",
   "prometheus_client",
   "protobuf==3.20",  # version minimum (for tests)
@@ -160,20 +155,39 @@ test = [
   "psycopg[binary,pool]",
   "py-grpc-prometheus",
   "pyjwt",
-  "pypistats",  # this is needed to type-check third-party packages
   "pytest-asyncio",
   "pytest-postgresql",
   "pytest-randomly",
   "pytest-smtpd",
   "pytest-xdist",
   "pytest==8.3.3",
-  "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx", # For OpenAI testing
-  "ruff==0.6.8",
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "tenacity",
   "tiktoken",
+  "uvloop; platform_system != 'Windows'",
+]
+check = [
+  "Faker>=30.0.0",
+  "mypy==1.11.2",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-instrumentation-fastapi",
+  "opentelemetry-instrumentation-grpc",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-sdk",
+  "opentelemetry-semantic-conventions",
+  "pandas-stubs",
+  "prometheus-client",
+  "py-grpc-prometheus",
+  "pyjwt",
+  "pypistats",  # this is needed to type-check third-party packages
+  "pytest",
+  "pytest-smtpd",
+  "requests",  # this is needed to type-check third-party packages
+  "ruff==0.6.8",
+  "strawberry-graphql[cli,debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "types-beautifulsoup4",
   "types-cachetools",
   "types-protobuf",
@@ -181,8 +195,8 @@ test = [
   "types-requests",
   "types-setuptools",
   "types-tabulate",
+  "types-tabulate",
   "types-tqdm",
-  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
@@ -258,6 +272,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
+  "Faker>=30.0.0",
   "grpcio",
   "litellm>=1.0.3",
   "mypy==1.11.2",
@@ -269,14 +284,17 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
   "opentelemetry-semantic-conventions",
-  "pandas-stubs==2.0.3.230814",
-  "pandas>=1.0",
+  "pandas-stubs",
   "prometheus_client",
   "py-grpc-prometheus",
+  "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages
+  "pytest",
+  "pytest-smtpd",
   "requests",  # this is needed to type-check third-party packages
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "tenacity",
+  "types-beautifulsoup4",
   "types-cachetools",
   "types-protobuf",
   "types-psutil",
@@ -443,14 +461,16 @@ ignore-setters = false
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
 exclude = [
-  "api_reference",
+  "api_reference/",
   "dist/",
   "examples/",
+  "integration_tests/",
   "packages/",
   "scripts/",
   "sdist/",
   "src/phoenix/evals/",
-  "tests/",
+  "src/phoenix/otel/",
+  "tests/unit",
   "tutorials/",
 ]
 

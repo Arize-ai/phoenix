@@ -216,7 +216,6 @@ class DiscreteDivergence(Discretizer, DriftOperator, ABC):
             left_index=True,
             right_index=True,
             how="outer",
-            copy=False,
         ).fillna(0)
         # remove rows with all zeros
         merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]

@@ -78,7 +78,7 @@ class GrpcServer:
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
-            GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)  # type: ignore
+            GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)  # type: ignore[no-untyped-call]
         server = grpc.aio.server(
             options=(("grpc.so_reuseport", 0),),
             interceptors=interceptors,
@@ -96,4 +96,4 @@ class GrpcServer:
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
-            GrpcAioInstrumentorServer().uninstrument()  # type: ignore
+            GrpcAioInstrumentorServer().uninstrument()  # type: ignore[no-untyped-call]

@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Tuple, cast
 
 import numpy as np
 import pandas as pd
-from pandas.core.dtypes.common import is_categorical_dtype, is_object_dtype
+from pandas.core.dtypes.common import is_object_dtype
 from sklearn import metrics as sk
 from sklearn.utils.multiclass import check_classification_targets
 from wrapt import PartialCallableObjectProxy
@@ -189,12 +189,9 @@ def _binarize(
     """Given pos_label, converts series into a binary (boolean) variable, i.e.
     rows are assigned True when their values match pos_label, and False
     otherwise. Series is assumed to contain no missing values."""
-    if is_categorical_dtype(series):
+    if isinstance(series.dtype, pd.CategoricalDtype):
         try:
-            return cast(
-                "pd.Series[bool]",
-                series.cat.codes == series.cat.categories.get_loc(pos_label),
-            )
+            return series.cat.codes == series.cat.categories.get_loc(pos_label)
         except KeyError:
             return cast(
                 "pd.Series[bool]",

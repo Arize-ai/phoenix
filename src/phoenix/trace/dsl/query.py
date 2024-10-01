@@ -211,6 +211,7 @@ class Explosion(_HasTmpSuffix, Projection):
         if dialect != SupportedSQLDialect.SQLITE and self.kwargs:
             df = df.set_index(self.index_keys)
             return df
+        records = df.loc[:, self._array_tmp_col_label].dropna()
         if dialect is SupportedSQLDialect.SQLITE:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
@@ -238,9 +239,9 @@ class Explosion(_HasTmpSuffix, Projection):
                     res.append(values)
                 return res
 
-            records = df.loc[:, self._array_tmp_col_label].dropna().map(_extract_values).explode()
+            records = records.map(_extract_values).explode()  # type: ignore[arg-type]
         elif dialect is SupportedSQLDialect.POSTGRESQL:
-            records = df.loc[:, self._array_tmp_col_label].dropna().map(flatten).map(dict)
+            records = records.map(flatten).map(dict)  # type: ignore[arg-type]
         else:
             assert_never(dialect)
         df = df.drop(self._array_tmp_col_label, axis=1)
@@ -398,7 +399,8 @@ class Concatenation(_HasTmpSuffix, Projection):
                             values[label].append(str(value))
                 return {label: self.separator.join(vs) for label, vs in values.items()}
 
-            records = df.loc[:, self._array_tmp_col_label].map(_concat_values)
+            records = df.loc[:, self._array_tmp_col_label]
+            records = records.map(_concat_values)
             df_concat = pd.DataFrame.from_records(records.to_list(), index=records.index)
             return df.drop(self._array_tmp_col_label, axis=1).join(df_concat, how="outer")
         elif dialect is SupportedSQLDialect.POSTGRESQL:

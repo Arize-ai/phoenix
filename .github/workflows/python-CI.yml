@@ -80,7 +80,7 @@ jobs:
         if: matrix.act == 'unit-test'
         timeout-minutes: 15
 
-  code-gen:
+  list:
     name: Lint Phoenix
     runs-on: ubuntu-latest
     needs: changes
@@ -100,10 +100,6 @@ jobs:
         run: |
           hatch run proto:recompile
           git diff --exit-code
-      - name: Gql codegen
-        run: |
-          hatch run gql:build
-          git diff --exit-code
       - name: Export OpenAPI schema
         run: |
           hatch run openapi:build
@@ -113,12 +109,11 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  lint:
+  checks:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        act: [ format, lint, type ]
         py: [ 3.9, 3.12 ]
     runs-on: ubuntu-latest
     steps:
@@ -131,13 +126,14 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - run: uv tool install tox --with tox-uv
-      - run: tox r -e ci_format
-        if: matrix.act == 'format'
-      - run: tox r -e ci_lint
-        if: matrix.act == 'lint'
-      - run: tox r -e ci_type_check
-        if: matrix.act == 'type'
+      - run: uv sync --frozen --no-dev --extra test
+      - run: uv pip list
+      - run: uv run ruff format --diff .
+      - run: uv run ruff check --no-fix .
+      - run: uv run mypy .
+      - run: |
+          uv run strawberry export-schema phoenix.server.api.schema:schema --output app/schema.graphql
+          git diff --exit-code
 
   unit-tests:
     needs: changes
@@ -157,13 +153,14 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - run: uv tool install tox --with tox-uv
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: tox r -e ci_unit_test_linux
+      - run: uv sync --frozen --no-dev --extra test
+      - run: uv pip list
+      - run: uv run pytest -x -ra tests/unit --run-postgres
         if: runner.os == 'Linux'
         timeout-minutes: 15
-      - run: tox r -e ci_unit_test_non_linux
+      - run: uv run pytest -n auto -x -ra tests/unit
         if: runner.os != 'Linux'
         timeout-minutes: 15
 
@@ -198,6 +195,7 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - run: uv tool install tox --with tox-uv
-      - run: tox r -e ci_integration_test
+      - run: uv sync --frozen --no-dev --extra test
+      - run: uv pip list
+      - run: uv run pytest -n auto -x -ra tests/integration
         timeout-minutes: 15

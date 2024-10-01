@@ -354,6 +354,35 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+check = [
+    { name = "faker" },
+    { name = "mypy" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-proto" },
+    { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "pandas-stubs" },
+    { name = "prometheus-client" },
+    { name = "py-grpc-prometheus" },
+    { name = "pyjwt" },
+    { name = "pypistats" },
+    { name = "pytest" },
+    { name = "pytest-smtpd" },
+    { name = "requests" },
+    { name = "ruff" },
+    { name = "strawberry-graphql", extra = ["cli", "debug-server", "opentelemetry"] },
+    { name = "types-beautifulsoup4" },
+    { name = "types-cachetools" },
+    { name = "types-protobuf" },
+    { name = "types-psutil" },
+    { name = "types-requests" },
+    { name = "types-setuptools" },
+    { name = "types-tabulate" },
+    { name = "types-tqdm" },
+]
 container = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-fastapi" },
@@ -424,9 +453,7 @@ test = [
     { name = "grpcio" },
     { name = "httpx" },
     { name = "litellm" },
-    { name = "mypy" },
     { name = "nest-asyncio" },
-    { name = "numpy" },
     { name = "openai" },
     { name = "openinference-semantic-conventions" },
     { name = "opentelemetry-exporter-otlp" },
@@ -436,8 +463,6 @@ test = [
     { name = "opentelemetry-proto" },
     { name = "opentelemetry-sdk" },
     { name = "opentelemetry-semantic-conventions" },
-    { name = "pandas" },
-    { name = "pandas-stubs" },
     { name = "portpicker" },
     { name = "prometheus-client" },
     { name = "protobuf" },
@@ -445,28 +470,17 @@ test = [
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "py-grpc-prometheus" },
     { name = "pyjwt" },
-    { name = "pypistats" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-postgresql" },
     { name = "pytest-randomly" },
     { name = "pytest-smtpd" },
     { name = "pytest-xdist" },
-    { name = "requests" },
     { name = "responses" },
     { name = "respx" },
-    { name = "ruff" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
     { name = "tenacity" },
     { name = "tiktoken" },
-    { name = "types-beautifulsoup4" },
-    { name = "types-cachetools" },
-    { name = "types-protobuf" },
-    { name = "types-psutil" },
-    { name = "types-requests" },
-    { name = "types-setuptools" },
-    { name = "types-tabulate" },
-    { name = "types-tqdm" },
     { name = "uvloop", marker = "platform_system != 'Windows'" },
 ]
 
@@ -488,6 +502,7 @@ requires-dist = [
     { name = "authlib" },
     { name = "beautifulsoup4", marker = "extra == 'test'" },
     { name = "cachetools" },
+    { name = "faker", marker = "extra == 'check'", specifier = ">=30.0.0" },
     { name = "faker", marker = "extra == 'dev'", specifier = ">=26.0.0" },
     { name = "faker", marker = "extra == 'test'", specifier = ">=30.0.0" },
     { name = "fastapi" },
@@ -514,43 +529,49 @@ requires-dist = [
     { name = "llama-index-embeddings-openai", marker = "extra == 'llama-index'", specifier = "==0.1.10" },
     { name = "llama-index-llms-openai", marker = "extra == 'llama-index'", specifier = "==0.1.24" },
     { name = "llama-index-readers-file", marker = "extra == 'llama-index'", specifier = "==0.1.25" },
+    { name = "mypy", marker = "extra == 'check'", specifier = "==1.11.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==1.11.2" },
-    { name = "mypy", marker = "extra == 'test'", specifier = "==1.11.2" },
     { name = "nbqa", marker = "extra == 'dev'" },
     { name = "nest-asyncio", marker = "extra == 'test'" },
     { name = "numba", specifier = ">=0.60.0" },
     { name = "numpy", specifier = "!=2.0.0" },
-    { name = "numpy", marker = "extra == 'test'" },
     { name = "openai", marker = "extra == 'test'", specifier = ">=1.0.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.12" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.9" },
     { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'check'" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'container'" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'test'" },
+    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'check'" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'container'" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'test'" },
+    { name = "opentelemetry-instrumentation-grpc", marker = "extra == 'check'" },
     { name = "opentelemetry-instrumentation-grpc", marker = "extra == 'container'" },
     { name = "opentelemetry-instrumentation-grpc", marker = "extra == 'test'" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", marker = "extra == 'check'" },
     { name = "opentelemetry-instrumentation-sqlalchemy", marker = "extra == 'container'" },
     { name = "opentelemetry-instrumentation-sqlalchemy", marker = "extra == 'test'" },
     { name = "opentelemetry-proto", specifier = ">=1.12.0" },
+    { name = "opentelemetry-proto", marker = "extra == 'check'", specifier = ">=1.12.0" },
     { name = "opentelemetry-proto", marker = "extra == 'container'", specifier = ">=1.12.0" },
     { name = "opentelemetry-proto", marker = "extra == 'test'", specifier = ">=1.12.0" },
     { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-sdk", marker = "extra == 'check'" },
     { name = "opentelemetry-sdk", marker = "extra == 'container'" },
     { name = "opentelemetry-sdk", marker = "extra == 'test'" },
     { name = "opentelemetry-semantic-conventions" },
+    { name = "opentelemetry-semantic-conventions", marker = "extra == 'check'" },
     { name = "opentelemetry-semantic-conventions", marker = "extra == 'container'" },
     { name = "opentelemetry-semantic-conventions", marker = "extra == 'test'" },
     { name = "pandas", specifier = ">=1.0" },
     { name = "pandas", marker = "extra == 'dev'", specifier = ">=1.0" },
-    { name = "pandas", marker = "extra == 'test'", specifier = ">=1.0" },
-    { name = "pandas-stubs", marker = "extra == 'dev'", specifier = "==2.2.2.240603" },
-    { name = "pandas-stubs", marker = "extra == 'test'", specifier = "==2.2.2.240603" },
+    { name = "pandas-stubs", marker = "extra == 'check'" },
+    { name = "pandas-stubs", marker = "extra == 'dev'" },
     { name = "portpicker", marker = "extra == 'dev'" },
     { name = "portpicker", marker = "extra == 'test'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "prometheus-client", marker = "extra == 'check'" },
     { name = "prometheus-client", marker = "extra == 'container'" },
     { name = "prometheus-client", marker = "extra == 'dev'" },
     { name = "prometheus-client", marker = "extra == 'test'" },
@@ -561,12 +582,15 @@ requires-dist = [
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'dev'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'pg'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'test'" },
+    { name = "py-grpc-prometheus", marker = "extra == 'check'" },
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "py-grpc-prometheus", marker = "extra == 'test'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=1.0,!=2.0.*,<3" },
+    { name = "pyjwt", marker = "extra == 'check'" },
     { name = "pyjwt", marker = "extra == 'test'" },
-    { name = "pypistats", marker = "extra == 'test'" },
+    { name = "pypistats", marker = "extra == 'check'" },
+    { name = "pytest", marker = "extra == 'check'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==8.3.3" },
     { name = "pytest", marker = "extra == 'test'", specifier = "==8.3.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
@@ -575,21 +599,23 @@ requires-dist = [
     { name = "pytest-postgresql", marker = "extra == 'dev'" },
     { name = "pytest-postgresql", marker = "extra == 'test'" },
     { name = "pytest-randomly", marker = "extra == 'test'" },
+    { name = "pytest-smtpd", marker = "extra == 'check'" },
     { name = "pytest-smtpd", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "pytest-xdist", marker = "extra == 'test'" },
     { name = "python-multipart" },
-    { name = "requests", marker = "extra == 'test'" },
+    { name = "requests", marker = "extra == 'check'" },
     { name = "responses", marker = "extra == 'test'" },
     { name = "respx", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'check'", specifier = "==0.6.8" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.6.8" },
-    { name = "ruff", marker = "extra == 'test'", specifier = "==0.6.8" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.4,<3" },
     { name = "sqlean-py", specifier = ">=3.45.1" },
     { name = "starlette" },
     { name = "strawberry-graphql", specifier = "==0.236.0" },
+    { name = "strawberry-graphql", extras = ["cli", "debug-server", "opentelemetry"], marker = "extra == 'check'", specifier = "==0.236.0" },
     { name = "strawberry-graphql", extras = ["debug-server", "opentelemetry"], marker = "extra == 'dev'", specifier = "==0.236.0" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.236.0" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'test'", specifier = "==0.236.0" },
@@ -599,15 +625,15 @@ requires-dist = [
     { name = "tox", marker = "extra == 'dev'", specifier = "==4.20.0" },
     { name = "tox-uv", marker = "extra == 'dev'", specifier = "==1.13.0" },
     { name = "tqdm" },
-    { name = "types-beautifulsoup4", marker = "extra == 'test'" },
-    { name = "types-cachetools", marker = "extra == 'test'" },
-    { name = "types-protobuf", marker = "extra == 'test'" },
-    { name = "types-psutil", marker = "extra == 'test'" },
-    { name = "types-requests", marker = "extra == 'test'" },
-    { name = "types-setuptools", marker = "extra == 'test'" },
+    { name = "types-beautifulsoup4", marker = "extra == 'check'" },
+    { name = "types-cachetools", marker = "extra == 'check'" },
+    { name = "types-protobuf", marker = "extra == 'check'" },
+    { name = "types-psutil", marker = "extra == 'check'" },
+    { name = "types-requests", marker = "extra == 'check'" },
+    { name = "types-setuptools", marker = "extra == 'check'" },
+    { name = "types-tabulate", marker = "extra == 'check'" },
     { name = "types-tabulate", marker = "extra == 'dev'" },
-    { name = "types-tabulate", marker = "extra == 'test'" },
-    { name = "types-tqdm", marker = "extra == 'test'" },
+    { name = "types-tqdm", marker = "extra == 'check'" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5" },
     { name = "typing-extensions", marker = "python_full_version >= '3.12'", specifier = ">=4.6" },
     { name = "umap-learn" },
@@ -4105,15 +4131,15 @@ wheels = [
 
 [[package]]
 name = "pandas-stubs"
-version = "2.2.2.240603"
+version = "2.2.2.240807"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "types-pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/40/badba04e61f66611ff1fbdf85d03560ace3c7377010224f87b5657e94bdb/pandas_stubs-2.2.2.240603.tar.gz", hash = "sha256:2dcc86e8fa6ea41535a4561c1f08b3942ba5267b464eff2e99caeee66f9e4cd1", size = 102762 }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/df/0da95bc75c76f1e012e0bc0b76da31faaf4254e94b9870f25e6311145e98/pandas_stubs-2.2.2.240807.tar.gz", hash = "sha256:64a559725a57a449f46225fbafc422520b7410bff9252b661a225b5559192a93", size = 103095 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/f9/d713f7d1dcea92031bfa9d0a26426033b02dd260cd550b995be80abe9097/pandas_stubs-2.2.2.240603-py3-none-any.whl", hash = "sha256:e08ce7f602a4da2bff5a67475ba881c39f2a4d4f7fccc1cba57c6f35a379c6c0", size = 157003 },
+    { url = "https://files.pythonhosted.org/packages/0a/f9/22c91632ea1b4c6165952f677bf9ad95f9ac36ffd7ef3e6450144e6d8b1a/pandas_stubs-2.2.2.240807-py3-none-any.whl", hash = "sha256:893919ad82be4275f0d07bb47a95d08bae580d3fdea308a7acfcb3f02e76186e", size = 157069 },
 ]
 
 [[package]]
@@ -5332,15 +5358,16 @@ wheels = [
 
 [[package]]
 name = "rich"
-version = "13.8.1"
+version = "13.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
     { name = "pygments" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/76/40f084cb7db51c9d1fa29a7120717892aeda9a7711f6225692c957a93535/rich-13.8.1.tar.gz", hash = "sha256:8260cda28e3db6bf04d2d1ef4dbc03ba80a824c88b0e7668a0f23126a424844a", size = 222080 }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/78/87d00a1df7c457ad9aa0139f01b8a11c67209f27f927c503b0109bf2ed6c/rich-13.9.1.tar.gz", hash = "sha256:097cffdf85db1babe30cc7deba5ab3a29e1b9885047dab24c57e9a7f8a9c1466", size = 222907 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/11/dadb85e2bd6b1f1ae56669c3e1f0410797f9605d752d68fb47b77f525b31/rich-13.8.1-py3-none-any.whl", hash = "sha256:1760a3c0848469b97b558fc61c85233e3dafb69c7a071b4d60c38099d3cd4c06", size = 241608 },
+    { url = "https://files.pythonhosted.org/packages/ab/71/cd9549551f1aa11cf7e5f92bae5817979e8b3a19e31e8810c15f3f45c311/rich-13.9.1-py3-none-any.whl", hash = "sha256:b340e739f30aa58921dc477b8adaa9ecdb7cecc217be01d93730ee1bc8aa83be", size = 242147 },
 ]
 
 [[package]]
@@ -5861,6 +5888,12 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+cli = [
+    { name = "libcst" },
+    { name = "pygments" },
+    { name = "rich" },
+    { name = "typer" },
+]
 debug-server = [
     { name = "libcst" },
     { name = "pygments" },

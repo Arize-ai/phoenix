@@ -42,7 +42,6 @@ import pandas as pd
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_datetime64_any_dtype,
-    is_datetime64tz_dtype,
     is_numeric_dtype,
 )
 from typing_extensions import TypeAlias, TypeGuard
@@ -994,7 +993,7 @@ class Model:
         categories_by_dataset = (
             pd.Series(dim[role].unique()).dropna().astype(str) for role in InferencesRole
         )
-        all_values_combined = chain.from_iterable(categories_by_dataset)
+        all_values_combined = list(chain.from_iterable(categories_by_dataset))
         ans = tuple(np.sort(pd.Series(all_values_combined).unique()))
         with self._dimension_categories_from_all_inferences() as cache:
             cache[dimension_name] = ans
@@ -1342,7 +1341,7 @@ def _iterate_except_str(obj: Any) -> Iterator[Any]:
 
 
 def _series_uuid(length: int) -> "pd.Series[str]":
-    return pd.Series(map(lambda _: uuid4(), range(length)))
+    return pd.Series([uuid4() for _ in range(length)])
 
 
 def _raise_if_too_many_dataframes(given: int) -> None:
@@ -1398,7 +1397,7 @@ def _normalize_timestamps(timestamps: "pd.Series[Any]") -> "pd.Series[Any]":
     data_type = timestamps.dtype
     if is_numeric_dtype(data_type) and not is_bool_dtype(data_type):
         return pd.to_datetime(timestamps, unit="s", utc=True)
-    if is_datetime64tz_dtype(data_type):
+    if isinstance(data_type, pd.DatetimeTZDtype):
         return timestamps.dt.tz_convert(timezone.utc)
     if is_datetime64_any_dtype(data_type):
         return timestamps.dt.tz_localize(timezone.utc)

@@ -381,9 +381,7 @@ class EmbeddingDimension(Node):
                     ),
                 ):
                     try:
-                        document_row_id = corpus_primary_key.get_loc(
-                            document_id,
-                        )
+                        document_row_id = cast(int, corpus_primary_key.get_loc(document_id))
                     except KeyError:
                         continue
                     document_embedding_vector = corpus_inferences[PROMPT].iloc[document_row_id]
