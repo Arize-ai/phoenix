@@ -80,7 +80,7 @@ jobs:
         if: matrix.act == 'unit-test'
         timeout-minutes: 15
 
-  list:
+  lint:
     name: Lint Phoenix
     runs-on: ubuntu-latest
     needs: changes
