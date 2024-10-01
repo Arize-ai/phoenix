@@ -36,12 +36,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.12
-      - uses: astral-sh/setup-uv@v3
-        with:
-          version: 0.4.17
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - run: uv sync --frozen --no-dev
+      - name: Install Phoenix
+        run: |
+          python -m pip install --upgrade pip==${{ env.pip-version }}
+          pip install .
       - name: Run Playwright tests
         working-directory: ./app
         run: pnpm exec playwright test
