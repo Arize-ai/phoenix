@@ -107,13 +107,16 @@ jobs:
           git diff --exit-code
 
   unit-test:
-    runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-12 ]
         py: [ 3.9, 3.12 ]
+    defaults:
+      run:
+        working-directory: tests
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -127,18 +130,24 @@ jobs:
       - run: uv sync --extra test
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: uv run pytest -x -ra tests --run-postgres
+      - run: uv run pytest -x -ra . --run-postgres
         if: runner.os == 'Linux'
-      - run: uv run pytest -n auto -x -ra tests
+        timeout-minutes: 15
+      - run: uv run pytest -n auto -x -ra .
         if: runner.os != 'Linux'
+        timeout-minutes: 15
 
   integration-test:
-    runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, windows-2019, macos-12 ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
+        py: [ 3.9, 3.12 ]
+    defaults:
+      run:
+        working-directory: integration_tests
+    runs-on: ${{ matrix.os }}
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
@@ -154,17 +163,17 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: ${{ matrix.py }}
       - uses: yezz123/setup-uv@v4
         with:
           uv-version: 0.4.8
           uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests
-        if: ${{ matrix.os != 'ubuntu-latest' }}
-        timeout-minutes: 15
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests,py312-ci-integration_tests
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - run: uv run pytest -n auto -x -ra .
         timeout-minutes: 15
