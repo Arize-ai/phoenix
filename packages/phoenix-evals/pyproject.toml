@@ -111,6 +111,7 @@ force-single-line = false
 line-ending = "lf"
 
 [tool.mypy]
+explicit_package_bases = true
 strict = true
 exclude = [
   "dist/",
