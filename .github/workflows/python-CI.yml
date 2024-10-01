@@ -47,25 +47,29 @@ jobs:
             phoenix_evals:
               - "packages/phoenix-evals/**"
 
-  tox:
-    name: Tox
-    runs-on: ubuntu-latest
+  phoenix-evals:
     needs: changes
-    if: ${{ needs.changes.outputs.packages == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.9, 3.12 ]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/phoenix-evals
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v5
         with:
-          python-version: |
-            3.9
-            3.12
-      - uses: yezz123/setup-uv@v4
-        with:
-          uv-version: 0.4.8
-          uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
-        if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
+          python-version: ${{ matrix.py }}
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_phoenix_evals
+        timeout-minutes: 15
 
   lint:
     name: Lint Phoenix
@@ -124,7 +128,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - run: uv sync --extra test
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
       - run: uv tool install tox --with tox-uv
