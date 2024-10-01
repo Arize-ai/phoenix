@@ -421,31 +421,52 @@ test = [
     { name = "beautifulsoup4" },
     { name = "faker" },
     { name = "grpc-interceptor", extra = ["testing"] },
+    { name = "grpcio" },
     { name = "httpx" },
     { name = "litellm" },
+    { name = "mypy" },
     { name = "nest-asyncio" },
     { name = "numpy" },
     { name = "openai" },
     { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-grpc" },
+    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-proto" },
     { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-semantic-conventions" },
     { name = "pandas" },
+    { name = "pandas-stubs" },
     { name = "portpicker" },
+    { name = "prometheus-client" },
     { name = "protobuf" },
     { name = "psutil" },
     { name = "psycopg", extra = ["binary", "pool"] },
+    { name = "py-grpc-prometheus" },
     { name = "pyjwt" },
+    { name = "pypistats" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-postgresql" },
     { name = "pytest-randomly" },
     { name = "pytest-smtpd" },
     { name = "pytest-xdist" },
+    { name = "requests" },
     { name = "responses" },
     { name = "respx" },
+    { name = "ruff" },
+    { name = "strawberry-graphql", extra = ["opentelemetry"] },
     { name = "tenacity" },
     { name = "tiktoken" },
     { name = "types-beautifulsoup4" },
+    { name = "types-cachetools" },
+    { name = "types-protobuf" },
     { name = "types-psutil" },
+    { name = "types-requests" },
+    { name = "types-setuptools" },
+    { name = "types-tabulate" },
+    { name = "types-tqdm" },
     { name = "uvloop", marker = "platform_system != 'Windows'" },
 ]
 
@@ -477,6 +498,7 @@ requires-dist = [
     { name = "grpc-interceptor", extras = ["testing"], marker = "extra == 'dev'" },
     { name = "grpc-interceptor", extras = ["testing"], marker = "extra == 'test'" },
     { name = "grpcio" },
+    { name = "grpcio", marker = "extra == 'test'" },
     { name = "hatch", marker = "extra == 'dev'" },
     { name = "hdbscan", specifier = ">=0.8.38" },
     { name = "httpx" },
@@ -493,6 +515,7 @@ requires-dist = [
     { name = "llama-index-llms-openai", marker = "extra == 'llama-index'", specifier = "==0.1.24" },
     { name = "llama-index-readers-file", marker = "extra == 'llama-index'", specifier = "==0.1.25" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==1.11.2" },
+    { name = "mypy", marker = "extra == 'test'", specifier = "==1.11.2" },
     { name = "nbqa", marker = "extra == 'dev'" },
     { name = "nest-asyncio", marker = "extra == 'test'" },
     { name = "numba", specifier = ">=0.60.0" },
@@ -504,26 +527,34 @@ requires-dist = [
     { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'container'" },
+    { name = "opentelemetry-exporter-otlp", marker = "extra == 'test'" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'container'" },
+    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'test'" },
     { name = "opentelemetry-instrumentation-grpc", marker = "extra == 'container'" },
+    { name = "opentelemetry-instrumentation-grpc", marker = "extra == 'test'" },
     { name = "opentelemetry-instrumentation-sqlalchemy", marker = "extra == 'container'" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", marker = "extra == 'test'" },
     { name = "opentelemetry-proto", specifier = ">=1.12.0" },
     { name = "opentelemetry-proto", marker = "extra == 'container'", specifier = ">=1.12.0" },
+    { name = "opentelemetry-proto", marker = "extra == 'test'", specifier = ">=1.12.0" },
     { name = "opentelemetry-sdk" },
     { name = "opentelemetry-sdk", marker = "extra == 'container'" },
     { name = "opentelemetry-sdk", marker = "extra == 'test'" },
     { name = "opentelemetry-semantic-conventions" },
     { name = "opentelemetry-semantic-conventions", marker = "extra == 'container'" },
+    { name = "opentelemetry-semantic-conventions", marker = "extra == 'test'" },
     { name = "pandas", specifier = ">=1.0" },
     { name = "pandas", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pandas", marker = "extra == 'test'" },
-    { name = "pandas-stubs", marker = "python_full_version >= '3.9' and extra == 'dev'", specifier = "==2.2.2.240603" },
-    { name = "pandas-stubs", marker = "python_full_version < '3.9' and extra == 'dev'", specifier = "==2.0.3.230814" },
+    { name = "pandas", marker = "extra == 'test'", specifier = ">=1.0" },
+    { name = "pandas-stubs", marker = "extra == 'dev'", specifier = "==2.2.2.240603" },
+    { name = "pandas-stubs", marker = "extra == 'test'" },
     { name = "portpicker", marker = "extra == 'dev'" },
     { name = "portpicker", marker = "extra == 'test'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "prometheus-client", marker = "extra == 'container'" },
     { name = "prometheus-client", marker = "extra == 'dev'" },
+    { name = "prometheus-client", marker = "extra == 'test'" },
     { name = "protobuf", specifier = ">=3.20,<6.0" },
     { name = "protobuf", marker = "extra == 'test'", specifier = "==3.20" },
     { name = "psutil" },
@@ -532,9 +563,11 @@ requires-dist = [
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'pg'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'test'" },
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
+    { name = "py-grpc-prometheus", marker = "extra == 'test'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=1.0,!=2.0.*,<3" },
     { name = "pyjwt", marker = "extra == 'test'" },
+    { name = "pypistats", marker = "extra == 'test'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==8.3.3" },
     { name = "pytest", marker = "extra == 'test'", specifier = "==8.3.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
@@ -547,9 +580,11 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "pytest-xdist", marker = "extra == 'test'" },
     { name = "python-multipart" },
+    { name = "requests", marker = "extra == 'test'" },
     { name = "responses", marker = "extra == 'test'" },
     { name = "respx", marker = "extra == 'test'" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.6.8" },
+    { name = "ruff", marker = "extra == 'test'", specifier = "==0.6.8" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.4,<3" },
@@ -558,6 +593,7 @@ requires-dist = [
     { name = "strawberry-graphql", specifier = "==0.236.0" },
     { name = "strawberry-graphql", extras = ["debug-server", "opentelemetry"], marker = "extra == 'dev'", specifier = "==0.236.0" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.236.0" },
+    { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'test'", specifier = "==0.236.0" },
     { name = "tabulate", marker = "extra == 'dev'" },
     { name = "tenacity", marker = "extra == 'test'" },
     { name = "tiktoken", marker = "extra == 'test'" },
@@ -565,8 +601,14 @@ requires-dist = [
     { name = "tox-uv", marker = "extra == 'dev'", specifier = "==1.13.0" },
     { name = "tqdm" },
     { name = "types-beautifulsoup4", marker = "extra == 'test'" },
+    { name = "types-cachetools", marker = "extra == 'test'" },
+    { name = "types-protobuf", marker = "extra == 'test'" },
     { name = "types-psutil", marker = "extra == 'test'" },
+    { name = "types-requests", marker = "extra == 'test'" },
+    { name = "types-setuptools", marker = "extra == 'test'" },
     { name = "types-tabulate", marker = "extra == 'dev'" },
+    { name = "types-tabulate", marker = "extra == 'test'" },
+    { name = "types-tqdm", marker = "extra == 'test'" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5" },
     { name = "typing-extensions", marker = "python_full_version >= '3.12'", specifier = ">=4.6" },
     { name = "umap-learn" },
@@ -1149,6 +1191,19 @@ wheels = [
 ]
 
 [[package]]
+name = "dataproperty"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mbstrdecoder" },
+    { name = "typepy", extra = ["datetime"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/e2/31ffb67d2a9ab4ff70b106e08ad01a3e7696f8d409457042d1eb18244f82/DataProperty-1.0.1.tar.gz", hash = "sha256:723e5729fa6e885e127a771a983ee1e0e34bb141aca4ffe1f0bfa7cde34650a4", size = 35340 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/3b/90ebd66ad57c588d6087e86e327436343e9cc60776a9445b79c6e80a022d/DataProperty-1.0.1-py3-none-any.whl", hash = "sha256:0b8b07d4fb6453fcf975b53d35dea41f3cfd69c9d79b5010c3cf224ff0407a7a", size = 27380 },
+]
+
+[[package]]
 name = "datasets"
 version = "2.13.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1270,6 +1325,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/37/7d/c871f55054e403fdfd6b8f65fd6d1c4e147ed100d3e9f9ba1fe695403939/dnspython-2.6.1.tar.gz", hash = "sha256:e8f0f9c23a7b7cb99ded64e6c3a6f3e701d78f50c55e002b839dea7225cff7cc", size = 332727 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/a1/8c5287991ddb8d3e4662f71356d9656d91ab3a36618c3dd11b280df0d255/dnspython-2.6.1-py3-none-any.whl", hash = "sha256:5ef3b9680161f6fa89daf8ad451b5f1a33b18ae8a1c6778cdf4b43f08c0a6e50", size = 307696 },
+]
+
+[[package]]
+name = "dominate"
+version = "2.9.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/f3/1c8088ff19a0fcd9c3234802a0ee47006ea64bd8852f1019194f0e3583ff/dominate-2.9.1.tar.gz", hash = "sha256:558284687d9b8aae1904e3d6051ad132dd4a8c0cf551b37ea4e7e42a31d19dc4", size = 37715 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/19/0380af745f151a1648657bbcef0fb49ac28bf09083d94498163ffd9b32dc/dominate-2.9.1-py2.py3-none-any.whl", hash = "sha256:cb7b6b79d33b15ae0a6e87856b984879927c7c2ebb29522df4c75b28ffd9b989", size = 29976 },
 ]
 
 [[package]]
@@ -3132,6 +3196,18 @@ wheels = [
 ]
 
 [[package]]
+name = "mbstrdecoder"
+version = "1.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chardet" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/8f/dd5d4efbe3f90d2d38c948f0ca5c698e2d6cedc58ead2f5b90272cbcb4fa/mbstrdecoder-1.1.3.tar.gz", hash = "sha256:dcfd2c759322eb44fe193a9e0b1b86c5b87f3ec5ea8e1bb43b3e9ae423f1e8fe", size = 10460 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/0f/726229136022b154895138bb10ba35e8435c4143f614cb5ad4d4e3fc21ec/mbstrdecoder-1.1.3-py3-none-any.whl", hash = "sha256:d66c1ed3f2dc4e7c5d87cd44a75be10bc5af4250f95b38bbaedd7851308ce938", size = 7761 },
+]
+
+[[package]]
 name = "mdurl"
 version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
@@ -4069,6 +4145,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pathvalidate"
+version = "3.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/8c/8713d8dcd8e357b9358695b441ee974580a8addfaea4f01437df07577052/pathvalidate-3.2.1.tar.gz", hash = "sha256:f5d07b1e2374187040612a1fcd2bcb2919f8db180df254c9581bb90bf903377d", size = 59263 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/5e/76a9d08b4b4e4583f269cb9f64de267f9aeae0dacef23307f53a14211716/pathvalidate-3.2.1-py3-none-any.whl", hash = "sha256:9a6255eb8f63c9e2135b9be97a5ce08f10230128c4ae7b3e935378b82b22c4c9", size = 23833 },
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4222,6 +4307,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/64/10/97ee2fa54dff1e9da9badbc5e35d0bbaef0776271ea5907eccf64140f72f/pre_commit-3.8.0.tar.gz", hash = "sha256:8bb6494d4a20423842e198980c9ecf9f96607a07ea29549e180eef9ae80fe7af", size = 177815 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/07/92/caae8c86e94681b42c246f0bca35c059a2f0529e5b92619f6aba4cf7e7b6/pre_commit-3.8.0-py2.py3-none-any.whl", hash = "sha256:9a90a53bf82fdd8778d58085faf8d83df56e40dfe18f45b19446e26bf1b3a63f", size = 204643 },
+]
+
+[[package]]
+name = "prettytable"
+version = "3.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/57/0a642bec16d5736b9baaac7e830bedccd10341dc2858075c34d5aec5c8b6/prettytable-3.11.0.tar.gz", hash = "sha256:7e23ca1e68bbfd06ba8de98bf553bf3493264c96d5e8a615c0471025deeba722", size = 57527 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/5a/bfdc26c0e19156992b1dc9de47f0b2e8992fe43db9981d814f860bdce2b3/prettytable-3.11.0-py3-none-any.whl", hash = "sha256:aa17083feb6c71da11a68b2c213b04675c4af4ce9c541762632ca3f2cb3546dd", size = 28734 },
 ]
 
 [[package]]
@@ -4658,6 +4755,24 @@ wheels = [
 ]
 
 [[package]]
+name = "pypistats"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "platformdirs" },
+    { name = "prettytable" },
+    { name = "pytablewriter", extra = ["html"] },
+    { name = "python-dateutil" },
+    { name = "python-slugify" },
+    { name = "termcolor" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/62/b1001d98a1113515156462e0e9c66fa3eb21b367fc803f847ca356f03145/pypistats-1.6.0.tar.gz", hash = "sha256:7007b1ecc4a62749314c6ddaafd1908315c1f5185f8a010004c13631f058a993", size = 121817 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/99/a5399f7013d664b34070f421a258292d06bf5a17e3a7bd7424cc95ce4eb5/pypistats-1.6.0-py3-none-any.whl", hash = "sha256:5cce5c95bd6d545e4366e338572a0de4243d248b29851a3ac5e438cf6c0e494d", size = 12915 },
+]
+
+[[package]]
 name = "pyproject-api"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4668,6 +4783,29 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bb/19/441e0624a8afedd15bbcce96df1b80479dd0ff0d965f5ce8fde4f2f6ffad/pyproject_api-1.8.0.tar.gz", hash = "sha256:77b8049f2feb5d33eefcc21b57f1e279636277a8ac8ad6b5871037b243778496", size = 22340 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ba/f4/3c4ddfcc0c19c217c6de513842d286de8021af2f2ab79bbb86c00342d778/pyproject_api-1.8.0-py3-none-any.whl", hash = "sha256:3d7d347a047afe796fd5d1885b1e391ba29be7169bd2f102fcd378f04273d228", size = 13100 },
+]
+
+[[package]]
+name = "pytablewriter"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dataproperty" },
+    { name = "mbstrdecoder" },
+    { name = "pathvalidate" },
+    { name = "setuptools" },
+    { name = "tabledata" },
+    { name = "tcolorpy" },
+    { name = "typepy", extra = ["datetime"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/a9/76aa4430d32ae10b23e4347006dc4c67a3e2a00621e4bb38a60c1a77f15e/pytablewriter-1.2.0.tar.gz", hash = "sha256:0204a4bb684a22140d640f2599f09e137bcdc18b3dd49426f4a555016e246b46", size = 230439 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/74/b39b823ee7dba155b117634e62733a0dfdfe5aa100a553b435062cee2062/pytablewriter-1.2.0-py3-none-any.whl", hash = "sha256:4a30e2bb4bf5bc1069b1d2b2bc41947577c4517ab0875b23a5b194d296f543d8", size = 111097 },
+]
+
+[package.optional-dependencies]
+html = [
+    { name = "dominate" },
 ]
 
 [[package]]
@@ -4804,6 +4942,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/16/6e/7ecfe1366b9270f7f475c76fcfa28812493a6a1abd489b2433851a444f4f/python_multipart-0.0.12.tar.gz", hash = "sha256:045e1f98d719c1ce085ed7f7e1ef9d8ccc8c02ba02b5566d5f7521410ced58cb", size = 35713 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f5/0b/c316262244abea7481f95f1e91d7575f3dfcf6455d56d1ffe9839c582eb1/python_multipart-0.0.12-py3-none-any.whl", hash = "sha256:43dcf96cf65888a9cd3423544dd0d75ac10f7aa0c3c28a175bbcd00c9ce1aebf", size = 23246 },
+]
+
+[[package]]
+name = "python-slugify"
+version = "8.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "text-unidecode" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/c7/5e1547c44e31da50a460df93af11a535ace568ef89d7a811069ead340c4a/python-slugify-8.0.4.tar.gz", hash = "sha256:59202371d1d05b54a9e7720c5e038f928f45daaffe41dd10822f3907b937c856", size = 10921 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/62/02da182e544a51a5c3ccf4b03ab79df279f9c60c5e82d5e8bec7ca26ac11/python_slugify-8.0.4-py2.py3-none-any.whl", hash = "sha256:276540b79961052b66b7d116620b36518847f52d5fd9e3a70164fc8c50faa6b8", size = 10051 },
 ]
 
 [[package]]
@@ -5748,6 +5898,19 @@ wheels = [
 ]
 
 [[package]]
+name = "tabledata"
+version = "1.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dataproperty" },
+    { name = "typepy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/6a/7f78fbf883f325b70ba9ce5c10d97652f5c371e224940097c2cea9d0f456/tabledata-1.3.3.tar.gz", hash = "sha256:c90daaba9a408e4397934b3ff2f6c06797d5289676420bf520c741ad43e6ff91", size = 16296 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/e2/96b10ebc00d20b55967200e3d95c2137d91f58af1af672627683431c9d5c/tabledata-1.3.3-py3-none-any.whl", hash = "sha256:4abad1c996d8607e23b045b44dc0c5f061668f3c37585302c5f6c84c93a89962", size = 11732 },
+]
+
+[[package]]
 name = "tabulate"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5757,12 +5920,30 @@ wheels = [
 ]
 
 [[package]]
+name = "tcolorpy"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/af/f6/b17885354c5addfb93c14f3ed7172c33494f989dd5f83c0340d2c8fa3b69/tcolorpy-0.1.6.tar.gz", hash = "sha256:8cea0bf5f8cf03f77528a9acfbf312df935573892ba5ea3b2516e61fa54de9a5", size = 298986 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/0f/3571e551b524b3d3ddfa7fd3ec8065941faf4ae1278efefcef976d93587c/tcolorpy-0.1.6-py3-none-any.whl", hash = "sha256:8c15cb3167f30b0a433d72297e9d68667c825bd9e2af41c8dd7dfbd3d7f7e207", size = 8111 },
+]
+
+[[package]]
 name = "tenacity"
 version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a3/4d/6a19536c50b849338fcbe9290d562b52cbdcf30d8963d3588a68a4107df1/tenacity-8.5.0.tar.gz", hash = "sha256:8bc6c0c8a09b31e6cad13c47afbed1a567518250a9a171418582ed8d9c20ca78", size = 47309 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl", hash = "sha256:b594c2a5945830c267ce6b79a166228323ed52718f30302c1359836112346687", size = 28165 },
+]
+
+[[package]]
+name = "termcolor"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/56/d7d66a84f96d804155f6ff2873d065368b25a07222a6fd51c4f24ef6d764/termcolor-2.4.0.tar.gz", hash = "sha256:aab9e56047c8ac41ed798fa36d892a37aca6b3e9159f3e0c24bc64a9b3ac7b7a", size = 12664 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/5f/8c716e47b3a50cbd7c146f45881e11d9414def768b7cd9c5e6650ec2a80a/termcolor-2.4.0-py3-none-any.whl", hash = "sha256:9297c0df9c99445c2412e832e882a7884038a25617c60cea2ad69488d4040d63", size = 7719 },
 ]
 
 [[package]]
@@ -5777,6 +5958,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6a/9e/2064975477fdc887e47ad42157e214526dcad8f317a948dee17e1659a62f/terminado-0.18.1-py3-none-any.whl", hash = "sha256:a4468e1b37bb318f8a86514f65814e1afc977cf29b3992a4500d9dd305dcceb0", size = 14154 },
+]
+
+[[package]]
+name = "text-unidecode"
+version = "1.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/e2/e9a00f0ccb71718418230718b3d900e71a5d16e701a3dae079a21e9cd8f8/text-unidecode-1.3.tar.gz", hash = "sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93", size = 76885 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/a5/c0b6468d3824fe3fde30dbb5e1f687b291608f9473681bbf7dabbf5a87d7/text_unidecode-1.3-py2.py3-none-any.whl", hash = "sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8", size = 78154 },
 ]
 
 [[package]]
@@ -6112,6 +6302,25 @@ wheels = [
 ]
 
 [[package]]
+name = "typepy"
+version = "1.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mbstrdecoder" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/86/9672794fb1c87a17b839666976ed4c8cb779ce05d471bed3166a39a53c4d/typepy-1.3.2.tar.gz", hash = "sha256:b69fd48b9f50cdb3809906eef36b855b3134ff66c8893a4f8580abddb0b39517", size = 24233 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f1/10/0d6dc654bb4e0eca017bbaf43a315b464c888576a68a2883cd4a74bd1b6b/typepy-1.3.2-py3-none-any.whl", hash = "sha256:d5d1022a424132622993800f1d2cd16cfdb691ac4e3b9c325f0fcb37799db1ae", size = 31428 },
+]
+
+[package.optional-dependencies]
+datetime = [
+    { name = "packaging" },
+    { name = "python-dateutil" },
+    { name = "pytz" },
+]
+
+[[package]]
 name = "typer"
 version = "0.12.5"
 source = { registry = "https://pypi.org/simple" }
@@ -6139,12 +6348,30 @@ wheels = [
 ]
 
 [[package]]
+name = "types-cachetools"
+version = "5.5.0.20240820"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/7e/ad6ba4a56b2a994e0f0a04a61a50466b60ee88a13d10a18c83ac14a66c61/types-cachetools-5.5.0.20240820.tar.gz", hash = "sha256:b888ab5c1a48116f7799cd5004b18474cd82b5463acb5ffb2db2fc9c7b053bc0", size = 4198 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/4d/fd7cc050e2d236d5570c4d92531c0396573a1e14b31735870e849351c717/types_cachetools-5.5.0.20240820-py3-none-any.whl", hash = "sha256:efb2ed8bf27a4b9d3ed70d33849f536362603a90b8090a328acf0cd42fda82e2", size = 4149 },
+]
+
+[[package]]
 name = "types-html5lib"
 version = "1.1.11.20240806"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/21/ac/a2ca5366f0337ae9c947d611c19116bd56e845976782aaa35247e2a699e8/types-html5lib-1.1.11.20240806.tar.gz", hash = "sha256:8060dc98baf63d6796a765bbbc809fff9f7a383f6e3a9add526f814c086545ef", size = 11269 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/df/ee52df5c2cb7f40f6b9d45fc11cc9256d3e237e04d57e2d797b448815fc7/types_html5lib-1.1.11.20240806-py3-none-any.whl", hash = "sha256:575c4fd84ba8eeeaa8520c7e4c7042b7791f5ec3e9c0a5d5c418124c42d9e7e4", size = 17260 },
+]
+
+[[package]]
+name = "types-protobuf"
+version = "5.28.0.20240924"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/c3/217fe2c6a4b8ed75c5ecbd27ae8dedd7bc8e8728ac4b29d16005d3a3aba2/types-protobuf-5.28.0.20240924.tar.gz", hash = "sha256:d181af8a256e5a91ce8d5adb53496e880efd9144c7d54483e3653332b60296f0", size = 54324 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/2b/98bfe67a73b15964513b471ce10b610ab0df28825900e0e7517b2bf23952/types_protobuf-5.28.0.20240924-py3-none-any.whl", hash = "sha256:5cecf612ccdefb7dc95f7a51fb502902f20fc2e6681cd500184aaa1b3931d6a7", size = 68761 },
 ]
 
 [[package]]
@@ -6175,12 +6402,42 @@ wheels = [
 ]
 
 [[package]]
+name = "types-requests"
+version = "2.32.0.20240914"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9b/9e/aea33405c230cc3984c9f1065012d3a2003cef910730c367a0e91e7a4901/types-requests-2.32.0.20240914.tar.gz", hash = "sha256:2850e178db3919d9bf809e434eef65ba49d0e7e33ac92d588f4a5e295fffd405", size = 18030 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/55/ea44dad71b9d92f86198f7448f5ba46ac919355f4f69bb1c0fa1af02b1b4/types_requests-2.32.0.20240914-py3-none-any.whl", hash = "sha256:59c2f673eb55f32a99b2894faf6020e1a9f4a402ad0f192bfee0b64469054310", size = 15838 },
+]
+
+[[package]]
+name = "types-setuptools"
+version = "75.1.0.20240917"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/91/c1168caa2a5ba14c01b146b516fab2d8646887cb5db7e78e13b9c6da88d2/types-setuptools-75.1.0.20240917.tar.gz", hash = "sha256:12f12a165e7ed383f31def705e5c0fa1c26215dd466b0af34bd042f7d5331f55", size = 42585 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/4c/a4c87d86ba18ff00773ab8591c79c23a6938293ab3e2cec2b2eb4ca5b644/types_setuptools-75.1.0.20240917-py3-none-any.whl", hash = "sha256:06f78307e68d1bbde6938072c57b81cf8a99bc84bd6dc7e4c5014730b097dc0c", size = 65516 },
+]
+
+[[package]]
 name = "types-tabulate"
 version = "0.9.0.20240106"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cf/9d/65b82ce032fd1cc4df752461175a800c1cfc336461f07ceff10c6a5913eb/types-tabulate-0.9.0.20240106.tar.gz", hash = "sha256:c9b6db10dd7fcf55bd1712dd3537f86ddce72a08fd62bb1af4338c7096ce947e", size = 3442 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f0/17/d53c0bb370100313df6800e9096bdfc27b32b8e4a9390bfb35bc4b17db78/types_tabulate-0.9.0.20240106-py3-none-any.whl", hash = "sha256:0378b7b6fe0ccb4986299496d027a6d4c218298ecad67199bbd0e2d7e9d335a1", size = 3350 },
+]
+
+[[package]]
+name = "types-tqdm"
+version = "4.66.0.20240417"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/65/f14716c07d40f51be63cb46d89a71c4c5314bcf501506930b7fa5201ece0/types-tqdm-4.66.0.20240417.tar.gz", hash = "sha256:16dce9ef522ea8d40e4f5b8d84dd8a1166eefc13ceee7a7e158bf0f1a1421a31", size = 11916 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/dd/39a411628bfdeeac54587aa013a83a446a2ecf8e7e324744b9ba3bf076f3/types_tqdm-4.66.0.20240417-py3-none-any.whl", hash = "sha256:248aef1f9986b7b8c2c12b3cb4399fc17dba0a29e7e3f3f9cd704babb879383d", size = 19163 },
 ]
 
 [[package]]

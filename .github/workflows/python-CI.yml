@@ -80,7 +80,7 @@ jobs:
         if: matrix.act == 'unit-test'
         timeout-minutes: 15
 
-  lint:
+  code-gen:
     name: Lint Phoenix
     runs-on: ubuntu-latest
     needs: changes
@@ -100,12 +100,6 @@ jobs:
         run: |
           hatch run proto:recompile
           git diff --exit-code
-      - name: Check format
-        run: |
-          hatch run style:check
-      - name: Check types
-        run: |
-          hatch run type:check
       - name: Gql codegen
         run: |
           hatch run gql:build
@@ -119,27 +113,43 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  phoenix:
+  lint:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        act: [ format, lint, type-check, unit-test, integration-test ]
+        act: [ format, lint, type ]
+        py: [ 3.9, 3.12 ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_format
+        if: matrix.act == 'format'
+        timeout-minutes: 15
+      - run: tox r -e ci_lint
+        if: matrix.act == 'lint'
+        timeout-minutes: 15
+      - run: tox r -e ci_type_check
+        if: matrix.act == 'type'
+        timeout-minutes: 15
+
+  tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        act: [ unit, integration ]
         py: [ 3.9, 3.12 ]
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        exclude:
-          - act: format
-            os: windows-latest
-          - act: format
-            os: macos-latest
-          - act: lint
-            os: windows-latest
-          - act: lint
-            os: macos-latest
-          - act: type-check
-            os: windows-latest
-          - act: type-check
-            os: macos-latest
     runs-on: ${{ matrix.os }}
     services:
       postgres:
@@ -156,33 +166,23 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
       - run: uv tool install tox --with tox-uv
-      - run: tox r -e ci_format
-        if: matrix.act == 'format'
-        timeout-minutes: 15
-      - run: tox r -e ci_lint
-        if: matrix.act == 'lint'
-        timeout-minutes: 15
-      - run: tox r -e ci_type_check
-        if: matrix.act == 'type-check'
-        timeout-minutes: 15
       - run: sudo apt-get -yqq install postgresql
-        if: matrix.act == 'unit-test' && runner.os == 'Linux'
-      - run: uv tool install tox --with tox-uv
+        if: matrix.act == 'unit' && runner.os == 'Linux'
       - run: tox r -e ci_unit_test_linux
-        if: matrix.act == 'unit-test' && runner.os == 'Linux'
+        if: matrix.act == 'unit' && runner.os == 'Linux'
         timeout-minutes: 15
       - run: tox r -e ci_unit_test_non_linux
-        if: matrix.act == 'unit-test' && runner.os != 'Linux'
+        if: matrix.act == 'unit' && runner.os != 'Linux'
         timeout-minutes: 15
       - run: tox r -e ci_integration_test
-        if: matrix.act == 'integration-test'
+        if: matrix.act == 'integration'
         timeout-minutes: 15
