@@ -126,14 +126,9 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - run: uv sync --frozen --no-dev --extra check
-      - run: uv pip list
-      - run: uv run ruff format --diff .
-      - run: uv run ruff check --no-fix .
-      - run: uv run mypy .
-      - run: |
-          uv run strawberry export-schema phoenix.server.api.schema:schema --output app/schema.graphql
-          git diff --exit-code
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_checks
+      - run: git diff --exit-code
 
   unit-tests:
     needs: changes
@@ -153,14 +148,13 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+      - run: uv tool install tox --with tox-uv
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: uv sync --frozen --no-dev --extra test
-      - run: uv pip list
-      - run: uv run pytest -x -ra tests/unit --run-postgres
+      - run: tox r -e ci_unit_tests_linux
         if: runner.os == 'Linux'
         timeout-minutes: 15
-      - run: uv run pytest -n auto -x -ra tests/unit
+      - run: tox r -e ci_unit_tests_non_linux
         if: runner.os != 'Linux'
         timeout-minutes: 15
 
@@ -195,7 +189,6 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-      - run: uv sync --frozen --no-dev --extra test
-      - run: uv pip list
-      - run: uv run pytest -n auto -x -ra tests/integration
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_integration_tests
         timeout-minutes: 15
