@@ -19,7 +19,7 @@ export function PreferencesProvider({
   );
 
   return (
-    <PreferencesContext.Provider value={store.current}>
+    <PreferencesContext.Provider value={store}>
       {children}
     </PreferencesContext.Provider>
   );
