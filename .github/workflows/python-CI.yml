@@ -113,7 +113,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-12 ]
-        python-version: [ 3.9, 3.12 ]
+        py: [ 3.9, 3.12 ]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -123,7 +123,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.py }}
       - run: uv sync --extra test
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
