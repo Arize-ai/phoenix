@@ -59,7 +59,6 @@ dependencies = [
   "arize-phoenix-evals>=0.13.1",
   "arize-phoenix-otel>=0.5.1",
   "fastapi",
-  "fastapi-mail",
   "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
 ]

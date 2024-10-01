@@ -10,7 +10,6 @@ from time import sleep, time
 from typing import List, Optional
 from urllib.parse import urljoin
 
-from fastapi_mail import ConnectionConfig
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
@@ -59,7 +58,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
-from phoenix.server.email.sender import EMAIL_TEMPLATE_FOLDER, FastMailSender
+from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -368,20 +367,15 @@ def main() -> None:
     if mail_sever := get_env_smtp_hostname():
         assert (mail_username := get_env_smtp_username()), "SMTP username is required"
         assert (mail_password := get_env_smtp_password()), "SMTP password is required"
-        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
-        email_sender = FastMailSender(
-            ConnectionConfig(
-                MAIL_USERNAME=mail_username,
-                MAIL_PASSWORD=mail_password,
-                MAIL_FROM=mail_from,
-                MAIL_SERVER=mail_sever,
-                MAIL_PORT=get_env_smtp_port(),
-                VALIDATE_CERTS=get_env_smtp_validate_certs(),
-                USE_CREDENTIALS=True,
-                MAIL_STARTTLS=True,
-                MAIL_SSL_TLS=False,
-                TEMPLATE_FOLDER=EMAIL_TEMPLATE_FOLDER,
-            )
+        assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = SimpleEmailSender(
+            smtp_server=mail_sever,
+            smtp_port=get_env_smtp_port(),
+            username=mail_username,
+            password=mail_password,
+            sender_email=sender_email,
+            connection_method="STARTTLS",
+            validate_certs=get_env_smtp_validate_certs(),
         )
     app = create_app(
         db=factory,
