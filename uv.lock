@@ -418,6 +418,8 @@ test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-postgresql" },
+    { name = "pytest-randomly" },
+    { name = "pytest-xdist" },
     { name = "responses" },
     { name = "respx" },
     { name = "tenacity" },
@@ -512,7 +514,9 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pytest-postgresql", marker = "extra == 'dev'" },
     { name = "pytest-postgresql", marker = "extra == 'test'" },
+    { name = "pytest-randomly", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'dev'" },
+    { name = "pytest-xdist", marker = "extra == 'test'" },
     { name = "python-multipart" },
     { name = "responses", marker = "extra == 'test'" },
     { name = "respx", marker = "extra == 'test'" },
@@ -4673,6 +4677,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/88/51/d56a56fd852f0e3da5d001cb90815c793f904e387495e63e22ea90d2de1d/pytest_postgresql-6.1.1.tar.gz", hash = "sha256:f996637367e6aecebba1349da52eea95340bdb434c90e4b79739e62c656056e2", size = 47500 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/db/c8/ca523b7dac9253cbfd60466aa0993b4fe5c558844585e7a0c0ad21d00bec/pytest_postgresql-6.1.1-py3-none-any.whl", hash = "sha256:bd4c0970d25685ac3d34d42263fcbfbf134bf02d22519fce7e1ccf4122d8b99a", size = 40529 },
+]
+
+[[package]]
+name = "pytest-randomly"
+version = "3.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "importlib-metadata", marker = "python_full_version < '3.10'" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c9/d4/6e924a0b2855736d942703dec88dfc98b4fe0881c8fa849b6b0fbb9182fa/pytest_randomly-3.15.0.tar.gz", hash = "sha256:b908529648667ba5e54723088edd6f82252f540cc340d748d1fa985539687047", size = 21743 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/d3/00e575657422055c4ea220b2f80e8cc6026ab7130372b7067444d1b0ac10/pytest_randomly-3.15.0-py3-none-any.whl", hash = "sha256:0516f4344b29f4e9cdae8bce31c4aeebf59d0b9ef05927c33354ff3859eeeca6", size = 8685 },
 ]
 
 [[package]]

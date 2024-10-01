@@ -130,26 +130,28 @@ container = [
   "uvloop; platform_system != 'Windows'",
 ]
 test = [
+  "Faker>=26.0.0",
+  "arize",
+  "asgi-lifespan",
+  "asyncpg",
+  "grpc-interceptor[testing]",
+  "httpx", # For OpenAI testing
+  "litellm>=1.0.3",
+  "nest-asyncio", # for executor testing
   "numpy",
+  "openai>=1.0.0",
   "pandas",
-  "pytest==8.3.3",
+  "protobuf==3.20",  # version minimum (for tests)
+  "psycopg[binary,pool]",
   "pytest-asyncio",
   "pytest-postgresql",
-  "asyncpg",
-  "psycopg[binary,pool]",
-  "arize",
-  "litellm>=1.0.3",
-  "openai>=1.0.0",
-  "tenacity",
-  "protobuf==3.20",  # version minimum (for tests)
-  "grpc-interceptor[testing]",
+  "pytest-randomly",
+  "pytest-xdist",
+  "pytest==8.3.3",
   "responses",
-  "tiktoken",
-  "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
-  "nest-asyncio", # for executor testing
-  "asgi-lifespan",
-  "Faker>=26.0.0",
+  "tenacity",
+  "tiktoken",
   "uvloop; platform_system != 'Windows'",
 ]
 
