@@ -6,7 +6,6 @@ from typing import Generator, Iterator, List, Optional, Tuple, cast
 from unittest import mock
 
 import pytest
-from _pytest.config import Parser
 from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
 from faker import Faker
@@ -46,14 +45,6 @@ from ._helpers import (
     _UserGenerator,
     _Username,
 )
-
-
-def pytest_addoption(parser: Parser) -> None:
-    parser.addoption(
-        "--run-postgres",
-        action="store_true",
-        help="Run tests that require Postgres",
-    )
 
 
 @pytest.fixture(scope="session")

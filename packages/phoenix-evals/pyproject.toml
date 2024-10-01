@@ -52,7 +52,6 @@ test = [
   "pytest",
   "pytest-asyncio",
   "pytest-randomly",
-  "pytest-xdist",
   "respx",
   "ruff",
   "tqdm",

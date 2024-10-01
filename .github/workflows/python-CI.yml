@@ -69,12 +69,11 @@ jobs:
         with:
           version: 0.4.17
           enable-cache: false
-      - run: uv sync --no-cache --extra test
-      - run: uv pip list
+      - run: uv sync --extra test
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
-      - run: uv run mypy src/phoenix/evals
-      - run: uv run pytest -n auto -x -ra tests
+      - run: uv run mypy -p phoenix.evals
+      - run: uv run pytest -x -ra tests
         timeout-minutes: 15
 
   phoenix-otel:
@@ -96,11 +95,11 @@ jobs:
         with:
           version: 0.4.17
           enable-cache: false
-      - run: uv sync --no-cache --extra test
+      - run: uv sync --extra test
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
       - run: uv run mypy src/phoenix/otel
-      - run: uv run pytest -n auto -x -ra tests
+      - run: uv run pytest -x -ra tests
         timeout-minutes: 15
 
   lint:
