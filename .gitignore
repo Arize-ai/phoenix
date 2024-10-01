@@ -31,4 +31,7 @@ pyrightconfig.json
 tutorials/internal/demo_llama_index/*.json
 examples/agent_framework_comparison/utils/saved_traces/*.parquet
 .env
+
+# python environments
 .conda
+.venv
