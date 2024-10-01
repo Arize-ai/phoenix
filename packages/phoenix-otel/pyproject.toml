@@ -35,6 +35,7 @@ dependencies = [
 test = [
   "mypy",
   "pytest",
+  "pytest-asyncio",
   "pytest-randomly",
   "pytest-xdist",
   "ruff",
