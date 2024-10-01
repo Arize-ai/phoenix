@@ -130,22 +130,30 @@ container = [
   "uvloop; platform_system != 'Windows'",
 ]
 test = [
-  "Faker>=26.0.0",
+  "Faker>=30.0.0",
   "arize",
   "asgi-lifespan",
   "asyncpg",
+  "beautifulsoup4",
   "grpc-interceptor[testing]",
-  "httpx", # For OpenAI testing
+  "httpx",
   "litellm>=1.0.3",
   "nest-asyncio", # for executor testing
   "numpy",
   "openai>=1.0.0",
+  "openinference-semantic-conventions",
+  "opentelemetry-sdk",
   "pandas",
+  "portpicker",
   "protobuf==3.20",  # version minimum (for tests)
+  "psutil",
   "psycopg[binary,pool]",
+  "pyjwt",
   "pytest-asyncio",
   "pytest-postgresql",
   "pytest-randomly",
+  "pytest-randomly",
+  "pytest-smtpd",
   "pytest-xdist",
   "pytest==8.3.3",
   "responses",

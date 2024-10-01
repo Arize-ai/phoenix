@@ -142,6 +142,19 @@ wheels = [
 ]
 
 [[package]]
+name = "aiosmtpd"
+version = "1.4.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "atpublic" },
+    { name = "attrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/ca/b2b7cc880403ef24be77383edaadfcf0098f5d7b9ddbf3e2c17ef0a6af0d/aiosmtpd-1.4.6.tar.gz", hash = "sha256:5a811826e1a5a06c25ebc3e6c4a704613eb9a1bcf6b78428fbe865f4f6c9a4b8", size = 152775 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/39/d401756df60a8344848477d54fdf4ce0f50531f6149f3b8eaae9c06ae3dc/aiosmtpd-1.4.6-py3-none-any.whl", hash = "sha256:72c99179ba5aa9ae0abbda6994668239b64a5ce054471955fe75f581d2592475", size = 154263 },
+]
+
+[[package]]
 name = "aiosmtplib"
 version = "2.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -405,6 +418,7 @@ test = [
     { name = "arize" },
     { name = "asgi-lifespan" },
     { name = "asyncpg" },
+    { name = "beautifulsoup4" },
     { name = "faker" },
     { name = "grpc-interceptor", extra = ["testing"] },
     { name = "httpx" },
@@ -412,13 +426,19 @@ test = [
     { name = "nest-asyncio" },
     { name = "numpy" },
     { name = "openai" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-sdk" },
     { name = "pandas" },
+    { name = "portpicker" },
     { name = "protobuf" },
+    { name = "psutil" },
     { name = "psycopg", extra = ["binary", "pool"] },
+    { name = "pyjwt" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-postgresql" },
     { name = "pytest-randomly" },
+    { name = "pytest-smtpd" },
     { name = "pytest-xdist" },
     { name = "responses" },
     { name = "respx" },
@@ -443,9 +463,10 @@ requires-dist = [
     { name = "asyncpg", marker = "extra == 'pg'" },
     { name = "asyncpg", marker = "extra == 'test'" },
     { name = "authlib" },
+    { name = "beautifulsoup4", marker = "extra == 'test'" },
     { name = "cachetools" },
     { name = "faker", marker = "extra == 'dev'", specifier = ">=26.0.0" },
-    { name = "faker", marker = "extra == 'test'", specifier = ">=26.0.0" },
+    { name = "faker", marker = "extra == 'test'", specifier = ">=30.0.0" },
     { name = "fastapi" },
     { name = "fastapi-mail" },
     { name = "gcsfs", marker = "extra == 'dev'" },
@@ -478,6 +499,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'test'", specifier = ">=1.0.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.12" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.9" },
+    { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'container'" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'container'" },
@@ -487,6 +509,7 @@ requires-dist = [
     { name = "opentelemetry-proto", marker = "extra == 'container'", specifier = ">=1.12.0" },
     { name = "opentelemetry-sdk" },
     { name = "opentelemetry-sdk", marker = "extra == 'container'" },
+    { name = "opentelemetry-sdk", marker = "extra == 'test'" },
     { name = "opentelemetry-semantic-conventions" },
     { name = "opentelemetry-semantic-conventions", marker = "extra == 'container'" },
     { name = "pandas", specifier = ">=1.0" },
@@ -495,18 +518,21 @@ requires-dist = [
     { name = "pandas-stubs", marker = "python_full_version >= '3.9' and extra == 'dev'", specifier = "==2.2.2.240603" },
     { name = "pandas-stubs", marker = "python_full_version < '3.9' and extra == 'dev'", specifier = "==2.0.3.230814" },
     { name = "portpicker", marker = "extra == 'dev'" },
+    { name = "portpicker", marker = "extra == 'test'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "prometheus-client", marker = "extra == 'container'" },
     { name = "prometheus-client", marker = "extra == 'dev'" },
     { name = "protobuf", specifier = ">=3.20,<6.0" },
     { name = "protobuf", marker = "extra == 'test'", specifier = "==3.20" },
     { name = "psutil" },
+    { name = "psutil", marker = "extra == 'test'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'dev'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'pg'" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'test'" },
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=1.0,!=2.0.*,<3" },
+    { name = "pyjwt", marker = "extra == 'test'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==8.3.3" },
     { name = "pytest", marker = "extra == 'test'", specifier = "==8.3.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
@@ -515,6 +541,7 @@ requires-dist = [
     { name = "pytest-postgresql", marker = "extra == 'dev'" },
     { name = "pytest-postgresql", marker = "extra == 'test'" },
     { name = "pytest-randomly", marker = "extra == 'test'" },
+    { name = "pytest-smtpd", marker = "extra == 'test'" },
     { name = "pytest-xdist", marker = "extra == 'dev'" },
     { name = "pytest-xdist", marker = "extra == 'test'" },
     { name = "python-multipart" },
@@ -689,6 +716,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/db/06/e388331eed46eaea42a73d38b8aa8f624a2e6ca426f03d4a423bd97d823f/asyncpg-0.29.0-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:8d36c7f14a22ec9e928f15f92a48207546ffe68bc412f3be718eedccdf10dc5c", size = 3309783 },
     { url = "https://files.pythonhosted.org/packages/dd/29/980c4401aeb7d3ddff24453fae555cc422b84bdb907c8316f7cd07eab924/asyncpg-0.29.0-cp39-cp39-win32.whl", hash = "sha256:797ab8123ebaed304a1fad4d7576d5376c3a006a4100380fb9d517f0b59c1ab2", size = 515864 },
     { url = "https://files.pythonhosted.org/packages/6d/64/89d970c41baeece88b4123e0b53e13ef855596e33aeb060031cd9b720a40/asyncpg-0.29.0-cp39-cp39-win_amd64.whl", hash = "sha256:cce08a178858b426ae1aa8409b5cc171def45d4293626e7aa6510696d46decd8", size = 567186 },
+]
+
+[[package]]
+name = "atpublic"
+version = "5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/18/b1d247792440378abeeb0853f9daa2a127284b68776af6815990be7fcdb0/atpublic-5.0.tar.gz", hash = "sha256:d5cb6cbabf00ec1d34e282e8ce7cbc9b74ba4cb732e766c24e2d78d1ad7f723f", size = 14646 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6b/03/2cb0e5326e19b7d877bc9c3a7ef436a30a06835b638580d1f5e21a0409ed/atpublic-5.0-py3-none-any.whl", hash = "sha256:b651dcd886666b1042d1e38158a22a4f2c267748f4e97fde94bc492a4a28a3f3", size = 5207 },
 ]
 
 [[package]]
@@ -4581,6 +4617,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjwt"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/68/ce067f09fca4abeca8771fe667d89cc347d1e99da3e093112ac329c6020e/pyjwt-2.9.0.tar.gz", hash = "sha256:7e1e5b56cc735432a7369cbfa0efe50fa113ebecdc04ae6922deba8b84582d0c", size = 78825 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/84/0fdf9b18ba31d69877bd39c9cd6052b47f3761e9910c15de788e519f079f/PyJWT-2.9.0-py3-none-any.whl", hash = "sha256:3b02fb0f44517787776cf48f2ae25d8e14f300e6d7545a4315cee571a415e850", size = 22344 },
+]
+
+[[package]]
 name = "pynndescent"
 version = "0.5.13"
 source = { registry = "https://pypi.org/simple" }
@@ -4690,6 +4735,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c9/d4/6e924a0b2855736d942703dec88dfc98b4fe0881c8fa849b6b0fbb9182fa/pytest_randomly-3.15.0.tar.gz", hash = "sha256:b908529648667ba5e54723088edd6f82252f540cc340d748d1fa985539687047", size = 21743 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/24/d3/00e575657422055c4ea220b2f80e8cc6026ab7130372b7067444d1b0ac10/pytest_randomly-3.15.0-py3-none-any.whl", hash = "sha256:0516f4344b29f4e9cdae8bce31c4aeebf59d0b9ef05927c33354ff3859eeeca6", size = 8685 },
+]
+
+[[package]]
+name = "pytest-smtpd"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+    { name = "smtpdfix" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8d/35/57de31ff2bd745aafa940839125104c5150ea1d4c472946c18d99e6813fd/pytest_smtpd-0.1.0.tar.gz", hash = "sha256:e80cd7818f45192ebd8ec517a38d20098378e397e664ec0649da5b98a6e3ff09", size = 5495 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7b/ca/509e8473e189e7c2702eaa8e0494f116cdb9aa5f4e4537f5dbaa93c3f096/pytest_smtpd-0.1.0-py3-none-any.whl", hash = "sha256:1249e4d0ab77120eb53bce5123200b94ab6667b52a6cb5c741a3956a254c2dd8", size = 4685 },
 ]
 
 [[package]]
@@ -5491,6 +5549,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926", size = 34041 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/5a/e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254", size = 11053 },
+]
+
+[[package]]
+name = "smtpdfix"
+version = "0.5.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiosmtpd" },
+    { name = "cryptography" },
+    { name = "portpicker" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/4a/561500fd9db689746449888045758a74d19f7a9a739e595fd6e3b2d92078/smtpdfix-0.5.2.tar.gz", hash = "sha256:e4d1ace90f3712a19127ed8874e697a86148c1f48d2b2db0c0720968e8e3ec95", size = 23542 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/72/14/1c4107f0e625a4f95c5412b82f20ea05665c515d74e724898d4c3a8c7ac5/smtpdfix-0.5.2-py3-none-any.whl", hash = "sha256:85045723df6bb492af2ddbadfb0b8f8b5c52f69bb6fd4f6bca78c4f182d6c2b7", size = 17294 },
 ]
 
 [[package]]
