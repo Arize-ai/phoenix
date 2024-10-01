@@ -50,11 +50,12 @@ class SimpleEmailSender:
         msg["To"] = email
         msg.set_content(html_content, subtype="html")
 
-        def send_email():
+        def send_email() -> None:
+            context: ssl.SSLContext
             if self.validate_certs:
-                context: ssl.SSLContext = ssl.create_default_context()
+                context = ssl.create_default_context()
             else:
-                context: ssl.SSLContext = ssl._create_unverified_context()
+                context = ssl._create_unverified_context()
 
             if self.use_tls:
                 server = smtplib.SMTP(self.smtp_server, self.smtp_port)
