@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 export type GenAIOperationType = "chat" | "text_completion";
 
 let playgroundInstanceIdIndex = 0;
+let playgroundRunIdIndex = 0;
 
 /**
  * The input mode for the playground
@@ -19,11 +20,16 @@ export type PlaygroundTemplate =
   | PlaygroundTextCompletionTemplate;
 
 /**
+ * The role of a chat message with a LLM
+ */
+export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
+
+/**
  * A chat message with a role and content
  * @example { role: "user", content: "What is the meaning of life?" }
  */
 export type ChatMessage = {
-  role: string;
+  role: ChatMessageRole;
   content: string;
 };
 
@@ -88,6 +94,11 @@ export interface PlaygroundInstance {
   tools: unknown;
   input: PlaygroundInput;
   output: unknown;
+  activeRunId: number | null;
+  /**
+   * Whether or not the playground instance is actively running or not
+   **/
+  isRunning: boolean;
 }
 
 /**
@@ -128,6 +139,18 @@ export interface PlaygroundState extends PlaygroundProps {
     instanceId: number;
     patch: Partial<PlaygroundInstance>;
   }) => void;
+  /**
+   * Run all the active playground Instances
+   */
+  runPlaygroundInstances: () => void;
+  /**
+   * Run a specific playground instance
+   */
+  runPlaygroundInstance: (instanceId: number) => void;
+  /**
+   * Mark a given playground instance as completed
+   */
+  markPlaygroundInstanceComplete: (instanceId: number) => void;
 }
 
 const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
@@ -163,6 +186,8 @@ export const createPlaygroundStore = (
         tools: {},
         input: { variables: {} },
         output: {},
+        activeRunId: null,
+        isRunning: false,
       },
     ],
     setOperationType: (operationType: GenAIOperationType) => {
@@ -176,6 +201,8 @@ export const createPlaygroundStore = (
               tools: {},
               input: { variables: {} },
               output: {},
+              activeRunId: null,
+              isRunning: false,
             },
           ],
         });
@@ -188,6 +215,8 @@ export const createPlaygroundStore = (
               tools: {},
               input: { variables: {} },
               output: {},
+              activeRunId: null,
+              isRunning: false,
             },
           ],
         });
@@ -206,6 +235,7 @@ export const createPlaygroundStore = (
           {
             ...instance,
             id: playgroundInstanceIdIndex++,
+            activeRunId: null,
           },
         ],
       });
@@ -247,6 +277,45 @@ export const createPlaygroundStore = (
             return {
               ...instance,
               ...patch,
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    runPlaygroundInstances: () => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => ({
+          ...instance,
+          activeRunId: playgroundRunIdIndex++,
+          isRunning: true,
+        })),
+      });
+    },
+    runPlaygroundInstance: (instanceId: number) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              activeRunId: playgroundRunIdIndex++,
+              isRunning: true,
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    markPlaygroundInstanceComplete: (instanceId: number) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              isRunning: false,
             };
           }
           return instance;

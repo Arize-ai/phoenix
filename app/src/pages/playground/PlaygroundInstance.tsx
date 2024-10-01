@@ -36,7 +36,7 @@ export function PlaygroundInstance(props: PlaygroundInstanceProps) {
       />
       <Panel defaultSize={50} order={2} css={panelContentCSS}>
         <PlaygroundInput />
-        <PlaygroundOutput />
+        <PlaygroundOutput {...props} />
       </Panel>
     </PanelGroup>
   );

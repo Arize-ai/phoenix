@@ -47,6 +47,7 @@ from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.schema import BaseSchema
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
 import phoenix
@@ -557,6 +558,7 @@ def create_graphql_router(
         include_in_schema=False,
         prefix="/graphql",
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
+        subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
     )
 
 
