@@ -33,6 +33,8 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+  "mypy",
+  "pytest",
   "ruff",
 ]
 
