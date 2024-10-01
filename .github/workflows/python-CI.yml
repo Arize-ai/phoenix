@@ -200,5 +200,4 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv tool install tox --with tox-uv
       - run: tox r -e ci_integration_test
-        if: matrix.act == 'integration'
         timeout-minutes: 15
