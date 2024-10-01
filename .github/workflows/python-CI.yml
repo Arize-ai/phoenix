@@ -30,6 +30,7 @@ jobs:
       phoenix: ${{ steps.filter.outputs.phoenix }}
       packages: ${{ steps.filter.outputs.packages }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -46,17 +47,47 @@ jobs:
               - "packages/**"
             phoenix_evals:
               - "packages/phoenix-evals/**"
+            phoenix_otel:
+              - "packages/phoenix-otel/**"
 
   phoenix-evals:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9 ]
+        py: [ 3.9, 3.12 ]
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: packages/phoenix-evals
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv sync --extra test
+      - run: uv run ruff format --diff .
+      - run: uv run ruff check --no-fix .
+      - run: uv run mypy src
+      - run: uv run pytest -n auto -x -ra tests
+        timeout-minutes: 15
+
+  phoenix-otel:
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.9, 3.12 ]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/phoenix-otel
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
