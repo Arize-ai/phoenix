@@ -127,10 +127,10 @@ jobs:
       - run: uv sync --extra test
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: uv run pytest -x -ra . --run-postgres
+      - run: uv run pytest -x -ra tests --run-postgres
         if: runner.os == 'Linux'
         timeout-minutes: 15
-      - run: uv run pytest -n auto -x -ra .
+      - run: uv run pytest -n auto -x -ra tests
         if: runner.os != 'Linux'
         timeout-minutes: 15
 
