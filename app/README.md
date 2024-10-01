@@ -20,13 +20,13 @@ To develop the UI, you must run the `app` in conjunction with the backend server
 pnpm run dev
 ```
 
-Before running the script above you should configure your running environment by creating a `.env` file in the root of the project. You can find an example of the `.env` file in the `.env.example` file.
+Before running the script above you should configure your running environment by creating a `.env` file besides the `.env.example` file in the root of this project. You can find an example of the `.env` file in the `.env.example` file.
 
-Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the (package.json)[./package.json] file so that the server is serving the appropriate fixture data.
+Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the [package.json](./package.json) file so that the server is serving the appropriate fixture data.
 
 ## Build
 
-The app is written in `typescript` and leverages [esbuild](https://esbuild.github.io/) as well as the (relay-compiler)[https://relay.dev/docs/guides/compiler/] to compile highly efficient `graphql` queries. Because of this, the build script involves:
+The app is written in `typescript` and leverages [esbuild](https://esbuild.github.io/) as well as the [relay-compiler](https://relay.dev/docs/guides/compiler/) to compile highly efficient `graphql` queries. Because of this, the build script involves:
 
 1. Building the `javascript` and `css` assets using `esbuild`
 2. Building the compiled graphql queries using the `relay-compiler`
