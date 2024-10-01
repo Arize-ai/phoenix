@@ -153,7 +153,7 @@ test = [
   "opentelemetry-sdk",
   "opentelemetry-semantic-conventions",
   "pandas",
-  "pandas-stubs",
+  "pandas-stubs==2.2.2.240603",
   "pandas>=1.0",
   "portpicker",
   "prometheus_client",

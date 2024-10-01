@@ -548,7 +548,7 @@ requires-dist = [
     { name = "pandas", marker = "extra == 'test'" },
     { name = "pandas", marker = "extra == 'test'", specifier = ">=1.0" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = "==2.2.2.240603" },
-    { name = "pandas-stubs", marker = "extra == 'test'" },
+    { name = "pandas-stubs", marker = "extra == 'test'", specifier = "==2.2.2.240603" },
     { name = "portpicker", marker = "extra == 'dev'" },
     { name = "portpicker", marker = "extra == 'test'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
