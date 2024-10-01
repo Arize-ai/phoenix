@@ -52,6 +52,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
+        ci: [ format, lint, type, test ]
         py: [ 3.9, 3.12 ]
     runs-on: ubuntu-latest
     defaults:
@@ -65,8 +66,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - run: uv tool install tox --with tox-uv
-      - run: tox r
+      - run: uv sync --extra test
+      - run: uv run mypy src
+        if: matrix.ci == 'type'
+        timeout-minutes: 15
+      - run: uv run ruff format --diff .
+        if: matrix.ci == 'format'
+        timeout-minutes: 15
+      - run: uv run ruff check --no-fix .
+        if: matrix.ci == 'lint'
+        timeout-minutes: 15
+      - run: uv run pytest -n auto -x -ra tests
+        if: matrix.ci == 'test'
         timeout-minutes: 15
 
   lint:
