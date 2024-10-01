@@ -1,9 +1,11 @@
 import React from "react";
+import { css } from "@emotion/react";
 
 import { Card, TextArea } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
@@ -22,11 +24,26 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   }
 
   return (
-    <ul>
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-200);
+        padding: var(--ac-global-dimension-size-200);
+      `}
+    >
       {template.messages.map((message, index) => {
         return (
           <li key={index}>
-            <Card title={message.role} variant="compact">
+            <Card
+              // @ts-expect-error allow the rendering of elements as titles
+              title={
+                <MessageRolePicker includeLabel={false} role={message.role} />
+              }
+              variant="compact"
+              backgroundColor="light"
+              borderColor="light"
+            >
               <TextArea
                 height={100}
                 value={message.content}

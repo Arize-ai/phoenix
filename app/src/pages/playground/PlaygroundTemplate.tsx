@@ -16,11 +16,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const runPlaygroundInstance = usePlaygroundContext(
     (state) => state.runPlaygroundInstance
   );
-  const playground = instances.find((instance) => instance.id === instanceId);
-  if (!playground) {
+  const instance = instances.find((instance) => instance.id === instanceId);
+  if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
-  const { template } = playground;
+  const { template } = instance;
 
   return (
     <Card
@@ -41,16 +41,24 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       ) : (
         "Completion Template"
       )}
-      <View padding="size-100" borderTopColor="dark" borderTopWidth="thin">
-        <Flex direction="row" gap="size-100" alignItems="end">
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderTopColor="dark"
+        borderTopWidth="thin"
+      >
+        <Flex direction="row" gap="size-100" justifyContent="end">
           <Button
             variant="primary"
-            size="compact"
+            icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+            loading={instance.isRunning}
             onClick={() => {
               runPlaygroundInstance(instanceId);
             }}
           >
-            Run
+            {instance.isRunning ? "Running..." : "Run"}
           </Button>
         </Flex>
       </View>
