@@ -37,7 +37,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
         <View padding="size-200">
           <Flex direction="row" gap="size-100" alignItems="end">
             <TextField label="API Key" isReadOnly value={jwt} minWidth="100%" />
-            <CopyToClipboardButton text={jwt} size="normal" />
+            <CopyToClipboardButton text={jwt} size="default" />
           </Flex>
         </View>
         <View padding="size-200" borderTopColor="light" borderTopWidth="thin">

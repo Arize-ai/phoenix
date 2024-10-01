@@ -25,7 +25,7 @@ export function PlaygroundInputTypeTypeRadioGroup() {
         Manual
       </Radio>
       <Radio label="Dataset" value={"dataset"}>
-        dataset
+        Dataset
       </Radio>
     </RadioGroup>
   );
