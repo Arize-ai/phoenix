@@ -69,18 +69,18 @@ dynamic = ["version"]
 dev = [
   "gcsfs",
   "hatch",
-  "tox==4.20.0",
-  "tox-uv==1.13.0",
-  "uv==0.4.17",
+  "tox",
+  "tox-uv",
+  "uv",
   "jupyter",
   "nbqa",
-  "ruff==0.6.8",
-  "mypy==1.11.2",
+  "ruff",
+  "mypy",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs",
-  "pytest==8.3.3",
+  "pytest",
   "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
@@ -97,7 +97,7 @@ dev = [
   "anthropic",
   "prometheus_client",
   "asgi-lifespan",
-  "Faker>=26.0.0",
+  "Faker",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
@@ -129,7 +129,7 @@ container = [
   "uvloop; platform_system != 'Windows'",
 ]
 test = [
-  "Faker>=30.0.0",
+  "Faker",
   "arize",
   "asgi-lifespan",
   "asyncpg",
@@ -160,7 +160,7 @@ test = [
   "pytest-randomly",
   "pytest-smtpd",
   "pytest-xdist",
-  "pytest==8.3.3",
+  "pytest",
   "responses",
   "respx", # For OpenAI testing
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
@@ -169,8 +169,8 @@ test = [
   "uvloop; platform_system != 'Windows'",
 ]
 check = [
-  "Faker>=30.0.0",
-  "mypy==1.11.2",
+  "Faker",
+  "mypy",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
@@ -186,7 +186,7 @@ check = [
   "pytest",
   "pytest-smtpd",
   "requests",  # this is needed to type-check third-party packages
-  "ruff==0.6.8",
+  "ruff",
   "strawberry-graphql[cli,debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "types-beautifulsoup4",
   "types-cachetools",
@@ -245,7 +245,7 @@ dependencies = [
   "numpy",
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
-  "pytest==8.3.3",
+  "pytest",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -266,16 +266,16 @@ dependencies = [
   "nest-asyncio", # for executor testing
   "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
   "asgi-lifespan",
-  "Faker>=26.0.0",
+  "Faker",
   "uvloop; platform_system != 'Windows'",
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "Faker>=30.0.0",
+  "Faker",
   "grpcio",
   "litellm>=1.0.3",
-  "mypy==1.11.2",
+  "mypy",
   "openai>=1.0.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
@@ -310,7 +310,7 @@ python = ["3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.8",
+  "ruff",
 ]
 
 [[tool.hatch.envs.style.matrix]]
