@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.8.1",
+    "@arizeai/components": "^1.8.3",
     "@arizeai/openinference-semantic-conventions": "^0.10.0",
     "@arizeai/point-cloud": "^3.0.6",
     "@codemirror/autocomplete": "6.12.0",
@@ -58,7 +58,7 @@
     "@types/jest": "^29.5.12",
     "@types/lodash": "^4.17.7",
     "@types/node": "^22.5.4",
-    "@types/react": "18.2.48",
+    "@types/react": "^18.3.10",
     "@types/react-dom": "^18.3.0",
     "@types/react-relay": "^16.0.6",
     "@types/recharts": "^1.8.29",

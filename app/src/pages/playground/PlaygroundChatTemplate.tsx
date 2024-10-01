@@ -36,7 +36,6 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         return (
           <li key={index}>
             <Card
-              // @ts-expect-error allow the rendering of elements as titles
               title={
                 <MessageRolePicker includeLabel={false} role={message.role} />
               }

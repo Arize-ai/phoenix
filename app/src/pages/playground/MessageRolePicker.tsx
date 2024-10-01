@@ -35,7 +35,7 @@ export function MessageRolePicker({
       label="Role"
       data-testid="inferences-time-range"
       aria-label={`Time range for the primary inferences`}
-      addonBefore={"role"}
+      size="compact"
       onSelectionChange={() => {}}
     >
       <Item key="system">System</Item>

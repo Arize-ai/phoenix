@@ -1,6 +1,17 @@
 import React from "react";
 
-import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
+import {
+  Button,
+  Card,
+  Content,
+  Flex,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -83,13 +94,20 @@ function CompareButton() {
 function DeleteButton(props: PlaygroundInstanceProps) {
   const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
   return (
-    <Button
-      variant="default"
-      size="compact"
-      icon={<Icon svg={<Icons.TrashOutline />} />}
-      onClick={() => {
-        deleteInstance(props.playgroundInstanceId);
-      }}
-    />
+    <TooltipTrigger>
+      <TriggerWrap>
+        <Button
+          variant="default"
+          size="compact"
+          icon={<Icon svg={<Icons.TrashOutline />} />}
+          onClick={() => {
+            deleteInstance(props.playgroundInstanceId);
+          }}
+        />
+      </TriggerWrap>
+      <Tooltip>
+        <Content>Delete this instance of the playground</Content>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
