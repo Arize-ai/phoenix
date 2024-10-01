@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.1.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.2...arize-phoenix-v5.1.3) (2024-10-01)
+
+
+### Bug Fixes
+
+* Add padding to empty dataset list ([#4812](https://github.com/Arize-ai/phoenix/issues/4812)) ([#4822](https://github.com/Arize-ai/phoenix/issues/4822)) ([41e9a2c](https://github.com/Arize-ai/phoenix/commit/41e9a2c84314b3537053a4038a7eb1d6f08e611d))
+* Implement simple email sender to simplify dependencies ([#4815](https://github.com/Arize-ai/phoenix/issues/4815)) ([f56cdb8](https://github.com/Arize-ai/phoenix/commit/f56cdb86136f9cb0af05edfeddd35ba2a0c524c4))
+
 ## [5.1.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.1...arize-phoenix-v5.1.2) (2024-09-30)
 
 
