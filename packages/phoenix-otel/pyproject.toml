@@ -33,6 +33,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+  "ruff",
 ]
 
 [project.urls]
