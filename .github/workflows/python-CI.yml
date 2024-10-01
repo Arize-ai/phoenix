@@ -139,19 +139,46 @@ jobs:
       - run: tox r -e ci_type_check
         if: matrix.act == 'type'
 
-  tests:
+  unit-tests:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        act: [ unit, integration ]
+        py: [ 3.9, 3.12 ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv tool install tox --with tox-uv
+      - run: sudo apt-get -yqq install postgresql
+        if: runner.os == 'Linux'
+      - run: tox r -e ci_unit_test_linux
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+      - run: tox r -e ci_unit_test_non_linux
+        if: runner.os != 'Linux'
+        timeout-minutes: 15
+
+  integration-tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
         py: [ 3.9, 3.12 ]
         os: [ ubuntu-latest, windows-latest, macos-12 ]
     runs-on: ${{ matrix.os }}
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ matrix.os == 'ubuntu-latest' && matrix.act == 'integration-test' && 'postgres:12' || '' }}
+        image: ${{ matrix.os == 'ubuntu-latest' && 'postgres:12' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
@@ -172,14 +199,6 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv tool install tox --with tox-uv
-      - run: sudo apt-get -yqq install postgresql
-        if: matrix.act == 'unit' && runner.os == 'Linux'
-      - run: tox r -e ci_unit_test_linux
-        if: matrix.act == 'unit' && runner.os == 'Linux'
-        timeout-minutes: 15
-      - run: tox r -e ci_unit_test_non_linux
-        if: matrix.act == 'unit' && runner.os != 'Linux'
-        timeout-minutes: 15
       - run: tox r -e ci_integration_test
         if: matrix.act == 'integration'
         timeout-minutes: 15
