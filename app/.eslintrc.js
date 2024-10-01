@@ -15,11 +15,18 @@ module.exports = {
     ecmaVersion: "latest",
     sourceType: "module",
   },
-  plugins: ["react", "react-hooks", "simple-import-sort", "@typescript-eslint"],
+  plugins: [
+    "react",
+    "react-hooks",
+    "simple-import-sort",
+    "@typescript-eslint",
+    "eslint-plugin-react-compiler",
+  ],
   rules: {
     "react/no-unknown-property": ["error", { ignore: ["css"] }],
     "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
     "react-hooks/exhaustive-deps": "error", // Checks effect dependencies
+    "react-compiler/react-compiler": "error",
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "no-console": "error",
     "simple-import-sort/imports": [

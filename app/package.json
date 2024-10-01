@@ -70,6 +70,7 @@
     "esbuild-jest": "^0.5.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.4",
+    "eslint-plugin-react-compiler": "0.0.0-experimental-42acc6a-20241001",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^16.9.0",
