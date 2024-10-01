@@ -129,10 +129,10 @@ jobs:
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
       - run: uv tool install tox --with tox-uv
-      - run: tox r -e ci_unit_test-linux
+      - run: tox r -e ci_unit_test_linux
         if: runner.os == 'Linux'
         timeout-minutes: 15
-      - run: tox r -e ci_unit_test-non_linux
+      - run: tox r -e ci_unit_test_non_linux
         if: runner.os != 'Linux'
         timeout-minutes: 15
 
