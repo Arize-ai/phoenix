@@ -52,7 +52,6 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
-        ci: [ format, lint, type-check, unit-test ]
         py: [ 3.9 ]
     runs-on: ubuntu-latest
     defaults:
@@ -60,24 +59,20 @@ jobs:
         working-directory: packages/phoenix-evals
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with:
-          version: 0.4.17
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv sync --extra test
       - run: uv run ruff format --diff .
-        if: matrix.act == 'format'
-        timeout-minutes: 15
       - run: uv run ruff check --no-fix .
-        if: matrix.act == 'lint'
-        timeout-minutes: 15
       - run: uv run mypy src
-        if: matrix.act == 'type-check'
-        timeout-minutes: 15
       - run: uv run pytest -n auto -x -ra tests
-        if: matrix.act == 'unit-test'
         timeout-minutes: 15
 
   lint:
@@ -126,6 +121,7 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv tool install tox --with tox-uv
       - run: tox r -e ci_checks
       - run: git diff --exit-code
@@ -148,6 +144,7 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv tool install tox --with tox-uv
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
@@ -189,6 +186,7 @@ jobs:
           version: 0.4.17
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv tool install tox --with tox-uv
       - run: tox r -e ci_integration_tests
         timeout-minutes: 15
