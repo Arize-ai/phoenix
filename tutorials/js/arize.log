@@ -1,0 +1,86 @@
+🏃‍♀️‍➡️ Running migrations on the database.
+---------------------------
+2024-10-01 16:43:01,883 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2024-10-01 16:43:01,883 INFO sqlalchemy.engine.Engine PRAGMA main.table_info("alembic_version")
+2024-10-01 16:43:01,883 INFO sqlalchemy.engine.Engine [raw sql] ()
+2024-10-01 16:43:01,885 INFO sqlalchemy.engine.Engine SELECT alembic_version.version_num 
+FROM alembic_version
+2024-10-01 16:43:01,885 INFO sqlalchemy.engine.Engine [generated in 0.00010s] ()
+2024-10-01 16:43:01,888 INFO sqlalchemy.engine.Engine COMMIT
+---------------------------
+✅ Migrations complete.
+INFO:     Started server process [93957]
+INFO:     Waiting for application startup.
+
+
+██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
+██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
+██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
+██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
+██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v5.1.2
+
+|
+|  🌎 Join our Community 🌎
+|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+|
+|  ⭐️ Leave us a Star ⭐️
+|  https://github.com/Arize-ai/phoenix
+|
+|  📚 Documentation 📚
+|  https://docs.arize.com/phoenix
+|
+|  🚀 Phoenix Server 🚀
+|  Phoenix UI: http://0.0.0.0:6006
+|  Authentication: False
+|  Log traces:
+|    - gRPC: http://0.0.0.0:4317
+|    - HTTP: http://0.0.0.0:6006/v1/traces
+|  Storage: sqlite:////Users/mikeldking/.phoenix/phoenix.db
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:6006 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63825 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63825 - "GET /assets/vendor-DxkFTwjz.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63827 - "GET /assets/vendor-three-DwGkEfCM.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63827 - "GET /assets/vendor-D8cj1ZYg.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63825 - "GET /assets/vendor-arizeai-BU1VHwXB.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63825 - "GET /assets/vendor-codemirror-BDMHmh1x.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63827 - "GET /assets/components-kDs-2MkV.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63827 - "GET /assets/vendor-recharts-BATX_8yP.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63827 - "GET /assets/pages-B-Jlkxqw.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63825 - "GET /assets/index-C2ConZEF.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:63825 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63870 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63913 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63955 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63999 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64043 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64085 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64226 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64261 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64304 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64346 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64388 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64430 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64472 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64631 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64910 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65242 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65493 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49359 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49609 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49858 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50119 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50367 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50629 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50882 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51129 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51383 - "POST /graphql HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [93957]
