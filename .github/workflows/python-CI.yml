@@ -164,6 +164,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
+      - run: uv tool install tox --with tox-uv
       - run: tox r -e ci_format
         if: matrix.act == 'format'
         timeout-minutes: 15
@@ -184,27 +185,4 @@ jobs:
         timeout-minutes: 15
       - run: tox r -e ci_integration_test
         if: matrix.act == 'integration-test'
-        timeout-minutes: 15
-
-  integration-test:
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macos-12 ]
-        py: [ 3.9, 3.12 ]
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v3
-        with:
-          version: 0.4.17
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - run: uv tool install tox --with tox-uv
-      - run: tox r -e ci_integration_test
         timeout-minutes: 15
