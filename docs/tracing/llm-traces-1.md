@@ -6,11 +6,9 @@ Tracing is a powerful tool for understanding the behavior of your LLM applicatio
 
 This example will walk you through how to use Phoenix to trace OpenAI requests.
 
-
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing_quickstart_openai.ipynb" %}
 
 ### Overview
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing_quickstart_openai.ipynb" %}
 
 ```python
 !pip install -q "arize-phoenix>=4.29.0"
