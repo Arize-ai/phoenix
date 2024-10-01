@@ -21,8 +21,6 @@ sdist
 
 # Testing
 coverage.xml
-.tox
-.venv
 
 # devtools
 pyrightconfig.json
@@ -35,3 +33,4 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 # python environments
 .conda
 .venv
+.tox
