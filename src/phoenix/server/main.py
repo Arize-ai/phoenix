@@ -374,7 +374,7 @@ def main() -> None:
             username=mail_username,
             password=mail_password,
             sender_email=sender_email,
-            use_tls=True,
+            connection_method="STARTTLS",
             validate_certs=get_env_smtp_validate_certs(),
         )
     app = create_app(

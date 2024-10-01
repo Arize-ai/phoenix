@@ -3,6 +3,7 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 from pathlib import Path
+from typing import Literal
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -17,7 +18,7 @@ class SimpleEmailSender:
         username: str,
         password: str,
         sender_email: str,
-        use_tls: bool = True,
+        connection_method: Literal["STARTTLS", "SSL", "PLAIN"] = "STARTTLS",
         validate_certs: bool = True,
     ) -> None:
         self.smtp_server = smtp_server
@@ -25,7 +26,7 @@ class SimpleEmailSender:
         self.username = username
         self.password = password
         self.sender_email = sender_email
-        self.use_tls = use_tls
+        self.connection_method = connection_method.upper()
         self.validate_certs = validate_certs
 
         self.env = Environment(
@@ -57,14 +58,40 @@ class SimpleEmailSender:
             else:
                 context = ssl._create_unverified_context()
 
-            if self.use_tls:
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-                server.starttls(context=context)
-            else:
-                server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context)
+            methods_to_try = [self.connection_method]
+            # add secure method fallbacks
+            if self.connection_method != "PLAIN":
+                if self.connection_method != "STARTTLS":
+                    methods_to_try.append("STARTTLS")
+                elif self.connection_method != "SSL":
+                    methods_to_try.append("SSL")
 
-            server.login(self.username, self.password)
-            server.send_message(msg)
-            server.quit()
+            for method in methods_to_try:
+                try:
+                    if method == "STARTTLS":
+                        server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+                        server.ehlo()
+                        server.starttls(context=context)
+                        server.ehlo()
+                    elif method == "SSL":
+                        server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context)
+                        server.ehlo()
+                    elif method == "PLAIN":
+                        server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+                        server.ehlo()
+                    else:
+                        continue  # Unsupported method
+
+                    if self.username and self.password:
+                        server.login(self.username, self.password)
+
+                    server.send_message(msg)
+                    server.quit()
+                    break  # Success
+                except Exception as e:
+                    print(f"Failed to send email using {method}: {e}")
+                    continue
+            else:
+                raise Exception("All connection methods failed")
 
         await asyncio.to_thread(send_email)
