@@ -22,13 +22,18 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: playground
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
-      - run: pip install tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e test-integration_tests
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.17
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv tool install tox --with tox-uv
+      - run: tox r -e ci_integration_tests
+        timeout-minutes: 15
       - uses: slackapi/slack-github-action@v1
         if: failure()
         env:
