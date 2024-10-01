@@ -134,13 +134,10 @@ jobs:
       - run: uv tool install tox --with tox-uv
       - run: tox r -e ci_format
         if: matrix.act == 'format'
-        timeout-minutes: 15
       - run: tox r -e ci_lint
         if: matrix.act == 'lint'
-        timeout-minutes: 15
       - run: tox r -e ci_type_check
         if: matrix.act == 'type'
-        timeout-minutes: 15
 
   tests:
     needs: changes
@@ -149,7 +146,7 @@ jobs:
       matrix:
         act: [ unit, integration ]
         py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
     runs-on: ${{ matrix.os }}
     services:
       postgres:
