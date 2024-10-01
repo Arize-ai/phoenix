@@ -68,7 +68,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.17
-      - run: uv sync --extra test
+      - run: uv sync --no-cache --extra test
       - run: uv pip list
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
@@ -94,7 +94,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.17
-      - run: uv sync --extra test
+      - run: uv sync --no-cache --extra test
       - run: uv run ruff format --diff .
       - run: uv run ruff check --no-fix .
       - run: uv run mypy -p phoenix.otel
