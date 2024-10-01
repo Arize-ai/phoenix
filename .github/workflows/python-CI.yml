@@ -155,7 +155,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: sudo apt-get -yqq install postgresql
         if: runner.os == 'Linux'
-      - run: uv sync --frozen --no-dev --extra test
+      - run: uv sync --frozen --no-dev --extra check
       - run: uv pip list
       - run: uv run pytest -x -ra tests/unit --run-postgres
         if: runner.os == 'Linux'
