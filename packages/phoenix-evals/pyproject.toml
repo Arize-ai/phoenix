@@ -38,20 +38,26 @@ dev = [
   "mistralai<1",
 ]
 test = [
-  "openinference-semantic-conventions",
-  "pandas",
-  "tqdm",
-  "typing-extensions>=4.5, <5",
   "anthropic>=0.18.0",
   "boto3",
   "litellm>=1.28.9",
-  "openai>=1.0.0",
   "mistralai<1",
-  "vertexai",
-  "respx",
+  "mypy",
   "nest_asyncio",
+  "openai>=1.0.0",
+  "openinference-semantic-conventions",
+  "pandas",
   "pandas-stubs<=2.0.2.230605",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-xdist",
+  "respx",
+  "ruff",
+  "tqdm",
   "types-tqdm",
+  "typing-extensions>=4.5, <5",
+  "vertexai",
 ]
 
 [project.urls]
