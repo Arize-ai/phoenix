@@ -168,9 +168,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: yezz123/setup-uv@v4
-        with:
-          uv-version: 0.4.8
-          uv-venv: ${{ github.job }}-${{ github.run_number }}
       - run: uv run pytest -n auto -x -ra .
         timeout-minutes: 15
