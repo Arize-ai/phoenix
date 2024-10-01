@@ -116,14 +116,16 @@ function DatasetsListBox(props: {
   const isEmpty = datasets.length === 0;
   if (isEmpty) {
     return (
-      <Flex
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-        flex="1 1 auto"
-      >
-        <Text>No datasets found</Text>
-      </Flex>
+      <View padding="size-200">
+        <Flex
+          direction="column"
+          justifyContent="center"
+          alignItems="center"
+          flex="1 1 auto"
+        >
+          <Text>No datasets found</Text>
+        </Flex>
+      </View>
     );
   }
   return (
