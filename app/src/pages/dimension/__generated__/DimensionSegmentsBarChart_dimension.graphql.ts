@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ae089f7906c7774b11bb8fab6f9d7c81>>
+ * @generated SignedSource<<d48042fb561ed08a8d772a800d5fdc36>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionSegmentsBarChart_dimension$data = {
   readonly id: string;

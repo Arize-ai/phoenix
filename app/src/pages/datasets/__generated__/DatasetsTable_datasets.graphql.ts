@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f10fbd896f47cd64471075f4f1f24f48>>
+ * @generated SignedSource<<e59ce39d300c6dc278700848a4a6706c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetsTable_datasets$data = {
   readonly datasets: {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fed518c0b30d6d9dac45653f93c43a63>>
+ * @generated SignedSource<<f76c870b6b0dcc366713f0a3ce3c8511>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetSelectorPopoverContentQuery$variables = Record<PropertyKey, never>;
 export type DatasetSelectorPopoverContentQuery$data = {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a4a3188884ba01b55a83dab79eb7d5d>>
+ * @generated SignedSource<<d6fd217ea6bf4df9220f59dcc472356e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type AuthMethod = "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type UsersTable_users$data = {

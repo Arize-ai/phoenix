@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24ac28c3b89913f501fdf6249aa26ca8>>
+ * @generated SignedSource<<5397d0a87bb36a7366d60b3e8824cb35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type experimentsLoaderQuery$variables = {
   id: string;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd029bdb4d270e271279fce055881bec>>
+ * @generated SignedSource<<6a907355fe3c8d19c60ce62c2b921099>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type homeLoaderQuery$variables = Record<PropertyKey, never>;
 export type homeLoaderQuery$data = {
   readonly functionality: {

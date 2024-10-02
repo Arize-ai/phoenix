@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<102514678a19714e71666c0dd876b04f>>
+ * @generated SignedSource<<205f8f44362e395ad31a61862e78da59>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type PointSelectionPanelContentQuery$variables = {
   corpusEventIds: ReadonlyArray<string>;

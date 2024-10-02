@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0427d5f2407bf3cbf72f3f89525e4530>>
+ * @generated SignedSource<<9fa8876a7a66fb69c61ba3f147e94154>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteExperimentsInput = {
   experimentIds: ReadonlyArray<string>;
 };

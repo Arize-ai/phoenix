@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4cb99918ca2e3b7c9b4640637646016>>
+ * @generated SignedSource<<12888f091593de6a8048e63cf2797410>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ClusterInput = {
   eventIds: ReadonlyArray<string>;
   id?: string | null;

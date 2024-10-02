@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f686e63ad3a443d2925f6f2ffe5ec31>>
+ * @generated SignedSource<<1c2fa0dea0a39f67a6600c758caf2c9b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableFragment$data = {

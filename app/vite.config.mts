@@ -5,7 +5,10 @@ import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
 export default defineConfig(({ command }) => {
-  const plugins = [react(), relay];
+  const plugins = [
+    react({ babel: { plugins: [["babel-plugin-react-compiler"]] } }),
+    relay,
+  ];
   // Development uses the serve command
   if (command === "serve") {
     plugins.push(visualizer());

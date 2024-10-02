@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5930c1dbf55baf0619403784534be419>>
+ * @generated SignedSource<<442b50623dde78139150e2b2eef9c0dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExampleDetailsDialogQuery$variables = {
   exampleId: string;

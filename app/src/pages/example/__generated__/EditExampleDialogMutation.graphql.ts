@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a846d19aaf7f4801d88e115d6bac11e3>>
+ * @generated SignedSource<<bf0a81d1bfb28b3ba968c91c1bf4ddb6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PatchDatasetExamplesInput = {
   patches: ReadonlyArray<DatasetExamplePatch>;
   versionDescription?: string | null;

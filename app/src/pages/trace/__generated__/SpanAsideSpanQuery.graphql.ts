@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6dabf94682f3c879102ec3789967d9d1>>
+ * @generated SignedSource<<72f71ab2a306ed90250e9e5fc6072754>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SpanAsideSpanQuery$variables = {
   id: string;

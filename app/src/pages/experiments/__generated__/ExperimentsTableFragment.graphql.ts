@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cdbc683c7949bda364880e4141ebc163>>
+ * @generated SignedSource<<9802d63232cb94fe44c76458925e772f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableFragment$data = {
   readonly experimentAnnotationSummaries: ReadonlyArray<{

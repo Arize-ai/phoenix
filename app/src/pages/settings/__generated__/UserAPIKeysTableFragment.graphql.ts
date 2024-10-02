@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ab506ae52c1c40fa958523016b09314>>
+ * @generated SignedSource<<51a8c0f9909f874fbdd5ff76d0772f57>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type UserAPIKeysTableFragment$data = {
   readonly userApiKeys: ReadonlyArray<{

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24b9c24519f1a66f81e0652fdcc2b20a>>
+ * @generated SignedSource<<e587617c3bbab837c62ee74405dae9de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
 export type ClusterInput = {
   eventIds: ReadonlyArray<string>;

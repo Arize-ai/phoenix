@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a35a69be7743f3be46d55a6554634a5b>>
+ * @generated SignedSource<<a52546790a5dd547bdbb894d21e6a7ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionCountStats_dimension$data = {
   readonly count: number | null;

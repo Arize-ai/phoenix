@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b125443b2248e14e5f864d50de28bae6>>
+ * @generated SignedSource<<757af1f9a6f573a29da962d02c5b9560>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelEmbeddingsTable_embeddingDimensions$data = {
   readonly model: {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1c1ddc4e1064fa3fb7ae65dfe48eada>>
+ * @generated SignedSource<<621d14a0b91e636f573d99f1ab1a5aaf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EmbeddingPageModelQuery$variables = Record<PropertyKey, never>;
 export type EmbeddingPageModelQuery$data = {

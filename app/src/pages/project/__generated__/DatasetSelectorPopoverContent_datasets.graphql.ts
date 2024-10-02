@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18668bc6fc461e2b10eb02b248e07d33>>
+ * @generated SignedSource<<5886b2d3225558ed3b42506e73ff388e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetSelectorPopoverContent_datasets$data = {
   readonly datasets: {

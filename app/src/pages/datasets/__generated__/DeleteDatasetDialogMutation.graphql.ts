@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75c393b1d6d1d353271b06c3e1a7edf1>>
+ * @generated SignedSource<<1d3019220f8469d2b28ab1e8d54cf2ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetDialogMutation$variables = {
   datasetId: string;
 };

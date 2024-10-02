@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01d86be78c16abd5b9e41431b756515e>>
+ * @generated SignedSource<<ad5fb0e53951bb75aeb156d374165de3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type CreateSpanAnnotationInput = {

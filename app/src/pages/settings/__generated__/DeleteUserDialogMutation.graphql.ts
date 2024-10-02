@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5fa2c9e899d0fc2d6e37f1f7a047e870>>
+ * @generated SignedSource<<dc479fe49dbe6c4db136d7a9a5b891de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteUsersInput = {
   userIds: ReadonlyArray<string>;
 };

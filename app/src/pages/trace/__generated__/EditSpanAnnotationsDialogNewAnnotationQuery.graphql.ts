@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7bd3b66f032d694c40dd872253a11b40>>
+ * @generated SignedSource<<e50ec692c78ebf9f9d9421cf0762d142>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type EditSpanAnnotationsDialogNewAnnotationQuery$variables = {
   projectId: string;

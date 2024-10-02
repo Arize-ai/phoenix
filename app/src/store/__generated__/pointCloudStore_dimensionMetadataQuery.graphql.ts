@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f4f811563b92a600fd003c5b45a23d0>>
+ * @generated SignedSource<<3e1dd75162b52bb7545073c8d6db2e64>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type pointCloudStore_dimensionMetadataQuery$variables = {
   getDimensionCategories: boolean;
   getDimensionMinMax: boolean;

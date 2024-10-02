@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfac9c9516673da3fe8d7a43b5d46e5f>>
+ * @generated SignedSource<<b0cf890478c5f65fb40e119c4af162af>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelPageQuery$variables = {
   endTime: string;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5496aa01511684dacbbf9339c68f1593>>
+ * @generated SignedSource<<5d4f790f3704b5d35b5ce3f26e3da3b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type ExperimentCompareTableQuery$variables = {
   datasetId: string;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fe477d07c9d27153925d782fe46a0505>>
+ * @generated SignedSource<<fa7125c23c9fb36eb0c4e50d3efe9600>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PatchViewerInput = {
   currentPassword?: string | null;
   newPassword?: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<69138674d0e192eab0760f01ea7549a8>>
+ * @generated SignedSource<<7ef464e58de44561a1b2fb1aaaae5f35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ModelRootQuery$variables = Record<PropertyKey, never>;
 export type ModelRootQuery$data = {
   readonly model: {

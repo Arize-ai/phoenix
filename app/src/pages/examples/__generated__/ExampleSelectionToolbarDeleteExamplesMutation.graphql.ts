@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c13e6b9355125ee3ffbd7b8ac0278c41>>
+ * @generated SignedSource<<d89d35b32d6cbd6f5351ea7cb816bbf3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetExamplesInput = {
   datasetVersionDescription?: string | null;
   datasetVersionMetadata?: any | null;

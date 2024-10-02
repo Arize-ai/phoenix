@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35d6602bb5de9673d6051e8435624b27>>
+ * @generated SignedSource<<f5b76e6fdd32034bff8f64dfddc5d8f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryValueFragment$data = {
   readonly id: string;

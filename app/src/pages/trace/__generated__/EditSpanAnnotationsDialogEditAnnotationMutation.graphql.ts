@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b0da90f723d3826fb86f96006830d128>>
+ * @generated SignedSource<<65e3ea6a5d9aded351e5b5aa1725aff0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EditSpanAnnotationsDialogEditAnnotationMutation$variables = {
   annotationId: string;

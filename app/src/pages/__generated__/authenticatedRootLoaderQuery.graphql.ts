@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b60e823c28195489be2e021960df6d6>>
+ * @generated SignedSource<<031f1eb9eeda4ad3320821602744e74c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type authenticatedRootLoaderQuery$variables = Record<PropertyKey, never>;
 export type authenticatedRootLoaderQuery$data = {

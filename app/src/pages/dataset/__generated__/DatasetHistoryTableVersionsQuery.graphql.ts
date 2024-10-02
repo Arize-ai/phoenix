@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5114d208403aa32fcf77a6d3d50606d2>>
+ * @generated SignedSource<<493cbbd77b909ef54400b8606c21cce9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetHistoryTableVersionsQuery$variables = {
   after?: string | null;

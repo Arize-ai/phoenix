@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<491bb853272e68087b640be8278bb186>>
+ * @generated SignedSource<<8b8c2eb1593d323a6ba002934ac62a77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetHistoryTable_versions$data = {
   readonly id: string;
