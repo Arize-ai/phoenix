@@ -15,6 +15,7 @@
         "conda",
         "dataframe",
         "dbutils",
+        "Deno",
         "dunder",
         "Evals",
         "fastapi",
