@@ -48,6 +48,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
+from phoenix.utilities.json import jsonify
 
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
@@ -194,7 +195,7 @@ def encode_span_to_otlp(span: Span) -> otlp.Span:
         elif isinstance(value, Mapping):
             attributes.pop(key, None)
             if key.endswith(JSON_STRING_ATTRIBUTES):
-                attributes[key] = json.dumps(value)
+                attributes[key] = json.dumps(jsonify(value))
             else:
                 attributes.update(
                     flatten(
