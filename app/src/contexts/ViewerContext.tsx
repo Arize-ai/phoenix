@@ -42,6 +42,7 @@ export function ViewerProvider({
           role {
             name
           }
+          authMethod
           ...APIKeysTableFragment
         }
       }

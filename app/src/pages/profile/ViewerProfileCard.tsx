@@ -81,15 +81,17 @@ export function ViewerProfileCard() {
       variant="compact"
       bodyStyle={{ padding: 0 }}
       extra={
-        <Button
-          variant="default"
-          size="compact"
-          onClick={() => {
-            navigate("/reset-password");
-          }}
-        >
-          Reset Password
-        </Button>
+        viewer.authMethod === "LOCAL" && (
+          <Button
+            variant="default"
+            size="compact"
+            onClick={() => {
+              navigate("/reset-password");
+            }}
+          >
+            Reset Password
+          </Button>
+        )
       }
     >
       <View paddingTop="size-200" paddingStart="size-200" paddingEnd="size-200">
