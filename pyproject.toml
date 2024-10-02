@@ -274,6 +274,7 @@ addopts = [
   "--doctest-modules",
   "--new-first",
   "--showlocals",
+#  "--ignore=integration_tests",
 ]
 testpaths = [
   "tests",
