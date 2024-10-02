@@ -166,6 +166,7 @@ exclude = [
   "integration_tests/",
   "scripts/",
   "examples/",
+  "js/",
 ]
 artifacts = [
   "src/phoenix/server/static",
@@ -398,6 +399,7 @@ exclude = [
   "src/phoenix/evals/",
   "tests/",
   "tutorials/",
+  "js/",
 ]
 
 [[tool.mypy.overrides]]
