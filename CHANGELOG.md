@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.1.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.3...arize-phoenix-v5.1.4) (2024-10-02)
+
+
+### Bug Fixes
+
+* handle `ndarray` for `json.dumps` in `encode_span_to_otlp` ([#4838](https://github.com/Arize-ai/phoenix/issues/4838)) ([ae864d9](https://github.com/Arize-ai/phoenix/commit/ae864d9855a55a1a830ead2c5326e118f661ebd4))
+
 ## [5.1.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.2...arize-phoenix-v5.1.3) (2024-10-01)
 
 
