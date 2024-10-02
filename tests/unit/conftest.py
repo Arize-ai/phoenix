@@ -20,7 +20,7 @@ from typing import (
 
 import httpx
 import pytest
-from _pytest.config import Config, Parser
+from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
@@ -46,19 +46,6 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
-
-
-def pytest_addoption(parser: Parser) -> None:
-    parser.addoption(
-        "--run-postgres",
-        action="store_true",
-        help="Run tests that require Postgres",
-    )
-    parser.addoption(
-        "--allow-flaky",
-        action="store_true",
-        help="Allows a number of flaky database tests to fail",
-    )
 
 
 def pytest_terminal_summary(
