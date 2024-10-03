@@ -160,7 +160,6 @@ exclude = [
   "src/phoenix/evals/",
   "src/phoenix/otel/",
   "tests/",
-  "integration_tests/",
   "scripts/",
   "examples/",
   "js/",
