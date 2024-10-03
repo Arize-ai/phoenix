@@ -396,6 +396,11 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = [
+  "fast_hdbscan",
+  "umap",
+  "numba.*",
+  "scipy.*",
+  "sklearn.*",
   "arize.*",
   "wrapt",
   "langchain.*",
