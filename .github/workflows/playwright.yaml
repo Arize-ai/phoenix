@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main, playground ]
 jobs:
-  playwright-test:
+  e2e-test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     defaults:
