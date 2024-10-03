@@ -3,6 +3,7 @@ faker
 httpx
 openinference-semantic-conventions
 opentelemetry-sdk
+pandas-stubs
 portpicker
 psutil
 pyjwt
