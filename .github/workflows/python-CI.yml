@@ -73,7 +73,7 @@ jobs:
     name: Phoenix OTel
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix_ == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
         py: [ 3.9, 3.12 ]
