@@ -15,7 +15,7 @@ def test_multiple_classify_calls():
         ]
     )
 
-    model = AnthropicModel(max_retries=0)
+    model = AnthropicModel(max_retries=0)  # type: ignore
     llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
