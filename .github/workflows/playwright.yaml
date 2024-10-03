@@ -34,7 +34,8 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('playwright.config.ts') }}
+          restore-keys: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
@@ -43,9 +44,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.12
-          cache: pip
-      - run: pip install ../.
-      - run: pip list
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv pip install --system ../.
+      - run: uv pip list
       - name: Run Playwright tests
         run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
