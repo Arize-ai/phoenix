@@ -39,7 +39,7 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
       - name: Install system dependencies for WebKit
-        # WebKit dependencies can't be cached and must be installed separately
+        # WebKit dependencies can't be cached and must always be installed
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps webkit
       - name: Build the app
@@ -53,7 +53,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: uv pip install --system ../.
+      - run: uv pip install --system -q ../. uvloop
       - run: uv pip list
       - name: Run Playwright tests
         run: pnpm exec playwright test
