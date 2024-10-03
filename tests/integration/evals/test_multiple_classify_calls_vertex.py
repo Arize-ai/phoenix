@@ -15,7 +15,7 @@ def test_multiple_classify_calls():
         ]
     )
 
-    model = GeminiModel(max_retries=0)  # type: ignore
+    model = GeminiModel(max_retries=0)
     llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
