@@ -51,6 +51,7 @@ jobs:
 
   phoenix-evals:
     name: Phoenix Evals
+    runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
@@ -126,8 +127,8 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  test:
-    name: Test Phoenix
+  unit-test:
+    name: Unit Tests
     runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
@@ -150,22 +151,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get -yqq install postgresql
-      - name: Run tests (Ubuntu)
+      - name: Run tests with PostgreSQL
         if: runner.os == 'Linux'
-        run: |
-          hatch run test:tests --run-postgres
-        continue-on-error: false
-      - name: Run tests (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          hatch run test:tests
-        continue-on-error: false
-      - name: Run tests (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          hatch run test:tests
-        continue-on-error: false
+        run: hatch run test:tests --run-postgres
+      - name: Run tests without PostgreSQL
+        if: runner.os != 'Linux'
+        run: hatch run test:tests
+
   integration-test:
+    name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
