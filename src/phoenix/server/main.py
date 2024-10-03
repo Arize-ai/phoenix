@@ -21,6 +21,7 @@ from phoenix.config import (
     get_env_database_schema,
     get_env_db_logging_level,
     get_env_disable_migrations,
+    get_env_enable_cors,
     get_env_enable_prometheus,
     get_env_enable_websockets,
     get_env_grpc_port,
@@ -165,6 +166,7 @@ def main() -> None:
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
+    parser.add_argument("--enable-cors", action="store_true", help="Enable CORS support")
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
@@ -394,6 +396,7 @@ def main() -> None:
             connection_method="STARTTLS",
             validate_certs=get_env_smtp_validate_certs(),
         )
+    enable_cors = args.enable_cors or get_env_enable_cors()
 
     app = create_app(
         db=factory,
@@ -419,6 +422,7 @@ def main() -> None:
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
+        enable_cors=enable_cors,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

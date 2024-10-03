@@ -209,7 +209,14 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
 Whether to validate SMTP server certificates. Defaults to true.
 """
-
+ENV_PHOENIX_ENABLE_CORS = "PHOENIX_ENABLE_CORS"
+"""
+Whether to enable CORS. Defaults to false.
+"""
+ENV_PHOENIX_ENABLE_CORS = "PHOENIX_ENABLE_CORS"
+"""
+Whether to enable CORS. Defaults to false.
+"""
 # API extension settings
 ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
 ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
@@ -1048,5 +1055,13 @@ def get_env_disable_migrations() -> bool:
 
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
+
+
+def get_env_enable_cors() -> bool:
+    """
+    Gets the value of the PHOENIX_ENABLE_CORS environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_CORS, False)
+
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
