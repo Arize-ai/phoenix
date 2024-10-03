@@ -1,5 +1,6 @@
 import ast
 import sys
+from ast import unparse
 from typing import Any, List, Optional
 from unittest.mock import patch
 from uuid import UUID
@@ -11,11 +12,6 @@ import phoenix.trace.dsl.filter
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
-
-if sys.version_info >= (3, 9):
-    from ast import unparse
-else:
-    from astunparse import unparse
 
 
 @pytest.mark.parametrize(
