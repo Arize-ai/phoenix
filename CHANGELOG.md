@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.1.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.4...arize-phoenix-v5.1.5) (2024-10-03)
+
+
+### Bug Fixes
+
+* bump strawberry-graphql version to 0.243.1 ([#4851](https://github.com/Arize-ai/phoenix/issues/4851)) ([6cd6d9a](https://github.com/Arize-ai/phoenix/commit/6cd6d9a2e3c175676e3dc9b806a45af33034fa3f))
+* pin postgres version to 16 in `docker-compose.yml` ([#4855](https://github.com/Arize-ai/phoenix/issues/4855)) ([5b588bf](https://github.com/Arize-ai/phoenix/commit/5b588bf4288043dac03764e46159d090d954ba9f))
+* remove incorrect URL in python guide ([#4845](https://github.com/Arize-ai/phoenix/issues/4845)) ([2d263cb](https://github.com/Arize-ai/phoenix/commit/2d263cb45c70f040b63747413af14c14da7b9417))
+
+
+### Documentation
+
+* add deno notebook examples and scaffold the js monorepo ([#4826](https://github.com/Arize-ai/phoenix/issues/4826)) ([9352c0e](https://github.com/Arize-ai/phoenix/commit/9352c0e8750f691adfbc0cab524e1ffcc53b7dc6))
+
 ## [5.1.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.3...arize-phoenix-v5.1.4) (2024-10-02)
 
 
