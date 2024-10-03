@@ -79,7 +79,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "pnpm run dev:server:test",
+    command: "pnpm run dev:server:test -- --in-memory-sqlite",
     url: "http://localhost:6006",
     reuseExistingServer: !process.env.CI,
   },
