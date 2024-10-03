@@ -94,7 +94,7 @@ dev = [
   "anthropic",
   "prometheus_client",
   "asgi-lifespan",
-  "Faker>=26.0.0",
+  "Faker>=30.1.0",
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
@@ -188,11 +188,12 @@ dependencies = [
   "grpc-interceptor[testing]",
   "responses",
   "tiktoken",
+  "typing-extensions==4.7.0",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
   "asgi-lifespan",
-  "Faker>=26.0.0",
+  "Faker>=30.1.0",
   "uvloop; platform_system != 'Windows'",
 ]
 
