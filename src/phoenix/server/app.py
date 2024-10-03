@@ -22,6 +22,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     TypedDict,
     Union,
     cast,
@@ -43,6 +44,7 @@ from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
+from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.schema import BaseSchema
 from typing_extensions import TypeAlias
@@ -672,7 +674,8 @@ def create_app(
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
     tracer_provider = None
-    strawberry_extensions = schema.get_extensions()
+    strawberry_extensions: List[Union[Type[SchemaExtension], SchemaExtension]] = []
+    strawberry_extensions.extend(schema.get_extensions())
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
