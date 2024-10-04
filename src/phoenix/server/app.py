@@ -632,6 +632,15 @@ def create_app(
     oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    if model.embedding_dimensions:
+        try:
+            import fast_hdbscan  # noqa: F401
+            import umap  # noqa: F401
+        except ImportError as exc:
+            raise ImportError(
+                "To visualize embeddings, please install `umap-learn` and `fast-hdbscan` "
+                "via `pip install arize-phoenix[embeddings]`"
+            ) from exc
     logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: List[_Callback] = list(startup_callbacks)
