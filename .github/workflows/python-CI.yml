@@ -191,6 +191,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
+            requirements/ci.txt
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv tool install tox --with tox-uv
