@@ -2,7 +2,7 @@ import atexit
 import codecs
 import os
 import sys
-from argparse import ArgumentParser
+from argparse import SUPPRESS, ArgumentParser
 from importlib.metadata import version
 from pathlib import Path
 from threading import Thread
@@ -130,6 +130,9 @@ DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_
 
 
 def main() -> None:
+    initialize_settings()
+    setup_logging()
+
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -138,23 +141,29 @@ def main() -> None:
     reference_inferences: Optional[Inferences] = None
     corpus_inferences: Optional[Inferences] = None
 
-    # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser()
-    parser.add_argument("--database-url", required=False)
-    parser.add_argument("--export_path")
-    parser.add_argument("--host", type=str, required=False)
-    parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--read-only", action="store_true", required=False)  # Default is False
-    parser.add_argument("--no-internet", action="store_true")
-    parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
-    parser.add_argument("--debug", action="store_true")
-    # Whether the app is running in a development environment
-    parser.add_argument("--dev", action="store_true")
-    parser.add_argument("--no-ui", action="store_true")
+    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=SUPPRESS,
+    )
+    parser.add_argument("--database-url", required=False, help=SUPPRESS)
+    parser.add_argument("--export_path", help=SUPPRESS)
+    parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
+    parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
+    parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
+    parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
+    parser.add_argument(
+        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
+    )
+    parser.add_argument("--debug", action="store_true", help=SUPPRESS)
+    parser.add_argument("--dev", action="store_true", help=SUPPRESS)
+    parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
 
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
@@ -186,7 +195,7 @@ def main() -> None:
     )
     serve_parser.add_argument(
         "--force-fixture-ingestion",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to check the database age before adding the fixtures. "
@@ -196,7 +205,7 @@ def main() -> None:
     )
     serve_parser.add_argument(
         "--scaffold-datasets",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to add any datasets defined in "
@@ -213,15 +222,13 @@ def main() -> None:
 
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
+    fixture_parser.add_argument("--primary-only", action="store_true")
 
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
-    trace_fixture_parser.add_argument(
-        "--simulate-streaming", action="store_true"
-    )  # Default is False
+    trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
@@ -272,7 +279,6 @@ def main() -> None:
         )
         trace_dataset_name = args.trace_fixture
     elif args.command == "serve":
-        # We use sets to avoid duplicates
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
@@ -293,7 +299,6 @@ def main() -> None:
         scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
     if host == "::":
-        # TODO(dustin): why is this necessary? it's not type compliant
         host = None
 
     port = args.port or get_env_port()
@@ -416,6 +421,4 @@ def initialize_settings() -> None:
 
 
 if __name__ == "__main__":
-    initialize_settings()
-    setup_logging()
     main()

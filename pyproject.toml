@@ -62,6 +62,9 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.scripts]
+phoenix = "phoenix.server.main:main"
+
 [project.optional-dependencies]
 dev = [
   "gcsfs",
