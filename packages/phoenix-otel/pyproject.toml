@@ -70,7 +70,7 @@ pypi = [
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
