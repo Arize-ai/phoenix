@@ -9,7 +9,5 @@ psutil
 pyjwt
 pytest-randomly
 pytest-smtpd
-pytest-xdist
 types-beautifulsoup4
 types-psutil
-uvloop; platform_system != 'Windows'
