@@ -1,6 +1,7 @@
 -r ci.txt
 beautifulsoup4
 faker
+filelock
 httpx
 openinference-semantic-conventions
 opentelemetry-sdk
@@ -9,5 +10,6 @@ psutil
 pyjwt
 pytest-randomly
 pytest-smtpd
+pyzmq
 types-beautifulsoup4
 types-psutil

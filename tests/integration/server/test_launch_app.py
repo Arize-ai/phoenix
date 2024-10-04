@@ -1,8 +1,6 @@
 import os
 from time import sleep
-from typing import Set
-
-from faker import Faker
+from typing import Iterator, Set
 
 from .._helpers import (
     _get_gql_spans,
@@ -14,16 +12,20 @@ from .._helpers import (
 
 
 class TestLaunchApp:
-    def test_send_spans(self, _fake: Faker) -> None:
+    def test_send_spans(
+        self,
+        _project_names: Iterator[str],
+        _span_names: Iterator[str],
+    ) -> None:
         if (url := os.environ.get("PHOENIX_SQL_DATABASE_URL")) and ":memory:" in url:
             # This test is not intended for an in-memory databases.
             os.environ.pop("PHOENIX_SQL_DATABASE_URL", None)
-        project_name = _fake.unique.pystr()
+        project_name = next(_project_names)
         span_names: Set[str] = set()
         for i in range(2):
             with _server():
                 for j, exporter in enumerate([_http_span_exporter, _grpc_span_exporter]):
-                    span_name = f"{i}_{j}_{_fake.unique.pystr()}"
+                    span_name = f"{i}_{j}_{next(_span_names)}"
                     span_names.add(span_name)
                     _start_span(
                         project_name=project_name,

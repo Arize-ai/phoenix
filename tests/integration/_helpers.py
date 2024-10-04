@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import json
 import os
 import re
-import secrets
 import sys
 from abc import ABC, abstractmethod
-from contextlib import contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
+from inspect import stack
 from io import BytesIO
+from pathlib import Path
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
@@ -41,6 +43,7 @@ import httpx
 import jwt
 import pytest
 import smtpdfix
+from filelock import FileLock
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
@@ -70,8 +73,6 @@ from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
-from sqlalchemy.exc import OperationalError
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -596,36 +597,122 @@ def _httpx_client(
     )
 
 
+class _TextFile(Protocol):
+    def read_text(self, *_: Any, **__: Any) -> str: ...
+    def write_text(self, data: str, *_: Any, **__: Any) -> int: ...
+    def touch(self, *_: Any, **__: Any) -> None: ...
+    def is_file(self) -> bool: ...
+
+
+class _NullFile:
+    def touch(self, *_: Any, **__: Any) -> None: ...
+    def is_file(self) -> bool:
+        return False
+
+    def read_text(self, *_: Any, **__: Any) -> str:
+        return "{}"
+
+    def write_text(self, data: str, *_: Any, **__: Any) -> int:
+        return 0
+
+
+class _ExitLock(BaseException): ...
+
+
+@contextmanager
+def _file_lock_allowing_early_exit(
+    file: _TextFile,
+) -> Iterator[_TextFile]:
+    with ExitStack() as es:
+        es.enter_context(suppress(_ExitLock))
+        es.enter_context(FileLock(str(file) + ".lock"))
+        yield file
+
+
+_WorkerId: TypeAlias = str
+_tmp_path: ContextVar[Tuple[_WorkerId, Optional[Path]]] = ContextVar(
+    "worker_id_and_tmp_path", default=("master", None)
+)
+
+
+def _file_lock() -> ContextManager[_TextFile]:
+    id_, tmp = _tmp_path.get()
+    if id_ == "master":
+        return nullcontext(_NullFile())
+    assert tmp
+    assert tmp.is_dir()
+    caller: str = stack()[1][3]
+    file: Path = tmp / f".{caller}.json"
+    return _file_lock_allowing_early_exit(file)
+
+
 @contextmanager
 def _server() -> Iterator[None]:
-    if get_env_database_connection_str().startswith("postgresql"):
-        # double-check for safety
-        assert get_env_database_schema()
-    command = f"{sys.executable} -m phoenix.server.main serve"
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
-    log: List[str] = []
-    lock: Lock = Lock()
-    Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
-    t = 60
-    time_limit = time() + t
-    timed_out = False
-    url = urljoin(get_base_url(), "healthz")
-    while not timed_out and _is_alive(process):
-        sleep(0.1)
+    is_foreman = False  # whether current worker is the first to acquire the lock
+    with _file_lock() as f:
+        if f.is_file():
+            try:
+                assert json.loads(f.read_text())["ready"]
+            except BaseException:
+                pytest.fail("Server failed to start.")
+            raise _ExitLock
+        is_foreman = True  # this is the first worker to acquire the lock
+        n = int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1")) or 1
+        status = dict(ready=False, num_clients=n)
+        f.write_text(json.dumps(status))
+        if get_env_database_connection_str().startswith("postgresql"):
+            # double-check for safety
+            assert get_env_database_schema()
+        command = f"{sys.executable} -m phoenix.server.main serve"
+        process = Popen(
+            command.split(),
+            stdout=PIPE,
+            stderr=STDOUT,
+            text=True,
+            env=os.environ,
+        )
+        log: List[str] = []
+        log_lock: Lock = Lock()
+        Thread(target=_capture_stdout, args=(process, log, log_lock), daemon=True).start()
+        t = 60
+        time_limit = time() + t
+        timed_out = False
+        url = urljoin(get_base_url(), "healthz")
+        while not timed_out and _is_alive(process):
+            sleep(0.1)
+            try:
+                urlopen(url)
+                break
+            except BaseException:
+                timed_out = time() > time_limit
         try:
-            urlopen(url)
-            break
-        except BaseException:
-            timed_out = time() > time_limit
+            if timed_out:
+                pytest.fail(f"Server did not start within {t} seconds.")
+            if not _is_alive(process):
+                pytest.fail("Server failed to start.")
+            status["ready"] = True
+            f.write_text(json.dumps(status))
+        finally:
+            with log_lock:
+                for line in log:
+                    print(line, end="")
+                log.clear()
+    yield
+    if not is_foreman:
+        # decrement the client count
+        with _file_lock() as f:
+            status = json.loads(f.read_text())
+            status["num_clients"] -= 1
+            f.write_text(json.dumps(status))
+        return
     try:
-        if timed_out:
-            raise TimeoutError(f"Server did not start within {t} seconds.")
-        assert _is_alive(process)
-        with lock:
-            for line in log:
-                print(line, end="")
-            log.clear()
-        yield
+        # wait for all other workers to finish
+        time_limit = time() + 300
+        while n > 1 and time() < time_limit:
+            sleep(1)
+            with _file_lock() as f:
+                status = json.loads(f.read_text())
+                n = status["num_clients"]
         process.terminate()
         process.wait(10)
     finally:
@@ -649,36 +736,6 @@ def _capture_stdout(
         if line or (log and log[-1] != line):
             with lock:
                 log.append(line)
-
-
-@contextmanager
-def _random_schema(
-    url: URL,
-) -> Iterator[str]:
-    engine = create_engine(url.set(drivername="postgresql+psycopg"))
-    try:
-        engine.connect().close()
-    except OperationalError as exc:
-        if "too many clients" in str(exc):
-            pass
-        else:
-            pytest.skip(f"PostgreSQL unavailable: {exc}")
-    engine.dispose()
-    schema = f"_{secrets.token_hex(15)}"
-    yield schema
-    time_limit = time() + 30
-    while time() < time_limit:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
-                conn.commit()
-        except OperationalError as exc:
-            if "too many clients" in str(exc):
-                sleep(1)
-                continue
-            raise
-        break
-    engine.dispose()
 
 
 def _gql(
@@ -915,8 +972,8 @@ def _initiate_password_reset(
     if not should_receive_email:
         return None
     msg = smtpd.messages[-1]
-    assert msg["to"] == email
-    assert msg["from"] == get_env_smtp_mail_from()
+    assert msg["to"].strip() == email
+    assert msg["from"].strip() == get_env_smtp_mail_from()
     return _extract_password_reset_token(msg)
 
 
