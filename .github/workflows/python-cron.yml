@@ -31,7 +31,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e integration_tests
+      - run: tox run -e ci_integration_tests
       - uses: slackapi/slack-github-action@v1
         if: failure()
         env:
