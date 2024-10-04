@@ -63,6 +63,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.scripts]
+arize-phoenix = "phoenix.server.main:main"
 phoenix = "phoenix.server.main:main"
 
 [project.optional-dependencies]
