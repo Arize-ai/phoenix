@@ -150,8 +150,7 @@ jobs:
           pip install hatch
       - name: Install PostgreSQL (Ubuntu)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get -yqq install postgresql
+        run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL
         if: runner.os == 'Linux'
         run: hatch run test:tests --run-postgres
