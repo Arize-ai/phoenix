@@ -135,7 +135,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ "3.9" ]
+        py: [ 3.9 ]
         os: [ macos-12, windows-latest, ubuntu-latest ]
     steps:
       - name: Checkout Repository
