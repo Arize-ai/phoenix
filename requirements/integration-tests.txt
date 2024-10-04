@@ -1,7 +1,7 @@
+-r ci.txt
 beautifulsoup4
 faker
 httpx
-mypy==1.11.2
 openinference-semantic-conventions
 opentelemetry-sdk
 portpicker
@@ -10,8 +10,6 @@ pyjwt
 pytest-randomly
 pytest-smtpd
 pytest-xdist
-pytest==8.3.3
-ruff==0.6.8
 types-beautifulsoup4
 types-psutil
 uvloop; platform_system != 'Windows'
