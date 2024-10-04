@@ -138,8 +138,10 @@ jobs:
         py: [ 3.9, 3.12 ]
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up python ${{ matrix.py }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
