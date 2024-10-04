@@ -639,7 +639,7 @@ def create_app(
         except ImportError as exc:
             raise ImportError(
                 "To visualize embeddings, please install `umap-learn` and `fast-hdbscan` "
-                "via `pip install arize-phoenix[umap]`"
+                "via `pip install arize-phoenix[embeddings]`"
             ) from exc
     logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
