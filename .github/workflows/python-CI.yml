@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.8, 3.12 ]
-        os: [ macos-12, windows-latest, ubuntu-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -77,7 +77,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.8, 3.12 ]
-        os: [ macos-12, windows-latest, ubuntu-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -136,7 +136,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.9 ]
-        os: [ macos-12, windows-latest, ubuntu-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
