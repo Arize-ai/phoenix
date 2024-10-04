@@ -67,7 +67,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_evals
+      - run: tox run -e ci_phoenix_evals
 
   phoenix-otel:
     name: Phoenix OTel
@@ -86,7 +86,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_otel
+      - run: tox run -e ci_phoenix_otel
 
   lint:
     name: Lint Phoenix
