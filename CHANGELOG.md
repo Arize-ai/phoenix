@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.1.6](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.5...arize-phoenix-v5.1.6) (2024-10-04)
+
+
+### Bug Fixes
+
+* replace hdbscan with fast-hdbscan ([#4866](https://github.com/Arize-ai/phoenix/issues/4866)) ([c871107](https://github.com/Arize-ai/phoenix/commit/c871107b7881e6e1db6227c2fe06d2420143280b))
+
+
+### Documentation
+
+* testing philosophy, coverage, types ([#4820](https://github.com/Arize-ai/phoenix/issues/4820)) ([40fd695](https://github.com/Arize-ai/phoenix/commit/40fd695546bcb34197df9cd6d7738540ffa8e9ef))
+
 ## [5.1.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.4...arize-phoenix-v5.1.5) (2024-10-03)
 
 
