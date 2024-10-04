@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.8, 3.12 ]
-        os: [macos-12, windows-latest, ubuntu-latest]
+        os: [ macos-12, windows-latest, ubuntu-latest ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -77,7 +77,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.8, 3.12 ]
-        os: [macos-12, windows-latest, ubuntu-latest]
+        os: [ macos-12, windows-latest, ubuntu-latest ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -135,8 +135,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.9"]
-        os: [macos-12, windows-latest, ubuntu-latest]
+        py: [ "3.9" ]
+        os: [ macos-12, windows-latest, ubuntu-latest ]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -167,7 +167,7 @@ jobs:
     strategy:
       matrix:
         py: [ 3.9, 3.12 ]
-        os: [ubuntu-latest, windows-latest, macos-12]
+        os: [ ubuntu-latest, windows-latest, macos-12 ]
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
