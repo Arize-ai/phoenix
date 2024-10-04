@@ -101,7 +101,7 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"
 
 [tool.mypy]
 explicit_package_bases = true
