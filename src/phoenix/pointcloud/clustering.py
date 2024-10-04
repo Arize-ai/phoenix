@@ -17,7 +17,7 @@ class Hdbscan:
     cluster_selection_epsilon: float = 0.0
 
     def find_clusters(self, mat: Matrix) -> List[RawCluster]:
-        from hdbscan import HDBSCAN
+        from fast_hdbscan import HDBSCAN
 
         cluster_ids: npt.NDArray[np.int_] = HDBSCAN(**asdict(self)).fit_predict(mat)
         ans: List[RawCluster] = [set() for _ in range(np.max(cluster_ids) + 1)]
