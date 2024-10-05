@@ -172,11 +172,19 @@ jobs:
     strategy:
       matrix:
         py: [ 3.9, 3.12 ]
+        db: [ sqlite, postgresql ]
         os: [ ubuntu-latest, windows-latest, macos-13 ]
+        exclude:
+          - db: postgresql
+            os: windows-latest
+          - db: postgresql
+            os: macos-13
+    env:
+      CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
