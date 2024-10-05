@@ -656,13 +656,7 @@ def _random_schema(
     url: URL,
 ) -> Iterator[str]:
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
-    try:
-        engine.connect().close()
-    except OperationalError as exc:
-        if "too many clients" in str(exc):
-            pass
-        else:
-            pytest.skip(f"PostgreSQL unavailable: {exc}")
+    engine.connect().close()
     engine.dispose()
     schema = f"_{secrets.token_hex(15)}"
     yield schema
