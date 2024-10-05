@@ -15,7 +15,10 @@ from skills.skill import Skill
 class GenerateSQLQuery(Skill):
     def __init__(self):
         super().__init__(
-            self.NAME, self.SQL_GENERATOR_FUNCTION_DICT, self.generate_and_run_sql_query
+            self.NAME, 
+            self.SQL_GENERATOR_FUNCTION_DICT, 
+            self.generate_and_run_sql_query,
+            self.generate_and_run_sql_query_pydantic
         )
         self.table = get_table()
         self.schema = get_schema()

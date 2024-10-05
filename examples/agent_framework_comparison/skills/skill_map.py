@@ -31,17 +31,18 @@ class SkillMap:
     def get_function_callable_by_name(self, skill_name) -> Callable:
         return self.skill_map[skill_name][1]
 
-    def get_combined_function_description_for_openai(self):
+    def get_combined_function_description_for_openai(self) -> list[dict]:
         combined_dict = []
         for _, (function_dict, _) in self.skill_map.items():
             combined_dict.append(function_dict)
         return combined_dict
 
-    def get_function_list(self):
+    def get_function_list(self) -> list[str]:
         return list(self.skill_map.keys())
 
-    def get_list_of_function_callables(self):
+    def get_list_of_function_callables(self) -> list[Callable]:
         return [skill[1] for skill in self.skill_map.values()]
 
-    def get_function_description_by_name(self, skill_name):
+    def get_function_description_by_name(self, skill_name) -> str:
         return str(self.skill_map[skill_name][0]["function"])
+    

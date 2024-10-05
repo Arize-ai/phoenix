@@ -3,6 +3,7 @@ import os
 import sys
 
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
+
 from dotenv import load_dotenv
 from openai import OpenAI
 from openinference.instrumentation import using_prompt_template
@@ -16,7 +17,9 @@ load_dotenv()
 
 class AnalyzeData(Skill):
     def __init__(self):
-        super().__init__(self.NAME, self.ANALYZE_DATA_FUNCTION_DICT, self.data_analyzer)
+        super().__init__(self.NAME, 
+                         self.ANALYZE_DATA_FUNCTION_DICT,
+                         self.data_analyzer)
 
     NAME = "data_analyzer"
     ANALYZE_DATA_FUNCTION_DICT = {

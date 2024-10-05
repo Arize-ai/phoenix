@@ -1,9 +1,14 @@
 openai
 gradio
 python-dotenv
+
+# Phoenix
 arize-phoenix>=4.29.0
 openinference-instrumentation
+
+# Agent frameworks and supporting libraries
 langchain
 langchain_openai
 langgraph
 llama_index
+pyautogen
