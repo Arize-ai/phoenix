@@ -601,7 +601,7 @@ def _server() -> Iterator[None]:
     if get_env_database_connection_str().startswith("postgresql"):
         # double-check for safety
         assert get_env_database_schema()
-    command = f"{sys.executable} -m phoenix.server.main serve"
+    command = f"{sys.executable} -m phoenix.server.main"
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
     log: List[str] = []
     lock: Lock = Lock()

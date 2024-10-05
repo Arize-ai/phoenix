@@ -237,7 +237,7 @@ def main() -> None:
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
 
-    args = parser.parse_args()
+    args = parser.parse_args(sys.argv[1:] or ["serve"])
     db_connection_str = (
         args.database_url if args.database_url else get_env_database_connection_str()
     )

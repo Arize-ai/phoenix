@@ -21,7 +21,7 @@ console.log("PHOENIX_WORKING_DIR: ", process.env["PHOENIX_WORKING_DIR"]);
 
 // Execute the server
 // TODO: Might have to force install the phoenix server
-const childProcess = exec("python -m phoenix.server.main serve");
+const childProcess = exec("python -m phoenix.server.main");
 
 childProcess.stdout.pipe(process.stdout);
 childProcess.stderr.pipe(process.stderr);
