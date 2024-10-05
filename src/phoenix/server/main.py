@@ -143,7 +143,7 @@ def main() -> None:
 
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser = ArgumentParser(usage="phoenix", add_help=False)
     parser.add_argument(
         "-h",
         "--help",
