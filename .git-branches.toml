@@ -41,7 +41,7 @@ create-prototype-branches = true
 # - squash-merge: in your local repo, squash-merge the feature branch into its parent branch
 #
 # All options update proposals of child branches and remove the shipped branch locally and remotely.
-ship-strategy = "squash-merge"
+ship-strategy = "api"
 
 # Should "git town ship" delete the tracking branch?
 # You want to disable this if your code hosting platform
