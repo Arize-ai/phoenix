@@ -74,18 +74,14 @@ def _ports() -> Iterator[int]:
     return _([])
 
 
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("sqlite:///:memory:", id="sqlite"),
-        pytest.param(
-            "postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix",
-            id="postgresql",
-        ),
-    ],
-)
-def _sql_database_url(request: SubRequest) -> Tuple[int, URL]:
-    return request.param_index, make_url(request.param)
+@pytest.fixture(scope="session")
+def _sql_database_url(request: SubRequest) -> URL:
+    backend = os.getenv("CI_TEST_DB_BACKEND")
+    if not backend or backend == "sqlite":
+        return make_url("sqlite:///:memory:")
+    if backend == "postgresql":
+        return make_url("postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix")
+    pytest.fail(f"Unknown database backend: {backend}")
 
 
 @pytest.fixture(scope="session", params=["http", "grpc"])
@@ -104,50 +100,47 @@ def _fake() -> Faker:
 
 @pytest.fixture(scope="module")
 def _tmp(
-    _sql_database_url: Tuple[int, URL],
+    _sql_database_url: URL,
     tmp_path_factory: TempPathFactory,
     request: SubRequest,
     worker_id: str,
 ) -> Path:
     base = tmp_path_factory.getbasetemp().parent
-    index, db_url = _sql_database_url
+    db_url = _sql_database_url
     db_name = db_url.get_backend_name()
     module = request.module.__name__
-    tmp = base / f"{module}" / f"{index}" / f"{db_name}"
+    tmp = base / f"{module}" / f"{db_name}"
     tmp.mkdir(parents=True, exist_ok=True)
     _tmp_path.set((worker_id, tmp))
     return tmp
 
 
 @pytest.fixture(autouse=True, scope="module")
-def _skip_postgresql_if_unavailable(
-    _sql_database_url: Tuple[int, URL],
+def _fail_if_postgresql_is_needed_but_unavailable(
+    _sql_database_url: URL,
     _tmp: Path,
 ) -> None:
-    _, url = _sql_database_url
-    if not url.get_backend_name().startswith("postgresql"):
+    db_url = _sql_database_url
+    if not db_url.get_backend_name().startswith("postgresql"):
         return
     with _file_lock() as f:
         if f.is_file():
-            if json.loads((f.read_text()))["skip"]:
-                pytest.skip("PostgreSQL unavailable")
+            if not json.loads((f.read_text()))["available"]:
+                pytest.fail("PostgreSQL unavailable")
             return
-        engine = create_engine(url.set(drivername="postgresql+psycopg"))
+        engine = create_engine(db_url.set(drivername="postgresql+psycopg"))
         try:
             engine.connect().close()
-        except OperationalError as exc:
-            if "too many clients" in str(exc):
-                pass
-            else:
-                f.write_text(json.dumps(dict(skip=True)))
-                pytest.skip("PostgreSQL unavailable")
-        f.write_text(json.dumps(dict(skip=False)))
+        except OperationalError:
+            f.write_text(json.dumps(dict(available=False)))
+            pytest.fail("PostgreSQL unavailable")
+        f.write_text(json.dumps(dict(available=True)))
     engine.dispose()
 
 
 @pytest.fixture(scope="module")
 def _environment_variables(
-    _sql_database_url: Tuple[int, URL],
+    _sql_database_url: URL,
     _tmp: Path,
     _ports: Iterator[int],
 ) -> Dict[str, str]:
@@ -155,7 +148,7 @@ def _environment_variables(
     with _file_lock() as f:
         if f.is_file():
             return cast(Dict[str, str], json.loads(f.read_text()))
-        _, db_url = _sql_database_url
+        db_url = _sql_database_url
         secret = token_urlsafe(DEFAULT_SECRET_LENGTH)
         working_dir = _tmp / ".phoenix"
         working_dir.mkdir(exist_ok=True)
