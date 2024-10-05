@@ -30,7 +30,7 @@ push-new-branches = false
 # until they are proposed.
 #
 # More info at https://www.git-town.com/preferences/create-prototype-branches.
-create-prototype-branches = false
+create-prototype-branches = true
 
 # Which method should Git Town use to ship feature branches?
 #
