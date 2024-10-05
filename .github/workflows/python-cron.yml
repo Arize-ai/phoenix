@@ -8,6 +8,8 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    env:
+      CI_TEST_DB_BACKEND: postgresql
     services:
       postgres:
         image: postgres:12

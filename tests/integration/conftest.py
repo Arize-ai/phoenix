@@ -58,18 +58,14 @@ def _ports() -> Iterator[int]:
     return _([])
 
 
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("sqlite:///:memory:", id="sqlite"),
-        pytest.param(
-            "postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix",
-            id="postgresql",
-        ),
-    ],
-)
+@pytest.fixture(scope="session")
 def _sql_database_url(request: SubRequest) -> URL:
-    return make_url(request.param)
+    backend = os.getenv("CI_TEST_DB_BACKEND")
+    if not backend or backend == "sqlite":
+        return make_url("sqlite:///:memory:")
+    if backend == "postgresql":
+        return make_url("postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix")
+    pytest.fail(f"Unknown database backend: {backend}")
 
 
 @pytest.fixture(scope="session", params=["http", "grpc"])
