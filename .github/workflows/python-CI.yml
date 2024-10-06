@@ -153,6 +153,10 @@ jobs:
         py: [ 3.9, 3.12 ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
@@ -166,6 +170,7 @@ jobs:
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: uv tool install tox --with tox-uv
+      - run: find . -xtype l -delete
       - run: tox run -e type_check
 
   unit-test:
