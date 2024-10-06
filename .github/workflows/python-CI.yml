@@ -197,7 +197,7 @@ jobs:
       - name: Check types
         run: tox run -e type_check
 
-  unit-test:
+  unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
     needs: changes
