@@ -236,6 +236,11 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/integration/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
