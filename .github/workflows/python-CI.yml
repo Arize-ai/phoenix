@@ -201,7 +201,7 @@ jobs:
             src/phoenix/
             tests/unit/
             tests/conftest.py
-      - name: Remove symbolic links (Non-Windows)
+      - name: Remove symbolic links (non-Windows)
         run: find . -type l -delete
         if: runner.os != 'Windows'
       - name: Remove symbolic links (Windows)
