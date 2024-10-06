@@ -158,7 +158,7 @@ jobs:
         if: runner.os != 'Linux'
         run: hatch run test:tests
 
-  integration-test:
+  integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
