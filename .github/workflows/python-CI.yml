@@ -140,6 +140,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/unit/
+            tests/conftest.py
       - name: Set up python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
