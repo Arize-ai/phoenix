@@ -128,7 +128,7 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  unit-test:
+  unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
     needs: changes
