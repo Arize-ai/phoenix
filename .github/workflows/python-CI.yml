@@ -153,7 +153,7 @@ jobs:
       - name: Check lint
         run: uv tool run ruff check --no-fix
 
-  unit-test:
+  unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
     needs: changes
