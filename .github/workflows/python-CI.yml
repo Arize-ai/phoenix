@@ -193,6 +193,11 @@ jobs:
             tests/conftest.py
       - run: find . -type l -delete
         if: runner.os != 'Windows'
+      - run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
       - name: Set up python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
