@@ -146,7 +146,7 @@ jobs:
             src/phoenix/
             tests/unit/
             tests/conftest.py
-      - runs: find . -xtype l -delete
+      - run: find . -xtype l -delete
         if: runner.os != 'Windows'
       - name: Set up python ${{ matrix.py }}
         uses: actions/setup-python@v5
