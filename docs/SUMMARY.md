@@ -93,7 +93,7 @@
     * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
-    * [Tool Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
