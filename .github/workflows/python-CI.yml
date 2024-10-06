@@ -250,7 +250,7 @@ jobs:
         if: runner.os != 'Linux'
         run: tox run -e unit_tests -- -ra -x
 
-  integration-test:
+  integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
