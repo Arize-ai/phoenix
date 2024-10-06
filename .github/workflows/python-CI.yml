@@ -195,6 +195,8 @@ jobs:
             requirements/
             src/phoenix/
             tests/integration/
+      - runs: find . -xtype l -delete
+        if: runner.os != 'Windows'
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
