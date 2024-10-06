@@ -195,7 +195,7 @@ jobs:
             requirements/
             src/phoenix/
             tests/integration/
-      - run: find . -xtype l -delete
+      - run: find . -type l -delete
         if: runner.os != 'Windows'
       - uses: actions/setup-python@v5
         with:
