@@ -229,9 +229,11 @@ jobs:
             requirements/
             src/phoenix/
             tests/integration/
-      - run: find . -type l -delete
+      - name: Remove Symbolic Links (Non-Windows)
+        run: find . -type l -delete
         if: runner.os != 'Windows'
-      - run: |
+      - name: Remove Symbolic Links (Windows)
+        run: |
           Remove-Item src/phoenix/evals
           Remove-Item src/phoenix/otel
         shell: powershell
