@@ -207,6 +207,15 @@ jobs:
             requirements/
             src/phoenix/
             tests/integration/
+      - name: Remove Symbolic Links (Non-Windows)
+        run: find . -type l -delete
+        if: runner.os != 'Windows'
+      - name: Remove Symbolic Links (Windows)
+        run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
