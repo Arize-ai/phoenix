@@ -197,6 +197,11 @@ jobs:
             tests/integration/
       - run: find . -type l -delete
         if: runner.os != 'Windows'
+      - run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
