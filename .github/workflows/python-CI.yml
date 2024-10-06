@@ -218,7 +218,8 @@ jobs:
           Remove-Item src/phoenix/otel
         shell: powershell
         if: runner.os == 'Windows'
-      - uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
