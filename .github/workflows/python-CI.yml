@@ -27,6 +27,8 @@ jobs:
     name: Filter Changes
     runs-on: ubuntu-latest
     outputs:
+      ipynb: ${{ steps.filter.outputs.ipynb }}
+      ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
@@ -34,8 +36,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
+        base: main
         with:
+          list-files: shell
           filters: |
+            ipynb:
+              - "**/*.ipynb"
             phoenix:
               - "src/**"
               - "tests/**"
@@ -126,6 +132,45 @@ jobs:
       - name: Check notebooks have cleaned output and metadata
         run: |
           hatch run notebooks:clean
+          git diff --exit-code
+
+  ipynb-lint:
+    name: Clean Jupyter Notebooks
+    needs: changes
+    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        py: [ 3.12 ]
+        os: [ ubuntu-latest ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+      - name: Install `nbqa`
+        run: uv tool install nbqa@1.9.0 --with ruff@0.6.9
+      - name: Format notebook
+        run: |
+          uv tool run nbqa ruff \
+            --ignore=E402 --ignore=E501 --ignore=F704 \
+            ${{ needs.changes.outputs.ipynb_files }}
+          git diff --exit-code
+      - name: Install `jupyter`
+        run: uv pip install --system jupyter
+      - name: Remove output and metadata
+        run: |
+          jupyter nbconvert \
+            --ClearOutputPreprocessor.enabled=True \
+            --ClearMetadataPreprocessor.enabled=True \
+            --inplace \
+            ${{ needs.changes.outputs.ipynb_files }}
           git diff --exit-code
 
   ruff:
