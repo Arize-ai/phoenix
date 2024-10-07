@@ -22,7 +22,7 @@ export type PlaygroundTemplate =
 /**
  * The role of a chat message with a LLM
  */
-export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
+export type ChatMessageRole = "user" | "ai" | "system" | "tool";
 
 /**
  * A chat message with a role and content

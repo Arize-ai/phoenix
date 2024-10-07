@@ -12,10 +12,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 
 if TYPE_CHECKING:
     from openai.types.chat import (
-        ChatCompletionAssistantMessageParam,
         ChatCompletionMessageParam,
-        ChatCompletionSystemMessageParam,
-        ChatCompletionUserMessageParam,
     )
 
 
@@ -27,6 +24,12 @@ class ChatCompletionInput:
 def to_openai_chat_completion_param(
     message: ChatCompletionMessageInput,
 ) -> "ChatCompletionMessageParam":
+    from openai.types.chat import (
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionUserMessageParam,
+    )
+
     if message.role is ChatCompletionMessageRole.USER:
         return ChatCompletionUserMessageParam(
             {
