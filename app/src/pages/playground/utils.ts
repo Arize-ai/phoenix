@@ -1,7 +1,4 @@
-import {
-  INITIAL_PLAYGROUND_INSTANCE_ID,
-  PlaygroundInstance,
-} from "@phoenix/store";
+import { generateInstanceId, PlaygroundInstance } from "@phoenix/store";
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { llmAttributesSchema } from "./schemas";
@@ -13,7 +10,7 @@ type PlaygroundSpan = Extract<
 
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
-): PlaygroundInstance {
+): PlaygroundInstance | null {
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
@@ -22,10 +19,12 @@ export function transformSpanAttributesToPlaygroundInstance(
   }
   const { data, success } = llmAttributesSchema.safeParse(parsedAttributes);
   if (!success) {
-    throw new Error("Invalid data");
+    return null;
   }
+  // TODO(parker): add support for tools, variables, and input / output variants
+  // https://github.com/Arize-ai/phoenix/issues/4886
   return {
-    id: INITIAL_PLAYGROUND_INSTANCE_ID,
+    id: generateInstanceId(),
     activeRunId: null,
     isRunning: false,
     input: {

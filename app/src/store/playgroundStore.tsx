@@ -3,9 +3,10 @@ import { devtools } from "zustand/middleware";
 
 export type GenAIOperationType = "chat" | "text_completion";
 
-export const INITIAL_PLAYGROUND_INSTANCE_ID = 0;
-let playgroundInstanceIdIndex = INITIAL_PLAYGROUND_INSTANCE_ID;
+let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
+
+export const generateInstanceId = () => playgroundInstanceIdIndex++;
 
 /**
  * The input mode for the playground
@@ -188,16 +189,13 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
 export const createPlaygroundStore = (
   initialProps?: Partial<PlaygroundProps>
 ) => {
-  if (initialProps?.instances != null && initialProps.instances.length > 0) {
-    playgroundInstanceIdIndex += initialProps.instances.length;
-  }
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
     inputMode: "manual",
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [
       {
-        id: playgroundInstanceIdIndex++,
+        id: generateInstanceId(),
         template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
         tools: {},
         input: { variables: {} },
@@ -212,7 +210,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
-              id: playgroundInstanceIdIndex++,
+              id: generateInstanceId(),
               template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
@@ -226,7 +224,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
-              id: playgroundInstanceIdIndex++,
+              id: generateInstanceId(),
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
@@ -250,7 +248,7 @@ export const createPlaygroundStore = (
           instance,
           {
             ...instance,
-            id: playgroundInstanceIdIndex++,
+            id: generateInstanceId(),
             activeRunId: null,
           },
         ],

@@ -24,5 +24,9 @@ export function SpanPlaygroundPage() {
 
   const playgroundInstance = transformSpanAttributesToPlaygroundInstance(span);
 
-  return <Playground instances={[playgroundInstance]} />;
+  return (
+    <Playground
+      instances={playgroundInstance != null ? [playgroundInstance] : undefined}
+    />
+  );
 }
