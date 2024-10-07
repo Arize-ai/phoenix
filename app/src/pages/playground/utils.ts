@@ -1,4 +1,7 @@
-import { PlaygroundInstance } from "@phoenix/store";
+import {
+  INITIAL_PLAYGROUND_INSTANCE_ID,
+  PlaygroundInstance,
+} from "@phoenix/store";
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { llmAttributesSchema } from "./schemas";
@@ -22,7 +25,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     throw new Error("Invalid data");
   }
   return {
-    id: 1,
+    id: INITIAL_PLAYGROUND_INSTANCE_ID,
     activeRunId: null,
     isRunning: false,
     input: {

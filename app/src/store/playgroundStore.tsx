@@ -3,7 +3,8 @@ import { devtools } from "zustand/middleware";
 
 export type GenAIOperationType = "chat" | "text_completion";
 
-let playgroundInstanceIdIndex = 0;
+export const INITIAL_PLAYGROUND_INSTANCE_ID = 0;
+let playgroundInstanceIdIndex = INITIAL_PLAYGROUND_INSTANCE_ID;
 let playgroundRunIdIndex = 0;
 
 /**
@@ -187,6 +188,9 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
 export const createPlaygroundStore = (
   initialProps?: Partial<PlaygroundProps>
 ) => {
+  if (initialProps?.instances != null && initialProps.instances.length > 0) {
+    playgroundInstanceIdIndex += initialProps.instances.length;
+  }
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
     inputMode: "manual",
