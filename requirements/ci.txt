@@ -1,6 +1,6 @@
 mypy==1.11.2
 pytest==8.3.3
 pytest-xdist==3.6.1
-pytest-asyncio==0.23.8
+pytest-asyncio==0.24.0
 uvloop; platform_system != 'Windows'
 pydantic>=1.0,!=2.0.*,<3
