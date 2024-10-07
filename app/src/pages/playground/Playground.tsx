@@ -8,13 +8,14 @@ import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundProps } from "@phoenix/store";
 
 import { PlaygroundInstance } from "./PlaygroundInstance";
 import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
 
-export function Playground() {
+export function Playground(props: Partial<PlaygroundProps>) {
   return (
-    <PlaygroundProvider>
+    <PlaygroundProvider {...props}>
       <View
         borderBottomColor="dark"
         borderBottomWidth="thin"

@@ -2,10 +2,10 @@ import { z } from "zod";
 
 import {
   ImageAttributesPostfixes,
-  LLMAttributePostfixes,
   MessageAttributePostfixes,
   MessageContentsAttributePostfixes,
   SemanticAttributePrefixes,
+  SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 
 /**
@@ -22,6 +22,7 @@ const toolCallSchema = z
       .partial(),
   })
   .partial();
+
 /**
  * The zod schema for llm message contents
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
@@ -43,25 +44,25 @@ const messageContentSchema = z.object({
     })
     .partial(),
 });
-const messageSchema = z
-  .object({
-    [MessageAttributePostfixes.role]: z.string(),
-    [MessageAttributePostfixes.content]: z.string(),
-    [MessageAttributePostfixes.name]: z.string(),
-    [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema),
-    [MessageAttributePostfixes.contents]: z.array(messageContentSchema),
-  })
-  .partial();
+/**
+ * The zod schema for llm messages
+ * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ */
+const messageSchema = z.object({
+  [MessageAttributePostfixes.role]: z.string(),
+  [MessageAttributePostfixes.content]: z.string(),
+  [MessageAttributePostfixes.name]: z.string().optional(),
+  [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
+  [MessageAttributePostfixes.contents]: z
+    .array(messageContentSchema)
+    .optional(),
+});
 
-const llmAttributesSchema = z
-  .object({
-    [LLMAttributePostfixes.model_name]: z.string(),
-    [LLMAttributePostfixes.prompts]: z.array(z.string()),
-    prompt_template: z
-      .object({
-        template: z.string(),
-        variables: z.record(z.string()),
-      })
-      .partial(),
-  })
-  .partial();
+/**
+ * The zod schema for llm attributes
+ * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ */
+export const llmAttributesSchema = z.object({
+  [SemanticConventions.LLM_INPUT_MESSAGES]: z.array(messageSchema),
+  [SemanticConventions.LLM_OUTPUT_MESSAGES]: z.optional(z.array(messageSchema)),
+});
