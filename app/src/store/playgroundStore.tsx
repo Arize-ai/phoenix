@@ -19,6 +19,13 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
+export const CHAT_MESSAGE_ROLES = [
+  "user",
+  "assistant",
+  "system",
+  "tool",
+] as const;
+
 /**
  * Array of roles for a chat message with a LLM
  */

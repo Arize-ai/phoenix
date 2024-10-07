@@ -7,6 +7,7 @@ import {
   SemanticAttributePrefixes,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+import { CHAT_MESSAGE_ROLES } from "@phoenix/store";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -44,12 +45,15 @@ const messageContentSchema = z.object({
     })
     .partial(),
 });
+
+const ChatRoleEnum = z.enum(CHAT_MESSAGE_ROLES);
+
 /**
  * The zod schema for llm messages
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
 const messageSchema = z.object({
-  [MessageAttributePostfixes.role]: z.string(),
+  [MessageAttributePostfixes.role]: ChatRoleEnum,
   [MessageAttributePostfixes.content]: z.string(),
   [MessageAttributePostfixes.name]: z.string().optional(),
   [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
