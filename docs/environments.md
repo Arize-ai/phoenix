@@ -21,14 +21,10 @@ session = px.launch_app()
 This will start a local Phoenix server. You can initialize the phoenix server with various kinds of data (traces, inferences). Check out the [API for details](how-to/manage-the-app.md)
 
 {% hint style="info" %}
-When running Phoenix in the notebook, by default it does not persist your data.
+By default, Phoenix does not persist your data when run in a notebook.
 {% endhint %}
 
 ### Container
-
-{% hint style="info" %}
-Container images are still actively being worked on. If you are interested in hosted phoenix, please get in touch!
-{% endhint %}
 
 Phoenix server images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix). The hosted phoenix server runs as a trace collector and can be used if you want observability for LLM traces via docker compose or simply want a long-running phoenix instance. Below are examples of how to run phoenix va Docker for a specific version.
 
@@ -64,14 +60,18 @@ Note that the above is only necessary if your application is running in a Jupyte
 
 If you want to start a phoenix server to collect traces, you can also run phoenix directly from the command line
 
+{% tabs %}
+{% tab title="v5.2.0 or later" %}
 ```bash
+phoenix serve
+```
+{% endtab %}
+
+{% tab title="Pre-v5.2.0" %}
+```
 python3 -m phoenix.server.main serve
 ```
+{% endtab %}
+{% endtabs %}
 
 This will start the phoenix server on port 6006. If you are running your instrumented notebook or application on the same machine, traces should automatically be exported to `http://127.0.0.1:6006` so no additional configuration is needed. However if the server is running remotely, you will have to modify the environment variable `PHOENIX_COLLECTOR_ENDPOINT` to point to that machine (e.g. `http://<my-remote-machine>:<port>`)
-
-Note that this command has various configuration options such as `--host` and `--port`. For example:
-
-```bash
-python3 -m phoenix.server.main --port 1234 --host 0.0.0.0 serve
-```

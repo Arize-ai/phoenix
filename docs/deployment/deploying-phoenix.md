@@ -185,8 +185,16 @@ See [#ports](../setup/configuration.md#ports "mention")for details on the ports 
 {% endtab %}
 
 {% tab title="Command Line" %}
+For v5.2.0 or later:
+
+```bash
+phoenix serve
+```
+
+For pre-v5.2.0:
+
 ```sh
-python3 -m phoenix.server.main serve
+python -m phoenix.server.main serve
 ```
 {% endtab %}
 {% endtabs %}
