@@ -1,12 +1,8 @@
 import React, { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
-import { PlaygroundInstance } from "@phoenix/store";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
-import { llmAttributesSchema } from "./schemas";
 import { transformSpanAttributesToPlaygroundInstance } from "./utils";
 
 export function SpanPlaygroundPage() {
@@ -22,7 +18,10 @@ export function SpanPlaygroundPage() {
     throw new Error("Invalid span");
   }
 
-  const playgroundInstance = transformSpanAttributesToPlaygroundInstance(span);
+  const playgroundInstance = useMemo(
+    () => transformSpanAttributesToPlaygroundInstance(span),
+    [span]
+  );
 
   return (
     <Playground
