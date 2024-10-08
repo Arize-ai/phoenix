@@ -1,4 +1,5 @@
 import {
+  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   ImageAttributesPostfixes,
   LLMAttributePostfixes,
@@ -7,12 +8,9 @@ import {
   MessageContentsAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
+  SemanticAttributePrefixes,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
-import {
-  DocumentAttributePostfixes,
-  SemanticAttributePrefixes,
-} from "@arizeai/openinference-semantic-conventions/src/trace/SemanticConventions";
 
 export type AttributeTool = {
   [ToolAttributePostfixes.name]?: string;
@@ -100,8 +98,8 @@ export type AttributeReranker = {
 export type AttributeLlm = {
   [LLMAttributePostfixes.model_name]?: string;
   [LLMAttributePostfixes.token_count]?: number;
-  [LLMAttributePostfixes.input_messages]?: AttributeMessages;
-  [LLMAttributePostfixes.output_messages]?: AttributeMessages;
+  [LLMAttributePostfixes.input_messages]?: AttributeMessages | unknown;
+  [LLMAttributePostfixes.output_messages]?: AttributeMessages | unknown;
   [LLMAttributePostfixes.invocation_parameters]?: string;
   [LLMAttributePostfixes.prompts]?: string[];
   [LLMAttributePostfixes.prompt_template]?: AttributePromptTemplate;
@@ -112,3 +110,35 @@ export type AttributePromptTemplate = {
   [LLMPromptTemplateAttributePostfixes.template]: string;
   [LLMPromptTemplateAttributePostfixes.variables]: Record<string, string>;
 };
+
+/**
+ * Type guard for LLM messages
+ */
+export function isAttributeMessages(
+  messages: unknown
+): messages is AttributeMessages {
+  return (
+    Array.isArray(messages) &&
+    messages.every((message) => {
+      return (
+        typeof message === "object" &&
+        SemanticAttributePrefixes.message in message &&
+        isAttributeMessage(message[SemanticAttributePrefixes.message])
+      );
+    })
+  );
+}
+
+/**
+ * Type guard for LLM message. This is not fully safe and uses rough duck typing.
+ * TODO: make this more water tight via zod or other
+ */
+export function isAttributeMessage(
+  message: unknown
+): message is AttributeMessage {
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    MessageAttributePostfixes.role in message
+  );
+}

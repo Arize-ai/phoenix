@@ -77,6 +77,7 @@ import {
   AttributeReranker,
   AttributeRetrieval,
   AttributeTool,
+  isAttributeMessages,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -506,7 +507,15 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.input_messages]
+    const inputMessagesValue =
+      llmAttributes[LLMAttributePostfixes.input_messages];
+
+    // At this point, we cannot trust the type of outputMessagesValue
+    if (!isAttributeMessages(inputMessagesValue)) {
+      return [];
+    }
+
+    return (inputMessagesValue
       ?.map((obj) => obj[SemanticAttributePrefixes.message])
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
@@ -538,8 +547,15 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.output_messages]
-      ?.map((obj) => obj[SemanticAttributePrefixes.message])
+    const outputMessagesValue =
+      llmAttributes[LLMAttributePostfixes.output_messages];
+
+    // At this point, we cannot trust the type of outputMessagesValue
+    if (!isAttributeMessages(outputMessagesValue)) {
+      return [];
+    }
+    return (outputMessagesValue
+      .map((obj) => obj[SemanticAttributePrefixes.message])
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
 
