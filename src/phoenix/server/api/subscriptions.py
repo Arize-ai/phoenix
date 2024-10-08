@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, AsyncIterator, List
 
 import strawberry
 from sqlalchemy import insert, select
@@ -7,11 +7,51 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+
+if TYPE_CHECKING:
+    from openai.types.chat import (
+        ChatCompletionMessageParam,
+    )
 
 
 @strawberry.input
 class ChatCompletionInput:
-    message: str
+    messages: List[ChatCompletionMessageInput]
+
+
+def to_openai_chat_completion_param(
+    message: ChatCompletionMessageInput,
+) -> "ChatCompletionMessageParam":
+    from openai.types.chat import (
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionUserMessageParam,
+    )
+
+    if message.role is ChatCompletionMessageRole.USER:
+        return ChatCompletionUserMessageParam(
+            {
+                "content": message.content,
+                "role": "user",
+            }
+        )
+    if message.role is ChatCompletionMessageRole.SYSTEM:
+        return ChatCompletionSystemMessageParam(
+            {
+                "content": message.content,
+                "role": "system",
+            }
+        )
+    if message.role is ChatCompletionMessageRole.AI:
+        return ChatCompletionAssistantMessageParam(
+            {
+                "content": message.content,
+                "role": "assistant",
+            }
+        )
+    raise ValueError(f"Unsupported role: {message.role}")
 
 
 @strawberry.type
@@ -21,13 +61,18 @@ class Subscription:
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[str]:
         from openai import AsyncOpenAI
-        from openai.types.chat import ChatCompletionUserMessageParam
 
         client = AsyncOpenAI()
+
+        # Loop over the input messages and map them to the OpenAI format
+
+        messages: List[ChatCompletionMessageParam] = [
+            to_openai_chat_completion_param(message) for message in input.messages
+        ]
         chunk_contents = []
         start_time = datetime.now()
         async for chunk in await client.chat.completions.create(
-            messages=[ChatCompletionUserMessageParam(role="user", content=input.message)],
+            messages=messages,
             model="gpt-4",
             stream=True,
         ):
