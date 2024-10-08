@@ -36,6 +36,7 @@
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
   * [Instructor](tracing/integrations-tracing/instructor.md)
+  * [LiteLLM](tracing/integrations-tracing/litellm.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
