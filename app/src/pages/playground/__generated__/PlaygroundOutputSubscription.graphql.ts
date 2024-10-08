@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f13c38a36104dff25a3eb75b2df7893c>>
+ * @generated SignedSource<<767976775ee226eb849cf909b42f2897>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
+export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
+export type ChatCompletionMessageInput = {
+  content: any;
+  role: ChatCompletionMessageRole;
+};
 export type PlaygroundOutputSubscription$variables = {
-  message: string;
+  messages: ReadonlyArray<ChatCompletionMessageInput>;
 };
 export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: string;
@@ -25,7 +30,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "message"
+    "name": "messages"
   }
 ],
 v1 = [
@@ -36,8 +41,8 @@ v1 = [
         "fields": [
           {
             "kind": "Variable",
-            "name": "message",
-            "variableName": "message"
+            "name": "messages",
+            "variableName": "messages"
           }
         ],
         "kind": "ObjectValue",
@@ -67,16 +72,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "9f3d7d595d3974bb015d1b73bff91ff5",
+    "cacheID": "0856059e2e3a28a8fda74106924c480d",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $message: String!\n) {\n  chatCompletion(input: {message: $message})\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n) {\n  chatCompletion(input: {messages: $messages})\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e560f1f0d0df600f9f7eb955c25d4ddc";
+(node as any).hash = "d760af0f8e18301631ba9dcdb148de0b";
 
 export default node;
