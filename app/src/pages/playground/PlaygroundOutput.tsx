@@ -2,13 +2,18 @@ import React, { useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
+import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { ChatMessage, ChatMessageRole } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
+  ChatCompletionMessageInput,
+  ChatCompletionMessageRole,
   PlaygroundOutputSubscription,
   PlaygroundOutputSubscription$data,
+  PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -34,12 +39,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 }
 
 function useChatCompletionSubscription({
-  message,
+  params,
   runId,
   onNext,
   onCompleted,
 }: {
-  message: string;
+  params: PlaygroundOutputSubscription$variables;
   runId: number;
   onNext: (response: PlaygroundOutputSubscription$data) => void;
   onCompleted: () => void;
@@ -49,11 +54,13 @@ function useChatCompletionSubscription({
   >(
     () => ({
       subscription: graphql`
-        subscription PlaygroundOutputSubscription($message: String!) {
-          chatCompletion(input: { message: $message })
+        subscription PlaygroundOutputSubscription(
+          $messages: [ChatCompletionMessageInput!]!
+        ) {
+          chatCompletion(input: { messages: $messages })
         }
       `,
-      variables: { message },
+      variables: params,
       onNext: (response) => {
         if (response) {
           onNext(response);
@@ -68,6 +75,35 @@ function useChatCompletionSubscription({
     [runId]
   );
   return useSubscription(config);
+}
+
+/**
+ * A utility function to convert playground messages content to GQL chat completion message input
+ */
+function toGqlChatCompletionMessage(
+  message: ChatMessage
+): ChatCompletionMessageInput {
+  return {
+    content: message.content,
+    role: toGqlChatCompletionRole(message.role),
+  };
+}
+
+function toGqlChatCompletionRole(
+  role: ChatMessageRole
+): ChatCompletionMessageRole {
+  switch (role) {
+    case "system":
+      return "SYSTEM";
+    case "user":
+      return "USER";
+    case "tool":
+      return "TOOL";
+    case "ai":
+      return "AI";
+    default:
+      assertUnreachable(role);
+  }
 }
 
 function PlaygroundOutputText(props: PlaygroundInstanceProps) {
@@ -89,12 +125,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     throw new Error("We only support chat templates for now");
   }
 
-  const message = instance.template.messages.reduce((acc, message) => {
-    return acc + message.content;
-  }, "");
-
   useChatCompletionSubscription({
-    message: message,
+    params: {
+      messages: instance.template.messages.map(toGqlChatCompletionMessage),
+    },
     runId: instance.activeRunId,
     onNext: (response) => {
       setOutput((acc) => acc + response.chatCompletion);
@@ -103,5 +137,14 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
     },
   });
+
+  if (!output) {
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Icon svg={<Icons.LoadingOutline />} />
+        Running...
+      </Flex>
+    );
+  }
   return <span>{output}</span>;
 }
