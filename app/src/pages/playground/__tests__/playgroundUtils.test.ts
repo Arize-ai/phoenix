@@ -37,7 +37,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: "invalid json",
     };
     expect(() => transformSpanAttributesToPlaygroundInstance(span)).toThrow(
-      "Invalid attributes"
+      "Invalid span attributes, attributes must be valid JSON"
     );
   });
 

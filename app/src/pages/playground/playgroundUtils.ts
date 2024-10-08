@@ -44,7 +44,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     span.attributes
   );
   if (parseError) {
-    throw new Error("Invalid attributes");
+    throw new Error("Invalid span attributes, attributes must be valid JSON");
   }
   const { data, success } = llmAttributesSchema.safeParse(parsedAttributes);
   if (!success) {
