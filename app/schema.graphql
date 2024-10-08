@@ -66,7 +66,21 @@ enum AuthMethod {
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ChatCompletionInput {
-  message: String!
+  messages: [ChatCompletionMessageInput!]!
+}
+
+input ChatCompletionMessageInput {
+  role: ChatCompletionMessageRole!
+
+  """The content of the message as JSON to support text and tools"""
+  content: JSON!
+}
+
+enum ChatCompletionMessageRole {
+  USER
+  SYSTEM
+  TOOL
+  AI
 }
 
 input ClearProjectInput {

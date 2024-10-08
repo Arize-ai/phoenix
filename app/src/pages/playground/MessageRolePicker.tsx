@@ -36,11 +36,13 @@ export function MessageRolePicker({
       data-testid="inferences-time-range"
       aria-label={`Time range for the primary inferences`}
       size="compact"
-      onSelectionChange={() => {}}
+      onSelectionChange={() => {
+        // TODO: fill out
+      }}
     >
       <Item key="system">System</Item>
       <Item key="user">User</Item>
-      <Item key="assistant">Assistant</Item>
+      <Item key="ai">AI</Item>
     </Picker>
   );
 }
