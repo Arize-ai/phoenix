@@ -20,9 +20,14 @@ export type PlaygroundTemplate =
   | PlaygroundTextCompletionTemplate;
 
 /**
+ * Array of roles for a chat message with a LLM
+ */
+export const chatMessageRoles = ["user", "ai", "system", "tool"] as const;
+
+/**
  * The role of a chat message with a LLM
  */
-export type ChatMessageRole = "user" | "ai" | "system" | "tool";
+export type ChatMessageRole = (typeof chatMessageRoles)[number];
 
 /**
  * A chat message with a role and content

@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import { Item, Picker } from "@arizeai/components";
 
+import { isChatMessageRole } from "@phoenix/pages/playground/playgroundUtils";
 import { ChatMessageRole } from "@phoenix/store";
 
 const hiddenLabelCSS = css`
@@ -22,22 +23,30 @@ type MessageRolePickerProps = {
    * @default true
    */
   includeLabel?: boolean;
+  /**
+   * Callback for when the message role changes
+   */
+  onChange: (role: ChatMessageRole) => void;
 };
 
 export function MessageRolePicker({
   role,
   includeLabel = true,
+  onChange,
 }: MessageRolePickerProps) {
   return (
     <Picker
       selectedKey={role}
       css={!includeLabel ? hiddenLabelCSS : undefined}
       label="Role"
-      data-testid="inferences-time-range"
-      aria-label={`Time range for the primary inferences`}
+      data-testid="messages-role-picker"
+      aria-label={`Role for the chat message`}
       size="compact"
-      onSelectionChange={() => {
-        // TODO: fill out
+      onSelectionChange={(e) => {
+        if (!isChatMessageRole(e)) {
+          throw new Error(`Invalid chat message role: ${e}`);
+        }
+        onChange(e);
       }}
     >
       <Item key="system">System</Item>
