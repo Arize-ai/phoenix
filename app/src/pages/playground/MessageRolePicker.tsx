@@ -3,8 +3,9 @@ import { css } from "@emotion/react";
 
 import { Item, Picker } from "@arizeai/components";
 
-import { isChatMessageRole } from "@phoenix/pages/playground/playgroundUtils";
 import { ChatMessageRole } from "@phoenix/store";
+
+import { isChatMessageRole } from "./playgroundUtils";
 
 const hiddenLabelCSS = css`
   .ac-field-label {
