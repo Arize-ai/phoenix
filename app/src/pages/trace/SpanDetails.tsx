@@ -540,7 +540,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       return [];
     }
     return (outputMessagesValue
-      ?.map((obj) => obj[SemanticAttributePrefixes.message])
+      .map((obj) => obj[SemanticAttributePrefixes.message])
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
 

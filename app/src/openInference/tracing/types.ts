@@ -1,4 +1,5 @@
 import {
+  DocumentAttributePostfixes,
   EmbeddingAttributePostfixes,
   ImageAttributesPostfixes,
   LLMAttributePostfixes,
@@ -7,12 +8,9 @@ import {
   MessageContentsAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
+  SemanticAttributePrefixes,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
-import {
-  DocumentAttributePostfixes,
-  SemanticAttributePrefixes,
-} from "@arizeai/openinference-semantic-conventions/src/trace/SemanticConventions";
 
 export type AttributeTool = {
   [ToolAttributePostfixes.name]?: string;
@@ -121,7 +119,13 @@ export function isAttributeMessages(
 ): messages is AttributeMessages {
   return (
     Array.isArray(messages) &&
-    messages.every((message) => isAttributeMessage(message))
+    messages.every((message) => {
+      return (
+        typeof message === "object" &&
+        SemanticAttributePrefixes.message in message &&
+        isAttributeMessage(message[SemanticAttributePrefixes.message])
+      );
+    })
   );
 }
 
@@ -135,7 +139,6 @@ export function isAttributeMessage(
   return (
     typeof message === "object" &&
     message !== null &&
-    MessageAttributePostfixes.role in message &&
-    MessageAttributePostfixes.content in message
+    MessageAttributePostfixes.role in message
   );
 }
