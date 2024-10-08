@@ -7,6 +7,20 @@ let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
 
 /**
+ * Generates a new playground instance ID
+ */
+export const generateInstanceId = () => playgroundInstanceIdIndex++;
+
+/**
+ * Resets the playground instance ID to 0
+ *
+ * NB: This is only used for testing purposes
+ */
+export const _resetInstanceId = () => {
+  playgroundInstanceIdIndex = 0;
+};
+
+/**
  * The input mode for the playground
  * @example "manual" or "dataset"
  */
@@ -72,6 +86,8 @@ export interface PlaygroundProps {
    */
   instances: Array<PlaygroundInstance>;
 }
+
+export type InitialPlaygroundState = Partial<PlaygroundProps>;
 
 type DatasetInput = {
   datasetId: string;
@@ -178,7 +194,7 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
 };
 
 export const createPlaygroundStore = (
-  initialProps?: Partial<PlaygroundProps>
+  initialProps?: InitialPlaygroundState
 ) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
@@ -186,7 +202,7 @@ export const createPlaygroundStore = (
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [
       {
-        id: playgroundInstanceIdIndex++,
+        id: generateInstanceId(),
         template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
         tools: {},
         input: { variables: {} },
@@ -201,7 +217,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
-              id: playgroundInstanceIdIndex++,
+              id: generateInstanceId(),
               template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
@@ -215,7 +231,7 @@ export const createPlaygroundStore = (
         set({
           instances: [
             {
-              id: playgroundInstanceIdIndex++,
+              id: generateInstanceId(),
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
@@ -239,7 +255,7 @@ export const createPlaygroundStore = (
           instance,
           {
             ...instance,
-            id: playgroundInstanceIdIndex++,
+            id: generateInstanceId(),
             activeRunId: null,
           },
         ],
