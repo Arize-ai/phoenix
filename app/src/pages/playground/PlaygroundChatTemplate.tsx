@@ -37,7 +37,23 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           <li key={index}>
             <Card
               title={
-                <MessageRolePicker includeLabel={false} role={message.role} />
+                <MessageRolePicker
+                  includeLabel={false}
+                  role={message.role}
+                  onChange={(role) => {
+                    updateInstance({
+                      instanceId: id,
+                      patch: {
+                        template: {
+                          __type: "chat",
+                          messages: template.messages.map((message, i) =>
+                            i === index ? { ...message, role } : message
+                          ),
+                        },
+                      },
+                    });
+                  }}
+                />
               }
               variant="compact"
               backgroundColor="light"
