@@ -7,10 +7,11 @@ from typing import (
     Callable,
     Optional,
     Tuple,
+    cast,
 )
 
 import grpc
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, WebSocket, WebSocketException
 from grpc_interceptor import AsyncServerInterceptor
 from grpc_interceptor.exceptions import Unauthenticated
 from starlette.authentication import AuthCredentials, AuthenticationBackend, BaseUser
@@ -116,12 +117,19 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
         raise Unauthenticated()
 
 
-async def is_authenticated(request: Request) -> None:
+async def is_authenticated(
+    # fastapi dependencies require non-optional types
+    request: Request = cast(Request, None),
+    websocket: WebSocket = cast(WebSocket, None),
+) -> None:
     """
-    Raises a 401 if the request is not authenticated.
+    Raises a 401 if the request or websocket connection is not authenticated.
     """
-    if not isinstance((user := request.user), PhoenixUser):
+    assert request or websocket
+    if request and not isinstance((user := request.user), PhoenixUser):
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if websocket and not isinstance((user := websocket.user), PhoenixUser):
+        raise WebSocketException(code=HTTP_401_UNAUTHORIZED, reason="Invalid token")
     claims = user.claims
     if claims.status is ClaimSetStatus.EXPIRED:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")
