@@ -80,6 +80,7 @@ import {
   isAttributeMessages,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
@@ -118,11 +119,7 @@ const useSafelyParsedJSON = (
   jsonStr: string
 ): { json: { [key: string]: unknown } | null; parseError?: unknown } => {
   return useMemo(() => {
-    try {
-      return { json: JSON.parse(jsonStr) };
-    } catch (e) {
-      return { json: null, parseError: e };
-    }
+    return safelyParseJSON(jsonStr);
   }, [jsonStr]);
 };
 
