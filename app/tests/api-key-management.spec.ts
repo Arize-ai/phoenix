@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.waitForURL("**/projects/**");
 });
 
-test("can create system api key", async ({ page }) => {
+test("admin can create system api key", async ({ page }) => {
   const testKeyName = `System-${randomUUID()}`;
   await page.getByRole("link", { name: "Settings" }).click();
   await page.waitForURL("**/settings");
