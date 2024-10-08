@@ -15,7 +15,7 @@ export function SpanPlaygroundPage() {
   }, [data.span]);
 
   if (!span) {
-    throw new Error("Invalid span");
+    throw new Error("Span not found");
   }
 
   const playgroundInstance = useMemo(
