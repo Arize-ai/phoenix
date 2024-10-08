@@ -8,12 +8,12 @@ import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundProps } from "@phoenix/store";
+import { InitialPlaygroundState } from "@phoenix/store";
 
 import { PlaygroundInstance } from "./PlaygroundInstance";
 import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
 
-export function Playground(props: Partial<PlaygroundProps>) {
+export function Playground(props: InitialPlaygroundState) {
   return (
     <PlaygroundProvider {...props}>
       <View

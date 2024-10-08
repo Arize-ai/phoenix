@@ -87,6 +87,8 @@ export interface PlaygroundProps {
   instances: Array<PlaygroundInstance>;
 }
 
+export type InitialPlaygroundState = Partial<PlaygroundProps>;
+
 type DatasetInput = {
   datasetId: string;
 };
@@ -192,7 +194,7 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
 };
 
 export const createPlaygroundStore = (
-  initialProps?: Partial<PlaygroundProps>
+  initialProps?: InitialPlaygroundState
 ) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
