@@ -1,4 +1,4 @@
-import { PlaygroundSpan } from "../types";
+import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 export const basePlaygroundSpan: PlaygroundSpan = {
   __typename: "Span",

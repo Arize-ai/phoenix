@@ -3,7 +3,7 @@ import { useLoaderData } from "react-router";
 
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
-import { transformSpanAttributesToPlaygroundInstance } from "./utils";
+import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
 
 export function SpanPlaygroundPage() {
   const data = useLoaderData() as spanPlaygroundPageLoaderQuery$data;
