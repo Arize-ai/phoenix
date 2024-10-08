@@ -42,7 +42,7 @@ export function MessageRolePicker({
     >
       <Item key="system">System</Item>
       <Item key="user">User</Item>
-      <Item key="ai">ai</Item>
+      <Item key="ai">AI</Item>
     </Picker>
   );
 }
