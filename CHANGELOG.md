@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.0...arize-phoenix-v5.2.1) (2024-10-08)
+
+
+### Bug Fixes
+
+* handle badly ingested llm spans gracefully ([#4915](https://github.com/Arize-ai/phoenix/issues/4915)) ([b008d11](https://github.com/Arize-ai/phoenix/commit/b008d11ddf5b6f72da6b80ed2822a4b153304607))
+
+
+### Documentation
+
+* **js:** add langchain deno notebook ([#4848](https://github.com/Arize-ai/phoenix/issues/4848)) ([9bb57b7](https://github.com/Arize-ai/phoenix/commit/9bb57b72ffc7bfc15f0f6c1fae570739be066afb))
+
 ## [5.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.1.6...arize-phoenix-v5.2.0) (2024-10-05)
 
 
