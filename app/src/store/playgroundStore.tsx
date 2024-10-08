@@ -16,7 +16,7 @@ export const generateInstanceId = () => playgroundInstanceIdIndex++;
  *
  * NB: This is only used for testing purposes
  */
-export const resetInstanceId = () => {
+export const _resetInstanceId = () => {
   playgroundInstanceIdIndex = 0;
 };
 

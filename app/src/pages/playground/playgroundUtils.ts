@@ -29,9 +29,9 @@ export function getChatRole(role: string): ChatMessageRole {
     return role;
   }
 
-  for (const [key, values] of Object.entries(ChatRoleMap)) {
-    if (values.includes(role)) {
-      return key as ChatMessageRole;
+  for (const [role, acceptedValues] of Object.entries(ChatRoleMap)) {
+    if (acceptedValues.includes(role)) {
+      return role as ChatMessageRole;
     }
   }
   return DEFAULT_CHAT_ROLE;

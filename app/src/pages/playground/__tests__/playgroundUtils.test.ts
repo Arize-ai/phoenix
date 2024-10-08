@@ -1,4 +1,4 @@
-import { resetInstanceId } from "@phoenix/store";
+import { _resetInstanceId } from "@phoenix/store";
 
 import {
   getChatRole,
@@ -29,7 +29,7 @@ const expectedPlaygroundInstance = {
 
 describe("transformSpanAttributesToPlaygroundInstance", () => {
   beforeEach(() => {
-    resetInstanceId();
+    _resetInstanceId();
   });
   it("should throw if the attributes are not parsable", () => {
     const span = {
