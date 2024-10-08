@@ -71,9 +71,6 @@ importers:
       graphql-ws:
         specifier: ^5.16.0
         version: 5.16.0(graphql@16.9.0)
-      jest-canvas-mock:
-        specifier: ^2.5.2
-        version: 2.5.2
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -222,6 +219,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.5.4)(babel-plugin-macros@3.1.0)
+      jest-canvas-mock:
+        specifier: ^2.5.2
+        version: 2.5.2
       jest-environment-jsdom:
         specifier: ^29.7.0
         version: 29.7.0
