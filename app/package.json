@@ -47,6 +47,7 @@
     "three-stdlib": "^2.30.4",
     "use-deep-compare-effect": "^1.8.1",
     "use-zustand": "^0.0.4",
+    "zod": "^3.23.8",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
@@ -76,6 +77,7 @@
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^16.9.0",
     "jest": "^29.7.0",
+    "jest-canvas-mock": "^2.5.2",
     "jest-environment-jsdom": "^29.7.0",
     "only-allow": "^1.2.1",
     "prettier": "^3.3.3",
