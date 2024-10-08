@@ -71,6 +71,9 @@ importers:
       graphql-ws:
         specifier: ^5.16.0
         version: 5.16.0(graphql@16.9.0)
+      jest-canvas-mock:
+        specifier: ^2.5.2
+        version: 2.5.2
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -2275,6 +2278,9 @@ packages:
     resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
     engines: {node: '>= 8'}
 
+  cssfontparser@1.2.1:
+    resolution: {integrity: sha512-6tun4LoZnj7VN6YeegOVb67KBX/7JJsqvj+pv3ZA7F878/eN33AbGa5b/S/wXxS/tcp8nc40xRUrsPlxIyNUPg==}
+
   cssom@0.3.8:
     resolution: {integrity: sha512-b0tGHbfegbhPJpxpiBPU2sCkigAqtM9O121le6bbOlgyV+NyGyCmVfJ6QW9eRjz8CpNfWEOYBIMIGRYkLwsIYg==}
 
@@ -3263,6 +3269,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  jest-canvas-mock@2.5.2:
+    resolution: {integrity: sha512-vgnpPupjOL6+L5oJXzxTxFrlGEIbHdZqFU+LFNdtLxZ3lRDCl17FlTMM7IatoRQkrcyOTMlDinjUguqmQ6bR2A==}
+
   jest-changed-files@29.7.0:
     resolution: {integrity: sha512-fEArFiwf1BpQ+4bXSprcDc3/x4HSzL4al2tozwVpDFpsxALjLYdyiIK4e5Vz66GQJIbXJ82+35PtysofptNX2w==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -3750,6 +3759,9 @@ packages:
   mkdirp@0.3.5:
     resolution: {integrity: sha512-8OCq0De/h9ZxseqzCH8Kw/Filf5pF/vMI6+BH7Lu0jXz2pqYCjTAQRolSxRIi+Ax+oCCjlxoJMP0YQ4XlrQNHg==}
     deprecated: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+
+  moo-color@1.0.3:
+    resolution: {integrity: sha512-i/+ZKXMDf6aqYtBhuOcej71YSlbjT3wCO/4H1j8rPvxDJEifdwgg5MaFyu6iYAT8GBZJg2z0dkgK4YMzvURALQ==}
 
   ms@2.0.0:
     resolution: {integrity: sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==}
@@ -7514,6 +7526,8 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
+  cssfontparser@1.2.1: {}
+
   cssom@0.3.8: {}
 
   cssom@0.5.0: {}
@@ -8664,6 +8678,11 @@ snapshots:
       filelist: 1.0.4
       minimatch: 3.1.2
 
+  jest-canvas-mock@2.5.2:
+    dependencies:
+      cssfontparser: 1.2.1
+      moo-color: 1.0.3
+
   jest-changed-files@29.7.0:
     dependencies:
       execa: 5.1.1
@@ -9579,6 +9598,10 @@ snapshots:
       is-extendable: 1.0.1
 
   mkdirp@0.3.5: {}
+
+  moo-color@1.0.3:
+    dependencies:
+      color-name: 1.1.4
 
   ms@2.0.0: {}
 

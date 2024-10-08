@@ -26,6 +26,7 @@
     "d3-time-format": "^4.1.0",
     "date-fns": "^3.6.0",
     "graphql-ws": "^5.16.0",
+    "jest-canvas-mock": "^2.5.2",
     "lodash": "^4.17.21",
     "normalize.css": "^8.0.1",
     "polished": "^4.3.1",

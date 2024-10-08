@@ -1,12 +1,8 @@
 import { generateInstanceId, PlaygroundInstance } from "@phoenix/store";
-import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-import { llmAttributesSchema } from "./schemas";
 
-type PlaygroundSpan = Extract<
-  spanPlaygroundPageLoaderQuery$data["span"],
-  { __typename: "Span" }
->;
+import { llmAttributesSchema } from "./schemas";
+import { PlaygroundSpan } from "./types";
 
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
@@ -32,9 +28,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     },
     template: {
       __type: "chat",
-      messages: data["llm.input_messages"],
+      messages: data.llm.input_messages.map(({ message }) => message),
     },
-    output: data["llm.output_messages"],
+    output: data.llm.output_messages,
     tools: undefined,
   };
 }

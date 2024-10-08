@@ -6,7 +6,19 @@ export type GenAIOperationType = "chat" | "text_completion";
 let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
 
+/**
+ * Generates a new playground instance ID
+ */
 export const generateInstanceId = () => playgroundInstanceIdIndex++;
+
+/**
+ * Resets the playground instance ID to 0
+ *
+ * NB: This is only used for testing purposes
+ */
+export const resetInstanceId = () => {
+  playgroundInstanceIdIndex = 0;
+};
 
 /**
  * The input mode for the playground

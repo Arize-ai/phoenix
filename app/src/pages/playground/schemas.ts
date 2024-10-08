@@ -2,11 +2,12 @@ import { z } from "zod";
 
 import {
   ImageAttributesPostfixes,
+  LLMAttributePostfixes,
   MessageAttributePostfixes,
   MessageContentsAttributePostfixes,
   SemanticAttributePrefixes,
-  SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
+
 import { CHAT_MESSAGE_ROLES } from "@phoenix/store";
 
 /**
@@ -53,20 +54,23 @@ const ChatRoleEnum = z.enum(CHAT_MESSAGE_ROLES);
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
 const messageSchema = z.object({
-  [MessageAttributePostfixes.role]: ChatRoleEnum,
-  [MessageAttributePostfixes.content]: z.string(),
-  [MessageAttributePostfixes.name]: z.string().optional(),
-  [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
-  [MessageAttributePostfixes.contents]: z
-    .array(messageContentSchema)
-    .optional(),
+  [SemanticAttributePrefixes.message]: z.object({
+    [MessageAttributePostfixes.role]: ChatRoleEnum,
+    [MessageAttributePostfixes.content]: z.string(),
+    [MessageAttributePostfixes.name]: z.string().optional(),
+    [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
+    [MessageAttributePostfixes.contents]: z
+      .array(messageContentSchema)
+      .optional(),
+  }),
 });
-
 /**
  * The zod schema for llm attributes
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
 export const llmAttributesSchema = z.object({
-  [SemanticConventions.LLM_INPUT_MESSAGES]: z.array(messageSchema),
-  [SemanticConventions.LLM_OUTPUT_MESSAGES]: z.optional(z.array(messageSchema)),
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.input_messages]: z.array(messageSchema),
+    [LLMAttributePostfixes.output_messages]: z.optional(z.array(messageSchema)),
+  }),
 });
