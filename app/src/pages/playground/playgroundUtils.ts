@@ -2,6 +2,7 @@ import { generateInstanceId, PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessageRole,
   chatMessageRoles,
+  generateMessageId,
 } from "@phoenix/store/playgroundStore";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -63,6 +64,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       __type: "chat",
       messages: data.llm.input_messages.map(({ message }) => {
         return {
+          id: generateMessageId(),
           role: getChatRole(message.role),
           content: message.content,
         };
