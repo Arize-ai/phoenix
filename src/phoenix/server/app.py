@@ -688,7 +688,7 @@ def create_app(
         middlewares.append(Middleware(RequestOriginHostnameValidator, trusted_hostnames))
     elif email_sender or oauth2_client_configs:
         logger.warning(
-            "CSRF protection is disabled because trusted origins have not been set via "
+            "CSRF protection can be enabled by listing trusted origins via "
             f"the `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` environment variable."
         )
     if authentication_enabled and secret:
