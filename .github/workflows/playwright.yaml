@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   push:
-    branches: [ main, playground ]
+    branches: [main, playground]
   pull_request:
-    branches: [ main, playground ]
+    branches: [main, playground]
 jobs:
   e2e-test:
     timeout-minutes: 60
@@ -40,7 +40,6 @@ jobs:
         run: pnpm exec playwright install --with-deps
       - name: Install system dependencies for WebKit
         # WebKit dependencies can't be cached and must always be installed
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps webkit
       - name: Build the app
         run: pnpm run build
