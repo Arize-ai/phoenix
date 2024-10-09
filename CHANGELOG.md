@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.1...arize-phoenix-v5.2.2) (2024-10-09)
+
+
+### Bug Fixes
+
+* add Starlette middleware for checking Cross-Site Request Forgery (CSRF) when trusted origins are specified via environment variable ([#4916](https://github.com/Arize-ai/phoenix/issues/4916)) ([26f8e4b](https://github.com/Arize-ai/phoenix/commit/26f8e4b02ff21029582732fcae71a960c39a074d))
+* playwright ([#4935](https://github.com/Arize-ai/phoenix/issues/4935)) ([199d0eb](https://github.com/Arize-ai/phoenix/commit/199d0ebbecaf8bf4159d0e8bb9f4653a93276d4f))
+
+
+### Reverts
+
+* "chore: use git town for making stacked changes ([#4878](https://github.com/Arize-ai/phoenix/issues/4878))" ([#4933](https://github.com/Arize-ai/phoenix/issues/4933)) ([506f412](https://github.com/Arize-ai/phoenix/commit/506f4129df68514fb1477c116fd876fd21c67d60))
+
 ## [5.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.0...arize-phoenix-v5.2.1) (2024-10-08)
 
 
