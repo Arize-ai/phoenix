@@ -153,6 +153,50 @@ jobs:
       - name: Check lint
         run: uv tool run ruff check --no-fix
 
+  type-check:
+    name: Type Check
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.9, 3.12 ]
+        os: [ ubuntu-latest ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+      - name: Remove symbolic links (Non-Windows)
+        run: find . -type l -delete
+        if: runner.os != 'Windows'
+      - name: Remove symbolic links (Windows)
+        run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/type-check.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Check types
+        run: tox run -e type_check
+
   unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
