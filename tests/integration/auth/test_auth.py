@@ -84,6 +84,8 @@ class TestOriginAndReferer:
             [dict(referer="http://localhost/xyz"), _OK],
             [dict(origin="http://xyz.com"), _EXPECTATION_401],
             [dict(referer="http://xyz.com/xyz"), _EXPECTATION_401],
+            [dict(origin="http://xyz.com", referer="http://localhost/xyz"), _EXPECTATION_401],
+            [dict(origin="http://localhost", referer="http://xyz.com/xyz"), _EXPECTATION_401],
         ],
     )
     def test_csrf_origin_validation(
