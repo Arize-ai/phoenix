@@ -10,8 +10,9 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { InitialPlaygroundState } from "@phoenix/store";
 
+import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundInstance } from "./PlaygroundInstance";
-import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
+import { PlaygroundRunButton } from "./PlaygroundRunButton";
 
 export function Playground(props: InitialPlaygroundState) {
   return (
@@ -21,14 +22,19 @@ export function Playground(props: InitialPlaygroundState) {
         borderBottomWidth="thin"
         padding="size-200"
       >
-        <Flex direction="row" justifyContent="space-between">
-          <View>
-            <Flex direction="row" gap="size-200" alignItems="center">
-              <Heading level={1}>Playground</Heading>
-              <PlaygroundOperationTypeRadioGroup />
-            </Flex>
-          </View>
-          <Button variant="default">API Keys</Button>
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={1}>Playground</Heading>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <PlaygroundInputTypeTypeRadioGroup />
+            <Button variant="default" size="compact">
+              API Keys
+            </Button>
+            <PlaygroundRunButton />
+          </Flex>
         </Flex>
       </View>
       <PlaygroundInstances />
