@@ -335,8 +335,8 @@ def get_env_csrf_trusted_origins() -> List[str]:
             continue
         if not urlparse(origin).hostname:
             raise ValueError(
-                f"Invalid hostname found in in the environment variable "
-                f"`{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}`"
+                f"The environment variable `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` contains a url "
+                f"with missing hostname. Please ensure that each url has a valid hostname."
             )
         origins.append(origin)
     return sorted(set(origins))
