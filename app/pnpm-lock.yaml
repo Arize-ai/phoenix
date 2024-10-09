@@ -139,8 +139,8 @@ importers:
         specifier: ^11.11.4
         version: 11.11.4(@types/react@18.3.10)(react@18.3.1)
       '@playwright/test':
-        specifier: ^1.47.0
-        version: 1.47.0
+        specifier: ^1.48.0
+        version: 1.48.0
       '@types/d3-format':
         specifier: ^3.0.4
         version: 3.0.4
@@ -528,6 +528,9 @@ packages:
   '@codemirror/commands@6.6.0':
     resolution: {integrity: sha512-qnY+b7j1UNcTS31Eenuc/5YJB6gQOzkUoNmJQc0rznwqSRpeaWWpjkWy2C/MPTcePpsKJEM26hXrOXl1+nceXg==}
 
+  '@codemirror/commands@6.7.0':
+    resolution: {integrity: sha512-+cduIZ2KbesDhbykV02K25A5xIVrquSPz4UxxYBemRlAT2aW8dhwUgLDwej7q/RJUHKk4nALYcR1puecDvbdqw==}
+
   '@codemirror/lang-javascript@6.2.2':
     resolution: {integrity: sha512-VGQfY+FCc285AhWuwjYxQyUQcYurWlxdKYT4bqwr3Twnd5wP5WSeu52t4tvvuWmljT4EmgEgZCqSieokhtY8hg==}
 
@@ -543,6 +546,9 @@ packages:
   '@codemirror/lint@6.8.1':
     resolution: {integrity: sha512-IZ0Y7S4/bpaunwggW2jYqwLuHj0QtESf5xcROewY6+lDNwZ/NzvR4t+vpYgg9m7V8UXLPYqG+lu3DF470E5Oxg==}
 
+  '@codemirror/lint@6.8.2':
+    resolution: {integrity: sha512-PDFG5DjHxSEjOXk9TQYYVjZDqlZTFaDBfhQixHnQOEVDDNHUbEh/hstAjcQJaA6FQdZTD1hquXTK0rVBLADR1g==}
+
   '@codemirror/search@6.5.6':
     resolution: {integrity: sha512-rpMgcsh7o0GuCDUXKPvww+muLA1pDJaFrpq/CCHtpQJYz8xopu4D1hPcKRoDD0YlF8gZaqTNIRa4VRBWyhyy7Q==}
 
@@ -557,6 +563,9 @@ packages:
 
   '@codemirror/view@6.29.0':
     resolution: {integrity: sha512-ED4ims4fkf7eOA+HYLVP8VVg3NMllt1FPm9PEJBfYFnidKlRITBaua38u68L1F60eNtw2YNcDN5jsIzhKZwWQA==}
+
+  '@codemirror/view@6.34.1':
+    resolution: {integrity: sha512-t1zK/l9UiRqwUNPm+pdIT0qzJlzuVckbTEMVNFhfWkGiBQClstzg+78vedCvLSX0xJEZ6lwZbPpnljL7L6iwMQ==}
 
   '@emotion/babel-plugin@11.11.0':
     resolution: {integrity: sha512-m4HEDZleaaCH+XgDDsPF15Ht6wTLsgDTeR3WYj9Q/k76JtWhrJjcP4+/XlG8LGT/Rol9qUfOIztXeA84ATpqPQ==}
@@ -1045,6 +1054,9 @@ packages:
   '@lezer/highlight@1.2.0':
     resolution: {integrity: sha512-WrS5Mw51sGrpqjlh3d4/fOwpEV2Hd3YOkp9DBt4k8XZQcoTHZFB7sx030A6OcahF4J1nDQAa3jXlTVVYH50IFA==}
 
+  '@lezer/highlight@1.2.1':
+    resolution: {integrity: sha512-Z5duk4RN/3zuVO7Jq0pGLJ3qynpxUVsh7IbUbGj88+uV2ApSAn6kWg2au3iJb+0Zi7kKtqffIESgNcRXWZWmSA==}
+
   '@lezer/javascript@1.4.17':
     resolution: {integrity: sha512-bYW4ctpyGK+JMumDApeUzuIezX01H76R1foD6LcRX224FWfyYit/HYxiPGDjXXe/wQWASjCvVGoukTH68+0HIA==}
 
@@ -1077,8 +1089,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@playwright/test@1.47.0':
-    resolution: {integrity: sha512-SgAdlSwYVpToI4e/IH19IHHWvoijAYH5hu2MWSXptRypLSnzj51PcGD+rsOXFayde4P9ZLi+loXVwArg6IUkCA==}
+  '@playwright/test@1.48.0':
+    resolution: {integrity: sha512-W5lhqPUVPqhtc/ySvZI5Q8X2ztBOUgZ8LbAFy0JQgrXZs2xaILrUcNO3rQjwbLPfGK13+rZsDa1FpG+tqYkT5w==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -3969,13 +3981,13 @@ packages:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
     engines: {node: '>=8'}
 
-  playwright-core@1.47.0:
-    resolution: {integrity: sha512-1DyHT8OqkcfCkYUD9zzUTfg7EfTd+6a8MkD/NWOvjo0u/SCNd5YmY/lJwFvUZOxJbWNds+ei7ic2+R/cRz/PDg==}
+  playwright-core@1.48.0:
+    resolution: {integrity: sha512-RBvzjM9rdpP7UUFrQzRwR8L/xR4HyC1QXMzGYTbf1vjw25/ya9NRAVnXi/0fvFopjebvyPzsmoK58xxeEOaVvA==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.47.0:
-    resolution: {integrity: sha512-jOWiRq2pdNAX/mwLiwFYnPHpEZ4rM+fRSQpRHwEwZlP2PUANvL3+aJOF/bvISMhFD30rqMxUB4RJx9aQbfh4Ww==}
+  playwright@1.48.0:
+    resolution: {integrity: sha512-qPqFaMEHuY/ug8o0uteYJSRfMGFikhUysk8ZvAtfKmUK3kc/6oNl/y3EczF8OFGYIi/Ex2HspMfzYArk6+XQSA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -5347,11 +5359,25 @@ snapshots:
       '@codemirror/view': 6.29.0
       '@lezer/common': 1.2.1
 
+  '@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.34.1)(@lezer/common@1.2.1)':
+    dependencies:
+      '@codemirror/language': 6.10.2
+      '@codemirror/state': 6.4.1
+      '@codemirror/view': 6.34.1
+      '@lezer/common': 1.2.1
+
   '@codemirror/commands@6.6.0':
     dependencies:
       '@codemirror/language': 6.10.2
       '@codemirror/state': 6.4.1
       '@codemirror/view': 6.28.5
+      '@lezer/common': 1.2.1
+
+  '@codemirror/commands@6.7.0':
+    dependencies:
+      '@codemirror/language': 6.10.2
+      '@codemirror/state': 6.4.1
+      '@codemirror/view': 6.34.1
       '@lezer/common': 1.2.1
 
   '@codemirror/lang-javascript@6.2.2':
@@ -5394,10 +5420,16 @@ snapshots:
       '@codemirror/view': 6.28.5
       crelt: 1.0.6
 
+  '@codemirror/lint@6.8.2':
+    dependencies:
+      '@codemirror/state': 6.4.1
+      '@codemirror/view': 6.34.1
+      crelt: 1.0.6
+
   '@codemirror/search@6.5.6':
     dependencies:
       '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.29.0
+      '@codemirror/view': 6.34.1
       crelt: 1.0.6
 
   '@codemirror/state@6.4.1': {}
@@ -5406,8 +5438,8 @@ snapshots:
     dependencies:
       '@codemirror/language': 6.10.2
       '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.29.0
-      '@lezer/highlight': 1.2.0
+      '@codemirror/view': 6.34.1
+      '@lezer/highlight': 1.2.1
 
   '@codemirror/view@6.28.5':
     dependencies:
@@ -5416,6 +5448,12 @@ snapshots:
       w3c-keyname: 2.2.8
 
   '@codemirror/view@6.29.0':
+    dependencies:
+      '@codemirror/state': 6.4.1
+      style-mod: 4.1.2
+      w3c-keyname: 2.2.8
+
+  '@codemirror/view@6.34.1':
     dependencies:
       '@codemirror/state': 6.4.1
       style-mod: 4.1.2
@@ -5925,6 +5963,10 @@ snapshots:
     dependencies:
       '@lezer/common': 1.2.1
 
+  '@lezer/highlight@1.2.1':
+    dependencies:
+      '@lezer/common': 1.2.1
+
   '@lezer/javascript@1.4.17':
     dependencies:
       '@lezer/common': 1.2.1
@@ -5966,9 +6008,9 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.17.1
 
-  '@playwright/test@1.47.0':
+  '@playwright/test@1.48.0':
     dependencies:
-      playwright: 1.47.0
+      playwright: 1.48.0
 
   '@react-aria/breadcrumbs@3.5.13(react@18.3.1)':
     dependencies:
@@ -7372,13 +7414,13 @@ snapshots:
 
   codemirror@6.0.1(@lezer/common@1.2.1):
     dependencies:
-      '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1)
-      '@codemirror/commands': 6.6.0
+      '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.34.1)(@lezer/common@1.2.1)
+      '@codemirror/commands': 6.7.0
       '@codemirror/language': 6.10.2
-      '@codemirror/lint': 6.8.1
+      '@codemirror/lint': 6.8.2
       '@codemirror/search': 6.5.6
       '@codemirror/state': 6.4.1
-      '@codemirror/view': 6.29.0
+      '@codemirror/view': 6.34.1
     transitivePeerDependencies:
       - '@lezer/common'
 
@@ -9789,11 +9831,11 @@ snapshots:
     dependencies:
       find-up: 4.1.0
 
-  playwright-core@1.47.0: {}
+  playwright-core@1.48.0: {}
 
-  playwright@1.47.0:
+  playwright@1.48.0:
     dependencies:
-      playwright-core: 1.47.0
+      playwright-core: 1.48.0
     optionalDependencies:
       fsevents: 2.3.2
 
