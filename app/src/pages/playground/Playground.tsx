@@ -1,7 +1,7 @@
 import React from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
+import { Button, Flex, Heading, View } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
