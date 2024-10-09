@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.16.1...arize-phoenix-evals-v0.17.0) (2024-10-09)
+
+
+### Features
+
+* Always prompt as system for OpenAI Models ([#4937](https://github.com/Arize-ai/phoenix/issues/4937)) ([5f28ef2](https://github.com/Arize-ai/phoenix/commit/5f28ef244db2c4dd59fad6c6d6f1b63ff235817b))
+
 ## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.16.0...arize-phoenix-evals-v0.16.1) (2024-09-27)
 
 
