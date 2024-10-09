@@ -5,11 +5,17 @@ export type GenAIOperationType = "chat" | "text_completion";
 
 let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
+let playgroundMessageIdIndex = 100;
 
 /**
  * Generates a new playground instance ID
  */
 export const generateInstanceId = () => playgroundInstanceIdIndex++;
+
+/**
+ * Generates a new playground message ID
+ */
+export const generateMessageId = () => playgroundMessageIdIndex++;
 
 /**
  * Resets the playground instance ID to 0
@@ -48,6 +54,7 @@ export type ChatMessageRole = (typeof chatMessageRoles)[number];
  * @example { role: "user", content: "What is the meaning of life?" }
  */
 export type ChatMessage = {
+  id: number;
   role: ChatMessageRole;
   content: string;
 };
@@ -174,19 +181,21 @@ export interface PlaygroundState extends PlaygroundProps {
   markPlaygroundInstanceComplete: (instanceId: number) => void;
 }
 
-const DEFAULT_CHAT_COMPLETION_TEMPLATE: PlaygroundChatTemplate = {
+const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   __type: "chat",
   messages: [
     {
+      id: generateMessageId(),
       role: "system",
       content: "You are a chatbot",
     },
     {
+      id: generateMessageId(),
       role: "user",
       content: "{{question}}",
     },
   ],
-};
+});
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
@@ -196,7 +205,7 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
 export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
-    template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+    template: generateChatCompletionTemplate(),
     tools: {},
     input: { variables: {} },
     output: {},
@@ -220,7 +229,7 @@ export const createPlaygroundStore = (
           instances: [
             {
               id: generateInstanceId(),
-              template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+              template: generateChatCompletionTemplate(),
               tools: {},
               input: { variables: {} },
               output: {},
