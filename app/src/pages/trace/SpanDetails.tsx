@@ -40,7 +40,6 @@ import {
   TooltipTrigger,
   View,
   ViewProps,
-  ViewStyleProps,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
