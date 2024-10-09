@@ -1,9 +1,10 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Card, TextArea } from "@arizeai/components";
+import { Card, CardProps, TextArea } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -35,7 +36,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
       {template.messages.map((message, index) => {
         return (
           <li key={index}>
-            <Card
+            <ChatMessageCard
+              role={message.role}
               title={
                 <MessageRolePicker
                   includeLabel={false}
@@ -55,31 +57,58 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                   }}
                 />
               }
-              variant="compact"
-              backgroundColor="light"
-              borderColor="light"
             >
-              <TextArea
-                height={100}
-                value={message.content}
-                onChange={(val) => {
-                  updateInstance({
-                    instanceId: id,
-                    patch: {
-                      template: {
-                        __type: "chat",
-                        messages: template.messages.map((message, i) =>
-                          i === index ? { ...message, content: val } : message
-                        ),
+              <div
+                css={css`
+                  // TODO: remove these styles once the codemiror editor is added
+                  .ac-textfield {
+                    border: none !important;
+                    border-radius: 0;
+                    textarea {
+                      padding: var(--ac-global-dimension-size-200);
+                    }
+                  }
+                `}
+              >
+                <TextArea
+                  value={message.content}
+                  height={200}
+                  variant="quiet"
+                  onChange={(val) => {
+                    updateInstance({
+                      instanceId: id,
+                      patch: {
+                        template: {
+                          __type: "chat",
+                          messages: template.messages.map((message, i) =>
+                            i === index ? { ...message, content: val } : message
+                          ),
+                        },
                       },
-                    },
-                  });
-                }}
-              />
-            </Card>
+                    });
+                  }}
+                />
+              </div>
+            </ChatMessageCard>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+function ChatMessageCard(
+  props: PropsWithChildren<{ title: CardProps["title"]; role: string }>
+) {
+  const styles = useChatMessageStyles(props.role);
+  return (
+    <Card
+      title={props.title}
+      variant="compact"
+      {...styles}
+      bodyStyle={{ padding: 0 }}
+    >
+      {props.children}
+    </Card>
   );
 }
