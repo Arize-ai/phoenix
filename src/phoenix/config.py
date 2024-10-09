@@ -110,7 +110,7 @@ The duration, in minutes, before password reset tokens expire.
 ENV_PHOENIX_CSRF_TRUSTED_ORIGINS = "PHOENIX_CSRF_TRUSTED_ORIGINS"
 """
 A comma-separated list of origins that are allowed to bypass Cross-Site Request Forgery (CSRF)
-protection.
+protection. This is recommended when setting up OAuth2 clients or sending password reset emails.
 """
 
 # SMTP settings

@@ -689,7 +689,9 @@ def create_app(
     elif email_sender or oauth2_client_configs:
         logger.warning(
             "CSRF protection can be enabled by listing trusted origins via "
-            f"the `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` environment variable."
+            f"the `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` environment variable. "
+            "This is recommended when setting up OAuth2 clients or sending "
+            "password reset emails."
         )
     if authentication_enabled and secret:
         token_store = JwtStore(db, secret)
