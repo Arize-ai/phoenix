@@ -32,7 +32,7 @@ export const _resetInstanceId = () => {
  * NB: This is only used for testing purposes
  */
 export const _resetMessageId = () => {
-  playgroundInstanceIdIndex = 0;
+  playgroundMessageIdIndex = 0;
 };
 
 /**
@@ -202,12 +202,12 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   messages: [
     {
       id: generateMessageId(),
-      role: "system",
+      role: ChatMessageRole.system,
       content: "You are a chatbot",
     },
     {
       id: generateMessageId(),
-      role: "user",
+      role: ChatMessageRole.user,
       content: "{{question}}",
     },
   ],
@@ -224,7 +224,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     tools: {},
     input: { variables: {} },
-    output: {},
+    output: undefined,
     activeRunId: null,
     isRunning: false,
   };

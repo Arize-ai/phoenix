@@ -1,7 +1,7 @@
 import {
   _resetInstanceId,
+  _resetMessageId,
   ChatMessageRole,
-  DEFAULT_CHAT_COMPLETION_TEMPLATE,
   PlaygroundInstance,
 } from "@phoenix/store";
 
@@ -26,16 +26,36 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   input: {
     variables: {},
   },
+  tools: {},
   template: {
     __type: "chat",
+    // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
+    // Doing so increments the message id counter
     messages: [
-      { content: "You are a chatbot", role: ChatMessageRole.system },
-      { content: "hello?", role: ChatMessageRole.user },
+      { id: 2, content: "You are a chatbot", role: ChatMessageRole.system },
+      { id: 3, content: "hello?", role: ChatMessageRole.user },
     ],
   },
-  output: [{ content: "This is an AI Answer", role: ChatMessageRole.ai }],
+  output: [
+    { id: 4, content: "This is an AI Answer", role: ChatMessageRole.ai },
+  ],
   parsingErrors: [],
-  tools: undefined,
+};
+
+const defaultTemplate = {
+  __type: "chat",
+  messages: [
+    {
+      id: 0,
+      role: ChatMessageRole.system,
+      content: "You are a chatbot",
+    },
+    {
+      id: 1,
+      role: ChatMessageRole.user,
+      content: "{{question}}",
+    },
+  ],
 };
 
 describe("transformSpanAttributesToPlaygroundInstance", () => {
@@ -50,7 +70,8 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       ...expectedPlaygroundInstanceWithIO,
-      template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+      template: defaultTemplate,
+
       output: undefined,
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     });
@@ -63,7 +84,8 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       ...expectedPlaygroundInstanceWithIO,
-      template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+      template: defaultTemplate,
+
       output: undefined,
       parsingErrors: [
         INPUT_MESSAGES_PARSING_ERROR,
@@ -84,10 +106,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         },
       }),
     };
-
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       ...expectedPlaygroundInstanceWithIO,
       output: undefined,
+
       parsingErrors: [
         OUTPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_VALUE_PARSING_ERROR,
@@ -112,6 +134,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
 
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       ...expectedPlaygroundInstanceWithIO,
+
       parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
       output: "This is an AI Answer",
     });
@@ -157,12 +180,13 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         __type: "chat",
         messages: [
           {
+            id: 2,
             role: "user",
             content: "You are a chatbot",
           },
         ],
       },
-      output: [{ content: "This is an AI Answer", role: "ai" }],
+      output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
     });
   });
 });
