@@ -1,10 +1,19 @@
 import React, { PropsWithChildren } from "react";
+import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers";
+import { DragDropProvider } from "@dnd-kit/react";
+import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
 
-import { Card, CardProps, TextArea } from "@arizeai/components";
+import { Card, TextArea } from "@arizeai/components";
 
+import { DragHandle } from "@phoenix/components/dnd/DragHandle";
+import { move } from "@phoenix/components/dnd/helpers/move";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  ChatMessage,
+  PlaygroundChatTemplate as PlaygroundChatTemplateType,
+} from "@phoenix/store";
 
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -12,103 +21,147 @@ import { PlaygroundInstanceProps } from "./types";
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
-  // TODO: remove the hard coding of the first instance
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const playground = instances.find((instance) => instance.id === id);
-  if (!playground) {
+  const playgroundInstance = instances.find((instance) => instance.id === id);
+  if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
-  const { template } = playground;
+  const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
   }
 
   return (
-    <ul
-      css={css`
-        display: flex;
-        flex-direction: column;
-        gap: var(--ac-global-dimension-size-200);
-        padding: var(--ac-global-dimension-size-200);
-      `}
+    <DragDropProvider
+      onDragOver={(event) => {
+        const newMessages = move(template.messages, event);
+        updateInstance({
+          instanceId: id,
+          patch: {
+            template: {
+              __type: "chat",
+              messages: newMessages,
+            },
+          },
+        });
+      }}
+      onDragEnd={(event) => {
+        const newMessages = move(template.messages, event);
+        updateInstance({
+          instanceId: id,
+          patch: {
+            template: {
+              __type: "chat",
+              messages: newMessages,
+            },
+          },
+        });
+      }}
     >
-      {template.messages.map((message, index) => {
-        return (
-          <li key={index}>
-            <ChatMessageCard
-              role={message.role}
-              title={
-                <MessageRolePicker
-                  includeLabel={false}
-                  role={message.role}
-                  onChange={(role) => {
-                    updateInstance({
-                      instanceId: id,
-                      patch: {
-                        template: {
-                          __type: "chat",
-                          messages: template.messages.map((message, i) =>
-                            i === index ? { ...message, role } : message
-                          ),
-                        },
-                      },
-                    });
-                  }}
-                />
-              }
-            >
-              <div
-                css={css`
-                  // TODO: remove these styles once the codemiror editor is added
-                  .ac-textfield {
-                    border: none !important;
-                    border-radius: 0;
-                    textarea {
-                      padding: var(--ac-global-dimension-size-200);
-                    }
-                  }
-                `}
-              >
-                <TextArea
-                  value={message.content}
-                  height={200}
-                  variant="quiet"
-                  onChange={(val) => {
-                    updateInstance({
-                      instanceId: id,
-                      patch: {
-                        template: {
-                          __type: "chat",
-                          messages: template.messages.map((message, i) =>
-                            i === index ? { ...message, content: val } : message
-                          ),
-                        },
-                      },
-                    });
-                  }}
-                />
-              </div>
-            </ChatMessageCard>
-          </li>
-        );
-      })}
-    </ul>
+      <ul
+        css={css`
+          display: flex;
+          flex-direction: column;
+          gap: var(--ac-global-dimension-size-200);
+          padding: var(--ac-global-dimension-size-200);
+        `}
+      >
+        {template.messages.map((message, index) => {
+          return (
+            <SortableMessageItem
+              playgroundInstanceId={id}
+              template={template}
+              key={message.id}
+              message={message}
+              index={index}
+            />
+          );
+        })}
+      </ul>
+    </DragDropProvider>
   );
 }
 
-function ChatMessageCard(
-  props: PropsWithChildren<{ title: CardProps["title"]; role: string }>
-) {
-  const styles = useChatMessageStyles(props.role);
+function SortableMessageItem({
+  playgroundInstanceId,
+  template,
+  message,
+  index,
+}: PropsWithChildren<
+  PlaygroundInstanceProps & {
+    template: PlaygroundChatTemplateType;
+    message: ChatMessage;
+    index: number;
+  }
+>) {
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const { ref, handleRef } = useSortable({
+    id: message.id,
+    index,
+    // @ts-expect-error experimental dnd
+    modifiers: [RestrictToVerticalAxis],
+  });
+  const styles = useChatMessageStyles(message.role);
   return (
-    <Card
-      title={props.title}
-      variant="compact"
-      {...styles}
-      bodyStyle={{ padding: 0 }}
-    >
-      {props.children}
-    </Card>
+    <li ref={ref}>
+      <Card
+        variant="compact"
+        bodyStyle={{ padding: 0 }}
+        {...styles}
+        title={
+          <MessageRolePicker
+            includeLabel={false}
+            role={message.role}
+            onChange={(role) => {
+              updateInstance({
+                instanceId: playgroundInstanceId,
+                patch: {
+                  template: {
+                    __type: "chat",
+                    messages: template.messages.map((msg) =>
+                      msg.id === message.id ? { ...msg, role } : msg
+                    ),
+                  },
+                },
+              });
+            }}
+          />
+        }
+        extra={<DragHandle ref={handleRef} />}
+      >
+        <div
+          css={css`
+            // TODO: remove these styles once the codemiror editor is added
+            .ac-textfield {
+              border: none !important;
+              border-radius: 0;
+              textarea {
+                padding: var(--ac-global-dimension-size-200);
+              }
+            }
+          `}
+        >
+          <TextArea
+            value={message.content}
+            height={200}
+            variant="quiet"
+            onChange={(val) => {
+              updateInstance({
+                instanceId: playgroundInstanceId,
+                patch: {
+                  template: {
+                    __type: "chat",
+                    messages: template.messages.map((msg) =>
+                      msg.id === message.id ? { ...msg, content: val } : msg
+                    ),
+                  },
+                },
+              });
+            }}
+          />
+        </div>
+      </Card>
+    </li>
   );
 }

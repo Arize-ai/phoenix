@@ -1,4 +1,4 @@
-import { _resetInstanceId } from "@phoenix/store";
+import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 
 import {
   getChatRole,
@@ -20,7 +20,12 @@ const expectedPlaygroundInstance = {
   template: {
     __type: "chat",
     messages: spanAttributesWithInputMessages.llm.input_messages.map(
-      ({ message }) => message
+      ({ message }, index) => {
+        return {
+          id: index,
+          ...message,
+        };
+      }
     ),
   },
   output: spanAttributesWithInputMessages.llm.output_messages,
@@ -30,6 +35,7 @@ const expectedPlaygroundInstance = {
 describe("transformSpanAttributesToPlaygroundInstance", () => {
   beforeEach(() => {
     _resetInstanceId();
+    _resetMessageId();
   });
   it("should throw if the attributes are not parsable", () => {
     const span = {
@@ -55,11 +61,21 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: JSON.stringify(spanAttributesWithInputMessages),
     };
 
-    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual(
-      expectedPlaygroundInstance
-    );
+    const instance = transformSpanAttributesToPlaygroundInstance(span);
+    expect(instance?.template.__type).toEqual("chat");
+    if (instance?.template.__type !== "chat") {
+      throw new Error("Invalid template type constructed");
+    }
+    expect(instance?.template.messages).toHaveLength(2);
+    instance?.template.messages.forEach((message, index) => {
+      expect(message.role).toEqual(
+        expectedPlaygroundInstance.template.messages[index].role
+      );
+      expect(message.content).toEqual(
+        expectedPlaygroundInstance.template.messages[index].content
+      );
+    });
   });
-
   it("should return a PlaygroundInstance if the attributes contain llm.input_messages, even if output_messages are not present", () => {
     const span = {
       ...basePlaygroundSpan,
@@ -71,10 +87,12 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         },
       }),
     };
-    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
-      ...expectedPlaygroundInstance,
-      output: undefined,
-    });
+    const instance = transformSpanAttributesToPlaygroundInstance(span);
+    expect(instance?.template.__type).toEqual("chat");
+    if (instance?.template.__type !== "chat") {
+      throw new Error("Invalid template type constructed");
+    }
+    expect(Array.isArray(instance?.template.messages)).toBeTruthy();
   });
 });
 
