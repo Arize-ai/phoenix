@@ -1,20 +1,27 @@
 import { generateInstanceId, PlaygroundInstance } from "@phoenix/store";
 import {
+  ChatMessage,
   ChatMessageRole,
-  chatMessageRoles,
-  generateMessageId,
+  DEFAULT_CHAT_COMPLETION_TEMPLATE,
 } from "@phoenix/store/playgroundStore";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatRoleMap, DEFAULT_CHAT_ROLE } from "./constants";
-import { llmAttributesSchema } from "./schemas";
+import {
+  chatMessageRolesSchema,
+  chatMessagesSchema,
+  llmInputMessageSchema,
+  llmOutputMessageSchema,
+  MessageSchema,
+  outputSchema,
+} from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
 /**
  * Checks if a string is a valid chat message role
  */
 export function isChatMessageRole(role: unknown): role is ChatMessageRole {
-  return chatMessageRoles.includes(role as ChatMessageRole);
+  return chatMessageRolesSchema.safeParse(role).success;
 }
 
 /**
@@ -38,39 +45,136 @@ export function getChatRole(role: string): ChatMessageRole {
   return DEFAULT_CHAT_ROLE;
 }
 
+/**
+ *
+ * @param inputMessages attribute llm.input_messages @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}}
+ * @returns
+ */
+function processAttributeMessagesToChatMessage(
+  messages: MessageSchema[]
+): ChatMessage[] {
+  return messages.map(({ message }) => {
+    return {
+      role: getChatRole(message.role),
+      content: message.content,
+    };
+  });
+}
+
+export const INPUT_MESSAGES_PARSING_ERROR =
+  "Unable to parse span input messages, expected messages which include a role and content.";
+export const OUTPUT_MESSAGES_PARSING_ERROR =
+  "Unable to parse span output messages, expected messages which include a role and content.";
+export const OUTPUT_VALUE_PARSING_ERROR =
+  "Unable to parse span output expected output.value to be present.";
+export const SPAN_ATTRIBUTES_PARSING_ERROR =
+  "Unable to parse span attributes, attributes must be valid JSON.";
+
+/**
+ * Attempts to parse the input messages from the span attributes.
+ * @param parsedAttributes the JSON parsed span attributes
+ * @returns an object containing the parsed {@link ChatMessage|ChatMessages} and any parsing errors
+ */
+function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
+  const inputMessages = llmInputMessageSchema.safeParse(parsedAttributes);
+  if (!inputMessages.success) {
+    return {
+      messageParsingErrors: [INPUT_MESSAGES_PARSING_ERROR],
+      messages: DEFAULT_CHAT_COMPLETION_TEMPLATE.messages,
+    };
+  }
+
+  return {
+    messageParsingErrors: [],
+    messages: processAttributeMessagesToChatMessage(
+      inputMessages.data.llm.input_messages
+    ),
+  };
+}
+
+function getOutputFromAttributes(parsedAttributes: unknown) {
+  const outputParsingErrors: string[] = [];
+  const outputMessages = llmOutputMessageSchema.safeParse(parsedAttributes);
+  if (outputMessages.success) {
+    return {
+      output: processAttributeMessagesToChatMessage(
+        outputMessages.data.llm.output_messages
+      ),
+      outputParsingErrors,
+    };
+  }
+
+  outputParsingErrors.push(OUTPUT_MESSAGES_PARSING_ERROR);
+
+  const parsedOutput = outputSchema.safeParse(parsedAttributes);
+  if (parsedOutput.success) {
+    return {
+      output: parsedOutput.data.output.value,
+      outputParsingErrors,
+    };
+  }
+
+  outputParsingErrors.push(OUTPUT_VALUE_PARSING_ERROR);
+
+  return {
+    output: undefined,
+    outputParsingErrors,
+  };
+}
+
+/**
+ * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
+ * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
+ * @returns a {@link PlaygroundInstance} with certain fields pre-populated from the span attributes
+ */
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
-): PlaygroundInstance | null {
-  const { json: parsedAttributes, parseError } = safelyParseJSON(
-    span.attributes
-  );
-  if (parseError) {
-    throw new Error("Invalid span attributes, attributes must be valid JSON");
-  }
-  const { data, success } = llmAttributesSchema.safeParse(parsedAttributes);
-  if (!success) {
-    return null;
-  }
-  // TODO(parker): add support for tools, variables, and input / output variants
-  // https://github.com/Arize-ai/phoenix/issues/4886
-  return {
+): PlaygroundInstance {
+  const basePlaygroundInstance: PlaygroundInstance = {
     id: generateInstanceId(),
     activeRunId: null,
     isRunning: false,
     input: {
       variables: {},
     },
+    template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+    output: undefined,
+    tools: undefined,
+    parsingErrors: [],
+  };
+  const { json: parsedAttributes, parseError } = safelyParseJSON(
+    span.attributes
+  );
+  if (parseError) {
+    return {
+      ...basePlaygroundInstance,
+      parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
+    };
+  }
+
+  const { messages, messageParsingErrors } =
+    getTemplateMessagesFromAttributes(parsedAttributes);
+  const { output, outputParsingErrors } =
+    getOutputFromAttributes(parsedAttributes);
+
+  // TODO(parker): add support for tools, variables, and input / output variants
+  // https://github.com/Arize-ai/phoenix/issues/4886
+  return {
+    ...basePlaygroundInstance,
     template: {
       __type: "chat",
-      messages: data.llm.input_messages.map(({ message }) => {
-        return {
-          id: generateMessageId(),
-          role: getChatRole(message.role),
-          content: message.content,
-        };
-      }),
+      messages,
     },
-    output: data.llm.output_messages,
-    tools: undefined,
+    parsingErrors: [...messageParsingErrors, ...outputParsingErrors],
+    output,
   };
 }
+
+/**
+ * Checks if something is a valid {@link ChatMessage}
+ */
+export const isChatMessages = (
+  messages: unknown
+): messages is ChatMessage[] => {
+  return chatMessagesSchema.safeParse(messages).success;
+};

@@ -3,8 +3,6 @@ import { useLoaderData, useNavigate } from "react-router";
 
 import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
 
-import { createPlaygroundInstance } from "@phoenix/store";
-
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
@@ -30,13 +28,7 @@ export function SpanPlaygroundPage() {
   return (
     <Flex direction="column" height="100%">
       <SpanPlaygroundBanners span={span} />
-      <Playground
-        instances={
-          playgroundInstance != null
-            ? [playgroundInstance]
-            : [createPlaygroundInstance()]
-        }
-      />
+      <Playground instances={[playgroundInstance]} />
     </Flex>
   );
 }
