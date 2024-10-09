@@ -90,8 +90,6 @@ class OpenAIModel(BaseModel):
             Defaults to 0.
         presence_penalty (float, optional): Penalizes repeated tokens. Defaults to 0.
         n (int, optional): How many completions to generate for each prompt. Defaults to 1.
-        prompt_as_system (bool, optional): If True, the prompt will sent using the system role.
-            Defaults to False.
         model_kwargs (Dict[str, Any], optional): Holds any model parameters valid for `create` call
             not explicitly specified. Defaults to an empty dictionary.
         request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
@@ -141,7 +139,6 @@ class OpenAIModel(BaseModel):
     frequency_penalty: float = 0
     presence_penalty: float = 0
     n: int = 1
-    prompt_as_system: bool = False
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
 
@@ -283,8 +280,7 @@ class OpenAIModel(BaseModel):
     def _build_messages(
         self, prompt: str, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        prompting_role = "system" if self.prompt_as_system else "user"
-        messages = [{"role": prompting_role, "content": prompt}]
+        messages = [{"role": "system", "content": prompt}]
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
