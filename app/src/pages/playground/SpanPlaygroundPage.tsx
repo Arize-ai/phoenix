@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
+import { createPlaygroundInstance } from "@phoenix/store";
+
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
@@ -25,7 +27,11 @@ export function SpanPlaygroundPage() {
 
   return (
     <Playground
-      instances={playgroundInstance != null ? [playgroundInstance] : undefined}
+      instances={
+        playgroundInstance != null
+          ? [playgroundInstance]
+          : [createPlaygroundInstance()]
+      }
     />
   );
 }

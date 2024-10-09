@@ -58,23 +58,37 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                 />
               }
             >
-              <TextArea
-                height={100}
-                value={message.content}
-                onChange={(val) => {
-                  updateInstance({
-                    instanceId: id,
-                    patch: {
-                      template: {
-                        __type: "chat",
-                        messages: template.messages.map((message, i) =>
-                          i === index ? { ...message, content: val } : message
-                        ),
+              <div
+                css={css`
+                  // TODO: remove these styles once the codemiror editor is added
+                  .ac-textfield {
+                    border: none !important;
+                    border-radius: 0;
+                    textarea {
+                      padding: var(--ac-global-dimension-size-200);
+                    }
+                  }
+                `}
+              >
+                <TextArea
+                  value={message.content}
+                  height={200}
+                  variant="quiet"
+                  onChange={(val) => {
+                    updateInstance({
+                      instanceId: id,
+                      patch: {
+                        template: {
+                          __type: "chat",
+                          messages: template.messages.map((message, i) =>
+                            i === index ? { ...message, content: val } : message
+                          ),
+                        },
                       },
-                    },
-                  });
-                }}
-              />
+                    });
+                  }}
+                />
+              </div>
             </ChatMessageCard>
           </li>
         );
@@ -88,7 +102,12 @@ function ChatMessageCard(
 ) {
   const styles = useChatMessageStyles(props.role);
   return (
-    <Card title={props.title} variant="compact" {...styles}>
+    <Card
+      title={props.title}
+      variant="compact"
+      {...styles}
+      bodyStyle={{ padding: 0 }}
+    >
       {props.children}
     </Card>
   );
