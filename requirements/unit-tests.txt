@@ -9,7 +9,7 @@ litellm>=1.0.3
 nest-asyncio # for executor testing
 numpy
 openai>=1.0.0
-protobuf==3.20  # version minimum (for tests)
+protobuf==3.20.2  # version minimum (for tests)
 psycopg[binary,pool]
 pytest-postgresql
 responses

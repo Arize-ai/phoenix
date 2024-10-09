@@ -36,7 +36,7 @@ dependencies = [
   "typing-extensions>=4.6",
   "scipy",
   "wrapt",
-  "protobuf>=3.20, <6.0",
+  "protobuf>=3.20.2, <6.0",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
