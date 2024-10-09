@@ -5,7 +5,7 @@ export type GenAIOperationType = "chat" | "text_completion";
 
 let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
-let playgroundMessageIdIndex = 100;
+let playgroundMessageIdIndex = 0;
 
 /**
  * Generates a new playground instance ID
@@ -23,6 +23,15 @@ export const generateMessageId = () => playgroundMessageIdIndex++;
  * NB: This is only used for testing purposes
  */
 export const _resetInstanceId = () => {
+  playgroundInstanceIdIndex = 0;
+};
+
+/**
+ * Resets the playground message ID to 0
+ *
+ * NB: This is only used for testing purposes
+ */
+export const _resetMessageId = () => {
   playgroundInstanceIdIndex = 0;
 };
 
