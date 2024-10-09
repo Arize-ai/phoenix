@@ -1,9 +1,10 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Card, TextArea } from "@arizeai/components";
+import { Card, CardProps, TextArea } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -35,7 +36,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
       {template.messages.map((message, index) => {
         return (
           <li key={index}>
-            <Card
+            <ChatMessageCard
+              role={message.role}
               title={
                 <MessageRolePicker
                   includeLabel={false}
@@ -55,9 +57,6 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                   }}
                 />
               }
-              variant="compact"
-              backgroundColor="light"
-              borderColor="light"
             >
               <TextArea
                 height={100}
@@ -76,10 +75,21 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                   });
                 }}
               />
-            </Card>
+            </ChatMessageCard>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+function ChatMessageCard(
+  props: PropsWithChildren<{ title: CardProps["title"]; role: string }>
+) {
+  const styles = useChatMessageStyles(props.role);
+  return (
+    <Card title={props.title} variant="compact" {...styles}>
+      {props.children}
+    </Card>
   );
 }

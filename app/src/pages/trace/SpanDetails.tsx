@@ -65,6 +65,7 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -1292,33 +1293,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
-  const messageStyles = useMemo<ViewStyleProps>(() => {
-    if (role === "user") {
-      return {
-        backgroundColor: "grey-100",
-        borderColor: "grey-500",
-      };
-    } else if (role === "assistant") {
-      return {
-        backgroundColor: "blue-100",
-        borderColor: "blue-700",
-      };
-    } else if (role === "system") {
-      return {
-        backgroundColor: "indigo-100",
-        borderColor: "indigo-700",
-      };
-    } else if (["function", "tool"].includes(role)) {
-      return {
-        backgroundColor: "yellow-100",
-        borderColor: "yellow-700",
-      };
-    }
-    return {
-      backgroundColor: "grey-100",
-      borderColor: "grey-700",
-    };
-  }, [role]);
+  const messageStyles = useChatMessageStyles(role);
 
   return (
     <MarkdownDisplayProvider>
