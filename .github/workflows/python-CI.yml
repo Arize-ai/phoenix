@@ -128,35 +128,58 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  unit-test:
+  unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9 ]
+        py: [ 3.9, 3.12 ]
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up python ${{ matrix.py }}
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/unit/
+            tests/conftest.py
+      - name: Remove symbolic links (non-Windows)
+        run: find . -type l -delete
+        if: runner.os != 'Windows'
+      - name: Remove symbolic links (Windows)
+        run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
+      - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Install PostgreSQL (Ubuntu)
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/unit-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Install PostgreSQL (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
-      - name: Run tests with PostgreSQL
+      - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: hatch run test:tests --run-postgres
-      - name: Run tests without PostgreSQL
+        run: tox run -e unit_tests -- -ra -x --run-postgres
+      - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: hatch run test:tests
+        run: tox run -e unit_tests -- -ra -x
 
   integration-tests:
     name: Integration Tests
