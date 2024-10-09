@@ -332,6 +332,11 @@ def get_env_csrf_trusted_origins() -> List[str]:
         for origin in csrf_trusted_origins.split(","):
             if not origin:
                 continue
+            if not urlparse(origin).hostname:
+                raise ValueError(
+                    f"Missing hostname in `{origin}` for environment variable "
+                    f"`{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}`"
+                )
             origins.append(origin)
     return list(set(origins))
 
