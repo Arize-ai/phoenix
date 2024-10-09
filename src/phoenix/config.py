@@ -327,7 +327,7 @@ def get_env_refresh_token_expiry() -> timedelta:
 
 
 def get_env_csrf_trusted_origins() -> List[str]:
-    origins = []
+    origins: List[str] = []
     if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
     for origin in csrf_trusted_origins.split(","):
@@ -339,7 +339,7 @@ def get_env_csrf_trusted_origins() -> List[str]:
                 f"`{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}`"
             )
         origins.append(origin)
-    return list(set(origins))
+    return sorted(set(origins))
 
 
 def get_env_smtp_username() -> str:
