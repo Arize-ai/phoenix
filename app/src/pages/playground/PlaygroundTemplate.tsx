@@ -4,13 +4,11 @@ import {
   Button,
   Card,
   Content,
-  Flex,
   Icon,
   Icons,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -24,9 +22,6 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
-  const runPlaygroundInstance = usePlaygroundContext(
-    (state) => state.runPlaygroundInstance
-  );
   const instance = instances.find((instance) => instance.id === instanceId);
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
@@ -52,27 +47,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       ) : (
         "Completion Template"
       )}
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderTopColor="dark"
-        borderTopWidth="thin"
-      >
-        <Flex direction="row" gap="size-100" justifyContent="end">
-          <Button
-            variant="primary"
-            icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-            loading={instance.isRunning}
-            onClick={() => {
-              runPlaygroundInstance(instanceId);
-            }}
-          >
-            {instance.isRunning ? "Running..." : "Run"}
-          </Button>
-        </Flex>
-      </View>
     </Card>
   );
 }
