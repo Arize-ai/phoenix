@@ -107,6 +107,11 @@ ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_
 """
 The duration, in minutes, before password reset tokens expire.
 """
+ENV_PHOENIX_CSRF_TRUSTED_ORIGINS = "PHOENIX_CSRF_TRUSTED_ORIGINS"
+"""
+A comma-separated list of origins that are allowed to bypass Cross-Site Request Forgery (CSRF)
+protection.
+"""
 
 # SMTP settings
 ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
@@ -319,6 +324,16 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_csrf_trusted_origins() -> List[str]:
+    origins = []
+    if csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS):
+        for origin in csrf_trusted_origins.split(","):
+            if not origin:
+                continue
+            origins.append(origin)
+    return list(set(origins))
 
 
 def get_env_smtp_username() -> str:

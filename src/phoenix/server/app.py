@@ -27,6 +27,7 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urlparse
 
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
@@ -42,6 +43,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
+from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
@@ -53,8 +55,10 @@ import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
+    ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_csrf_trusted_origins,
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
@@ -224,6 +228,25 @@ class Static(StaticFiles):
         except Exception as e:
             raise e
         return response
+
+
+class RequestOriginHostnameValidator(BaseHTTPMiddleware):
+    def __init__(self, trusted_hostnames: List[str], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._trusted_hostnames = trusted_hostnames
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        headers = request.headers
+        for key in "origin", "referer":
+            if not (url := headers.get(key)):
+                continue
+            if urlparse(url).hostname not in self._trusted_hostnames:
+                return Response(f"untrusted {key}", status_code=HTTP_401_UNAUTHORIZED)
+        return await call_next(request)
 
 
 class HeadersMiddleware(BaseHTTPMiddleware):
@@ -660,6 +683,14 @@ def create_app(
     )
     last_updated_at = LastUpdatedAt()
     middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
+    if origins := get_env_csrf_trusted_origins():
+        trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
+        middlewares.append(Middleware(RequestOriginHostnameValidator, trusted_hostnames))
+    elif email_sender or oauth2_client_configs:
+        logger.warning(
+            "CSRF protection is disabled because trusted origins have not been set via "
+            f"the `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` environment variable."
+        )
     if authentication_enabled and secret:
         token_store = JwtStore(db, secret)
         middlewares.append(

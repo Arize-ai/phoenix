@@ -8,6 +8,7 @@ import pytest
 from faker import Faker
 from phoenix.auth import DEFAULT_SECRET_LENGTH
 from phoenix.config import (
+    ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     ENV_PHOENIX_DISABLE_RATE_LIMIT,
     ENV_PHOENIX_ENABLE_AUTH,
     ENV_PHOENIX_SECRET,
@@ -52,6 +53,7 @@ def _app(
         (ENV_PHOENIX_SMTP_PASSWORD, "test"),
         (ENV_PHOENIX_SMTP_MAIL_FROM, _fake.email()),
         (ENV_PHOENIX_SMTP_VALIDATE_CERTS, "false"),
+        (ENV_PHOENIX_CSRF_TRUSTED_ORIGINS, ",http://localhost,"),
     )
     with ExitStack() as stack:
         stack.enter_context(mock.patch.dict(os.environ, values))
