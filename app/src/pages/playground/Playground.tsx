@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Fragment } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 import { Button, Flex, Heading, View } from "@arizeai/components";
@@ -48,12 +48,12 @@ function PlaygroundInstances() {
     <Flex direction="row" alignItems="stretch" height="100%">
       <PanelGroup direction="horizontal">
         {instances.map((instance, i) => (
-          <>
+          <Fragment key={i}>
             {i !== 0 && <PanelResizeHandle css={resizeHandleCSS} />}
             <Panel defaultSize={50}>
               <PlaygroundInstance key={i} playgroundInstanceId={instance.id} />
             </Panel>
-          </>
+          </Fragment>
         ))}
       </PanelGroup>
     </Flex>
