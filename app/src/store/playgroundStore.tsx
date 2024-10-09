@@ -193,6 +193,18 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   prompt: "{{question}}",
 };
 
+export function createPlaygroundInstance(): PlaygroundInstance {
+  return {
+    id: generateInstanceId(),
+    template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
+    tools: {},
+    input: { variables: {} },
+    output: {},
+    activeRunId: null,
+    isRunning: false,
+  };
+}
+
 export const createPlaygroundStore = (
   initialProps?: InitialPlaygroundState
 ) => {
@@ -200,17 +212,7 @@ export const createPlaygroundStore = (
     operationType: "chat",
     inputMode: "manual",
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
-    instances: [
-      {
-        id: generateInstanceId(),
-        template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
-        tools: {},
-        input: { variables: {} },
-        output: {},
-        activeRunId: null,
-        isRunning: false,
-      },
-    ],
+    instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
         // TODO: this is incorrect, it should only change the template
