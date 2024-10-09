@@ -35,15 +35,16 @@ from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
-from starlette.exceptions import HTTPException
+from starlette.exceptions import HTTPException, WebSocketException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
+from starlette.websockets import WebSocket
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.schema import BaseSchema
@@ -609,6 +610,29 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+async def websocket_denial_response_handler(websocket: WebSocket, exc: WebSocketException) -> None:
+    """
+    Overrides the default exception handler for WebSocketException to ensure
+    that the HTTP response returned when a WebSocket connection is denied has
+    the same status code as the raised exception. This is in keeping with the
+    WebSocket Denial Response Extension of the ASGI specificiation described
+    below.
+
+    "Websocket connections start with the client sending a HTTP request
+    containing the appropriate upgrade headers. On receipt of this request a
+    server can choose to either upgrade the connection or respond with an HTTP
+    response (denying the upgrade). The core ASGI specification does not allow
+    for any control over the denial response, instead specifying that the HTTP
+    status code 403 should be returned, whereas this extension allows an ASGI
+    framework to control the denial response."
+
+    For details, see:
+    - https://asgi.readthedocs.io/en/latest/extensions.html#websocket-denial-response
+    """
+    assert isinstance(exc, WebSocketException)
+    await websocket.send_denial_response(JSONResponse(status_code=exc.code, content=exc.reason))
+
+
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
@@ -745,7 +769,10 @@ def create_app(
             scaffolder_config=scaffolder_config,
         ),
         middleware=middlewares,
-        exception_handlers={HTTPException: plain_text_http_exception_handler},
+        exception_handlers={
+            HTTPException: plain_text_http_exception_handler,
+            WebSocketException: websocket_denial_response_handler,  # type: ignore[dict-item]
+        },
         debug=debug,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
