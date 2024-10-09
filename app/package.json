@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@emotion/react": "^11.11.4",
-    "@playwright/test": "^1.47.0",
+    "@playwright/test": "^1.48.0",
     "@types/d3-format": "^3.0.4",
     "@types/d3-scale-chromatic": "^3.0.3",
     "@types/d3-time-format": "^4.0.3",

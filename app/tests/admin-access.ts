@@ -19,6 +19,6 @@ test("admin can create system api key", async ({ page }) => {
   await page.getByRole("button", { name: "Create Key" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "New API Key Created dismiss" })
+    page.getByRole("heading", { name: "New API Key Created" })
   ).toBeVisible();
 });
