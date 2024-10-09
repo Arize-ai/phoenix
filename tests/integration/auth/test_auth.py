@@ -3,6 +3,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import (
+    Any,
     ContextManager,
     DefaultDict,
     Dict,
@@ -53,6 +54,7 @@ from .._helpers import (
     _grpc_span_exporter,
     _Headers,
     _http_span_exporter,
+    _httpx_client,
     _initiate_password_reset,
     _log_in,
     _log_out,
@@ -71,6 +73,29 @@ from .._helpers import (
 NOW = datetime.now(timezone.utc)
 _decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
+
+
+class TestOriginAndReferer:
+    @pytest.mark.parametrize(
+        "headers,expectation",
+        [
+            [dict(), _OK],
+            [dict(origin="http://localhost"), _OK],
+            [dict(referer="http://localhost/xyz"), _OK],
+            [dict(origin="http://xyz.com"), _EXPECTATION_401],
+            [dict(referer="http://xyz.com/xyz"), _EXPECTATION_401],
+            [dict(origin="http://xyz.com", referer="http://localhost/xyz"), _EXPECTATION_401],
+            [dict(origin="http://localhost", referer="http://xyz.com/xyz"), _EXPECTATION_401],
+        ],
+    )
+    def test_csrf_origin_validation(
+        self,
+        headers: Dict[str, str],
+        expectation: ContextManager[Any],
+    ) -> None:
+        resp = _httpx_client(headers=headers).get("/healthz")
+        with expectation:
+            resp.raise_for_status()
 
 
 class TestLogIn:

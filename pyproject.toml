@@ -195,7 +195,7 @@ dependencies = [
   "litellm>=1.0.3",
   "openai>=1.0.0",
   "tenacity",
-  "protobuf==3.20",  # version minimum (for tests)
+  "protobuf==3.20.2",  # version minimum (for tests)
   "grpc-interceptor[testing]",
   "responses",
   "tiktoken",

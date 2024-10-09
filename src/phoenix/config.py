@@ -107,6 +107,14 @@ ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_
 """
 The duration, in minutes, before password reset tokens expire.
 """
+ENV_PHOENIX_CSRF_TRUSTED_ORIGINS = "PHOENIX_CSRF_TRUSTED_ORIGINS"
+"""
+A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF)
+protection. This setting is recommended when configuring OAuth2 clients or sending
+password reset emails. If this variable is left unspecified or contains no origins, CSRF
+protection will not be enabled. In such cases, when a request includes `origin` or `referer`
+headers, those values will not be validated.
+"""
 
 # SMTP settings
 ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
@@ -319,6 +327,22 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_csrf_trusted_origins() -> List[str]:
+    origins: List[str] = []
+    if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
+        return origins
+    for origin in csrf_trusted_origins.split(","):
+        if not origin:
+            continue
+        if not urlparse(origin).hostname:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` contains a url "
+                f"with missing hostname. Please ensure that each url has a valid hostname."
+            )
+        origins.append(origin)
+    return sorted(set(origins))
 
 
 def get_env_smtp_username() -> str:
