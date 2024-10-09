@@ -40,6 +40,7 @@ jobs:
         run: pnpm exec playwright install --with-deps
       - name: Install system dependencies for WebKit
         # WebKit dependencies can't be cached and must always be installed
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps webkit
       - name: Build the app
         run: pnpm run build
