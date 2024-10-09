@@ -1,9 +1,15 @@
+import { createClient, Sink } from "graphql-ws";
 import {
   Environment,
   FetchFunction,
+  GraphQLResponse,
   Network,
+  Observable,
   RecordSource,
+  RequestParameters,
   Store,
+  SubscribeFunction,
+  Variables,
 } from "relay-runtime";
 
 import { authFetch } from "@phoenix/authFetch";
@@ -50,9 +56,29 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   return json;
 };
 
+const wsClient = createClient({
+  url: "ws://localhost:6006/graphql",
+});
+
+const subscribe: SubscribeFunction = (
+  operation: RequestParameters,
+  variables: Variables
+) => {
+  return Observable.create<GraphQLResponse>((sink) => {
+    return wsClient.subscribe(
+      {
+        operationName: operation.name,
+        query: operation.text as string,
+        variables,
+      },
+      sink as Sink
+    );
+  });
+};
+
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({
-  network: Network.create(fetchRelay),
+  network: Network.create(fetchRelay, subscribe),
   store: new Store(new RecordSource(), {
     // This property tells Relay to not immediately clear its cache when the user
     // navigates around the app. Relay will hold onto the specified number of

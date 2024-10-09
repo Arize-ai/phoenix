@@ -19,6 +19,7 @@
         "dunder",
         "Evals",
         "fastapi",
+        "genai",
         "gitbook",
         "graphiql",
         "HDBSCAN",

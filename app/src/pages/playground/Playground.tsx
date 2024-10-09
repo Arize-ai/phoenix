@@ -1,55 +1,61 @@
-import React from "react";
+import React, { Fragment } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { css } from "@emotion/react";
 
 import { Button, Flex, Heading, View } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+} from "@phoenix/contexts/PlaygroundContext";
+import { InitialPlaygroundState } from "@phoenix/store";
 
-import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
-import { PlaygroundOutput } from "./PlaygroundOutput";
-import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { PlaygroundTools } from "./PlaygroundTools";
+import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
+import { PlaygroundInstance } from "./PlaygroundInstance";
+import { PlaygroundRunButton } from "./PlaygroundRunButton";
 
-const panelContentCSS = css`
-  padding: var(--ac-global-dimension-size-200);
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
-`;
-
-export function Playground() {
+export function Playground(props: InitialPlaygroundState) {
   return (
-    <PlaygroundProvider>
+    <PlaygroundProvider {...props}>
       <View
         borderBottomColor="dark"
         borderBottomWidth="thin"
         padding="size-200"
       >
-        <Flex direction="row" justifyContent="space-between">
-          <View>
-            <Flex direction="row" gap="size-200" alignItems="center">
-              <Heading level={1}>Playground</Heading>
-              <PlaygroundOperationTypeRadioGroup />
-            </Flex>
-          </View>
-          <Button variant="default">API Keys</Button>
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={1}>Playground</Heading>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <PlaygroundInputTypeTypeRadioGroup />
+            <Button variant="default" size="compact">
+              API Keys
+            </Button>
+            <PlaygroundRunButton />
+          </Flex>
         </Flex>
       </View>
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={50} order={1} css={panelContentCSS}>
-          <PlaygroundTemplate />
-          <PlaygroundTools />
-        </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={50} order={2} css={panelContentCSS}>
-          <PlaygroundInput />
-          <PlaygroundOutput />
-        </Panel>
-      </PanelGroup>
+      <PlaygroundInstances />
     </PlaygroundProvider>
+  );
+}
+
+function PlaygroundInstances() {
+  const instances = usePlaygroundContext((state) => state.instances);
+  return (
+    <Flex direction="row" alignItems="stretch" height="100%">
+      <PanelGroup direction="horizontal">
+        {instances.map((instance, i) => (
+          <Fragment key={i}>
+            {i !== 0 && <PanelResizeHandle css={resizeHandleCSS} />}
+            <Panel defaultSize={50}>
+              <PlaygroundInstance key={i} playgroundInstanceId={instance.id} />
+            </Panel>
+          </Fragment>
+        ))}
+      </PanelGroup>
+    </Flex>
   );
 }

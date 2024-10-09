@@ -65,6 +65,24 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+input ChatCompletionInput {
+  messages: [ChatCompletionMessageInput!]!
+}
+
+input ChatCompletionMessageInput {
+  role: ChatCompletionMessageRole!
+
+  """The content of the message as JSON to support text and tools"""
+  content: JSON!
+}
+
+enum ChatCompletionMessageRole {
+  USER
+  SYSTEM
+  TOOL
+  AI
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -1370,6 +1388,10 @@ enum SpanStatusCode {
   OK
   ERROR
   UNSET
+}
+
+type Subscription {
+  chatCompletion(input: ChatCompletionInput!): String!
 }
 
 type SystemApiKey implements ApiKey & Node {

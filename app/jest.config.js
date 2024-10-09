@@ -5,6 +5,8 @@ module.exports = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
   prettierPath: null,
+  setupFiles: ["<rootDir>/jest.setup.ts"],
+  testMatch: ["**/__tests__/*.test.ts?(x)"],
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],
   },

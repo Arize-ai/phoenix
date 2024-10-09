@@ -5,6 +5,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
+import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
@@ -40,6 +41,8 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SettingsPage,
+  SpanPlaygroundPage,
+  spanPlaygroundPageLoader,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -157,11 +160,25 @@ const router = createBrowserRouter(
           </Route>
           <Route
             path="/playground"
-            element={<PlaygroundPage />}
             handle={{
               crumb: () => "Playground",
             }}
-          />
+          >
+            <Route index element={<PlaygroundPage />} />
+            <Route
+              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              element={<SpanPlaygroundPage />}
+              loader={spanPlaygroundPageLoader}
+              handle={{
+                crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
+                  if (data.span.__typename === "Span") {
+                    return `span ${data.span.context.spanId}`;
+                  }
+                  return "span unknown";
+                },
+              }}
+            />
+          </Route>
           <Route
             path="/apis"
             element={<APIsPage />}

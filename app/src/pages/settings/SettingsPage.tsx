@@ -82,7 +82,7 @@ export function SettingsPage() {
 function CopyToClipboardButtonWithPadding(props: { text: string }) {
   return (
     <View paddingBottom="19px">
-      <CopyToClipboardButton text={props.text} size="normal" />
+      <CopyToClipboardButton text={props.text} size="default" />
     </View>
   );
 }
