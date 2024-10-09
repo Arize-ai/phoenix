@@ -277,11 +277,10 @@ class OpenAIModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    @staticmethod
     def _build_messages(
-        prompt: str, system_instruction: Optional[str] = None
+        self, prompt: str, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        messages = [{"role": "user", "content": prompt}]
+        messages = [{"role": "system", "content": prompt}]
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
