@@ -67,7 +67,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e ci_phoenix_evals
+      - run: tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
     name: Phoenix OTel
@@ -87,7 +87,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e ci_phoenix_otel
+      - run: tox run -e phoenix_otel -- -ra -x
 
   lint:
     name: Lint Phoenix
@@ -127,6 +127,31 @@ jobs:
         run: |
           hatch run notebooks:clean
           git diff --exit-code
+
+  ruff:
+    name: Ruff
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        py: [ 3.12 ]
+        os: [ ubuntu-latest ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+      - name: Install `ruff`
+        run: uv tool install ruff@0.6.8
+      - name: Check format
+        run: uv tool run ruff format --diff
+      - name: Check lint
+        run: uv tool run ruff check --no-fix
 
   unit-tests:
     name: Unit Tests
@@ -245,4 +270,4 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Run integration tests
-        run: tox run -e ci_integration_tests
+        run: tox run -e integration_tests -- -ra -x -n auto
