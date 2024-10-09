@@ -75,7 +75,7 @@ dev = [
   "uv==0.4.8",
   "jupyter",
   "nbqa",
-  "ruff==0.6.8",
+  "ruff==0.6.9",
   "mypy==1.11.2",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
@@ -244,7 +244,7 @@ python = ["3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.6.8",
+  "ruff==0.6.9",
 ]
 
 [[tool.hatch.envs.style.matrix]]
@@ -443,7 +443,7 @@ exclude = [
   "docs/",
 ]
 line-length = 100
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]

@@ -56,8 +56,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [macos-12, windows-latest, ubuntu-latest]
+        py: [ 3.8, 3.12 ]
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,16 +67,17 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_evals
+      - run: tox run -e ci_phoenix_evals
 
   phoenix-otel:
     name: Phoenix OTel
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: changes
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
+        py: [ 3.8, 3.12 ]
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -86,7 +87,7 @@ jobs:
         with:
           version: 0.4.18
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_otel
+      - run: tox run -e ci_phoenix_otel
 
   lint:
     name: Lint Phoenix
@@ -134,8 +135,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.9"]
-        os: [macos-12, windows-latest, ubuntu-latest]
+        py: [ 3.9 ]
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -149,8 +150,7 @@ jobs:
           pip install hatch
       - name: Install PostgreSQL (Ubuntu)
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get -yqq install postgresql
+        run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL
         if: runner.os == 'Linux'
         run: hatch run test:tests --run-postgres
@@ -158,7 +158,7 @@ jobs:
         if: runner.os != 'Linux'
         run: hatch run test:tests
 
-  integration-test:
+  integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
@@ -166,11 +166,19 @@ jobs:
     strategy:
       matrix:
         py: [ 3.9, 3.12 ]
-        os: [ubuntu-latest, windows-latest, macos-12]
+        db: [ sqlite, postgresql ]
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        exclude:
+          - db: postgresql
+            os: windows-latest
+          - db: postgresql
+            os: macos-13
+    env:
+      CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
@@ -181,12 +189,37 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/integration/
+      - name: Remove symbolic links (non-Windows)
+        run: find . -type l -delete
+        if: runner.os != 'Windows'
+      - name: Remove symbolic links (Windows)
+        run: |
+          Remove-Item src/phoenix/evals
+          Remove-Item src/phoenix/otel
+        shell: powershell
+        if: runner.os == 'Windows'
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v3
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.18
-      - run: uv tool install tox --with tox-uv
-      - run: tox run -e integration_tests
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Run integration tests
+        run: tox run -e ci_integration_tests

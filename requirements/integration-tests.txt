@@ -1,9 +1,9 @@
+-r ci.txt
 beautifulsoup4
 faker
 httpx
 openinference-semantic-conventions
 opentelemetry-sdk
-pandas-stubs
 portpicker
 psutil
 pyjwt
