@@ -1,8 +1,9 @@
-import { generateInstanceId, PlaygroundInstance } from "@phoenix/store";
+import { PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessage,
   ChatMessageRole,
-  DEFAULT_CHAT_COMPLETION_TEMPLATE,
+  createPlaygroundInstance,
+  generateMessageId,
 } from "@phoenix/store/playgroundStore";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -55,6 +56,7 @@ function processAttributeMessagesToChatMessage(
 ): ChatMessage[] {
   return messages.map(({ message }) => {
     return {
+      id: generateMessageId(),
       role: getChatRole(message.role),
       content: message.content,
     };
@@ -80,7 +82,7 @@ function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
   if (!inputMessages.success) {
     return {
       messageParsingErrors: [INPUT_MESSAGES_PARSING_ERROR],
-      messages: DEFAULT_CHAT_COMPLETION_TEMPLATE.messages,
+      messages: null,
     };
   }
 
@@ -130,18 +132,7 @@ function getOutputFromAttributes(parsedAttributes: unknown) {
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
 ): PlaygroundInstance {
-  const basePlaygroundInstance: PlaygroundInstance = {
-    id: generateInstanceId(),
-    activeRunId: null,
-    isRunning: false,
-    input: {
-      variables: {},
-    },
-    template: DEFAULT_CHAT_COMPLETION_TEMPLATE,
-    output: undefined,
-    tools: undefined,
-    parsingErrors: [],
-  };
+  const basePlaygroundInstance = createPlaygroundInstance();
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
@@ -161,10 +152,13 @@ export function transformSpanAttributesToPlaygroundInstance(
   // https://github.com/Arize-ai/phoenix/issues/4886
   return {
     ...basePlaygroundInstance,
-    template: {
-      __type: "chat",
-      messages,
-    },
+    template:
+      messages != null
+        ? {
+            __type: "chat",
+            messages,
+          }
+        : basePlaygroundInstance.template,
     parsingErrors: [...messageParsingErrors, ...outputParsingErrors],
     output,
   };
