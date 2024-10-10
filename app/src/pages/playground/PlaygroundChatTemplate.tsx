@@ -97,10 +97,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         });
       }}
     >
-      <SortableContext
-        items={template.messages}
-        // strategy={verticalListSortingStrategy}
-      >
+      <SortableContext items={template.messages}>
         <ul
           css={css`
             display: flex;
