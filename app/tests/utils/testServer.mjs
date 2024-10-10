@@ -10,6 +10,17 @@ import process from "process";
 const appPrefix = "phoenix";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
+const args = process.argv.slice(2);
+args.forEach((arg) => {
+  if (arg === "--use-in-memory-sqlite") {
+    process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
+    console.log(
+      "PHOENIX_SQL_DATABASE_URL: ",
+      process.env["PHOENIX_SQL_DATABASE_URL"]
+    );
+  }
+});
+
 // Set environment variables for the server
 process.env["PHOENIX_WORKING_DIR"] = tmpDir;
 process.env["PHOENIX_ENABLE_AUTH"] = "True";
