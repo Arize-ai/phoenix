@@ -1,14 +1,23 @@
 @top MustacheLikeTemplate {(Template | Text)*}
 
 
-@skip { space } {
-  Template { "{{" Variable "}}" }
+@skip {} {
+  Template { LBrace Variable+ RBrace }
 }
 
+@local tokens {
+  RBrace { "}}" }
+  @else Variable
+}
+
+@skip { space }
+
 @tokens {
-  Text { ![{]+ }
+  Text { ![{}]+ }
+  LBrace { "{{" }
+  char { $[\n\r\t\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}]+ | "\\" esc }
+  esc  { $["\\\/bfnrt] | "u" hex hex hex hex }
+  hex  { $[0-9a-fA-F] }
   space { @whitespace+ }
-  Variable { ![}] Variable? }
-  @precedence { space, Variable, "{{", "}}" }
-  "{{" "}}"
+  @precedence { space, LBrace, Text, char, esc }
 }

@@ -10,9 +10,9 @@ export const MustacheLikeTemplatingLanguage = LRLanguage.define({
       // https://lezer.codemirror.net/docs/ref/#highlight.styleTags
       styleTags({
         // style the opening brace of a template, not floating braces
-        "Template/{{": t.quote,
+        "Template/LBrace": t.quote,
         // style the closing brace of a template, not floating braces
-        "Template/}}": t.quote,
+        "Template/RBrace": t.quote,
         // style variables (stuff inside {})
         "Template/Variable": t.variableName,
         // style invalid stuff, undefined tokens will be highlighted
@@ -40,6 +40,36 @@ export const extractVariables = (text: string) => {
     }
   } while (cur.next());
   return variables;
+};
+
+export const format = ({
+  text,
+  variables,
+}: {
+  text: string;
+  variables: Record<string, string>;
+}) => {
+  if (!text) return "";
+  let result = text;
+  let tree = MustacheLikeTemplatingLanguage.parser.parse(result);
+  let cur = tree.cursor();
+  do {
+    if (cur.name === "Variable") {
+      // grab the content inside of the braces
+      const variable = result.slice(cur.node.from, cur.node.to);
+      // grab the position of the content including the braces
+      const Template = cur.node.parent!;
+      if (variable in variables) {
+        // replace the content (including braces) with the variable value
+        result = `${result.slice(0, Template.from)}${variables[variable]}${result.slice(Template.to)}`;
+        // reparse the result so that positions are updated
+        tree = MustacheLikeTemplatingLanguage.parser.parse(result);
+        // reset the cursor to the start of the new tree
+        cur = tree.cursor();
+      }
+    }
+  } while (cur.next());
+  return result;
 };
 
 export function MustacheLikeTemplating() {
