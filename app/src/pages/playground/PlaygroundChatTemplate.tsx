@@ -4,10 +4,14 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
 
-import { Card, TextArea } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { move } from "@phoenix/components/dnd/helpers/move";
+import {
+  TemplateEditor,
+  TemplateLanguages,
+} from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -130,22 +134,11 @@ function SortableMessageItem({
         }
         extra={<DragHandle ref={handleRef} />}
       >
-        <div
-          css={css`
-            // TODO: remove these styles once the codemiror editor is added
-            .ac-textfield {
-              border: none !important;
-              border-radius: 0;
-              textarea {
-                padding: var(--ac-global-dimension-size-200);
-              }
-            }
-          `}
-        >
-          <TextArea
+        <div>
+          <TemplateEditor
+            height="100%"
             value={message.content}
-            height={200}
-            variant="quiet"
+            templateLanguage={TemplateLanguages.FString}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,

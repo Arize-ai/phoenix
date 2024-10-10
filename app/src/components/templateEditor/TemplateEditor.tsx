@@ -1,0 +1,47 @@
+import React, { useMemo } from "react";
+import { nord } from "@uiw/codemirror-theme-nord";
+import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+
+import { useTheme } from "@phoenix/contexts";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
+import { FStringTemplating } from "./language/fStringTemplating";
+
+export const TemplateLanguages = {
+  FString: "f-string", // {variable}
+  Mustache: "mustache", // {{variable}}
+} as const;
+
+type TemplateLanguage =
+  (typeof TemplateLanguages)[keyof typeof TemplateLanguages];
+
+type TemplateEditorProps = ReactCodeMirrorProps & {
+  templateLanguage: TemplateLanguage;
+};
+
+export const TemplateEditor = ({
+  templateLanguage,
+  ...props
+}: TemplateEditorProps) => {
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const extensions = useMemo(() => {
+    const ext: TemplateEditorProps["extensions"] = [];
+    switch (templateLanguage) {
+      case TemplateLanguages.FString:
+        ext.push(FStringTemplating());
+        break;
+      case TemplateLanguages.Mustache:
+        throw new Error("Mustache not implemented");
+        // ext.push(MustacheTemplating());
+        break;
+      default:
+        assertUnreachable(templateLanguage);
+    }
+    return ext;
+  }, [templateLanguage]);
+
+  return (
+    <CodeMirror theme={codeMirrorTheme} extensions={extensions} {...props} />
+  );
+};
