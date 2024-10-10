@@ -14,7 +14,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean && pnpm run generate",
-    "generate": "openapi-typescript ../../../schemas/openapi.json -o ./src/lib/api/v1.d.ts",
+    "generate": "openapi-typescript ../../../schemas/openapi.json -o ./src/__generated__/api/v1.d.ts",
     "build": "tsc --build tsconfig.json tsconfig.esm.json tsconfig.esnext.json",
     "type:check": "tsc --noEmit",
     "test": "jest"

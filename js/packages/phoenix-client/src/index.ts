@@ -3,7 +3,7 @@ import type {
   paths as oapiPathsV1,
   components as oapiComponentsV1,
   operations as oapiOperationsV1,
-} from "./lib/api/v1.d.ts";
+} from "./__generated__/api/v1.d.ts";
 
 type pathsV1 = oapiPathsV1;
 type componentsV1 = oapiComponentsV1;
