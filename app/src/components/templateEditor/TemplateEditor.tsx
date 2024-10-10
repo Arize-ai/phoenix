@@ -6,6 +6,7 @@ import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fStringTemplating";
+import { MustacheLikeTemplating } from "./language/mustacheLikeTemplating";
 
 export const TemplateLanguages = {
   FString: "f-string", // {variable}
@@ -32,8 +33,7 @@ export const TemplateEditor = ({
         ext.push(FStringTemplating());
         break;
       case TemplateLanguages.Mustache:
-        throw new Error("Mustache not implemented");
-        // ext.push(MustacheTemplating());
+        ext.push(MustacheLikeTemplating());
         break;
       default:
         assertUnreachable(templateLanguage);

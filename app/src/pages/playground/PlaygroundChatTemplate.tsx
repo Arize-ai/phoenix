@@ -261,8 +261,8 @@ function SortableMessageItem({
           <TemplateEditor
             height="100%"
             value={message.content}
-            templateLanguage={TemplateLanguages.FString}
             aria-label="Message content"
+            templateLanguage={TemplateLanguages.Mustache}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,
