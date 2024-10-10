@@ -60,6 +60,7 @@ from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experim
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.ModelProvider import ModelProvider
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -78,6 +79,34 @@ from phoenix.server.api.types.UserRole import UserRole
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    async def model_providers(
+        self, vendors: List[str], info: Info[Context, None]
+    ) -> List[ModelProvider]:
+        all_vendors = {
+            "OpenAI": ModelProvider(
+                name="OpenAI",  # currently only models using the chat completions API
+                model_names=[
+                    "o1-preview",
+                    "o1-mini",
+                    "gpt-4o",
+                    "gpt-4o-mini",
+                    "gpt-4",
+                    "gpt-3.5-turbo",
+                ],
+            ),
+            "Anthropic": ModelProvider(
+                name="Anthropic",  # currently only models using the messages API
+                model_names=[
+                    "claude-3-5-sonnet-20240620",
+                    "claude-3-opus-20240229",
+                    "claude-3-sonnet-20240229",
+                    "claude-3-haiku-20240307",
+                ],
+            ),
+        }
+        return [all_vendors[vendor] for vendor in vendors]
+
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
         self,
