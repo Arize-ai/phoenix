@@ -156,20 +156,21 @@ MistralAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ## Run Mistral
 
 ```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
+import os
 
-client = MistralClient()
-response = client.chat(
-    model="mistral-large-latest",
-    messages=[
-        ChatMessage(
-            content="Who won the World Cup in 2018?",
-            role="user",
-        )
-    ],
+from mistralai import Mistral
+from mistralai.models import UserMessage
+
+api_key = os.environ["MISTRAL_API_KEY"]
+model = "mistral-tiny"
+
+client = Mistral(api_key=api_key)
+
+chat_response = client.chat.complete(
+    model=model,
+    messages=[UserMessage(content="What is the best French cheese?")],
 )
-print(response.choices[0].message.content)
+print(chat_response.choices[0].message.content)
 
 ```
 
