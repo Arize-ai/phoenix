@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Content,
+  Flex,
   Icon,
   Icons,
   Tooltip,
@@ -11,6 +12,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
@@ -23,6 +25,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
+  const index = instances.findIndex((instance) => instance.id === instanceId);
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
@@ -30,7 +33,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   return (
     <Card
-      title="Prompt"
+      title={
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AlphabeticIndexIcon index={index} />
+          <span>Prompt</span>
+        </Flex>
+      }
       collapsible
       variant="compact"
       bodyStyle={{ padding: 0 }}
