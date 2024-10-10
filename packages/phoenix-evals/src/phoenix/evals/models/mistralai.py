@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 
+
 if TYPE_CHECKING:
-    from mistralai.models.chat_completion import ChatMessage
+    from mistralai.models import UserMessage
 
 DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 """Use the latest large mistral model by default."""
 
-MINIMUM_MISTRAL_VERSION = "0.0.11"
+MINIMUM_MISTRAL_VERSION = "1.0.0"
 
 
 class MistralRateLimitError(Exception):
@@ -54,6 +55,7 @@ class MistralAIModel(BaseModel):
     """
 
     model: str = DEFAULT_MISTRAL_MODEL
+    api_key: Optional[str] = None
     temperature: float = 0
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
@@ -72,19 +74,15 @@ class MistralAIModel(BaseModel):
 
     def _init_client(self) -> None:
         try:
-            from mistralai.async_client import MistralAsyncClient
-            from mistralai.client import MistralClient
-            from mistralai.exceptions import MistralAPIException
-            from mistralai.models.chat_completion import ChatMessage
+            from mistralai import Mistral
+            from mistralai.models import UserMessage
         except ImportError:
             self._raise_import_error(
                 package_name="mistralai",
                 package_min_version=MINIMUM_MISTRAL_VERSION,
             )
-        self._client = MistralClient()
-        self._async_client = MistralAsyncClient()
-        self._ChatMessage = ChatMessage
-        self._MistralAPIException = MistralAPIException
+        self._client = Mistral(api_key=self.api_key)
+        self._UserMessage = UserMessage
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
@@ -99,7 +97,6 @@ class MistralAIModel(BaseModel):
             "temperature": self.temperature,
             "top_p": self.top_p,
             "random_seed": self.random_seed,
-            "safe_mode": self.safe_mode,
             "safe_prompt": self.safe_prompt,
             "response_format": self.response_format,
         }
@@ -124,8 +121,8 @@ class MistralAIModel(BaseModel):
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
-                response = self._client.chat(**kwargs)
-            except self._MistralAPIException as exc:
+                response = self._client.chat.complete(**kwargs)
+            except Exception as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
@@ -152,8 +149,8 @@ class MistralAIModel(BaseModel):
         @self._rate_limiter.alimit
         async def _async_completion(**kwargs: Any) -> Any:
             try:
-                response = await self._async_client.chat(**kwargs)
-            except self._MistralAPIException as exc:
+                response = await self._client.chat.complete_async(**kwargs)
+            except Exception as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
@@ -163,6 +160,6 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: str) -> List["ChatMessage"]:
-        ChatMessage = self._ChatMessage
-        return [ChatMessage(role="user", content=prompt)]
+    def _format_prompt(self, prompt: str) -> List["UserMessage"]:
+        UserMessage = self._UserMessage
+        return [UserMessage(content=prompt)]
