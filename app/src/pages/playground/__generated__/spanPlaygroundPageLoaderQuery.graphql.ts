@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<60eb99c48e6f8167b1c74edc2a90ce62>>
+ * @generated SignedSource<<6af837046e4f840154a1a6141403e108>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,12 @@ export type spanPlaygroundPageLoaderQuery$data = {
     readonly attributes: string;
     readonly context: {
       readonly spanId: string;
+      readonly traceId: string;
+    };
+    readonly id: string;
+    readonly project: {
+      readonly id: string;
+      readonly name: string;
     };
   } | {
     // This will never be '%other', but we need some
@@ -53,36 +59,62 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "kind": "InlineFragment",
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanContext",
+  "kind": "LinkedField",
+  "name": "context",
+  "plural": false,
   "selections": [
     {
       "alias": null,
       "args": null,
-      "concreteType": "SpanContext",
-      "kind": "LinkedField",
-      "name": "context",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "spanId",
-          "storageKey": null
-        }
-      ],
+      "kind": "ScalarField",
+      "name": "spanId",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "attributes",
+      "name": "traceId",
       "storageKey": null
     }
   ],
-  "type": "Span",
-  "abstractKey": null
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "attributes",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -100,7 +132,17 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
+              (v6/*: any*/)
+            ],
+            "type": "Span",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -123,17 +165,20 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
+          (v3/*: any*/),
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
+            "kind": "InlineFragment",
+            "selections": [
+              (v4/*: any*/),
+              (v5/*: any*/),
+              (v6/*: any*/)
+            ],
+            "type": "Span",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -141,16 +186,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0736806d2ffe427d21f6183b6c707f1f",
+    "cacheID": "d1df608d16a0a1d1451bcbac7dcfc853",
     "id": null,
     "metadata": {},
     "name": "spanPlaygroundPageLoaderQuery",
     "operationKind": "query",
-    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      context {\n        spanId\n      }\n      attributes\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      context {\n        spanId\n        traceId\n      }\n      attributes\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a49841a5261bf37a73f4dddf55f49311";
+(node as any).hash = "d2fd0049ebec80d3b18827b327a91319";
 
 export default node;
