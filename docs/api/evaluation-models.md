@@ -245,7 +245,7 @@ model = BedrockModel(client=client_bedrock)
 
 ### MistralAIModel
 
-Need to install extra dependency `minstralai`
+Need to install extra dependency `mistralai`
 
 ````python
 ```python

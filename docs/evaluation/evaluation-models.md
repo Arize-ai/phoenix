@@ -1,5 +1,7 @@
 # Evaluation Models
 
+{% embed url="https://www.youtube.com/watch?v=Y_tKS7WIcyY" %}
+
 **`arize-phoenix-evals`** supports a large set of foundation models for Evals such as:
 
 * OpenAI

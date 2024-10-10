@@ -1,10 +1,16 @@
----
-description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
----
+# LiteLLM
 
-# MistralAI
+[LiteLLM](https://github.com/BerriAI/litellm) allows developers to call all LLM APIs using the openAI format. [LiteLLM Proxy](https://docs.litellm.ai/docs/simple\_proxy) is a proxy server to call 100+ LLMs in OpenAI format. Both are supported by this auto-instrumentation.
 
-MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+Any calls made to the following functions will be automatically captured by this integration:
+
+* completion()
+* acompletion()
+* completion\_with\_retries()
+* embedding()
+* aembedding()
+* image\_generation()
+* aimage\_generation()
 
 ## Launch Phoenix
 
@@ -30,7 +36,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-)  
+)
 ```
 
 {% hint style="info" %}
@@ -99,7 +105,7 @@ tracer_provider = register(
 )
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](litellm.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -124,7 +130,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="https://app.phoenix.arize.com/v1/traces",
-) 
+)
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -134,52 +140,46 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mistralai mistralai
+pip install openinference-instrumentation-litellm litellm
 ```
 
 ## Setup
 
-Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
-
-```
-export MISTRAL_API_KEY=[your_key_here]
-```
-
-Initialize the MistralAIInstrumentor before your application code.
+Initialize the InstructorInstrumentor before your application code.
 
 ```python
-from openinference.instrumentation.mistralai import MistralAIInstrumentor
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
 
-MistralAIInstrumentor().instrument(tracer_provider=tracer_provider)
+LiteLLMInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-## Run Mistral
+Add any API keys needed by the models you are using with LiteLLM.
 
 ```python
 import os
+os.environ["OPENAI_API_KEY"] = "PASTE_YOUR_API_KEY_HERE"
+```
 
-from mistralai import Mistral
-from mistralai.models import UserMessage
+## Run LiteLLM
 
-api_key = os.environ["MISTRAL_API_KEY"]
-model = "mistral-tiny"
+You can now use LiteLLM as normal and calls will be traces in Phoenix.
 
-client = Mistral(api_key=api_key)
-
-chat_response = client.chat.complete(
-    model=model,
-    messages=[UserMessage(content="What is the best French cheese?")],
-)
-print(chat_response.choices[0].message.content)
-
+```python
+import litellm
+completion_response = litellm.completion(model="gpt-3.5-turbo", 
+                   messages=[{"content": "What's the capital of China?", "role": "user"}])
+print(completion_response)
 ```
 
 ## Observe
 
-Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Traces should now be visible in Phoenix!
+
+<figure><img src="../../.gitbook/assets/Screenshot 2024-10-08 at 9.59.25 AM.png" alt=""><figcaption><p>A LiteLLM trace in Phoenix</p></figcaption></figure>
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat\_completions.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+* [OpenInference Instrumentation](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm)
+
+
+
