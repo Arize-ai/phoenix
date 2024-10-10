@@ -12,7 +12,7 @@ function DragHandle() {
       css={css`
         cursor: grab;
         background-color: var(--ac-global-color-grey-200);
-        border: 1px solid var(--ac-global-color-grey-500);
+        border: 1px solid var(--ac-global-color-grey-400);
         color: var(--ac-global-text-color-900);
         display: flex;
         align-items: center;

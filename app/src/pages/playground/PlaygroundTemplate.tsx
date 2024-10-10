@@ -30,7 +30,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   return (
     <Card
-      title="Template"
+      title="Prompt"
       collapsible
       variant="compact"
       bodyStyle={{ padding: 0 }}
