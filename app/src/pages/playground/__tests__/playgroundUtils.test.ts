@@ -63,7 +63,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     _resetInstanceId();
     _resetMessageId();
   });
-  it("should throw if the attributes are not parsable", () => {
+  it("should return the default instance with parsing errors if the span attributes are unparsable", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: "invalid json",
@@ -71,13 +71,12 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       ...expectedPlaygroundInstanceWithIO,
       template: defaultTemplate,
-
       output: undefined,
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     });
   });
 
-  it("should return null if the attributes do not match the schema", () => {
+  it("should return the default instance with parsing errors if the attributes don't contain any information", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({}),

@@ -47,9 +47,9 @@ export function getChatRole(role: string): ChatMessageRole {
 }
 
 /**
- *
- * @param inputMessages attribute llm.input_messages @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}}
- * @returns
+ * Takes a list of messages from span attributes and transforms them into a list of {@link ChatMessage|ChatMessages}
+ * @param messages messages from attributes either input or output @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}}
+ * returns a list of {@link ChatMessage|ChatMessages}
  */
 function processAttributeMessagesToChatMessage(
   messages: MessageSchema[]
