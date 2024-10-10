@@ -1,5 +1,8 @@
-import React, { useMemo } from "react";
-import { useLoaderData } from "react-router";
+import React, { useMemo, useState } from "react";
+import { useLoaderData, useNavigate } from "react-router";
+import { divide } from "lodash";
+
+import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
 
 import { createPlaygroundInstance } from "@phoenix/store";
 
@@ -26,12 +29,55 @@ export function SpanPlaygroundPage() {
   );
 
   return (
-    <Playground
-      instances={
-        playgroundInstance != null
-          ? [playgroundInstance]
-          : [createPlaygroundInstance()]
-      }
-    />
+    <Flex direction="column" height="100%">
+      <SpanPlaygroundBanners span={span} />
+      <Playground
+        instances={
+          playgroundInstance != null
+            ? [playgroundInstance]
+            : [createPlaygroundInstance()]
+        }
+      />
+    </Flex>
+  );
+}
+
+function SpanPlaygroundBanners({
+  span,
+}: {
+  span: Extract<
+    NonNullable<spanPlaygroundPageLoaderQuery$data["span"]>,
+    { __typename: "Span" }
+  >;
+}) {
+  const navigate = useNavigate();
+  const [showBackBanner, setShowBackBanner] = useState(true);
+  return (
+    <div>
+      {showBackBanner && (
+        <Alert
+          variant="info"
+          title="LLM Span Replay"
+          banner
+          dismissable
+          onDismissClick={() => {
+            setShowBackBanner(false);
+          }}
+          extra={
+            <Button
+              variant="default"
+              icon={<Icon svg={<Icons.ArrowBack />} />}
+              onClick={() => {
+                navigate(
+                  `/projects/${span.project.id}/traces/${span.context.traceId}?selectedSpanNodeId=${span.id}`
+                );
+              }}
+            >
+              Back to Trace
+            </Button>
+          }
+        >{`Replay and iterate on your LLM call from your ${span.project.name} project`}</Alert>
+      )}
+    </div>
   );
 }
