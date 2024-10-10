@@ -5,7 +5,12 @@ import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { ChatMessage, ChatMessageRole } from "@phoenix/store";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  ChatMessage,
+  ChatMessageRole,
+  generateMessageId,
+} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -20,6 +25,16 @@ import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
+
+export function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
+  const styles = useChatMessageStyles(message.role);
+
+  return (
+    <Card title={message.role} {...styles} variant="compact">
+      {message.content}
+    </Card>
+  );
+}
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
@@ -45,28 +60,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (isChatMessages(instance.output)) {
       const messages = instance.output;
 
-      return messages.map((message, index) => (
-        <Card
-          key={index}
-          title={message.role}
-          variant="compact"
-          backgroundColor="light"
-          borderColor="light"
-        >
-          {message.content}
-        </Card>
-      ));
+      return messages.map((message, index) => {
+        return <PlaygroundOutputMessage key={index} message={message} />;
+      });
     }
     if (typeof instance.output === "string") {
       return (
-        <Card
-          title={ChatMessageRole.ai}
-          variant="compact"
-          backgroundColor="light"
-          borderColor="light"
-        >
-          {instance.output}
-        </Card>
+        <PlaygroundOutputMessage
+          message={{
+            id: generateMessageId(),
+            content: instance.output,
+            role: ChatMessageRole.ai,
+          }}
+        />
       );
     }
     return "click run to see output";
@@ -193,5 +199,13 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       </Flex>
     );
   }
-  return <span>{output}</span>;
+  return (
+    <PlaygroundOutputMessage
+      message={{
+        id: generateMessageId(),
+        content: output,
+        role: ChatMessageRole.ai,
+      }}
+    />
+  );
 }
