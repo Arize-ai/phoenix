@@ -1,7 +1,19 @@
 import React, { PropsWithChildren } from "react";
-import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers";
-import { DragDropProvider } from "@dnd-kit/react";
-import { useSortable } from "@dnd-kit/react/sortable";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
 import {
@@ -15,7 +27,6 @@ import {
 } from "@arizeai/components";
 
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
-import { move } from "@phoenix/components/dnd/helpers/move";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -24,13 +35,22 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
-import { chatTemplateDndSensors } from "./chatTemplateDndSensors";
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
 
+const MESSAGE_Z_INDEX = 1;
+/**
+ * The z-index of the dragging message.
+ * Must be higher than the z-index of the other messages. Otherwise when dragging
+ * from top to bottom, the dragging message will be covered by the message below.
+ */
+const DRAGGING_MESSAGE_Z_INDEX = MESSAGE_Z_INDEX + 1;
+
 interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
+
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
+
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const playgroundInstance = instances.find((instance) => instance.id === id);
@@ -42,23 +62,31 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     throw new Error(`Invalid template type ${template.__type}`);
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   return (
-    <DragDropProvider
-      sensors={chatTemplateDndSensors}
-      onDragOver={(event) => {
-        const newMessages = move(template.messages, event);
-        updateInstance({
-          instanceId: id,
-          patch: {
-            template: {
-              __type: "chat",
-              messages: newMessages,
-            },
-          },
-        });
-      }}
-      onDragEnd={(event) => {
-        const newMessages = move(template.messages, event);
+    <DndContext
+      sensors={sensors}
+      onDragEnd={({ active, over }) => {
+        if (!over || active.id === over.id) {
+          return;
+        }
+        const activeIndex = template.messages.findIndex(
+          (message) => message.id === active.id
+        );
+        const overIndex = template.messages.findIndex(
+          (message) => message.id === over.id
+        );
+        const newMessages = arrayMove(
+          template.messages,
+          activeIndex,
+          overIndex
+        );
         updateInstance({
           instanceId: id,
           patch: {
@@ -70,26 +98,31 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         });
       }}
     >
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: column;
-          gap: var(--ac-global-dimension-size-200);
-          padding: var(--ac-global-dimension-size-200);
-        `}
+      <SortableContext
+        items={template.messages}
+        strategy={verticalListSortingStrategy}
       >
-        {template.messages.map((message, index) => {
-          return (
-            <SortableMessageItem
-              playgroundInstanceId={id}
-              template={template}
-              key={message.id}
-              message={message}
-              index={index}
-            />
-          );
-        })}
-      </ul>
+        <ul
+          css={css`
+            display: flex;
+            flex-direction: column;
+            gap: var(--ac-global-dimension-size-200);
+            padding: var(--ac-global-dimension-size-200);
+          `}
+        >
+          {template.messages.map((message, index) => {
+            return (
+              <SortableMessageItem
+                playgroundInstanceId={id}
+                template={template}
+                key={message.id}
+                message={message}
+                index={index}
+              />
+            );
+          })}
+        </ul>
+      </SortableContext>
       <View
         paddingStart="size-200"
         paddingEnd="size-200"
@@ -127,7 +160,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           </Button>
         </Flex>
       </View>
-    </DragDropProvider>
+    </DndContext>
   );
 }
 
@@ -135,7 +168,6 @@ function SortableMessageItem({
   playgroundInstanceId,
   template,
   message,
-  index,
 }: PropsWithChildren<
   PlaygroundInstanceProps & {
     template: PlaygroundChatTemplateType;
@@ -144,19 +176,31 @@ function SortableMessageItem({
   }
 >) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const { ref, handleRef } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    setActivatorNodeRef,
+    isDragging,
+  } = useSortable({
     id: message.id,
-    index,
-    // @ts-expect-error experimental dnd
-    modifiers: [RestrictToVerticalAxis],
   });
-  const styles = useChatMessageStyles(message.role);
+
+  const messageCardStyles = useChatMessageStyles(message.role);
+  const liStyles = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
+  };
+
   return (
-    <li ref={ref}>
+    <li ref={setNodeRef} style={liStyles} {...attributes}>
       <Card
         variant="compact"
         bodyStyle={{ padding: 0 }}
-        {...styles}
+        {...messageCardStyles}
         title={
           <MessageRolePicker
             includeLabel={false}
@@ -197,7 +241,11 @@ function SortableMessageItem({
                 });
               }}
             />
-            <DragHandle ref={handleRef} />
+            <DragHandle
+              ref={setActivatorNodeRef}
+              listeners={listeners}
+              attributes={attributes}
+            />
           </Flex>
         }
       >
@@ -221,6 +269,7 @@ function SortableMessageItem({
             value={message.content}
             height={200}
             variant="quiet"
+            aria-label={"Message content"}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,
