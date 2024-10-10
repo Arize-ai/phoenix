@@ -7,15 +7,19 @@ import { css } from "@emotion/react";
 // eslint-disable-next-line @typescript-eslint/ban-types
 type Listeners = Record<string, Function>;
 
-function DragHandle({
-  listeners,
-  attributes,
-}: {
-  listeners?: Listeners;
-  attributes: DraggableAttributes;
-}) {
+function DragHandle(
+  {
+    listeners,
+    attributes,
+  }: {
+    listeners?: Listeners;
+    attributes: DraggableAttributes;
+  },
+  ref: React.Ref<HTMLButtonElement>
+) {
   return (
     <button
+      ref={ref}
       {...listeners}
       {...attributes}
       aria-roledescription="draggable"
