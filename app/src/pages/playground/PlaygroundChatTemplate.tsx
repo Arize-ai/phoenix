@@ -11,7 +11,6 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
@@ -100,7 +99,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     >
       <SortableContext
         items={template.messages}
-        strategy={verticalListSortingStrategy}
+        // strategy={verticalListSortingStrategy}
       >
         <ul
           css={css`
@@ -189,14 +188,14 @@ function SortableMessageItem({
   });
 
   const messageCardStyles = useChatMessageStyles(message.role);
-  const liStyles = {
+  const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
     transition,
     zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
   };
 
   return (
-    <li ref={setNodeRef} style={liStyles} {...attributes}>
+    <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
         variant="compact"
         bodyStyle={{ padding: 0 }}

@@ -5,7 +5,7 @@ export type GenAIOperationType = "chat" | "text_completion";
 
 let playgroundInstanceIdIndex = 0;
 let playgroundRunIdIndex = 0;
-// This value must be "truthy" in order for message re-ordering to work
+// This value must be truthy in order for message re-ordering to work
 let playgroundMessageIdIndex = 1;
 
 /**
