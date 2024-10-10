@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
-import { divide } from "lodash";
 
 import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
 
