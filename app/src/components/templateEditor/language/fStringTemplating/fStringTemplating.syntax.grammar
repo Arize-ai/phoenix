@@ -1,6 +1,4 @@
-@top FStringTemplate {(expression | Text)*}
-
-expression { Template }
+@top FStringTemplate {(Template | Text)*}
 
 @skip { space } {
   Template { "{" Variable "}" }
