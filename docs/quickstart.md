@@ -38,7 +38,7 @@ docker pull arizephoenix/phoenix:latest
 {% tab title="app.phoenix.arize.com" %}
 If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
-For more details, see [hosted-phoenix.md](hosted-phoenix.md "mention")
+For more details, see [hosted-phoenix.md](deployment/hosted-phoenix.md "mention")
 {% endtab %}
 {% endtabs %}
 

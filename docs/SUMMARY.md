@@ -2,7 +2,6 @@
 
 * [Arize Phoenix](README.md)
 * [Quickstart](quickstart.md)
-* [Hosted Phoenix](hosted-phoenix.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Setup](setup/README.md)
@@ -11,9 +10,10 @@
   * [Authentication](setup/authentication.md)
 * [Deployment](deployment/README.md)
   * [Quickstart: Deployment](deployment/deploying-phoenix.md)
+  * [Hosted Phoenix](deployment/hosted-phoenix.md)
+  * [Docker](deployment/docker.md)
   * [Persistence](deployment/persistence.md)
   * [Kubernetes](deployment/kubernetes.md)
-  * [Docker](deployment/docker.md)
   * [FAQs: Deployment](deployment/faqs-deployment.md)
 
 ## 🔭 Tracing

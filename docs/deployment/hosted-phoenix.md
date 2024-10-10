@@ -23,15 +23,15 @@ We also use 3rd party analytics tools to measure usage of our application to imp
 
 Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer logins via Google, Github, and email. This account will use the same account credentials as your Arize account if you have one.
 
-<figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 ### Tracing: How to send in your first trace
 
-<figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
 Get your API keys from your Phoenix application on the left hand side.&#x20;
 
-Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](tracing/how-to-tracing/instrumentation/) as well.
+Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](../tracing/how-to-tracing/instrumentation/) as well.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
