@@ -4,7 +4,15 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { css } from "@emotion/react";
 
-import { Card, TextArea } from "@arizeai/components";
+import {
+  Button,
+  Card,
+  Flex,
+  Icon,
+  Icons,
+  TextArea,
+  View,
+} from "@arizeai/components";
 
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { move } from "@phoenix/components/dnd/helpers/move";
@@ -12,6 +20,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
+  generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
@@ -79,6 +88,43 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           );
         })}
       </ul>
+      <View
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        borderTopColor="dark"
+        borderTopWidth="thin"
+      >
+        <Flex direction="row" justifyContent="end">
+          <Button
+            variant="default"
+            aria-label="add message"
+            size="compact"
+            icon={<Icon svg={<Icons.PlusOutline />} />}
+            onClick={() => {
+              updateInstance({
+                instanceId: id,
+                patch: {
+                  template: {
+                    __type: "chat",
+                    messages: [
+                      ...template.messages,
+                      {
+                        id: generateMessageId(),
+                        role: "user",
+                        content: "",
+                      },
+                    ],
+                  },
+                },
+              });
+            }}
+          >
+            Message
+          </Button>
+        </Flex>
+      </View>
     </DragDropProvider>
   );
 }
@@ -128,7 +174,30 @@ function SortableMessageItem({
             }}
           />
         }
-        extra={<DragHandle ref={handleRef} />}
+        extra={
+          <Flex direction="row" gap="size-100">
+            <Button
+              aria-label="Delete message"
+              icon={<Icon svg={<Icons.TrashOutline />} />}
+              variant="default"
+              size="compact"
+              onClick={() => {
+                updateInstance({
+                  instanceId: playgroundInstanceId,
+                  patch: {
+                    template: {
+                      __type: "chat",
+                      messages: template.messages.filter(
+                        (msg) => msg.id !== message.id
+                      ),
+                    },
+                  },
+                });
+              }}
+            />
+            <DragHandle ref={handleRef} />
+          </Flex>
+        }
       >
         <div
           css={css`
@@ -141,6 +210,10 @@ function SortableMessageItem({
               }
             }
           `}
+          onKeyDownCapture={(e) => {
+            // Don't bubble up any keyboard events from the text area as to not interfere with DND
+            e.stopPropagation();
+          }}
         >
           <TextArea
             value={message.content}

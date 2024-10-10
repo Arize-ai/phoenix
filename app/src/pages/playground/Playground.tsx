@@ -17,27 +17,30 @@ import { PlaygroundRunButton } from "./PlaygroundRunButton";
 export function Playground(props: InitialPlaygroundState) {
   return (
     <PlaygroundProvider {...props}>
-      <View
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-        padding="size-200"
-      >
-        <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
+      <Flex direction="column" height="100%">
+        <View
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+          padding="size-200"
+          flex="none"
         >
-          <Heading level={1}>Playground</Heading>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <PlaygroundInputTypeTypeRadioGroup />
-            <Button variant="default" size="compact">
-              API Keys
-            </Button>
-            <PlaygroundRunButton />
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={1}>Playground</Heading>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <PlaygroundInputTypeTypeRadioGroup />
+              <Button variant="default" size="compact">
+                API Keys
+              </Button>
+              <PlaygroundRunButton />
+            </Flex>
           </Flex>
-        </Flex>
-      </View>
-      <PlaygroundInstances />
+        </View>
+        <PlaygroundInstances />
+      </Flex>
     </PlaygroundProvider>
   );
 }
@@ -45,7 +48,7 @@ export function Playground(props: InitialPlaygroundState) {
 function PlaygroundInstances() {
   const instances = usePlaygroundContext((state) => state.instances);
   return (
-    <Flex direction="row" alignItems="stretch" height="100%">
+    <Flex direction="row" alignItems="stretch" height="100%" flex="1 1 auto">
       <PanelGroup direction="horizontal">
         {instances.map((instance, i) => (
           <Fragment key={i}>
