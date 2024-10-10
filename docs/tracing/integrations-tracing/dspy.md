@@ -143,6 +143,14 @@ from openinference.instrumentation.dspy import DSPyInstrumentor
 DSPyInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
+DSPy uses LiteLLM under the hood to handle LLM calls. By also instrumenting LiteLLM, you'll be able to see token counts on your DSPy spans and traces.
+
+```python
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
+
+LiteLLMInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
 ## Run DSPy
 
 Now run invoke your compiled DSPy module. Your traces should appear inside of Phoenix.
