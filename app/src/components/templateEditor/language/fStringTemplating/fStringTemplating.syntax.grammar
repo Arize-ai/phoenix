@@ -1,0 +1,13 @@
+@top FStringTemplate {(Template | Text)*}
+
+@skip { space } {
+  Template { "{" Variable "}" }
+}
+
+@tokens {
+  Text { ![{]+ }
+  space { @whitespace+ }
+  Variable { ![}] Variable? }
+  @precedence { space, Variable, "{", "}" }
+  "{" "}"
+}
