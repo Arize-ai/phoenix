@@ -7,7 +7,7 @@ const phoenix = createClient();
 // Available GET endpoints are available via auto-completion
 // or by looking at Types["V1"]["paths"]
 phoenix
-  .GET("/v1/datasets")
+  .GET("/v1/datasets", { params: { query: { limit: 100 } } })
   .then(({ data }) => data?.data ?? [])
   .then(listDatasets);
 
