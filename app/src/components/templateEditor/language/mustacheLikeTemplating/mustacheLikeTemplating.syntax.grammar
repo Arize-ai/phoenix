@@ -1,6 +1,5 @@
-@top FStringTemplate {(expression | Text)*}
+@top MustacheLikeTemplate {(Template | Text)*}
 
-expression { Template }
 
 @skip { space } {
   Template { "{{" Variable "}}" }
