@@ -265,16 +265,16 @@ export const createPlaygroundStore = (
       set({ operationType });
     },
     addInstance: () => {
-      const instance = get().instances[0];
-      if (!instance) {
+      const instances = get().instances;
+      const firstInstance = get().instances[0];
+      if (!firstInstance) {
         return;
       }
-      // For now just hard-coded to two instances
       set({
         instances: [
-          instance,
+          ...instances,
           {
-            ...instance,
+            ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
           },

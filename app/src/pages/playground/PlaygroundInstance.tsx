@@ -22,7 +22,7 @@ export function PlaygroundInstance(props: PlaygroundInstanceProps) {
       <Panel defaultSize={50} order={1}>
         <PanelContent>
           <PlaygroundTemplate {...props} />
-          <PlaygroundTools />
+          <PlaygroundTools {...props} />
         </PanelContent>
       </Panel>
       <PanelResizeHandle

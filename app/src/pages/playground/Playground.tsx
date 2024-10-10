@@ -1,7 +1,7 @@
 import React, { Fragment } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
-import { Button, Flex, Heading, View } from "@arizeai/components";
+import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { InitialPlaygroundState } from "@phoenix/store";
 
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundInstance } from "./PlaygroundInstance";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -35,6 +36,7 @@ export function Playground(props: InitialPlaygroundState) {
               <Button variant="default" size="compact">
                 API Keys
               </Button>
+              <AddPromptButton />
               <PlaygroundRunButton />
             </Flex>
           </Flex>
@@ -42,6 +44,25 @@ export function Playground(props: InitialPlaygroundState) {
         <PlaygroundInstances />
       </Flex>
     </PlaygroundProvider>
+  );
+}
+
+function AddPromptButton() {
+  const addInstance = usePlaygroundContext((state) => state.addInstance);
+  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  return (
+    <Button
+      variant="default"
+      size="compact"
+      aria-label="add prompt"
+      icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+      disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES}
+      onClick={() => {
+        addInstance();
+      }}
+    >
+      Prompt
+    </Button>
   );
 }
 
