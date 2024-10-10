@@ -41,6 +41,9 @@ importers:
       '@dnd-kit/abstract':
         specifier: ^0.0.5
         version: 0.0.5
+      '@dnd-kit/dom':
+        specifier: ^0.0.5
+        version: 0.0.5
       '@dnd-kit/react':
         specifier: ^0.0.5
         version: 0.0.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
