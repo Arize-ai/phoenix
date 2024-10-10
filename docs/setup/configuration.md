@@ -34,6 +34,7 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
+* **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
 
 #### SMTP Configuration for Password Reset (When Auth Is Enabled)
 
