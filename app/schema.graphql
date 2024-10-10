@@ -926,6 +926,11 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
+type ModelProvider {
+  name: String!
+  modelNames: [String!]!
+}
+
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
@@ -1118,6 +1123,7 @@ type PromptResponse {
 }
 
 type Query {
+  modelProviders(vendors: [String!]!): [ModelProvider!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
