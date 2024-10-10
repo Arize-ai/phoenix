@@ -15,17 +15,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Card,
-  Flex,
-  Icon,
-  Icons,
-  TextArea,
-  View,
-} from "@arizeai/components";
+import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
+import {
+  TemplateEditor,
+  TemplateLanguages,
+} from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -262,11 +258,11 @@ function SortableMessageItem({
             e.stopPropagation();
           }}
         >
-          <TextArea
+          <TemplateEditor
+            height="100%"
             value={message.content}
-            height={200}
-            variant="quiet"
-            aria-label={"Message content"}
+            templateLanguage={TemplateLanguages.FString}
+            aria-label="Message content"
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,
