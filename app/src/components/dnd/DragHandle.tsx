@@ -1,10 +1,27 @@
 import React from "react";
+import { DraggableAttributes } from "@dnd-kit/core";
 import { css } from "@emotion/react";
 
-function DragHandle() {
+// This is the type of the listeners object from useSortable
+// However it is not exported from @dnd-kit/core so we have to redefine it here
+// eslint-disable-next-line @typescript-eslint/ban-types
+type Listeners = Record<string, Function>;
+
+function DragHandle(
+  {
+    listeners,
+    attributes,
+  }: {
+    listeners?: Listeners;
+    attributes: DraggableAttributes;
+  },
+  ref: React.Ref<HTMLButtonElement>
+) {
   return (
     <button
-      data-cypress="draggable-handle"
+      ref={ref}
+      {...listeners}
+      {...attributes}
       aria-roledescription="draggable"
       aria-pressed="false"
       aria-disabled="false"
