@@ -16,6 +16,7 @@
     "@codemirror/lint": "^6.8.1",
     "@codemirror/view": "^6.28.5",
     "@dnd-kit/abstract": "^0.0.5",
+    "@dnd-kit/dom": "^0.0.5",
     "@dnd-kit/react": "^0.0.5",
     "@react-three/drei": "^9.108.4",
     "@react-three/fiber": "8.0.12",

@@ -24,6 +24,10 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
+import {
+  ChatTemplateKeyboardSensor,
+  ChatTemplatePointerSensor,
+} from "./ChatTemplateDndSensors";
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -43,6 +47,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
 
   return (
     <DragDropProvider
+      sensors={[ChatTemplatePointerSensor, ChatTemplateKeyboardSensor]}
       onDragOver={(event) => {
         const newMessages = move(template.messages, event);
         updateInstance({
