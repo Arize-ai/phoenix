@@ -4,7 +4,10 @@
     "outDir": "dist",
     "rootDir": ".",
     "types": ["node", "jest"],
-    "baseUrl": "./src"
+    "baseUrl": "./src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noUncheckedIndexedAccess": true
   },
   "files": [],
   "include": ["src/**/*.ts", "test/**/*.ts"],
