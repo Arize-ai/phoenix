@@ -41,6 +41,17 @@ export const TemplateEditor = ({
     return ext;
   }, [templateLanguage]);
 
+  // useEffect(() => {
+  //   debugParser(props.value);
+  //   console.log(extractVariables(props.value));
+  //   console.log(
+  //     format({
+  //       text: props.value ?? "",
+  //       variables: { question: "What is 2 + 2", answer: "78" },
+  //     })
+  //   );
+  // }, [props.value]);
+
   return (
     <CodeMirror theme={codeMirrorTheme} extensions={extensions} {...props} />
   );
