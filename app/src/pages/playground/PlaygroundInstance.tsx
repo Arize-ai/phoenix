@@ -9,6 +9,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundInput } from "./PlaygroundInput";
+import { PlaygroundInstanceErrors } from "./PlaygroundInstanceErrors";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { PlaygroundTools } from "./PlaygroundTools";
@@ -28,6 +29,7 @@ export function PlaygroundInstance(props: PlaygroundInstanceProps) {
   return (
     <PanelGroup direction={isSingleInstance ? "horizontal" : "vertical"}>
       <Panel defaultSize={50} order={1} css={panelContentCSS}>
+        <PlaygroundInstanceErrors {...props} />
         <PlaygroundTemplate {...props} />
         <PlaygroundTools />
       </Panel>
