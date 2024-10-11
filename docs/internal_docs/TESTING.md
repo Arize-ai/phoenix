@@ -23,7 +23,7 @@ We cover these 4 types of tests
 
 -   End to end: Playwright
 -   Integration: pytest + DB
--   Unit: pytest, Jest
+-   Unit: pytest, Vitest
 -   Static: mypy, TypeScript
 
 ## Integration Testing

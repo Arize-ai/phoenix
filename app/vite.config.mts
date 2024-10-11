@@ -27,7 +27,8 @@ export default defineConfig(({ command }) => {
       },
     },
     test: {
-      include: ["**/*.test.ts"],
+      include: ["../__tests__/*.test.ts", "**/__tests__/*.test.ts"],
+      exclude: ["../node_modules/**"],
       environment: "jsdom",
       globals: true,
     },

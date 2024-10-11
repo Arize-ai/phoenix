@@ -87,7 +87,7 @@
     "build": "pnpm run build:relay && vite build",
     "build:static": "cpy ./static ../src/phoenix/server",
     "build:relay": "relay-compiler",
-    "test": "vitest",
+    "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "dev": "pnpm run dev:server & pnpm run build:static && pnpm run build:relay && vite",
