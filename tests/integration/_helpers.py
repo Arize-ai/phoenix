@@ -664,7 +664,7 @@ def _random_schema(
     while time() < time_limit:
         try:
             with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE;"))
+                conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
                 conn.commit()
         except OperationalError as exc:
             if "too many clients" in str(exc):
