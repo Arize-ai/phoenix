@@ -242,27 +242,12 @@ function SortableMessageItem({
           </Flex>
         }
       >
-        <div
-          css={css`
-            // TODO: remove these styles once the codemiror editor is added
-            .ac-textfield {
-              border: none !important;
-              border-radius: 0;
-              textarea {
-                padding: var(--ac-global-dimension-size-200);
-              }
-            }
-          `}
-          onKeyDownCapture={(e) => {
-            // Don't bubble up any keyboard events from the text area as to not interfere with DND
-            e.stopPropagation();
-          }}
-        >
+        <div>
           <TemplateEditor
             height="100%"
             value={message.content}
             aria-label="Message content"
-            templateLanguage={TemplateLanguages.Mustache}
+            templateLanguage={TemplateLanguages.FString}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,
