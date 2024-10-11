@@ -4,16 +4,31 @@ import { styleTags, tags as t } from "@lezer/highlight";
 import { parser } from "./mustacheLikeTemplating.syntax.grammar";
 
 // https://codemirror.net/examples/lang-package/
+/**
+ * Defines the language for the Mustache-like templating system
+ *
+ * @example
+ * ```
+ * {{question}}
+ *
+ * {
+ *   "answer": {{answer}}
+ * }
+ * ```
+ * In this example, the variables are `question` and `answer`.
+ * Single braces are not considered as variables.
+ * Double braces will be interpolated with variable values on format.
+ */
 export const MustacheLikeTemplatingLanguage = LRLanguage.define({
   parser: parser.configure({
     props: [
       // https://lezer.codemirror.net/docs/ref/#highlight.styleTags
       styleTags({
-        // style the opening brace of a template, not floating braces
+        // style the opening brace ({{) of a template, not floating braces
         "Template/LBrace": t.quote,
-        // style the closing brace of a template, not floating braces
+        // style the closing brace (}}) of a template, not floating braces
         "Template/RBrace": t.quote,
-        // style variables (stuff inside {})
+        // style variables (stuff inside {{}})
         "Template/Variable": t.variableName,
         // style invalid stuff, undefined tokens will be highlighted
         "Template/⚠": t.invalid,
