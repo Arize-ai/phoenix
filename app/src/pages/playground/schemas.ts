@@ -6,7 +6,8 @@ import {
   SemanticAttributePrefixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { ChatMessageRole } from "@phoenix/store";
+import { ChatMessage, ChatMessageRole } from "@phoenix/store";
+import { schemaForType } from "@phoenix/typeUtils";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -77,12 +78,15 @@ export const outputSchema = z.object({
  */
 export const chatMessageRolesSchema = z.nativeEnum(ChatMessageRole);
 
-/**
- * The zod schema for ChatMessages
- */
-export const chatMessagesSchema = z.array(
+const chatMessageSchema = schemaForType<ChatMessage>()(
   z.object({
+    id: z.number(),
     role: chatMessageRolesSchema,
     content: z.string(),
   })
 );
+
+/**
+ * The zod schema for ChatMessages
+ */
+export const chatMessagesSchema = z.array(chatMessageSchema);

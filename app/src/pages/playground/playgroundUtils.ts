@@ -4,7 +4,7 @@ import {
   ChatMessageRole,
   createPlaygroundInstance,
   generateMessageId,
-} from "@phoenix/store/playgroundStore";
+} from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatRoleMap, DEFAULT_CHAT_ROLE } from "./constants";
