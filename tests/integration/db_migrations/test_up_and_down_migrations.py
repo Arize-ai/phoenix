@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -5,21 +7,25 @@ from sqlalchemy import Engine, text
 
 
 def test_up_and_down_migrations(
-    alembic_config: Config,
-    engine: Engine,
+    _alembic_config: Config,
+    _engine: Engine,
+    _schema: Optional[str],
 ) -> None:
-    stmt = text("SELECT version_num FROM alembic_version")
-    with engine.connect() as conn:
-        with pytest.raises(BaseException, match="alembic_version"):
+    table = "alembic_version"
+    if _schema:
+        table = f"{_schema}.{table}"
+    stmt = text(f"SELECT version_num FROM {table}")
+    with _engine.connect() as conn:
+        with pytest.raises(BaseException, match=table):
             conn.execute(stmt)
-    with engine.connect() as conn:
-        alembic_config.attributes["connection"] = conn
-        command.upgrade(alembic_config, "head")
-    with engine.connect() as conn:
+    with _engine.connect() as conn:
+        _alembic_config.attributes["connection"] = conn
+        command.upgrade(_alembic_config, "head")
+    with _engine.connect() as conn:
         version_num = conn.execute(stmt).first()
         assert version_num == ("cd164e83824f",)
-    with engine.connect() as conn:
-        alembic_config.attributes["connection"] = conn
-        command.downgrade(alembic_config, "base")
-    with engine.connect() as conn:
+    with _engine.connect() as conn:
+        _alembic_config.attributes["connection"] = conn
+        command.downgrade(_alembic_config, "base")
+    with _engine.connect() as conn:
         assert conn.execute(stmt).first() is None

@@ -1,7 +1,7 @@
 from contextlib import ExitStack
 from pathlib import Path
 from secrets import token_hex
-from typing import Iterator
+from typing import Iterator, Optional
 
 import phoenix
 import pytest
@@ -15,7 +15,7 @@ from .._helpers import _random_schema
 
 
 @pytest.fixture
-def alembic_config() -> Config:
+def _alembic_config() -> Config:
     root = Path(phoenix.db.__path__[0])
     cfg = Config(root / "alembic.ini")
     cfg.set_main_option("script_location", str(root / "migrations"))
@@ -23,29 +23,43 @@ def alembic_config() -> Config:
 
 
 @pytest.fixture
-def engine(
+def _schema(
     _sql_database_url: URL,
-    tmp_path_factory: TempPathFactory,
-) -> Iterator[Engine]:
+) -> Iterator[Optional[str]]:
     backend = _sql_database_url.get_backend_name()
     with ExitStack() as stack:
         if backend.startswith("sqlite"):
-            tmp = tmp_path_factory.getbasetemp() / Path(__file__).parent.name
-            tmp.mkdir(parents=True, exist_ok=True)
-            file = tmp / f".{token_hex(16)}.db"
-            engine = create_engine(
-                url=_sql_database_url.set(drivername="sqlite"),
-                creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
-                echo=True,
-            )
+            yield None
         elif backend.startswith("postgresql"):
-            engine = create_engine(
-                url=_sql_database_url.set(drivername="postgresql+psycopg"),
-                echo=True,
-            )
-            schema = stack.enter_context(_random_schema(_sql_database_url))
-            event.listen(engine, "connect", set_postgresql_search_path(schema))
+            yield stack.enter_context(_random_schema(_sql_database_url))
         else:
             pytest.fail(f"Unknown database backend: {backend}")
-        yield engine
-        engine.dispose()
+
+
+@pytest.fixture
+def _engine(
+    _sql_database_url: URL,
+    _schema: Optional[str],
+    tmp_path_factory: TempPathFactory,
+) -> Iterator[Engine]:
+    backend = _sql_database_url.get_backend_name()
+    if backend.startswith("sqlite"):
+        tmp = tmp_path_factory.getbasetemp() / Path(__file__).parent.name
+        tmp.mkdir(parents=True, exist_ok=True)
+        file = tmp / f".{token_hex(16)}.db"
+        engine = create_engine(
+            url=_sql_database_url.set(drivername="sqlite"),
+            creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
+            echo=True,
+        )
+    elif backend.startswith("postgresql"):
+        assert _schema
+        engine = create_engine(
+            url=_sql_database_url.set(drivername="postgresql+psycopg"),
+            echo=True,
+        )
+        event.listen(engine, "connect", set_postgresql_search_path(_schema))
+    else:
+        pytest.fail(f"Unknown database backend: {backend}")
+    yield engine
+    engine.dispose()
