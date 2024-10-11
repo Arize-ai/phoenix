@@ -44,15 +44,6 @@ tracer_provider = register(
 
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
-
-Note that the legacy One-Click system of spans can still be used instead by setting `use_legacy_callback_handler=True` as shown below.
-
-```python
-LlamaIndexInstrumentor().instrument(
-    tracer_provider=tracer_provider,
-    use_legacy_callback_handler=True,
-)
-```
 {% endtab %}
 
 {% tab title="Legacy One-Click (<0.10.43)" %}
