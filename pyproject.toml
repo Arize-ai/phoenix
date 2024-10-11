@@ -320,10 +320,6 @@ clean = [
   "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
-[tool.hatch.envs.auth.scripts]
-up = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
-down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
-
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",

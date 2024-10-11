@@ -109,10 +109,6 @@ jobs:
         run: |
           hatch run proto:recompile
           git diff --exit-code
-      - name: Gql codegen
-        run: |
-          hatch run gql:build
-          git diff --exit-code
       - name: Export OpenAPI schema
         run: |
           hatch run openapi:build
@@ -122,8 +118,37 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
+  build-graphql:
+    name: Build GraphQL Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.9, 3.12 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Build Schema
+        run: |
+          tox run -e gql_build
+          git diff --exit-code
+
   ruff:
     name: Ruff
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
