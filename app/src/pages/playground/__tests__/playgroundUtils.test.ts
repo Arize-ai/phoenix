@@ -26,6 +26,10 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   input: {
     variables: {},
   },
+  model: {
+    provider: "OPENAI",
+    modelName: "gpt-4o",
+  },
   tools: {},
   template: {
     __type: "chat",
