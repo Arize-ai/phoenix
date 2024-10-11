@@ -14,6 +14,7 @@ def test_up_and_down_migrations(
     table = "alembic_version"
     if _engine.url.get_backend_name().startswith("postgresql"):
         schema = os.environ[ENV_PHOENIX_SQL_DATABASE_SCHEMA]
+        assert schema
         table = f"{schema}.{table}"
     stmt = text(f"SELECT version_num FROM {table}")
     with _engine.connect() as conn:
