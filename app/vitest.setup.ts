@@ -1,5 +1,4 @@
-import "jest-canvas-mock";
-jest.mock("@phoenix/config");
+import "vitest-canvas-mock";
 
 Object.defineProperty(window, "Config", {
   value: {
