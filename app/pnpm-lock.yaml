@@ -198,6 +198,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.1
         version: 4.3.1(vite@5.3.6(@types/node@22.5.4))
+      babel-plugin-relay:
+        specifier: ^18.1.0
+        version: 18.1.0
       cpy-cli:
         specifier: ^5.0.0
         version: 5.0.0
@@ -242,7 +245,7 @@ importers:
         version: 5.3.6(@types/node@22.5.4)
       vite-plugin-relay:
         specifier: ^2.1.0
-        version: 2.1.0(babel-plugin-relay@17.0.0)(vite@5.3.6(@types/node@22.5.4))
+        version: 2.1.0(babel-plugin-relay@18.1.0)(vite@5.3.6(@types/node@22.5.4))
       vitest:
         specifier: ^2.1.2
         version: 2.1.2(@types/node@22.5.4)(jsdom@25.0.1)
@@ -1652,8 +1655,8 @@ packages:
     resolution: {integrity: sha512-Cg7TFGpIr01vOQNODXOOaGz2NpCU5gl8x1qJFbb6hbZxR7XrcE2vtbAsTAbJ7/xwJtUuJEw8K8Zr/AE0LHlesg==}
     engines: {node: '>=10', npm: '>=6'}
 
-  babel-plugin-relay@17.0.0:
-    resolution: {integrity: sha512-aBIEDp6jFOAO+CD+GGKv4/WOQ7cnS6hZysJI0dFbLRQXZ6XQar0lytxQ4zuqPU0RpGnUeN5htK3NTewu2TZ53A==}
+  babel-plugin-relay@18.1.0:
+    resolution: {integrity: sha512-k3ehQO5CEOgKLJmHAswkV+qatPdfH2fAkibo/ejUsSyadE+iA+Uzb2uBcVdgvLRSH+n1euuqtV2BBUEKeJRmrg==}
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
@@ -5641,7 +5644,7 @@ snapshots:
       cosmiconfig: 7.1.0
       resolve: 1.22.8
 
-  babel-plugin-relay@17.0.0:
+  babel-plugin-relay@18.1.0:
     dependencies:
       babel-plugin-macros: 2.8.0
       cosmiconfig: 5.2.1
@@ -8053,10 +8056,10 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-relay@2.1.0(babel-plugin-relay@17.0.0)(vite@5.3.6(@types/node@22.5.4)):
+  vite-plugin-relay@2.1.0(babel-plugin-relay@18.1.0)(vite@5.3.6(@types/node@22.5.4)):
     dependencies:
       '@babel/core': 7.24.9
-      babel-plugin-relay: 17.0.0
+      babel-plugin-relay: 18.1.0
       vite: 5.3.6(@types/node@22.5.4)
     transitivePeerDependencies:
       - supports-color
