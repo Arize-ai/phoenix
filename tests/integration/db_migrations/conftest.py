@@ -7,8 +7,9 @@ import phoenix
 import pytest
 import sqlean  # type: ignore[import-untyped]
 from alembic.config import Config
+from phoenix.db.engines import set_postgresql_search_path
 from pytest import TempPathFactory
-from sqlalchemy import URL, Engine, create_engine
+from sqlalchemy import URL, Engine, create_engine, event
 
 from integration._helpers import _random_schema
 
@@ -42,7 +43,8 @@ def engine(
                 url=_sql_database_url.set(drivername="postgresql+psycopg"),
                 echo=True,
             )
-            stack.enter_context(_random_schema(_sql_database_url))
+            schema = stack.enter_context(_random_schema(_sql_database_url))
+            event.listen(engine, "connect", set_postgresql_search_path(schema))
         else:
             pytest.fail(f"Unknown database backend: {backend}")
         yield engine
