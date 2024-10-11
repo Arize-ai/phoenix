@@ -75,6 +75,8 @@ from sqlalchemy.exc import OperationalError
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
+_DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
+
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER
 
