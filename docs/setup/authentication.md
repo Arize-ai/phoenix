@@ -16,7 +16,11 @@ To enable authentication on your Phoenix, you will have to set two environment v
 
 <table><thead><tr><th width="198">Variable</th><th width="359">Description</th><th>Example Value</th></tr></thead><tbody><tr><td><strong>PHOENIX_ENABLE_AUTH</strong></td><td>Set to <code>True</code> to enable authentication on your platform</td><td><strong>True</strong> or <strong>False</strong></td></tr><tr><td><strong>PHOENIX_SECRET</strong></td><td>A long string value that is used to sign JWTs for your deployment. It should be a good mix of characters and numbers and should be kept in a secret store of some kind.</td><td><code>3413f9a7735bb780c6b8e4db7d946a492b64d26112a955cdea6a797f4c833593</code></td></tr></tbody></table>
 
-Deploy Phoenix with the above two environment variables set. You will know that you have setup authentication correctly if the UI navigates to to a login screen.
+The following environment variables are optional but recommended:
+
+<table data-header-hidden data-full-width="false"><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_USE_SECURE_COOKIES</strong></td><td>If set to <strong>True</strong>, access and refresh tokens will be stored in secure cookies. Defaults to <strong>False</strong>.</td></tr><tr><td><strong>PHOENIX_CSRF_TRUSTED_ORIGINS</strong></td><td>A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes <code>origin</code> or <code>referer</code> headers, those values will not be validated.</td></tr></tbody></table>
+
+Deploy Phoenix with the above environment variables set. You will know that you have setup authentication correctly if the UI navigates to to a login screen.
 
 By default Phoenix will create an admin user account. To get started:
 
@@ -26,6 +30,10 @@ By default Phoenix will create an admin user account. To get started:
 4. In your application code, make sure to set the proper authentication headers with the system API key. Phoenix respects headers in the form of [bearer auth](https://swagger.io/docs/specification/authentication/bearer-authentication/), meaning that you should set the header in the form **Authorization: Bearer \<token>.** Note that if you are using the Phoenix Client or Phoenix Otel, you simply need to set the **PHOENIX\_API\_KEY** environment variable.
 
 Re-deploy your application with the API key created above and you will see traces stream in as before.
+
+The following environment variables are optional but recommended:
+
+
 
 ## User Management
 
