@@ -12,7 +12,16 @@ For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrument
 {% tab title="Instrumentation (>=0.10.43)" %}
 Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm.
 
-To get started, pip install the following.
+To get started, make sure you're running Phoenix. The easiest way to do this is to run the following in a separate terminal window:
+
+```
+pip install arize-phoenix
+phoenix serve
+```
+
+See [deployment](../../deployment/ "mention")for other hosting options.
+
+Then, pip install the following in your project.
 
 {% code overflow="wrap" %}
 ```
