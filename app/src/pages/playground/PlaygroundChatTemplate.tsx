@@ -30,6 +30,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
+  ChatMessageRole,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
@@ -143,7 +144,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                       ...template.messages,
                       {
                         id: generateMessageId(),
-                        role: "user",
+                        role: ChatMessageRole.user,
                         content: "",
                       },
                     ],

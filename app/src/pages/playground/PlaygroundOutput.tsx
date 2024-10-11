@@ -5,7 +5,12 @@ import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { ChatMessage, ChatMessageRole } from "@phoenix/store";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  ChatMessage,
+  ChatMessageRole,
+  generateMessageId,
+} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -15,10 +20,21 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { isChatMessages } from "./playgroundUtils";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
+
+function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
+  const styles = useChatMessageStyles(message.role);
+
+  return (
+    <Card title={message.role} {...styles} variant="compact">
+      {message.content}
+    </Card>
+  );
+}
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
@@ -29,22 +45,46 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
   if (!instance) {
-    return null;
+    throw new Error("Playground instance not found");
   }
 
   const runId = instance.activeRunId;
   const hasRunId = runId !== null;
+
+  const OutputEl = useMemo(() => {
+    if (hasRunId) {
+      return (
+        <PlaygroundOutputText key={runId} playgroundInstanceId={instanceId} />
+      );
+    }
+    if (isChatMessages(instance.output)) {
+      const messages = instance.output;
+
+      return messages.map((message, index) => {
+        return <PlaygroundOutputMessage key={index} message={message} />;
+      });
+    }
+    if (typeof instance.output === "string") {
+      return (
+        <PlaygroundOutputMessage
+          message={{
+            id: generateMessageId(),
+            content: instance.output,
+            role: ChatMessageRole.ai,
+          }}
+        />
+      );
+    }
+    return "click run to see output";
+  }, [hasRunId, instance.output, instanceId, runId]);
+
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       collapsible
       variant="compact"
     >
-      {hasRunId ? (
-        <PlaygroundOutputText key={runId} playgroundInstanceId={instanceId} />
-      ) : (
-        "click run to see output"
-      )}
+      {OutputEl}
     </Card>
   );
 }
@@ -104,13 +144,13 @@ function toGqlChatCompletionRole(
   role: ChatMessageRole
 ): ChatCompletionMessageRole {
   switch (role) {
-    case "system":
+    case ChatMessageRole.system:
       return "SYSTEM";
-    case "user":
+    case ChatMessageRole.user:
       return "USER";
-    case "tool":
+    case ChatMessageRole.tool:
       return "TOOL";
-    case "ai":
+    case ChatMessageRole.ai:
       return "AI";
     default:
       assertUnreachable(role);
@@ -118,13 +158,13 @@ function toGqlChatCompletionRole(
 }
 
 function PlaygroundOutputText(props: PlaygroundInstanceProps) {
-  const instance = usePlaygroundContext(
-    (state) => state.instances[props.playgroundInstanceId]
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instance = instances.find(
+    (instance) => instance.id === props.playgroundInstanceId
   );
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
-  const [output, setOutput] = useState<string>("");
   if (!instance) {
     throw new Error("No instance found");
   }
@@ -135,6 +175,8 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
+
+  const [output, setOutput] = useState<string>("");
 
   useChatCompletionSubscription({
     params: {
@@ -157,5 +199,13 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       </Flex>
     );
   }
-  return <span>{output}</span>;
+  return (
+    <PlaygroundOutputMessage
+      message={{
+        id: generateMessageId(),
+        content: output,
+        role: ChatMessageRole.ai,
+      }}
+    />
+  );
 }
