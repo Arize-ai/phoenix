@@ -24,8 +24,8 @@ export const ProviderToCredentialKeyMap: Record<ModelProvider, CredentialKey> =
   };
 
 export function PlaygroundCredentialsDropdown() {
-  const currentProviders = usePlaygroundContext((state) =>
-    state.instances.map((instance) => instance.provider)
+  const currentProviders = usePlaygroundContext(
+    (state) => new Set(state.instances.map((instance) => instance.provider))
   );
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentials = useCredentialsContext((state) => state);
@@ -43,7 +43,7 @@ export function PlaygroundCredentialsDropdown() {
               their respective API&apos;s.
             </Text>
             <Form>
-              {currentProviders.map((provider) => {
+              {Array.from(currentProviders).map((provider) => {
                 const credentialKey = ProviderToCredentialKeyMap[provider];
                 return (
                   <TextField
