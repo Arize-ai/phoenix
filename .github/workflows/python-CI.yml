@@ -109,10 +109,6 @@ jobs:
         run: |
           hatch run proto:recompile
           git diff --exit-code
-      - name: Gql codegen
-        run: |
-          hatch run gql:build
-          git diff --exit-code
       - name: Export OpenAPI schema
         run: |
           hatch run openapi:build
@@ -123,7 +119,7 @@ jobs:
           git diff --exit-code
 
   build-graphql:
-    name: Build GraphQL
+    name: Build GraphQL Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
@@ -144,7 +140,7 @@ jobs:
           version: 0.4.18
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Check types
+      - name: Build Schema
         run: |
           tox run -e gql_build
           git diff --exit-code
