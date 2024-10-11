@@ -27,7 +27,6 @@ def _engine(
     tmp_path_factory: TempPathFactory,
 ) -> Iterator[Engine]:
     url = make_url(os.environ[ENV_PHOENIX_SQL_DATABASE_URL])
-    schema = os.environ.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
     backend = url.get_backend_name()
     if backend.startswith("sqlite"):
         tmp = tmp_path_factory.getbasetemp() / Path(__file__).parent.name
@@ -41,7 +40,7 @@ def _engine(
             echo=True,
         )
     elif backend.startswith("postgresql"):
-        assert schema
+        assert (schema := os.environ.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA))
         engine = create_engine(
             url=url.set(drivername="postgresql+psycopg"),
             poolclass=NullPool,
