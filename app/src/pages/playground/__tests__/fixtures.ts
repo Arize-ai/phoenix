@@ -34,7 +34,7 @@ export const spanAttributesWithInputMessages = {
       },
       {
         message: {
-          content: "Anser me the following question. Are you sentient?",
+          content: "hello?",
           role: "user",
         },
       },

@@ -33,7 +33,7 @@ export const _resetInstanceId = () => {
  * NB: This is only used for testing purposes
  */
 export const _resetMessageId = () => {
-  playgroundInstanceIdIndex = 0;
+  playgroundMessageIdIndex = 0;
 };
 
 /**
@@ -52,12 +52,12 @@ export type PlaygroundTemplate =
 /**
  * Array of roles for a chat message with a LLM
  */
-export const chatMessageRoles = ["user", "ai", "system", "tool"] as const;
-
-/**
- * The role of a chat message with a LLM
- */
-export type ChatMessageRole = (typeof chatMessageRoles)[number];
+export enum ChatMessageRole {
+  system = "system",
+  user = "user",
+  tool = "tool",
+  ai = "ai",
+}
 
 /**
  * A chat message with a role and content
@@ -131,7 +131,7 @@ export interface PlaygroundInstance {
   template: PlaygroundTemplate;
   tools: unknown;
   input: PlaygroundInput;
-  output: unknown;
+  output: ChatMessage[] | undefined | string;
   activeRunId: number | null;
   /**
    * Whether or not the playground instance is actively running or not
@@ -196,12 +196,12 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   messages: [
     {
       id: generateMessageId(),
-      role: "system",
+      role: ChatMessageRole.system,
       content: "You are a chatbot",
     },
     {
       id: generateMessageId(),
-      role: "user",
+      role: ChatMessageRole.user,
       content: "{{question}}",
     },
   ],
@@ -218,7 +218,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     tools: {},
     input: { variables: {} },
-    output: {},
+    output: undefined,
     activeRunId: null,
     isRunning: false,
   };
@@ -242,7 +242,7 @@ export const createPlaygroundStore = (
               template: generateChatCompletionTemplate(),
               tools: {},
               input: { variables: {} },
-              output: {},
+              output: undefined,
               activeRunId: null,
               isRunning: false,
             },
@@ -256,7 +256,7 @@ export const createPlaygroundStore = (
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
-              output: {},
+              output: undefined,
               activeRunId: null,
               isRunning: false,
             },

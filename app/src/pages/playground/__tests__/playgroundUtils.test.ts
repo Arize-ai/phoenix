@@ -1,7 +1,16 @@
-import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
+import {
+  _resetInstanceId,
+  _resetMessageId,
+  ChatMessageRole,
+  PlaygroundInstance,
+} from "@phoenix/store";
 
 import {
   getChatRole,
+  INPUT_MESSAGES_PARSING_ERROR,
+  OUTPUT_MESSAGES_PARSING_ERROR,
+  OUTPUT_VALUE_PARSING_ERROR,
+  SPAN_ATTRIBUTES_PARSING_ERROR,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 
@@ -10,26 +19,42 @@ import {
   spanAttributesWithInputMessages,
 } from "./fixtures";
 
-const expectedPlaygroundInstance = {
+const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
   isRunning: false,
   input: {
     variables: {},
   },
+  tools: {},
   template: {
     __type: "chat",
-    messages: spanAttributesWithInputMessages.llm.input_messages.map(
-      ({ message }, index) => {
-        return {
-          id: index,
-          ...message,
-        };
-      }
-    ),
+    // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
+    // Doing so increments the message id counter
+    messages: [
+      { id: 2, content: "You are a chatbot", role: ChatMessageRole.system },
+      { id: 3, content: "hello?", role: ChatMessageRole.user },
+    ],
   },
-  output: spanAttributesWithInputMessages.llm.output_messages,
-  tools: undefined,
+  output: [
+    { id: 4, content: "This is an AI Answer", role: ChatMessageRole.ai },
+  ],
+};
+
+const defaultTemplate = {
+  __type: "chat",
+  messages: [
+    {
+      id: 0,
+      role: ChatMessageRole.system,
+      content: "You are a chatbot",
+    },
+    {
+      id: 1,
+      role: ChatMessageRole.user,
+      content: "{{question}}",
+    },
+  ],
 };
 
 describe("transformSpanAttributesToPlaygroundInstance", () => {
@@ -37,46 +62,42 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     _resetInstanceId();
     _resetMessageId();
   });
-  it("should throw if the attributes are not parsable", () => {
+  it("should return the default instance with parsing errors if the span attributes are unparsable", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: "invalid json",
     };
-    expect(() => transformSpanAttributesToPlaygroundInstance(span)).toThrow(
-      "Invalid span attributes, attributes must be valid JSON"
-    );
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: defaultTemplate,
+        output: undefined,
+      },
+      parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
+    });
   });
 
-  it("should return null if the attributes do not match the schema", () => {
+  it("should return the default instance with parsing errors if the attributes don't contain any information", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({}),
     };
-    expect(transformSpanAttributesToPlaygroundInstance(span)).toBeNull();
-  });
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: defaultTemplate,
 
-  it("should return a PlaygroundInstance if the attributes contain llm.input_messages", () => {
-    const span = {
-      ...basePlaygroundSpan,
-      attributes: JSON.stringify(spanAttributesWithInputMessages),
-    };
-
-    const instance = transformSpanAttributesToPlaygroundInstance(span);
-    expect(instance?.template.__type).toEqual("chat");
-    if (instance?.template.__type !== "chat") {
-      throw new Error("Invalid template type constructed");
-    }
-    expect(instance?.template.messages).toHaveLength(2);
-    instance?.template.messages.forEach((message, index) => {
-      expect(message.role).toEqual(
-        expectedPlaygroundInstance.template.messages[index].role
-      );
-      expect(message.content).toEqual(
-        expectedPlaygroundInstance.template.messages[index].content
-      );
+        output: undefined,
+      },
+      parsingErrors: [
+        INPUT_MESSAGES_PARSING_ERROR,
+        OUTPUT_MESSAGES_PARSING_ERROR,
+        OUTPUT_VALUE_PARSING_ERROR,
+      ],
     });
   });
-  it("should return a PlaygroundInstance if the attributes contain llm.input_messages, even if output_messages are not present", () => {
+
+  it("should return a PlaygroundInstance with template messages and output parsing errors if the attributes contain llm.input_messages", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({
@@ -87,12 +108,94 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         },
       }),
     };
-    const instance = transformSpanAttributesToPlaygroundInstance(span);
-    expect(instance?.template.__type).toEqual("chat");
-    if (instance?.template.__type !== "chat") {
-      throw new Error("Invalid template type constructed");
-    }
-    expect(Array.isArray(instance?.template.messages)).toBeTruthy();
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        output: undefined,
+      },
+      parsingErrors: [
+        OUTPUT_MESSAGES_PARSING_ERROR,
+        OUTPUT_VALUE_PARSING_ERROR,
+      ],
+    });
+  });
+
+  it("should fallback to output.value if output_messages is not present", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          output_messages: undefined,
+        },
+        output: {
+          value: "This is an AI Answer",
+        },
+      }),
+    };
+
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        output: "This is an AI Answer",
+      },
+      parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
+    });
+  });
+
+  it("should return a PlaygroundInstance if the attributes contain llm.input_messages and output_messages", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify(spanAttributesWithInputMessages),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: expectedPlaygroundInstanceWithIO,
+      parsingErrors: [],
+    });
+  });
+
+  it("should normalize message roles in input and output messages", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        llm: {
+          input_messages: [
+            {
+              message: {
+                role: "human",
+                content: "You are a chatbot",
+              },
+            },
+          ],
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: "This is an AI Answer",
+              },
+            },
+          ],
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: {
+          __type: "chat",
+          messages: [
+            {
+              id: 2,
+              role: "user",
+              content: "You are a chatbot",
+            },
+          ],
+        },
+        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+      },
+      parsingErrors: [],
+    });
   });
 });
 
@@ -103,9 +206,9 @@ describe("getChatRole", () => {
 
   it("should return the ChatMessageRole if the role is included in ChatRoleMap", () => {
     expect(getChatRole("assistant")).toEqual("ai");
-    // expect(getChatRole("bot")).toEqual("ai");
-    // expect(getChatRole("system")).toEqual("system");
-    // expect(getChatRole("human:")).toEqual("user");
+    expect(getChatRole("bot")).toEqual("ai");
+    expect(getChatRole("system")).toEqual("system");
+    expect(getChatRole("human:")).toEqual("user");
   });
 
   it("should return DEFAULT_CHAT_ROLE if the role is not found", () => {
