@@ -131,14 +131,23 @@ function getOutputFromAttributes(parsedAttributes: unknown) {
  */
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
-): PlaygroundInstance {
+): {
+  playgroundInstance: PlaygroundInstance;
+  /**
+   * Errors that occurred during parsing of initial playground data.
+   * For example, when coming from a span to the playground, the span may
+   * not have the correct attributes, or the attributes may be of the wrong shape.
+   * This field is used to store any issues encountered when parsing to display in the playground.
+   */
+  parsingErrors: string[];
+} {
   const basePlaygroundInstance = createPlaygroundInstance();
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
   if (parseError) {
     return {
-      ...basePlaygroundInstance,
+      playgroundInstance: basePlaygroundInstance,
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
   }
@@ -151,16 +160,18 @@ export function transformSpanAttributesToPlaygroundInstance(
   // TODO(parker): add support for tools, variables, and input / output variants
   // https://github.com/Arize-ai/phoenix/issues/4886
   return {
-    ...basePlaygroundInstance,
-    template:
-      messages != null
-        ? {
-            __type: "chat",
-            messages,
-          }
-        : basePlaygroundInstance.template,
+    playgroundInstance: {
+      ...basePlaygroundInstance,
+      template:
+        messages != null
+          ? {
+              __type: "chat",
+              messages,
+            }
+          : basePlaygroundInstance.template,
+      output,
+    },
     parsingErrors: [...messageParsingErrors, ...outputParsingErrors],
-    output,
   };
 }
 

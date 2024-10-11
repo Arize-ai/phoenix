@@ -26,7 +26,7 @@ import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
-export function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
+function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
   const styles = useChatMessageStyles(message.role);
 
   return (

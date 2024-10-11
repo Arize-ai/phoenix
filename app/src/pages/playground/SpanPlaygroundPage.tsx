@@ -1,11 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
+import { has } from "lodash";
 
 import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
 
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
-import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
+import {
+  INPUT_MESSAGES_PARSING_ERROR,
+  OUTPUT_MESSAGES_PARSING_ERROR,
+  transformSpanAttributesToPlaygroundInstance,
+} from "./playgroundUtils";
 
 export function SpanPlaygroundPage() {
   const data = useLoaderData() as spanPlaygroundPageLoaderQuery$data;
@@ -20,14 +25,20 @@ export function SpanPlaygroundPage() {
     throw new Error("Span not found");
   }
 
-  const playgroundInstance = useMemo(
+  const { playgroundInstance, parsingErrors } = useMemo(
     () => transformSpanAttributesToPlaygroundInstance(span),
     [span]
   );
 
   return (
     <Flex direction="column" height="100%">
-      <SpanPlaygroundBanners span={span} />
+      <SpanPlaygroundBanners
+        span={span}
+        parsingErrors={[
+          INPUT_MESSAGES_PARSING_ERROR,
+          OUTPUT_MESSAGES_PARSING_ERROR,
+        ]}
+      />
       <Playground instances={[playgroundInstance]} />
     </Flex>
   );
@@ -35,16 +46,22 @@ export function SpanPlaygroundPage() {
 
 function SpanPlaygroundBanners({
   span,
+  parsingErrors,
 }: {
   span: Extract<
     NonNullable<spanPlaygroundPageLoaderQuery$data["span"]>,
     { __typename: "Span" }
   >;
+
+  parsingErrors?: string[];
 }) {
   const navigate = useNavigate();
+  const hasParsingErrors = parsingErrors && parsingErrors.length > 0;
   const [showBackBanner, setShowBackBanner] = useState(true);
+  const [showParsingErrorsBanner, setShowParsingErrorsBanner] =
+    useState(hasParsingErrors);
   return (
-    <div>
+    <Flex direction={"column"} gap={"size-50"}>
       {showBackBanner && (
         <Alert
           variant="info"
@@ -69,6 +86,23 @@ function SpanPlaygroundBanners({
           }
         >{`Replay and iterate on your LLM call from your ${span.project.name} project`}</Alert>
       )}
-    </div>
+      {showParsingErrorsBanner && hasParsingErrors && (
+        <Alert
+          variant="warning"
+          banner
+          dismissable
+          onDismissClick={() => {
+            setShowParsingErrorsBanner(false);
+          }}
+          title="The following errors occurred when parsing span attributes:"
+        >
+          <ul>
+            {parsingErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </Alert>
+      )}
+    </Flex>
   );
 }

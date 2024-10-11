@@ -137,13 +137,6 @@ export interface PlaygroundInstance {
    * Whether or not the playground instance is actively running or not
    **/
   isRunning: boolean;
-  /**
-   * Errors that occurred during parsing of initial playground data.
-   * For example, when coming from a span to the playground, the span may
-   * not have the correct attributes, or the attributes may be of the wrong shape.
-   * This field is used to store any issues encountered when parsing to display in the playground.
-   */
-  parsingErrors?: string[];
 }
 
 /**

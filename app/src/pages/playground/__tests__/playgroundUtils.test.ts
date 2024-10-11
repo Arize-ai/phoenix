@@ -39,7 +39,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   output: [
     { id: 4, content: "This is an AI Answer", role: ChatMessageRole.ai },
   ],
-  parsingErrors: [],
 };
 
 const defaultTemplate = {
@@ -69,9 +68,11 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: "invalid json",
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
-      ...expectedPlaygroundInstanceWithIO,
-      template: defaultTemplate,
-      output: undefined,
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: defaultTemplate,
+        output: undefined,
+      },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     });
   });
@@ -82,10 +83,12 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: JSON.stringify({}),
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
-      ...expectedPlaygroundInstanceWithIO,
-      template: defaultTemplate,
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: defaultTemplate,
 
-      output: undefined,
+        output: undefined,
+      },
       parsingErrors: [
         INPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_MESSAGES_PARSING_ERROR,
@@ -106,9 +109,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       }),
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
-      ...expectedPlaygroundInstanceWithIO,
-      output: undefined,
-
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        output: undefined,
+      },
       parsingErrors: [
         OUTPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_VALUE_PARSING_ERROR,
@@ -132,10 +136,11 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     };
 
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
-      ...expectedPlaygroundInstanceWithIO,
-
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        output: "This is an AI Answer",
+      },
       parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
-      output: "This is an AI Answer",
     });
   });
 
@@ -145,7 +150,8 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: JSON.stringify(spanAttributesWithInputMessages),
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
-      ...expectedPlaygroundInstanceWithIO,
+      playgroundInstance: expectedPlaygroundInstanceWithIO,
+      parsingErrors: [],
     });
   });
 
@@ -174,18 +180,21 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       }),
     };
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
-      ...expectedPlaygroundInstanceWithIO,
-      template: {
-        __type: "chat",
-        messages: [
-          {
-            id: 2,
-            role: "user",
-            content: "You are a chatbot",
-          },
-        ],
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        template: {
+          __type: "chat",
+          messages: [
+            {
+              id: 2,
+              role: "user",
+              content: "You are a chatbot",
+            },
+          ],
+        },
+        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
       },
-      output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+      parsingErrors: [],
     });
   });
 });
