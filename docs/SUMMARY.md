@@ -97,6 +97,7 @@
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
+  * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
 ## 🗄️ Datasets & Experiments
