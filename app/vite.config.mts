@@ -30,6 +30,7 @@ export default defineConfig(({ command }) => {
       include: ["../__tests__/*.test.ts", "**/__tests__/*.test.ts"],
       exclude: ["../node_modules/**"],
       environment: "jsdom",
+      setupFiles: ["./vitest.setup.ts"],
       globals: true,
     },
     build: {
