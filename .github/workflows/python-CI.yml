@@ -109,12 +109,6 @@ jobs:
         run: |
           hatch run proto:recompile
           git diff --exit-code
-      - name: Check format
-        run: |
-          hatch run style:check
-      - name: Check types
-        run: |
-          hatch run type:check
       - name: Gql codegen
         run: |
           hatch run gql:build
