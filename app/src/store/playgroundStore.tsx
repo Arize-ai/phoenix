@@ -1,5 +1,5 @@
 import { create, StateCreator } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 export type GenAIOperationType = "chat" | "text_completion";
 
@@ -152,6 +152,12 @@ interface PlaygroundInstanceActionParams {
 }
 interface AddMessageParams extends PlaygroundInstanceActionParams {}
 
+enum LlmProvider {
+  openai = "openai",
+}
+
+type PlaygroundCredentials = Partial<Record<LlmProvider, string>>;
+
 export interface PlaygroundState extends PlaygroundProps {
   /**
    * Setter for the invocation mode
@@ -201,6 +207,11 @@ export interface PlaygroundState extends PlaygroundProps {
    * Mark a given playground instance as completed
    */
   markPlaygroundInstanceComplete: (instanceId: number) => void;
+  /**
+   * Credentials for the playground.
+   * A map of llm providers to credentials for calling that providers API.
+   */
+  credentials: PlaygroundCredentials;
 }
 
 const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
@@ -408,9 +419,19 @@ export const createPlaygroundStore = (
         }),
       });
     },
+    credentials: {},
     ...initialProps,
   });
-  return create(devtools(playgroundStore));
+  return create(
+    devtools(
+      persist(playgroundStore, {
+        name: "arize-phoenix-playground",
+        partialize: (state) => ({
+          ...state.credentials,
+        }),
+      })
+    )
+  );
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
