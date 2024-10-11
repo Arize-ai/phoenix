@@ -33,9 +33,10 @@ def _engine(
         tmp = tmp_path_factory.getbasetemp() / Path(__file__).parent.name
         tmp.mkdir(parents=True, exist_ok=True)
         file = tmp / f".{token_hex(16)}.db"
+        database = f"file:///{file}"
         engine = create_engine(
-            url=url.set(drivername="sqlite"),
-            creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
+            url=url.set(drivername="sqlite", database=database),
+            creator=lambda: sqlean.connect(database, uri=True),
             poolclass=NullPool,
             echo=True,
         )
