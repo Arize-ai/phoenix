@@ -25,6 +25,7 @@ from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
 from ._helpers import (
+    _DB_BACKEND,
     _DEFAULT_ADMIN,
     _HTTPX_OP_IDX,
     _MEMBER,
@@ -59,13 +60,21 @@ def _ports() -> Iterator[int]:
 
 
 @pytest.fixture(scope="session")
-def _sql_database_url(request: SubRequest) -> URL:
-    backend = os.getenv("CI_TEST_DB_BACKEND")
-    if not backend or backend == "sqlite":
+def _db_backend() -> _DB_BACKEND:
+    backend = os.getenv("CI_TEST_DB_BACKEND", "sqlite").lower()
+    assert backend in ("sqlite", "postgresql")
+    return cast(_DB_BACKEND, backend)
+
+
+@pytest.fixture(scope="session")
+def _sql_database_url(
+    _db_backend: _DB_BACKEND,
+) -> URL:
+    if _db_backend == "sqlite":
         return make_url("sqlite:///:memory:")
-    if backend == "postgresql":
+    if _db_backend == "postgresql":
         return make_url("postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix")
-    pytest.fail(f"Unknown database backend: {backend}")
+    assert_never(_db_backend)
 
 
 @pytest.fixture(scope="session", params=["http", "grpc"])
