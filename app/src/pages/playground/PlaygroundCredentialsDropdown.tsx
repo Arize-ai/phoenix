@@ -7,8 +7,6 @@ import {
   Flex,
   Form,
   Heading,
-  Icon,
-  Icons,
   Text,
   TextField,
   View,
