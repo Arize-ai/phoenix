@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 import { visualizer } from "rollup-plugin-visualizer";
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
@@ -24,6 +25,11 @@ export default defineConfig(({ command }) => {
       alias: {
         "@phoenix": resolve(__dirname, "src"),
       },
+    },
+    test: {
+      include: ["**/*.test.ts"],
+      environment: "jsdom",
+      globals: true,
     },
     build: {
       manifest: true,
