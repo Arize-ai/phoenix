@@ -15,6 +15,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
+import { ModelConfigButton } from "./ModelConfigButton";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -41,7 +42,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       collapsible
       variant="compact"
       bodyStyle={{ padding: 0 }}
-      extra={instances.length > 1 ? <DeleteButton {...props} /> : null}
+      extra={
+        <Flex direction="row" gap="size-100">
+          <ModelConfigButton {...props} />
+          {instances.length > 1 ? <DeleteButton {...props} /> : null}
+        </Flex>
+      }
     >
       {template.__type === "chat" ? (
         <PlaygroundChatTemplate {...props} />

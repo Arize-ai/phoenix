@@ -1,5 +1,1 @@
-declare enum ModelProvider {
-  OPENAI = "OpenAI",
-  AZURE_OPENAI = "Azure OpenAI",
-  ANTHROPIC = "Anthropic",
-}
+declare type ModelProvider = "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC";

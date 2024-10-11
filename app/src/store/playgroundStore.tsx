@@ -116,6 +116,10 @@ type ManualInput = {
 
 type PlaygroundInput = DatasetInput | ManualInput;
 
+type ModelConfig = {
+  provider: ModelProvider;
+  modelName: string | null;
+};
 /**
  * A single instance of the playground that has
  * - a template
@@ -131,6 +135,7 @@ export interface PlaygroundInstance {
   template: PlaygroundTemplate;
   tools: unknown;
   input: PlaygroundInput;
+  model: ModelConfig;
   output: ChatMessage[] | undefined | string;
   activeRunId: number | null;
   /**
@@ -178,6 +183,13 @@ export interface PlaygroundState extends PlaygroundProps {
     patch: Partial<PlaygroundInstance>;
   }) => void;
   /**
+   * Update an instance's model configuration
+   */
+  updateModel: (params: {
+    instanceId: number;
+    model: Partial<ModelConfig>;
+  }) => void;
+  /**
    * Run all the active playground Instances
    */
   runPlaygroundInstances: () => void;
@@ -216,6 +228,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
+    model: { provider: "OPENAI", modelName: "gpt-4o" },
     tools: {},
     input: { variables: {} },
     output: undefined,
@@ -239,6 +252,7 @@ export const createPlaygroundStore = (
           instances: [
             {
               id: generateInstanceId(),
+              model: { provider: "OPENAI", modelName: "gpt-4o" },
               template: generateChatCompletionTemplate(),
               tools: {},
               input: { variables: {} },
@@ -253,6 +267,7 @@ export const createPlaygroundStore = (
           instances: [
             {
               id: generateInstanceId(),
+              model: { provider: "OPENAI", modelName: "gpt-4o" },
               template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
               tools: {},
               input: { variables: {} },
@@ -280,6 +295,35 @@ export const createPlaygroundStore = (
             activeRunId: null,
           },
         ],
+      });
+    },
+    updateModel: ({ instanceId, model }) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      const currentModel = instance.model;
+      if (model.provider !== currentModel.provider) {
+        // Force clear the model name if the provider changes
+        model = {
+          ...model,
+          modelName: undefined,
+        };
+      }
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                ...model,
+              },
+            };
+          }
+          return instance;
+        }),
       });
     },
     deleteInstance: (instanceId: number) => {
