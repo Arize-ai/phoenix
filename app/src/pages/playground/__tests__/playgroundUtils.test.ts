@@ -1,7 +1,6 @@
 import {
   _resetInstanceId,
   _resetMessageId,
-  ChatMessageRole,
   PlaygroundInstance,
 } from "@phoenix/store";
 
@@ -36,13 +35,12 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
     // Doing so increments the message id counter
     messages: [
-      { id: 2, content: "You are a chatbot", role: ChatMessageRole.system },
-      { id: 3, content: "hello?", role: ChatMessageRole.user },
+      { id: 2, content: "You are a chatbot", role: "system" },
+      { id: 3, content: "hello?", role: "user" },
     ],
   },
-  output: [
-    { id: 4, content: "This is an AI Answer", role: ChatMessageRole.ai },
-  ],
+  output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+  provider: "OpenAI",
 };
 
 const defaultTemplate = {
@@ -50,12 +48,12 @@ const defaultTemplate = {
   messages: [
     {
       id: 0,
-      role: ChatMessageRole.system,
+      role: "system",
       content: "You are a chatbot",
     },
     {
       id: 1,
-      role: ChatMessageRole.user,
+      role: "user",
       content: "{{question}}",
     },
   ],

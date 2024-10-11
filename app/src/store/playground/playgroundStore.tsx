@@ -1,8 +1,7 @@
 import { create, StateCreator } from "zustand";
-import { devtools, persist } from "zustand/middleware";
+import { devtools } from "zustand/middleware";
 
 import {
-  ChatMessageRole,
   GenAIOperationType,
   InitialPlaygroundState,
   PlaygroundChatTemplate,
@@ -50,12 +49,12 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   messages: [
     {
       id: generateMessageId(),
-      role: ChatMessageRole.system,
+      role: "system",
       content: "You are a chatbot",
     },
     {
       id: generateMessageId(),
-      role: ChatMessageRole.user,
+      role: "user",
       content: "{{question}}",
     },
   ],
@@ -76,6 +75,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     activeRunId: null,
     isRunning: false,
+    provider: "OPENAI",
   };
 }
 
@@ -89,35 +89,18 @@ export const createPlaygroundStore = (
     instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
-        // TODO: this is incorrect, it should only change the template
         set({
-          instances: [
-            {
-              id: generateInstanceId(),
-              model: { provider: "OPENAI", modelName: "gpt-4o" },
-              template: generateChatCompletionTemplate(),
-              tools: {},
-              input: { variables: {} },
-              output: undefined,
-              activeRunId: null,
-              isRunning: false,
-            },
-          ],
+          instances: get().instances.map((instance) => ({
+            ...instance,
+            template: generateChatCompletionTemplate(),
+          })),
         });
       } else {
         set({
-          instances: [
-            {
-              id: generateInstanceId(),
-              model: { provider: "OPENAI", modelName: "gpt-4o" },
-              template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
-              tools: {},
-              input: { variables: {} },
-              output: undefined,
-              activeRunId: null,
-              isRunning: false,
-            },
-          ],
+          instances: get().instances.map((instance) => ({
+            ...instance,
+            template: DEFAULT_TEXT_COMPLETION_TEMPLATE,
+          })),
         });
       }
       set({ operationType });
@@ -250,19 +233,9 @@ export const createPlaygroundStore = (
         }),
       });
     },
-    credentials: {},
     ...initialProps,
   });
-  return create(
-    devtools(
-      persist(playgroundStore, {
-        name: "arize-phoenix-playground",
-        partialize: (state) => ({
-          ...state.credentials,
-        }),
-      })
-    )
-  );
+  return create(devtools(playgroundStore));
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;

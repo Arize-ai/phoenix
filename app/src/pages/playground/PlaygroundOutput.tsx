@@ -6,11 +6,7 @@ import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
-  ChatMessage,
-  ChatMessageRole,
-  generateMessageId,
-} from "@phoenix/store";
+import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -70,7 +66,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           message={{
             id: generateMessageId(),
             content: instance.output,
-            role: ChatMessageRole.ai,
+            role: "ai",
           }}
         />
       );
@@ -144,13 +140,13 @@ function toGqlChatCompletionRole(
   role: ChatMessageRole
 ): ChatCompletionMessageRole {
   switch (role) {
-    case ChatMessageRole.system:
+    case "system":
       return "SYSTEM";
-    case ChatMessageRole.user:
+    case "user":
       return "USER";
-    case ChatMessageRole.tool:
+    case "tool":
       return "TOOL";
-    case ChatMessageRole.ai:
+    case "ai":
       return "AI";
     default:
       assertUnreachable(role);
@@ -204,7 +200,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       message={{
         id: generateMessageId(),
         content: output,
-        role: ChatMessageRole.ai,
+        role: "ai",
       }}
     />
   );

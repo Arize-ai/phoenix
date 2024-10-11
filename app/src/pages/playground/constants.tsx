@@ -1,8 +1,6 @@
-import { ChatMessageRole } from "@phoenix/store";
-
 export const NUM_MAX_PLAYGROUND_INSTANCES = 4;
 
-export const DEFAULT_CHAT_ROLE = ChatMessageRole.user;
+export const DEFAULT_CHAT_ROLE = "user";
 
 /**
  * Map of {@link ChatMessageRole} to potential role values.

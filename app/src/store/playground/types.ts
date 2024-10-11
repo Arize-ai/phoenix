@@ -6,27 +6,6 @@ export type GenAIOperationType = "chat" | "text_completion";
 export type PlaygroundInputMode = "manual" | "dataset";
 
 /**
- * The role of a chat message
- */
-export enum ChatMessageRole {
-  user = "user",
-  system = "system",
-  ai = "ai",
-  tool = "tool",
-}
-
-/**
- * The provider for an llm
- */
-export enum LlmProvider {
-  openai = "openai",
-  anthropic = "anthropic",
-  azureOpenAi = "azureOpenAi",
-}
-
-export type PlaygroundCredentials = Partial<Record<LlmProvider, string>>;
-
-/**
  * A chat message with a role and content
  * @example { role: "user", content: "What is the meaning of life?" }
  */
@@ -99,6 +78,10 @@ export interface PlaygroundInstance {
    * Whether or not the playground instance is actively running or not
    **/
   isRunning: boolean;
+  /**
+   * The LLM provider the instance is using
+   */
+  provider: ModelProvider;
 }
 
 /**
@@ -181,9 +164,4 @@ export interface PlaygroundState extends PlaygroundProps {
    * Mark a given playground instance as completed
    */
   markPlaygroundInstanceComplete: (instanceId: number) => void;
-  /**
-   * Credentials for the playground.
-   * A map of llm providers to credentials for calling that providers API.
-   */
-  credentials: PlaygroundCredentials;
 }
