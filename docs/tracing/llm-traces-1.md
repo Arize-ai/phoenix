@@ -8,7 +8,9 @@ This example will walk you through how to use Phoenix to trace OpenAI requests.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing_quickstart_openai.ipynb" %}
 
-### Overview
+## Install Dependencies
+
+Let's start by installing the necessary dependencies.
 
 ```python
 !pip install -q "arize-phoenix>=4.29.0"
@@ -16,44 +18,7 @@ This example will walk you through how to use Phoenix to trace OpenAI requests.
 
 ## Launch Phoenix
 
-```bash
-pip install openai
-```
-
-```python
-import phoenix as px
-from phoenix.trace.openai import OpenAIInstrumentor
-
-# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
-session = px.launch_app()
-
-# Initialize OpenAI auto-instrumentation
-OpenAIInstrumentor().instrument()
-
-import os
-from openai import OpenAI
-
-# Initialize an OpenAI client
-client = OpenAI(api_key='')
-
-# Define a conversation with a user message
-conversation = [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Hello, can you help me with something?"}
-]
-
-# Generate a response from the assistant
-response = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=conversation,
-)
-
-# Extract and print the assistant's reply
-# The traces will be available in the Phoenix App for the above messsages
-assistant_reply = response.choices[0].message.content
-```
-
-To use llama-index's one click, you must install the small integration first:
+You have a few options for how to start a Phoenix app. We're using a cloud instance for this tutorial, but you can launch Phoenix in multiple different ways. If you don't want to sign up for a cloud instance, you can start a Phoenix app in your notebook environment or via docker.
 
 ```python
 # Check if PHOENIX_API_KEY is present in the environment variables.
@@ -89,64 +54,6 @@ Here we're using OpenAI, so we'll the built-in OpenAI instrumentor we provide.
 
 ```python
 !pip install -q openinference-instrumentation-openai openai
-```
-
-See the [integration guide](integrations-tracing/langchain.md#traces) for details
-
-
-
-\*\*Install packages:\*\*
-
-```bash
-pip install arize-phoenix openinference-instrumentation-groq groq
-```
-
-**Launch Phoenix:**
-
-```python
-import phoenix as px
-px.launch_app()
-```
-
-**Connect your notebook to Phoenix:**
-
-```python
-from phoenix.otel import register
-
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-)
-```
-
-**Initialize the GroqInstrumentor before your application code.**
-
-```python
-from openinference.instrumentation.groq import GroqInstrumentor
-
-GroqInstrumentor().instrument(tracer_provider=tracer_provider)
-```
-
-**Run Groq**
-
-```python
-import os
-from groq import Groq
-
-client = Groq(
-    # This is the default and can be omitted
-    api_key=os.environ.get("GROQ_API_KEY"),
-)
-
-chat_completion = client.chat.completions.create(
-    messages=[
-        {
-            "role": "user",
-            "content": "Explain the importance of low latency LLMs",
-        }
-    ],
-    model="mixtral-8x7b-32768",
-)
-print(chat_completion.choices[0].message.content)
 ```
 
 ## Use OpenAI as normal
