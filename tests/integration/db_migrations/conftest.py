@@ -35,7 +35,7 @@ def engine(
             file = tmp / f".{token_hex(16)}.db"
             engine = create_engine(
                 url=_sql_database_url.set(drivername="sqlite"),
-                creator=lambda: sqlean.connect(f"file://{file}", uri=True),
+                creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
                 echo=True,
             )
         elif backend.startswith("postgresql"):
