@@ -14,7 +14,7 @@ from sqlalchemy import URL, Engine, create_engine, event
 from integration._helpers import _random_schema
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def alembic_config() -> Config:
     root = Path(phoenix.db.__path__[0])
     cfg = Config(root / "alembic.ini")
