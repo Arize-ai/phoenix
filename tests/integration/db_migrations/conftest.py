@@ -1,17 +1,16 @@
-from contextlib import ExitStack
+import os
 from pathlib import Path
 from secrets import token_hex
-from typing import Iterator, Optional
+from typing import Any, Iterator
 
 import phoenix
 import pytest
 import sqlean  # type: ignore[import-untyped]
 from alembic.config import Config
+from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, ENV_PHOENIX_SQL_DATABASE_URL
 from phoenix.db.engines import set_postgresql_search_path
 from pytest import TempPathFactory
-from sqlalchemy import URL, Engine, create_engine, event
-
-from .._helpers import _random_schema
+from sqlalchemy import Engine, NullPool, create_engine, event, make_url
 
 
 @pytest.fixture
@@ -23,42 +22,31 @@ def _alembic_config() -> Config:
 
 
 @pytest.fixture
-def _schema(
-    _sql_database_url: URL,
-) -> Iterator[Optional[str]]:
-    backend = _sql_database_url.get_backend_name()
-    with ExitStack() as stack:
-        if backend.startswith("sqlite"):
-            yield None
-        elif backend.startswith("postgresql"):
-            yield stack.enter_context(_random_schema(_sql_database_url))
-        else:
-            pytest.fail(f"Unknown database backend: {backend}")
-
-
-@pytest.fixture
 def _engine(
-    _sql_database_url: URL,
-    _schema: Optional[str],
+    _env_phoenix_sql_database_url: Any,
     tmp_path_factory: TempPathFactory,
 ) -> Iterator[Engine]:
-    backend = _sql_database_url.get_backend_name()
+    url = make_url(os.environ[ENV_PHOENIX_SQL_DATABASE_URL])
+    schema = os.environ.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
+    backend = url.get_backend_name()
     if backend.startswith("sqlite"):
         tmp = tmp_path_factory.getbasetemp() / Path(__file__).parent.name
         tmp.mkdir(parents=True, exist_ok=True)
         file = tmp / f".{token_hex(16)}.db"
         engine = create_engine(
-            url=_sql_database_url.set(drivername="sqlite"),
+            url=url.set(drivername="sqlite"),
             creator=lambda: sqlean.connect(f"file:///{file}", uri=True),
+            poolclass=NullPool,
             echo=True,
         )
     elif backend.startswith("postgresql"):
-        assert _schema
+        assert schema
         engine = create_engine(
-            url=_sql_database_url.set(drivername="postgresql+psycopg"),
+            url=url.set(drivername="postgresql+psycopg"),
+            poolclass=NullPool,
             echo=True,
         )
-        event.listen(engine, "connect", set_postgresql_search_path(_schema))
+        event.listen(engine, "connect", set_postgresql_search_path(schema))
     else:
         pytest.fail(f"Unknown database backend: {backend}")
     yield engine
