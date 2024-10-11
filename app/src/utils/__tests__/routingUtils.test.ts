@@ -20,15 +20,15 @@ const validURLs = [
   "/organizations/QWNjb3VudE9yZ2FuaXphdGlvbjoxNTg=/spaces/U3BhY2U6MTU4",
 ];
 describe("routingUtils", () => {
-  let windowSpy: jest.SpyInstance;
+  let windowSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    windowSpy = jest.spyOn(window, "location", "get");
+    windowSpy = vi.spyOn(window, "location", "get");
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
-    jest.resetAllMocks();
+    vi.restoreAllMocks();
+    vi.resetAllMocks();
   });
   describe("sanitizeRedirectUrl", () => {
     test.each(maliciousURLS)("%s is invalid - route to root", (url) => {

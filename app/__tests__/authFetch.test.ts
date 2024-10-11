@@ -1,10 +1,10 @@
 import { authFetch } from "@phoenix/authFetch";
-jest.mock("@phoenix/config");
+vi.mock("@phoenix/config");
 
 describe("authFetch", () => {
   const _fetch = global.fetch;
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -12,7 +12,7 @@ describe("authFetch", () => {
   });
   it("should call fetch with the provided input and init", async () => {
     // @ts-expect-error mock global fetch
-    global.fetch = jest.fn(() =>
+    global.fetch = vi.fn(() =>
       Promise.resolve({
         json: () => Promise.resolve({ data: "12345" }),
       })
@@ -31,7 +31,7 @@ describe("authFetch", () => {
   it("should try to refresh the tokens if it gets a 401", async () => {
     let count = 0;
     // @ts-expect-error mock global fetch
-    global.fetch = jest.fn(() => {
+    global.fetch = vi.fn(() => {
       count += 1;
       return Promise.resolve({
         status: count === 1 ? 401 : 200,
