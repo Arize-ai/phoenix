@@ -1,4 +1,4 @@
-vi.mock("@phoenix/config");
+import "vitest-canvas-mock";
 
 Object.defineProperty(window, "Config", {
   value: {
