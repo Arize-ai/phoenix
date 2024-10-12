@@ -65,6 +65,7 @@ can you help with this json?
 {{ "name": "John", "age": {age} }}`,
         expected: ["name", "age"],
       },
+      { input: "\\{test}", expected: [] },
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(extractVariables(FStringTemplatingLanguage.parser, input)).toEqual(
@@ -161,6 +162,11 @@ how are you?
 can you help with this json?
 
 { "name": "John", "age": 30 }`,
+      },
+      {
+        input: "\\{test\\}",
+        variables: { test: "value" },
+        expected: "{test\\}",
       },
     ] as const;
     tests.forEach(({ input, variables, expected }) => {

@@ -55,7 +55,8 @@ export const formatFString = ({
     parser: FStringTemplatingLanguage.parser,
     text,
     variables,
-    postFormat: (text) => text.replaceAll("{{", "{").replaceAll("}}", "}"),
+    postFormat: (text) =>
+      text.replaceAll("\\{", "{").replaceAll("{{", "{").replaceAll("}}", "}"),
   });
 
 export function FStringTemplating() {
