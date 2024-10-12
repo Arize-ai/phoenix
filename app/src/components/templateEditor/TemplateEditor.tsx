@@ -1,15 +1,11 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import {
-  debugParser,
-  formatFString,
-  FStringTemplating,
-} from "./language/fStringTemplating";
+import { FStringTemplating } from "./language/fStringTemplating";
 import { MustacheLikeTemplating } from "./language/mustacheLikeTemplating";
 
 export const TemplateLanguages = {
@@ -44,18 +40,6 @@ export const TemplateEditor = ({
     }
     return ext;
   }, [templateLanguage]);
-
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log(debugParser(props.value ?? ""));
-    // eslint-disable-next-line no-console
-    console.log(
-      formatFString({
-        text: props.value ?? "",
-        variables: { question: "questionValue", test: "testValue" },
-      })
-    );
-  }, [props.value]);
 
   return (
     <CodeMirror theme={codeMirrorTheme} extensions={extensions} {...props} />
