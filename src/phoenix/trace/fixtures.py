@@ -147,22 +147,20 @@ demo_llama_index_rag_fixture = TracesFixture(
 
 demo_code_based_agent_fixture = TracesFixture(
     name="demo_code_based_agent",
-    project_name="demo_code_based_agent",
-    description="Shows traces captured from a code-based agent.",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces.",
     file_name="agent-demo-traces.parquet",
 )
-
 demo_langgraph_agent_fixture = TracesFixture(
     name="demo_langgraph_agent",
-    project_name="demo_langgraph_agent",
-    description="Shows traces captured from a Langgraph agent.",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces.",
     file_name="langgraph-demo-traces-format-updated.parquet",
 )
-
 demo_llamaindex_workflows_agent_fixture = TracesFixture(
     name="demo_llamaindex_workflows_agent",
-    project_name="demo_llamaindex_workflows_agent",
-    description="Shows traces captured from a LlamaIndex Workflows agent.",
+    project_name="demo_agents",
+    description="LangGraph, LlamaIndex, and Code-based agent traces.",
     file_name="llamaindex-workflow-demo-traces.parquet",
 )
 
