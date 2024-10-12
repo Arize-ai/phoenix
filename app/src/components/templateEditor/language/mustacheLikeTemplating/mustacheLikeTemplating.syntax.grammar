@@ -1,25 +1,22 @@
-@top MustacheLikeTemplate {(Template | Text | LEscape | REscape)*}
-
+@top MustacheLikeTemplate {(Template | char | emptyTemplate | lEscape | sym )*}
 
 @skip {} {
   Template { LBrace Variable+ RBrace }
 }
 
-@local tokens {
-  RBrace { "}}" }
-  @else Variable
-}
-
-@skip { space }
-
 @tokens {
-  Text { ![{}]+ }
   LBrace { "{{" }
-  LEscape { "{" }
-  REscape { "}" }
-  char { $[\n\r\t\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}]+ | "\\" esc }
+  emptyTemplate { "{{}}" }
+  lEscape { "\\" "{" }
+  sym { "{" | "}" | "\"" | "'" }
+  char { $[\n\r\t\u{20}\u{21}\u{23}-\u{5b}\u{5d}-\u{10ffff}] | "\\" esc }
   esc  { $["\\\/bfnrt] | "u" hex hex hex hex }
   hex  { $[0-9a-fA-F] }
-  space { @whitespace+ }
-  @precedence { space, LBrace,LEscape, REscape, Text, char, esc }
+  @precedence { lEscape, LBrace, char, sym }
+}
+
+@local tokens {
+  RBrace { "}}" }
+  Variable { (![}])+ | "{" (![}])+ ("}" | "\\") }
+  @else else
 }

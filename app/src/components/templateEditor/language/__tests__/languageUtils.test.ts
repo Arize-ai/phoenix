@@ -26,6 +26,18 @@ can you help with this json?
 { "name": "John", "age": {{age}} }`,
         expected: ["name", "age"],
       },
+      {
+        input: `{"name": "{{name}}", "age": {{age}}}`,
+        expected: ["name", "age"],
+      },
+      {
+        input: `{"name": "\\{{name}}", "age": \\{{age}}}`,
+        expected: [],
+      },
+      {
+        input: `{"name": "{{{name}}}"}`,
+        expected: ["{name}"],
+      },
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(
@@ -69,6 +81,11 @@ can you help with this json?
         expected: "John",
       },
       {
+        input: "Hi {{name}}, this is bad syntax {{}}",
+        variables: { name: "John", age: 30 },
+        expected: "Hi John, this is bad syntax {{}}",
+      },
+      {
         input: "{{name}} {{age}}",
         variables: { name: "John", age: 30 },
         expected: "John 30",
@@ -94,6 +111,16 @@ how are you?
 can you help with this json?
 
 { "name": "John", "age": 30 }`,
+      },
+      {
+        input: `{"name": "{{name}}", "age": {{age}}}`,
+        variables: { name: "John", age: 30 },
+        expected: `{"name": "John", "age": 30}`,
+      },
+      {
+        input: `{"name": "\\{{name}}", "age": "{{age\\}}"}`,
+        variables: { name: "John", age: 30 },
+        expected: `{"name": "{{name}}", "age": "{{age\\}}"}`,
       },
     ] as const;
     tests.forEach(({ input, variables, expected }) => {

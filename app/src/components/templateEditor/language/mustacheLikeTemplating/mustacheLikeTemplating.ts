@@ -52,7 +52,15 @@ export const formatMustacheLike = ({
   text,
   variables,
 }: Omit<Parameters<typeof format>[0], "parser" | "postFormat">) =>
-  format({ parser: MustacheLikeTemplatingLanguage.parser, text, variables });
+  format({
+    parser: MustacheLikeTemplatingLanguage.parser,
+    text,
+    variables,
+    postFormat: (text) => {
+      // replace escaped double braces with double brace
+      return text.replaceAll("\\{{", "{{");
+    },
+  });
 
 export function MustacheLikeTemplating() {
   return new LanguageSupport(MustacheLikeTemplatingLanguage);
