@@ -11,7 +11,6 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { PlaygroundTools } from "./PlaygroundTools";
 import { PlaygroundInstanceProps } from "./types";
 
 export function PlaygroundInstance(props: PlaygroundInstanceProps) {
@@ -22,7 +21,6 @@ export function PlaygroundInstance(props: PlaygroundInstanceProps) {
       <Panel defaultSize={50} order={1}>
         <PanelContent>
           <PlaygroundTemplate {...props} />
-          <PlaygroundTools {...props} />
         </PanelContent>
       </Panel>
       <PanelResizeHandle

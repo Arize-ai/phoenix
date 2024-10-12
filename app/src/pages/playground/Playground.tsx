@@ -1,7 +1,16 @@
 import React, { Fragment } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
@@ -14,7 +23,9 @@ import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundInstance } from "./PlaygroundInstance";
+import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
+import { PlaygroundTemplate } from "./PlaygroundTemplate";
 
 export function Playground(props: InitialPlaygroundState) {
   return (
@@ -40,7 +51,7 @@ export function Playground(props: InitialPlaygroundState) {
             </Flex>
           </Flex>
         </View>
-        <PlaygroundInstances />
+        <PlaygroundContent />
       </Flex>
     </PlaygroundProvider>
   );
@@ -65,20 +76,81 @@ function AddPromptButton() {
   );
 }
 
-function PlaygroundInstances() {
+function PlaygroundContent() {
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isSingleInstance = numInstances === 1;
+
+  if (isSingleInstance) {
+    return <SingleInstancePlayground />;
+  } else {
+    return <MultiInstancePlayground />;
+  }
+}
+
+function SingleInstancePlayground() {
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instanceId = instances[0].id;
+  return (
+    <PanelGroup direction="horizontal" autoSaveId="playground-single">
+      <Panel defaultSize={50}>
+        <Accordion>
+          <AccordionItem title="Prompts" id="prompts">
+            <View padding="size-200" height="100%">
+              <PlaygroundTemplate playgroundInstanceId={instanceId} />
+            </View>
+          </AccordionItem>
+        </Accordion>
+      </Panel>
+      <PanelResizeHandle css={resizeHandleCSS} />
+      <Panel defaultSize={50}>
+        <Accordion>
+          <AccordionItem title="Inputs" id="input">
+            <View padding="size-200">Input goes here</View>
+          </AccordionItem>
+          <AccordionItem title="Output" id="output">
+            <View padding="size-200" height="100%">
+              <PlaygroundOutput playgroundInstanceId={instanceId} />
+            </View>
+          </AccordionItem>
+        </Accordion>
+      </Panel>
+    </PanelGroup>
+  );
+}
+
+function MultiInstancePlayground() {
   const instances = usePlaygroundContext((state) => state.instances);
   return (
-    <Flex direction="row" alignItems="stretch" height="100%" flex="1 1 auto">
-      <PanelGroup direction="horizontal">
-        {instances.map((instance, i) => (
-          <Fragment key={i}>
-            {i !== 0 && <PanelResizeHandle css={resizeHandleCSS} />}
-            <Panel defaultSize={50}>
-              <PlaygroundInstance key={i} playgroundInstanceId={instance.id} />
-            </Panel>
-          </Fragment>
-        ))}
-      </PanelGroup>
-    </Flex>
+    <Accordion>
+      <AccordionItem title="Prompts" id="prompts">
+        <View padding="size-200" height="100%">
+          <Flex direction="row" gap="size-200">
+            {instances.map((instance, i) => (
+              <View key={i} flex="1 1 auto">
+                <PlaygroundTemplate
+                  key={i}
+                  playgroundInstanceId={instance.id}
+                />
+              </View>
+            ))}
+          </Flex>
+        </View>
+      </AccordionItem>
+      <AccordionItem title="Inputs" id="input">
+        <View padding="size-200">Inputs go here</View>
+      </AccordionItem>
+      <AccordionItem title="Output" id="output">
+        <View padding="size-200" height="100%">
+          <Flex direction="row" gap="size-200">
+            {instances.map((instance, i) => (
+              <View key={i} flex="1 1 auto">
+                <PlaygroundOutput key={i} playgroundInstanceId={instance.id} />
+              </View>
+            ))}
+          </Flex>
+        </View>
+      </AccordionItem>
+    </Accordion>
   );
 }
