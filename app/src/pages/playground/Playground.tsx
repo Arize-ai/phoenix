@@ -45,9 +45,7 @@ export function Playground(props: InitialPlaygroundState) {
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
               <PlaygroundInputTypeTypeRadioGroup />
-              <Button variant="default" size="compact">
-                API Keys
-              </Button>
+              <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>
           </Flex>
