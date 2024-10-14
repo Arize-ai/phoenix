@@ -9,6 +9,19 @@ import { TemplateLanguages } from "./constants";
 import { TemplateLanguage } from "./types";
 
 /**
+ * A function that formats a template with the given variables
+ */
+export type FormatFn = (arg: {
+  text: string;
+  variables: Record<string, string | number | boolean | undefined>;
+}) => string;
+
+/**
+ * A function that extracts the variables from a template
+ */
+export type ExtractVariablesFn = (template: string) => string[];
+
+/**
  * Get an object of isomorphic functions for processing templates of the given language
  *
  * @param templateLanguage - The language of the template to process
@@ -20,14 +33,8 @@ import { TemplateLanguage } from "./types";
 export const getTemplateLanguageUtils = (
   templateLanguage: TemplateLanguage
 ): {
-  format: ({
-    text,
-    variables,
-  }: {
-    text: string;
-    variables: Record<string, string | number | boolean | undefined>;
-  }) => string;
-  extractVariables: (template: string) => string[];
+  format: FormatFn;
+  extractVariables: ExtractVariablesFn;
 } => {
   switch (templateLanguage) {
     case TemplateLanguages.FString:
