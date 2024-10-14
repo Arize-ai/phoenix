@@ -1,9 +1,9 @@
-import { formatFString, FStringTemplatingLanguage } from "../fStringTemplating";
+import { formatFString, FStringTemplatingLanguage } from "../fString";
 import { extractVariables } from "../languageUtils";
 import {
   formatMustacheLike,
   MustacheLikeTemplatingLanguage,
-} from "../mustacheLikeTemplating";
+} from "../mustacheLike";
 
 describe("language utils", () => {
   it("should extract variable names from a mustache-like template", () => {

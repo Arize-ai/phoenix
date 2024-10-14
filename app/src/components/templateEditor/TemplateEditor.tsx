@@ -5,8 +5,8 @@ import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { FStringTemplating } from "./language/fStringTemplating";
-import { MustacheLikeTemplating } from "./language/mustacheLikeTemplating";
+import { FStringTemplating } from "./language/fString";
+import { MustacheLikeTemplating } from "./language/mustacheLike";
 
 export const TemplateLanguages = {
   FString: "f-string", // {variable}
