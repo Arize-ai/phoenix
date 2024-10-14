@@ -828,6 +828,11 @@ input GenerativeModelInput {
   name: String!
 }
 
+type GenerativeProvider {
+  name: String!
+  key: GenerativeProviderKey!
+}
+
 enum GenerativeProviderKey {
   OPENAI
   ANTHROPIC
@@ -938,9 +943,8 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
-type ModelProvider {
-  name: String!
-  modelNames: [String!]!
+input ModelNamesInput {
+  providerKey: GenerativeProviderKey!
 }
 
 type Mutation {
@@ -1135,7 +1139,8 @@ type PromptResponse {
 }
 
 type Query {
-  modelProviders: [ModelProvider!]!
+  modelProviders: [GenerativeProvider!]!
+  modelNames(input: ModelNamesInput!): [String!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!

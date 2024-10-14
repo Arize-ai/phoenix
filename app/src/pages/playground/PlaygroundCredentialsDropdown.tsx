@@ -48,7 +48,7 @@ export function PlaygroundCredentialsDropdown() {
               <Heading level={2} weight="heavy">
                 API Keys
               </Heading>
-              <Text color="white70">
+              <Text color="text-700">
                 API keys are stored in your browser and used to communicate with
                 their respective API&apos;s.
               </Text>
