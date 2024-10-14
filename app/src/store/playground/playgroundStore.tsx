@@ -75,7 +75,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     activeRunId: null,
     isRunning: false,
-    provider: "OPENAI",
   };
 }
 

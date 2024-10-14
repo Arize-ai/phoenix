@@ -78,10 +78,6 @@ export interface PlaygroundInstance {
    * Whether or not the playground instance is actively running or not
    **/
   isRunning: boolean;
-  /**
-   * The LLM provider the instance is using
-   */
-  provider: ModelProvider;
 }
 
 /**
