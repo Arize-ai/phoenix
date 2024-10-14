@@ -40,6 +40,11 @@ export const MustacheLikeTemplatingLanguage = LRLanguage.define({
   languageData: {},
 });
 
+/**
+ * Generates a string representation of the parse tree of the given text
+ *
+ * Useful for debugging the parser
+ */
 export const debugParser = (text: string) => {
   const tree = MustacheLikeTemplatingLanguage.parser.parse(text);
   return tree.toString();
@@ -62,6 +67,9 @@ export const formatMustacheLike = ({
     },
   });
 
+/**
+ * Creates a CodeMirror extension for the FString templating system
+ */
 export function MustacheLikeTemplating() {
   return new LanguageSupport(MustacheLikeTemplatingLanguage);
 }

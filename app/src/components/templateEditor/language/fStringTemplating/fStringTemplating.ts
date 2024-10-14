@@ -39,6 +39,11 @@ export const FStringTemplatingLanguage = LRLanguage.define({
   languageData: {},
 });
 
+/**
+ * Generates a string representation of the parse tree of the given text
+ *
+ * Useful for debugging the parser
+ */
 export const debugParser = (text: string) => {
   const tree = FStringTemplatingLanguage.parser.parse(text);
   return tree.toString();
@@ -59,6 +64,9 @@ export const formatFString = ({
       text.replaceAll("\\{", "{").replaceAll("{{", "{").replaceAll("}}", "}"),
   });
 
+/**
+ * Creates a CodeMirror extension for the FString templating system
+ */
 export function FStringTemplating() {
   return new LanguageSupport(FStringTemplatingLanguage);
 }
