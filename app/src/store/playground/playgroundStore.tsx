@@ -88,6 +88,9 @@ export const createPlaygroundStore = (
     operationType: "chat",
     inputMode: "manual",
     input: {
+      // TODO(apowell): When implementing variable forms, we should maintain a separate
+      // map of variableName to variableValue. This will allow us to "cache" variable values
+      // as the user types and will prevent data loss if users accidentally change the variable name
       variables: {
         // TODO(apowell): This is hardcoded based on the default chat template
         // Instead we should calculate this based on the template on store creation
