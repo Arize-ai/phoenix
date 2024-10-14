@@ -98,7 +98,7 @@ export const createPlaygroundStore = (
         question: "",
       },
     },
-    templateLanguage: TemplateLanguages.FString,
+    templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
