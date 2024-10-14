@@ -4,7 +4,9 @@ description: >-
   example.
 ---
 
-# Setup
+# Run Experiments
+
+## Setup
 
 Make sure you have Phoenix and the instrumentors needed for the experiment setup. For this example we will use the OpenAI instrumentor to trace the LLM calls.
 
@@ -12,7 +14,7 @@ Make sure you have Phoenix and the instrumentors needed for the experiment setup
 pip install arize-phoenix openinference-instrumentation-openai openai
 ```
 
-# Run Experiments
+## Run Experiments
 
 The key steps of running an experiment are:
 
@@ -32,11 +34,11 @@ import phoenix as px
 px.launch_app()
 ```
 
-## Load a Dataset
+### Load a Dataset
 
 A dataset can be as simple as a list of strings inside a dataframe. More sophisticated datasets can be also extracted from traces based on actual production data. Here we just have a small list of questions that we want to ask an LLM about the NBA games:
 
-#### Create pandas dataframe
+**Create pandas dataframe**
 
 ```python
 import pandas as pd
@@ -54,7 +56,7 @@ df = pd.DataFrame(
 
 The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `output_keys` are column names of the dataframe, representing the input/output to the task in question. Here we have just questions, so we left the outputs blank:
 
-#### Upload dataset to Phoenix
+**Upload dataset to Phoenix**
 
 ```python
 import phoenix as px
@@ -69,7 +71,7 @@ dataset = px.Client().upload_dataset(
 
 Each row of the dataset is called an `Example`.
 
-## Create a Task
+### Create a Task
 
 A task is any function/process that returns a JSON serializable output. Task can also be an `async` function, but we used sync function here for simplicity. If the task is a function of one argument, then that argument will be bound to the `input` field of the dataset example.
 
@@ -80,7 +82,7 @@ def task(x):
 
 For our example here, we'll ask an LLM to build SQL queries based on our question, which we'll run on a database and obtain a set of results:
 
-#### Set Up Database
+**Set Up Database**
 
 ```python
 import duckdb
@@ -91,7 +93,7 @@ conn = duckdb.connect(database=":memory:", read_only=False)
 conn.register("nba", data.to_pandas())
 ```
 
-#### Set Up Prompt and LLM
+**Set Up Prompt and LLM**
 
 ```python
 from textwrap import dedent
@@ -135,7 +137,7 @@ def text2sql(question):
     return {"query": query, "results": results, "error": error}
 ```
 
-#### Define `task` as a Function
+**Define `task` as a Function**
 
 Recall that each row of the dataset is encapsulated as `Example` object. Recall that the input keys were defined when we uploaded the dataset:
 
@@ -144,7 +146,7 @@ def task(x):
     return text2sql(x["question"])
 ```
 
-#### More complex `task` inputs
+**More complex `task` inputs**
 
 More complex tasks can use additional information. These values can be accessed by defining a task function with specific parameter names which are bound to special values associated with the dataset example:
 
@@ -152,7 +154,7 @@ More complex tasks can use additional information. These values can be accessed 
 
 A `task` can be defined as a sync or async function that takes any number of the above argument names in any order!
 
-## Define Evaluators
+### Define Evaluators
 
 An evaluator is any function that takes the task output and return an assessment. Here we'll simply check if the queries succeeded in obtaining any result from the database:
 
@@ -165,9 +167,9 @@ def has_results(output) -> bool:
     return bool(output.get("results"))
 ```
 
-## Run an Experiment
+### Run an Experiment
 
-#### Instrument OpenAI
+**Instrument OpenAI**
 
 Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examine in the Phoenix UI:
 
@@ -180,16 +182,43 @@ tracer_provider = register()
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-#### Run the Task and Evaluators
+**Run the Task and Evaluators**
 
 Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
 
 ```python
 from phoenix.experiments import run_experiment
 
-run_experiment(dataset, task=task, evaluators=[no_error, has_results])
+experiment = run_experiment(dataset, task=task, evaluators=[no_error, has_results])
 ```
 
-### Dry Run
+### Add More Evaluations
+
+#### If you want to attach more evaluations to the same experiment after the fact, you can do so with `evaluate_experiment`.
+
+```python
+from phoenix.experiments import evaluate_experiment
+
+evaluators = [
+    # add evaluators here
+]
+experiment = evaluate_experiment(experiment, evaluators)
+```
+
+If you no longer have access to the original `experiment` object, you can retrieve it from Phoenix using the `get_experiment` client method.
+
+```python
+from phoenix.experiments import evaluate_experiment
+import phoenix as px
+
+experiment_id = "experiment-id" # set your experiment ID here
+experiment = px.Client().get_experiment(experiment_id=experiment_id)
+evaluators = [
+    # add evaluators here
+]
+experiment = evaluate_experiment(experiment, evaluators)
+```
+
+#### Dry Run
 
 Sometimes we may want to do a quick sanity check on the task function or the evaluators before unleashing them on the full dataset. `run_experiment()` and `evaluate_experiment()` both are equipped with a `dry_run=` parameter for this purpose: it executes the task and evaluators on a small subset without sending data to the Phoenix server. Setting `dry_run=True` selects one sample from the dataset, and setting it to a number, e.g. `dry_run=3`, selects multiple. The sampling is also deterministic, so you can keep re-running it for debugging purposes.
