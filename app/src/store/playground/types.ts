@@ -1,3 +1,5 @@
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+
 export type GenAIOperationType = "chat" | "text_completion";
 /**
  * The input mode for the playground
@@ -110,6 +112,12 @@ export interface PlaygroundProps {
    * Defaults to a single instance until a second instance is added
    */
   instances: Array<PlaygroundInstance>;
+
+  /**
+   * The current template language for all instances
+   * @default "mustache"
+   */
+  templateLanguage: TemplateLanguage;
 }
 
 export type InitialPlaygroundState = Partial<PlaygroundProps>;
@@ -163,4 +171,12 @@ export interface PlaygroundState extends PlaygroundProps {
    * Mark a given playground instance as completed
    */
   markPlaygroundInstanceComplete: (instanceId: number) => void;
+  /**
+   * Set the template language for all instances
+   */
+  setTemplateLanguage: (templateLanguage: TemplateLanguage) => void;
+  /**
+   * Calculate the variables used across all instances
+   */
+  calculateVariables: () => void;
 }

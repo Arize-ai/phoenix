@@ -1,6 +1,10 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
+import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+
 import {
   GenAIOperationType,
   InitialPlaygroundState,
@@ -83,7 +87,15 @@ export const createPlaygroundStore = (
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
     inputMode: "manual",
-    input: { variables: {} },
+    input: {
+      variables: {
+        // TODO(apowell): This is hardcoded based on the default chat template
+        // Instead we should calculate this based on the template on store creation
+        // Not a huge deal since this will be overridden on the first keystroke
+        question: "",
+      },
+    },
+    templateLanguage: TemplateLanguages.FString,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
@@ -192,6 +204,7 @@ export const createPlaygroundStore = (
           return instance;
         }),
       });
+      get().calculateVariables();
     },
     runPlaygroundInstances: () => {
       const instances = get().instances;
@@ -231,6 +244,29 @@ export const createPlaygroundStore = (
           return instance;
         }),
       });
+    },
+    setTemplateLanguage: (templateLanguage: TemplateLanguage) => {
+      set({ templateLanguage });
+    },
+    calculateVariables: () => {
+      const instances = get().instances;
+      const variables: Record<string, string> = {};
+      const utils = getTemplateLanguageUtils(get().templateLanguage);
+      instances.forEach((instance) => {
+        // this double nested loop should be okay since we don't expect more than 4 instances
+        // and a handful of messages per instance
+        if (instance.template.__type === "chat") {
+          // for each chat message in the instance
+          instance.template.messages.forEach((message) => {
+            // extract variables from the message content
+            const extractedVariables = utils.extractVariables(message.content);
+            extractedVariables.forEach((variable) => {
+              variables[variable] = "";
+            });
+          });
+        }
+      });
+      set({ input: { variables: { ...variables } } });
     },
     ...initialProps,
   });
