@@ -5,9 +5,10 @@ import { format } from "../languageUtils";
 
 import { parser } from "./mustacheLikeTemplating.syntax.grammar";
 
-// https://codemirror.net/examples/lang-package/
 /**
  * Defines the language for the Mustache-like templating system
+ *
+ * @see https://codemirror.net/examples/lang-package/
  *
  * @example
  * ```

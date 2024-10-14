@@ -5,9 +5,10 @@ import { format } from "../languageUtils";
 
 import { parser } from "./fStringTemplating.syntax.grammar";
 
-// https://codemirror.net/examples/lang-package/
 /**
  * Define the language for the FString templating system
+ *
+ * @see https://codemirror.net/examples/lang-package/
  *
  * @example
  * ```
