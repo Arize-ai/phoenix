@@ -38,18 +38,18 @@ Here's the full sample code to trace a LlamaIndex and OpenAI application. Using 
 Install the following libraries
 
 ```
-!pip install arize-phoenix "openai>=1" "openinference-instrumentation-llama-index>=2.0.0"
+!pip install arize-phoenix "openai>=1" "openinference-instrumentation-llama-index>=2.0.0" llama_index
 ```
 
 Use the following python code to start instrumentation.
 
 ```python
-# setup Arize Phoenix for logging/observability
 import os
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from phoenix.otel import register
 
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+PHOENIX_API_KEY = "YOUR PHOENIX API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # Configuration is picked up from your environment variables
@@ -64,7 +64,7 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_ch
 Install the following libraries
 
 ```bash
-pip install arize-phoenix-otel openinference-instrumentation-openai openai
+! pip install arize-phoenix-otel openinference-instrumentation-openai openai
 ```
 
 Use the following python code to connect to Phoenix
@@ -72,8 +72,10 @@ Use the following python code to connect to Phoenix
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from phoenix.otel import register
+import os
 
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+PHOENIX_API_KEY = "YOUR PHOENIX API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # Setup OTEL tracing for hosted Phoenix. The register function will automatically detect the endpoint and headers from your environment variables.
@@ -92,7 +94,6 @@ Once you collect trace data from the above configuration, you can access the dat
 You'll need to add the following environment variable to authenticate to hosted Phoenix.
 
 ```python
-os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=..."
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
