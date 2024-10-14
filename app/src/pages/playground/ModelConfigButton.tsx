@@ -89,6 +89,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
+        ...ModelProviderPickerFragment
         ...ModelPickerFragment @arguments(providerKey: $providerKey)
       }
     `,
@@ -99,6 +100,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       <Form>
         <ModelProviderPicker
           provider={instance.model.provider}
+          query={query}
           onChange={(provider) => {
             updateModel({
               instanceId: playgroundInstanceId,

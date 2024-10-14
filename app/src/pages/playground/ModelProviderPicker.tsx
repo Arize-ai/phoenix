@@ -1,12 +1,15 @@
 import React from "react";
+import { graphql, useFragment } from "react-relay";
 
 import { Item, Picker, PickerProps } from "@arizeai/components";
 
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
+
+import type { ModelProviderPickerFragment$key } from "./__generated__/ModelProviderPickerFragment.graphql";
 
 type ModelProviderPickerProps = {
   onChange: (provider: ModelProvider) => void;
+  query: ModelProviderPickerFragment$key;
   provider?: ModelProvider;
 } & Omit<
   PickerProps<ModelProvider>,
@@ -15,8 +18,20 @@ type ModelProviderPickerProps = {
 
 export function ModelProviderPicker({
   onChange,
+  query,
   ...props
 }: ModelProviderPickerProps) {
+  const data = useFragment<ModelProviderPickerFragment$key>(
+    graphql`
+      fragment ModelProviderPickerFragment on Query {
+        modelProviders {
+          key
+          name
+        }
+      }
+    `,
+    query
+  );
   return (
     <Picker
       label={"Provider"}
@@ -33,8 +48,8 @@ export function ModelProviderPicker({
       width={"100%"}
       {...props}
     >
-      {Object.entries(ModelProviders).map(([key, value]) => {
-        return <Item key={key}>{value}</Item>;
+      {data.modelProviders.map((provider) => {
+        return <Item key={provider.key}>{provider.name}</Item>;
       })}
     </Picker>
   );

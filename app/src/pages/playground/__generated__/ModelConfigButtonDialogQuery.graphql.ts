@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<670707a6ff9ce3e9e1b2d7ae458abdae>>
+ * @generated SignedSource<<176456afea57f0245ab80564600db337>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ModelConfigButtonDialogQuery$variables = {
   providerKey: GenerativeProviderKey;
 };
 export type ModelConfigButtonDialogQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment" | "ModelProviderPickerFragment">;
 };
 export type ModelConfigButtonDialogQuery = {
   response: ModelConfigButtonDialogQuery$data;
@@ -45,6 +45,11 @@ return {
     "name": "ModelConfigButtonDialogQuery",
     "selections": [
       {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "ModelProviderPickerFragment"
+      },
+      {
         "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "ModelPickerFragment"
@@ -61,6 +66,31 @@ return {
     "selections": [
       {
         "alias": null,
+        "args": null,
+        "concreteType": "GenerativeProvider",
+        "kind": "LinkedField",
+        "name": "modelProviders",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "key",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
         "args": [
           {
             "fields": (v1/*: any*/),
@@ -75,16 +105,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ea5b5a195f8d49162ea7569c404e95a8",
+    "cacheID": "34f8d81e91b335ca310c9be756719426",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  modelNames(input: {providerKey: $providerKey})\n}\n"
+    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  modelNames(input: {providerKey: $providerKey})\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "583e923b5f31768db52e0f5dcbdda28c";
+(node as any).hash = "c9b38e766093b2378047d22b01ef0fbf";
 
 export default node;
