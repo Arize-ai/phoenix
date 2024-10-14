@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from itertools import chain
 from json import JSONEncoder
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, List, Optional, Tuple, assert_never
+from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, List, Optional, Tuple
 
 import strawberry
 from openinference.semconv.trace import (
@@ -20,6 +20,7 @@ from opentelemetry.trace import StatusCode
 from pydantic import BaseModel
 from sqlalchemy import insert, select
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
