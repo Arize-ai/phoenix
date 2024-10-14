@@ -40,7 +40,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
     ],
   },
   output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
-  provider: "OpenAI",
 };
 
 const defaultTemplate = {
