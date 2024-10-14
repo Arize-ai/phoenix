@@ -22,9 +22,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
   isRunning: false,
-  input: {
-    variables: {},
-  },
   model: {
     provider: "OPENAI",
     modelName: "gpt-4o",
