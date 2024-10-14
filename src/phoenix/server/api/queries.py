@@ -80,9 +80,7 @@ from phoenix.server.api.types.UserRole import UserRole
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(
-        self, vendors: List[str], info: Info[Context, None]
-    ) -> List[ModelProvider]:
+    async def model_providers(self, info: Info[Context, None]) -> List[ModelProvider]:
         all_vendors = {
             "OpenAI": ModelProvider(  # https://platform.openai.com/docs/models
                 name="OpenAI",  # currently only models using the chat completions API
@@ -120,7 +118,7 @@ class Query:
                 ],
             ),
         }
-        return [all_vendors[vendor] for vendor in vendors]
+        return [all_vendors[vendor] for vendor in ["OpenAI", "Anthropic"]]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(

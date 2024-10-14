@@ -19,7 +19,7 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
   const data = useFragment<ModelPickerFragment$key>(
     graphql`
       fragment ModelPickerFragment on Query {
-        modelProviders(vendors: ["OpenAI", "Anthropic"]) {
+        modelProviders {
           name
           modelNames
         }

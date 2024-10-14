@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c8d927475f5ac2ddd05a0c07c6c5b2b>>
+ * @generated SignedSource<<a27e7c648844868adba09d268d408168>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,16 +43,7 @@ const node: ConcreteRequest = {
     "selections": [
       {
         "alias": null,
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "vendors",
-            "value": [
-              "OpenAI",
-              "Anthropic"
-            ]
-          }
-        ],
+        "args": null,
         "concreteType": "ModelProvider",
         "kind": "LinkedField",
         "name": "modelProviders",
@@ -73,17 +64,17 @@ const node: ConcreteRequest = {
             "storageKey": null
           }
         ],
-        "storageKey": "modelProviders(vendors:[\"OpenAI\",\"Anthropic\"])"
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "cf6e53f2293c51d168b08e5d2fc7b391",
+    "cacheID": "5d571a1d580ce63c9f4ec55885b5975d",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelPickerFragment\n}\n\nfragment ModelPickerFragment on Query {\n  modelProviders(vendors: [\"OpenAI\", \"Anthropic\"]) {\n    name\n    modelNames\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelPickerFragment\n}\n\nfragment ModelPickerFragment on Query {\n  modelProviders {\n    name\n    modelNames\n  }\n}\n"
   }
 };
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<767976775ee226eb849cf909b42f2897>>
+ * @generated SignedSource<<bf2e177cfcda314b89eb76db663c2175>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,18 @@
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 export type ChatCompletionMessageInput = {
   content: any;
   role: ChatCompletionMessageRole;
 };
+export type GenerativeModelInput = {
+  name: string;
+  providerKey: GenerativeProviderKey;
+};
 export type PlaygroundOutputSubscription$variables = {
   messages: ReadonlyArray<ChatCompletionMessageInput>;
+  model: GenerativeModelInput;
 };
 export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: string;
@@ -31,6 +37,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "messages"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "model"
   }
 ],
 v1 = [
@@ -43,6 +54,11 @@ v1 = [
             "kind": "Variable",
             "name": "messages",
             "variableName": "messages"
+          },
+          {
+            "kind": "Variable",
+            "name": "model",
+            "variableName": "model"
           }
         ],
         "kind": "ObjectValue",
@@ -72,16 +88,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "0856059e2e3a28a8fda74106924c480d",
+    "cacheID": "441178357c664007fd0a3713b565dffd",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n) {\n  chatCompletion(input: {messages: $messages})\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n) {\n  chatCompletion(input: {messages: $messages, model: $model})\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d760af0f8e18301631ba9dcdb148de0b";
+(node as any).hash = "7dc12b37e3f80c94a3ca91d20b3292a7";
 
 export default node;

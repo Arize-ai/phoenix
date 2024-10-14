@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ea2d3c123a67eedf3cfe075d801e5e2>>
+ * @generated SignedSource<<8b2439a54797d5c681f07edb1f7e43c4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,16 +30,7 @@ const node: ReaderFragment = {
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "vendors",
-          "value": [
-            "OpenAI",
-            "Anthropic"
-          ]
-        }
-      ],
+      "args": null,
       "concreteType": "ModelProvider",
       "kind": "LinkedField",
       "name": "modelProviders",
@@ -60,13 +51,13 @@ const node: ReaderFragment = {
           "storageKey": null
         }
       ],
-      "storageKey": "modelProviders(vendors:[\"OpenAI\",\"Anthropic\"])"
+      "storageKey": null
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "0c369d2705c164e6d3bf698b9fdaa934";
+(node as any).hash = "766b2efbb5fd72b914f7a5f67ccd31cf";
 
 export default node;
