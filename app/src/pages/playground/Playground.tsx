@@ -26,6 +26,7 @@ import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGro
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
+import { PlaygroundTools } from "./PlaygroundTools";
 import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
 export function Playground(props: InitialPlaygroundState) {
@@ -149,17 +150,17 @@ function PlaygroundContent() {
             >
               <View height="100%" padding="size-200">
                 <Flex direction="row" gap="size-200">
-                  {instances.map((instance, i) => (
+                  {instances.map((instance) => (
                     <div
-                      key={i}
+                      key={instance.id}
                       css={css`
                         flex: 1 1 0px;
                       `}
                     >
-                      <PlaygroundTemplate
-                        key={i}
-                        playgroundInstanceId={instance.id}
-                      />
+                      <PlaygroundTemplate playgroundInstanceId={instance.id} />
+                      {instance.tools.length > 0 && (
+                        <PlaygroundTools playgroundInstanceId={instance.id} />
+                      )}
                     </div>
                   ))}
                 </Flex>
