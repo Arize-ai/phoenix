@@ -70,7 +70,6 @@ export interface PlaygroundInstance {
   id: number;
   template: PlaygroundTemplate;
   tools: unknown;
-  input: PlaygroundInput;
   model: ModelConfig;
   output: ChatMessage[] | undefined | string;
   activeRunId: number | null;
@@ -102,6 +101,10 @@ export interface PlaygroundProps {
    * @default "manual"
    */
   inputMode: PlaygroundInputMode;
+  /**
+   * The input to all the playground instances
+   */
+  input: PlaygroundInput;
   /**
    * The current playground instances(s)
    * Defaults to a single instance until a second instance is added

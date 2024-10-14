@@ -71,7 +71,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: { provider: "OPENAI", modelName: "gpt-4o" },
     tools: {},
-    input: { variables: {} },
     output: undefined,
     activeRunId: null,
     isRunning: false,
@@ -84,6 +83,7 @@ export const createPlaygroundStore = (
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
     inputMode: "manual",
+    input: { variables: {} },
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
