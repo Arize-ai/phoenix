@@ -25,6 +25,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
+  createTool,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
@@ -126,7 +127,26 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderTopColor="dark"
         borderTopWidth="thin"
       >
-        <Flex direction="row" justifyContent="end">
+        <Flex direction="row" justifyContent="end" gap="size-50">
+          <Button
+            variant="default"
+            aria-label="add tool"
+            size="compact"
+            icon={<Icon svg={<Icons.PlusOutline />} />}
+            onClick={() => {
+              updateInstance({
+                instanceId: id,
+                patch: {
+                  tools: [
+                    ...playgroundInstance.tools,
+                    createTool(playgroundInstance.tools.length + 1),
+                  ],
+                },
+              });
+            }}
+          >
+            Tool
+          </Button>
           <Button
             variant="default"
             aria-label="add message"

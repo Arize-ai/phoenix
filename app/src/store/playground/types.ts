@@ -1,4 +1,5 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { ToolDefinition } from "@phoenix/schemas";
 
 export type GenAIOperationType = "chat" | "text_completion";
 /**
@@ -59,6 +60,14 @@ type ModelConfig = {
 };
 
 /**
+ * The type of a tool in the playground
+ */
+export type Tool = {
+  id: number;
+  definition: ToolDefinition;
+};
+
+/**
  * A single instance of the playground that has
  * - a template
  * - tools
@@ -71,7 +80,8 @@ export interface PlaygroundInstance {
    */
   id: number;
   template: PlaygroundTemplate;
-  tools: unknown;
+  tools: Tool[];
+  input: PlaygroundInput;
   model: ModelConfig;
   output: ChatMessage[] | undefined | string;
   activeRunId: number | null;

@@ -14,22 +14,29 @@ import {
   PlaygroundInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
+  Tool,
 } from "./types";
 
-let playgroundInstanceIdIndex = 0;
-let playgroundRunIdIndex = 0;
+let playgroundInstanceId = 0;
+let playgroundRunId = 0;
 // This value must be truthy in order for message re-ordering to work
-let playgroundMessageIdIndex = 1;
+let playgroundMessageId = 1;
+let playgroundToolId = 0;
 
 /**
  * Generates a new playground instance ID
  */
-export const generateInstanceId = () => playgroundInstanceIdIndex++;
+export const generateInstanceId = () => playgroundInstanceId++;
 
 /**
  * Generates a new playground message ID
  */
-export const generateMessageId = () => playgroundMessageIdIndex++;
+export const generateMessageId = () => playgroundMessageId++;
+
+/**
+ * Generates a new playground tool ID
+ */
+export const generateToolId = () => playgroundToolId++;
 
 /**
  * Resets the playground instance ID to 0
@@ -37,7 +44,7 @@ export const generateMessageId = () => playgroundMessageIdIndex++;
  * NB: This is only used for testing purposes
  */
 export const _resetInstanceId = () => {
-  playgroundInstanceIdIndex = 0;
+  playgroundInstanceId = 0;
 };
 
 /**
@@ -46,7 +53,16 @@ export const _resetInstanceId = () => {
  * NB: This is only used for testing purposes
  */
 export const _resetMessageId = () => {
-  playgroundMessageIdIndex = 0;
+  playgroundMessageId = 0;
+};
+
+/**
+ * Resets the playground tool ID to 0
+ *
+ * NB: This is only used for testing purposes
+ */
+export const _resetToolId = () => {
+  playgroundToolId = 0;
 };
 
 const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
@@ -75,10 +91,34 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
     model: { provider: "OPENAI", modelName: "gpt-4o" },
-    tools: {},
+    tools: [],
+    input: { variables: {} },
     output: undefined,
     activeRunId: null,
     isRunning: false,
+  };
+}
+
+export function createTool(toolNumber: number): Tool {
+  return {
+    id: generateToolId(),
+    definition: {
+      type: "function",
+      function: {
+        name: `new_function_${toolNumber}`,
+        parameters: {
+          type: "object",
+          properties: {
+            new_arg: {
+              type: "string",
+            },
+          },
+          required: [],
+          additionalProperties: false,
+          strict: false,
+        },
+      },
+    },
   };
 }
 
@@ -215,7 +255,7 @@ export const createPlaygroundStore = (
       set({
         instances: instances.map((instance) => ({
           ...instance,
-          activeRunId: playgroundRunIdIndex++,
+          activeRunId: playgroundRunId++,
           isRunning: true,
         })),
       });
@@ -227,7 +267,7 @@ export const createPlaygroundStore = (
           if (instance.id === instanceId) {
             return {
               ...instance,
-              activeRunId: playgroundRunIdIndex++,
+              activeRunId: playgroundRunId++,
               isRunning: true,
             };
           }

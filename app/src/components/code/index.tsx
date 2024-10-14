@@ -6,3 +6,4 @@ export * from "./CodeWrap";
 export * from "./TypeScriptBlock";
 export * from "./CodeEditorFieldWrapper";
 export * from "./CodeLanguageRadioGroup";
+export * from "./JSONToolEditor";
