@@ -120,7 +120,7 @@ const playgroundInputOutputPanelContentCSS = css`
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: scroll;
+  overflow: auto;
 `;
 
 function PlaygroundContent() {
