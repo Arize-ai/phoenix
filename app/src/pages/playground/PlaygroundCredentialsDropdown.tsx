@@ -15,14 +15,12 @@ import {
 
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { CredentialKey } from "@phoenix/store";
 
-export const ProviderToCredentialKeyMap: Record<ModelProvider, CredentialKey> =
-  {
-    OPENAI: "OPENAI_API_KEY",
-    ANTHROPIC: "ANTHROPIC_API_KEY",
-    AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
-  };
+export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
+  OPENAI: "OPENAI_API_KEY",
+  ANTHROPIC: "ANTHROPIC_API_KEY",
+  AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
+};
 
 export function PlaygroundCredentialsDropdown() {
   const currentProviders = usePlaygroundContext((state) =>
@@ -54,17 +52,17 @@ export function PlaygroundCredentialsDropdown() {
               </Text>
               <Form>
                 {currentProviders.map((provider) => {
-                  const credentialKey = ProviderToCredentialKeyMap[provider];
+                  const credentialName = ProviderToCredentialNameMap[provider];
                   return (
                     <TextField
                       key={provider}
-                      label={credentialKey}
+                      label={credentialName}
                       type="password"
                       isRequired
                       onChange={(value) => {
-                        setCredential({ credential: credentialKey, value });
+                        setCredential({ provider, value });
                       }}
-                      value={credentials[credentialKey]}
+                      value={credentials[provider]}
                     />
                   );
                 })}

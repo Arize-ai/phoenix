@@ -48,6 +48,7 @@ class GenerativeModelInput:
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
+    api_key: Optional[str] = None
 
 
 def to_openai_chat_completion_param(
@@ -93,7 +94,7 @@ class Subscription:
     ) -> AsyncIterator[str]:
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI()
+        client = AsyncOpenAI(api_key=input.api_key)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
