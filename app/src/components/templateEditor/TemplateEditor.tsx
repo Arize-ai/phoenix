@@ -1,6 +1,10 @@
 import React, { useMemo } from "react";
+import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import CodeMirror, {
+  BasicSetupOptions,
+  ReactCodeMirrorProps,
+} from "@uiw/react-codemirror";
 
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -20,12 +24,20 @@ type TemplateEditorProps = ReactCodeMirrorProps & {
   templateLanguage: TemplateLanguage;
 };
 
+const basicSetupOptions: BasicSetupOptions = {
+  lineNumbers: false,
+  highlightActiveLine: false,
+  foldGutter: false,
+  highlightActiveLineGutter: false,
+  bracketMatching: false,
+};
+
 export const TemplateEditor = ({
   templateLanguage,
   ...props
 }: TemplateEditorProps) => {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [];
     switch (templateLanguage) {
@@ -42,6 +54,11 @@ export const TemplateEditor = ({
   }, [templateLanguage]);
 
   return (
-    <CodeMirror theme={codeMirrorTheme} extensions={extensions} {...props} />
+    <CodeMirror
+      theme={codeMirrorTheme}
+      extensions={extensions}
+      basicSetup={basicSetupOptions}
+      {...props}
+    />
   );
 };
