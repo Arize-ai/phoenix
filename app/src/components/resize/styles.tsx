@@ -52,7 +52,7 @@ export const resizeHandleCSS = css`
 
 export const compactResizeHandleCSS = (theme: Theme) => css`
   transition: 250ms linear all;
-  background-color: var(--ac-global-color-grey-300);
+  background-color: var(--ac-global-color-grey-200);
   --px-resize-handle-size: 4px;
   outline: none;
   &[data-panel-group-direction="vertical"] {
