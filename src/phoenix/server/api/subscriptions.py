@@ -26,7 +26,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-from phoenix.server.api.types.GenerativeModelProvider import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 

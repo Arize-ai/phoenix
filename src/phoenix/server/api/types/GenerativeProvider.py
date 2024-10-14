@@ -14,9 +14,3 @@ class GenerativeProviderKey(Enum):
 class GenerativeProvider:
     name: str
     key: GenerativeProviderKey
-
-
-@strawberry.type
-class GenerativeModel:
-    provider_key: GenerativeProviderKey
-    name: str

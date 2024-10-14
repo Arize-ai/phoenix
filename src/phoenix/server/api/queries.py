@@ -58,7 +58,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModelProvider import (
+from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProvider,
     GenerativeProviderKey,
 )
