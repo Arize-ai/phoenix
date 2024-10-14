@@ -10,6 +10,8 @@ By default Phoenix deploys with authentication disabled as you may be just tryin
 Authentication will stop collecting traces and block all API access until API keys are created. For that reason we recommend scheduling some downtime if you have already deployed phoenix.
 {% endhint %}
 
+{% embed url="https://youtu.be/e9I2voaGuQE" %}
+
 ## Setup
 
 To enable authentication on your Phoenix, you will have to set two environment variables:
