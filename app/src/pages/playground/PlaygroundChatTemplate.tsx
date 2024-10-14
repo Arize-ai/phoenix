@@ -17,6 +17,7 @@ import { css } from "@emotion/react";
 
 import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
+import { CopyToClipboardButton } from "@phoenix/components";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import {
   TemplateEditor,
@@ -214,6 +215,7 @@ function SortableMessageItem({
         }
         extra={
           <Flex direction="row" gap="size-100">
+            <CopyToClipboardButton text={message.content} />
             <Button
               aria-label="Delete message"
               icon={<Icon svg={<Icons.TrashOutline />} />}
