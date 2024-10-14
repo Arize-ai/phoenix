@@ -153,6 +153,7 @@ Initialize the OpenAIInstrumentor before your application code:
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
 
+tracer_provider = register()
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
