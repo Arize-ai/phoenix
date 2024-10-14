@@ -88,7 +88,7 @@ class ModelNamesInput:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(self, info: Info[Context, None]) -> List[GenerativeProvider]:
+    async def model_providers(self) -> List[GenerativeProvider]:
         return [
             GenerativeProvider(
                 name="OpenAI",
@@ -105,7 +105,7 @@ class Query:
         ]
 
     @strawberry.field
-    async def model_names(self, input: ModelNamesInput, info: Info[Context, None]) -> List[str]:
+    async def model_names(self, input: ModelNamesInput) -> List[str]:
         if (provider_key := input.provider_key) == GenerativeProviderKey.OPENAI:
             return [
                 "o1-preview",
