@@ -59,7 +59,7 @@ export const format = ({
    *
    * If a variable is not found in this object, it will be left as is.
    */
-  variables: Record<string, string | number | boolean>;
+  variables: Record<string, string | number | boolean | undefined>;
   /**
    * Runs after formatting the text but just before returning the result
    *
