@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   GenAIOperationType,
@@ -256,17 +257,35 @@ export const createPlaygroundStore = (
       const variables: Record<string, string> = {};
       const utils = getTemplateLanguageUtils(get().templateLanguage);
       instances.forEach((instance) => {
+        const instanceType = instance.template.__type;
         // this double nested loop should be okay since we don't expect more than 4 instances
         // and a handful of messages per instance
-        if (instance.template.__type === "chat") {
-          // for each chat message in the instance
-          instance.template.messages.forEach((message) => {
-            // extract variables from the message content
-            const extractedVariables = utils.extractVariables(message.content);
+        switch (instanceType) {
+          case "chat": {
+            // for each chat message in the instance
+            instance.template.messages.forEach((message) => {
+              // extract variables from the message content
+              const extractedVariables = utils.extractVariables(
+                message.content
+              );
+              extractedVariables.forEach((variable) => {
+                variables[variable] = "";
+              });
+            });
+            break;
+          }
+          case "text_completion": {
+            const extractedVariables = utils.extractVariables(
+              instance.template.prompt
+            );
             extractedVariables.forEach((variable) => {
               variables[variable] = "";
             });
-          });
+            break;
+          }
+          default: {
+            assertUnreachable(instanceType);
+          }
         }
       });
       set({ input: { variables: { ...variables } } });
