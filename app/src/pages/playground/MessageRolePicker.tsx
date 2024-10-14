@@ -3,8 +3,6 @@ import { css } from "@emotion/react";
 
 import { Item, Picker } from "@arizeai/components";
 
-import { ChatMessageRole } from "@phoenix/store";
-
 import { isChatMessageRole } from "./playgroundUtils";
 
 const hiddenLabelCSS = css`

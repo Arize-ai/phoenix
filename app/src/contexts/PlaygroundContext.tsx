@@ -6,7 +6,7 @@ import {
   PlaygroundProps,
   PlaygroundState,
   PlaygroundStore,
-} from "@phoenix/store/playgroundStore";
+} from "@phoenix/store";
 
 export const PlaygroundContext = createContext<PlaygroundStore | null>(null);
 

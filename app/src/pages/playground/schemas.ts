@@ -6,7 +6,7 @@ import {
   SemanticAttributePrefixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { ChatMessage, ChatMessageRole } from "@phoenix/store";
+import { ChatMessage } from "@phoenix/store";
 import { schemaForType } from "@phoenix/typeUtils";
 
 /**
@@ -76,7 +76,9 @@ export const outputSchema = z.object({
 /**
  * The zod schema for {@link chatMessageRoles}
  */
-export const chatMessageRolesSchema = z.nativeEnum(ChatMessageRole);
+export const chatMessageRolesSchema = schemaForType<ChatMessageRole>()(
+  z.enum(["user", "ai", "system", "tool"])
+);
 
 const chatMessageSchema = schemaForType<ChatMessage>()(
   z.object({

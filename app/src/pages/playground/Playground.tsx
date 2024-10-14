@@ -11,6 +11,7 @@ import {
 import { InitialPlaygroundState } from "@phoenix/store";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundInstance } from "./PlaygroundInstance";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -33,9 +34,7 @@ export function Playground(props: InitialPlaygroundState) {
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
               <PlaygroundInputTypeTypeRadioGroup />
-              <Button variant="default" size="compact">
-                API Keys
-              </Button>
+              <PlaygroundCredentialsDropdown />
               <AddPromptButton />
               <PlaygroundRunButton />
             </Flex>

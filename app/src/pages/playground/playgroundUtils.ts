@@ -1,7 +1,6 @@
 import { PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessage,
-  ChatMessageRole,
   createPlaygroundInstance,
   generateMessageId,
 } from "@phoenix/store";
