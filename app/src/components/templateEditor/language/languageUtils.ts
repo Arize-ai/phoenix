@@ -3,13 +3,22 @@ import { LRParser } from "@lezer/lr";
 /**
  * Extracts all variables from a templated string.
  *
- * @param parser - The parser for the templating language.
- *  The parser should be a language parser that emits Variable nodes.
- * @param text - The text to extract variables from.
- *
  * @returns An array of variable names.
  */
-export const extractVariables = (parser: LRParser, text: string) => {
+export const extractVariables = ({
+  parser,
+  text,
+}: {
+  /**
+   * The parser for the templating language.
+   *  The parser should be a language parser that emits Variable nodes.
+   */
+  parser: LRParser;
+  /**
+   * The text to extract variables from.
+   */
+  text: string;
+}) => {
   const tree = parser.parse(text);
   const variables: string[] = [];
   const cur = tree.cursor();

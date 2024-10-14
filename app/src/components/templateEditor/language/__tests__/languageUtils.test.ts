@@ -41,7 +41,10 @@ can you help with this json?
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(
-        extractVariables(MustacheLikeTemplatingLanguage.parser, input)
+        extractVariables({
+          parser: MustacheLikeTemplatingLanguage.parser,
+          text: input,
+        })
       ).toEqual(expected);
     });
   });
@@ -68,9 +71,12 @@ can you help with this json?
       { input: "\\{test}", expected: [] },
     ] as const;
     tests.forEach(({ input, expected }) => {
-      expect(extractVariables(FStringTemplatingLanguage.parser, input)).toEqual(
-        expected
-      );
+      expect(
+        extractVariables({
+          parser: FStringTemplatingLanguage.parser,
+          text: input,
+        })
+      ).toEqual(expected);
     });
   });
 
