@@ -15,17 +15,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Card,
-  Flex,
-  Icon,
-  Icons,
-  TextArea,
-  View,
-} from "@arizeai/components";
+import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
+import {
+  TemplateEditor,
+  TemplateLanguages,
+} from "@phoenix/components/templateEditor";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -246,27 +242,12 @@ function SortableMessageItem({
           </Flex>
         }
       >
-        <div
-          css={css`
-            // TODO: remove these styles once the codemiror editor is added
-            .ac-textfield {
-              border: none !important;
-              border-radius: 0;
-              textarea {
-                padding: var(--ac-global-dimension-size-200);
-              }
-            }
-          `}
-          onKeyDownCapture={(e) => {
-            // Don't bubble up any keyboard events from the text area as to not interfere with DND
-            e.stopPropagation();
-          }}
-        >
-          <TextArea
+        <div>
+          <TemplateEditor
+            height="100%"
             value={message.content}
-            height={200}
-            variant="quiet"
-            aria-label={"Message content"}
+            aria-label="Message content"
+            templateLanguage={TemplateLanguages.Mustache}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,
