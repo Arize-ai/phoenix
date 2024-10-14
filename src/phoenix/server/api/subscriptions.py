@@ -26,6 +26,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 
 if TYPE_CHECKING:
@@ -184,6 +185,7 @@ class Subscription:
                     llm_token_count_completion=0,
                 )
             )
+        info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
 
 
 def _llm_span_kind() -> Iterator[Tuple[str, Any]]:
