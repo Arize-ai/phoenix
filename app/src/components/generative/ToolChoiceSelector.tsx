@@ -10,9 +10,6 @@ const isDefaultToolChoice = (choice: string): choice is DefaultToolChoice => {
 
 /**
  * A prefix to add to user defined tools in the picker to avoid collisions with default {@link ToolChoice} keys
- * Note if a user names their tool "auto", "required", or "none" the picker will always show that they have selected their own tool
- * However, we can't disambiguate this and neither can an LLM API
- * Using this prefix, however, still prevents an error which occurs when there are duplicate keys in the picker
  */
 const TOOL_NAME_PREFIX = "tool_";
 
