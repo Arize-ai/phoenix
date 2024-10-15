@@ -4,6 +4,7 @@ import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 
 import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
@@ -104,8 +105,11 @@ function useChatCompletionSubscription({
         subscription PlaygroundOutputSubscription(
           $messages: [ChatCompletionMessageInput!]!
           $model: GenerativeModelInput!
+          $apiKey: String
         ) {
-          chatCompletion(input: { messages: $messages, model: $model })
+          chatCompletion(
+            input: { messages: $messages, model: $model, apiKey: $apiKey }
+          )
         }
       `,
       variables: params,
@@ -156,6 +160,7 @@ function toGqlChatCompletionRole(
 
 function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const instances = usePlaygroundContext((state) => state.instances);
+  const credentials = useCredentialsContext((state) => state);
   const instance = instances.find(
     (instance) => instance.id === props.playgroundInstanceId
   );
@@ -182,6 +187,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         providerKey: instance.model.provider,
         name: instance.model.modelName || "",
       },
+      apiKey: credentials[instance.model.provider],
     },
     runId: instance.activeRunId,
     onNext: (response) => {

@@ -68,6 +68,7 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
+  apiKey: String = null
 }
 
 input ChatCompletionMessageInput {
