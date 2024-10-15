@@ -3,6 +3,7 @@ import React, {
   ReactNode,
   startTransition,
   Suspense,
+  useCallback,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -14,6 +15,7 @@ import {
   Flex,
   Form,
   Text,
+  TextField,
   View,
 } from "@arizeai/components";
 
@@ -95,6 +97,20 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     `,
     { providerKey: instance.model.provider }
   );
+
+  const onModelNameChange = useCallback(
+    (modelName: string) => {
+      updateModel({
+        instanceId: playgroundInstanceId,
+        model: {
+          provider: instance.model.provider,
+          modelName,
+        },
+      });
+    },
+    [instance.model.provider, playgroundInstanceId, updateModel]
+  );
+
   return (
     <View padding="size-200">
       <Form>
@@ -111,20 +127,19 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
             });
           }}
         />
-        <ModelPicker
-          modelName={instance.model.modelName}
-          provider={instance.model.provider}
-          query={query}
-          onChange={(modelName) => {
-            updateModel({
-              instanceId: playgroundInstanceId,
-              model: {
-                provider: instance.model.provider,
-                modelName,
-              },
-            });
-          }}
-        />
+        {instance.model.provider === "AZURE_OPENAI" ? (
+          <TextField
+            value={instance.model.modelName ?? ""}
+            onChange={onModelNameChange}
+          />
+        ) : (
+          <ModelPicker
+            modelName={instance.model.modelName}
+            provider={instance.model.provider}
+            query={query}
+            onChange={onModelNameChange}
+          />
+        )}
       </Form>
     </View>
   );
