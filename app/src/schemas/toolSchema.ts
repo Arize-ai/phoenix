@@ -4,6 +4,9 @@ import zodToJsonSchema from "zod-to-json-schema";
 /**
  * The schema for a tool definition
  * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
+ *
+ * Note: The nested passThrough's are used to allow for extra keys in JSON schema, however, they do not actually
+ * allow for extra keys when the zod schema is used for parsing.
  */
 export const toolSchema = z
   .object({
