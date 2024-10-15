@@ -9,12 +9,12 @@ const isDefaultToolChoice = (choice: string): choice is DefaultToolChoice => {
 };
 
 /**
- * A prefix to add to user defined tools in the picker to avoid collisions with default {@link ToolChoice} keys
+ * A prefix to add to user defined tools in the picker to avoid picker key collisions with default {@link ToolChoice} keys
  */
 const TOOL_NAME_PREFIX = "tool_";
 
 /**
- * Adds a prefix to user defined tool names to avoid conflicts with default {@link ToolChoice} keys
+ * Adds a prefix to user defined tool names to avoid conflicts picker key collisions with default {@link ToolChoice} keys
  * @param toolName The name of a tool
  * @returns  The tool name with the "TOOL_NAME_PREFIX" prefix added
  */
