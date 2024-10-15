@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Dict, List, Optional, Set, Union, assert_never
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -172,20 +172,14 @@ class Query:
             for model_name in anthropic_models
         ]
 
-        if input is None or input.provider_key is None:
-            return (
-                openai_generative_models
-                + azure_openai_generative_models
-                + anthropic_generative_models
-            )
-        if (provider_key := input.provider_key) == GenerativeProviderKey.OPENAI:
-            return openai_generative_models
-        if provider_key == GenerativeProviderKey.AZURE_OPENAI:
-            return azure_openai_generative_models
-        if provider_key == GenerativeProviderKey.ANTHROPIC:
-            return anthropic_generative_models
+        all_models = (
+            openai_generative_models + azure_openai_generative_models + anthropic_generative_models
+        )
 
-        assert_never(provider_key)
+        if input is not None and input.provider_key is not None:
+            return [model for model in all_models if model.provider_key == input.provider_key]
+
+        return all_models
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
