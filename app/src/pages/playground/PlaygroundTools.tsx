@@ -34,7 +34,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     () =>
       tools
         .map((tool) => tool.definition.function?.name)
-        .filter((name) => name != null),
+        .filter((name): name is NonNullable<typeof name> => name != null),
     [tools]
   );
 
