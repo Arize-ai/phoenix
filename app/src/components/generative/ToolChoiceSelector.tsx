@@ -78,17 +78,17 @@ export function ToolChoicePicker({
     >
       {[
         <Item key="auto">
-          <Flex gap={"size-50"}>
+          <Flex gap={"size-100"}>
             Tools auto-selected by LLM <Label>auto</Label>
           </Flex>
         </Item>,
         <Item key="required">
-          <Flex gap={"size-50"}>
+          <Flex gap={"size-100"}>
             Use at least one tool <Label>required</Label>
           </Flex>
         </Item>,
         <Item key="none">
-          <Flex gap={"size-50"}>
+          <Flex gap={"size-100"}>
             Don&apos;t use any tools <Label>none</Label>
           </Flex>
         </Item>,

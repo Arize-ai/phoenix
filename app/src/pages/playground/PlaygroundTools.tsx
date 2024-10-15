@@ -3,16 +3,16 @@ import React, { useMemo } from "react";
 import {
   Accordion,
   AccordionItem,
-  Card,
+  Counter,
   Flex,
   Form,
+  View,
 } from "@arizeai/components";
 
 import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
-import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
@@ -45,36 +45,40 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   );
 
   return (
-    <Accordion>
+    <Accordion arrowPosition="start">
       <AccordionItem
-        title={<TitleWithAlphabeticIndex index={index} title="Tools" />}
+        id="tools"
+        title="Tools"
+        titleExtra={<Counter variant="light">{tools.length}</Counter>}
       >
-        <Flex direction="column" gap="size-100">
-          <Form>
-            <ToolChoicePicker
-              choice={instance.toolChoice}
-              onChange={(choice) => {
-                updateInstance({
-                  instanceId,
-                  patch: {
-                    toolChoice: choice,
-                  },
-                });
-              }}
-              toolNames={toolNames}
-            />
-          </Form>
-          {tools.map((tool) => {
-            return (
-              <PlaygroundTool
-                key={tool.id}
-                playgroundInstanceId={instanceId}
-                tool={tool}
-                instanceTools={instance.tools}
+        <View padding="size-200">
+          <Flex direction="column" gap="size-200">
+            <Form>
+              <ToolChoicePicker
+                choice={instance.toolChoice}
+                onChange={(choice) => {
+                  updateInstance({
+                    instanceId,
+                    patch: {
+                      toolChoice: choice,
+                    },
+                  });
+                }}
+                toolNames={toolNames}
               />
-            );
-          })}
-        </Flex>
+            </Form>
+            {tools.map((tool) => {
+              return (
+                <PlaygroundTool
+                  key={tool.id}
+                  playgroundInstanceId={instanceId}
+                  tool={tool}
+                  instanceTools={instance.tools}
+                />
+              );
+            })}
+          </Flex>
+        </View>
       </AccordionItem>
     </Accordion>
   );

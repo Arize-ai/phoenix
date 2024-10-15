@@ -31,6 +31,7 @@ import {
 } from "@phoenix/store";
 
 import { MessageRolePicker } from "./MessageRolePicker";
+import { PlaygroundTools } from "./PlaygroundTools";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -55,6 +56,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
+  const hasTools = playgroundInstance.tools.length > 0;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -124,8 +126,9 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         paddingEnd="size-200"
         paddingTop="size-100"
         paddingBottom="size-100"
-        borderTopColor="dark"
+        borderColor="dark"
         borderTopWidth="thin"
+        borderBottomWidth={hasTools ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
           <Button
@@ -175,6 +178,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           </Button>
         </Flex>
       </View>
+      {hasTools ? <PlaygroundTools {...props} /> : null}
     </DndContext>
   );
 }

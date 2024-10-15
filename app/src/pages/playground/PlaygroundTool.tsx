@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Button, Card, Icon, Icons } from "@arizeai/components";
+import { Button, Card, Flex, Icon, Icons } from "@arizeai/components";
 
+import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { toolJSONSchema, toolSchema } from "@phoenix/schemas";
@@ -61,25 +62,30 @@ export function PlaygroundTool({
   return (
     <Card
       collapsible
+      backgroundColor={"yellow-100"}
+      borderColor={"yellow-700"}
       variant="compact"
       key={tool.id}
       title={tool.definition.function?.name ?? "Tool"}
       bodyStyle={{ padding: 0 }}
       extra={
-        <Button
-          aria-label="Delete tool"
-          icon={<Icon svg={<Icons.TrashOutline />} />}
-          variant="default"
-          size="compact"
-          onClick={() => {
-            updateInstance({
-              instanceId: playgroundInstanceId,
-              patch: {
-                tools: instanceTools.filter((t) => t.id !== tool.id),
-              },
-            });
-          }}
-        />
+        <Flex direction="row" gap="size-100">
+          <CopyToClipboardButton text={toolDefinition} />
+          <Button
+            aria-label="Delete tool"
+            icon={<Icon svg={<Icons.TrashOutline />} />}
+            variant="default"
+            size="compact"
+            onClick={() => {
+              updateInstance({
+                instanceId: playgroundInstanceId,
+                patch: {
+                  tools: instanceTools.filter((t) => t.id !== tool.id),
+                },
+              });
+            }}
+          />
+        </Flex>
       }
     >
       <JSONEditor
