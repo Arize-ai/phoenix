@@ -55,11 +55,15 @@ export const toolSchema = z
             additionalProperties: z
               .boolean()
               .optional()
-              .describe("Whether additional properties are allowed"),
+              .describe(
+                "Whether or not additional properties are allowed in the schema"
+              ),
             strict: z
               .boolean()
               .optional()
-              .describe("Whether the object should be strict"),
+              .describe(
+                "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
+              ),
           })
           .passthrough()
           .describe("The parameters that the function accepts"),
