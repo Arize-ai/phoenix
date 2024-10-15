@@ -251,6 +251,8 @@ export const createPlaygroundStore = (
     },
     setTemplateLanguage: (templateLanguage: TemplateLanguage) => {
       set({ templateLanguage });
+      // Re-compute variables when the template language changes
+      get().calculateVariables();
     },
     calculateVariables: () => {
       const instances = get().instances;
