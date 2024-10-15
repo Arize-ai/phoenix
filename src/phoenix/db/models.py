@@ -271,7 +271,7 @@ class LatencyMs(expression.FunctionElement[float]):
     name = "latency_ms"
 
 
-@compiles(LatencyMs)  # type: ignore
+@compiles(LatencyMs)
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
@@ -287,7 +287,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     )
 
 
-@compiles(LatencyMs, "sqlite")  # type: ignore
+@compiles(LatencyMs, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
@@ -308,21 +308,21 @@ class TextContains(expression.FunctionElement[str]):
     name = "text_contains"
 
 
-@compiles(TextContains)  # type: ignore
+@compiles(TextContains)
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(string.contains(substring), **kw)
 
 
-@compiles(TextContains, "postgresql")  # type: ignore
+@compiles(TextContains, "postgresql")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.strpos(string, substring) > 0, **kw)
 
 
-@compiles(TextContains, "sqlite")  # type: ignore
+@compiles(TextContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
