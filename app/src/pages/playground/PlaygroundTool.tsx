@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from "react";
+import { JSONSchema7 } from "json-schema";
 
 import { Button, Card, Icon, Icons } from "@arizeai/components";
 
-import { JSONToolEditor } from "@phoenix/components/code";
+import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { toolSchema } from "@phoenix/schemas";
+import { toolJSONSchema, toolSchema } from "@phoenix/schemas";
 import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -81,7 +82,11 @@ export function PlaygroundTool({
         />
       }
     >
-      <JSONToolEditor value={toolDefinition} onChange={onChange} />
+      <JSONEditor
+        value={toolDefinition}
+        onChange={onChange}
+        jsonSchema={toolJSONSchema as JSONSchema7}
+      />
     </Card>
   );
 }
