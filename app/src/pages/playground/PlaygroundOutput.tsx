@@ -105,10 +105,16 @@ function useChatCompletionSubscription({
         subscription PlaygroundOutputSubscription(
           $messages: [ChatCompletionMessageInput!]!
           $model: GenerativeModelInput!
+          $invocationParameters: InvocationParameters!
           $apiKey: String
         ) {
           chatCompletion(
-            input: { messages: $messages, model: $model, apiKey: $apiKey }
+            input: {
+              messages: $messages
+              model: $model
+              invocationParameters: $invocationParameters
+              apiKey: $apiKey
+            }
           )
         }
       `,
@@ -186,6 +192,9 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       model: {
         providerKey: instance.model.provider,
         name: instance.model.modelName || "",
+      },
+      invocationParameters: {
+        openaiInvocationParameters: { temperature: 0.1 }, // TODO: add invocation parameters
       },
       apiKey: credentials[instance.model.provider],
     },
