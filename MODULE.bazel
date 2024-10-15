@@ -42,7 +42,7 @@ pip.parse(
     ],
     hub_name = "pip",
     python_version = "3.10",
-    requirements_lock = "//python:requirements.txt",
+    requirements_lock = "//:requirements.txt",
 )
 use_repo(pip, "pip")
 

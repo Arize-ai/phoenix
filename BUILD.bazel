@@ -1,49 +1,84 @@
 load("@pip//:requirements.bzl", _requirement = "requirement")
+load("@python_versions//3.10:defs.bzl", compile_pip_requirements_3_10 = "compile_pip_requirements")
 load("@rules_python//python:defs.bzl", "py_library")
 
 requirement = _requirement
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([
-    "requirements-dev.in",
-])
+exports_files(["requirements.txt"])
 
-py_library(
-    name = "arize-phoenix",
-    # data=[],
-    srcs = [
-        "src/phoenix/**/*.py",
-    ],
-    deps = [
-        requirement("googleapis-common-protos"),
+exports_files(["requirements.in"])
+
+compile_pip_requirements_3_10(
+    name = "requirements",
+    timeout = "moderate",
+    src = ":requirements.in",
+    extra_args = [
+        #"--verbose",
+        "--pip-args",
+        "'--only-binary=:all: --no-deps'",
+        "--allow-unsafe",
+        "--no-annotate",  #don't add comments to requirements.txt about where the package came from. This is useful for reproducibility
+        "--index-url",
+        "https://us-central1-python.pkg.dev/primal-oxide-268801/third-party-python/simple/",
+        "--extra-index-url",
+        "https://pypi.org/simple/",
     ],
 )
 
-# py_binary(
-#     name = "update-" + NAMESPACE,
-#     srcs = ["update.py"] + glob(
-#         [
-#             "models/**/*.py",
-#             "postgres/**/*.py",
-#             "utils/**/*.py",
-#         ],
-#     ),
-#     args = [
-#         "--local_execution=true",
-#         "--config_file_path=manifests/configurations/{}/common-configs/demo-models-updater.json".format(NAMESPACE),
-#     ],
-#     data = [
-#         "//manifests/configurations:configurations-" + NAMESPACE,
-#     ],
-#     main = "update.py",
-#     visibility = ["//visibility:public"],
-#     deps = [
-#         requirement("pandas"),
-#         requirement("arize"),
-#         requirement("packaging"),
-#         requirement("openinference-semantic-conventions"),
-#         requirement("psycopg2-binary"),
-#         requirement("prometheus_client"),
-#     ],
-# )
+py_binary(
+    name = "arize-phoenix",
+    # data=[],
+    srcs = glob([
+        "src/phoenix/**/*.py",
+    ]),
+    main = "src/phoenix/server/main.py",
+    deps = [
+        requirement("scikit-learn"),
+        requirement("numpy"),
+        requirement("pandas"),
+        requirement("jinja2"),
+        requirement("umap-learn"),
+        requirement("fast-hdbscan"),
+        requirement("numba"),
+        requirement("starlette"),
+        requirement("uvicorn"),
+        requirement("psutil"),
+        requirement("strawberry-graphql"),
+        requirement("pyarrow"),
+        requirement("typing-extensions"),
+        requirement("scipy"),
+        requirement("wrapt"),
+        requirement("protobuf"),
+        requirement("grpcio"),
+        requirement("grpc-interceptor"),
+        requirement("tqdm"),
+        requirement("httpx"),
+        requirement("opentelemetry-sdk"),
+        requirement("opentelemetry-proto"),
+        requirement("opentelemetry-exporter-otlp"),
+        requirement("opentelemetry-semantic-conventions"),
+        requirement("openinference-semantic-conventions"),
+        requirement("openinference-instrumentation"),
+        requirement("alembic"),
+        requirement("aiosqlite"),
+        requirement("aioitertools"),
+        requirement("sqlean.py"),
+        requirement("cachetools"),
+        requirement("python-multipart"),
+        requirement("arize-phoenix-evals"),
+        requirement("arize-phoenix-otel"),
+        requirement("fastapi"),
+        requirement("pydantic"),
+        requirement("authlib"),
+        requirement("prometheus-client"),
+        requirement("opentelemetry-instrumentation-fastapi"),
+        requirement("opentelemetry-instrumentation-sqlalchemy"),
+        requirement("opentelemetry-instrumentation-grpc"),
+        requirement("py-grpc-prometheus"),
+        requirement("uvloop"),
+        # requirement("sqlalchemy[asyncio]"),
+        # requirement("strawberry-graphql[opentelemetry]"),
+    ],
+)
