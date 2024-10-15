@@ -26,6 +26,7 @@ import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGro
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
+import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
 export function Playground(props: InitialPlaygroundState) {
   return (
@@ -140,10 +141,15 @@ function PlaygroundContent() {
             <AccordionItem
               title="Prompts"
               id="prompts"
-              extra={<AddPromptButton />}
+              extra={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <TemplateLanguageRadioGroup />
+                  <AddPromptButton />
+                </Flex>
+              }
             >
               <View height="100%" padding="size-200">
-                <Flex direction="row" gap="size-100">
+                <Flex direction="row" gap="size-200">
                   {instances.map((instance, i) => (
                     <div
                       key={i}

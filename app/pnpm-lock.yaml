@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@arizeai/components':
-        specifier: ^1.8.4
-        version: 1.8.4(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^1.8.5
+        version: 1.8.5(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@arizeai/openinference-semantic-conventions':
         specifier: ^0.10.0
         version: 0.10.0
@@ -274,8 +274,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arizeai/components@1.8.4':
-    resolution: {integrity: sha512-pq7J01TPXpLRJJjRZSWpZX4XtlO/41zKEZv1l7un8Nv6Ol4RG7mf5i4h+QMDUmg5m2JXVNAb8GaRLRqESFM5tA==}
+  '@arizeai/components@1.8.5':
+    resolution: {integrity: sha512-l4WwJw2CwhY4X/sQZ60Hm4VmBqVP3UmBIVhXhZByJo62GbPEii7E2AFx+YQyA7XiUwI4hGZ5aThd5oAuLFr9ZQ==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=18'
@@ -3804,7 +3804,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.5
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@arizeai/components@1.8.4(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@arizeai/components@1.8.5(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@emotion/react': 11.11.4(@types/react@18.3.10)(react@18.3.1)
       '@react-aria/breadcrumbs': 3.5.13(react@18.3.1)
