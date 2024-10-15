@@ -45,7 +45,6 @@ export function Playground(props: InitialPlaygroundState) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              <PlaygroundInputTypeTypeRadioGroup />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>
@@ -137,7 +136,7 @@ function PlaygroundContent() {
     >
       <Panel>
         <div css={playgroundPromptPanelContentCSS}>
-          <Accordion>
+          <Accordion arrowPosition="start" size="L">
             <AccordionItem
               title="Prompts"
               id="prompts"
@@ -172,17 +171,19 @@ function PlaygroundContent() {
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
-          <Accordion>
-            <AccordionItem title="Inputs" id="input">
-              <View padding="size-200">
-                <pre>
-                  {JSON.stringify(
-                    "variables" in inputs ? inputs.variables : "inputs go here",
-                    null,
-                    2
-                  )}
-                </pre>
-              </View>
+          <Accordion arrowPosition="start" size="L">
+            <AccordionItem
+              title="Inputs"
+              id="input"
+              extra={<PlaygroundInputTypeTypeRadioGroup />}
+            >
+              <pre>
+                {JSON.stringify(
+                  "variables" in inputs ? inputs.variables : "inputs go here",
+                  null,
+                  2
+                )}
+              </pre>
             </AccordionItem>
             <AccordionItem title="Output" id="output">
               <View padding="size-200" height="100%">
