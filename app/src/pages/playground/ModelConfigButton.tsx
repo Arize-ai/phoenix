@@ -129,6 +129,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         />
         {instance.model.provider === "AZURE_OPENAI" ? (
           <TextField
+            label="Deployment Name"
             value={instance.model.modelName ?? ""}
             onChange={onModelNameChange}
           />
