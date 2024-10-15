@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2541e9e2bfed22e1e5bd7970dd955d56>>
+ * @generated SignedSource<<42f9cba495f45db0809216459a5d71f4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type InvocationParameters = {
   seed?: number | null;
   stop?: ReadonlyArray<string> | null;
   temperature?: number | null;
+  toolChoice?: any | null;
   topP?: number | null;
 };
 export type PlaygroundOutputSubscription$variables = {
@@ -34,7 +35,19 @@ export type PlaygroundOutputSubscription$variables = {
   model: GenerativeModelInput;
 };
 export type PlaygroundOutputSubscription$data = {
-  readonly chatCompletion: string;
+  readonly chatCompletion: {
+    readonly __typename: "TextChunk";
+    readonly content: string;
+  } | {
+    readonly __typename: "ToolCallChunk";
+    readonly arguments: string;
+    readonly id: string;
+    readonly name: string;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
+  };
 };
 export type PlaygroundOutputSubscription = {
   response: PlaygroundOutputSubscription$data;
@@ -93,8 +106,61 @@ v4 = [
         "name": "input"
       }
     ],
-    "kind": "ScalarField",
+    "concreteType": null,
+    "kind": "LinkedField",
     "name": "chatCompletion",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "__typename",
+        "storageKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "content",
+            "storageKey": null
+          }
+        ],
+        "type": "TextChunk",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "arguments",
+            "storageKey": null
+          }
+        ],
+        "type": "ToolCallChunk",
+        "abstractKey": null
+      }
+    ],
     "storageKey": null
   }
 ];
@@ -126,16 +192,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "6d0368256a4708eceb692fac9b469a70",
+    "cacheID": "a3c143cfc8ac3fc3d12ffac1c7b1386a",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, apiKey: $apiKey})\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      name\n      arguments\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ffc0f049247896bfff22a90effc24a9";
+(node as any).hash = "df7c6d45779c60619906cde994c73782";
 
 export default node;

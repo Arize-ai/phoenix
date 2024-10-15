@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import strawberry
 from strawberry import UNSET
+from strawberry.scalars import JSON
 
 
 @strawberry.input
@@ -16,3 +17,4 @@ class InvocationParameters:
     top_p: Optional[float] = UNSET
     stop: Optional[List[str]] = UNSET
     seed: Optional[int] = UNSET
+    tool_choice: Optional[JSON] = UNSET
