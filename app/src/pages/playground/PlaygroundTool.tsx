@@ -4,6 +4,7 @@ import { Button, Card, Icon, Icons } from "@arizeai/components";
 
 import { JSONToolEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { toolSchema } from "@phoenix/schemas";
 import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -27,6 +28,14 @@ export function PlaygroundTool({
       if (definition == null) {
         return;
       }
+      // Don't use data here returned by safeParse, as we want to allow for extra keys,
+      // there is no "deepPassthrough" to allow for extra keys
+      // at all levels of the schema, so we just use the json parsed value here,
+      // knowing that it is valid with potentially extra keys
+      const { success } = toolSchema.safeParse(definition);
+      if (!success) {
+        return;
+      }
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -34,6 +43,10 @@ export function PlaygroundTool({
             t.id === tool.id
               ? {
                   ...t,
+                  // Don't use data here returned by safeParse, as we want to allow for extra keys,
+                  // there is no "deepPassthrough" to allow for extra keys
+                  // at all levels of the schema, so we just use the json parsed value here,
+                  // knowing that it is valid with potentially extra keys
                   definition,
                 }
               : t
