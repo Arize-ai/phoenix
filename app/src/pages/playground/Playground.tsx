@@ -26,7 +26,6 @@ import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGro
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { PlaygroundTools } from "./PlaygroundTools";
 import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
 export function Playground(props: InitialPlaygroundState) {

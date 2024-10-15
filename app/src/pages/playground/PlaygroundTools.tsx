@@ -32,9 +32,6 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   if (tools == null) {
     throw new Error(`Playground instance ${instanceId} does not have tools`);
   }
-  const index = usePlaygroundContext((state) =>
-    state.instances.findIndex((instance) => instance.id === instanceId)
-  );
 
   const toolNames = useMemo(
     () =>
