@@ -49,7 +49,7 @@ type DatasetInput = {
 };
 
 type ManualInput = {
-  variablesValueCache: Record<string, string>;
+  variablesValueCache: Record<string, string | undefined>;
   variableKeys: string[];
 };
 
@@ -194,3 +194,19 @@ export interface PlaygroundState extends PlaygroundProps {
 
   setVariableValue: (key: string, value: string) => void;
 }
+
+/**
+ * Check if the input is manual
+ */
+export const isManualInput = (input: PlaygroundInput): input is ManualInput => {
+  return "variablesValueCache" in input && "variableKeys" in input;
+};
+
+/**
+ * Check if the input is a dataset
+ */
+export const isDatasetInput = (
+  input: PlaygroundInput
+): input is DatasetInput => {
+  return "datasetId" in input;
+};

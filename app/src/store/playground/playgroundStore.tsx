@@ -9,6 +9,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   GenAIOperationType,
   InitialPlaygroundState,
+  isManualInput,
   PlaygroundChatTemplate,
   PlaygroundInputMode,
   PlaygroundInstance,
@@ -334,7 +335,7 @@ export const createPlaygroundStore = (
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
-      if ("variablesValueCache" in input) {
+      if (isManualInput(input)) {
         set({
           input: {
             ...input,
@@ -356,7 +357,7 @@ export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
  * @returns the variable keys
  */
 export const selectInputVariableKeys = (state: PlaygroundState) => {
-  if ("variableKeys" in state.input) {
+  if (isManualInput(state.input)) {
     return state.input.variableKeys;
   }
   return [];
@@ -368,7 +369,7 @@ export const selectInputVariableKeys = (state: PlaygroundState) => {
  * @returns the derived input variables
  */
 export const selectDerivedInputVariables = (state: PlaygroundState) => {
-  if ("variableKeys" in state.input) {
+  if (isManualInput(state.input)) {
     const input = state.input;
     const variableKeys = input.variableKeys;
     const variablesValueCache = input.variablesValueCache;
