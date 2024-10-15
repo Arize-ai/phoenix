@@ -97,7 +97,7 @@ class Subscription:
 
         api_key = input.api_key or None
         client = AsyncOpenAI(api_key=api_key)
-        invocation_parameters = _dict(invocation_parameters=input.invocation_parameters)
+        invocation_parameters = _find_invocation_params(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -236,9 +236,10 @@ def _llm_output_messages(content: str, role: str) -> Iterator[Tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
 
 
-def _dict(*, invocation_parameters: InvocationParameters) -> Dict[str, Any]:
+def _find_invocation_params(invocation_parameters: InvocationParameters) -> Dict[str, Any]:
     for field in fields(invocation_parameters):
-        if (provider_params := getattr(invocation_parameters, field.name)) is not UNSET:
+        provider_key = field.name
+        if (provider_params := getattr(invocation_parameters, provider_key)) is not UNSET:
             assert isinstance(cleaned_params := jsonify(provider_params), dict)
             return cleaned_params
     return {}
