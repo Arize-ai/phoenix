@@ -29,7 +29,6 @@ compile_pip_requirements_3_10(
 
 py_binary(
     name = "arize-phoenix",
-    # data=[],
     srcs = glob([
         "src/phoenix/**/*.py",
     ]),
