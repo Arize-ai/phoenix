@@ -9,6 +9,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   GenAIOperationType,
   InitialPlaygroundState,
+  isManualInput,
   PlaygroundChatTemplate,
   PlaygroundInputMode,
   PlaygroundInstance,
@@ -93,7 +94,8 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     model: { provider: "OPENAI", modelName: "gpt-4o" },
     tools: [],
     toolChoice: "auto",
-    input: { variables: {} },
+    // TODO(apowell) - use datasetId if in dataset mode
+    input: { variablesValueCache: {}, variableKeys: [] },
     output: undefined,
     activeRunId: null,
     isRunning: false,
@@ -128,15 +130,13 @@ export const createPlaygroundStore = (
     operationType: "chat",
     inputMode: "manual",
     input: {
-      // TODO(apowell): When implementing variable forms, we should maintain a separate
-      // map of variableName to variableValue. This will allow us to "cache" variable values
-      // as the user types and will prevent data loss if users accidentally change the variable name
-      variables: {
-        // TODO(apowell): This is hardcoded based on the default chat template
-        // Instead we should calculate this based on the template on store creation
-        // Not a huge deal since this will be overridden on the first keystroke
+      // to get a record of visible variables and their values,
+      // use usePlaygroundContext(selectDerivedInputVariables). do not render variablesValueCache
+      // directly or users will see stale values.
+      variablesValueCache: {
         question: "",
       },
+      variableKeys: ["question"],
     },
     templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
@@ -295,7 +295,7 @@ export const createPlaygroundStore = (
     },
     calculateVariables: () => {
       const instances = get().instances;
-      const variables: Record<string, string> = {};
+      const variables = new Set<string>();
       const utils = getTemplateLanguageUtils(get().templateLanguage);
       instances.forEach((instance) => {
         const instanceType = instance.template.__type;
@@ -310,7 +310,7 @@ export const createPlaygroundStore = (
                 message.content
               );
               extractedVariables.forEach((variable) => {
-                variables[variable] = "";
+                variables.add(variable);
               });
             });
             break;
@@ -320,7 +320,7 @@ export const createPlaygroundStore = (
               instance.template.prompt
             );
             extractedVariables.forEach((variable) => {
-              variables[variable] = "";
+              variables.add(variable);
             });
             break;
           }
@@ -329,7 +329,20 @@ export const createPlaygroundStore = (
           }
         }
       });
-      set({ input: { variables: { ...variables } } });
+      set({
+        input: { ...get().input, variableKeys: [...Array.from(variables)] },
+      });
+    },
+    setVariableValue: (key: string, value: string) => {
+      const input = get().input;
+      if (isManualInput(input)) {
+        set({
+          input: {
+            ...input,
+            variablesValueCache: { ...input.variablesValueCache, [key]: value },
+          },
+        });
+      }
     },
     ...initialProps,
   });
@@ -337,3 +350,34 @@ export const createPlaygroundStore = (
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
+
+/**
+ * Selects the variable keys from the playground state
+ * @param state the playground state
+ * @returns the variable keys
+ */
+export const selectInputVariableKeys = (state: PlaygroundState) => {
+  if (isManualInput(state.input)) {
+    return state.input.variableKeys;
+  }
+  return [];
+};
+
+/**
+ * Selects the derived input variables from the playground state
+ * @param state the playground state
+ * @returns the derived input variables
+ */
+export const selectDerivedInputVariables = (state: PlaygroundState) => {
+  if (isManualInput(state.input)) {
+    const input = state.input;
+    const variableKeys = input.variableKeys;
+    const variablesValueCache = input.variablesValueCache;
+    const valueMap: Record<string, string> = {};
+    variableKeys.forEach((key) => {
+      valueMap[key] = variablesValueCache?.[key] || "";
+    });
+    return valueMap;
+  }
+  return {};
+};

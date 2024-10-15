@@ -49,7 +49,8 @@ type DatasetInput = {
 };
 
 type ManualInput = {
-  variables: Record<string, string>;
+  variablesValueCache: Record<string, string | undefined>;
+  variableKeys: string[];
 };
 
 type PlaygroundInput = DatasetInput | ManualInput;
@@ -190,4 +191,22 @@ export interface PlaygroundState extends PlaygroundProps {
    * Calculate the variables used across all instances
    */
   calculateVariables: () => void;
+
+  setVariableValue: (key: string, value: string) => void;
 }
+
+/**
+ * Check if the input is manual
+ */
+export const isManualInput = (input: PlaygroundInput): input is ManualInput => {
+  return "variablesValueCache" in input && "variableKeys" in input;
+};
+
+/**
+ * Check if the input is a dataset
+ */
+export const isDatasetInput = (
+  input: PlaygroundInput
+): input is DatasetInput => {
+  return "datasetId" in input;
+};
