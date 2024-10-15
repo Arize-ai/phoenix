@@ -35,7 +35,7 @@ export function JSONToolEditor(props: JSONToolEditorProps) {
           autocomplete: jsonCompletion(),
         }),
         hoverTooltip(jsonSchemaHover()),
-        stateExtensions(toolJSONSchema as JSONSchema7),
+        stateExtensions(toolJSONSchema),
       ]}
       editable
       theme={codeMirrorTheme}

@@ -64,7 +64,7 @@ type ModelConfig = {
  */
 export type Tool = {
   id: number;
-  definition: ToolDefinition;
+  definition: Partial<ToolDefinition>;
 };
 
 /**
