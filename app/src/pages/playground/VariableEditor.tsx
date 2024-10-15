@@ -5,10 +5,10 @@ import ReactCodeMirror, {
   BasicSetupOptions,
   EditorView,
 } from "@uiw/react-codemirror";
-import { css } from "@emotion/react";
 
 import { Field } from "@arizeai/components";
 
+import { CodeWrap } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 
 type VariableEditorProps = {
@@ -37,11 +37,7 @@ export const VariableEditor = ({
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   return (
     <Field label={label}>
-      <div
-        css={css`
-          width: 100%;
-        `}
-      >
+      <CodeWrap width="100%">
         <ReactCodeMirror
           theme={codeMirrorTheme}
           basicSetup={basicSetupOptions}
@@ -49,7 +45,7 @@ export const VariableEditor = ({
           extensions={extensions}
           onChange={onChange}
         />
-      </div>
+      </CodeWrap>
     </Field>
   );
 };
