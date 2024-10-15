@@ -4,6 +4,10 @@ description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex
 
 # LlamaIndex
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb" %}
+Troubleshooting an LLM application using the OpenInferenceTraceCallback
+{% endembed %}
+
 [LlamaIndex](https://github.com/run-llama/llama\_index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
 
 For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrumentor aptly named the `LlamaIndexInstrumentor` . This callback is what is used to create spans and send them to the Phoenix collector.
@@ -99,8 +103,4 @@ llama_index.set_global_handler("arize_phoenix")
 By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix Server.
 
 For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb" %}
-Troubleshooting an LLM application using the OpenInferenceTraceCallback
-{% endembed %}
 
