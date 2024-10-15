@@ -60,7 +60,6 @@ export function ToolChoicePicker({
       selectedKey={currentKey}
       label="Tool Choice"
       aria-label="Tool Choice for an LLM"
-      size="compact"
       onSelectionChange={(choice) => {
         if (typeof choice !== "string") {
           return;

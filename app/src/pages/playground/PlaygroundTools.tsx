@@ -1,6 +1,12 @@
 import React, { useMemo } from "react";
 
-import { Card, Flex } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Card,
+  Flex,
+  Form,
+} from "@arizeai/components";
 
 import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -39,35 +45,37 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   );
 
   return (
-    <Card
-      title={<TitleWithAlphabeticIndex index={index} title="Tools" />}
-      collapsible
-      variant="compact"
-    >
-      <Flex direction="column" gap="size-100">
-        <ToolChoicePicker
-          choice={instance.toolChoice}
-          onChange={(choice) => {
-            updateInstance({
-              instanceId,
-              patch: {
-                toolChoice: choice,
-              },
-            });
-          }}
-          toolNames={toolNames}
-        />
-        {tools.map((tool) => {
-          return (
-            <PlaygroundTool
-              key={tool.id}
-              playgroundInstanceId={instanceId}
-              tool={tool}
-              instanceTools={instance.tools}
+    <Accordion>
+      <AccordionItem
+        title={<TitleWithAlphabeticIndex index={index} title="Tools" />}
+      >
+        <Flex direction="column" gap="size-100">
+          <Form>
+            <ToolChoicePicker
+              choice={instance.toolChoice}
+              onChange={(choice) => {
+                updateInstance({
+                  instanceId,
+                  patch: {
+                    toolChoice: choice,
+                  },
+                });
+              }}
+              toolNames={toolNames}
             />
-          );
-        })}
-      </Flex>
-    </Card>
+          </Form>
+          {tools.map((tool) => {
+            return (
+              <PlaygroundTool
+                key={tool.id}
+                playgroundInstanceId={instanceId}
+                tool={tool}
+                instanceTools={instance.tools}
+              />
+            );
+          })}
+        </Flex>
+      </AccordionItem>
+    </Accordion>
   );
 }

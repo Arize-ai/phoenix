@@ -127,7 +127,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderTopColor="dark"
         borderTopWidth="thin"
       >
-        <Flex direction="row" justifyContent="end" gap="size-50">
+        <Flex direction="row" justifyContent="end" gap="size-100">
           <Button
             variant="default"
             aria-label="add tool"
