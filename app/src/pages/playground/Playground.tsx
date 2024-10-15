@@ -87,13 +87,13 @@ const playgroundPromptPanelContentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  .ac-accordion {
+  & > .ac-accordion {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
     flex: 1 1 auto;
-    .ac-accordion-item {
+    & > .ac-accordion-item {
       height: 100%;
       overflow: hidden;
       flex: 1 1 auto;
@@ -101,13 +101,11 @@ const playgroundPromptPanelContentCSS = css`
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;
-        & > * {
+        & > .ac-view {
           height: 100%;
           flex: 1 1 auto;
           overflow: auto;
           box-sizing: border-box;
-          // Fix padding issue with flexbox
-          padding-bottom: 57px !important;
         }
       }
     }
@@ -147,20 +145,15 @@ function PlaygroundContent() {
                 </Flex>
               }
             >
-              <View height="100%" padding="size-200">
+              <View height="100%" padding="size-200" paddingBottom="size-900">
                 <Flex direction="row" gap="size-200">
-                  {instances.map((instance, i) => (
-                    <div
-                      key={i}
-                      css={css`
-                        flex: 1 1 0px;
-                      `}
-                    >
+                  {instances.map((instance) => (
+                    <View key={instance.id} flex="1 1 0px">
                       <PlaygroundTemplate
-                        key={i}
+                        key={instance.id}
                         playgroundInstanceId={instance.id}
                       />
-                    </div>
+                    </View>
                   ))}
                 </Flex>
               </View>

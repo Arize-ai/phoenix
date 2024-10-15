@@ -42,7 +42,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
   if (!instance) {
-    throw new Error("Playground instance not found");
+    throw new Error(`Playground instance ${instanceId} not found`);
   }
 
   const runId = instance.activeRunId;
