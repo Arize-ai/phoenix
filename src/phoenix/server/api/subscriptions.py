@@ -1,12 +1,12 @@
 import json
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime
-from enum import Enum
 from itertools import chain
 from json import JSONEncoder
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
 
 import strawberry
+from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -19,6 +19,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from pydantic import BaseModel
 from sqlalchemy import insert, select
+from strawberry import UNSET
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -45,10 +46,86 @@ class GenerativeModelInput:
 
 
 @strawberry.input
+class OpenAIBaseInvocationParameters:
+    """
+    Invocation parameters shared in common between OpenAI and Azure OpenAI.
+
+    For the meaning of specific parameters, see:
+
+    - https://platform.openai.com/docs/api-reference/chat/create
+    - https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions
+    """
+
+    temperature: Optional[float] = UNSET
+    top_p: Optional[float] = UNSET
+    stop: Optional[List[str]] = UNSET
+    presence_penalty: Optional[float] = UNSET
+    frequency_penalty: Optional[float] = UNSET
+    logit_bias: Optional[strawberry.scalars.JSON] = UNSET
+    seed: Optional[int] = UNSET
+    logprobs: Optional[bool] = UNSET
+    top_logprobs: Optional[int] = UNSET
+    response_format: Optional[strawberry.scalars.JSON] = UNSET
+
+
+@strawberry.input
+class OpenAIInvocationParameters(OpenAIBaseInvocationParameters):
+    """
+    OpenAI invocation parameters.
+
+    For the meaning of specific parameters, see:
+
+    https://platform.openai.com/docs/api-reference/chat/create
+    """
+
+    store: Optional[bool] = UNSET
+    metadata: Optional[strawberry.scalars.JSON] = UNSET
+    max_completion_tokens: Optional[int] = UNSET
+
+
+@strawberry.input
+class AzureOpenAIInvocationParameters(OpenAIBaseInvocationParameters):
+    """
+    Azure OpenAI invocation parameters.
+
+    For the meaning of specific parameters, see:
+
+    https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions
+    """
+
+    max_tokens: Optional[int] = UNSET
+
+
+@strawberry.input
+class AnthropicInvocationParameters:
+    """
+    Anthropic invocation parameters.
+
+    For the meaning of specific parameters, see:
+
+    https://docs.anthropic.com/en/api/messages
+    """
+
+    max_tokens: int = 1024
+    stop_sequences: Optional[List[str]] = UNSET
+    temperature: Optional[float] = UNSET
+    top_k: Optional[int] = UNSET
+    top_p: Optional[int] = UNSET
+
+
+@strawberry.input(one_of=True)
+class InvocationParameters:
+    openai_invocation_parameters: Optional[OpenAIInvocationParameters] = UNSET
+    azure_openai_invocation_parameters: Optional[AzureOpenAIInvocationParameters] = UNSET
+    anthropic_invocation_parameters: Optional[AnthropicInvocationParameters] = UNSET
+
+
+@strawberry.input
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
-    api_key: Optional[str] = None
+    invocation_parameters: InvocationParameters
+    api_key: Optional[str] = UNSET
 
 
 def to_openai_chat_completion_param(
@@ -94,7 +171,9 @@ class Subscription:
     ) -> AsyncIterator[str]:
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=input.api_key)
+        api_key = input.api_key or None
+        client = AsyncOpenAI(api_key=api_key)
+        invocation_parameters = _dict(invocation_parameters=input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -109,6 +188,7 @@ class Subscription:
                 chain(
                     _llm_span_kind(),
                     _llm_model_name(input.model.name),
+                    _llm_invocation_parameters(invocation_parameters),
                     _input_value_and_mime_type(input),
                     _llm_input_messages(input.messages),
                 )
@@ -121,6 +201,7 @@ class Subscription:
                 messages=(to_openai_chat_completion_param(message) for message in input.messages),
                 model=input.model.name,
                 stream=True,
+                **invocation_parameters,
             ):
                 chunks.append(chunk)
                 choice = chunk.choices[0]
@@ -206,9 +287,13 @@ def _llm_model_name(model_name: str) -> Iterator[Tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
+def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
+
+
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, json.dumps(asdict(input), cls=GraphQLInputJSONEncoder)
+    yield INPUT_VALUE, safe_json_dumps(input)
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
@@ -227,6 +312,13 @@ def _llm_output_messages(content: str, role: str) -> Iterator[Tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
 
 
+def _dict(*, invocation_parameters: InvocationParameters) -> Dict[str, Any]:
+    for field in fields(invocation_parameters):
+        if (inv_params := getattr(invocation_parameters, field.name)) is not UNSET:
+            return {key: value for key, value in asdict(inv_params).items() if value is not UNSET}
+    return {}
+
+
 def _hex(number: int) -> str:
     """
     Converts an integer to a hexadecimal string.
@@ -240,13 +332,6 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     """
     epoch_seconds = epoch_nanoseconds / 1e9
     return datetime.fromtimestamp(epoch_seconds)
-
-
-class GraphQLInputJSONEncoder(JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, Enum):
-            return obj.value
-        return super().default(obj)
 
 
 class ChatCompletionOutputJSONEncoder(JSONEncoder):
@@ -268,6 +353,7 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
