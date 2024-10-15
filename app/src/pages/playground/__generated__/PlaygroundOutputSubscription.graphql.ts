@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4330fc339f25516862bd8672773a636d>>
+ * @generated SignedSource<<2541e9e2bfed22e1e5bd7970dd955d56>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,43 +20,11 @@ export type GenerativeModelInput = {
   providerKey: GenerativeProviderKey;
 };
 export type InvocationParameters = {
-  ANTHROPIC?: AnthropicInvocationParameters | null;
-  AZURE_OPENAI?: AzureOpenAIInvocationParameters | null;
-  OPENAI?: OpenAIInvocationParameters | null;
-};
-export type OpenAIInvocationParameters = {
-  frequencyPenalty?: number | null;
-  logitBias?: any | null;
-  logprobs?: boolean | null;
   maxCompletionTokens?: number | null;
-  metadata?: any | null;
-  presencePenalty?: number | null;
-  responseFormat?: any | null;
-  seed?: number | null;
-  stop?: ReadonlyArray<string> | null;
-  store?: boolean | null;
-  temperature?: number | null;
-  topLogprobs?: number | null;
-  topP?: number | null;
-};
-export type AzureOpenAIInvocationParameters = {
-  frequencyPenalty?: number | null;
-  logitBias?: any | null;
-  logprobs?: boolean | null;
   maxTokens?: number | null;
-  presencePenalty?: number | null;
-  responseFormat?: any | null;
   seed?: number | null;
   stop?: ReadonlyArray<string> | null;
   temperature?: number | null;
-  topLogprobs?: number | null;
-  topP?: number | null;
-};
-export type AnthropicInvocationParameters = {
-  maxTokens?: number;
-  stopSequences?: ReadonlyArray<string> | null;
-  temperature?: number | null;
-  topK?: number | null;
   topP?: number | null;
 };
 export type PlaygroundOutputSubscription$variables = {

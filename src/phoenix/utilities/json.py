@@ -22,7 +22,7 @@ def jsonify(obj: Any) -> Any:
     if isinstance(obj, (dict, Mapping)):
         return {jsonify(k): jsonify(v) for k, v in obj.items()}
     is_strawberry_type = isinstance(
-        getattr(obj, "_type_definition", None), StrawberryObjectDefinition
+        getattr(obj, "__strawberry_definition__", None), StrawberryObjectDefinition
     )
     if is_strawberry_type:
         return {

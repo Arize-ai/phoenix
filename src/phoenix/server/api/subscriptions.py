@@ -1,4 +1,3 @@
-from dataclasses import fields
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
@@ -97,7 +96,7 @@ class Subscription:
 
         api_key = input.api_key or None
         client = AsyncOpenAI(api_key=api_key)
-        invocation_parameters = _find_invocation_params(input.invocation_parameters)
+        invocation_parameters = jsonify(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -212,7 +211,7 @@ def _llm_model_name(model_name: str) -> Iterator[Tuple[str, Any]]:
 
 
 def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
-    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(jsonify(invocation_parameters))
+    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
@@ -234,15 +233,6 @@ def _llm_input_messages(messages: List[ChatCompletionMessageInput]) -> Iterator[
 def _llm_output_messages(content: str, role: str) -> Iterator[Tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", role
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
-
-
-def _find_invocation_params(invocation_parameters: InvocationParameters) -> Dict[str, Any]:
-    for field in fields(invocation_parameters):
-        provider_key = field.name
-        if (provider_params := getattr(invocation_parameters, provider_key)) is not UNSET:
-            assert isinstance(cleaned_params := jsonify(provider_params), dict)
-            return cleaned_params
-    return {}
 
 
 def _hex(number: int) -> str:

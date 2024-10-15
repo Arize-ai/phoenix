@@ -1,5 +1,3 @@
-directive @oneOf on INPUT_OBJECT
-
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -46,14 +44,6 @@ enum AnnotatorKind {
   HUMAN
 }
 
-input AnthropicInvocationParameters {
-  maxTokens: Int! = 1024
-  stopSequences: [String!]
-  temperature: Float
-  topK: Int
-  topP: Int
-}
-
 interface ApiKey {
   """Name of the API key."""
   name: String!
@@ -71,20 +61,6 @@ interface ApiKey {
 enum AuthMethod {
   LOCAL
   OAUTH2
-}
-
-input AzureOpenAIInvocationParameters {
-  temperature: Float
-  topP: Float
-  stop: [String!]
-  presencePenalty: Float
-  frequencyPenalty: Float
-  logitBias: JSON
-  seed: Int
-  logprobs: Boolean
-  topLogprobs: Int
-  responseFormat: JSON
-  maxTokens: Int
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
@@ -920,10 +896,13 @@ type IntervalBin {
   range: NumericRange!
 }
 
-input InvocationParameters @oneOf {
-  OPENAI: OpenAIInvocationParameters
-  AZURE_OPENAI: AzureOpenAIInvocationParameters
-  ANTHROPIC: AnthropicInvocationParameters
+input InvocationParameters {
+  temperature: Float
+  maxCompletionTokens: Int
+  maxTokens: Int
+  topP: Float
+  stop: [String!]
+  seed: Int
 }
 
 """
@@ -1029,22 +1008,6 @@ type NominalBin {
 type NumericRange {
   start: Float!
   end: Float!
-}
-
-input OpenAIInvocationParameters {
-  temperature: Float
-  topP: Float
-  stop: [String!]
-  presencePenalty: Float
-  frequencyPenalty: Float
-  logitBias: JSON
-  seed: Int
-  logprobs: Boolean
-  topLogprobs: Int
-  responseFormat: JSON
-  store: Boolean
-  metadata: JSON
-  maxCompletionTokens: Int
 }
 
 """Information to aid in pagination."""
