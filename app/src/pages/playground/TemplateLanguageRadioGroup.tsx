@@ -23,11 +23,11 @@ export function TemplateLanguageRadioGroup() {
         }
       }}
     >
-      <Radio label="F-String" value={TemplateLanguages.FString}>
-        F-String
-      </Radio>
       <Radio label="Mustache" value={TemplateLanguages.Mustache}>
         Mustache
+      </Radio>
+      <Radio label="F-String" value={TemplateLanguages.FString}>
+        F-String
       </Radio>
     </RadioGroup>
   );
