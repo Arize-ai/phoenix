@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Item, Picker, PickerProps } from "@arizeai/components";
@@ -18,22 +18,15 @@ type ModelPickerProps = {
 export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
   const data = useFragment<ModelPickerFragment$key>(
     graphql`
-      fragment ModelPickerFragment on Query {
-        modelProviders(vendors: ["OpenAI", "Anthropic"]) {
-          name
-          modelNames
-        }
+      fragment ModelPickerFragment on Query
+      @argumentDefinitions(
+        providerKey: { type: "GenerativeProviderKey!", defaultValue: OPENAI }
+      ) {
+        modelNames(input: { providerKey: $providerKey })
       }
     `,
     query
   );
-  const modelNames = useMemo(() => {
-    // TODO: Lowercase is not enough for things like Azure OpenAI
-    const provider = data.modelProviders.find(
-      (provider) => provider.name.toLowerCase() === props.provider.toLowerCase()
-    );
-    return provider?.modelNames ?? [];
-  }, [data, props.provider]);
   return (
     <Picker
       label={"Model"}
@@ -49,7 +42,7 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
       width={"100%"}
       {...props}
     >
-      {modelNames.map((modelName) => {
+      {data.modelNames.map((modelName) => {
         return <Item key={modelName}>{modelName}</Item>;
       })}
     </Picker>

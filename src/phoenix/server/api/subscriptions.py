@@ -26,6 +26,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 
@@ -38,8 +39,15 @@ PLAYGROUND_PROJECT_NAME = "playground"
 
 
 @strawberry.input
+class GenerativeModelInput:
+    provider_key: GenerativeProviderKey
+    name: str
+
+
+@strawberry.input
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
+    model: GenerativeModelInput
 
 
 def to_openai_chat_completion_param(
@@ -109,7 +117,7 @@ class Subscription:
             role: Optional[str] = None
             async for chunk in await client.chat.completions.create(
                 messages=(to_openai_chat_completion_param(message) for message in input.messages),
-                model="gpt-4",
+                model=input.model.name,
                 stream=True,
             ):
                 chunks.append(chunk)

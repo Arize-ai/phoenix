@@ -67,6 +67,7 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
 }
 
 input ChatCompletionMessageInput {
@@ -822,6 +823,22 @@ type Functionality {
   tracing: Boolean!
 }
 
+input GenerativeModelInput {
+  providerKey: GenerativeProviderKey!
+  name: String!
+}
+
+type GenerativeProvider {
+  name: String!
+  key: GenerativeProviderKey!
+}
+
+enum GenerativeProviderKey {
+  OPENAI
+  ANTHROPIC
+  AZURE_OPENAI
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -926,9 +943,8 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
-type ModelProvider {
-  name: String!
-  modelNames: [String!]!
+input ModelNamesInput {
+  providerKey: GenerativeProviderKey!
 }
 
 type Mutation {
@@ -1123,7 +1139,8 @@ type PromptResponse {
 }
 
 type Query {
-  modelProviders(vendors: [String!]!): [ModelProvider!]!
+  modelProviders: [GenerativeProvider!]!
+  modelNames(input: ModelNamesInput!): [String!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!

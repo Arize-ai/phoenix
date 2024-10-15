@@ -11,7 +11,7 @@ from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias
+from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.db import enums, models
 from phoenix.db.models import (
@@ -58,9 +58,12 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.GenerativeProvider import (
+    GenerativeProvider,
+    GenerativeProviderKey,
+)
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
-from phoenix.server.api.types.ModelProvider import ModelProvider
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -77,50 +80,88 @@ from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
 
+@strawberry.input
+class ModelNamesInput:
+    provider_key: GenerativeProviderKey
+
+
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(
-        self, vendors: List[str], info: Info[Context, None]
-    ) -> List[ModelProvider]:
-        all_vendors = {
-            "OpenAI": ModelProvider(  # https://platform.openai.com/docs/models
-                name="OpenAI",  # currently only models using the chat completions API
-                model_names=[
-                    "o1-preview",
-                    "o1-preview-2024-09-12",
-                    "o1-mini",
-                    "o1-mini-2024-09-12",
-                    "gpt-4o",
-                    "gpt-4o-2024-08-06",
-                    "gpt-4o-2024-05-13",
-                    "chatgpt-4o-latest",
-                    "gpt-4o-mini",
-                    "gpt-4o-mini-2024-07-18",
-                    "gpt-4-turbo",
-                    "gpt-4-turbo-2024-04-09",
-                    "gpt-4-turbo-preview",
-                    "gpt-4-0125-preview",
-                    "gpt-4-1106-preview",
-                    "gpt-4",
-                    "gpt-4-0613",
-                    "gpt-3.5-turbo-0125",
-                    "gpt-3.5-turbo",
-                    "gpt-3.5-turbo-1106",
-                    "gpt-3.5-turbo-instruct",
-                ],
+    async def model_providers(self) -> List[GenerativeProvider]:
+        return [
+            GenerativeProvider(
+                name="OpenAI",
+                key=GenerativeProviderKey.OPENAI,
             ),
-            "Anthropic": ModelProvider(  # https://docs.anthropic.com/en/docs/about-claude/models#model-comparison
-                name="Anthropic",  # currently only models using the messages API
-                model_names=[
-                    "claude-3-5-sonnet-20240620",
-                    "claude-3-opus-20240229",
-                    "claude-3-sonnet-20240229",
-                    "claude-3-haiku-20240307",
-                ],
+            GenerativeProvider(
+                name="Azure OpenAI",
+                key=GenerativeProviderKey.AZURE_OPENAI,
             ),
-        }
-        return [all_vendors[vendor] for vendor in vendors]
+            GenerativeProvider(
+                name="Anthropic",
+                key=GenerativeProviderKey.ANTHROPIC,
+            ),
+        ]
+
+    @strawberry.field
+    async def model_names(self, input: ModelNamesInput) -> List[str]:
+        if (provider_key := input.provider_key) == GenerativeProviderKey.OPENAI:
+            return [
+                "o1-preview",
+                "o1-preview-2024-09-12",
+                "o1-mini",
+                "o1-mini-2024-09-12",
+                "gpt-4o",
+                "gpt-4o-2024-08-06",
+                "gpt-4o-2024-05-13",
+                "chatgpt-4o-latest",
+                "gpt-4o-mini",
+                "gpt-4o-mini-2024-07-18",
+                "gpt-4-turbo",
+                "gpt-4-turbo-2024-04-09",
+                "gpt-4-turbo-preview",
+                "gpt-4-0125-preview",
+                "gpt-4-1106-preview",
+                "gpt-4",
+                "gpt-4-0613",
+                "gpt-3.5-turbo-0125",
+                "gpt-3.5-turbo",
+                "gpt-3.5-turbo-1106",
+                "gpt-3.5-turbo-instruct",
+            ]
+        if provider_key == GenerativeProviderKey.AZURE_OPENAI:
+            return [
+                "o1-preview",
+                "o1-preview-2024-09-12",
+                "o1-mini",
+                "o1-mini-2024-09-12",
+                "gpt-4o",
+                "gpt-4o-2024-08-06",
+                "gpt-4o-2024-05-13",
+                "chatgpt-4o-latest",
+                "gpt-4o-mini",
+                "gpt-4o-mini-2024-07-18",
+                "gpt-4-turbo",
+                "gpt-4-turbo-2024-04-09",
+                "gpt-4-turbo-preview",
+                "gpt-4-0125-preview",
+                "gpt-4-1106-preview",
+                "gpt-4",
+                "gpt-4-0613",
+                "gpt-3.5-turbo-0125",
+                "gpt-3.5-turbo",
+                "gpt-3.5-turbo-1106",
+                "gpt-3.5-turbo-instruct",
+            ]
+        if provider_key == GenerativeProviderKey.ANTHROPIC:
+            return [
+                "claude-3-5-sonnet-20240620",
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229",
+                "claude-3-haiku-20240307",
+            ]
+        assert_never(provider_key)
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(

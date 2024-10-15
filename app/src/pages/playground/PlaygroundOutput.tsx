@@ -103,8 +103,9 @@ function useChatCompletionSubscription({
       subscription: graphql`
         subscription PlaygroundOutputSubscription(
           $messages: [ChatCompletionMessageInput!]!
+          $model: GenerativeModelInput!
         ) {
-          chatCompletion(input: { messages: $messages })
+          chatCompletion(input: { messages: $messages, model: $model })
         }
       `,
       variables: params,
@@ -177,6 +178,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   useChatCompletionSubscription({
     params: {
       messages: instance.template.messages.map(toGqlChatCompletionMessage),
+      model: {
+        providerKey: instance.model.provider,
+        name: instance.model.modelName || "",
+      },
     },
     runId: instance.activeRunId,
     onNext: (response) => {

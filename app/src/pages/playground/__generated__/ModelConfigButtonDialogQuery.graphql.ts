@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c8d927475f5ac2ddd05a0c07c6c5b2b>>
+ * @generated SignedSource<<176456afea57f0245ab80564600db337>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,24 +10,47 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ModelConfigButtonDialogQuery$variables = Record<PropertyKey, never>;
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
+export type ModelConfigButtonDialogQuery$variables = {
+  providerKey: GenerativeProviderKey;
+};
 export type ModelConfigButtonDialogQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment" | "ModelProviderPickerFragment">;
 };
 export type ModelConfigButtonDialogQuery = {
   response: ModelConfigButtonDialogQuery$data;
   variables: ModelConfigButtonDialogQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "providerKey"
+  }
+],
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "providerKey",
+    "variableName": "providerKey"
+  }
+];
+return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ModelConfigButtonDialogQuery",
     "selections": [
       {
         "args": null,
+        "kind": "FragmentSpread",
+        "name": "ModelProviderPickerFragment"
+      },
+      {
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "ModelPickerFragment"
       }
@@ -37,23 +60,14 @@ const node: ConcreteRequest = {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ModelConfigButtonDialogQuery",
     "selections": [
       {
         "alias": null,
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "vendors",
-            "value": [
-              "OpenAI",
-              "Anthropic"
-            ]
-          }
-        ],
-        "concreteType": "ModelProvider",
+        "args": null,
+        "concreteType": "GenerativeProvider",
         "kind": "LinkedField",
         "name": "modelProviders",
         "plural": true,
@@ -62,31 +76,45 @@ const node: ConcreteRequest = {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "name",
+            "name": "key",
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "modelNames",
+            "name": "name",
             "storageKey": null
           }
         ],
-        "storageKey": "modelProviders(vendors:[\"OpenAI\",\"Anthropic\"])"
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": [
+          {
+            "fields": (v1/*: any*/),
+            "kind": "ObjectValue",
+            "name": "input"
+          }
+        ],
+        "kind": "ScalarField",
+        "name": "modelNames",
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "cf6e53f2293c51d168b08e5d2fc7b391",
+    "cacheID": "34f8d81e91b335ca310c9be756719426",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelPickerFragment\n}\n\nfragment ModelPickerFragment on Query {\n  modelProviders(vendors: [\"OpenAI\", \"Anthropic\"]) {\n    name\n    modelNames\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  modelNames(input: {providerKey: $providerKey})\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "98dc1b22aa68897365be9b248625fc1d";
+(node as any).hash = "c9b38e766093b2378047d22b01ef0fbf";
 
 export default node;

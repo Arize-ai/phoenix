@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ea2d3c123a67eedf3cfe075d801e5e2>>
+ * @generated SignedSource<<6931dc528aea2b22801320e6d297dd58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,10 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelPickerFragment$data = {
-  readonly modelProviders: ReadonlyArray<{
-    readonly modelNames: ReadonlyArray<string>;
-    readonly name: string;
-  }>;
+  readonly modelNames: ReadonlyArray<string>;
   readonly " $fragmentType": "ModelPickerFragment";
 };
 export type ModelPickerFragment$key = {
@@ -23,7 +20,13 @@ export type ModelPickerFragment$key = {
 };
 
 const node: ReaderFragment = {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": "OPENAI",
+      "kind": "LocalArgument",
+      "name": "providerKey"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "ModelPickerFragment",
@@ -32,41 +35,26 @@ const node: ReaderFragment = {
       "alias": null,
       "args": [
         {
-          "kind": "Literal",
-          "name": "vendors",
-          "value": [
-            "OpenAI",
-            "Anthropic"
-          ]
+          "fields": [
+            {
+              "kind": "Variable",
+              "name": "providerKey",
+              "variableName": "providerKey"
+            }
+          ],
+          "kind": "ObjectValue",
+          "name": "input"
         }
       ],
-      "concreteType": "ModelProvider",
-      "kind": "LinkedField",
-      "name": "modelProviders",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "modelNames",
-          "storageKey": null
-        }
-      ],
-      "storageKey": "modelProviders(vendors:[\"OpenAI\",\"Anthropic\"])"
+      "kind": "ScalarField",
+      "name": "modelNames",
+      "storageKey": null
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "0c369d2705c164e6d3bf698b9fdaa934";
+(node as any).hash = "bb2557396c978bb5f57c7a4f67d756b1";
 
 export default node;

@@ -76,14 +76,6 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
 
 interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
 function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
-  const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
-    graphql`
-      query ModelConfigButtonDialogQuery {
-        ...ModelPickerFragment
-      }
-    `,
-    {}
-  );
   const { playgroundInstanceId } = props;
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const instance = usePlaygroundContext((state) =>
@@ -94,12 +86,21 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
-
+  const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
+    graphql`
+      query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
+        ...ModelProviderPickerFragment
+        ...ModelPickerFragment @arguments(providerKey: $providerKey)
+      }
+    `,
+    { providerKey: instance.model.provider }
+  );
   return (
     <View padding="size-200">
       <Form>
         <ModelProviderPicker
           provider={instance.model.provider}
+          query={query}
           onChange={(provider) => {
             updateModel({
               instanceId: playgroundInstanceId,
