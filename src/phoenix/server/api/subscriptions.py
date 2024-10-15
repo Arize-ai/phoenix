@@ -107,6 +107,7 @@ class Subscription:
             attributes=dict(
                 chain(
                     _llm_span_kind(),
+                    _llm_model_name(input.model.name),
                     _input_value_and_mime_type(input),
                     _llm_input_messages(input.messages),
                 )
@@ -200,6 +201,10 @@ def _llm_span_kind() -> Iterator[Tuple[str, Any]]:
     yield OPENINFERENCE_SPAN_KIND, LLM
 
 
+def _llm_model_name(model_name: str) -> Iterator[Tuple[str, Any]]:
+    yield LLM_MODEL_NAME, model_name
+
+
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
     yield INPUT_MIME_TYPE, JSON
     yield INPUT_VALUE, json.dumps(asdict(input), cls=GraphQLInputJSONEncoder)
@@ -261,6 +266,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
