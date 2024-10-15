@@ -194,7 +194,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         name: instance.model.modelName || "",
       },
       invocationParameters: {
-        openaiInvocationParameters: { temperature: 0.1 }, // TODO: add invocation parameters
+        OPENAI: { temperature: 0.1 }, // TODO: add invocation parameters
       },
       apiKey: credentials[instance.model.provider],
     },

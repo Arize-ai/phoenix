@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c927619545763b69c4ec17a484dfd329>>
+ * @generated SignedSource<<4330fc339f25516862bd8672773a636d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,9 +20,9 @@ export type GenerativeModelInput = {
   providerKey: GenerativeProviderKey;
 };
 export type InvocationParameters = {
-  anthropicInvocationParameters?: AnthropicInvocationParameters | null;
-  azureOpenaiInvocationParameters?: AzureOpenAIInvocationParameters | null;
-  openaiInvocationParameters?: OpenAIInvocationParameters | null;
+  ANTHROPIC?: AnthropicInvocationParameters | null;
+  AZURE_OPENAI?: AzureOpenAIInvocationParameters | null;
+  OPENAI?: OpenAIInvocationParameters | null;
 };
 export type OpenAIInvocationParameters = {
   frequencyPenalty?: number | null;

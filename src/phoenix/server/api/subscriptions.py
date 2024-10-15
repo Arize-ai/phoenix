@@ -1,4 +1,4 @@
-from dataclasses import asdict, fields
+from dataclasses import fields
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
@@ -113,9 +113,13 @@ class AnthropicInvocationParameters:
 
 @strawberry.input(one_of=True)
 class InvocationParameters:
-    openai_invocation_parameters: Optional[OpenAIInvocationParameters] = UNSET
-    azure_openai_invocation_parameters: Optional[AzureOpenAIInvocationParameters] = UNSET
-    anthropic_invocation_parameters: Optional[AnthropicInvocationParameters] = UNSET
+    OPENAI: Optional[OpenAIInvocationParameters] = strawberry.field(name="OPENAI", default=UNSET)
+    AZURE_OPENAI: Optional[AzureOpenAIInvocationParameters] = strawberry.field(
+        name="AZURE_OPENAI", default=UNSET
+    )
+    ANTHROPIC: Optional[AnthropicInvocationParameters] = strawberry.field(
+        name="ANTHROPIC", default=UNSET
+    )
 
 
 @strawberry.input
@@ -312,8 +316,9 @@ def _llm_output_messages(content: str, role: str) -> Iterator[Tuple[str, Any]]:
 
 def _dict(*, invocation_parameters: InvocationParameters) -> Dict[str, Any]:
     for field in fields(invocation_parameters):
-        if (inv_params := getattr(invocation_parameters, field.name)) is not UNSET:
-            return {key: value for key, value in asdict(inv_params).items() if value is not UNSET}
+        if (provider_params := getattr(invocation_parameters, field.name)) is not UNSET:
+            assert isinstance(cleaned_params := jsonify(provider_params), dict)
+            return cleaned_params
     return {}
 
 

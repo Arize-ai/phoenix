@@ -921,9 +921,9 @@ type IntervalBin {
 }
 
 input InvocationParameters @oneOf {
-  openaiInvocationParameters: OpenAIInvocationParameters
-  azureOpenaiInvocationParameters: AzureOpenAIInvocationParameters
-  anthropicInvocationParameters: AnthropicInvocationParameters
+  OPENAI: OpenAIInvocationParameters
+  AZURE_OPENAI: AzureOpenAIInvocationParameters
+  ANTHROPIC: AnthropicInvocationParameters
 }
 
 """
