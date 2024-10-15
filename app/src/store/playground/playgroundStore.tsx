@@ -1,6 +1,11 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
+import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 import {
   GenAIOperationType,
   InitialPlaygroundState,
@@ -83,7 +88,18 @@ export const createPlaygroundStore = (
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     operationType: "chat",
     inputMode: "manual",
-    input: { variables: {} },
+    input: {
+      // TODO(apowell): When implementing variable forms, we should maintain a separate
+      // map of variableName to variableValue. This will allow us to "cache" variable values
+      // as the user types and will prevent data loss if users accidentally change the variable name
+      variables: {
+        // TODO(apowell): This is hardcoded based on the default chat template
+        // Instead we should calculate this based on the template on store creation
+        // Not a huge deal since this will be overridden on the first keystroke
+        question: "",
+      },
+    },
+    templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: [createPlaygroundInstance()],
     setOperationType: (operationType: GenAIOperationType) => {
@@ -192,6 +208,7 @@ export const createPlaygroundStore = (
           return instance;
         }),
       });
+      get().calculateVariables();
     },
     runPlaygroundInstances: () => {
       const instances = get().instances;
@@ -231,6 +248,47 @@ export const createPlaygroundStore = (
           return instance;
         }),
       });
+    },
+    setTemplateLanguage: (templateLanguage: TemplateLanguage) => {
+      set({ templateLanguage });
+    },
+    calculateVariables: () => {
+      const instances = get().instances;
+      const variables: Record<string, string> = {};
+      const utils = getTemplateLanguageUtils(get().templateLanguage);
+      instances.forEach((instance) => {
+        const instanceType = instance.template.__type;
+        // this double nested loop should be okay since we don't expect more than 4 instances
+        // and a handful of messages per instance
+        switch (instanceType) {
+          case "chat": {
+            // for each chat message in the instance
+            instance.template.messages.forEach((message) => {
+              // extract variables from the message content
+              const extractedVariables = utils.extractVariables(
+                message.content
+              );
+              extractedVariables.forEach((variable) => {
+                variables[variable] = "";
+              });
+            });
+            break;
+          }
+          case "text_completion": {
+            const extractedVariables = utils.extractVariables(
+              instance.template.prompt
+            );
+            extractedVariables.forEach((variable) => {
+              variables[variable] = "";
+            });
+            break;
+          }
+          default: {
+            assertUnreachable(instanceType);
+          }
+        }
+      });
+      set({ input: { variables: { ...variables } } });
     },
     ...initialProps,
   });

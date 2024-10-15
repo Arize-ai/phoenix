@@ -1,7 +1,7 @@
 import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
 
-import { format } from "../languageUtils";
+import { extractVariables, format } from "../languageUtils";
 
 import { parser } from "./fStringTemplating.syntax.grammar";
 
@@ -64,6 +64,16 @@ export const formatFString = ({
     postFormat: (text) =>
       text.replaceAll("\\{", "{").replaceAll("{{", "{").replaceAll("}}", "}"),
   });
+
+/**
+ * Extracts the variables from an FString template
+ */
+export const extractVariablesFromFString = (text: string) => {
+  return extractVariables({
+    parser: FStringTemplatingLanguage.parser,
+    text,
+  });
+};
 
 /**
  * Creates a CodeMirror extension for the FString templating system

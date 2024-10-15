@@ -11,14 +11,8 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
-
-export const TemplateLanguages = {
-  FString: "f-string", // {variable}
-  Mustache: "mustache", // {{variable}}
-} as const;
-
-type TemplateLanguage =
-  (typeof TemplateLanguages)[keyof typeof TemplateLanguages];
+import { TemplateLanguages } from "./constants";
+import { TemplateLanguage } from "./types";
 
 type TemplateEditorProps = ReactCodeMirrorProps & {
   templateLanguage: TemplateLanguage;

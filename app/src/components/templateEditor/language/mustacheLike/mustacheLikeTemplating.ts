@@ -1,7 +1,7 @@
 import { LanguageSupport, LRLanguage } from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
 
-import { format } from "../languageUtils";
+import { extractVariables, format } from "../languageUtils";
 
 import { parser } from "./mustacheLikeTemplating.syntax.grammar";
 
@@ -67,6 +67,16 @@ export const formatMustacheLike = ({
       return text.replaceAll("\\{{", "{{");
     },
   });
+
+/**
+ * Extracts the variables from a Mustache-like template
+ */
+export const extractVariablesFromMustacheLike = (text: string) => {
+  return extractVariables({
+    parser: MustacheLikeTemplatingLanguage.parser,
+    text,
+  });
+};
 
 /**
  * Creates a CodeMirror extension for the FString templating system

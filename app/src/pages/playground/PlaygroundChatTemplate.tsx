@@ -19,10 +19,8 @@ import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
-import {
-  TemplateEditor,
-  TemplateLanguages,
-} from "@phoenix/components/templateEditor";
+import { TemplateEditor } from "@phoenix/components/templateEditor";
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -47,6 +45,9 @@ interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
 
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const playgroundInstance = instances.find((instance) => instance.id === id);
@@ -107,6 +108,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             return (
               <SortableMessageItem
                 playgroundInstanceId={id}
+                templateLanguage={templateLanguage}
                 template={template}
                 key={message.id}
                 message={message}
@@ -159,12 +161,14 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
 
 function SortableMessageItem({
   playgroundInstanceId,
+  templateLanguage,
   template,
   message,
 }: PropsWithChildren<
   PlaygroundInstanceProps & {
     template: PlaygroundChatTemplateType;
     message: ChatMessage;
+    templateLanguage: TemplateLanguage;
     index: number;
   }
 >) {
@@ -248,7 +252,7 @@ function SortableMessageItem({
             height="100%"
             value={message.content}
             aria-label="Message content"
-            templateLanguage={TemplateLanguages.Mustache}
+            templateLanguage={templateLanguage}
             onChange={(val) => {
               updateInstance({
                 instanceId: playgroundInstanceId,

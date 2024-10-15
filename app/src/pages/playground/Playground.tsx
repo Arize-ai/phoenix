@@ -123,6 +123,7 @@ const playgroundInputOutputPanelContentCSS = css`
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
+  const inputs = usePlaygroundContext((state) => state.input);
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
 
@@ -167,7 +168,15 @@ function PlaygroundContent() {
         <div css={playgroundInputOutputPanelContentCSS}>
           <Accordion>
             <AccordionItem title="Inputs" id="input">
-              <View padding="size-200">Inputs go here</View>
+              <View padding="size-200">
+                <pre>
+                  {JSON.stringify(
+                    "variables" in inputs ? inputs.variables : "inputs go here",
+                    null,
+                    2
+                  )}
+                </pre>
+              </View>
             </AccordionItem>
             <AccordionItem title="Output" id="output">
               <View padding="size-200" height="100%">
