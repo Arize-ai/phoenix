@@ -2,6 +2,7 @@ import React from "react";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
 import { EditorView, hoverTooltip } from "@codemirror/view";
+import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 import {
@@ -11,6 +12,7 @@ import {
   jsonSchemaLinter,
   stateExtensions,
 } from "codemirror-json-schema";
+import { JSONSchema7 } from "json-schema";
 
 import { useTheme } from "@phoenix/contexts";
 import { toolJSONSchema } from "@phoenix/schemas/toolSchema";
@@ -22,7 +24,7 @@ export type JSONToolEditorProps = Omit<
 
 export function JSONToolEditor(props: JSONToolEditorProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : nord;
   return (
     <CodeMirror
       value={props.value}
@@ -35,7 +37,7 @@ export function JSONToolEditor(props: JSONToolEditorProps) {
           autocomplete: jsonCompletion(),
         }),
         hoverTooltip(jsonSchemaHover()),
-        stateExtensions(toolJSONSchema),
+        stateExtensions(toolJSONSchema as JSONSchema7),
       ]}
       editable
       theme={codeMirrorTheme}

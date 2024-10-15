@@ -2,6 +2,7 @@ import React from "react";
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
+import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 
@@ -14,7 +15,7 @@ export type JSONEditorProps = Omit<
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : nord;
   return (
     <CodeMirror
       value={props.value}
