@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union, assert_never
 
 import numpy as np
 import numpy.typing as npt
@@ -11,7 +11,7 @@ from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias, assert_never
+from typing_extensions import Annotated, TypeAlias
 
 from phoenix.db import enums, models
 from phoenix.db.models import (
@@ -83,7 +83,7 @@ from phoenix.server.api.types.UserRole import UserRole
 
 @strawberry.input
 class ModelsInput:
-    provider_key: GenerativeProviderKey
+    provider_key: Optional[GenerativeProviderKey]
 
 
 @strawberry.type
@@ -106,71 +106,85 @@ class Query:
         ]
 
     @strawberry.field
-    async def models(self, input: ModelsInput) -> List[GenerativeModel]:
+    async def models(self, input: Optional[ModelsInput] = None) -> List[GenerativeModel]:
+        openai_models = [
+            "o1-preview",
+            "o1-preview-2024-09-12",
+            "o1-mini",
+            "o1-mini-2024-09-12",
+            "gpt-4o",
+            "gpt-4o-2024-08-06",
+            "gpt-4o-2024-05-13",
+            "chatgpt-4o-latest",
+            "gpt-4o-mini",
+            "gpt-4o-mini-2024-07-18",
+            "gpt-4-turbo",
+            "gpt-4-turbo-2024-04-09",
+            "gpt-4-turbo-preview",
+            "gpt-4-0125-preview",
+            "gpt-4-1106-preview",
+            "gpt-4",
+            "gpt-4-0613",
+            "gpt-3.5-turbo-0125",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-1106",
+            "gpt-3.5-turbo-instruct",
+        ]
+        azure_openai_models = [
+            "o1-preview",
+            "o1-preview-2024-09-12",
+            "o1-mini",
+            "o1-mini-2024-09-12",
+            "gpt-4o",
+            "gpt-4o-2024-08-06",
+            "gpt-4o-2024-05-13",
+            "chatgpt-4o-latest",
+            "gpt-4o-mini",
+            "gpt-4o-mini-2024-07-18",
+            "gpt-4-turbo",
+            "gpt-4-turbo-2024-04-09",
+            "gpt-4-turbo-preview",
+            "gpt-4-0125-preview",
+            "gpt-4-1106-preview",
+            "gpt-4",
+            "gpt-4-0613",
+            "gpt-3.5-turbo-0125",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-1106",
+            "gpt-3.5-turbo-instruct",
+        ]
+        anthropic_models = [
+            "claude-3-5-sonnet-20240620",
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+        ]
+        openai_generative_models = [
+            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
+            for model_name in openai_models
+        ]
+        azure_openai_generative_models = [
+            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.AZURE_OPENAI)
+            for model_name in azure_openai_models
+        ]
+        anthropic_generative_models = [
+            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
+            for model_name in anthropic_models
+        ]
+
+        if input is None or input.provider_key is None:
+            return (
+                openai_generative_models
+                + azure_openai_generative_models
+                + anthropic_generative_models
+            )
         if (provider_key := input.provider_key) == GenerativeProviderKey.OPENAI:
-            return [
-                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
-                for model_name in [
-                    "o1-preview",
-                    "o1-preview-2024-09-12",
-                    "o1-mini",
-                    "o1-mini-2024-09-12",
-                    "gpt-4o",
-                    "gpt-4o-2024-08-06",
-                    "gpt-4o-2024-05-13",
-                    "chatgpt-4o-latest",
-                    "gpt-4o-mini",
-                    "gpt-4o-mini-2024-07-18",
-                    "gpt-4-turbo",
-                    "gpt-4-turbo-2024-04-09",
-                    "gpt-4-turbo-preview",
-                    "gpt-4-0125-preview",
-                    "gpt-4-1106-preview",
-                    "gpt-4",
-                    "gpt-4-0613",
-                    "gpt-3.5-turbo-0125",
-                    "gpt-3.5-turbo",
-                    "gpt-3.5-turbo-1106",
-                    "gpt-3.5-turbo-instruct",
-                ]
-            ]
+            return openai_generative_models
         if provider_key == GenerativeProviderKey.AZURE_OPENAI:
-            return [
-                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.AZURE_OPENAI)
-                for model_name in [
-                    "o1-preview",
-                    "o1-preview-2024-09-12",
-                    "o1-mini",
-                    "o1-mini-2024-09-12",
-                    "gpt-4o",
-                    "gpt-4o-2024-08-06",
-                    "gpt-4o-2024-05-13",
-                    "chatgpt-4o-latest",
-                    "gpt-4o-mini",
-                    "gpt-4o-mini-2024-07-18",
-                    "gpt-4-turbo",
-                    "gpt-4-turbo-2024-04-09",
-                    "gpt-4-turbo-preview",
-                    "gpt-4-0125-preview",
-                    "gpt-4-1106-preview",
-                    "gpt-4",
-                    "gpt-4-0613",
-                    "gpt-3.5-turbo-0125",
-                    "gpt-3.5-turbo",
-                    "gpt-3.5-turbo-1106",
-                    "gpt-3.5-turbo-instruct",
-                ]
-            ]
+            return azure_openai_generative_models
         if provider_key == GenerativeProviderKey.ANTHROPIC:
-            return [
-                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
-                for model_name in [
-                    "claude-3-5-sonnet-20240620",
-                    "claude-3-opus-20240229",
-                    "claude-3-sonnet-20240229",
-                    "claude-3-haiku-20240307",
-                ]
-            ]
+            return anthropic_generative_models
+
         assert_never(provider_key)
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore

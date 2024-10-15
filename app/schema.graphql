@@ -950,7 +950,7 @@ type Model {
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey!
+  providerKey: GenerativeProviderKey
 }
 
 type Mutation {
@@ -1146,7 +1146,7 @@ type PromptResponse {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  models(input: ModelsInput!): [GenerativeModel!]!
+  models(input: ModelsInput = null): [GenerativeModel!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
