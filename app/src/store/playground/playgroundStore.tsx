@@ -129,6 +129,9 @@ export const createPlaygroundStore = (
     operationType: "chat",
     inputMode: "manual",
     input: {
+      // select variablesValueCache and variableKeys from the input in order
+      // to capture the current value of all valid variables across all instances' prompts
+      // if you just select variablesValueCache, then you may display stale values
       variablesValueCache: {
         question: "",
       },
