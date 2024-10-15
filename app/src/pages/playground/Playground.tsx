@@ -22,6 +22,7 @@ import { InitialPlaygroundState } from "@phoenix/store";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
+import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -121,7 +122,6 @@ const playgroundInputOutputPanelContentCSS = css`
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
-  const inputs = usePlaygroundContext((state) => state.input);
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
 
@@ -170,13 +170,9 @@ function PlaygroundContent() {
               id="input"
               extra={<PlaygroundInputTypeTypeRadioGroup />}
             >
-              <pre>
-                {JSON.stringify(
-                  "variables" in inputs ? inputs.variables : "inputs go here",
-                  null,
-                  2
-                )}
-              </pre>
+              <View padding="size-200">
+                <PlaygroundInput />
+              </View>
             </AccordionItem>
             <AccordionItem title="Output" id="output">
               <View padding="size-200" height="100%">
