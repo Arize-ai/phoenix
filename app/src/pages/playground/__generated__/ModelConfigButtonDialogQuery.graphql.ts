@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<176456afea57f0245ab80564600db337>>
+ * @generated SignedSource<<814210e1a750a2c446a2043b5a6ab0b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,7 +36,14 @@ v1 = [
     "name": "providerKey",
     "variableName": "providerKey"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -79,13 +86,7 @@ return {
             "name": "key",
             "storageKey": null
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          }
+          (v2/*: any*/)
         ],
         "storageKey": null
       },
@@ -98,19 +99,24 @@ return {
             "name": "input"
           }
         ],
-        "kind": "ScalarField",
-        "name": "modelNames",
+        "concreteType": "GenerativeModel",
+        "kind": "LinkedField",
+        "name": "models",
+        "plural": true,
+        "selections": [
+          (v2/*: any*/)
+        ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "34f8d81e91b335ca310c9be756719426",
+    "cacheID": "8e6ad232aae761280ca29a0571fe7c23",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  modelNames(input: {providerKey: $providerKey})\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n  }\n}\n"
   }
 };
 })();

@@ -58,6 +58,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProvider,
     GenerativeProviderKey,
@@ -81,7 +82,7 @@ from phoenix.server.api.types.UserRole import UserRole
 
 
 @strawberry.input
-class ModelNamesInput:
+class ModelsInput:
     provider_key: GenerativeProviderKey
 
 
@@ -105,61 +106,70 @@ class Query:
         ]
 
     @strawberry.field
-    async def model_names(self, input: ModelNamesInput) -> List[str]:
+    async def models(self, input: ModelsInput) -> List[GenerativeModel]:
         if (provider_key := input.provider_key) == GenerativeProviderKey.OPENAI:
             return [
-                "o1-preview",
-                "o1-preview-2024-09-12",
-                "o1-mini",
-                "o1-mini-2024-09-12",
-                "gpt-4o",
-                "gpt-4o-2024-08-06",
-                "gpt-4o-2024-05-13",
-                "chatgpt-4o-latest",
-                "gpt-4o-mini",
-                "gpt-4o-mini-2024-07-18",
-                "gpt-4-turbo",
-                "gpt-4-turbo-2024-04-09",
-                "gpt-4-turbo-preview",
-                "gpt-4-0125-preview",
-                "gpt-4-1106-preview",
-                "gpt-4",
-                "gpt-4-0613",
-                "gpt-3.5-turbo-0125",
-                "gpt-3.5-turbo",
-                "gpt-3.5-turbo-1106",
-                "gpt-3.5-turbo-instruct",
+                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
+                for model_name in [
+                    "o1-preview",
+                    "o1-preview-2024-09-12",
+                    "o1-mini",
+                    "o1-mini-2024-09-12",
+                    "gpt-4o",
+                    "gpt-4o-2024-08-06",
+                    "gpt-4o-2024-05-13",
+                    "chatgpt-4o-latest",
+                    "gpt-4o-mini",
+                    "gpt-4o-mini-2024-07-18",
+                    "gpt-4-turbo",
+                    "gpt-4-turbo-2024-04-09",
+                    "gpt-4-turbo-preview",
+                    "gpt-4-0125-preview",
+                    "gpt-4-1106-preview",
+                    "gpt-4",
+                    "gpt-4-0613",
+                    "gpt-3.5-turbo-0125",
+                    "gpt-3.5-turbo",
+                    "gpt-3.5-turbo-1106",
+                    "gpt-3.5-turbo-instruct",
+                ]
             ]
         if provider_key == GenerativeProviderKey.AZURE_OPENAI:
             return [
-                "o1-preview",
-                "o1-preview-2024-09-12",
-                "o1-mini",
-                "o1-mini-2024-09-12",
-                "gpt-4o",
-                "gpt-4o-2024-08-06",
-                "gpt-4o-2024-05-13",
-                "chatgpt-4o-latest",
-                "gpt-4o-mini",
-                "gpt-4o-mini-2024-07-18",
-                "gpt-4-turbo",
-                "gpt-4-turbo-2024-04-09",
-                "gpt-4-turbo-preview",
-                "gpt-4-0125-preview",
-                "gpt-4-1106-preview",
-                "gpt-4",
-                "gpt-4-0613",
-                "gpt-3.5-turbo-0125",
-                "gpt-3.5-turbo",
-                "gpt-3.5-turbo-1106",
-                "gpt-3.5-turbo-instruct",
+                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.AZURE_OPENAI)
+                for model_name in [
+                    "o1-preview",
+                    "o1-preview-2024-09-12",
+                    "o1-mini",
+                    "o1-mini-2024-09-12",
+                    "gpt-4o",
+                    "gpt-4o-2024-08-06",
+                    "gpt-4o-2024-05-13",
+                    "chatgpt-4o-latest",
+                    "gpt-4o-mini",
+                    "gpt-4o-mini-2024-07-18",
+                    "gpt-4-turbo",
+                    "gpt-4-turbo-2024-04-09",
+                    "gpt-4-turbo-preview",
+                    "gpt-4-0125-preview",
+                    "gpt-4-1106-preview",
+                    "gpt-4",
+                    "gpt-4-0613",
+                    "gpt-3.5-turbo-0125",
+                    "gpt-3.5-turbo",
+                    "gpt-3.5-turbo-1106",
+                    "gpt-3.5-turbo-instruct",
+                ]
             ]
         if provider_key == GenerativeProviderKey.ANTHROPIC:
             return [
-                "claude-3-5-sonnet-20240620",
-                "claude-3-opus-20240229",
-                "claude-3-sonnet-20240229",
-                "claude-3-haiku-20240307",
+                GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
+                for model_name in [
+                    "claude-3-5-sonnet-20240620",
+                    "claude-3-opus-20240229",
+                    "claude-3-sonnet-20240229",
+                    "claude-3-haiku-20240307",
+                ]
             ]
         assert_never(provider_key)
 
