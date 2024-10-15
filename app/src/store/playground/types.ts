@@ -54,7 +54,7 @@ type ManualInput = {
 
 type PlaygroundInput = DatasetInput | ManualInput;
 
-type ModelConfig = {
+export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
 };
