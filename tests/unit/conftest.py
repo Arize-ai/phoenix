@@ -43,7 +43,7 @@ from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.types import BatchedCaller, DbSessionFactory
+from phoenix.server._types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
 

@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import delete
 
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 async def delete_projects(

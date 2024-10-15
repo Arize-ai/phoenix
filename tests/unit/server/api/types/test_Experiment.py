@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 async def test_experiment_resolver_returns_sequence_number(

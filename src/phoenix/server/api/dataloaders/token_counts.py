@@ -18,7 +18,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["prompt", "completion", "total"]

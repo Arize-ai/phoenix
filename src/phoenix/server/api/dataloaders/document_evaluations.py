@@ -10,7 +10,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.types.Evaluation import DocumentEvaluation
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 Key: TypeAlias = int
 Result: TypeAlias = List[DocumentEvaluation]

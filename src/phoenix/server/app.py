@@ -115,7 +115,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
-from phoenix.server.types import (
+from phoenix.server._types import (
     CanGetLastUpdatedAt,
     CanPutItem,
     DaemonTask,

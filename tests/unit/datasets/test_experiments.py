@@ -27,7 +27,7 @@ from phoenix.experiments.types import (
     JSONSerializable,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")

@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
 

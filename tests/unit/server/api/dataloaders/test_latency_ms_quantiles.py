@@ -7,7 +7,7 @@ from sqlalchemy import select
 from phoenix.db import models
 from phoenix.server.api.dataloaders import LatencyMsQuantileDataLoader
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 async def test_latency_ms_quantiles_p25_p50_p75(

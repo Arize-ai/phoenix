@@ -13,7 +13,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 ExampleID: TypeAlias = int
 VersionID: TypeAlias = Optional[int]

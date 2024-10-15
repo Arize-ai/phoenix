@@ -11,7 +11,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 

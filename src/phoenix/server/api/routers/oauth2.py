@@ -41,7 +41,7 @@ from phoenix.server.rate_limiters import (
     fastapi_ip_rate_limiter,
     fastapi_route_rate_limiter,
 )
-from phoenix.server.types import TokenStore
+from phoenix.server._types import TokenStore
 
 _LOWERCASE_ALPHANUMS_AND_UNDERSCORES = r"[a-z0-9_]+"
 

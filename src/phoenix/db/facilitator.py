@@ -22,7 +22,7 @@ from phoenix.auth import (
 )
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 class Facilitator:

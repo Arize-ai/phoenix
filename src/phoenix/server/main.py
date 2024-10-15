@@ -59,7 +59,7 @@ from phoenix.server.app import (
     instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import SimpleEmailSender
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,

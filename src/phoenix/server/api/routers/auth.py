@@ -36,7 +36,7 @@ from phoenix.db import enums, models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
-from phoenix.server.types import (
+from phoenix.server._types import (
     AccessTokenClaims,
     PasswordResetTokenClaims,
     PasswordResetTokenId,

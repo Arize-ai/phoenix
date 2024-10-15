@@ -42,7 +42,7 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import (
+from phoenix.server._types import (
     CanGetLastUpdatedAt,
     CanPutItem,
     DbSessionFactory,

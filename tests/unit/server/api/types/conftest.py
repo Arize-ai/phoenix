@@ -14,7 +14,7 @@ from phoenix.db import models
 from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 @pytest.fixture

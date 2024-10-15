@@ -42,7 +42,7 @@ from phoenix.server.dml_event import (
     SpanDmlEvent,
     TraceAnnotationDmlEvent,
 )
-from phoenix.server.types import (
+from phoenix.server._types import (
     BatchedCaller,
     CanSetLastUpdatedAt,
     DbSessionFactory,

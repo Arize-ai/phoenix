@@ -48,7 +48,7 @@ from phoenix.server.app import (
     instrument_engine_if_enabled,
 )
 from phoenix.server.thread_server import ThreadServer
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 from phoenix.services import AppService
 from phoenix.session.client import Client
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor

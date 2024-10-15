@@ -15,7 +15,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 Kind: TypeAlias = Literal["start", "end"]
 ProjectRowId: TypeAlias = int

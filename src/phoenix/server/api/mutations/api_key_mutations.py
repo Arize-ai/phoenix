@@ -16,7 +16,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
+from phoenix.server._types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
 
 
 @strawberry.type

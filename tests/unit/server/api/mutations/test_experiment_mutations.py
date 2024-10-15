@@ -6,7 +6,7 @@ from sqlalchemy import func, insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 class TestDeleteExperiment:

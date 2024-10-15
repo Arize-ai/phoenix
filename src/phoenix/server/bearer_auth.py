@@ -26,7 +26,7 @@ from phoenix.auth import (
 from phoenix.db import enums
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
-from phoenix.server.types import (
+from phoenix.server._types import (
     AccessToken,
     AccessTokenAttributes,
     AccessTokenClaims,

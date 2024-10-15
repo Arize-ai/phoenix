@@ -17,7 +17,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 async def test_get_simple_dataset(

@@ -19,7 +19,7 @@ from phoenix.auth import (
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.enums import UserRole
-from phoenix.server.types import (
+from phoenix.server._types import (
     AccessToken,
     AccessTokenAttributes,
     AccessTokenClaims,

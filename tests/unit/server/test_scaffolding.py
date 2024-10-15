@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.server.types import DbSessionFactory
+from phoenix.server._types import DbSessionFactory
 
 
 @pytest.fixture
