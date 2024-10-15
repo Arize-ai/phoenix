@@ -7,5 +7,11 @@ declare type ChatMessageRole = "user" | "system" | "ai" | "tool";
 
 /**
  * The tool picking mechanism for an LLM
+ * Either "auto", "required", "none", or a specific tool
+ * @see https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
  */
-declare type ToolChoice = "auto" | "required" | "none";
+declare type ToolChoice =
+  | "auto"
+  | "required"
+  | "none"
+  | { type: "function"; function: { name: string } };

@@ -81,7 +81,7 @@ export interface PlaygroundInstance {
   id: number;
   template: PlaygroundTemplate;
   tools: Tool[];
-  toolChoice: ToolChoice | string;
+  toolChoice: ToolChoice;
   input: PlaygroundInput;
   model: ModelConfig;
   output: ChatMessage[] | undefined | string;
