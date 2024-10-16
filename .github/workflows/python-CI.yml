@@ -124,7 +124,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
+        py: [ 3.12 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
@@ -142,7 +142,34 @@ jobs:
         run: uv tool install tox --with tox-uv
       - name: Build Schema
         run: |
-          tox run -e gql_build
+          tox run -e build_graphql_schema
+          git diff --exit-code
+
+  build-openapi:
+    name: Build OpenAPI Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.12 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.18
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Build OpenAPI Schema
+        run: |
+          tox run -e build_openapi_schema
           git diff --exit-code
 
   ruff:
