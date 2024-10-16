@@ -11,7 +11,7 @@ repos:
         name: clean-notebooks
         files: \.ipynb$
         exclude: ^tutorials/evals/.*\.ipynb$
-        stages: [ commit ]
+        stages: [ pre-commit ]
         language: system
         entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
   - repo: local
@@ -19,7 +19,7 @@ repos:
       - id: format-notebooks
         name: format-notebooks
         files: \.ipynb$
-        stages: [ commit ]
+        stages: [ pre-commit ]
         language: system
         entry: nbqa ruff --fix --ignore=E402 --ignore=E501 --ignore=F704
   - repo: https://github.com/pre-commit/mirrors-prettier
@@ -45,4 +45,4 @@ repos:
         name: Check branch before committing
         entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
         language: system
-        stages: [ commit ]
+        stages: [ pre-commit ]
