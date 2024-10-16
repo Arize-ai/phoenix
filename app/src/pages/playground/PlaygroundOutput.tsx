@@ -106,6 +106,7 @@ function useChatCompletionSubscription({
           $messages: [ChatCompletionMessageInput!]!
           $model: GenerativeModelInput!
           $invocationParameters: InvocationParameters!
+          $tools: [JSON!]
           $apiKey: String
         ) {
           chatCompletion(
@@ -113,6 +114,7 @@ function useChatCompletionSubscription({
               messages: $messages
               model: $model
               invocationParameters: $invocationParameters
+              tools: $tools
               apiKey: $apiKey
             }
           ) {
@@ -208,6 +210,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       invocationParameters: {
         temperature: 0.1, // TODO: add invocation parameters
       },
+      tools: instance.tools.map((tool) => tool.definition),
       apiKey: credentials[instance.model.provider],
     },
     runId: instance.activeRunId,
