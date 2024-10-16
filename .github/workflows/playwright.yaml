@@ -59,7 +59,7 @@ jobs:
       - run: uv pip list
       - name: Run Playwright tests
         # Disable WebKit for the issue noted above.
-        run: pnpm exec playwright test --grep-invert "webkit"
+        run: pnpm exec playwright test --project "chromium" --project "firefox"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
