@@ -123,13 +123,11 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Format Jupyter notebooks
-        run: |
-          tox run -e format_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
-          git diff --exit-code
+        run: tox run -e format_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+      - run: git diff --exit-code
       - name: Clean Jupyter notebooks
-        run: |
-          tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
-          git diff --exit-code
+        run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+      - run: git diff --exit-code
 
   build-graphql-schema:
     name: Build GraphQL Schema
@@ -159,9 +157,8 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Build GraphQL schema
-        run: |
-          tox run -e build_graphql_schema
-          git diff --exit-code
+        run: tox run -e build_graphql_schema
+      - run: git diff --exit-code
 
   build-openapi-schema:
     name: Build OpenAPI Schema
@@ -190,9 +187,8 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Build OpenAPI schema
-        run: |
-          tox run -e build_openapi_schema
-          git diff --exit-code
+        run: tox run -e build_openapi_schema
+      - run: git diff --exit-code
 
   compile-protobuf:
     name: Compile Protobuf
@@ -223,9 +219,8 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Compile Protobuf
-        run: |
-          tox run -e compile_protobuf
-          git diff --exit-code
+        run: tox run -e compile_protobuf
+      - run: git diff --exit-code
 
   ruff:
     name: Ruff
