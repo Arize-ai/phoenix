@@ -10,7 +10,16 @@ export type PlaygroundInputMode = "manual" | "dataset";
 
 /**
  * A tool call that invokes a function with JSON arguments
- * @example { id: "1", function: { name: "getCurrentWeather", arguments: "{ \"city\": \"San Francisco\" }" } }
+ * @example
+ * ```typescript
+ *  {
+ *   id: "1",
+ *   function: {
+ *     name: "getCurrentWeather",
+ *     arguments: "{ \"city\": \"San Francisco\" }"
+ *   }
+ * }
+ * ```
  */
 export type ToolCall = {
   id: string;
@@ -23,7 +32,21 @@ export type ToolCall = {
 /**
  * A chat message with a role and content
  * @example { role: "user", content: "What is the weather in San Francisco?" }
- * @example { role: "assistant", toolCalls: [ { id: "1", function: { name: "getCurrentWeather", arguments: "{ \"city\": \"San Francisco\" }" } } ] }
+ * @example
+ * ```typescript
+ * {
+ *   "role": "assistant",
+ *   "toolCalls": [
+ *     {
+ *       "id": "1",
+ *       "function": {
+ *         "name": "getCurrentWeather",
+ *         "arguments": "{ \"city\": \"San Francisco\" }"
+ *       }
+ *     }
+ *   ]
+ * }
+ * ```
  */
 export type ChatMessage = {
   id: number;
