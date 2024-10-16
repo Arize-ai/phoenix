@@ -179,7 +179,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.12 ]
+        py: [ 3.11 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
@@ -200,7 +200,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Build OpenAPI Schema
+      - name: Compile Protobuf
         run: |
           tox run -e compile_protobuf
           git diff --exit-code
