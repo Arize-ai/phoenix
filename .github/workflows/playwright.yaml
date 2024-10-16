@@ -13,7 +13,8 @@ jobs:
       run:
         working-directory: ./app
     env:
-      # Skip WebKit for the caching issue noted below.
+      # We're skipping WebKit because of recurring issues with caching,
+      # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +42,10 @@ jobs:
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
-# We're skipping WebKit because we have encountered recurring issues with caching,
-# despite always installing it on cache-hit.
-#      - name: Install system dependencies for WebKit
-#        # WebKit dependencies can't be cached and must always be installed.
-#        if: steps.playwright-cache.outputs.cache-hit == 'true'
-#        run: pnpm exec playwright install-deps webkit
+      - name: Install system dependencies for WebKit
+        if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
+        # WebKit dependencies can't be cached and must always be installed.
+        run: pnpm exec playwright install-deps webkit
       - name: Build the app
         run: pnpm run build
       - uses: actions/setup-python@v5
