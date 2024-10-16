@@ -149,13 +149,17 @@ from openinference.instrumentation.crewai import CrewAIInstrumentor
 CrewAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-CrewAI uses Langchain under the hood. You can optionally also set up the `LangChainInstrumentor` to get even deeper visibility into your Crew.
+CrewAI uses either Langchain or LiteLLM under the hood to call models, depending on the version.&#x20;
+
+If you're using CrewAI<0.63.0, we recommend adding our `LangChainInstrumentor` to get visibility of LLM calls.
 
 ```python
-from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
 
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+LiteLLMInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
+
+If you're using CrewAI>= 0.63.0, we recommend adding our `LiteLLMInstrumentor` to get visibility of LLM calls.
 
 ## Run CrewAI
 
