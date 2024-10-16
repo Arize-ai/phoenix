@@ -310,9 +310,10 @@ export const createPlaygroundStore = (
             // for each chat message in the instance
             instance.template.messages.forEach((message) => {
               // extract variables from the message content
-              const extractedVariables = utils.extractVariables(
-                message.content
-              );
+              const extractedVariables =
+                message.content === undefined
+                  ? []
+                  : utils.extractVariables(message.content);
               extractedVariables.forEach((variable) => {
                 variables.add(variable);
               });
