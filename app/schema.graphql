@@ -833,6 +833,11 @@ type Functionality {
   tracing: Boolean!
 }
 
+type GenerativeModel {
+  name: String!
+  providerKey: GenerativeProviderKey!
+}
+
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
@@ -963,8 +968,8 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
-input ModelNamesInput {
-  providerKey: GenerativeProviderKey!
+input ModelsInput {
+  providerKey: GenerativeProviderKey
 }
 
 type Mutation {
@@ -1160,7 +1165,7 @@ type PromptResponse {
 
 type Query {
   modelProviders: [GenerativeProvider!]!
-  modelNames(input: ModelNamesInput!): [String!]!
+  models(input: ModelsInput = null): [GenerativeModel!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!

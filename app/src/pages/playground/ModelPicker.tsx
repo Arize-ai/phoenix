@@ -22,7 +22,9 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
       @argumentDefinitions(
         providerKey: { type: "GenerativeProviderKey!", defaultValue: OPENAI }
       ) {
-        modelNames(input: { providerKey: $providerKey })
+        models(input: { providerKey: $providerKey }) {
+          name
+        }
       }
     `,
     query
@@ -42,8 +44,8 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
       width={"100%"}
       {...props}
     >
-      {data.modelNames.map((modelName) => {
-        return <Item key={modelName}>{modelName}</Item>;
+      {data.models.map(({ name }) => {
+        return <Item key={name}>{name}</Item>;
       })}
     </Picker>
   );
