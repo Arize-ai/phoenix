@@ -31,9 +31,6 @@ py_library(
     srcs = glob([
         "src/phoenix/**/*.py",
     ]),
-    # imports = [
-    #     "src",
-    # ],
     visibility = ["//visibility:public"],
     deps = [
         requirement("scikit-learn"),
@@ -90,6 +87,19 @@ py_binary(
         "src/phoenix/**/*.py",
     ]),
     main = "src/phoenix/server/main.py",
+    args = [
+        # "-m",
+        # "phoenix.server.main",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "6006",
+        "--read-only",
+        "serve",
+        "--with-fixture=chatbot",
+        "--with-project=demo_llama_index,demo_o1_preview_timeseries",
+        "--force-fixture-ingestion",
+    ],
     visibility = ["//visibility:public"],
     imports = [
         "src",

@@ -50,6 +50,7 @@ from phoenix.pointcloud.umap_parameters import (
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
+from phoenix.version import __version__ as phoenix_version
 
 print("Hello World")
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -355,7 +356,7 @@ def main() -> None:
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
-        version=version("arize-phoenix"),
+        version=phoenix_version,
         ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
