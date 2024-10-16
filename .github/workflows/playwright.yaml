@@ -38,10 +38,12 @@ jobs:
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
-      - name: Install system dependencies for WebKit
-        # WebKit dependencies can't be cached and must always be installed
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps webkit
+# We're disabling WebKit because we have encountered recurring issues with caching,
+# despite always installing it on cache-hit.
+#      - name: Install system dependencies for WebKit
+#        # WebKit dependencies can't be cached and must always be installed.
+#        if: steps.playwright-cache.outputs.cache-hit == 'true'
+#        run: pnpm exec playwright install-deps webkit
       - name: Build the app
         run: pnpm run build
       - uses: actions/setup-python@v5
@@ -56,7 +58,8 @@ jobs:
       - run: uv pip install --system ../. uvloop
       - run: uv pip list
       - name: Run Playwright tests
-        run: pnpm exec playwright test
+        # Disable WebKit for the issue noted above.
+        run: pnpm exec playwright test --grep-invert "webkit"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
