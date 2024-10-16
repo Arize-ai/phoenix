@@ -29,7 +29,7 @@ const parseToolId = (id: Key) => {
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
 
-export function PlaygroundToolDropDown(props: PlaygroundToolsProps) {
+export function PlaygroundToolActionButton(props: PlaygroundToolsProps) {
   const instanceId = props.playgroundInstanceId;
   const instance = usePlaygroundContext((state) =>
     state.instances.find(

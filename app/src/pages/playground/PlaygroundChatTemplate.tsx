@@ -30,7 +30,7 @@ import {
 } from "@phoenix/store";
 
 import { MessageRolePicker } from "./MessageRolePicker";
-import { PlaygroundToolDropDown } from "./PlaygroundToolDropdown";
+import { PlaygroundToolActionButton } from "./PlaygroundToolActionButton";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -130,7 +130,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderBottomWidth={hasTools ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
-          <PlaygroundToolDropDown playgroundInstanceId={id} />
+          <PlaygroundToolActionButton playgroundInstanceId={id} />
           <Button
             variant="default"
             aria-label="add message"
