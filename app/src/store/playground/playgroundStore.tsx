@@ -311,7 +311,7 @@ export const createPlaygroundStore = (
             instance.template.messages.forEach((message) => {
               // extract variables from the message content
               const extractedVariables =
-                message.content === undefined
+                message.content == null
                   ? []
                   : utils.extractVariables(message.content);
               extractedVariables.forEach((variable) => {
