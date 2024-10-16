@@ -13,14 +13,49 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PlaygroundInstanceProps } from "./types";
 
+/**
+ * Determines whether the tool choice should be reset when the tool is deleted.
+ * @param tool the tool being deleted
+ * @param tools the set of tools in the instance
+ * @param toolChoice the current tool choice
+ * @returns whether the tool choice should be reset
+ */
+const getShouldResetToolChoice = ({
+  toolChoice,
+  tool,
+  tools,
+}: {
+  tool: Tool;
+  toolChoice?: ToolChoice;
+  tools: Tool[];
+}) => {
+  if (toolChoice == null) {
+    return false;
+  }
+  // If the tool being deleted is the only tool, or the tool being deleted is the chosen tool,
+  // reset the tool choice, some LLM API's may throw if the tool choice is not valid
+  const isOnlyTool = tools.length === 1;
+  if (isOnlyTool) {
+    return true;
+  }
+  if (typeof toolChoice === "string") {
+    return false;
+  }
+  if (toolChoice.function.name === tool.definition.function.name) {
+    return true;
+  }
+};
+
 export function PlaygroundToolDialog({
   playgroundInstanceId,
   tool,
   instanceTools,
+  instanceToolChoice,
   onClose,
 }: PlaygroundInstanceProps & {
   tool: Tool;
   instanceTools: Tool[];
+  instanceToolChoice?: ToolChoice;
   onClose: () => void;
 }) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
@@ -88,11 +123,20 @@ export function PlaygroundToolDialog({
               variant="default"
               size="compact"
               onClick={() => {
+                const shouldResetToolChoice = getShouldResetToolChoice({
+                  tool,
+                  toolChoice: instanceToolChoice,
+                  tools: instanceTools,
+                });
                 updateInstance({
                   instanceId: playgroundInstanceId,
                   patch: {
                     tools: instanceTools.filter((t) => t.id !== tool.id),
-                    toolChoice: undefined,
+                    // If the tool being deleted is the only tool, or the tool being deleted is the chosen tool,
+                    // reset the tool choice, some LLM API's may throw if the tool choice is not valid
+                    toolChoice: shouldResetToolChoice
+                      ? undefined
+                      : instanceToolChoice,
                   },
                 });
                 onClose();

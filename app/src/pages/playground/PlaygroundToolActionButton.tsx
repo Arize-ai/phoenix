@@ -50,11 +50,12 @@ export function PlaygroundToolActionButton(props: PlaygroundToolsProps) {
       <PlaygroundToolDialog
         instanceTools={instance.tools}
         playgroundInstanceId={instanceId}
+        instanceToolChoice={instance.toolChoice}
         tool={newTool}
         onClose={() => setToolDialog(null)}
       />
     );
-  }, [instance.tools, instanceId, tools.length]);
+  }, [instance.toolChoice, instance.tools, instanceId, tools.length]);
 
   const editTool = useCallback(
     (toolId: number) => {
@@ -65,13 +66,14 @@ export function PlaygroundToolActionButton(props: PlaygroundToolsProps) {
       setToolDialog(
         <PlaygroundToolDialog
           instanceTools={instance.tools}
+          instanceToolChoice={instance.toolChoice}
           playgroundInstanceId={instanceId}
           tool={tool}
           onClose={() => setToolDialog(null)}
         />
       );
     },
-    [instance.tools, instanceId, tools]
+    [instance.toolChoice, instance.tools, instanceId, tools]
   );
 
   return (
