@@ -1,3 +1,8 @@
+// TODO(apowell): we need to follow the vite tsconfig convention: tsconfig.json, tsconfig.node.json, tsconfig.app.json
+// tsconfig.json references tsconfig.app.json and tsconfig.node.json, each of which include react src and node src respectively
+// this current file being a part of tsconfig.node.json scope in particular
+// @ts-expect-error we need a separate tsconfig for vite
+import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 import { visualizer } from "rollup-plugin-visualizer";
@@ -6,7 +11,7 @@ import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
 export default defineConfig(({ command }) => {
-  const plugins = [react(), relay];
+  const plugins = [react(), relay, lezer()];
   // Development uses the serve command
   if (command === "serve") {
     plugins.push(visualizer());
@@ -30,6 +35,7 @@ export default defineConfig(({ command }) => {
       include: ["../__tests__/*.test.ts", "**/__tests__/*.test.ts"],
       exclude: ["../node_modules/**"],
       environment: "jsdom",
+      setupFiles: ["./vitest.setup.ts"],
       globals: true,
     },
     build: {

@@ -65,6 +65,30 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+union ChatCompletionChunk = TextChunk | ToolCallChunk
+
+input ChatCompletionInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: InvocationParameters!
+  tools: [JSON!]
+  apiKey: String = null
+}
+
+input ChatCompletionMessageInput {
+  role: ChatCompletionMessageRole!
+
+  """The content of the message as JSON to support text and tools"""
+  content: JSON!
+}
+
+enum ChatCompletionMessageRole {
+  USER
+  SYSTEM
+  TOOL
+  AI
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -796,12 +820,33 @@ type ExportedFile {
   fileName: String!
 }
 
+type FunctionCallChunk {
+  name: String!
+  arguments: String!
+}
+
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
 
   """Generative tracing records are available for analysis"""
   tracing: Boolean!
+}
+
+input GenerativeModelInput {
+  providerKey: GenerativeProviderKey!
+  name: String!
+}
+
+type GenerativeProvider {
+  name: String!
+  key: GenerativeProviderKey!
+}
+
+enum GenerativeProviderKey {
+  OPENAI
+  ANTHROPIC
+  AZURE_OPENAI
 }
 
 """
@@ -859,6 +904,16 @@ type IntervalBin {
   range: NumericRange!
 }
 
+input InvocationParameters {
+  temperature: Float
+  maxCompletionTokens: Int
+  maxTokens: Int
+  topP: Float
+  stop: [String!]
+  seed: Int
+  toolChoice: JSON
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
@@ -906,6 +961,10 @@ type Model {
     """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): PerformanceTimeSeries!
+}
+
+input ModelNamesInput {
+  providerKey: GenerativeProviderKey!
 }
 
 type Mutation {
@@ -1100,6 +1159,8 @@ type PromptResponse {
 }
 
 type Query {
+  modelProviders: [GenerativeProvider!]!
+  modelNames(input: ModelNamesInput!): [String!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -1372,6 +1433,10 @@ enum SpanStatusCode {
   UNSET
 }
 
+type Subscription {
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionChunk!
+}
+
 type SystemApiKey implements ApiKey & Node {
   """Name of the API key."""
   name: String!
@@ -1389,6 +1454,10 @@ type SystemApiKey implements ApiKey & Node {
   id: GlobalID!
 }
 
+type TextChunk {
+  content: String!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1404,6 +1473,11 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type ToolCallChunk {
+  id: String!
+  function: FunctionCallChunk!
 }
 
 type Trace implements Node {

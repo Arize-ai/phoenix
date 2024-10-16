@@ -2,54 +2,195 @@ import React from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Heading, View } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+} from "@phoenix/contexts/PlaygroundContext";
+import { InitialPlaygroundState } from "@phoenix/store";
 
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundOperationTypeRadioGroup } from "./PlaygroundOperationTypeRadioGroup";
+import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
+import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { PlaygroundTools } from "./PlaygroundTools";
+import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
-const panelContentCSS = css`
-  padding: var(--ac-global-dimension-size-200);
-  overflow: auto;
+export function Playground(props: InitialPlaygroundState) {
+  return (
+    <PlaygroundProvider {...props}>
+      <Flex direction="column" height="100%">
+        <View
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+          padding="size-200"
+          flex="none"
+        >
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Heading level={1}>Playground</Heading>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <PlaygroundCredentialsDropdown />
+              <PlaygroundRunButton />
+            </Flex>
+          </Flex>
+        </View>
+        <PlaygroundContent />
+      </Flex>
+    </PlaygroundProvider>
+  );
+}
+
+function AddPromptButton() {
+  const addInstance = usePlaygroundContext((state) => state.addInstance);
+  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  return (
+    <div
+      onClick={(e) => {
+        // Stop propagation to prevent the accordion from closing
+        e.stopPropagation();
+      }}
+    >
+      <Button
+        variant="default"
+        size="compact"
+        aria-label="add prompt"
+        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES}
+        onClick={() => {
+          addInstance();
+        }}
+      >
+        Prompt
+      </Button>
+    </div>
+  );
+}
+
+const playgroundPromptPanelContentCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
+  height: 100%;
+  overflow: hidden;
+  & > .ac-accordion {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex: 1 1 auto;
+    & > .ac-accordion-item {
+      height: 100%;
+      overflow: hidden;
+      flex: 1 1 auto;
+      .ac-accordion-itemContent {
+        height: 100%;
+        overflow: hidden;
+        flex: 1 1 auto;
+        & > .ac-view {
+          height: 100%;
+          flex: 1 1 auto;
+          overflow: auto;
+          box-sizing: border-box;
+        }
+      }
+    }
+  }
 `;
 
-export function Playground() {
+const playgroundInputOutputPanelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+`;
+
+function PlaygroundContent() {
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isSingleInstance = numInstances === 1;
+
   return (
-    <PlaygroundProvider>
-      <View
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-        padding="size-200"
-      >
-        <Flex direction="row" justifyContent="space-between">
-          <View>
-            <Flex direction="row" gap="size-200" alignItems="center">
-              <Heading level={1}>Playground</Heading>
-              <PlaygroundOperationTypeRadioGroup />
-            </Flex>
-          </View>
-          <Button variant="default">API Keys</Button>
-        </Flex>
-      </View>
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={50} order={1} css={panelContentCSS}>
-          <PlaygroundTemplate />
-          <PlaygroundTools />
-        </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={50} order={2} css={panelContentCSS}>
-          <PlaygroundInput />
-          <PlaygroundOutput />
-        </Panel>
-      </PanelGroup>
-    </PlaygroundProvider>
+    <PanelGroup
+      direction={isSingleInstance ? "horizontal" : "vertical"}
+      autoSaveId={
+        isSingleInstance ? "playground-horizontal" : "playground-vertical"
+      }
+    >
+      <Panel>
+        <div css={playgroundPromptPanelContentCSS}>
+          <Accordion arrowPosition="start" size="L">
+            <AccordionItem
+              title="Prompts"
+              id="prompts"
+              extra={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <TemplateLanguageRadioGroup />
+                  <AddPromptButton />
+                </Flex>
+              }
+            >
+              <View height="100%" padding="size-200" paddingBottom="size-900">
+                <Flex direction="row" gap="size-200">
+                  {instances.map((instance) => (
+                    <View key={instance.id} flex="1 1 0px">
+                      <PlaygroundTemplate
+                        key={instance.id}
+                        playgroundInstanceId={instance.id}
+                      />
+                    </View>
+                  ))}
+                </Flex>
+              </View>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </Panel>
+      <PanelResizeHandle css={resizeHandleCSS} />
+      <Panel>
+        <div css={playgroundInputOutputPanelContentCSS}>
+          <Accordion arrowPosition="start" size="L">
+            <AccordionItem
+              title="Inputs"
+              id="input"
+              extra={<PlaygroundInputTypeTypeRadioGroup />}
+            >
+              <View padding="size-200">
+                <PlaygroundInput />
+              </View>
+            </AccordionItem>
+            <AccordionItem title="Output" id="output">
+              <View padding="size-200" height="100%">
+                <Flex direction="row" gap="size-200">
+                  {instances.map((instance, i) => (
+                    <View key={i} flex="1 1 0px">
+                      <PlaygroundOutput
+                        key={i}
+                        playgroundInstanceId={instance.id}
+                      />
+                    </View>
+                  ))}
+                </Flex>
+              </View>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </Panel>
+    </PanelGroup>
   );
 }
