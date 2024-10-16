@@ -92,6 +92,7 @@ export function PlaygroundToolDialog({
                   instanceId: playgroundInstanceId,
                   patch: {
                     tools: instanceTools.filter((t) => t.id !== tool.id),
+                    toolChoice: undefined,
                   },
                 });
                 onClose();
