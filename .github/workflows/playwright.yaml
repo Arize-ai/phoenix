@@ -12,6 +12,9 @@ jobs:
     defaults:
       run:
         working-directory: ./app
+    env:
+      # Skip WebKit for the caching issue noted below.
+      CI_PLAYWRIGHT_SKIP_WEBKIT: true
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
@@ -58,8 +61,7 @@ jobs:
       - run: uv pip install --system ../. uvloop
       - run: uv pip list
       - name: Run Playwright tests
-        # Skip WebKit for the issue noted above.
-        run: pnpm exec playwright test --project "chromium" --project "firefox"
+        run: pnpm exec playwright test
       - uses: actions/upload-artifact@v4
         if: always()
         with:
