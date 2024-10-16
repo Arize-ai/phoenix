@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2cdc9b61c363ef02eee1db666410161c>>
+ * @generated SignedSource<<2541e9e2bfed22e1e5bd7970dd955d56>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,17 @@ export type GenerativeModelInput = {
   name: string;
   providerKey: GenerativeProviderKey;
 };
+export type InvocationParameters = {
+  maxCompletionTokens?: number | null;
+  maxTokens?: number | null;
+  seed?: number | null;
+  stop?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  topP?: number | null;
+};
 export type PlaygroundOutputSubscription$variables = {
   apiKey?: string | null;
+  invocationParameters: InvocationParameters;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
 };
@@ -41,14 +50,19 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "messages"
+  "name": "invocationParameters"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "messages"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "model"
 },
-v3 = [
+v4 = [
   {
     "alias": null,
     "args": [
@@ -58,6 +72,11 @@ v3 = [
             "kind": "Variable",
             "name": "apiKey",
             "variableName": "apiKey"
+          },
+          {
+            "kind": "Variable",
+            "name": "invocationParameters",
+            "variableName": "invocationParameters"
           },
           {
             "kind": "Variable",
@@ -84,37 +103,39 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
-    "selections": (v3/*: any*/),
+    "selections": (v4/*: any*/),
     "type": "Subscription",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v1/*: any*/),
       (v2/*: any*/),
+      (v3/*: any*/),
+      (v1/*: any*/),
       (v0/*: any*/)
     ],
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
-    "selections": (v3/*: any*/)
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "5cff076e526a229159c9105f632f563b",
+    "cacheID": "6d0368256a4708eceb692fac9b469a70",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, apiKey: $apiKey})\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, apiKey: $apiKey})\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cafb70821a7cde3503c13af42b602aa1";
+(node as any).hash = "0ffc0f049247896bfff22a90effc24a9";
 
 export default node;

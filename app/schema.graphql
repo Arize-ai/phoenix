@@ -68,7 +68,8 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
-  apiKey: String = null
+  invocationParameters: InvocationParameters!
+  apiKey: String
 }
 
 input ChatCompletionMessageInput {
@@ -893,6 +894,15 @@ input InputCoordinate3D {
 
 type IntervalBin {
   range: NumericRange!
+}
+
+input InvocationParameters {
+  temperature: Float
+  maxCompletionTokens: Int
+  maxTokens: Int
+  topP: Float
+  stop: [String!]
+  seed: Int
 }
 
 """

@@ -1,12 +1,9 @@
-import json
-from dataclasses import asdict
 from datetime import datetime
-from enum import Enum
 from itertools import chain
-from json import JSONEncoder
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
 
 import strawberry
+from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -17,18 +14,20 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
-from pydantic import BaseModel
 from sqlalchemy import insert, select
+from strawberry import UNSET
 from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameters
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
+from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
     from openai.types.chat import (
@@ -48,7 +47,8 @@ class GenerativeModelInput:
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
-    api_key: Optional[str] = None
+    invocation_parameters: InvocationParameters
+    api_key: Optional[str] = UNSET
 
 
 def to_openai_chat_completion_param(
@@ -94,7 +94,9 @@ class Subscription:
     ) -> AsyncIterator[str]:
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=input.api_key)
+        api_key = input.api_key or None
+        client = AsyncOpenAI(api_key=api_key)
+        invocation_parameters = jsonify(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -109,8 +111,9 @@ class Subscription:
                 chain(
                     _llm_span_kind(),
                     _llm_model_name(input.model.name),
-                    _input_value_and_mime_type(input),
                     _llm_input_messages(input.messages),
+                    _llm_invocation_parameters(invocation_parameters),
+                    _input_value_and_mime_type(input),
                 )
             ),
         ) as span:
@@ -121,6 +124,7 @@ class Subscription:
                 messages=(to_openai_chat_completion_param(message) for message in input.messages),
                 model=input.model.name,
                 stream=True,
+                **invocation_parameters,
             ):
                 chunks.append(chunk)
                 choice = chunk.choices[0]
@@ -206,14 +210,18 @@ def _llm_model_name(model_name: str) -> Iterator[Tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
+def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
+
+
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, json.dumps(asdict(input), cls=GraphQLInputJSONEncoder)
+    yield INPUT_VALUE, safe_json_dumps(jsonify(input))
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
     yield OUTPUT_MIME_TYPE, JSON
-    yield OUTPUT_VALUE, json.dumps(output, cls=ChatCompletionOutputJSONEncoder)
+    yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
 
 
 def _llm_input_messages(messages: List[ChatCompletionMessageInput]) -> Iterator[Tuple[str, Any]]:
@@ -242,20 +250,6 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     return datetime.fromtimestamp(epoch_seconds)
 
 
-class GraphQLInputJSONEncoder(JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, Enum):
-            return obj.value
-        return super().default(obj)
-
-
-class ChatCompletionOutputJSONEncoder(JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, BaseModel):
-            return obj.model_dump()
-        return super().default(obj)
-
-
 JSON = OpenInferenceMimeTypeValues.JSON.value
 
 LLM = OpenInferenceSpanKindValues.LLM.value
@@ -268,6 +262,7 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
