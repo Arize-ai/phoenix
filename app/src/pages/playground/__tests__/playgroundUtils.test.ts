@@ -80,6 +80,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
+          invocationParameters: {},
         },
         template: defaultTemplate,
         output: undefined,
@@ -97,6 +98,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
         },
@@ -201,6 +203,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
         },
@@ -252,6 +255,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-3.5-turbo",
         },
@@ -271,6 +275,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "ANTHROPIC",
           modelName: "claude-3-5-sonnet-20240620",
         },
@@ -290,6 +295,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: DEFAULT_MODEL_PROVIDER,
           modelName: "test-my-deployment",
         },

@@ -93,11 +93,22 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * The zod schema for llm model name
+ * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
-export const modelNameSchema = z.object({
+export const modelConfigSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.model_name]: z.string(),
+    [LLMAttributePostfixes.invocation_parameters]: z
+      .string()
+      .transform((s) =>
+        z
+          // TODO(apowell): specify schema for parameters that we care about
+          // convert them to camelCase after parsing so that we don't have to convert
+          // before hitting zustand
+          .object({})
+          .parse(JSON.parse(s))
+      )
+      .default("{}"),
   }),
 });
