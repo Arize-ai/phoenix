@@ -62,10 +62,15 @@ class TextChunk:
 
 
 @strawberry.type
-class ToolCallChunk:
-    id: str
+class FunctionCallChunk:
     name: str
     arguments: str
+
+
+@strawberry.type
+class ToolCallChunk:
+    id: str
+    function: FunctionCallChunk
 
 
 ChatCompletionChunk: TypeAlias = Annotated[
@@ -183,8 +188,10 @@ class Subscription:
                                     tool_call_id = first_tool_call_chunk.id
                                 tool_call_chunk = ToolCallChunk(
                                     id=tool_call_id,
-                                    name=function.name or "",
-                                    arguments=function.arguments or "",
+                                    function=FunctionCallChunk(
+                                        name=function.name or "",
+                                        arguments=function.arguments or "",
+                                    ),
                                 )
                                 yield tool_call_chunk
                                 tool_call_chunks[tool_call_index].append(tool_call_chunk)
@@ -296,12 +303,12 @@ def _llm_output_messages(
     if content := "".join(chunk.content for chunk in text_chunks):
         yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
     for tool_call_index, tool_call_chunks_ in tool_call_chunks.items():
-        if tool_call_chunks_ and (name := tool_call_chunks_[0].name):
+        if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
             yield (
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
                 name,
             )
-        if arguments := "".join(chunk.arguments for chunk in tool_call_chunks_):
+        if arguments := "".join(chunk.function.arguments for chunk in tool_call_chunks_):
             yield (
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
                 arguments,

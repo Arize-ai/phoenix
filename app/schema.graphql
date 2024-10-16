@@ -820,6 +820,11 @@ type ExportedFile {
   fileName: String!
 }
 
+type FunctionCallChunk {
+  name: String!
+  arguments: String!
+}
+
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
@@ -1472,8 +1477,7 @@ type TimeSeriesDataPoint {
 
 type ToolCallChunk {
   id: String!
-  name: String!
-  arguments: String!
+  function: FunctionCallChunk!
 }
 
 type Trace implements Node {

@@ -122,8 +122,10 @@ function useChatCompletionSubscription({
             }
             ... on ToolCallChunk {
               id
-              name
-              arguments
+              function {
+                name
+                arguments
+              }
             }
           }
         }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<42f9cba495f45db0809216459a5d71f4>>
+ * @generated SignedSource<<fed32a7465da8f81b8fda04674f80001>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,9 +40,11 @@ export type PlaygroundOutputSubscription$data = {
     readonly content: string;
   } | {
     readonly __typename: "ToolCallChunk";
-    readonly arguments: string;
+    readonly function: {
+      readonly arguments: string;
+      readonly name: string;
+    };
     readonly id: string;
-    readonly name: string;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -145,15 +147,26 @@ v4 = [
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "arguments",
+            "concreteType": "FunctionCallChunk",
+            "kind": "LinkedField",
+            "name": "function",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "arguments",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -192,16 +205,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "a3c143cfc8ac3fc3d12ffac1c7b1386a",
+    "cacheID": "ce54188370b1d1657129ab3f4a4baa28",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      name\n      arguments\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "df7c6d45779c60619906cde994c73782";
+(node as any).hash = "5c2ef45511941f179e8b09d4ff53503b";
 
 export default node;
