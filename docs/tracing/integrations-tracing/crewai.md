@@ -244,3 +244,4 @@ Now that you have tracing setup, all calls to your Crew will be streamed to your
 ## Resources
 
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-crewai)
+* [Example Notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/crewai\_tracing\_tutorial.ipynb)
