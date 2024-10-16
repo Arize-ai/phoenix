@@ -110,11 +110,7 @@ export function PlaygroundToolDropDown(props: PlaygroundToolsProps) {
         >
           {[
             ...tools.map((tool) => {
-              return (
-                <Item key={tool.id}>
-                  <Flex gap={"size-50"}>{tool.definition.function.name}</Flex>
-                </Item>
-              );
+              return <Item key={tool.id}>{tool.definition.function.name}</Item>;
             }),
             <Item key="add">
               <Flex gap={"size-50"}>
