@@ -1,8 +1,6 @@
-load("@pip//:requirements.bzl", _requirement = "requirement")
 load("@python_versions//3.10:defs.bzl", compile_pip_requirements_3_10 = "compile_pip_requirements")
-load("@rules_python//python:defs.bzl", "py_library")
-
-requirement = _requirement
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//:requirements.bzl", "requirement")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -33,6 +31,9 @@ py_binary(
         "src/phoenix/**/*.py",
     ]),
     main = "src/phoenix/server/main.py",
+    imports = [
+        "src/phoenix",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         requirement("scikit-learn"),

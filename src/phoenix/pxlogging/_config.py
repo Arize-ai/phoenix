@@ -8,7 +8,7 @@ from sys import stderr, stdout
 from typing_extensions import assert_never
 
 from phoenix.config import LoggingMode
-from phoenix.logging._filter import NonErrorFilter
+from phoenix.pxlogging._filter import NonErrorFilter
 from phoenix.settings import Settings
 
 from ._formatter import PhoenixJSONFormatter

@@ -6,15 +6,15 @@
 ###############################################################################
 module(name = "arize-ai")
 
-bazel_dep(name = "rules_python", version = "0.34.0")
+bazel_dep(name = "rules_python", version = "0.36.0")
 
 # released version is working incorrectly with fetching cross-platform dependencies. fixed in master
-git_override(
-    module_name = "rules_python",
-    commit = "4a262fae88bad2c4f59c7c60a97360c316e64946",
-    remote = "https://github.com/bazelbuild/rules_python",
-)
-
+# git_override(
+#     module_name = "rules_python",
+#     commit = "4a262fae88bad2c4f59c7c60a97360c316e64946",
+#     remote = "https://github.com/bazelbuild/rules_python",
+# )
+#
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     configure_coverage_tool = False,

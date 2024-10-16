@@ -43,13 +43,13 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
-from phoenix.logging import setup_logging
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
+from phoenix.pxlogging import setup_logging
 from phoenix.server._types import DbSessionFactory
 from phoenix.server.app import (
     ScaffolderConfig,
