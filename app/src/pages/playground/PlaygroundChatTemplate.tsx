@@ -25,13 +25,12 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
-  createTool,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
 import { MessageRolePicker } from "./MessageRolePicker";
-import { PlaygroundTools } from "./PlaygroundTools";
+import { PlaygroundToolDropDown } from "./PlaygroundToolDropdown";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -131,25 +130,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderBottomWidth={hasTools ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
-          <Button
-            variant="default"
-            aria-label="add tool"
-            size="compact"
-            icon={<Icon svg={<Icons.PlusOutline />} />}
-            onClick={() => {
-              updateInstance({
-                instanceId: id,
-                patch: {
-                  tools: [
-                    ...playgroundInstance.tools,
-                    createTool(playgroundInstance.tools.length + 1),
-                  ],
-                },
-              });
-            }}
-          >
-            Tool
-          </Button>
+          <PlaygroundToolDropDown playgroundInstanceId={id} />
           <Button
             variant="default"
             aria-label="add message"
@@ -178,7 +159,6 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           </Button>
         </Flex>
       </View>
-      {hasTools ? <PlaygroundTools {...props} /> : null}
     </DndContext>
   );
 }

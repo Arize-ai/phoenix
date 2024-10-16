@@ -4,6 +4,7 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
+  useMemo,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -19,6 +20,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { ToolChoicePicker } from "@phoenix/components/generative";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -83,11 +85,24 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
+
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+
   if (!instance) {
     throw new Error(
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
+  const { tools } = instance;
+
+  const hasTools = tools.length > 0;
+  const toolNames = useMemo(
+    () =>
+      tools
+        .map((tool) => tool.definition.function?.name)
+        .filter((name): name is NonNullable<typeof name> => name != null),
+    [tools]
+  );
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
@@ -140,6 +155,22 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
             query={query}
             onChange={onModelNameChange}
           />
+        )}
+        {hasTools ? (
+          <ToolChoicePicker
+            choice={instance.toolChoice}
+            onChange={(choice) => {
+              updateInstance({
+                instanceId: instance.id,
+                patch: {
+                  toolChoice: choice,
+                },
+              });
+            }}
+            toolNames={toolNames}
+          />
+        ) : (
+          <></>
         )}
       </Form>
     </View>

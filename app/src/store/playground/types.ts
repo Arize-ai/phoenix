@@ -102,7 +102,7 @@ export type ModelConfig = {
  */
 export type Tool = {
   id: number;
-  definition: Partial<ToolDefinition>;
+  definition: ToolDefinition;
 };
 
 /**
