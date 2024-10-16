@@ -65,7 +65,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_evals -- -ra -x
 
@@ -85,7 +85,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_otel -- -ra -x
 
@@ -133,7 +133,12 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/build-graphql-schema.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Build Schema
@@ -160,7 +165,11 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Build OpenAPI Schema
@@ -187,7 +196,11 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install `ruff`
         run: uv tool install ruff@0.6.8
       - name: Check format
@@ -218,7 +231,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -255,7 +268,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -298,7 +311,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -356,7 +369,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
