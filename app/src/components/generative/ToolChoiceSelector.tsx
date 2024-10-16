@@ -52,7 +52,7 @@ export function ToolChoicePicker({
   toolNames,
 }: ToolChoicePickerProps) {
   const currentKey =
-    choice === undefined || typeof choice === "string"
+    choice == null || typeof choice === "string"
       ? choice
       : addToolNamePrefix(choice.function.name);
   return (

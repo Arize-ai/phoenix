@@ -243,7 +243,7 @@ function SortableMessageItem({
         }
         extra={
           <Flex direction="row" gap="size-100">
-            {message.content !== undefined && (
+            {message.content != null && (
               <CopyToClipboardButton text={message.content} />
             )}
             <Button

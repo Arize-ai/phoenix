@@ -31,7 +31,7 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
 
   return (
     <Card title={role} {...styles} variant="compact">
-      {content !== undefined && (
+      {content != null && (
         <Flex direction="column" alignItems="start">
           {content}
         </Flex>
