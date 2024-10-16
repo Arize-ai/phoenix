@@ -8,6 +8,7 @@ import {
   DSPYSVG,
   GroqSVG,
   HaystackSVG,
+  IntegrationSVG,
   LangChainSVG,
   LlamaIndexSVG,
   MistralAISVG,
@@ -182,6 +183,14 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-crewai",
     icon: <CrewAISVG />,
+  },
+  {
+    name: "LiteLLM",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
+    icon: <IntegrationSVG />,
   },
 ];
 
