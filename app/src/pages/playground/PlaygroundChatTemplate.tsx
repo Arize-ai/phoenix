@@ -243,7 +243,9 @@ function SortableMessageItem({
         }
         extra={
           <Flex direction="row" gap="size-100">
-            <CopyToClipboardButton text={message.content} />
+            {message.content != null && (
+              <CopyToClipboardButton text={message.content} />
+            )}
             <Button
               aria-label="Delete message"
               icon={<Icon svg={<Icons.TrashOutline />} />}

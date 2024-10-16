@@ -35,7 +35,7 @@ type ToolChoicePickerProps = {
   /**
    * The current choice including the default {@link ToolChoice} and any user defined tools
    */
-  choice: ToolChoice;
+  choice: ToolChoice | undefined;
   /**
    * Callback for when the tool choice changes
    */
@@ -52,7 +52,7 @@ export function ToolChoicePicker({
   toolNames,
 }: ToolChoicePickerProps) {
   const currentKey =
-    typeof choice === "string"
+    choice == null || typeof choice === "string"
       ? choice
       : addToolNamePrefix(choice.function.name);
   return (

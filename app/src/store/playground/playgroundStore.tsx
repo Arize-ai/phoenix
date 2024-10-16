@@ -97,7 +97,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
     tools: [],
-    toolChoice: "auto",
+    toolChoice: undefined,
     // TODO(apowell) - use datasetId if in dataset mode
     input: { variablesValueCache: {}, variableKeys: [] },
     output: undefined,
@@ -310,9 +310,10 @@ export const createPlaygroundStore = (
             // for each chat message in the instance
             instance.template.messages.forEach((message) => {
               // extract variables from the message content
-              const extractedVariables = utils.extractVariables(
-                message.content
-              );
+              const extractedVariables =
+                message.content == null
+                  ? []
+                  : utils.extractVariables(message.content);
               extractedVariables.forEach((variable) => {
                 variables.add(variable);
               });

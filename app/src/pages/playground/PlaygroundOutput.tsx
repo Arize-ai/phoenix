@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
+import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import type { ToolCall } from "@phoenix/store";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -24,11 +26,37 @@ import { PlaygroundInstanceProps } from "./types";
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
 function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
-  const styles = useChatMessageStyles(message.role);
+  const { role, content, toolCalls } = message;
+  const styles = useChatMessageStyles(role);
 
   return (
-    <Card title={message.role} {...styles} variant="compact">
-      {message.content}
+    <Card title={role} {...styles} variant="compact">
+      {content != null && (
+        <Flex direction="column" alignItems="start">
+          {content}
+        </Flex>
+      )}
+      {toolCalls && toolCalls.length > 0
+        ? toolCalls.map((toolCall) => {
+            return (
+              <pre
+                key={toolCall.id}
+                css={css`
+                  text-wrap: wrap;
+                  margin: var(--ac-global-dimension-static-size-100) 0;
+                `}
+              >
+                {toolCall.function.name}(
+                {JSON.stringify(
+                  JSON.parse(toolCall.function.arguments),
+                  null,
+                  2
+                )}
+                )
+              </pre>
+            );
+          })
+        : null}
     </Card>
   );
 }
@@ -106,6 +134,7 @@ function useChatCompletionSubscription({
           $messages: [ChatCompletionMessageInput!]!
           $model: GenerativeModelInput!
           $invocationParameters: InvocationParameters!
+          $tools: [JSON!]
           $apiKey: String
         ) {
           chatCompletion(
@@ -113,6 +142,7 @@ function useChatCompletionSubscription({
               messages: $messages
               model: $model
               invocationParameters: $invocationParameters
+              tools: $tools
               apiKey: $apiKey
             }
           ) {
@@ -196,7 +226,8 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     throw new Error("We only support chat templates for now");
   }
 
-  const [output, setOutput] = useState<string>("");
+  const [output, setOutput] = useState<string | undefined>(undefined);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
 
   useChatCompletionSubscription({
     params: {
@@ -206,15 +237,46 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         name: instance.model.modelName || "",
       },
       invocationParameters: {
-        temperature: 0.1, // TODO: add invocation parameters
+        toolChoice: instance.toolChoice,
       },
+      tools: instance.tools.map((tool) => tool.definition),
       apiKey: credentials[instance.model.provider],
     },
     runId: instance.activeRunId,
     onNext: (response) => {
       const chatCompletion = response.chatCompletion;
       if (chatCompletion.__typename === "TextChunk") {
-        setOutput((acc) => acc + chatCompletion.content);
+        setOutput((acc) => (acc || "") + chatCompletion.content);
+      } else if (chatCompletion.__typename === "ToolCallChunk") {
+        setToolCalls((toolCalls) => {
+          let toolCallExists = false;
+          const updated = toolCalls.map((toolCall) => {
+            if (toolCall.id === chatCompletion.id) {
+              toolCallExists = true;
+              return {
+                ...toolCall,
+                function: {
+                  ...toolCall.function,
+                  arguments:
+                    toolCall.function.arguments +
+                    chatCompletion.function.arguments,
+                },
+              };
+            } else {
+              return toolCall;
+            }
+          });
+          if (!toolCallExists) {
+            updated.push({
+              id: chatCompletion.id,
+              function: {
+                name: chatCompletion.function.name,
+                arguments: chatCompletion.function.arguments,
+              },
+            });
+          }
+          return updated;
+        });
       }
     },
     onCompleted: () => {
@@ -222,7 +284,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     },
   });
 
-  if (!output) {
+  if (!output && (toolCalls.length === 0 || instance.isRunning)) {
     return (
       <Flex direction="row" gap="size-100" alignItems="center">
         <Icon svg={<Icons.LoadingOutline />} />
@@ -236,6 +298,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         id: generateMessageId(),
         content: output,
         role: "ai",
+        toolCalls: toolCalls,
       }}
     />
   );

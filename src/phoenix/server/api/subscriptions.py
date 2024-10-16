@@ -1,5 +1,6 @@
 import json
 from collections import defaultdict
+from dataclasses import fields
 from datetime import datetime
 from itertools import chain
 from typing import (
@@ -280,8 +281,9 @@ def _llm_tools(tools: List[JSONScalarType]) -> Iterator[Tuple[str, Any]]:
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
+    assert any(field.name == (api_key := "api_key") for field in fields(ChatCompletionInput))
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, safe_json_dumps(jsonify(input))
+    yield INPUT_VALUE, safe_json_dumps({k: v for k, v in jsonify(input).items() if k != api_key})
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
