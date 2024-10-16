@@ -46,9 +46,9 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
                   margin: var(--ac-global-dimension-static-size-100) 0;
                 `}
               >
-                {toolCall?.function?.name as string}(
+                {toolCall.function.name}(
                 {JSON.stringify(
-                  JSON.parse(toolCall?.function?.arguments as string),
+                  JSON.parse(toolCall.function.arguments),
                   null,
                   2
                 )}
