@@ -233,7 +233,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         model_name: "claude-3-5-sonnet-20240620",
       },
     });
-    const azureAttributes = JSON.stringify({
+    const unknownAttributes = JSON.stringify({
       ...spanAttributesWithInputMessages,
       llm: {
         ...spanAttributesWithInputMessages.llm,
@@ -282,13 +282,13 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(
       transformSpanAttributesToPlaygroundInstance({
         ...basePlaygroundSpan,
-        attributes: azureAttributes,
+        attributes: unknownAttributes,
       })
     ).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
-          provider: "AZURE_OPENAI",
+          provider: DEFAULT_MODEL_PROVIDER,
           modelName: "test-my-deployment",
         },
       },
