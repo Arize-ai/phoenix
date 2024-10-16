@@ -28,7 +28,7 @@ import {
   llmInputMessageSchema,
   llmOutputMessageSchema,
   MessageSchema,
-  modelNameSchema,
+  modelConfigSchema,
   outputSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
@@ -164,13 +164,13 @@ function getModelConfigFromAttributes(
 ):
   | { modelConfig: ModelConfig; parsingErrors: never[] }
   | { modelConfig: null; parsingErrors: string[] } {
-  const { success, data } = modelNameSchema.safeParse(parsedAttributes);
+  const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
     return {
       modelConfig: {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
-        invocationParameters: {},
+        invocationParameters: data.llm.invocation_parameters,
       },
       parsingErrors: [],
     };
