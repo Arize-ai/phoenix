@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6931dc528aea2b22801320e6d297dd58>>
+ * @generated SignedSource<<b2e9cdb73d732f72169cf02e0b5f87d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,9 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelPickerFragment$data = {
-  readonly modelNames: ReadonlyArray<string>;
+  readonly models: ReadonlyArray<{
+    readonly name: string;
+  }>;
   readonly " $fragmentType": "ModelPickerFragment";
 };
 export type ModelPickerFragment$key = {
@@ -46,8 +48,19 @@ const node: ReaderFragment = {
           "name": "input"
         }
       ],
-      "kind": "ScalarField",
-      "name": "modelNames",
+      "concreteType": "GenerativeModel",
+      "kind": "LinkedField",
+      "name": "models",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -55,6 +68,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "bb2557396c978bb5f57c7a4f67d756b1";
+(node as any).hash = "1e660ad77ce19db1c1bbe8698a661b4f";
 
 export default node;

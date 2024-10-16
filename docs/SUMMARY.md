@@ -2,7 +2,6 @@
 
 * [Arize Phoenix](README.md)
 * [Quickstart](quickstart.md)
-* [Hosted Phoenix](hosted-phoenix.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Setup](setup/README.md)
@@ -11,9 +10,10 @@
   * [Authentication](setup/authentication.md)
 * [Deployment](deployment/README.md)
   * [Quickstart: Deployment](deployment/deploying-phoenix.md)
+  * [Hosted Phoenix](deployment/hosted-phoenix.md)
+  * [Docker](deployment/docker.md)
   * [Persistence](deployment/persistence.md)
   * [Kubernetes](deployment/kubernetes.md)
-  * [Docker](deployment/docker.md)
   * [FAQs: Deployment](deployment/faqs-deployment.md)
 
 ## 🔭 Tracing
@@ -36,6 +36,7 @@
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
   * [Instructor](tracing/integrations-tracing/instructor.md)
+  * [LiteLLM](tracing/integrations-tracing/litellm.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
@@ -93,9 +94,10 @@
     * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
-    * [Tool Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
+  * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
 ## 🗄️ Datasets & Experiments

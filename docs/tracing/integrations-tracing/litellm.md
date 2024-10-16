@@ -1,14 +1,16 @@
----
-description: >-
-  How to use the python OpenAIInstrumentor to trace OpenAI LLM and embedding
-  calls
----
+# LiteLLM
 
-# OpenAI
+[LiteLLM](https://github.com/BerriAI/litellm) allows developers to call all LLM APIs using the openAI format. [LiteLLM Proxy](https://docs.litellm.ai/docs/simple\_proxy) is a proxy server to call 100+ LLMs in OpenAI format. Both are supported by this auto-instrumentation.
 
-Note: This instrumentation also works with Azure OpenAI
+Any calls made to the following functions will be automatically captured by this integration:
 
-Phoenix provides auto-instrumentation for the [OpenAI Python Library](https://github.com/openai/openai-python).
+* completion()
+* acompletion()
+* completion\_with\_retries()
+* embedding()
+* aembedding()
+* image\_generation()
+* aimage\_generation()
 
 ## Launch Phoenix
 
@@ -34,7 +36,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-)  
+)
 ```
 
 {% hint style="info" %}
@@ -103,7 +105,7 @@ tracer_provider = register(
 )
 ```
 
-For more info on using Phoenix with Docker, see [#docker](openai.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](litellm.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -117,18 +119,19 @@ pip install arize-phoenix-otel
 
 **Connect your application to your cloud instance:**
 
-<pre class="language-python"><code class="lang-python">import os
+```python
+import os
 from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
 os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 
 # configure the Phoenix tracer
-<strong>tracer_provider = register(
-</strong>  project_name="my-llm-app", # Default is 'default'
+register(
+  project_name="my-llm-app", # Default is 'default'
   endpoint="https://app.phoenix.arize.com/v1/traces",
 )
-</code></pre>
+```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
 {% endtab %}
@@ -137,45 +140,46 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-openai openai
+pip install openinference-instrumentation-litellm litellm
 ```
 
 ## Setup
 
-Add your OpenAI API key as an environment variable:
-
-```bash
-export OPENAI_API_KEY=[your_key_here]
-```
-
-Initialize the OpenAIInstrumentor before your application code:
+Initialize the InstructorInstrumentor before your application code.
 
 ```python
-from openinference.instrumentation.openai import OpenAIInstrumentor
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
 
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+LiteLLMInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-## Run OpenAI
+Add any API keys needed by the models you are using with LiteLLM.
 
 ```python
-import openai
+import os
+os.environ["OPENAI_API_KEY"] = "PASTE_YOUR_API_KEY_HERE"
+```
 
-client = openai.OpenAI()
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Write a haiku."}],
-)
-print(response.choices[0].message.content)
+## Run LiteLLM
+
+You can now use LiteLLM as normal and calls will be traces in Phoenix.
+
+```python
+import litellm
+completion_response = litellm.completion(model="gpt-3.5-turbo", 
+                   messages=[{"content": "What's the capital of China?", "role": "user"}])
+print(completion_response)
 ```
 
 ## Observe
 
-Now that you have tracing setup, all invocations of OpenAI (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+Traces should now be visible in Phoenix!
+
+<figure><img src="../../.gitbook/assets/Screenshot 2024-10-08 at 9.59.25 AM.png" alt=""><figcaption><p>A LiteLLM trace in Phoenix</p></figcaption></figure>
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai\_tracing\_tutorial.ipynb)
-* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)
-* [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai/examples)
+* [OpenInference Instrumentation](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm)
+
+
 

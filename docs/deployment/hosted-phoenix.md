@@ -23,33 +23,33 @@ We also use 3rd party analytics tools to measure usage of our application to imp
 
 Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer logins via Google, Github, and email. This account will use the same account credentials as your Arize account if you have one.
 
-<figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 ### Tracing: How to send in your first trace
 
-<figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
 Get your API keys from your Phoenix application on the left hand side.&#x20;
 
-Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](tracing/how-to-tracing/instrumentation/) as well.
+Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](../tracing/how-to-tracing/instrumentation/) as well.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
 Install the following libraries
 
 ```
-!pip install arize-phoenix "openai>=1" "openinference-instrumentation-llama-index>=2.0.0"
+!pip install arize-phoenix "openai>=1" "openinference-instrumentation-llama-index>=2.0.0" llama_index
 ```
 
 Use the following python code to start instrumentation.
 
 ```python
-# setup Arize Phoenix for logging/observability
 import os
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from phoenix.otel import register
 
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+PHOENIX_API_KEY = "YOUR PHOENIX API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # Configuration is picked up from your environment variables
@@ -64,7 +64,7 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_ch
 Install the following libraries
 
 ```bash
-pip install arize-phoenix-otel openinference-instrumentation-openai openai
+! pip install arize-phoenix-otel openinference-instrumentation-openai openai
 ```
 
 Use the following python code to connect to Phoenix
@@ -72,8 +72,10 @@ Use the following python code to connect to Phoenix
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from phoenix.otel import register
+import os
 
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=YOUR PHOENIX API KEY"
+PHOENIX_API_KEY = "YOUR PHOENIX API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # Setup OTEL tracing for hosted Phoenix. The register function will automatically detect the endpoint and headers from your environment variables.
@@ -92,7 +94,6 @@ Once you collect trace data from the above configuration, you can access the dat
 You'll need to add the following environment variable to authenticate to hosted Phoenix.
 
 ```python
-os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=..."
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
@@ -106,7 +107,7 @@ phoenix_df = px_client.get_spans_dataframe()
 
 ### Will hosted Phoenix be on the latest version of Phoenix?
 
-On account creation, we will always use the latest version of Phoenix. We try to keep all instances of hosted Phoenix up to date and run upgrades for them when new versions are available. There will be a few minutes of downtime during these periods.
+We update the Phoenix version used by Hosted Phoenix on a weekly basis.
 
 ### Data retention
 

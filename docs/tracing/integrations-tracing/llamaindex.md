@@ -4,6 +4,10 @@ description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex
 
 # LlamaIndex
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb" %}
+Troubleshooting an LLM application using the OpenInferenceTraceCallback
+{% endembed %}
+
 [LlamaIndex](https://github.com/run-llama/llama\_index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
 
 For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrumentor aptly named the `LlamaIndexInstrumentor` . This callback is what is used to create spans and send them to the Phoenix collector.
@@ -12,7 +16,16 @@ For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrument
 {% tab title="Instrumentation (>=0.10.43)" %}
 Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm.
 
-To get started, pip install the following.
+To get started, make sure you're running Phoenix. The easiest way to do this is to run the following in a separate terminal window:
+
+```
+pip install arize-phoenix
+phoenix serve
+```
+
+See [deployment](../../deployment/ "mention")for other hosting options.
+
+Then, pip install the following in your project.
 
 {% code overflow="wrap" %}
 ```
@@ -30,19 +43,10 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
-```
-
-Note that the legacy One-Click system of spans can still be used instead by setting `use_legacy_callback_handler=True` as shown below.
-
-```python
-LlamaIndexInstrumentor().instrument(
-    tracer_provider=tracer_provider,
-    use_legacy_callback_handler=True,
-)
 ```
 {% endtab %}
 
@@ -99,8 +103,4 @@ llama_index.set_global_handler("arize_phoenix")
 By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix Server.
 
 For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb" %}
-Troubleshooting an LLM application using the OpenInferenceTraceCallback
-{% endembed %}
 
