@@ -9,13 +9,19 @@ description: >-
 ## Install
 
 {% tabs %}
-{% tab title="Using pip" %}
+{% tab title="pip" %}
 ```bash
 pip install arize-phoenix
 ```
 {% endtab %}
 
-{% tab title="Using conda" %}
+{% tab title="pipx" %}
+```bash
+pipx install arize-phoenix
+```
+{% endtab %}
+
+{% tab title="conda" %}
 ```bash
 conda install -c conda-forge arize-phoenix
 ```
@@ -32,7 +38,7 @@ docker pull arizephoenix/phoenix:latest
 {% tab title="app.phoenix.arize.com" %}
 If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
-For more details, see [hosted-phoenix.md](hosted-phoenix.md "mention")
+For more details, see [hosted-phoenix.md](deployment/hosted-phoenix.md "mention")
 {% endtab %}
 {% endtabs %}
 
@@ -42,10 +48,16 @@ Launching phoenix can be done in many ways depending on your use-case.
 
 {% tabs %}
 {% tab title="Command Line" %}
-Launch your local Phoenix instance using:
+For `arize-phoenix>=5.2.0`, launch Phoenix with
 
 ```bash
-python3 -m phoenix.server.main serve
+phoenix serve
+```
+
+For older versions of Phoenix, use
+
+```
+python -m phoenix.server.main serve
 ```
 
 For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).

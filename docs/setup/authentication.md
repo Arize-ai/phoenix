@@ -10,13 +10,19 @@ By default Phoenix deploys with authentication disabled as you may be just tryin
 Authentication will stop collecting traces and block all API access until API keys are created. For that reason we recommend scheduling some downtime if you have already deployed phoenix.
 {% endhint %}
 
+{% embed url="https://youtu.be/e9I2voaGuQE" %}
+
 ## Setup
 
 To enable authentication on your Phoenix, you will have to set two environment variables:
 
 <table><thead><tr><th width="198">Variable</th><th width="359">Description</th><th>Example Value</th></tr></thead><tbody><tr><td><strong>PHOENIX_ENABLE_AUTH</strong></td><td>Set to <code>True</code> to enable authentication on your platform</td><td><strong>True</strong> or <strong>False</strong></td></tr><tr><td><strong>PHOENIX_SECRET</strong></td><td>A long string value that is used to sign JWTs for your deployment. It should be a good mix of characters and numbers and should be kept in a secret store of some kind.</td><td><code>3413f9a7735bb780c6b8e4db7d946a492b64d26112a955cdea6a797f4c833593</code></td></tr></tbody></table>
 
-Deploy Phoenix with the above two environment variables set. You will know that you have setup authentication correctly if the UI navigates to to a login screen.
+The following environment variables are optional but recommended:
+
+<table data-header-hidden data-full-width="false"><thead><tr><th>Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_USE_SECURE_COOKIES</strong></td><td>If set to <strong>True</strong>, access and refresh tokens will be stored in secure cookies. Defaults to <strong>False</strong>.</td></tr><tr><td><strong>PHOENIX_CSRF_TRUSTED_ORIGINS</strong></td><td>A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes <code>origin</code> or <code>referer</code> headers, those values will not be validated.</td></tr></tbody></table>
+
+Deploy Phoenix with the above environment variables set. You will know that you have setup authentication correctly if the UI navigates to to a login screen.
 
 By default Phoenix will create an admin user account. To get started:
 
@@ -26,6 +32,10 @@ By default Phoenix will create an admin user account. To get started:
 4. In your application code, make sure to set the proper authentication headers with the system API key. Phoenix respects headers in the form of [bearer auth](https://swagger.io/docs/specification/authentication/bearer-authentication/), meaning that you should set the header in the form **Authorization: Bearer \<token>.** Note that if you are using the Phoenix Client or Phoenix Otel, you simply need to set the **PHOENIX\_API\_KEY** environment variable.
 
 Re-deploy your application with the API key created above and you will see traces stream in as before.
+
+The following environment variables are optional but recommended:
+
+
 
 ## User Management
 
@@ -145,19 +155,82 @@ If SMTP is not configured, you have a few options to recover your forgotten pass
 * Contact an administrator and request that they reset your password. Admins can reset user passwords on the `settings` page.
 * As a last resort, you can manually update the database tuple that contains your password salt and hash.
 
-## Configuring OAuth2
+## Configuring OAuth2 Identity Providers
 
-You can configure Phoenix to use OAuth2 such as Google and AWS Cognito as the identity provider for your Phoenix. By default all users that sign in with OAuth will be assigned the member role.\
-\
-Below is an example configuration to enable OAuth2 for Google.
+Phoenix supports login via third-party identity providers (IDPs), including:
 
-```properties
-export PHOENIX_SECRET=XXXXXXXXXXXXXXXXX
-export PHOENIX_ENABLE_AUTH=True
+* Google
+* [AWS Cognito](https://aws.amazon.com/cognito/)
+* [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id) (previously known as Azure Active Directory)
+* IDPs that support [OpenID Connect](https://openid.net/developers/how-connect-works/) and a [well-known configuration endpoint](https://openid.net/specs/openid-connect-discovery-1\_0.html#ProviderConfigurationRequest) at `GET /.well-known/openid-configuration`
 
-export PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=XXXXXXXXXXXXXXXXX
-export PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=GXXXXXXXXXXXXXXXXX
-export PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
-```
+{% hint style="info" %}
+OAuth2 enables applications such as Phoenix to authorize access to resources via identity providers (IDPs) rather than storing and verifying user credentials locally. OpenID Connect is an extension of OAuth2 that additionally authenticates users by verifying identity and providing Phoenix with user information such as email address, username, etc. Phoenix integrates with OpenID Connect IDPs that have a "well-known configuration endpoint" at `GET /.well-known/openid-configuration`, which provides a standardized way to discover information about the IDP's endpoints and capabilities.
+{% endhint %}
 
-Supported OAuth2 Providers include: Google, Auth0, AWS Cognito, [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id), and any other OAuth provider that supports[ OpenID Connect](https://openid.net/developers/how-connect-works/)
+Phoenix uses the OAuth2 authorization code flow for web applications, which requires setting a few environment variables in addition to `PHOENIX_ENABLE_AUTH` and `PHOENIX_SECRET`:
+
+<table data-full-width="false"><thead><tr><th width="416">Environment Variable</th><th>Description</th></tr></thead><tbody><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_ID</strong></td><td>The client ID generated by the IDP when registering the application.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_CLIENT_SECRET</strong></td><td>The client secret generated by the IDP when registering the application.</td></tr><tr><td><strong>PHOENIX_OAUTH2_&#x3C;IDP>_OIDC_CONFIG_URL</strong></td><td>The URL to the OpenID Connect well-known configuration endpoint. Entering this URL in your browser will return a JSON object containing authorization server metadata.</td></tr></tbody></table>
+
+Detailed instructions for common IDPs are provided below.
+
+{% hint style="info" %}
+Users that sign into Phoenix via an OAuth2 IDP are initially added as members. Their role can be changed after their first login by a Phoenix admin.
+{% endhint %}
+
+### Google
+
+1. In Google Cloud Console, select a GCP project in which to register your Phoenix OAuth2 app.
+2. Select **APIs and Services**.
+3. In the **Credentials** page, click on **Create Credentials** and select **OAuth Client ID**.&#x20;
+4. From the **Application type** dropdown, select **Web application**.
+5. Enter a name for your Phoenix app, which will be displayed to users when signing in.
+6. Under **Authorized JavaScript origins**, click **Add URI** and enter the origin URL where you will access Phoenix in the browser.
+7. Under **Authorized redirect URIs**, click **Add URI**. Take the URL from the previous step and append the slug `/oauth2/google/tokens`. Enter this URL.
+8. Copy your client ID and client secret.
+9. Deploy Phoenix with the three environment variables described above, substituting `GOOGLE` for `<IDP>`. The well-known configuration endpoint is `https://accounts.google.com/.well-known/openid-configuration`.
+
+### AWS Cognito
+
+1. In the AWS Management Console, navigate to the **Cognito** page.
+2. From the **User Pools** page, select **Create User Pool**.
+3. Under **Required attributes**, in the **Additional required attributes** dropdown, select **email** (you can optionally require **name** and **picture** to ensure user profiles have this information in Phoenix).
+4. In the **Initial app client** section:
+   1. Under **App type**, select **Confidential client**.
+   2. Under **App client name**, enter a name for your Phoenix app.
+   3. Under **Client secret**, ensure **Generate a client secret** is selected.
+5. Create your user pool and navigate to the page for the newly created user pool by clicking on its name.
+6. Add at least one user to your user pool in the **Users** section.
+7. Copy and save your user pool ID from the top of the page. The ID should be of the form `<region>_<hash>`, e.g., `us-east-2_x4FTon498`.
+8. Under **App Integration > Domain**, create a domain to contain the sign-in page and OAuth2 endpoints.
+9. Under **App Integration > App client list > App clients and analytics**, select your newly created client.
+10. Copy and save your client ID and client secret.
+11. Under **Hosted UI**, click **Edit**. On the **Edit Hosted UI** page:
+    1. Add an **Allowed callback URL** of the form `<origin-url>/oauth2/aws_cognito/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser.
+    2. In the **Identity Providers** dropdown, select **Cognito user pool**.
+    3. Under **OAuth 2.0 grant types**, select **Authorization code grant**.
+    4. Under **OpenID Connect scopes**, select **OpenID**, **Email**, and **Profile**.
+    5. Save your changes.
+12. The well-known configuration endpoint is of the form `https://cognito-idp.<region>.amazonaws.com/<user-pool-id>/.well-known/openid-configuration`, where the user pool ID was copied in a previous step and the region is the first part of the user pool ID preceding the underscore. Test this URL in your browser to ensure it is correct before proceeding to the next step.
+13. Deploy Phoenix using the three environment variables described above, substituting `AWS_COGNITO` for `<IDP>`.
+
+### Microsoft Entra ID
+
+1. From the Azure portal, navigate to **Microsoft Entra ID**.
+2. Select **Add > App Registration**.
+3. On the **Register an Application** page:
+   1. Enter a name for your application.
+   2. Under **Redirect URI**, in the **Select a platform** dropdown, select **Web** and a redirect URI of the form `<origin-url>/oauth2/microsoft_entra_id/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser.
+4. Copy and save the **Application (client) ID**.
+5. Under **Endpoints**, copy and save the well-known configuration endpoint under **OpenID Connect metadata document**.
+6. Under **Client credentials**, click **Add a certificate or secret**. Create a client secret and copy and save its value.
+7. Deploy Phoenix using the three environment variables described above, substituting `MICROSOFT_ENTRA_ID` for `<IDP>`.
+
+### Other Identity Providers
+
+Phoenix can integrate with any OAuth2 IDP that supports OpenID Connect and has a well-known configuration endpoint. Detailed instructions will vary by IDP, but the general steps remain the same:
+
+1. Register a Phoenix client application with your IDP. If prompted to select an application type, select **traditional web application** or a similarly named application type that allows you to generate a client secret in addition to a client ID.
+2. Find the well-known configuration endpoint for your IDP.
+3. Deploy Phoenix with the environment variables described above, substituting `<IDP>` with your IDP name, e.g., `AUTH0`.
+4. Phoenix will make a best-effort attempt to display a readable name for your IDP on the login page based on the value substituted in the previous step. If you wish to customize the display name, for example, if your IDP name contains special characters, you may optionally configure the IDP name to be displayed with the `PHOENIX_OAUTH2_<IDP>_DISPLAY_NAME` environment variable.

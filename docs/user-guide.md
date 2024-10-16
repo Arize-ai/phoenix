@@ -1,12 +1,6 @@
----
-description: >-
-  LLM observability is complete visibility into every layer of an LLM-based
-  software system: the application, the prompt, and the response.
----
-
 # User Guide
 
-Phoenix is a comprehensive platform designed to enable observability across every layer of an LLM-based system, empowering teams to build, optimize, and maintain high-quality applications efficiently.
+Phoenix is a comprehensive platform designed to enable observability across every layer of an LLM-based system, empowering teams to build, optimize, and maintain high-quality applications and agents efficiently.
 
 <figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/user-guide-image.png" alt=""><figcaption></figcaption></figure>
 
