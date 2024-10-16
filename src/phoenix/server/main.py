@@ -3,7 +3,6 @@ import codecs
 import os
 import sys
 from argparse import SUPPRESS, ArgumentParser
-from importlib.metadata import version
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
