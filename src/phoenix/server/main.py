@@ -39,7 +39,8 @@ from phoenix.config import (
     get_env_smtp_validate_certs,
     get_pids_path,
 )
-from phoenix.core.model_schema_adapter import create_model_from_inferences
+
+# cacacaca
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
@@ -49,6 +50,9 @@ from phoenix.pointcloud.umap_parameters import (
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
+
+print("Hello World")
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.pxlogging import setup_logging
 from phoenix.server._types import DbSessionFactory
 from phoenix.server.app import (

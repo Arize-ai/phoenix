@@ -1,5 +1,6 @@
+# load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("@python_versions//3.10:defs.bzl", compile_pip_requirements_3_10 = "compile_pip_requirements")
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("//:requirements.bzl", "requirement")
 
 package(default_visibility = ["//visibility:public"])
@@ -25,14 +26,87 @@ compile_pip_requirements_3_10(
     ],
 )
 
+py_library(
+    name = "arize-phoenix-lib",
+    srcs = glob([
+        "src/phoenix/**/*.py",
+    ]),
+    # imports = [
+    #     "src",
+    # ],
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("scikit-learn"),
+        requirement("numpy"),
+        requirement("pandas"),
+        requirement("jinja2"),
+        requirement("umap-learn"),
+        requirement("fast-hdbscan"),
+        requirement("numba"),
+        requirement("starlette"),
+        requirement("uvicorn"),
+        requirement("psutil"),
+        requirement("strawberry-graphql"),
+        requirement("pyarrow"),
+        requirement("typing-extensions"),
+        requirement("scipy"),
+        requirement("wrapt"),
+        requirement("protobuf"),
+        requirement("grpcio"),
+        requirement("grpc-interceptor"),
+        requirement("tqdm"),
+        requirement("httpx"),
+        requirement("opentelemetry-sdk"),
+        requirement("opentelemetry-proto"),
+        requirement("opentelemetry-exporter-otlp"),
+        requirement("opentelemetry-semantic-conventions"),
+        requirement("openinference-semantic-conventions"),
+        requirement("openinference-instrumentation"),
+        requirement("alembic"),
+        requirement("aiosqlite"),
+        requirement("aioitertools"),
+        requirement("sqlean.py"),
+        requirement("cachetools"),
+        requirement("python-multipart"),
+        requirement("arize-phoenix-evals"),
+        requirement("arize-phoenix-otel"),
+        requirement("fastapi"),
+        requirement("pydantic"),
+        requirement("authlib"),
+        requirement("prometheus-client"),
+        requirement("opentelemetry-instrumentation-fastapi"),
+        requirement("opentelemetry-instrumentation-sqlalchemy"),
+        requirement("opentelemetry-instrumentation-grpc"),
+        requirement("py-grpc-prometheus"),
+        requirement("uvloop"),
+        # requirement("sqlalchemy[asyncio]"),
+        # requirement("strawberry-graphql[opentelemetry]"),
+    ],
+)
 py_binary(
     name = "arize-phoenix",
+    # srcs = ["src/phoenix/server/main.py"],
     srcs = glob([
         "src/phoenix/**/*.py",
     ]),
     main = "src/phoenix/server/main.py",
+    visibility = ["//visibility:public"],
     imports = [
-        "src/phoenix",
+        "src",
+    ],
+    deps = [
+        ":arize-phoenix-lib",
+    ],
+)
+
+py_binary(
+    name = "arize-phoenix-binary-alone",
+    srcs = glob([
+        "src/phoenix/**/*.py",
+    ]),
+    main = "phoenix/server/main.py",
+    imports = [
+        ".",
     ],
     visibility = ["//visibility:public"],
     deps = [
