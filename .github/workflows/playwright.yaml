@@ -15,7 +15,7 @@ jobs:
     env:
       # We're skipping WebKit because of recurring issues with caching,
       # despite always installing it on cache-hit.
-      CI_PLAYWRIGHT_SKIP_WEBKIT: true
+      CI_PLAYWRIGHT_SKIP_WEBKIT: false
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
