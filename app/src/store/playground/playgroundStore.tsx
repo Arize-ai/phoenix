@@ -95,7 +95,11 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
-    model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
+    model: {
+      provider: DEFAULT_MODEL_PROVIDER,
+      modelName: "gpt-4o",
+      invocationParameters: {},
+    },
     tools: [],
     toolChoice: undefined,
     // TODO(apowell) - use datasetId if in dataset mode
@@ -202,6 +206,10 @@ export const createPlaygroundStore = (
               model: {
                 ...instance.model,
                 ...model,
+                invocationParameters: {
+                  ...instance.model.invocationParameters,
+                  ...model.invocationParameters,
+                },
               },
             };
           }
