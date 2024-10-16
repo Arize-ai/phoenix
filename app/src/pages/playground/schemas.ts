@@ -65,7 +65,6 @@ export const llmOutputMessageSchema = z.object({
 /**
  * The zod schema for output attributes
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
-
  */
 export const outputSchema = z.object({
   [SemanticAttributePrefixes.output]: z.object({
@@ -92,3 +91,13 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
  * The zod schema for ChatMessages
  */
 export const chatMessagesSchema = z.array(chatMessageSchema);
+
+/**
+ * The zod schema for llm model name
+ * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ */
+export const modelNameSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.model_name]: z.string(),
+  }),
+});

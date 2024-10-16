@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
   _resetInstanceId,
   _resetMessageId,
@@ -5,11 +6,15 @@ import {
 } from "@phoenix/store";
 
 import {
-  getChatRole,
   INPUT_MESSAGES_PARSING_ERROR,
+  MODEL_NAME_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
+} from "../constants";
+import {
+  getChatRole,
+  getModelProviderFromModelName,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 
@@ -24,7 +29,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   isRunning: false,
   model: {
     provider: "OPENAI",
-    modelName: "gpt-4o",
+    modelName: "gpt-3.5-turbo",
   },
   input: { variableKeys: [], variablesValueCache: {} },
   tools: [],
@@ -70,6 +75,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: "OPENAI",
+          modelName: "gpt-4o",
+        },
         template: defaultTemplate,
         output: undefined,
       },
@@ -85,6 +94,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: "OPENAI",
+          modelName: "gpt-4o",
+        },
         template: defaultTemplate,
 
         output: undefined,
@@ -93,6 +106,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         INPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_VALUE_PARSING_ERROR,
+        MODEL_NAME_PARSING_ERROR,
       ],
     });
   });
@@ -138,6 +152,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+
         output: "This is an AI Answer",
       },
       parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
@@ -160,6 +175,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({
         llm: {
+          model_name: "gpt-4o",
           input_messages: [
             {
               message: {
@@ -182,6 +198,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: "OPENAI",
+          modelName: "gpt-4o",
+        },
         template: {
           __type: "chat",
           messages: [
@@ -193,6 +213,84 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ],
         },
         output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should correctly parse the model name and infer the provider", () => {
+    const openAiAttributes = JSON.stringify({
+      ...spanAttributesWithInputMessages,
+      llm: {
+        ...spanAttributesWithInputMessages.llm,
+        model_name: "gpt-3.5-turbo",
+      },
+    });
+    const anthropicAttributes = JSON.stringify({
+      ...spanAttributesWithInputMessages,
+      llm: {
+        ...spanAttributesWithInputMessages.llm,
+        model_name: "claude-3-5-sonnet-20240620",
+      },
+    });
+    const unknownAttributes = JSON.stringify({
+      ...spanAttributesWithInputMessages,
+      llm: {
+        ...spanAttributesWithInputMessages.llm,
+        model_name: "test-my-deployment",
+      },
+    });
+
+    expect(
+      transformSpanAttributesToPlaygroundInstance({
+        ...basePlaygroundSpan,
+        attributes: openAiAttributes,
+      })
+    ).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: "OPENAI",
+          modelName: "gpt-3.5-turbo",
+        },
+      },
+      parsingErrors: [],
+    });
+
+    _resetMessageId();
+    _resetInstanceId();
+
+    expect(
+      transformSpanAttributesToPlaygroundInstance({
+        ...basePlaygroundSpan,
+        attributes: anthropicAttributes,
+      })
+    ).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: "ANTHROPIC",
+          modelName: "claude-3-5-sonnet-20240620",
+        },
+      },
+      parsingErrors: [],
+    });
+
+    _resetMessageId();
+    _resetInstanceId();
+
+    expect(
+      transformSpanAttributesToPlaygroundInstance({
+        ...basePlaygroundSpan,
+        attributes: unknownAttributes,
+      })
+    ).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          provider: DEFAULT_MODEL_PROVIDER,
+          modelName: "test-my-deployment",
+        },
       },
       parsingErrors: [],
     });
@@ -213,5 +311,24 @@ describe("getChatRole", () => {
 
   it("should return DEFAULT_CHAT_ROLE if the role is not found", () => {
     expect(getChatRole("invalid")).toEqual("user");
+  });
+});
+
+describe("getModelProviderFromModelName", () => {
+  it("should return OPENAI if the model name includes 'gpt' or 'o1'", () => {
+    expect(getModelProviderFromModelName("gpt-3.5-turbo")).toEqual("OPENAI");
+    expect(getModelProviderFromModelName("o1")).toEqual("OPENAI");
+  });
+
+  it("should return ANTHROPIC if the model name includes 'claude'", () => {
+    expect(getModelProviderFromModelName("claude-3-5-sonnet-20240620")).toEqual(
+      "ANTHROPIC"
+    );
+  });
+
+  it(`should return ${DEFAULT_MODEL_PROVIDER} if the model name does not match any known models`, () => {
+    expect(getModelProviderFromModelName("test-my-model")).toEqual(
+      DEFAULT_MODEL_PROVIDER
+    );
   });
 });

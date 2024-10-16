@@ -4,6 +4,10 @@ import { devtools } from "zustand/middleware";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import {
+  DEFAULT_CHAT_ROLE,
+  DEFAULT_MODEL_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -91,7 +95,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
-    model: { provider: "OPENAI", modelName: "gpt-4o" },
+    model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
     tools: [],
     toolChoice: "auto",
     // TODO(apowell) - use datasetId if in dataset mode
@@ -226,7 +230,7 @@ export const createPlaygroundStore = (
               ...instance,
               messages: [
                 ...instance.template.messages,
-                { role: "user", content: "{question}" },
+                { role: DEFAULT_CHAT_ROLE, content: "{question}" },
               ],
             };
           }

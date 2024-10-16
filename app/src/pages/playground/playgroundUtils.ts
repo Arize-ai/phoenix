@@ -1,4 +1,8 @@
-import { PlaygroundInstance } from "@phoenix/store";
+import {
+  DEFAULT_CHAT_ROLE,
+  DEFAULT_MODEL_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
+import { ModelConfig, PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessage,
   createPlaygroundInstance,
@@ -6,13 +10,22 @@ import {
 } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ChatRoleMap, DEFAULT_CHAT_ROLE } from "./constants";
+import {
+  ChatRoleMap,
+  INPUT_MESSAGES_PARSING_ERROR,
+  MODEL_NAME_PARSING_ERROR,
+  modelProviderToModelPrefixMap,
+  OUTPUT_MESSAGES_PARSING_ERROR,
+  OUTPUT_VALUE_PARSING_ERROR,
+  SPAN_ATTRIBUTES_PARSING_ERROR,
+} from "./constants";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
   llmInputMessageSchema,
   llmOutputMessageSchema,
   MessageSchema,
+  modelNameSchema,
   outputSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
@@ -62,15 +75,6 @@ function processAttributeMessagesToChatMessage(
   });
 }
 
-export const INPUT_MESSAGES_PARSING_ERROR =
-  "Unable to parse span input messages, expected messages which include a role and content.";
-export const OUTPUT_MESSAGES_PARSING_ERROR =
-  "Unable to parse span output messages, expected messages which include a role and content.";
-export const OUTPUT_VALUE_PARSING_ERROR =
-  "Unable to parse span output expected output.value to be present.";
-export const SPAN_ATTRIBUTES_PARSING_ERROR =
-  "Unable to parse span attributes, attributes must be valid JSON.";
-
 /**
  * Attempts to parse the input messages from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
@@ -93,6 +97,11 @@ function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
   };
 }
 
+/**
+ * Attempts to get llm.output_messages then output.value from the span attributes.
+ * @param parsedAttributes the JSON parsed span attributes
+ * @returns an object containing the parsed output and any parsing errors
+ */
 function getOutputFromAttributes(parsedAttributes: unknown) {
   const outputParsingErrors: string[] = [];
   const outputMessages = llmOutputMessageSchema.safeParse(parsedAttributes);
@@ -121,6 +130,48 @@ function getOutputFromAttributes(parsedAttributes: unknown) {
     output: undefined,
     outputParsingErrors,
   };
+}
+
+/**
+ * Attempts to infer the provider of the model from the model name.
+ * @param modelName the model name to get the provider from
+ * @returns the provider of the model defaulting to {@link DEFAULT_MODEL_PROVIDER} if the provider cannot be inferred
+ *
+ * NB: Only exported for testing
+ */
+export function getModelProviderFromModelName(
+  modelName: string
+): ModelProvider {
+  for (const provider of Object.keys(modelProviderToModelPrefixMap)) {
+    const prefixes = modelProviderToModelPrefixMap[provider as ModelProvider];
+    if (prefixes.some((prefix) => modelName.includes(prefix))) {
+      return provider as ModelProvider;
+    }
+  }
+  return DEFAULT_MODEL_PROVIDER;
+}
+
+/**
+ * Attempts to get the llm.model_name and inferred provider from the span attributes.
+ * @param parsedAttributes the JSON parsed span attributes
+ * @returns the model config if it exists or parsing errors if it does not
+ */
+function getModelConfigFromAttributes(
+  parsedAttributes: unknown
+):
+  | { modelConfig: ModelConfig; parsingErrors: never[] }
+  | { modelConfig: null; parsingErrors: string[] } {
+  const { success, data } = modelNameSchema.safeParse(parsedAttributes);
+  if (success) {
+    return {
+      modelConfig: {
+        modelName: data.llm.model_name,
+        provider: getModelProviderFromModelName(data.llm.model_name),
+      },
+      parsingErrors: [],
+    };
+  }
+  return { modelConfig: null, parsingErrors: [MODEL_NAME_PARSING_ERROR] };
 }
 
 /**
@@ -155,12 +206,15 @@ export function transformSpanAttributesToPlaygroundInstance(
     getTemplateMessagesFromAttributes(parsedAttributes);
   const { output, outputParsingErrors } =
     getOutputFromAttributes(parsedAttributes);
+  const { modelConfig, parsingErrors: modelConfigParsingErrors } =
+    getModelConfigFromAttributes(parsedAttributes);
 
   // TODO(parker): add support for tools, variables, and input / output variants
   // https://github.com/Arize-ai/phoenix/issues/4886
   return {
     playgroundInstance: {
       ...basePlaygroundInstance,
+      model: modelConfig ?? basePlaygroundInstance.model,
       template:
         messages != null
           ? {
@@ -170,7 +224,11 @@ export function transformSpanAttributesToPlaygroundInstance(
           : basePlaygroundInstance.template,
       output,
     },
-    parsingErrors: [...messageParsingErrors, ...outputParsingErrors],
+    parsingErrors: [
+      ...messageParsingErrors,
+      ...outputParsingErrors,
+      ...modelConfigParsingErrors,
+    ],
   };
 }
 
