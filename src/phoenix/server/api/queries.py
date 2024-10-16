@@ -130,7 +130,6 @@ class Query:
             "gpt-3.5-turbo-1106",
             "gpt-3.5-turbo-instruct",
         ]
-        azure_openai_models = []
         anthropic_models = [
             "claude-3-5-sonnet-20240620",
             "claude-3-opus-20240229",
@@ -141,18 +140,12 @@ class Query:
             GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
             for model_name in openai_models
         ]
-        azure_openai_generative_models = [
-            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.AZURE_OPENAI)
-            for model_name in azure_openai_models
-        ]
         anthropic_generative_models = [
             GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
             for model_name in anthropic_models
         ]
 
-        all_models = (
-            openai_generative_models + azure_openai_generative_models + anthropic_generative_models
-        )
+        all_models = openai_generative_models + anthropic_generative_models
 
         if input is not None and input.provider_key is not None:
             return [model for model in all_models if model.provider_key == input.provider_key]
