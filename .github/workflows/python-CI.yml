@@ -114,7 +114,7 @@ jobs:
           hatch run notebooks:clean
           git diff --exit-code
 
-  build-graphql:
+  build-graphql-schema:
     name: Build GraphQL Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
@@ -141,7 +141,7 @@ jobs:
           tox run -e build_graphql_schema
           git diff --exit-code
 
-  build-openapi:
+  build-openapi-schema:
     name: Build OpenAPI Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
