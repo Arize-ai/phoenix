@@ -1,3 +1,7 @@
+import {
+  DEFAULT_CHAT_ROLE,
+  DEFAULT_MODEL_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
 import { ModelConfig, PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessage,
@@ -8,9 +12,9 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   ChatRoleMap,
-  DEFAULT_CHAT_ROLE,
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_NAME_PARSING_ERROR,
+  modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -131,23 +135,20 @@ function getOutputFromAttributes(parsedAttributes: unknown) {
 /**
  * Attempts to infer the provider of the model from the model name.
  * @param modelName the model name to get the provider from
- * @returns the provider of the model @default AZURE_OPENAI
+ * @returns the provider of the model defaulting to {@link DEFAULT_MODEL_PROVIDER} if the provider cannot be inferred
  *
  * NB: Only exported for testing
  */
 export function getModelProviderFromModelName(
   modelName: string
 ): ModelProvider {
-  if (modelName.includes("gpt") || modelName.includes("o1")) {
-    return "OPENAI";
+  for (const provider of Object.keys(modelProviderToModelPrefixMap)) {
+    const prefixes = modelProviderToModelPrefixMap[provider as ModelProvider];
+    if (prefixes.some((prefix) => modelName.includes(prefix))) {
+      return provider as ModelProvider;
+    }
   }
-  if (modelName.includes("claude")) {
-    return "ANTHROPIC";
-  }
-  // Azure OpenAI deployments have underlying OpenAI models with known names, however, when calling the llm
-  // users must use the deployment name which is a user-defined string.
-  // For now if the model name does not match any known models, we will default to Azure OpenAI.
-  return "AZURE_OPENAI";
+  return DEFAULT_MODEL_PROVIDER;
 }
 
 /**

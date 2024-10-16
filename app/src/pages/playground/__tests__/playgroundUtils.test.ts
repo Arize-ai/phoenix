@@ -1,3 +1,4 @@
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
   _resetInstanceId,
   _resetMessageId,
@@ -325,9 +326,9 @@ describe("getModelProviderFromModelName", () => {
     );
   });
 
-  it("should return AZURE_OPENAI if the model name does not match any known models", () => {
-    expect(getModelProviderFromModelName("test-my-deployment")).toEqual(
-      "AZURE_OPENAI"
+  it(`should return ${DEFAULT_MODEL_PROVIDER} if the model name does not match any known models`, () => {
+    expect(getModelProviderFromModelName("test-my-model")).toEqual(
+      DEFAULT_MODEL_PROVIDER
     );
   });
 });

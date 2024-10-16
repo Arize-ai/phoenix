@@ -1,7 +1,5 @@
 export const NUM_MAX_PLAYGROUND_INSTANCES = 4;
 
-export const DEFAULT_CHAT_ROLE = "user";
-
 /**
  * Map of {@link ChatMessageRole} to potential role values.
  * Used to map roles to a canonical role.
@@ -26,3 +24,9 @@ export const SPAN_ATTRIBUTES_PARSING_ERROR =
   "Unable to parse span attributes, attributes must be valid JSON.";
 export const MODEL_NAME_PARSING_ERROR =
   "Unable to parse model name, expected llm.model_name to be present.";
+
+export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
+  AZURE_OPENAI: [],
+  ANTHROPIC: ["claude"],
+  OPENAI: ["gpt", "o1"],
+};
