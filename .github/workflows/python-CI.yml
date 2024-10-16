@@ -122,11 +122,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Format Jupyter Notebooks
+      - name: Format Jupyter notebooks
         run: |
           tox run -e format_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
           git diff --exit-code
-      - name: Clean Jupyter Notebooks
+      - name: Clean Jupyter notebooks
         run: |
           tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
           git diff --exit-code
@@ -158,7 +158,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Build GraphQL Schema
+      - name: Build GraphQL schema
         run: |
           tox run -e build_graphql_schema
           git diff --exit-code
@@ -189,7 +189,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Build OpenAPI Schema
+      - name: Build OpenAPI schema
         run: |
           tox run -e build_openapi_schema
           git diff --exit-code
