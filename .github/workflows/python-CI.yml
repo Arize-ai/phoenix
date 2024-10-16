@@ -100,7 +100,7 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: [ 3.12 ]
+        py: [ 3.11 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
