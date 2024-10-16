@@ -115,7 +115,19 @@ function useChatCompletionSubscription({
               invocationParameters: $invocationParameters
               apiKey: $apiKey
             }
-          )
+          ) {
+            __typename
+            ... on TextChunk {
+              content
+            }
+            ... on ToolCallChunk {
+              id
+              function {
+                name
+                arguments
+              }
+            }
+          }
         }
       `,
       variables: params,
@@ -200,7 +212,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     },
     runId: instance.activeRunId,
     onNext: (response) => {
-      setOutput((acc) => acc + response.chatCompletion);
+      const chatCompletion = response.chatCompletion;
+      if (chatCompletion.__typename === "TextChunk") {
+        setOutput((acc) => acc + chatCompletion.content);
+      }
     },
     onCompleted: () => {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);

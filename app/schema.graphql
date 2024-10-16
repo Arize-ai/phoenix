@@ -65,11 +65,14 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+union ChatCompletionChunk = TextChunk | ToolCallChunk
+
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
   invocationParameters: InvocationParameters!
-  apiKey: String
+  tools: [JSON!]
+  apiKey: String = null
 }
 
 input ChatCompletionMessageInput {
@@ -817,6 +820,11 @@ type ExportedFile {
   fileName: String!
 }
 
+type FunctionCallChunk {
+  name: String!
+  arguments: String!
+}
+
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
@@ -903,6 +911,7 @@ input InvocationParameters {
   topP: Float
   stop: [String!]
   seed: Int
+  toolChoice: JSON
 }
 
 """
@@ -1425,7 +1434,7 @@ enum SpanStatusCode {
 }
 
 type Subscription {
-  chatCompletion(input: ChatCompletionInput!): String!
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionChunk!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -1445,6 +1454,10 @@ type SystemApiKey implements ApiKey & Node {
   id: GlobalID!
 }
 
+type TextChunk {
+  content: String!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1460,6 +1473,11 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type ToolCallChunk {
+  id: String!
+  function: FunctionCallChunk!
 }
 
 type Trace implements Node {

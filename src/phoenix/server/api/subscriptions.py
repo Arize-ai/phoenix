@@ -1,6 +1,20 @@
+import json
+from collections import defaultdict
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    AsyncIterator,
+    DefaultDict,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -9,6 +23,8 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
+    ToolCallAttributes,
 )
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -16,8 +32,9 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
 from strawberry import UNSET
+from strawberry.scalars import JSON as JSONScalarType
 from strawberry.types import Info
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -36,6 +53,30 @@ if TYPE_CHECKING:
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
+ToolCallIndex: TypeAlias = int
+
+
+@strawberry.type
+class TextChunk:
+    content: str
+
+
+@strawberry.type
+class FunctionCallChunk:
+    name: str
+    arguments: str
+
+
+@strawberry.type
+class ToolCallChunk:
+    id: str
+    function: FunctionCallChunk
+
+
+ChatCompletionChunk: TypeAlias = Annotated[
+    Union[TextChunk, ToolCallChunk], strawberry.union("ChatCompletionChunk")
+]
+
 
 @strawberry.input
 class GenerativeModelInput:
@@ -48,7 +89,8 @@ class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
     invocation_parameters: InvocationParameters
-    api_key: Optional[str] = UNSET
+    tools: Optional[List[JSONScalarType]] = UNSET
+    api_key: Optional[str] = strawberry.field(default=None)
 
 
 def to_openai_chat_completion_param(
@@ -91,11 +133,10 @@ class Subscription:
     @strawberry.subscription
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
-    ) -> AsyncIterator[str]:
-        from openai import AsyncOpenAI
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        from openai import NOT_GIVEN, AsyncOpenAI
 
-        api_key = input.api_key or None
-        client = AsyncOpenAI(api_key=api_key)
+        client = AsyncOpenAI(api_key=input.api_key)
         invocation_parameters = jsonify(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
@@ -111,37 +152,56 @@ class Subscription:
                 chain(
                     _llm_span_kind(),
                     _llm_model_name(input.model.name),
+                    _llm_tools(input.tools or []),
                     _llm_input_messages(input.messages),
                     _llm_invocation_parameters(invocation_parameters),
                     _input_value_and_mime_type(input),
                 )
             ),
         ) as span:
-            chunks = []
-            chunk_contents = []
+            response_chunks = []
+            text_chunks: List[TextChunk] = []
+            tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
             role: Optional[str] = None
             async for chunk in await client.chat.completions.create(
                 messages=(to_openai_chat_completion_param(message) for message in input.messages),
                 model=input.model.name,
                 stream=True,
+                tools=input.tools or NOT_GIVEN,
                 **invocation_parameters,
             ):
-                chunks.append(chunk)
+                response_chunks.append(chunk)
                 choice = chunk.choices[0]
                 delta = choice.delta
                 if role is None:
                     role = delta.role
                 if choice.finish_reason is None:
-                    assert isinstance(chunk_content := delta.content, str)
-                    yield chunk_content
-                    chunk_contents.append(chunk_content)
+                    if isinstance(chunk_content := delta.content, str):
+                        text_chunk = TextChunk(content=chunk_content)
+                        yield text_chunk
+                        text_chunks.append(text_chunk)
+                    if (tool_calls := delta.tool_calls) is not None:
+                        for tool_call_index, tool_call in enumerate(tool_calls):
+                            if (function := tool_call.function) is not None:
+                                if (tool_call_id := tool_call.id) is None:
+                                    first_tool_call_chunk = tool_call_chunks[tool_call_index][0]
+                                    tool_call_id = first_tool_call_chunk.id
+                                tool_call_chunk = ToolCallChunk(
+                                    id=tool_call_id,
+                                    function=FunctionCallChunk(
+                                        name=function.name or "",
+                                        arguments=function.arguments or "",
+                                    ),
+                                )
+                                yield tool_call_chunk
+                                tool_call_chunks[tool_call_index].append(tool_call_chunk)
             span.set_status(StatusCode.OK)
             assert role is not None
             span.set_attributes(
                 dict(
                     chain(
-                        _output_value_and_mime_type(chunks),
-                        _llm_output_messages(content="".join(chunk_contents), role=role),
+                        _output_value_and_mime_type(response_chunks),
+                        _llm_output_messages(text_chunks, tool_call_chunks),
                     )
                 )
             )
@@ -214,6 +274,11 @@ def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterato
     yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
+def _llm_tools(tools: List[JSONScalarType]) -> Iterator[Tuple[str, Any]]:
+    for tool_index, tool in enumerate(tools):
+        yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
+
+
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
     yield INPUT_MIME_TYPE, JSON
     yield INPUT_VALUE, safe_json_dumps(jsonify(input))
@@ -230,9 +295,24 @@ def _llm_input_messages(messages: List[ChatCompletionMessageInput]) -> Iterator[
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", message.content
 
 
-def _llm_output_messages(content: str, role: str) -> Iterator[Tuple[str, Any]]:
-    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", role
-    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
+def _llm_output_messages(
+    text_chunks: List[TextChunk],
+    tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]],
+) -> Iterator[Tuple[str, Any]]:
+    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
+    if content := "".join(chunk.content for chunk in text_chunks):
+        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
+    for tool_call_index, tool_call_chunks_ in tool_call_chunks.items():
+        if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                name,
+            )
+        if arguments := "".join(chunk.function.arguments for chunk in tool_call_chunks_):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                arguments,
+            )
 
 
 def _hex(number: int) -> str:
@@ -263,6 +343,13 @@ LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
