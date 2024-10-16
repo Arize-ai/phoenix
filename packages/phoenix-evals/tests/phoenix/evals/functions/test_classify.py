@@ -5,17 +5,20 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pandas as pd
-import phoenix
 import pytest
 import respx
 from pandas.core.frame import DataFrame
 from pandas.testing import assert_frame_equal
+from respx.patterns import M
+
+import phoenix
 from phoenix.evals import (
     NOT_PARSABLE,
     OpenAIModel,
     llm_classify,
 )
 from phoenix.evals.classify import (
+    ClassificationStatus,
     run_evals,
 )
 from phoenix.evals.default_templates import (
@@ -23,8 +26,8 @@ from phoenix.evals.default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
 )
 from phoenix.evals.evaluators import LLMEvaluator
+from phoenix.evals.executors import ExecutionStatus
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
-from respx.patterns import M
 
 
 @pytest.fixture
@@ -133,7 +136,7 @@ def test_llm_classify(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label"]],
         pd.DataFrame(
             data={"label": expected_labels},
         ),
@@ -222,7 +225,7 @@ def test_llm_classify_with_async(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label"]],
         pd.DataFrame(
             data={"label": expected_labels},
         ),
@@ -256,7 +259,7 @@ def test_llm_classify_with_fn_call(
 
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
+    assert_frame_equal(result[["label"]], pd.DataFrame(data={"label": expected_labels}))
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -288,7 +291,7 @@ def test_classify_fn_call_no_explain(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label", "explanation"]],
         pd.DataFrame(data={"label": expected_labels, "explanation": [None, None, None, None]}),
     )
 
@@ -326,7 +329,7 @@ def test_classify_fn_call_explain(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label", "explanation"]],
         pd.DataFrame(data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}),
     )
 
@@ -365,7 +368,8 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
     assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
     assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
-    assert "'model': 'gpt-4', 'temperature': 0.0" in out, "Model information should be printed"
+    assert "'model': 'gpt-4'" in out, "Model information should be printed"
+    assert "'temperature': 0.0" in out, "Model information should be printed"
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
@@ -392,6 +396,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "unrelated"],
+            max_retries=10,
         )
 
     out, _ = capfd.readouterr()
@@ -405,8 +410,8 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     assert "Exception in worker on attempt 8" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 9" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 10" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 11" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 12" not in out, "Maximum retries should not be exceeded"
+    assert "Exception in worker on attempt 11" not in out, "Maximum retries should not be exceeded"
+    assert "Retries exhausted after 11 attempts" in out, "Retry information should be printed"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
@@ -422,7 +427,6 @@ def test_classify_tolerance_to_exceptions(
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
-        # Simulate an error on the second query
         if query == "What is C++?":
             response = httpx.Response(500, json={"error": "Internal Server Error"})
         else:
@@ -438,6 +442,106 @@ def test_classify_tolerance_to_exceptions(
 
     assert classification_df is not None
     # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Exception in worker" in captured.out
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_exits_on_missing_input(
+    openai_api_key: str,
+    classification_dataframe: pd.DataFrame,
+    classification_responses: List[str],
+    classification_template: str,
+    respx_mock: respx.mock,
+):
+    model = OpenAIModel()
+    queries = classification_dataframe["input"].tolist()
+    for query, response in zip(queries, classification_responses):
+        matcher = M(content__contains=query)
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    # remove an input to cause a template mapping exception
+    classification_dataframe["input"][2] = None
+
+    classification_df = llm_classify(
+        dataframe=classification_dataframe,
+        template=classification_template,
+        model=model,
+        rails=["relevant", "unrelated"],
+        max_retries=4,
+        exit_on_error=True,
+        run_sync=True,  # run synchronously to ensure ordering
+    )
+
+    assert classification_df["execution_status"].tolist() == [
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.MISSING_INPUT.value,
+        ClassificationStatus.DID_NOT_RUN.value,
+    ]
+
+    exceptions = classification_df["exceptions"].tolist()
+    assert [len(excs) for excs in exceptions] == [
+        0,
+        0,
+        1,  # one failure due to missing input
+        0,  # never runs, so no exceptions
+    ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_skips_missing_input_with_when_exit_on_error_false(
+    openai_api_key: str,
+    classification_dataframe: pd.DataFrame,
+    classification_responses: List[str],
+    classification_template: str,
+    respx_mock: respx.mock,
+    capfd,
+):
+    model = OpenAIModel()
+    queries = classification_dataframe["input"].tolist()
+    for query, response in zip(queries, classification_responses):
+        matcher = M(content__contains=query)
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    # remove an input to cause a template mapping exception
+    classification_dataframe["input"][2] = None
+
+    classification_df = llm_classify(
+        dataframe=classification_dataframe,
+        template=classification_template,
+        model=model,
+        rails=["relevant", "unrelated"],
+        max_retries=4,
+        exit_on_error=False,
+    )
+
+    assert classification_df["execution_status"].tolist() == [
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.MISSING_INPUT.value,
+        ClassificationStatus.FAILED.value,
+    ]
+
+    exceptions = classification_df["exceptions"].tolist()
+    assert [len(excs) for excs in exceptions] == [
+        0,
+        0,
+        1,  # one failure due to missing input
+        5,  # first attempt + 4 retries
+    ]
+    execution_times = classification_df["execution_seconds"].tolist()
+    assert len(execution_times) == 4
+    assert all(isinstance(runtime, float) for runtime in execution_times)
+
     captured = capfd.readouterr()
     assert "Exception in worker" in captured.out
 
@@ -1027,3 +1131,9 @@ def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
         evaluators=[],
     )
     assert eval_dfs == []
+
+
+def test_classification_status_is_superset_of_execution_status() -> None:
+    assert {item.value for item in ClassificationStatus}.issuperset(
+        {item.value for item in ExecutionStatus}
+    )

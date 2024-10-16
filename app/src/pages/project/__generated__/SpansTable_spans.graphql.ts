@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92417fd62f18f55233ff6dcadb92e2a0>>
+ * @generated SignedSource<<6d68580c3529a74e2f4819c3532ed0d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,13 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
+export type AnnotatorKind = "HUMAN" | "LLM";
+export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
+  readonly name: string;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -27,6 +29,7 @@ export type SpansTable_spans$data = {
           readonly ndcg: number | null;
           readonly precision: number | null;
         }>;
+        readonly id: string;
         readonly input: {
           readonly value: string;
         } | null;
@@ -36,7 +39,8 @@ export type SpansTable_spans$data = {
         readonly output: {
           readonly value: string;
         } | null;
-        readonly spanEvaluations: ReadonlyArray<{
+        readonly spanAnnotations: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -50,13 +54,15 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
   readonly " $data"?: SpansTable_spans$data;
   readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
 };
+
+import SpansTableSpansQuery_graphql from './SpansTableSpansQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -69,7 +75,14 @@ v1 = {
   "name": "name",
   "storageKey": null
 },
-v2 = [
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = [
   {
     "alias": "value",
     "args": null,
@@ -91,7 +104,7 @@ return {
       "name": "filterCondition"
     },
     {
-      "defaultValue": 100,
+      "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
     },
@@ -130,7 +143,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./SpansTableSpansQuery.graphql'),
+      "operation": SpansTableSpansQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
@@ -139,10 +152,11 @@ return {
   },
   "name": "SpansTable_spans",
   "selections": [
+    (v1/*: any*/),
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_evaluations"
+      "name": "SpanColumnSelector_annotations"
     },
     {
       "alias": "spans",
@@ -184,6 +198,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -273,7 +288,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v2/*: any*/),
+                  "selections": (v3/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -283,15 +298,15 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v2/*: any*/),
+                  "selections": (v3/*: any*/),
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanEvaluation",
+                  "concreteType": "SpanAnnotation",
                   "kind": "LinkedField",
-                  "name": "spanEvaluations",
+                  "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
                     (v1/*: any*/),
@@ -307,6 +322,13 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "score",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotatorKind",
                       "storageKey": null
                     }
                   ],
@@ -410,19 +432,13 @@ return {
       ],
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    }
+    (v2/*: any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "ba5d821b72675bc6ea380d9f0f36e8b7";
+(node as any).hash = "4827989f55b1c0bd269253b6bc977439";
 
 export default node;

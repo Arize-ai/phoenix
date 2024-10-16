@@ -1,0 +1,79 @@
+name: Publish Docker images
+
+on:
+  push:
+    tags:
+      - "arize-phoenix-v*"
+
+jobs:
+  push_to_registry:
+    name: Push Docker images to Docker Hub
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [root, nonroot, debug]
+    permissions:
+      packages: write
+      contents: read
+    env:
+      REGISTRY: arizephoenix
+      IMAGE_NAME: phoenix
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: extract_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
+
+      - name: Set BASE_IMAGE environment variable
+        id: set-base-image
+        run: |
+          if [ "${{ matrix.variant }}" == "root" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "debug" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:debug" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "nonroot" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot" >> $GITHUB_ENV
+          else
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            version-${{ env.VERSION }}-${{ matrix.variant }}
+            ${{ matrix.variant == 'root' && 'version-${{ env.VERSION }} latest' || '' }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ./Dockerfile
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: |
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:latest-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:latest-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ env.BASE_IMAGE }}

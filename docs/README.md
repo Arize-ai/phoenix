@@ -15,7 +15,7 @@ Phoenix is built by [Arize AI](https://www.arize.com), the company behind the th
 In your Jupyter or Colab environment, run the following command to install.
 
 ```sh
-pip install arize-phoenix[evals]
+pip install arize-phoenix
 ```
 
 For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](environments.md)
@@ -31,22 +31,20 @@ conda install -c conda-forge arize-phoenix[evals]
 Phoenix can also run via a container. The image can be found at:
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
+Images for phoenix are published to dockerhub
+{% endembed %}
 
-Checkout the [environments section](environments.md) and [deployment guide](reference/deploying-phoenix.md) for details.
+Checkout the [environments section](environments.md) and [deployment guide](deployment/deploying-phoenix.md) for details.
 {% endtab %}
 {% endtabs %}
+
+Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. If you are looking to deploy phoenix as a service rather than a library, see [deployment](deployment/ "mention")
 
 ## Quickstarts
 
 Running Phoenix for the first time? Select a quickstart below.&#x20;
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong> </td><td><a href="quickstart/llm-traces.md">llm-traces.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="quickstart/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals.png">evals.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="quickstart/phoenix-inferences/">phoenix-inferences</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
-
-### Demo
-
-{% embed url="https://www.loom.com/share/a96e244c4ff8473d9350b02ccbd203b4" %}
-Overview of Phoenix Tracing
-{% endembed %}
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong> </td><td><a href="tracing/llm-traces-1.md">llm-traces-1.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="quickstart/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals.png">evals.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="quickstart/phoenix-inferences/">phoenix-inferences</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr><tr><td align="center"><strong>Datasets and Experiments</strong></td><td><a href="datasets-and-experiments/quickstart-datasets.md">quickstart-datasets.md</a></td><td><a href=".gitbook/assets/experiments_preview.png">experiments_preview.png</a></td></tr></tbody></table>
 
 ## Next Steps
 
@@ -57,23 +55,3 @@ Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG A
 ### [Community](https://join.slack.com/t/arize-ai/shared\_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
 
 Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.&#x20;
-
-## Supported Eval Models
-
-The phoenix library supports a set of foundation models for Evals:
-
-Direct Integrations:
-
-* OpenAI
-* Vertex AI
-* Azure Open AI
-* Anthropic
-* Mixtral/Mistral&#x20;
-* AWS Bedrock
-
-&#x20;Partner Integrations:
-
-* Llama
-* Falcon
-* Code Llama
-* Local Hosted Models

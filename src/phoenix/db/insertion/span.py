@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_stmt
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
@@ -26,17 +26,14 @@ async def insert_span(
     project_name: str,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    project_rowid = await session.scalar(
-        insert_stmt(
-            dialect=dialect,
-            table=models.Project,
-            constraint="uq_projects_name",
-            column_names=("name",),
-            values=dict(name=project_name),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_=dict(name=project_name),
-        ).returning(models.Project.id)
-    )
+    if (
+        project_rowid := await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+    ) is None:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(dict(name=project_name)).returning(models.Project.id)
+        )
     assert project_rowid is not None
     if trace := await session.scalar(
         select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
@@ -74,6 +71,13 @@ async def insert_span(
     cumulative_llm_token_count_completion = cast(
         int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
     )
+    llm_token_count_prompt = cast(
+        Optional[int], get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT)
+    )
+    llm_token_count_completion = cast(
+        Optional[int],
+        get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION),
+    )
     if accumulation := (
         await session.execute(
             select(
@@ -87,12 +91,8 @@ async def insert_span(
         cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
     span_rowid = await session.scalar(
-        insert_stmt(
-            dialect=dialect,
-            table=models.Span,
-            constraint="uq_spans_span_id",
-            column_names=("span_id",),
-            values=dict(
+        insert_on_conflict(
+            dict(
                 span_id=span.context.span_id,
                 trace_rowid=trace_rowid,
                 parent_id=span.parent_id,
@@ -107,7 +107,12 @@ async def insert_span(
                 cumulative_error_count=cumulative_error_count,
                 cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
                 cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+                llm_token_count_prompt=llm_token_count_prompt,
+                llm_token_count_completion=llm_token_count_completion,
             ),
+            dialect=dialect,
+            table=models.Span,
+            unique_by=("span_id",),
             on_conflict=OnConflict.DO_NOTHING,
         ).returning(models.Span.id)
     )

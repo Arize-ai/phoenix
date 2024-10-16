@@ -5,6 +5,7 @@ from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 from warnings import warn
 
+import numpy as np
 import pandas as pd
 from openinference.semconv.trace import (
     DocumentAttributes,
@@ -14,9 +15,9 @@ from openinference.semconv.trace import (
 from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
-from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
+from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR, TRACE_DATASETS_DIR
 from phoenix.datetime_utils import normalize_timestamps
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
@@ -60,6 +61,7 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     # Convert the start and end times to datetime
     dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
     dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
+    dataframe = dataframe.replace({np.nan: None})
     return dataframe
 
 
@@ -99,6 +101,14 @@ class TraceDataset:
     """
     A TraceDataset is a wrapper around a dataframe which is a flattened representation
     of Spans. The collection of spans trace the LLM application's execution.
+
+    Typical usage example::
+
+        from phoenix.trace.utils import json_lines_to_df
+
+        with open("trace.jsonl", "r") as f:
+            trace_ds = TraceDataset(json_lines_to_df(f.readlines()))
+        px.launch_app(trace=trace_ds)
     """
 
     name: str
@@ -120,15 +130,15 @@ class TraceDataset:
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in
         evaluations for the spans in the dataset.
 
-        Parameters
-        __________
-        dataframe: pandas.DataFrame
-            the pandas dataframe containing the tracing data. Each row
-            represents a span.
-        evaluations: Optional[Iterable[SpanEvaluations]]
-            an optional list of evaluations for the spans in the dataset. If
-            provided, the evaluations can be materialized into a unified
-            dataframe as annotations.
+        Args:
+            dataframe (pandas.DataFrame): The pandas dataframe containing the
+                tracing data. Each row of which is a flattened representation
+                of a span.
+            name (str): The name used to identify the dataset in the application.
+                If not provided, a random name will be generated.
+            evaluations (Optional[Iterable[SpanEvaluations]]): An optional list of
+                evaluations for the spans in the dataset. If provided, the evaluations
+                can be materialized into a unified dataframe as annotations.
         """
         # Validate the the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
@@ -138,7 +148,7 @@ class TraceDataset:
         self._id = uuid4()
         self.dataframe = normalize_dataframe(dataframe)
         # TODO: This is not used in any meaningful way. Should remove
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
+        self.name = name or f"{GENERATED_INFERENCES_NAME_PREFIX}{str(self._id)}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -163,12 +173,15 @@ class TraceDataset:
             is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
             attribute_keys = row.index[is_attribute]
             attributes = unflatten(
-                row.loc[is_attribute]
-                .rename(
-                    {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                flatten(
+                    row.loc[is_attribute]
+                    .rename(
+                        {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
+                    )
+                    .dropna()
+                    .to_dict(),
+                    recurse_on_sequence=True,
                 )
-                .dropna()
-                .items()
             )
             is_context = row.index.str.startswith(CONTEXT_PREFIX)
             context_keys = row.index[is_context]
@@ -201,13 +214,13 @@ class TraceDataset:
     @classmethod
     def from_name(cls, name: str) -> "TraceDataset":
         """Retrieves a dataset by name from the file system"""
-        directory = DATASET_DIR / name
+        directory = INFERENCES_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         return cls(df, name)
 
     def to_disc(self) -> None:
         """writes the data to disc"""
-        directory = DATASET_DIR / self.name
+        directory = INFERENCES_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
         get_serializable_spans_dataframe(self.dataframe).to_parquet(
             directory / self._data_file_name,
@@ -223,14 +236,14 @@ class TraceDataset:
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
-            to a directory where the data will be written. If not provided, the
-            data will be written to a default location.
+                to a directory where the data will be written. If not provided, the
+                data will be written to a default location.
 
         Returns:
             UUID: The id of the trace dataset, which can be used as key to load
-            the dataset from disk using `load`.
+                the dataset from disk using `load`.
         """
-        directory = Path(directory or TRACE_DATASET_DIR)
+        directory = Path(directory or TRACE_DATASETS_DIR)
         for evals in self.evaluations:
             evals.save(directory)
         path = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
@@ -271,16 +284,16 @@ class TraceDataset:
             id (Union[str, UUID]): The ID of the trace dataset to be loaded.
 
             directory (Optional[Union[str, Path]], optional): The path to the
-            directory containing the persisted trace dataset parquet file. If
-            not provided, the parquet file will be loaded from the same default
-            location used by `save`.
+                directory containing the persisted trace dataset parquet file. If
+                not provided, the parquet file will be loaded from the same default
+                location used by `save`.
 
         Returns:
             TraceDataset: The loaded trace dataset.
         """
         if not isinstance(id, UUID):
             id = UUID(id)
-        path = Path(directory or TRACE_DATASET_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
+        path = Path(directory or TRACE_DATASETS_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         if id != dataset_id:

@@ -1,0 +1,26 @@
+-r ci.txt
+grpcio
+litellm>=1.0.3
+openai>=1.0.0
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-grpc
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-proto>=1.12.0
+opentelemetry-sdk
+opentelemetry-semantic-conventions
+pandas-stubs==2.0.3.230814
+pandas>=1.0
+prometheus_client
+py-grpc-prometheus
+pypistats  # this is needed to type-check third-party packages
+requests  # this is needed to type-check third-party packages
+strawberry-graphql[opentelemetry]==0.243.1  # need to pin version because we're monkey-patching
+tenacity
+types-cachetools
+types-protobuf
+types-psutil
+types-requests
+types-setuptools
+types-tabulate
+types-tqdm

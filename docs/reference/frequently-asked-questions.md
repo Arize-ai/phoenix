@@ -72,3 +72,18 @@ import os
 
 os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
 ```
+
+
+
+## Can I persistdata in the notbook?
+
+You can persist data in the notebook by either setting the `use_temp_dir` flag to false in `px.launch_app` which will persit your data in SQLite on your disk at the **PHOENIX\_WORKING\_DIR**. Alternatively you can deploy a phoenix instance and point to it via **PHOENIX\_COLLECTOR\_ENDPOINT**.
+
+
+
+## Can I use gRPC for trace collection?
+
+Phoenix does natively support gRPC for trace collection post 4.0 release. See [#how-to-configure-phoenix](../setup/#how-to-configure-phoenix "mention") for details.
+
+
+

@@ -1,0 +1,19 @@
+-r ci.txt
+Faker>=30.1.0
+arize
+asgi-lifespan
+asyncpg
+grpc-interceptor[testing]
+httpx # For OpenAI testing
+litellm>=1.0.3
+nest-asyncio # for executor testing
+numpy
+openai>=1.0.0
+protobuf==3.20.2  # version minimum (for tests)
+psycopg[binary,pool]
+pytest-postgresql
+responses
+respx # For OpenAI testing
+tenacity
+tiktoken
+typing-extensions==4.7.0

@@ -20,8 +20,37 @@ class MistralRateLimitError(Exception):
 @dataclass
 class MistralAIModel(BaseModel):
     """
-    A model class for Mistral AI.
-    Requires mistralai package to be installed.
+    An interface for using MistralAI models.
+
+    This class wraps the MistralAI SDK for use with Phoenix LLM evaluations. Calls to the
+    MistralAI API are dynamically throttled when encountering rate limit errors. Requires the
+    `mistralai` package to be installed.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        model (str, optional): The model name to use. Defaults to "mistral-large-latest".
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to None.
+        random_seed (int, optional): Random seed to use for sampling. Defaults to None.
+        response_format (Dict[str, str], optional): A dictionary specifying the format of the
+            response. Defaults to None.
+        safe_mode (bool, optional): Whether to use safe mode. Defaults to False.
+        safe_prompt (bool, optional): Whether to use safe prompt. Defaults to False.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
+
+    Example:
+        .. code-block:: python
+
+            # Get your own Mistral API Key: https://docs.mistral.ai/#api-access
+            # Set the MISTRAL_API_KEY environment variable
+
+            from phoenix.evals import MistralAIModel
+            model = MistralAIModel(model="mistral-large-latest")
     """
 
     model: str = DEFAULT_MISTRAL_MODEL
@@ -31,6 +60,7 @@ class MistralAIModel(BaseModel):
     response_format: Optional[Dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -60,8 +90,7 @@ class MistralAIModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=MistralRateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=1,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 

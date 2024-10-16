@@ -1,8 +1,10 @@
 import re
 from dataclasses import dataclass
+from string import Formatter
 from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
+
 from phoenix.evals.exceptions import PhoenixException
 from phoenix.evals.utils import NOT_PARSABLE
 
@@ -41,17 +43,27 @@ class PromptTemplate:
         options: Optional[PromptOptions] = None,
     ) -> str:
         prompt = self.prompt(options)
-        for variable_name in self.variables:
-            prompt = prompt.replace(
-                self._start_delim + variable_name + self._end_delim,
-                str(variable_values[variable_name]),
-            )
+        if self._start_delim == "{" and self._end_delim == "}":
+            prompt = prompt.format(**variable_values)
+        else:
+            for variable_name in self.variables:
+                prompt = prompt.replace(
+                    self._start_delim + variable_name + self._end_delim,
+                    str(variable_values[variable_name]),
+                )
         return prompt
 
     def _parse_variables(self, text: str) -> List[str]:
-        pattern = re.escape(self._start_delim) + "(.*?)" + re.escape(self._end_delim)
-        variables = re.findall(pattern, text)
-        return variables
+        if self._start_delim == "{" and self._end_delim == "}":
+            formatter = Formatter()
+            variables = [field_name for _, field_name, _, _ in formatter.parse(text) if field_name]
+            return variables
+        else:
+            start = re.escape(self._start_delim)
+            end = re.escape(self._end_delim)
+            pattern = rf"{start}(.*?){end}"
+            variables = re.findall(pattern, text)
+            return variables
 
 
 class ClassificationTemplate(PromptTemplate):

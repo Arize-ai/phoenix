@@ -115,7 +115,7 @@ export function PointSelectionPanelContent() {
         $corpusEventIds: [ID!]!
       ) {
         model {
-          primaryDataset {
+          primaryInferences {
             events(eventIds: $primaryEventIds) {
               id
               dimensions {
@@ -139,7 +139,7 @@ export function PointSelectionPanelContent() {
               documentText
             }
           }
-          referenceDataset {
+          referenceInferences {
             events(eventIds: $referenceEventIds) {
               id
               dimensions {
@@ -163,7 +163,7 @@ export function PointSelectionPanelContent() {
               documentText
             }
           }
-          corpusDataset {
+          corpusInferences {
             events(eventIds: $corpusEventIds) {
               id
               dimensions {
@@ -198,9 +198,9 @@ export function PointSelectionPanelContent() {
   );
 
   const allSelectedEvents = useMemo(() => {
-    const primaryEvents = data.model?.primaryDataset?.events ?? [];
-    const referenceEvents = data.model?.referenceDataset?.events ?? [];
-    const corpusEvents = data.model?.corpusDataset?.events ?? [];
+    const primaryEvents = data.model?.primaryInferences?.events ?? [];
+    const referenceEvents = data.model?.referenceInferences?.events ?? [];
+    const corpusEvents = data.model?.corpusInferences?.events ?? [];
     return [...primaryEvents, ...referenceEvents, ...corpusEvents];
   }, [data]);
 

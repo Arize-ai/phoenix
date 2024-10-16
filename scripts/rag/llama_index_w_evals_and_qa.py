@@ -13,8 +13,6 @@ from typing import Dict, List
 import cohere
 import numpy as np
 import pandas as pd
-import phoenix as px
-import phoenix.evals.default_templates as templates
 import requests
 import tiktoken
 from bs4 import BeautifulSoup
@@ -24,9 +22,7 @@ from llama_index.core import (
     StorageContext,
     VectorStoreIndex,
     load_index_from_storage,
-    set_global_handler,
 )
-from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.core.node_parser import SimpleNodeParser
@@ -37,12 +33,11 @@ from llama_index.legacy import (
 from llama_index.legacy.readers.web import BeautifulSoupWebReader
 from llama_index.llms.openai import OpenAI
 from llama_index.postprocessor.cohere_rerank import CohereRerank
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
-from phoenix.evals import (
-    OpenAIModel,
-    llm_classify,
-)
-from phoenix.evals.models import BaseModel, set_verbosity
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -53,6 +48,19 @@ from plotresults import (
 )
 from sklearn.metrics import ndcg_score
 
+import phoenix as px
+import phoenix.evals.default_templates as templates
+from phoenix.evals import (
+    OpenAIModel,
+    llm_classify,
+)
+from phoenix.evals.models import BaseModel, set_verbosity
+
+endpoint = "http://127.0.0.1:6006/v1/traces"
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
 logger = logging.getLogger("evals")
@@ -196,11 +204,8 @@ def plot_graphs(all_data: Dict, save_dir: str = "./", show: bool = True, remove_
 def get_transformation_query_engine(index, name, k, llama_index_model):
     if name == "original":
         # query cosine similarity to nodes engine
-        llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-        callback_manager = CallbackManager([llama_debug])
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(temperature=float(0.6), model=llama_index_model),
-            callback_manager=callback_manager,
         )
         query_engine = index.as_query_engine(
             similarity_top_k=k,
@@ -235,11 +240,8 @@ def get_transformation_query_engine(index, name, k, llama_index_model):
     elif name == "hyde_rerank":
         cohere_rerank = CohereRerank(api_key=cohere.api_key, top_n=k)
 
-        llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-        callback_manager = CallbackManager([llama_debug])
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(temperature=0.6, model=llama_index_model),
-            callback_manager=callback_manager,
         )
         query_engine = index.as_query_engine(
             similarity_top_k=k * 2,
@@ -556,8 +558,6 @@ def main():
     px.launch_app()
     # The App is initially empty, but as you proceed with the steps below,
     # traces will appear automatically as your LlamaIndex application runs.
-
-    set_global_handler("arize_phoenix")
 
     # Run all of your LlamaIndex applications as usual and traces
     # will be collected and displayed in Phoenix.

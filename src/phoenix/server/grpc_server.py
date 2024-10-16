@@ -12,7 +12,9 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 )
 from typing_extensions import TypeAlias
 
+from phoenix.auth import CanReadToken
 from phoenix.config import get_env_grpc_port
+from phoenix.server.bearer_auth import ApiKeyInterceptor
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name
@@ -23,7 +25,7 @@ if TYPE_CHECKING:
 ProjectName: TypeAlias = str
 
 
-class Servicer(TraceServiceServicer):
+class Servicer(TraceServiceServicer):  # type: ignore[misc,unused-ignore]
     def __init__(
         self,
         callback: Callable[[Span, ProjectName], Awaitable[None]],
@@ -52,17 +54,21 @@ class GrpcServer:
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
         disabled: bool = False,
+        token_store: Optional[CanReadToken] = None,
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
+        self._token_store = token_store
 
     async def __aenter__(self) -> None:
         if self._disabled:
             return
         interceptors: List[ServerInterceptor] = []
+        if self._token_store:
+            interceptors.append(ApiKeyInterceptor(self._token_store))
         if self._enable_prometheus:
             ...
             # TODO: convert to async interceptor
@@ -78,7 +84,7 @@ class GrpcServer:
             interceptors=interceptors,
         )
         server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
-        add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore
+        add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore[no-untyped-call,unused-ignore]
         await server.start()
         self._server = server
 

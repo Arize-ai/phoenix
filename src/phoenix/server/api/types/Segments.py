@@ -34,7 +34,7 @@ class IntervalBin:
 
 @dataclass(frozen=True)
 class GqlBinFactory:
-    numeric_lbound: float = np.NINF
+    numeric_lbound: float = -np.inf
     numeric_ubound: float = np.inf
 
     @overload

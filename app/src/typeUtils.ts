@@ -31,3 +31,17 @@ export function isStringArray(value: unknown): value is string[] {
   }
   return value.every((item) => typeof item === "string");
 }
+
+/**
+ * A type guard for checking if a value is an object
+ */
+export function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
+
+/**
+ * Makes a type mutable
+ */
+export type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};

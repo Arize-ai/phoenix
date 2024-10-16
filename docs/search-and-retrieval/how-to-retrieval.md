@@ -1,2 +1,0 @@
-# How To: Retrieval
-

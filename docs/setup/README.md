@@ -1,15 +1,25 @@
 ---
-description: How to get started with phoenix
+description: How to get started with Phoenix
 ---
 
 # Setup
 
-## [How to run in different environments](../environments.md)
+## How to run in different environments
 
-* [In a Python Notebook](../environments.md#notebooks)
+Phoenix is designed to be extremely portable and can run as a container or in a notebook.
+
+* [Hosted Phoenix Sandboxes by Arize](../hosted-phoenix.md)
+* [In a python notebook](../environments.md#notebooks)
 * [From the command line](../environments.md#terminal)
-* [In a container](../environments.md#container)
+* [In a Container](../environments.md#container)
 
-## [How to configure phoenix](configuration.md)
+## How to configure phoenix
 
+* [Available ports to run phoenix](configuration.md#ports)
 * [Customize phoenix using environment variables](configuration.md#environment-variables)
+
+## Setup Authentication
+
+* [Setup authentication ](authentication.md)
+* Configuring OAuth2 (Google, AWS Cognito)
+

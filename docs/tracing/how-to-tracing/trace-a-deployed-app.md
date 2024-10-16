@@ -58,7 +58,7 @@ pip install openinference-instrumentation-openai openinference-semantic-conventi
 Note that instrumentation **MUST** be initialized **BEFORE** you use initialize any library or package that you are instrumenting.
 {% endhint %}
 
-Once you've made the appropriate instrumentation, you can [deploy phoenix](../../reference/deploying-phoenix.md) and  the traces will be exported to the phoenix server (collector).\
+Once you've made the appropriate instrumentation, you can [deploy phoenix](../../deployment/deploying-phoenix.md) and  the traces will be exported to the phoenix server (collector).\
 \
 For fully working Python examples, [check out our example apps](https://github.com/Arize-ai/openinference/tree/main/python/examples)
 

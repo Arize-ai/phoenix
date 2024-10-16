@@ -10,21 +10,21 @@ from phoenix import EmbeddingColumnNames, Inferences
 from phoenix.core.model import _get_embedding_dimensions
 from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
 from phoenix.inferences.schema import RetrievalEmbeddingColumnNames
-from phoenix.inferences.schema import Schema as DatasetSchema
+from phoenix.inferences.schema import Schema as InferencesSchema
 
-DatasetName: TypeAlias = str
+InferencesName: TypeAlias = str
 ColumnName: TypeAlias = str
 DisplayName: TypeAlias = str
 
 
-def create_model_from_datasets(*datasets: Optional[Inferences]) -> Model:
+def create_model_from_inferences(*inference_sets: Optional[Inferences]) -> Model:
     # TODO: move this validation into model_schema.Model.
-    if len(datasets) > 1 and datasets[0] is not None:
+    if len(inference_sets) > 1 and inference_sets[0] is not None:
         # Check that for each embedding dimension all vectors
-        # have the same length between datasets.
-        _ = _get_embedding_dimensions(datasets[0], datasets[1])
+        # have the same length between inferences.
+        _ = _get_embedding_dimensions(inference_sets[0], inference_sets[1])
 
-    named_dataframes: List[Tuple[DatasetName, pd.DataFrame]] = []
+    named_dataframes: List[Tuple[InferencesName, pd.DataFrame]] = []
     prediction_ids: List[ColumnName] = []
     timestamps: List[ColumnName] = []
     prediction_labels: List[ColumnName] = []
@@ -37,33 +37,35 @@ def create_model_from_datasets(*datasets: Optional[Inferences]) -> Model:
     prompts: List[EmbeddingColumnNames] = []
     responses: List[Union[str, EmbeddingColumnNames]] = []
 
-    for dataset in filter(_is_dataset, datasets):
-        df = dataset.dataframe
+    for inferences in filter(_is_inferences, inference_sets):
+        df = inferences.dataframe
         # Coerce string column names at run time.
         df = df.set_axis(
             map(str, df.columns),
             axis=1,
         )
-        named_dataframes.append((dataset.name, df))
-        dataset_schema = dataset.schema if dataset.schema is not None else DatasetSchema()
+        named_dataframes.append((inferences.name, df))
+        inferences_schema = (
+            inferences.schema if inferences.schema is not None else InferencesSchema()
+        )
         for display_name, embedding in (
-            dataset_schema.embedding_feature_column_names or {}
+            inferences_schema.embedding_feature_column_names or {}
         ).items():
             if display_name not in embeddings:
                 embeddings[display_name] = embedding
-        if dataset_schema.prompt_column_names is not None:
-            prompts.append(dataset_schema.prompt_column_names)
-        if dataset_schema.response_column_names is not None:
-            responses.append(dataset_schema.response_column_names)
+        if inferences_schema.prompt_column_names is not None:
+            prompts.append(inferences_schema.prompt_column_names)
+        if inferences_schema.response_column_names is not None:
+            responses.append(inferences_schema.response_column_names)
         for source, sink in (
-            ([dataset_schema.prediction_id_column_name], prediction_ids),
-            ([dataset_schema.timestamp_column_name], timestamps),
-            ([dataset_schema.prediction_label_column_name], prediction_labels),
-            ([dataset_schema.prediction_score_column_name], prediction_scores),
-            ([dataset_schema.actual_label_column_name], actual_labels),
-            ([dataset_schema.actual_score_column_name], actual_scores),
-            (dataset_schema.feature_column_names or (), features),
-            (dataset_schema.tag_column_names or (), tags),
+            ([inferences_schema.prediction_id_column_name], prediction_ids),
+            ([inferences_schema.timestamp_column_name], timestamps),
+            ([inferences_schema.prediction_label_column_name], prediction_labels),
+            ([inferences_schema.prediction_score_column_name], prediction_scores),
+            ([inferences_schema.actual_label_column_name], actual_labels),
+            ([inferences_schema.actual_score_column_name], actual_scores),
+            (inferences_schema.feature_column_names or (), features),
+            (inferences_schema.tag_column_names or (), tags),
         ):
             # Coerce None to "" to simplify type checks.
             sink.extend(map(lambda s: "" if s is None else str(s), source))
@@ -132,7 +134,7 @@ def create_model_from_datasets(*datasets: Optional[Inferences]) -> Model:
     )
 
 
-def _is_dataset(obj: Optional[Inferences]) -> TypeGuard[Inferences]:
+def _is_inferences(obj: Optional[Inferences]) -> TypeGuard[Inferences]:
     return type(obj) is Inferences
 
 

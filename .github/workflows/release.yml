@@ -16,7 +16,9 @@ jobs:
       phoenix_path: ${{ steps.parse.outputs.phoenix_path }}
       package_path: ${{ steps.parse.outputs.package_path }}
     steps:
-      - uses: google-github-actions/release-please-action@v4
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         id: release-please
       - name: Parse release path
         if: ${{ steps.release-please.outputs.releases_created == 'true' }}
@@ -26,7 +28,7 @@ jobs:
         # We assume that only one path is released at a time
         run: |
           echo $PATHS_RELEASED | jq -r '.[0]' | while read -r PATH; do
-            case $PATH in 
+            case $PATH in
               packages/*)
                 echo "package_path=$PATH" >> $GITHUB_OUTPUT ;;
               *)
@@ -52,7 +54,7 @@ jobs:
       - run: check-wheel-contents dist/*.whl
       - run: twine upload --skip-existing --verbose dist/*
         env:
-          TWINE_USERNAME: '__token__'
+          TWINE_USERNAME: "__token__"
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
   publish-phoenix:
@@ -64,15 +66,15 @@ jobs:
       name: pypi
       url: https://pypi.org/p/arize-phoenix
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
+      id-token: write # IMPORTANT: mandatory for trusted publishing
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9.8.0
       - name: Build frontend
         working-directory: ./app
-        run: pnpm install --frozen-lockfile && pnpm run clean && pnpm run build
+        run: pnpm install --frozen-lockfile && pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -81,5 +83,5 @@ jobs:
       - name: Build distribution
         run: rm -rf dist && hatch build
       - name: Check wheel contents
-        run: check-wheel-contents dist/*.whl
+        run: check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1

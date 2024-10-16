@@ -10,6 +10,6 @@ FROM gcr.io/distroless/python3-debian12
 WORKDIR /app
 COPY --from=builder /app/.venv/lib/python3.11/site-packages/ /app/site-packages/
 ENV PYTHONPATH="/app/site-packages:$PYTHONPATH"
-COPY frontend/ /app/frontend/
+COPY src/ /app/src/
 EXPOSE 8501
-CMD ["-m", "streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["-m", "streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

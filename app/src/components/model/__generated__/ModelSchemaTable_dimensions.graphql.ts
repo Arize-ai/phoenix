@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb3a62cecea08a738939e01b66c32310>>
+ * @generated SignedSource<<0ebe4222000395c94923ac518a7f022b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,6 +37,8 @@ export type ModelSchemaTable_dimensions$key = {
   readonly " $data"?: ModelSchemaTable_dimensions$data;
   readonly " $fragmentSpreads": FragmentRefs<"ModelSchemaTable_dimensions">;
 };
+
+import ModelSchemaTableDimensionsQuery_graphql from './ModelSchemaTableDimensionsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -102,7 +104,7 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": require('./ModelSchemaTableDimensionsQuery.graphql')
+      "operation": ModelSchemaTableDimensionsQuery_graphql
     }
   },
   "name": "ModelSchemaTable_dimensions",

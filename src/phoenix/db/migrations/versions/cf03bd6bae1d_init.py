@@ -14,12 +14,6 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-# revision identifiers, used by Alembic.
-revision: str = "cf03bd6bae1d"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
-
 
 class JSONB(JSON):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
@@ -43,6 +37,12 @@ JSON_ = (
         "sqlite",
     )
 )
+
+# revision identifiers, used by Alembic.
+revision: str = "cf03bd6bae1d"
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

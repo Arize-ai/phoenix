@@ -16,6 +16,8 @@ from .default_templates import (
     REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
     SQL_GEN_EVAL_PROMPT_RAILS_MAP,
     SQL_GEN_EVAL_PROMPT_TEMPLATE,
+    TOOL_CALLING_PROMPT_RAILS_MAP,
+    TOOL_CALLING_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
     USER_FRUSTRATION_PROMPT_RAILS_MAP,
@@ -26,6 +28,7 @@ from .evaluators import (
     LLMEvaluator,
     QAEvaluator,
     RelevanceEvaluator,
+    SQLEvaluator,
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
@@ -40,6 +43,11 @@ from .models import (
     VertexAIModel,
 )
 from .retrievals import compute_precisions_at_k
+from .span_templates import (
+    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
+    QA_SPAN_PROMPT_TEMPLATE,
+    TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
+)
 from .templates import (
     ClassificationTemplate,
     PromptTemplate,
@@ -80,12 +88,18 @@ __all__ = [
     "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
     "USER_FRUSTRATION_PROMPT_RAILS_MAP",
     "USER_FRUSTRATION_PROMPT_TEMPLATE",
+    "TOOL_CALLING_PROMPT_TEMPLATE",
+    "TOOL_CALLING_PROMPT_RAILS_MAP",
     "NOT_PARSABLE",
     "run_evals",
     "LLMEvaluator",
     "HallucinationEvaluator",
     "QAEvaluator",
     "RelevanceEvaluator",
+    "SQLEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
+    "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
+    "QA_SPAN_PROMPT_TEMPLATE",
+    "TOOL_CALLING_SPAN_PROMPT_TEMPLATE",
 ]

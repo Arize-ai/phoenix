@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2c9bcedff081a32e9f8aeb4d472a624d>>
+ * @generated SignedSource<<d91769ea4e28132b62dac1ad21ee7811>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,13 +33,20 @@ var v0 = [
     "name": "timeRange"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 50
+  }
+],
+v2 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v2 = [
-  (v1/*: any*/)
+v3 = [
+  (v2/*: any*/)
 ];
 return {
   "fragment": {
@@ -65,7 +72,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": null,
+        "args": (v1/*: any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -117,7 +124,7 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v2/*: any*/),
+                    "args": (v3/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
                     "storageKey": null
@@ -137,7 +144,7 @@ return {
                         "name": "probability",
                         "value": 0.5
                       },
-                      (v1/*: any*/)
+                      (v2/*: any*/)
                     ],
                     "kind": "ScalarField",
                     "name": "latencyMsQuantile",
@@ -145,9 +152,34 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v2/*: any*/),
+                    "args": (v3/*: any*/),
                     "kind": "ScalarField",
                     "name": "tokenCountTotal",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
                     "storageKey": null
                   }
                 ],
@@ -155,19 +187,53 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "projects(first:50)"
+      },
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "ProjectsPage_projects",
+        "kind": "LinkedHandle",
+        "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "9e5408cfa88c6d82157f9979960611bd",
+    "cacheID": "35a420462b10b0f0158d042fd39bfabb",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

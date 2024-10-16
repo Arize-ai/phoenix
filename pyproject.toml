@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.8, <4"
+requires-python = ">=3.9, <4"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,7 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -23,59 +22,73 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy",
-  "pandas",
+  "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
+  "pandas>=1.0",
   "jinja2",
   "umap-learn",
-  "hdbscan>=0.8.33",
+  "fast-hdbscan>=0.2.0",
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.243.1",  # need to pin version because we're monkey-patching
   "pyarrow",
-  "typing-extensions>=4.5; python_version<'3.12'",
-  # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
-  "typing-extensions>=4.6; python_version>='3.12'",
+  "typing-extensions>=4.6",
   "scipy",
   "wrapt",
-  "protobuf>=3.20, <6.0",
+  "protobuf>=3.20.2, <6.0",
   "grpcio",
+  "grpc-interceptor",
   "tqdm",
-  "requests",
+  "httpx",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.5",
-  "openinference-instrumentation",
-  "openinference-instrumentation-langchain>=0.1.12",
-  "openinference-instrumentation-llama-index>=1.2.0",
-  "openinference-instrumentation-openai>=0.1.4",
+  "openinference-semantic-conventions>=0.1.9",
+  "openinference-instrumentation>=0.1.12",
   "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
   "aioitertools",
   "sqlean.py>=3.45.1",
   "cachetools",
+  "python-multipart",  # see https://www.starlette.io/#dependencies
+  "arize-phoenix-evals>=0.13.1",
+  "arize-phoenix-otel>=0.5.1",
+  "fastapi",
+  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "authlib",
 ]
 dynamic = ["version"]
+
+[project.scripts]
+arize-phoenix = "phoenix.server.main:main"
+phoenix = "phoenix.server.main:main"
 
 [project.optional-dependencies]
 dev = [
   "gcsfs",
   "hatch",
+  "tox==4.18.1",
+  "tox-uv==1.11.3",
+  "uv==0.4.8",
   "jupyter",
   "nbqa",
-  "ruff==0.3.0",
-  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "pytest==7.4.4",
+  "ruff==0.6.9",
+  "mypy==1.11.2",
+  "pandas>=1.0",
+  "tabulate",  # used by DataFrame.to_markdown()
+  "types-tabulate",
+  "pandas-stubs==2.2.2.240603",
+  "pytest==8.3.3",
+  "pytest-xdist",
   "pytest-asyncio",
   "pytest-cov",
-  "pytest-lazy-fixture",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "psycopg[binary,pool]",
+  "strawberry-graphql[debug-server,opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -84,20 +97,29 @@ dev = [
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
+  "asgi-lifespan",
+  "Faker>=30.1.0",
+  "portpicker",
+  "uvloop; platform_system != 'Windows'",
+  "grpc-interceptor[testing]",
 ]
-evals = [
-  "arize-phoenix-evals>=0.3.0",
+embeddings = [
+  "fast-hdbscan>=0.2.0",
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
+  "umap-learn",
 ]
-experimental = [
-  "tenacity",
-]
+evals = []
+experimental = []
 llama-index = [
-  "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
-  "llama-index-callbacks-arize-phoenix>=0.1.2",
-  "openinference-instrumentation-llama-index>=1.2.0",
+  "llama-index==0.10.51",  # always pin to a version that keeps our notebooks working
+  "llama-index-readers-file==0.1.25",
+  "llama-index-llms-openai==0.1.24",
+  "llama-index-embeddings-openai==0.1.10",
+  "llama-index-agent-openai==0.2.7",
 ]
 pg = [
   "asyncpg",
+  "psycopg[binary,pool]",
 ]
 container = [
   "prometheus-client",
@@ -105,12 +127,17 @@ container = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
+  "fast-hdbscan>=0.2.0",
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
+  "umap-learn",
+]
+test = [
 ]
 
 [project.urls]
@@ -127,73 +154,101 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
-exclude = ["src/phoenix/evals/"]
-artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
+exclude = [
+  "src/phoenix/evals/",
+  "src/phoenix/otel/",
+]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/db/migrations",
+]
 
 [tool.hatch.build]
 only-packages = true
 
 [tool.hatch.build.targets.sdist]
-exclude = ["src/phoenix/evals/", "packages/"]
-artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
+exclude = [
+  "packages/",
+  "src/phoenix/evals/",
+  "src/phoenix/otel/",
+  "tests/",
+  "scripts/",
+  "examples/",
+  "js/",
+]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/db/migrations",
+]
 
 [tool.hatch.envs.default]
 dependencies = [
-  "pandas==1.4.0",
-  "pytest==7.4.4",
+  "numpy",
+  "pandas==2.2.2; python_version>='3.9'",
+  "pytest==8.3.3",
   "pytest-asyncio",
   "pytest-cov",
-  "pytest-lazy-fixture",
   "pytest-postgresql",
   "asyncpg",
-  "psycopg[binary]",
+  "psycopg[binary,pool]",
   "arize",
   "litellm>=1.0.3",
   "openai>=1.0.0",
   "tenacity",
-  "requests",
-  "protobuf==3.20",  # version minimum (for tests)
+  "protobuf==3.20.2",  # version minimum (for tests)
+  "grpc-interceptor[testing]",
   "responses",
   "tiktoken",
-  "typing-extensions==4.5.0; python_version<'3.12'",
-  "typing-extensions==4.6.0; python_version>='3.12'",
+  "typing-extensions==4.7.0",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
-  "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
+  "asgi-lifespan",
+  "Faker>=30.1.0",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.9.0",
-  "tenacity",
-  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "types-psutil",
-  "types-tqdm",
-  "types-requests",
-  "types-protobuf",
-  "types-setuptools",
-  "types-cachetools",
-  "openai>=1.0.0",
-  "litellm>=1.0.3",
-  "prometheus_client",
   "grpcio",
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",
+  "litellm>=1.0.3",
+  "mypy==1.11.2",
+  "openai>=1.0.0",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
-  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-grpc",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-sdk",
+  "opentelemetry-semantic-conventions",
+  "pandas-stubs==2.0.3.230814",
+  "pandas>=1.0",
+  "prometheus_client",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "pypistats",  # this is needed to type-check third-party packages
+  "requests",  # this is needed to type-check third-party packages
+  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
+  "tenacity",
+  "types-cachetools",
+  "types-protobuf",
+  "types-psutil",
+  "types-requests",
+  "types-setuptools",
+  "types-tabulate",
+  "types-tqdm",
 ]
+
+[[tool.hatch.envs.type.matrix]]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.4.1",
+  "ruff==0.6.9",
 ]
+
+[[tool.hatch.envs.style.matrix]]
+python = ["3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
@@ -204,22 +259,25 @@ dependencies = [
 [tool.hatch.envs.docs]
 detached = true
 dependencies = [
+  "pyment",
   "interrogate",
 ]
 
 [tool.hatch.envs.default.scripts]
-tests = "pytest {args}"
-coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
+tests = "pytest {args} tests/unit"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.12"]
+python = ["3.9", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="function"
 addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  "--new-first",
+  "--showlocals",
 ]
 testpaths = [
   "tests",
@@ -262,6 +320,10 @@ clean = [
   "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
+[tool.hatch.envs.auth.scripts]
+up = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
+down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
+
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
@@ -285,12 +347,21 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[cli]==0.243.1",  # need to pin version because we're monkey-patching
   "requests",
 ]
 
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
+
+[tool.hatch.envs.openapi]
+dependencies = [
+  "pydantic==2.8.2",
+  "fastapi==0.111.0",
+]
+
+[tool.hatch.envs.openapi.scripts]
+build = "python -m phoenix.server.api.openapi.main > schemas/openapi.json"
 
 [tool.hatch.envs.proto]
 detached = true
@@ -321,24 +392,23 @@ ignore-setters = false
 
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs  = true
 strict = true
 exclude = [
-  "packages/",
-  "src/phoenix/evals/",
+  "api_reference",
   "dist/",
-  "scripts/data/",
+  "examples/",
+  "packages/",
+  "scripts/",
   "sdist/",
+  "src/phoenix/evals/",
   "tests/",
   "tutorials/",
-  "examples/manually-instrumented-chatbot/"
+  "js/",
 ]
 
 [[tool.mypy.overrides]]
 module = [
-  "hdbscan",
+  "fast_hdbscan",
   "umap",
   "numba.*",
   "scipy.*",
@@ -347,17 +417,22 @@ module = [
   "wrapt",
   "langchain.*",
   "litellm",
+  "litellm.*",
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
+  "orjson",  # suppress fastapi internal type errors
+  "pypistats",
+  "authlib.*",
 ]
 ignore_missing_imports = true
 
 [tool.ruff]
 exclude = [
+  "api_reference",
   "packages",
   "src/phoenix/evals/",
   "dist/",
@@ -367,16 +442,17 @@ exclude = [
   "*.pyi",
   "docs/",
 ]
-extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.lint]
-ignore-init-module-imports = true
-select = ["E", "F", "W", "I"]
+select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+
+[tool.ruff.format]
+line-ending = "native"

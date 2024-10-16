@@ -17,7 +17,7 @@ export function LastNTimeRangePicker(props: LastNTimeRangePickerProps) {
       aria-label={"Time Range"}
       addonBefore={<Icon svg={<Icons.CalendarOutline />} />}
       isDisabled={isDisabled}
-      defaultSelectedKey={selectedKey}
+      selectedKey={selectedKey}
       onSelectionChange={(key: Key) => {
         onSelectionChange && onSelectionChange(key as LastNTimeRangeKey);
       }}

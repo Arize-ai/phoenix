@@ -58,7 +58,7 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
   return (
     <Switch
       labelPlacement="start"
-      defaultSelected
+      isSelected={isStreaming}
       onChange={() => {
         setIsStreaming(!isStreaming);
       }}

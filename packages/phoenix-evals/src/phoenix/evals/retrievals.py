@@ -60,7 +60,7 @@ def classify_relevance(query: str, document: str, model_name: str) -> Optional[b
 
     Args:
         query (str): The query text. document (str): The document text. model_name (str): The name
-        of the OpenAI API model to use for the classification.
+            of the OpenAI API model to use for the classification.
 
     Returns:
         Optional[bool]: A boolean indicating whether the document contains an answer to the query

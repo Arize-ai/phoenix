@@ -6,7 +6,7 @@ See "Classifications with Explanations Section"
 
 It can be hard to understand in many cases why an LLM responds in a specific way. The explanation feature of Phoneix allows you to get a Eval output and an explanation from the LLM at the same time. We have found this incredibly useful for debugging LLM Evals.
 
-<pre class="language-python"><code class="lang-python">from phoenix.experimental.evals import (
+<pre class="language-python"><code class="lang-python">from phoenix.evals import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,

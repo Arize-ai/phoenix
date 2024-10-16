@@ -1,9 +1,26 @@
 import json
+import os
 import re
 from traceback import format_exception
 from typing import List, Optional, Tuple, cast
+from urllib import request
 
 import pandas as pd
+
+
+def parse_file_extension(file_path: str) -> str:
+    return os.path.splitext(file_path)[-1]
+
+
+def download_json_traces_fixture(
+    url: str,
+) -> List[str]:
+    """
+    Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
+    """
+
+    with request.urlopen(url) as f:
+        return cast(List[str], f.readlines())
 
 
 def json_lines_to_df(lines: List[str]) -> pd.DataFrame:

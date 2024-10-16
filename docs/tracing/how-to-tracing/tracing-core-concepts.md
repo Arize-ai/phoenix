@@ -2,7 +2,7 @@
 
 ## How to log traces
 
-To log traces, you must instrument your application either [manually](custom-spans.md) or [automatically](instrumentation/). To log to a remote instance of Phoenix, you must also configure the host and port where your traces will be sent.
+To log traces, you must instrument your application either [manually](manual-instrumentation/custom-spans.md) or [automatically](instrumentation/). To log to a remote instance of Phoenix, you must also configure the host and port where your traces will be sent.
 
 {% tabs %}
 {% tab title="Local Phoenix" %}

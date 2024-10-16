@@ -1,12 +1,14 @@
+import codecs
 import logging
+import sys
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty, SimpleQueue
 from threading import Thread
 from typing import Optional
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import URL
+from sqlalchemy import Engine
 
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.settings import Settings
@@ -15,11 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 def printif(condition: bool, text: str) -> None:
-    if condition:
-        print(text)
+    if not condition:
+        return
+    if sys.platform.startswith("win"):
+        text = codecs.encode(text, "ascii", errors="ignore").decode("ascii").strip()
+    print(text)
 
 
-def migrate(url: URL, error_queue: Optional["Queue[Exception]"] = None) -> None:
+def migrate(
+    engine: Engine,
+    error_queue: Optional["SimpleQueue[BaseException]"] = None,
+) -> None:
     """
     Runs migrations on the database.
     NB: Migrate only works on non-memory databases.
@@ -37,24 +45,28 @@ def migrate(url: URL, error_queue: Optional["Queue[Exception]"] = None) -> None:
         # Explicitly set the migration directory
         scripts_location = str(Path(__file__).parent.resolve() / "migrations")
         alembic_cfg.set_main_option("script_location", scripts_location)
-        alembic_cfg.set_main_option("sqlalchemy.url", str(url))
-        command.upgrade(alembic_cfg, "head")
+        url = str(engine.url).replace("%", "%%")
+        alembic_cfg.set_main_option("sqlalchemy.url", url)
+        with engine.connect() as conn:
+            alembic_cfg.attributes["connection"] = conn
+            command.upgrade(alembic_cfg, "head")
+        engine.dispose()
         printif(log_migrations, "---------------------------")
         printif(log_migrations, "✅ Migrations complete.")
-    except Exception as e:
+    except BaseException as e:
         if error_queue:
             error_queue.put(e)
             raise e
 
 
-def migrate_in_thread(url: URL) -> None:
+def migrate_in_thread(engine: Engine) -> None:
     """
     Runs migrations on the database in a separate thread.
     This is needed because depending on the context (notebook)
     the migration process can fail to execute in the main thread.
     """
-    error_queue: Queue[Exception] = Queue()
-    t = Thread(target=migrate, args=(url, error_queue))
+    error_queue: SimpleQueue[BaseException] = SimpleQueue()
+    t = Thread(target=migrate, args=(engine, error_queue))
     t.start()
     t.join()
 

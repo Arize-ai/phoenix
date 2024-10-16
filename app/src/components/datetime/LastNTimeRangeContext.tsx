@@ -1,9 +1,6 @@
-import React, {
-  createContext,
-  startTransition,
-  useCallback,
-  useState,
-} from "react";
+import React, { createContext } from "react";
+
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { LastNTimeRangeKey } from "./types";
 import { getTimeRangeFromLastNTimeRangeKey } from "./utils";
@@ -36,23 +33,21 @@ export function useLastNTimeRange(): LastNTimeRangeContextType {
 }
 
 export function LastNTimeRangeProvider({
-  initialTimeRangeKey = "7d",
   children,
 }: {
-  initialTimeRangeKey?: LastNTimeRangeKey;
   children: React.ReactNode;
 }) {
-  const [timeRangeKey, _setTimeRangeKey] =
-    useState<LastNTimeRangeKey>(initialTimeRangeKey);
-  const [timeRange, _setTimeRange] = useState<TimeRange>(() => {
-    return getTimeRangeFromLastNTimeRangeKey(initialTimeRangeKey);
-  });
-  const setTimeRangeKey = useCallback((key: LastNTimeRangeKey) => {
-    startTransition(() => {
-      _setTimeRangeKey(key);
-      _setTimeRange(getTimeRangeFromLastNTimeRangeKey(key));
-    });
-  }, []);
+  const timeRangeKey = usePreferencesContext(
+    (state) => state.lastNTimeRangeKey
+  );
+  const setTimeRangeKey = usePreferencesContext(
+    (state) => state.setLastNTimeRangeKey
+  );
+
+  // TODO: this caching doesn't move the time forward and is flawed
+  // Needs refactoring
+  const timeRange = getTimeRangeFromLastNTimeRangeKey(timeRangeKey);
+
   return (
     <LastNTimeRangeContext.Provider
       value={{

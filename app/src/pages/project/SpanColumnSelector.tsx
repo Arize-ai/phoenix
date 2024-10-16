@@ -7,7 +7,7 @@ import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
-import { SpanColumnSelector_evaluations$key } from "./__generated__/SpanColumnSelector_evaluations.graphql";
+import { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
@@ -19,7 +19,7 @@ type SpanColumnSelectorProps = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
-  query: SpanColumnSelector_evaluations$key;
+  query: SpanColumnSelector_annotations$key;
 };
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
@@ -145,33 +145,33 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
 function EvaluationColumnSelector({
   query,
 }: Pick<SpanColumnSelectorProps, "query">) {
-  const data = useFragment<SpanColumnSelector_evaluations$key>(
+  const data = useFragment<SpanColumnSelector_annotations$key>(
     graphql`
-      fragment SpanColumnSelector_evaluations on Project {
-        spanEvaluationNames
+      fragment SpanColumnSelector_annotations on Project {
+        spanAnnotationNames
       }
     `,
     query
   );
-  const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
   );
-  const setEvaluationVisibility = useTracingContext(
-    (state) => state.setEvaluationVisibility
+  const setAnnotationColumnVisibility = useTracingContext(
+    (state) => state.setAnnotationColumnVisibility
   );
   const allVisible = useMemo(() => {
-    return data.spanEvaluationNames.every((name) => {
-      const stateValue = evaluationVisibility[name];
+    return data.spanAnnotationNames.every((name) => {
+      const stateValue = annotationColumnVisibility[name];
       return stateValue || false;
     });
-  }, [evaluationVisibility, data.spanEvaluationNames]);
+  }, [data.spanAnnotationNames, annotationColumnVisibility]);
 
   const onToggleEvaluations = useCallback(() => {
-    const newVisibilityState = data.spanEvaluationNames.reduce((acc, name) => {
+    const newVisibilityState = data.spanAnnotationNames.reduce((acc, name) => {
       return { ...acc, [name]: !allVisible };
     }, {});
-    setEvaluationVisibility(newVisibilityState);
-  }, [setEvaluationVisibility, allVisible, data.spanEvaluationNames]);
+    setAnnotationColumnVisibility(newVisibilityState);
+  }, [data.spanAnnotationNames, setAnnotationColumnVisibility, allVisible]);
   return (
     <section>
       <View
@@ -189,13 +189,13 @@ function EvaluationColumnSelector({
               checked={allVisible}
               onChange={onToggleEvaluations}
             />
-            evaluations
+            feedback
           </label>
         </div>
       </View>
       <ul>
-        {data.spanEvaluationNames.map((name) => {
-          const isVisible = evaluationVisibility[name];
+        {data.spanAnnotationNames.map((name) => {
+          const isVisible = annotationColumnVisibility[name] ?? false;
           return (
             <li key={name} css={columCheckboxItemCSS}>
               <label>
@@ -204,8 +204,8 @@ function EvaluationColumnSelector({
                   name={name}
                   checked={isVisible}
                   onChange={() => {
-                    setEvaluationVisibility({
-                      ...evaluationVisibility,
+                    setAnnotationColumnVisibility({
+                      ...annotationColumnVisibility,
                       [name]: !isVisible,
                     });
                   }}

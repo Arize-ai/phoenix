@@ -4,3 +4,7 @@ class PhoenixException(Exception):
 
 class PhoenixContextLimitExceeded(PhoenixException):
     pass
+
+
+class PhoenixTemplateMappingError(PhoenixException):
+    pass

@@ -42,9 +42,9 @@ type EventItemProps = {
    */
   promptAndResponse: PromptResponse | null;
   /**
-   * Which dataset the event belongs to
+   * Which inferences the event belongs to
    */
-  datasetName: string;
+  inferencesName: string;
   /**
    * event handler for when the user clicks on the event item
    */
@@ -138,8 +138,15 @@ function getSecondaryPreviewType(
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { onClick, onMouseOver, onMouseOut, color, size, datasetName, group } =
-    props;
+  const {
+    onClick,
+    onMouseOver,
+    onMouseOut,
+    color,
+    size,
+    inferencesName,
+    group,
+  } = props;
   // Prioritize the image preview over raw text
   const primaryPreviewType = getPrimaryPreviewType(props);
   // only show the secondary preview for large size
@@ -215,8 +222,8 @@ export function EventItem(props: EventItemProps) {
         <EventItemFooter
           color={color}
           group={group}
-          datasetName={datasetName}
-          showDataset={size === "large"}
+          inferencesName={inferencesName}
+          showInferences={size === "large"}
         />
       )}
     </div>
@@ -516,10 +523,10 @@ function EventMetadataPreview(
 function EventItemFooter({
   color,
   group,
-  showDataset,
-  datasetName,
-}: Pick<EventItemProps, "group" | "color" | "datasetName"> & {
-  showDataset: boolean;
+  showInferences,
+  inferencesName,
+}: Pick<EventItemProps, "group" | "color" | "inferencesName"> & {
+  showInferences: boolean;
 }) {
   return (
     <footer
@@ -543,8 +550,8 @@ function EventItemFooter({
         <ShapeIcon shape={Shape.circle} color={color} />
         {group}
       </div>
-      {showDataset ? (
-        <div title="the dataset the point belongs to">{datasetName}</div>
+      {showInferences ? (
+        <div title="the inferences the point belongs to">{inferencesName}</div>
       ) : null}
     </footer>
   );

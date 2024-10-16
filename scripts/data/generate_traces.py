@@ -14,8 +14,6 @@ from urllib.parse import urljoin
 
 import numpy as np
 import pandas as pd
-import phoenix as px
-import phoenix.trace.v1 as pb
 import requests
 from faker import Faker
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
@@ -41,8 +39,11 @@ from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.util import types
-from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 from typing_extensions import TypeAlias
+
+import phoenix as px
+import phoenix.trace.v1 as pb
+from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 
 url = "http://127.0.0.1:6006"
 grpc_endpoint = "http://127.0.0.1:4317"

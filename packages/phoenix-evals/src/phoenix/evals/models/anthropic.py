@@ -14,22 +14,53 @@ def anthropic_version(version_str: str) -> Tuple[int, ...]:
 
 @dataclass
 class AnthropicModel(BaseModel):
+    """
+    An interface for using Anthropic models.
+
+    This class wraps the Anthropic SDK library for use with Phoenix LLM evaluations. Calls to the
+    Anthropic API are dynamically throttled when encountering rate limit errors. Requires the
+    `anthropic` package to be installed.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        model (str, optional): The model name to use. Defaults to "claude-2.1".
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): Maximum number of tokens to generate in the completion.
+            Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        top_k (int, optional): The cutoff where the model no longer selects the words.
+            Defaults to 256.
+        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+            generating further tokens. Defaults to an empty list.
+        extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
+            body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
+        max_content_size (Optional[int], optional): If using a fine-tuned model, set this to the
+            maximum content size. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
+
+    Example:
+        .. code-block:: python
+
+            # Set the ANTHROPIC_API_KEY environment variable
+
+            from phoenix.evals import AnthropicModel
+            model = AnthropicModel(model="claude-2.1")
+    """
+
     model: str = "claude-2.1"
-    """The model name to use."""
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     top_k: int = 256
-    """The cutoff where the model no longer selects the words."""
     stop_sequences: List[str] = field(default_factory=list)
-    """If the model encounters a stop sequence, it stops generating further tokens."""
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
-    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
     max_content_size: Optional[int] = None
-    """If you're using a fine-tuned model, set this to the maximum content size"""
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -66,8 +97,7 @@ class AnthropicModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._anthropic.RateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=1,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 

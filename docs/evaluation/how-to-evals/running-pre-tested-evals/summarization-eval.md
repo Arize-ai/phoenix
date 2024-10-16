@@ -14,24 +14,24 @@ Try it out!
 {% endembed %}
 
 ```
-    You are comparing the summary text and it's original document and trying to determine
-    if the summary is good. Here is the data:
+You are comparing the summary text and it's original document and trying to determine
+if the summary is good. Here is the data:
     [BEGIN DATA]
     ************
-    [Summary]: {summary}
+    [Summary]: {output}
     ************
-    [Original Document]: {document}
+    [Original Document]: {input}
     [END DATA]
-    Compare the Summary above to the Original Document and determine if the Summary is
-    comprehensive, concise, coherent, and independent relative to the Original Document.
-    Your response must be a string, either good or bad, and should not contain any text
-    or characters aside from that. The string bad means that the Summary is not comprehensive, concise,
-    coherent, and independent relative to the Original Document. The string good means the Summary
-    is comprehensive, concise, coherent, and independent relative to the Original Document.
+Compare the Summary above to the Original Document and determine if the Summary is
+comprehensive, concise, coherent, and independent relative to the Original Document.
+Your response must be a single word, either "good" or "bad", and should not contain any text
+or characters aside from that. "bad" means that the Summary is not comprehensive,
+concise, coherent, and independent relative to the Original Document. "good" means the
+Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 10/12/2023
+We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 07/4/2024
 {% endhint %}
 
 ## Benchmark Results
@@ -59,8 +59,8 @@ We are continually iterating our templates, view the most up-to-date template on
 ## How To Run the Eval
 
 ```python
-import phoenix.experimental.evals.templates.default_templates as templates
-from phoenix.experimental.evals import (
+import phoenix.evals.default_templates as templates
+from phoenix.evals import (
     OpenAIModel,
     download_benchmark_dataset,
     llm_classify,
@@ -80,9 +80,10 @@ summarization_classifications = llm_classify(
     template=templates.SUMMARIZATION_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
 
 The above shows how to use the summarization Eval template.
 
-<table><thead><tr><th width="122">Eval</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5 Instruct</th><th width="75">Palm 2 (Text Bison)</th><th>Claud V2</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.57</mark></td><td><mark style="color:purple;">0.75</mark></td><td></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.641</mark></td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:red;">0.1</mark></td><td><mark style="color:red;">0.16</mark></td><td><mark style="color:red;">0.7</mark></td><td><mark style="color:purple;">0.61</mark></td><td></td></tr><tr><td>F1</td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.18</mark></td><td><mark style="color:red;">0.280</mark></td><td><mark style="color:red;">0.63</mark></td><td><mark style="color:purple;">0.67</mark></td><td></td></tr></tbody></table>
+<table><thead><tr><th width="122">Eval</th><th>GPT-4o</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5 Instruct</th><th width="75">Palm 2 (Text Bison)</th><th>Claud V2</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.57</mark></td><td><mark style="color:purple;">0.75</mark></td><td></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.63</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.641</mark></td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:red;">0.1</mark></td><td><mark style="color:red;">0.16</mark></td><td><mark style="color:red;">0.7</mark></td><td><mark style="color:purple;">0.61</mark></td><td></td></tr><tr><td>F1</td><td><mark style="color:green;">0.73</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.18</mark></td><td><mark style="color:red;">0.280</mark></td><td><mark style="color:red;">0.63</mark></td><td><mark style="color:purple;">0.67</mark></td><td></td></tr></tbody></table>

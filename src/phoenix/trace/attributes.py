@@ -33,6 +33,7 @@ from typing import (
     cast,
 )
 
+import numpy as np
 from openinference.semconv import trace
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from typing_extensions import assert_never
@@ -138,12 +139,12 @@ def get_attribute_value(
     will return `1`. If the key is `"a.b"`, then the function will return
     `{"c": 1}`.
     """
-    if not attributes:
+    if not (attributes and isinstance(attributes, dict)):
         return None
     sub_keys = key.split(separator)
     for sub_key in sub_keys[:-1]:
         attributes = attributes.get(sub_key)
-        if not attributes:
+        if not (attributes and isinstance(attributes, dict)):
             return None
     return attributes.get(sub_keys[-1])
 
@@ -307,7 +308,7 @@ def _flatten_mapping(
                     json_string_attributes=json_string_attributes,
                     separator=separator,
                 )
-        elif isinstance(value, Sequence) and recurse_on_sequence:
+        elif (isinstance(value, Sequence) or isinstance(value, np.ndarray)) and recurse_on_sequence:
             yield from _flatten_sequence(
                 value,
                 prefix=prefixed_key,

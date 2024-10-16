@@ -53,7 +53,7 @@ We are continually iterating our templates, view the most up-to-date template on
 
 ## How To Run the Eval
 
-<pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
+<pre class="language-python"><code class="lang-python"><strong>from phoenix.evals import (
 </strong>    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,
@@ -75,12 +75,13 @@ relevance_classifications = llm_classify(
     template=RAG_RELEVANCY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 </code></pre>
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-<table><thead><tr><th width="116">RAG Eval</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.68</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
+<table><thead><tr><th width="116">RAG Eval</th><th>GPT-4o</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.60</mark></td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.68</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.67</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
 
 | Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
 | ----------- | ------- | ----------- | ------- |

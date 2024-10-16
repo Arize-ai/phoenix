@@ -6,12 +6,12 @@ import {
   Store,
 } from "relay-runtime";
 
-function getSanitizedPath(path: string): string {
-  return path.endsWith("/") ? path.slice(0, -1) : path;
-}
-const graphQLPath =
-  `${window.location.protocol}//${window.location.host}${getSanitizedPath(window.Config.basename)}` +
-  "/graphql";
+import { authFetch } from "@phoenix/authFetch";
+import { BASE_URL } from "@phoenix/config";
+
+const graphQLPath = BASE_URL + "/graphql";
+
+const graphQLFetch = window.Config.authenticationEnabled ? authFetch : fetch;
 
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
@@ -19,7 +19,7 @@ const graphQLPath =
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
 const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
-  const response = await fetch(graphQLPath, {
+  const response = await graphQLFetch(graphQLPath, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

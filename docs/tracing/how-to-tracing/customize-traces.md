@@ -6,7 +6,9 @@ description: Oftentimes you want to customize various aspects of traces you log 
 
 ## Log to a specific project
 
-Phoenix uses [projects](../concepts-tracing.md#projects) to group traces. If left unspecified, all traces are sent to a default project.&#x20;
+Phoenix uses [projects](../concepts-tracing.md#projects) to group traces. If left unspecified, all traces are sent to a default project.
+
+{% embed url="https://www.youtube.com/watch?v=GPno92s9WFM" %}
 
 {% tabs %}
 {% tab title="Notebook" %}

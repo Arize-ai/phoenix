@@ -1,18 +1,27 @@
 # Developer's Guide
 
--   [Developer's Guide](#developers-guide)
-    -   [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
-    -   [Testing and Linting](#testing-and-linting)
-    -   [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
-    -   [Building the Package](#building-the-package)
-    -   [Installing a Phoenix Build](#installing-a-phoenix-build)
-    -   [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-    -   [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-        -   [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-        -   [Installing Python and Phoenix](#installing-python-and-phoenix)
-        -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-        -   [Troubleshooting](#troubleshooting)
-    -   [Publishing a New Release](#publishing-a-new-release)
+- [Developer's Guide](#developers-guide)
+  - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
+  - [Testing and Linting](#testing-and-linting)
+  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+  - [Contributing Notebooks](#contributing-notebooks)
+  - [Building the Package](#building-the-package)
+  - [Installing a Phoenix Build](#installing-a-phoenix-build)
+  - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
+  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
+    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
+    - [Installing Python and Phoenix](#installing-python-and-phoenix)
+    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
+    - [Troubleshooting](#troubleshooting)
+  - [Publishing a New Release](#publishing-a-new-release)
+  - [Best Practices](#best-practices)
+    - [REST API](#rest-api)
+      - [HTTP Methods](#http-methods)
+      - [Status Codes](#status-codes)
+      - [Path Structure](#path-structure)
+      - [Query Parameters](#query-parameters)
+      - [Pagination](#pagination)
+      - [Response Format](#response-format)
 
 ## Setting Up Your macOS Development Environment
 
@@ -87,7 +96,6 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-
 Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
 
 ```bash
@@ -139,6 +147,14 @@ pre-commit install
 ```
 
 Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`. Pre-commit hooks can be skipped by passing the `-n`/ `--no-verify` flag to the `git commit` command.
+
+## Contributing Notebooks
+
+To add or modify a Jupyter notebook, the following commands are needed to pass CI.
+
+- `hatch run type:check`: Run type checks
+- `hatch run style:fix`: Runs formatters
+- `hatch run notebooks:clean`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Building the Package
 
@@ -302,13 +318,52 @@ You must also ensure that port 22 of your Windows VM is reachable by your SSH cl
 To publish a new release, follow the steps below.
 
 1. Make sure your branch is up-to-date with `main`
-2. Update the version number in `src/phoenix/__init__.py`
-3. By default, the web app is not re-built. Run `npm run build` in the app directory to re-build the web app.
-4. Remove the `dist` folder with `rm -rf dist`.
-5. Change directory to `app` and run `rm -rf node_modules && npm install && npm run build`.
-6. From the root directory of the repo, build the package with `hatch build`.
-7. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
-8. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
-9. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
-10. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
-11. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
+2. Update the version number in `src/phoenix/version.py`
+3. Remove the `dist` folder with `rm -rf dist`.
+4. By default, the web app is not rebuilt. Change directory to `app` and run `rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build` to rebuild the web app.
+5. From the root directory of the repo, build the package with `hatch build`.
+6. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
+7. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
+8. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
+9. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
+10. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
+
+## Best Practices
+
+### REST API
+
+-   The API should communicate over JSON unless otherwise specified by the URL.
+-   The API should be versioned. If a backwards incompatible change is made, the new route should be nested under a new version.
+
+#### HTTP Methods
+
+-   **GET** Used to retrieve a representation of a resource.
+-   **POST** Used to create new resources and sub-resources.
+-   **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
+-   **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
+-   **DELETE** Used to delete existing resources.
+
+#### Status Codes
+
+-   **4xx** The client application behaved erroneously - client error
+-   **5xx** The API behaved erroneously - server error
+-   **2xx** The client and API worked
+
+#### Path Structure
+
+-   Use nouns for resources and sub-resources.
+-   Avoid using verbs in the path.
+-   Nouns should be pluralized and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id` where the dataset ID is the globally unique identifier consistent with the GraphQL API).
+
+#### Query Parameters
+
+Use query parameters for filtering, sorting, and pagination. Query parameters should use `_` as a separator.
+
+#### Pagination
+
+Use cursor-based pagination. Each request gives a cursor to the next page of results.
+
+#### Response Format
+
+-   The response should be a JSON object with a `data` key.
+-   Payload content should use snake case to make it easier to work with when translating to objects.

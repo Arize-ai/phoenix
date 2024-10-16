@@ -1,5 +1,11 @@
-import React, { startTransition, Suspense, useCallback, useMemo } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -17,6 +23,7 @@ import {
   useLastNTimeRange,
 } from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -26,9 +33,12 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
+import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
 const REFRESH_INTERVAL_MS = 10000;
+const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
   const { timeRange } = useLastNTimeRange();
@@ -41,6 +51,9 @@ export function ProjectsPage() {
 }
 
 export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
+  const autoRefreshEnabled = usePreferencesContext(
+    (state) => state.projectsAutoRefreshEnabled
+  );
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -60,14 +73,25 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
       timeRange: timeRangeVariable,
     }
   );
-  const [projectsData, refetch] = useRefetchableFragment<
+  const {
+    data: projectsData,
+    loadNext,
+    hasNext,
+    isLoadingNext,
+    refetch,
+  } = usePaginationFragment<
     ProjectsPageProjectsQuery,
     ProjectsPageProjectsFragment$key
   >(
     graphql`
       fragment ProjectsPageProjectsFragment on Query
-      @refetchable(queryName: "ProjectsPageProjectsQuery") {
-        projects {
+      @refetchable(queryName: "ProjectsPageProjectsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 50 }
+      ) {
+        projects(first: $first, after: $after)
+          @connection(key: "ProjectsPage_projects") {
           edges {
             project: node {
               id
@@ -90,11 +114,32 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
 
-  useInterval(() => {
-    startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    });
-  }, REFRESH_INTERVAL_MS);
+  const projectsContainerRef = useRef<HTMLDivElement>(null);
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the scrollable container, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
+    },
+    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
+  );
 
   const onDelete = useCallback(
     (projectName: string) => {
@@ -124,8 +169,31 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     [notify, refetch]
   );
 
+  const onRemove = useCallback(
+    (projectName: string) => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+        notify({
+          variant: "success",
+          title: "Project Data Removed",
+          message: `Old data from project ${projectName} have been removed.`,
+        });
+      });
+    },
+    [notify, refetch]
+  );
+
   return (
-    <Flex direction="column" flex="1 1 auto">
+    <div
+      css={css`
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: var(--ac-global-dimension-size-750);
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={projectsContainerRef}
+    >
       <View
         paddingStart="size-200"
         paddingEnd="size-200"
@@ -135,7 +203,14 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
       >
-        <Flex direction="row" justifyContent="end">
+        <Flex
+          direction="row"
+          justifyContent="end"
+          alignItems="center"
+          gap="size-100"
+        >
+          <ProjectsAutoRefreshToggle />
+          <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>
       </View>
@@ -160,6 +235,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
                   project={project}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
+                  onProjectRemoveData={() => onRemove(project.name)}
                 />
               </Link>
             </li>
@@ -167,7 +243,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         </ul>
       </View>
       {holder}
-    </Flex>
+    </div>
   );
 }
 
@@ -198,11 +274,13 @@ type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
   onProjectClear: () => void;
+  onProjectRemoveData: () => void;
 };
 function ProjectItem({
   project,
   onProjectDelete,
   onProjectClear,
+  onProjectRemoveData,
 }: ProjectItemProps) {
   const {
     endTime,
@@ -263,6 +341,7 @@ function ProjectItem({
           projectName={project.name}
           onProjectDelete={onProjectDelete}
           onProjectClear={onProjectClear}
+          onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
 

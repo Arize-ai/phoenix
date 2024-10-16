@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-version = "0.8.1"
+version = "0.17.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -35,7 +35,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
-  "mistralai",
+  "mistralai<1",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -46,12 +46,10 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
-  "mistralai",
+  "mistralai<1",
   "vertexai",
   "respx",
   "nest_asyncio",
-  "pytest==7.4.4",
-  "pytest-asyncio",
   "pandas-stubs<=2.0.2.230605",
   "types-tqdm",
 ]
@@ -94,7 +92,6 @@ line-length = 100
 target-version = "py38"
 
 [tool.ruff.lint]
-ignore-init-module-imports = true
 select = ["E", "F", "W", "I"]
 
 [tool.ruff.lint.isort]
@@ -103,11 +100,11 @@ force-single-line = false
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 
+[tool.ruff.format]
+line-ending = "native"
+
 [tool.mypy]
 explicit_package_bases = true
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs  = true
 strict = true
 exclude = [
   "dist/",
@@ -119,3 +116,9 @@ module = [
   "litellm",
 ]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = [
+  "tests",
+]

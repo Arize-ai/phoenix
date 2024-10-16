@@ -3,18 +3,21 @@ import json
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, Callable
 
 import aiosqlite
 import numpy as np
+import sqlalchemy
 import sqlean
-from sqlalchemy import URL, event, make_url
+from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing_extensions import assert_never
 
+from phoenix.config import LoggingMode, get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
+from phoenix.settings import Settings
 
 sqlean.extensions.enable("text", "stats")
 
@@ -61,7 +64,7 @@ def get_async_db_url(connection_str: str) -> URL:
 def create_engine(
     connection_str: str,
     migrate: bool = True,
-    echo: bool = False,
+    log_to_stdout: bool = False,
 ) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
@@ -71,10 +74,25 @@ def create_engine(
         raise ValueError("Failed to parse database from connection string")
     backend = SupportedSQLDialect(url.get_backend_name())
     url = get_async_db_url(url.render_as_string(hide_password=False))
+    # If Phoenix is run as an application, we want to pass log_migrations_to_stdout=False
+    # and let the configured sqlalchemy logger handle the migration logs
+    log_migrations_to_stdout = (
+        Settings.log_migrations and Settings.logging_mode != LoggingMode.STRUCTURED
+    )
     if backend is SupportedSQLDialect.SQLITE:
-        return aio_sqlite_engine(url=url, migrate=migrate, echo=echo)
+        return aio_sqlite_engine(
+            url=url,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations_to_stdout=log_migrations_to_stdout,
+        )
     elif backend is SupportedSQLDialect.POSTGRESQL:
-        return aio_postgresql_engine(url=url, migrate=migrate, echo=echo)
+        return aio_postgresql_engine(
+            url=url,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations_to_stdout=log_migrations_to_stdout,
+        )
     else:
         assert_never(backend)
 
@@ -82,8 +100,9 @@ def create_engine(
 def aio_sqlite_engine(
     url: URL,
     migrate: bool = True,
-    echo: bool = False,
     shared_cache: bool = True,
+    log_to_stdout: bool = False,
+    log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
     database = url.database or ":memory:"
     if database.startswith("file:"):
@@ -102,9 +121,10 @@ def aio_sqlite_engine(
 
     engine = create_async_engine(
         url=url,
-        echo=echo,
+        echo=log_to_stdout,
         json_serializer=_dumps,
         async_creator=async_creator,
+        poolclass=StaticPool,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if not migrate:
@@ -117,19 +137,42 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        migrate_in_thread(engine.url)
+        sync_engine = sqlalchemy.create_engine(
+            url=url.set(drivername="sqlite"),
+            echo=log_migrations_to_stdout,
+            json_serializer=_dumps,
+            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+        )
+        migrate_in_thread(sync_engine)
     return engine
+
+
+def set_postgresql_search_path(schema: str) -> Callable[[Connection, Any], None]:
+    def _(connection: Connection, _: Any) -> None:
+        cursor = connection.cursor()
+        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema};")
+        cursor.execute(f"SET search_path TO {schema};")
+
+    return _
 
 
 def aio_postgresql_engine(
     url: URL,
     migrate: bool = True,
-    echo: bool = False,
+    log_to_stdout: bool = False,
+    log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
+    engine = create_async_engine(url=url, echo=log_to_stdout, json_serializer=_dumps)
     if not migrate:
         return engine
-    migrate_in_thread(engine.url)
+    sync_engine = sqlalchemy.create_engine(
+        url=url.set(drivername="postgresql+psycopg"),
+        echo=log_migrations_to_stdout,
+        json_serializer=_dumps,
+    )
+    if schema := get_env_database_schema():
+        event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
+    migrate_in_thread(sync_engine)
     return engine
 
 

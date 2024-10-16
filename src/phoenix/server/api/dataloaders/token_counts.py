@@ -2,8 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
-    AsyncContextManager,
-    Callable,
     DefaultDict,
     List,
     Literal,
@@ -12,9 +10,7 @@ from typing import (
 )
 
 from cachetools import LFUCache, TTLCache
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import Select, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -22,6 +18,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["prompt", "completion", "total"]
@@ -71,7 +68,7 @@ class TokenCountCache(
 class TokenCountDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(
@@ -109,8 +106,8 @@ def _get_stmt(
     *params: Param,
 ) -> Select[Any]:
     (start_time, end_time), filter_condition = segment
-    prompt = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_PROMPT].as_float())
-    completion = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_COMPLETION].as_float())
+    prompt = func.sum(models.Span.llm_token_count_prompt)
+    completion = func.sum(models.Span.llm_token_count_completion)
     total = coalesce(prompt, 0) + coalesce(completion, 0)
     pid = models.Trace.project_rowid
     stmt: Select[Any] = (
@@ -132,7 +129,3 @@ def _get_stmt(
         stmt = sf(stmt)
     stmt = stmt.where(pid.in_([rowid for rowid, _ in params]))
     return stmt
-
-
-_LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-_LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")

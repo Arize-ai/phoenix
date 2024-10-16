@@ -69,7 +69,7 @@ def snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = Fa
 
     Returns:
         str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
+            string could not be snapped.
     """
     if not raw_string:
         return NOT_PARSABLE
@@ -98,7 +98,7 @@ def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
 
     Returns:
         Tuple[str, Optional[str]]: A tuple of the unrailed label and an optional
-        explanation.
+            explanation.
     """
     try:
         function_arguments = json.loads(raw_output, strict=False)
@@ -144,7 +144,7 @@ def _default_openai_function(
 
     Returns:
         Dict[str, Any]: A JSON schema object advertising a function to record
-        the result of the LLM's classification.
+            the result of the LLM's classification.
     """
     properties = {
         **(

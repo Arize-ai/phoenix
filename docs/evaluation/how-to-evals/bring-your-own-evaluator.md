@@ -1,12 +1,30 @@
 # Bring Your Own Evaluator
 
-If your eval has categorical outputs, use llm\_classify.&#x20;
+{% embed url="https://www.youtube.com/watch?v=EfhylWtNb1s" %}
 
-If your eval has numeric outputs, use llm\_generate.
+### Before you begin:
+
+You'll need two things to build your own evaluator: a dataset to evaluate and a template prompt to use as the evaluation prompt on each row of data. The dataset can have any columns you like, and the template can be structured however you like. The only requirement is that the dataset has all the columns your template uses.
+
+We have two examples of templates below: `CATEGORICAL_TEMPLATE` and `SCORE_TEMPLATE`. The first must be used alongside a dataset with columns `query` and `reference`. The second must be used with a dataset that includes a column called `context`.
+
+Feel free to set up your template however you'd like to match your dataset.
+
+### Preparing your data
+
+You will need a dataset of results to evaluate. This dataset should be a pandas dataframe. If you are already collecting traces with Phoenix, you can export these traces and use them as the dataframe to evaluate:
+
+```python
+trace_df = px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
+```
+
+If your eval has categorical outputs, use `llm_classify`.&#x20;
+
+If your eval has numeric outputs, use `llm_generate`.
 
 ### Categorical - llm\_classify
 
-The "llm\_classify" function is designed for classification support both Binary and Multi-Class. The llm\_classify function ensures that the output is clean and is either one of the "classes" or "UNPARSABLE"&#x20;
+The `llm_classify` function is designed for classification support both Binary and Multi-Class. The llm\_classify function ensures that the output is clean and is either one of the "classes" or "UNPARSABLE"&#x20;
 
 A binary template looks like the following with only two values "irrelevant" and "relevant" that are expected from the LLM output:
 
@@ -35,21 +53,26 @@ The categorical template defines the expected output of the LLM and the rails de
 * relevant
 
 ```python
+from phoenix.evals import (
+    llm_classify,
+    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    # for a full list of supported models
+)
 
 # The rails is used to hold the output to specific values based on the template
 # It will remove text such as ",,," or "..."
 # Will ensure the binary value expected from the template is returned
 rails = ["irrelevant", "relevant"]
-#MultiClass would be rails = ["irrelevant", "relevant", "semi-relevant"] 
+#MultiClass would be rails = ["irrelevant", "relevant", "semi-relevant"]
 relevance_classifications = llm_classify(
-    dataframe=df,
+    dataframe=<YOUR_DATAFRAME_GOES_HERE>,
     template=CATEGORICAL_TEMPLATE,
-    model=model,
+    model=OpenAIModel('gpt-4o', api_key=''),
     rails=rails
 )
 ```
 
-The classify uses a snap\_to\_rails function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
+The classify uses a `snap_to_rails` function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
 
 ```
 #Rails examples
@@ -73,18 +96,18 @@ llm_output_string = "The answer is relevant i think, or maybe irrelevant...!"
 
 A common use case is mapping the class to a 1 or 0 numeric value.&#x20;
 
-### Score Numeric Eval - llm\_generate
+### Numeric - llm\_generate
 
 The Phoenix library does support numeric score Evals if you would like to use them. A template for a score Eval looks like the following.
 
 ```
- SCORE_TEMPLATE = """
-You are a helpful AI bot that checks for grammatical, spelling and typing errors 
-in a document context. You are going to return a continous score for the 
-document based on the percent of grammatical and typing errors. The score should be 
-between 10 and 1. A score of 1 will be no grammatical errors in any word, 
-a score of 2 will be 20% of words have errors, a 5 score will be 50% errors, 
-a score of 7 is 70%, and a 10 score will be all words in the context have a 
+SCORE_TEMPLATE = """
+You are a helpful AI bot that checks for grammatical, spelling and typing errors
+in a document context. You are going to return a continous score for the
+document based on the percent of grammatical and typing errors. The score should be
+between 10 and 1. A score of 1 will be no grammatical errors in any word,
+a score of 2 will be 20% of words have errors, a 5 score will be 50% errors,
+a score of 7 is 70%, and a 10 score will be all words in the context have a
 grammatical errors.
 
 The following is the document context.
@@ -95,18 +118,23 @@ The following is the document context.
 
 #QUESTION
 Please return a score between 10 and 1.
-You will return no other text or language besides the score. Only return the score. 
+You will return no other text or language besides the score. Only return the score.
 Please return in a format that is "the score is: 10" or "the score is: 1"
 """
 ```
 
-We use the more generic llm\_generate function that can be used for almost any complex eval that doesn't fit into the categorical type.
+We use the more generic `llm_generate` function that can be used for almost any complex eval that doesn't fit into the categorical type.
 
-```python
-test_results = llm_generate(
-    dataframe=df,
+<pre class="language-python"><code class="lang-python">from phoenix.evals import (
+    llm_generate,
+    OpenAIModel # see https://docs.arize.com/phoenix/evaluation/evaluation-models
+    # for a full list of supported models
+)
+<strong>
+</strong><strong>test_results = llm_generate(
+</strong>    dataframe=&#x3C;YOUR_DATAFRAME_GOES_HERE>,
     template=SCORE_TEMPLATE,
-    model=model,
+    model=OpenAIModel('gpt-4o', api_key=''),
     verbose=True,
     # Callback function that will be called for each row of the dataframe
     output_parser=numeric_score_eval,
@@ -133,6 +161,24 @@ def find_score(self, output):
         return float(match.group(1))
     else:
         return None
-```
+</code></pre>
 
 The above is an example of how to run a score based Evaluation.&#x20;
+
+### Logging Evaluations to Phoenix
+
+Use the following method to log the results of either the `llm_classify` or `llm_generate` calls to Phoenix:
+
+```python
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Your Eval Display Name", dataframe=test_results)
+)
+```
+
+This method will show aggregate results in Phoenix.&#x20;
+
+{% hint style="info" %}
+In order for the results to show on a span level, make sure your `test_results` dataframe has a column `context.span_id` with the corresponding span id.
+{% endhint %}

@@ -7,9 +7,15 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 export function LatencyText({
   latencyMs,
   textSize = "medium",
+  showIcon = true,
 }: {
   latencyMs: number;
   textSize?: TextProps["textSize"];
+  /**
+   * Whether to show the clock icon.
+   * @default true
+   */
+  showIcon?: boolean;
 }) {
   const color = useMemo(() => {
     if (latencyMs < 3000) {
@@ -34,11 +40,13 @@ export function LatencyText({
       direction="row"
       alignItems="center"
       justifyContent="start"
-      gap="size-25"
+      gap="size-50"
     >
-      <Text color={color} textSize={textSize}>
-        <Icon svg={<Icons.ClockOutline />} />
-      </Text>
+      {showIcon ? (
+        <Text color={color} textSize={textSize}>
+          <Icon svg={<Icons.ClockOutline />} />
+        </Text>
+      ) : null}
       <Text color={color} textSize={textSize}>
         {latencyText}
       </Text>

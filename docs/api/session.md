@@ -8,33 +8,35 @@ description: Detailed descriptions of classes and methods related to Phoenix ses
 
 ```python
 def launch_app(
-    primary: Optional[Dataset] = None,
-    reference: Optional[Dataset] = None,
-    corpus: Optional[Dataset] = None,
+    primary: Optional[Inferences] = None,
+    reference: Optional[Inferences] = None,
+    corpus: Optional[Inferences] = None,
     trace: Optional[TraceDataset] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
+    use_temp_dir: Optional[bool] = True,
 ) -> Session
 ```
 
-Launches and returns a new Phoenix session.&#x20;
+Launches and returns a new Phoenix session in a python notebook.
 
 All parameters are optional and `launch_app()` launches a Phoenix session with no data and is always ready to receive trace data your LLM applications in real time. See [LLM Traces](../concepts/llm-traces.md) for more.
 
-`launch_app` can accept one or two [Dataset](dataset-and-schema.md#phoenix.dataset) instances as arguments. If the app is launched with a single dataset, Phoenix provides model performance and data quality metrics, but not drift metrics. If the app is launched with two datasets, Phoenix provides drift metrics in addition to model performance and data quality metrics. When two datasets are provided, the reference dataset serves as a baseline against which to compare the primary dataset. Common examples of primary and reference datasets include production vs. training or challenger vs. champion.
+`launch_app` can accept one or two [Inferences](inference-and-schema.md#phoenix.inferences) instances as arguments. If the app is launched with a single dataset, Phoenix provides model performance and data quality metrics, but not drift metrics. If the app is launched with two sets of inferences, Phoenix provides drift metrics in addition to model performance and data quality metrics. When two sets of inferences are provided, the reference inference collection serves as a baseline against which to compare the primary inference collection. Common examples of primary and reference inferences include production vs. training or challenger vs. champion.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/session.py)**]**
 
 ### Parameters
 
-* **primary** (Optional\[[Dataset](dataset-and-schema.md#phoenix.dataset)]): The dataset that is of primary interest as the subject of investigation or evaluation.
-* **reference** (Optional\[[Dataset](dataset-and-schema.md#phoenix.dataset)]): If provided, the reference dataset serves as a baseline against which to compare the primary dataset.
-* **corpus** (Optional\[[Dataset](dataset-and-schema.md#phoenix.dataset)]): If provided, the corpus dataset represents the corpus data from which documents are retrieved in an Retrieval-Augmented Generation (RAG) use case. See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) for more on how to import this data, and [Retrieval (RAG)](../how-to/define-your-schema/retrieval-rag.md) for more bout the use case.
+* **primary** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): The dataset that is of primary interest as the subject of investigation or evaluation.
+* **reference** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): If provided, the reference dataset serves as a baseline against which to compare the primary dataset.
+* **corpus** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): If provided, the corpus dataset represents the corpus data from which documents are retrieved in an Retrieval-Augmented Generation (RAG) use case. See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) for more on how to import this data, and [Retrieval (RAG)](../how-to/define-your-schema/retrieval-rag.md) for more bout the use case.
 * **trace** (Optional\[TraceDataset]): If provided, a trace dataset containing spans. Phoenix can be started with or without a dataset and will always be able to receive traces in real time from your LLM application. See [LLM Traces](../concepts/llm-traces.md) for more.
 * **host** (Optional\[str]): The host on which the server runs. It can also be set using environment variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`. Most users don't need to worry this parameter.
 * **port** (Optional\[int]): The port on which the server listens. It can also be set using environment variable `PHOENIX_PORT`, otherwise it defaults to `6006`. This parameter is useful if `6006` is already occupied by a separate application.
 * **run\_in\_thread** (bool): Whether the server should run in a Thread or Process. Defaults to True. This can be turned off if there is a problem starting a thread in a Jupyter Notebook.
+* **use\_temp\_dir** (bool): By default, data will be persisted in a temp directory. Set this to false to write to the directory specified by the PHOENIX\_WORKING\_DIR environment variable. See [#environment-variables](../setup/configuration.md#environment-variables "mention")
 * **default\_umap\_parameters** (Optional Dict\[str, Union\[int, float]]): default UMAP parameters to use when launching the point-cloud eg: {"n\_neighbors": 10, "n\_samples": 5, "min\_dist": 0.5}
 
 ### Returns
@@ -49,16 +51,16 @@ Launch Phoenix as a collector of [LLM Traces](../concepts/llm-traces.md) generat
 session = px.launch_app()
 ```
 
-Launch Phoenix with primary and reference datasets `prim_ds` and `ref_ds`, both instances of [Dataset](dataset-and-schema.md#phoenix.dataset), with
+Launch Phoenix with primary and reference inferences `prim_inf_` and `ref_inf_`, both instances of [Inferences](inference-and-schema.md#phoenix.inferences), with
 
 ```python
-session = px.launch_app(prim_ds, ref_ds)
+session = px.launch_app(prim_inf_, ref_inf_)
 ```
 
-Alternatively, launch Phoenix with a single dataset `ds`, an instance of [Dataset](dataset-and-schema.md#phoenix.dataset), with
+Alternatively, launch Phoenix with a single dataset `inf`, an instance of [Inferences](inference-and-schema.md#phoenix.inferences), with
 
 ```python
-session = px.launch_app(ds)
+session = px.launch_app(inf)
 ```
 
 Then `session` is an instance of [Session](session.md#phoenix.session) that can be used to open the Phoenix UI in an inline frame within the notebook or in a separate browser tab or window.
@@ -148,16 +150,16 @@ session = px.active_session()
 Phoenix users should not instantiate their own phoenix.Session instances. They interact with this API only when an instance of the class is returned by [launch\_app](session.md#phoenix.launch\_app) or [active\_session](session.md#phoenix.active\_session).
 {% endhint %}
 
-Launch Phoenix with primary and reference datasets `prim_ds` and `ref_ds`, both instances of [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset), with
+Launch Phoenix with primary and reference inferences `prim_inf` and `ref_inf`, both instances of [phoenix.Dataset](inference-and-schema.md#phoenix.inferences), with
 
 ```python
-session = px.launch_app(prim_ds, ref_ds)
+session = px.launch_app(prim_inf, ref_inf)
 ```
 
-Alternatively, launch Phoenix with a single dataset `ds`, an instance of [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset), with
+Alternatively, launch Phoenix with a single dataset `ds`, an instance of [phoenix.Dataset](inference-and-schema.md#phoenix.inferences), with
 
 ```python
-session = px.launch_app(ds)
+session = px.launch_app(inf)
 ```
 
 Open the Phoenix UI in an inline frame within your notebook with
@@ -212,6 +214,14 @@ Get spans associated with calls to retrievers in a Retrieval Augmented Generatio
 <pre class="language-python"><code class="lang-python"><strong>session.get_spans_dataframe("span_kind == 'RETRIEVER'")
 </strong></code></pre>
 
+## phoenix.delete\_all
+
+```python
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
+```
+
+Removes all persisted data under the **PHOENIX\_WORKING\_DIR** to reset your session on next launch.
+
 ## Environment Variables
 
 Some settings of the Phoenix [Session](session.md#phoenix.session) can be configured through the environment variables below.&#x20;
@@ -219,9 +229,9 @@ Some settings of the Phoenix [Session](session.md#phoenix.session) can be config
 * `PHOENIX_PORT` The port on which the server listens.
 * `PHOENIX_HOST` The host on which the server listens.
 
-Below is an example of how to set up the `port` parameter as an environment variable.
+Below is an example of how to set up the `port` parameter as an environment variable.&#x20;
 
-```
+```python
 import os
 os.environ["PHOENIX_PORT"] = "54321"
 ```

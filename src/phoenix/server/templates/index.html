@@ -1,3 +1,47 @@
+{%- set rendered_chunks = [] -%}
+{%- set css_links = [] -%}
+{%- set js_scripts = [] -%}
+{%- macro collect_assets(chunk_name, level=0) -%}
+    {% if chunk_name not in rendered_chunks %}
+        {% set _ = rendered_chunks.append(chunk_name) %}
+        {% set chunk = manifest[chunk_name] %}
+        {% if chunk.css %}
+            {% for css_file in chunk.css %}
+                {% if css_file not in css_links %}
+                    {% set _ = css_links.append((basename, css_file)) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if chunk.imports %}
+            {% for import in chunk.imports %}
+                {% set _ = collect_assets(import, level + 1) %}
+            {% endfor %}
+        {% endif %}
+        {% if chunk.file.endswith('.js') %}
+            {% if chunk.file not in js_scripts %}
+                {% set _ = js_scripts.append((basename, chunk.file, level == 0)) %}
+            {% endif %}
+        {% elif chunk.file.endswith('.css') %}
+            {% if chunk.file not in css_links %}
+                {% set _ = css_links.append((basename, chunk.file)) %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{%- endmacro -%}
+{%- macro render_css() -%}
+  {%- for basename, css_file in css_links -%}
+    <link rel="stylesheet" href="{{ basename }}/{{ css_file }}">
+  {% endfor -%}
+{%- endmacro -%}
+{%- macro render_js() -%}
+  {%- for basename, js_file, is_entry in js_scripts -%}
+    {%- if is_entry -%}
+      <script type="module" src="{{ basename }}/{{ js_file }}"></script>
+    {% else -%}
+      <link rel="modulepreload" href="{{ basename }}/{{ js_file }}">
+    {% endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
 <!DOCTYPE html>
 <html>
   <head>
@@ -11,37 +55,55 @@
     <meta property="og:description" content="AI Observability & Evaluation" />
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="stylesheet" src="{{basename}}/index.css"></link>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
     />
+    {% if not is_development -%}
+      {% set _ = collect_assets('index.tsx') -%}
+      {{- render_css() -}}
+    {%- endif -%}
     <script src="{{basename}}/modernizr.js"></script>
   </head>
   <body>
     <div id="root"></div>
     <script>(function() {
-        // Request Info:
-        // URL: {{request.url}}
-        // Base URL: {{request.base_url}}
-        // Root Path: {{root_path}}
-        Object.defineProperty(window, "Config", {
-            // Place any server-side injected config here
-            // E.g. default UMAP parameters etc. that needs to be
-            // injected into the client before React runs
-            value: Object.freeze({
-                basename: "{{basename}}",
-                hasInferences: Boolean("{{has_inferences}}" == "True"),
-                hasCorpus: Boolean("{{has_corpus}}" == "True"),
-                UMAP: {
-                  minDist: parseFloat("{{min_dist}}"),
-                  nNeighbors: parseInt("{{n_neighbors}}"),
-                  nSamples: parseInt("{{n_samples}}"),
-                }
-            }),
-            writable: false
-        });
-    })()</script>
-    <script type="module" src="{{basename}}/index.js"></script>
+      // Request Info:
+      // URL: {{request.url}}
+      // Base URL: {{request.base_url}}
+      // Root Path: {{root_path}}
+      Object.defineProperty(window, "Config", {
+          // Place any server-side injected config here
+          // E.g. default UMAP parameters etc. that needs to be
+          // injected into the client before React runs
+          value: Object.freeze({
+              basename: "{{basename}}",
+              platformVersion: "{{platform_version}}",
+              hasInferences: Boolean("{{has_inferences}}" == "True"),
+              hasCorpus: Boolean("{{has_corpus}}" == "True"),
+              UMAP: {
+                minDist: parseFloat("{{min_dist}}"),
+                nNeighbors: parseInt("{{n_neighbors}}"),
+                nSamples: parseInt("{{n_samples}}"),
+              },
+              authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
+              oAuth2Idps: {{ oauth2_idps | tojson }},
+          }),
+          writable: false
+      });
+  })()</script>
+    {% if is_development -%}
+      <script type="module">
+        import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+        RefreshRuntime.injectIntoGlobalHook(window)
+        window.$RefreshReg$ = () => {}
+        window.$RefreshSig$ = () => (type) => type
+        window.__vite_plugin_react_preamble_installed__ = true
+      </script>
+      <script type="module" src="http://localhost:5173/@vite/client"></script>
+      <script type="module" src="http://localhost:5173/index.tsx"></script>
+    {%- else -%}
+      {{- render_js() -}}
+    {%- endif -%}
   </body>
 </html>

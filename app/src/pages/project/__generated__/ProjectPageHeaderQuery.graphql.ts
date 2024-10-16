@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<01acc4a8f72ee6b8255d0198e9b92e29>>
+ * @generated SignedSource<<6b001dbe5b9d15be3f6150ab7da10a21>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,7 +168,7 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "spanEvaluationNames",
+                "name": "spanAnnotationNames",
                 "storageKey": null
               },
               {
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b55d98cce8db8be868e94c1b1dd649af",
+    "cacheID": "264a748e3bb636d71fb6b75523a612fe",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount(timeRange: $timeRange)\n  tokenCountTotal(timeRange: $timeRange)\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "22a98df993a4375f85851e92f6844c09";
+(node as any).hash = "dcce9d160db90e2b5c51eef9971101a4";
 
 export default node;

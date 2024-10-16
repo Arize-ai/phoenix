@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo } from "react";
-import { Outlet } from "react-router";
+import React, { Suspense, useCallback, useMemo } from "react";
+import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons } from "@arizeai/components";
@@ -10,11 +10,15 @@ import {
   DocsLink,
   GitHubLink,
   NavBreadcrumb,
+  NavButton,
   NavLink,
   SideNavbar,
   ThemeToggle,
   TopNavbar,
 } from "@phoenix/components/nav";
+import { useNotifyError } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 const layoutCSS = css`
   display: flex;
@@ -36,6 +40,7 @@ const contentCSS = css`
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 `;
 
 const bottomLinksCSS = css`
@@ -75,6 +80,23 @@ function SideNav() {
   const hasInferences = useMemo(() => {
     return window.Config.hasInferences;
   }, []);
+  const notifyError = useNotifyError();
+  const { authenticationEnabled } = useFunctionality();
+  const navigate = useNavigate();
+  const onLogout = useCallback(async () => {
+    const response = await fetch("/auth/logout", {
+      method: "POST",
+    });
+    if (response.ok) {
+      navigate("/login");
+      return;
+    }
+    notifyError({
+      title: "Logout Failed",
+      message: "Failed to log out: " + response.statusText,
+    });
+  }, [navigate, notifyError]);
+  const playgroundEnabled = useFeatureFlag("playground");
   return (
     <SideNavbar>
       <Brand />
@@ -85,7 +107,7 @@ function SideNav() {
               <NavLink
                 to="/model"
                 text="Model"
-                icon={<Icon svg={<Icons.Cube />} />}
+                icon={<Icon svg={<Icons.CubeOutline />} />}
               />
             </li>
           )}
@@ -93,11 +115,41 @@ function SideNav() {
             <NavLink
               to="/projects"
               text="Projects"
-              icon={<Icon svg={<Icons.Grid />} />}
+              icon={<Icon svg={<Icons.GridOutline />} />}
+            />
+          </li>
+          <li>
+            <NavLink
+              to="/datasets"
+              text="Datasets"
+              icon={<Icon svg={<Icons.DatabaseOutline />} />}
+            />
+          </li>
+          {playgroundEnabled && (
+            <li>
+              <NavLink
+                to="/playground"
+                text="Playground"
+                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              />
+            </li>
+          )}
+          <li>
+            <NavLink
+              to="/apis"
+              text="APIs"
+              icon={<Icon svg={<Icons.Code />} />}
             />
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
+          <li>
+            <NavLink
+              to="/settings"
+              text="Settings"
+              icon={<Icon svg={<Icons.SettingsOutline />} />}
+            />
+          </li>
           <li>
             <DocsLink />
           </li>
@@ -107,6 +159,24 @@ function SideNav() {
           <li>
             <ThemeToggle />
           </li>
+          {authenticationEnabled && (
+            <>
+              <li>
+                <NavLink
+                  to="/profile"
+                  text="Profile"
+                  icon={<Icon svg={<Icons.PersonOutline />} />}
+                />
+              </li>
+              <li>
+                <NavButton
+                  text="Log Out"
+                  icon={<Icon svg={<Icons.LogOut />} />}
+                  onClick={onLogout}
+                />
+              </li>
+            </>
+          )}
         </ul>
       </Flex>
     </SideNavbar>

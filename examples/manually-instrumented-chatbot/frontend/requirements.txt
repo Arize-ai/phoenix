@@ -14,7 +14,7 @@ blinker==1.7.0
     # via streamlit
 cachetools==5.3.3
     # via streamlit
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -87,7 +87,7 @@ referencing==0.34.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.31.0
+requests==2.32.2
     # via streamlit
 rich==13.7.1
     # via streamlit
@@ -103,14 +103,14 @@ sniffio==1.3.1
     # via
     #   anyio
     #   httpx
-streamlit==1.33.0
+streamlit==1.37.0
 tenacity==8.2.3
     # via streamlit
 toml==0.10.2
     # via streamlit
 toolz==0.12.1
     # via altair
-tornado==6.4
+tornado==6.4.1
     # via streamlit
 typing-extensions==4.11.0
     # via

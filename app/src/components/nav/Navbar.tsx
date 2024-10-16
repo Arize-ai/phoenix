@@ -30,7 +30,7 @@ const sideNavCSS = css`
   height: 100vh;
   position: fixed;
   width: var(--px-nav-collapsed-width);
-  z-index: 1;
+  z-index: 2; // Above the content
   transition:
     width 0.15s cubic-bezier(0, 0.57, 0.21, 0.99),
     box-shadow 0.15s cubic-bezier(0, 0.57, 0.21, 0.99);
@@ -42,7 +42,7 @@ const sideNavCSS = css`
 
 const navLinkCSS = css`
   width: 100%;
-  color: var(--ac-global-text-color-500);
+  color: var(--ac-global-color-grey-500);
   background-color: transparent;
   border-radius: var(--ac-global-rounding-small);
   display: flex;
@@ -53,17 +53,21 @@ const navLinkCSS = css`
     color 0.2s ease-in-out,
     background-color 0.2s ease-in-out;
   text-decoration: none;
+
   &.active {
-    color: var(--ac-global-text-color-900);
+    color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-primary-300);
   }
   &:hover:not(.active) {
-    color: var(--ac-global-text-color-900);
+    color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-grey-200);
   }
   & > .ac-icon-wrap {
     padding: var(--ac-global-dimension-size-50);
     display: inline-block;
+  }
+  .ac-text {
+    white-space: nowrap;
   }
 `;
 
@@ -114,7 +118,7 @@ export function DocsLink() {
   return (
     <ExternalLink
       href="https://docs.arize.com/phoenix"
-      icon={<Icon svg={<Icons.BookFilled />} />}
+      icon={<Icon svg={<Icons.BookOutline />} />}
       text="Documentation"
     />
   );
@@ -137,7 +141,11 @@ export function ThemeToggle() {
 
 export function Brand() {
   return (
-    <Link to="/" css={brandCSS}>
+    <Link
+      to="/"
+      css={brandCSS}
+      title={`version: ${window.Config.platformVersion}`}
+    >
       <Logo />
     </Link>
   );
@@ -171,5 +179,18 @@ export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
       {props.icon}
       <Text>{props.text}</Text>
     </RRNavLink>
+  );
+}
+
+export function NavButton(props: {
+  text: string;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
+      {props.icon}
+      <Text>{props.text}</Text>
+    </button>
   );
 }

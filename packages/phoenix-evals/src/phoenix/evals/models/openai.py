@@ -1,5 +1,4 @@
 import logging
-import os
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
@@ -7,6 +6,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -18,7 +18,6 @@ from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 
-OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
@@ -47,57 +46,110 @@ class AzureOptions:
     azure_ad_token_provider: Optional[Callable[[], str]]
 
 
+def _model_supports_temperature(model: str) -> bool:
+    """OpenAI 01 models do not support temperature."""
+    return "o1-" not in model
+
+
+def _model_supports_max_tokens(model: str) -> bool:
+    """OpenAI 01 models do not support max_tokens."""
+    return "o1-" not in model
+
+
 @dataclass
 class OpenAIModel(BaseModel):
+    """
+    An interface for using OpenAI models.
+
+    This class wraps the OpenAI SDK library for use with Phoenix LLM evaluations. Calls to the
+    OpenAI API are dynamically throttled when encountering rate limit errors. Requires the
+    `openai` package to be installed.
+
+    Additionally, OpenAIModel supports Azure OpenAI API. To use Azure OpenAI API, you need to
+    provide the `azure_endpoint` and `azure_deployment` parameters. You can also provide the
+    `azure_ad_token` or `azure_ad_token_provider` to authenticate with Azure OpenAI API.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        api_key (str, optional): Your OpenAI key. If not provided, will be read from the
+            environment variable. Defaults to None.
+        organization (str, optional): The organization to use for the OpenAI API. If not provided,
+            will default to what's configured in OpenAI. Defaults to None.
+        base_url (str, optional): An optional base URL to use for the OpenAI API. If not provided,
+            will default to what's configured in OpenAI. Defaults to None.
+        model (str, optional): Model name to use. In of azure, this is the deployment name such as
+            gpt-35-instant. Defaults to "gpt-4".
+        temperature (float, optional): What sampling temperature to use. Defaults to 0.0.
+        max_tokens (int | None, optional): The maximum number of tokens to generate in the
+            completion. To unset this limit, set `max_tokens` to `None`. Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        frequency_penalty (float, optional): Penalizes repeated tokens according to frequency.
+            Defaults to 0.
+        presence_penalty (float, optional): Penalizes repeated tokens. Defaults to 0.
+        n (int, optional): How many completions to generate for each prompt. Defaults to 1.
+        model_kwargs (Dict[str, Any], optional): Holds any model parameters valid for `create` call
+            not explicitly specified. Defaults to an empty dictionary.
+        request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
+            requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
+        api_version (str, optional): The version of the Azure API to use. Defaults to None.
+            https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
+        azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
+            Azure portal. Defaults to None.
+        azure_deployment (str, optional): The deployment to use for azure openai. Defaults to None.
+        azure_ad_token (str, optional): The azure AD token to use for azure openai. Defaults to
+            None.
+        azure_ad_token_provider (Callable[[], str], optional): A callable that returns the azure ad
+            token to use for azure openai. Defaults to None.
+        default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
+            Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 10.
+
+    Examples:
+        After setting the OPENAI_API_KEY environment variable:
+        .. code-block:: python
+
+            from phoenix.evals import OpenAIModel
+            model = OpenAIModel(model="gpt-4o")
+
+        Using OpenAI models via Azure is similar (after setting the AZURE_OPENAI_API_KEY
+        environment variable):
+
+        .. code-block:: python
+
+            from phoenix.evals import OpenAIModel
+            model = OpenAIModel(
+                model="gpt-35-turbo-16k",
+                azure_endpoint="https://your-endpoint.azure.com/",
+                api_version="2023-09-15-preview",
+            )
+    """
+
     api_key: Optional[str] = field(repr=False, default=None)
-    """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)
-    """
-    The organization to use for the OpenAI API. If not provided, will default
-    to what's configured in OpenAI
-    """
     base_url: Optional[str] = field(repr=False, default=None)
-    """
-    An optional base URL to use for the OpenAI API. If not provided, will default
-    to what's configured in OpenAI
-    """
     model: str = "gpt-4"
-    """
-    Model name to use. In of azure, this is the deployment name such as gpt-35-instant
-    """
     temperature: float = 0.0
-    """What sampling temperature to use."""
-    max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion.
-    -1 returns as many tokens as possible given the prompt and
-    the models maximal context size."""
+    max_tokens: Optional[int] = 256
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     frequency_penalty: float = 0
-    """Penalizes repeated tokens according to frequency."""
     presence_penalty: float = 0
-    """Penalizes repeated tokens."""
     n: int = 1
-    """How many completions to generate for each prompt."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
-    """Holds any model parameters valid for `create` call not explicitly specified."""
-    batch_size: int = 20
-    # TODO: IMPLEMENT BATCHING
-    """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
-    """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
-    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
     azure_endpoint: Optional[str] = field(default=None)
-    """
-    The endpoint to use for azure openai. Available in the azure portal.
-    https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource
-    """
     azure_deployment: Optional[str] = field(default=None)
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
+    default_headers: Optional[Mapping[str, str]] = field(default=None)
+    initial_rate_limit: int = 10
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -149,15 +201,6 @@ class OpenAIModel(BaseModel):
         self._is_azure = bool(self.azure_endpoint)
 
         self._model_uses_legacy_completion_api = self.model.startswith(LEGACY_COMPLETION_API_MODELS)
-        if self.api_key is None:
-            api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
-            if api_key is None:
-                # TODO: Create custom AuthenticationError
-                raise RuntimeError(
-                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
-                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-                )
-            self.api_key = api_key
 
         # Set the version, organization, and base_url - default to openAI
         self.api_version = self.api_version or self._openai.api_version
@@ -178,6 +221,7 @@ class OpenAIModel(BaseModel):
                 azure_ad_token_provider=azure_options.azure_ad_token_provider,
                 api_key=self.api_key,
                 organization=self.organization,
+                default_headers=self.default_headers,
             )
             self._async_client = self._openai.AsyncAzureOpenAI(
                 azure_endpoint=azure_options.azure_endpoint,
@@ -187,6 +231,7 @@ class OpenAIModel(BaseModel):
                 azure_ad_token_provider=azure_options.azure_ad_token_provider,
                 api_key=self.api_key,
                 organization=self.organization,
+                default_headers=self.default_headers,
             )
             # return early since we don't need to check the model
             return
@@ -228,16 +273,14 @@ class OpenAIModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._openai.RateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=5,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 
-    @staticmethod
     def _build_messages(
-        prompt: str, system_instruction: Optional[str] = None
+        self, prompt: str, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        messages = [{"role": "user", "content": prompt}]
+        messages = [{"role": "system", "content": prompt}]
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -346,15 +389,26 @@ class OpenAIModel(BaseModel):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
-        return {
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
+        params = {
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
             "timeout": self.request_timeout,
         }
+        if _model_supports_max_tokens(self.model):
+            params.update(
+                {
+                    "max_tokens": self.max_tokens,
+                }
+            )
+        if _model_supports_temperature(self.model):
+            params.update(
+                {
+                    "temperature": self.temperature,
+                }
+            )
+        return params
 
     @property
     def supports_function_calling(self) -> bool:

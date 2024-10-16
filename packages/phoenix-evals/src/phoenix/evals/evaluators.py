@@ -1,5 +1,4 @@
-from textwrap import indent
-from typing import List, Mapping, Optional, Tuple, Type
+from typing import List, Mapping, Optional, Tuple
 
 from phoenix.evals.default_templates import EvalCriteria
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
@@ -60,25 +59,20 @@ class LLMEvaluator:
             record (Record): The record to evaluate.
 
             provide_explanation (bool, optional): Whether to provide an
-            explanation.
+                explanation.
 
             use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
-
-            use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
+                function calling (if available) as a means to constrain the LLM
+                outputs. With function calling, the LLM is instructed to provide its
+                response as a structured JSON object, which is easier to parse.
 
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[float], Optional[str]]: A tuple containing:
-            - label
-            - score (if scores for each label are specified by the template)
-            - explanation (if requested)
+                - label
+                - score (if scores for each label are specified by the template)
+                - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -121,20 +115,20 @@ class LLMEvaluator:
             record (Record): The record to evaluate.
 
             provide_explanation (bool, optional): Whether to provide an
-            explanation.
+                explanation.
 
             use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
+                function calling (if available) as a means to constrain the LLM
+                outputs. With function calling, the LLM is instructed to provide its
+                response as a structured JSON object, which is easier to parse.
 
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[float], Optional[str]]: A tuple containing:
-            - label
-            - score (if scores for each label are specified by the template)
-            - explanation (if requested)
+                - label
+                - score (if scores for each label are specified by the template)
+                - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -164,76 +158,113 @@ class LLMEvaluator:
         return label, score, explanation
 
 
-def _create_llm_evaluator_subclass(
-    class_name: str, template: ClassificationTemplate, docstring: str
-) -> Type[LLMEvaluator]:
-    """A factory method that dynamically creates subclasses of LLMEvaluator.
-
-    Args:
-        class_name (str): Name of the class to be created (should match the name
-        of the assignment variable).
-
-        template (ClassificationTemplate): The classification template to use
-        for evaluation.
-
-        docstring (str): The docstring that will be attached to the subclass.
-
-    Returns:
-        Type[LLMEvaluator]: The dynamically created subclass.
+class HallucinationEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a response (stored under an "output"
+    column) is a hallucination given a query (stored under an "input" column)
+    and one or more retrieved documents (stored under a "reference" column).
     """
 
-    def __init__(self: LLMEvaluator, model: BaseModel) -> None:
-        LLMEvaluator.__init__(self, model, template)
-
-    __init__.__doc__ = f"""
-        Initializer for {class_name}.
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for HallucinationEvaluator.
 
         Args:
-            model (BaseEvalModel): The LLM model to use for evaluation."""
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
 
-    docstring += f" Outputs railed classes {', '.join(template.rails)}."
-    docstring += "\n\nThe template used for evaluation (without explanation) is:\n\n"
-    docstring += indent(template.template, 2 * _TAB)
-
-    return type(class_name, (LLMEvaluator,), {"__init__": __init__, "__doc__": docstring})
+        super().__init__(model=model, template=EvalCriteria.HALLUCINATION.value)
 
 
-(
-    HallucinationEvaluator,
-    RelevanceEvaluator,
-    ToxicityEvaluator,
-    QAEvaluator,
-    SummarizationEvaluator,
-) = map(
-    lambda args: _create_llm_evaluator_subclass(*args),
-    (
-        (
-            "HallucinationEvaluator",
-            EvalCriteria.HALLUCINATION.value,
-            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is a hallucination given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
-        ),
-        (
-            "RelevanceEvaluator",
-            EvalCriteria.RELEVANCE.value,
-            'Leverages an LLM to evaluate whether a retrieved document (stored under a "reference" column) is relevant or irrelevant to the corresponding query (stored under the "input" column).',  # noqa: E501
-        ),
-        (
-            "ToxicityEvaluator",
-            EvalCriteria.TOXICITY.value,
-            'Leverages an LLM to evaluate whether the string stored under the "input" column contains racist, sexist, chauvinistic, biased, or otherwise toxic content.',  # noqa: E501
-        ),
-        (
-            "QAEvaluator",
-            EvalCriteria.QA.value,
-            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is correct or incorrect given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
-        ),
-        (
-            "SummarizationEvaluator",
-            EvalCriteria.SUMMARIZATION.value,
-            'Leverages an LLM to evaluate whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under a "input" column).',  # noqa: E501
-        ),
-    ),
-)
+class RelevanceEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a retrieved document (stored under a
+    "reference" column) is relevant or irrelevant to the corresponding query
+    (stored under the "input" column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for RelevanceEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.RELEVANCE.value)
+
+
+class QAEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a response (stored under an "output"
+    column) is correct or incorrect given a query (stored under an "input"
+    column) and one or more retrieved documents (stored under a "reference"
+    column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for QAEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.QA.value)
+
+
+class ToxicityEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether the string stored under the "input"
+    column contains racist, sexist, chauvinistic, biased, or otherwise toxic
+    content.
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for ToxicityEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.TOXICITY.value)
+
+
+class SummarizationEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a summary (stored under an
+    "output" column) provides an accurate synopsis of an input document
+    (stored under a "input" column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for SummarizationEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.SUMMARIZATION.value)
+
+
+class SQLEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a generated SQL query (stored under
+    the "query_gen" column) and a response (stored under the "response" column)
+    appropriately answer a question (stored under the "question" column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for SQLEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.SQL_GEN_EVAL.value)
 
 
 class MapReducer:
@@ -259,13 +290,13 @@ class MapReducer:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
             map_prompt_template (PromptTemplate): The template that is mapped
-            over each chunk to produce intermediate outputs. Must contain the
-            {chunk} placeholder.
+                over each chunk to produce intermediate outputs. Must contain the
+                {chunk} placeholder.
 
             reduce_prompt_template (PromptTemplate): The template that combines
-            the intermediate outputs into a single result. Must contain the
-            {mapped} placeholder, which will be formatted as a list of the
-            intermediate outputs produced by the map step.
+                the intermediate outputs into a single result. Must contain the
+                {mapped} placeholder, which will be formatted as a list of the
+                intermediate outputs produced by the map step.
         """
         self._model = model
         self._map_prompt_template = map_prompt_template
@@ -276,9 +307,9 @@ class MapReducer:
 
         Args:
             chunks (List[str]): A list of chunks to be evaluated. Each chunk is
-            inserted into the map_prompt_template and must therefore fit within
-            the LLM's context window and still leave room for the rest of the
-            prompt.
+                inserted into the map_prompt_template and must therefore fit within
+                the LLM's context window and still leave room for the rest of the
+                prompt.
 
         Returns:
             str: The output of the map-reduce process.
@@ -323,16 +354,16 @@ class Refiner:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
             initial_prompt_template (PromptTemplate): The template for the
-            initial invocation of the model that will generate the initial
-            accumulator. Should contain the {chunk} placeholder.
+                initial invocation of the model that will generate the initial
+                accumulator. Should contain the {chunk} placeholder.
 
             refine_prompt_template (PromptTemplate): The template for refining
-            the accumulator across all subsequence chunks. Must contain the
-            {chunk} and {accumulator} placeholders.
+                the accumulator across all subsequence chunks. Must contain the
+                {chunk} and {accumulator} placeholders.
 
             synthesize_prompt_template (Optional[PromptTemplate], optional): An
-            optional template to synthesize the final version of the
-            accumulator. Must contain the {accumulator} placeholder.
+                optional template to synthesize the final version of the
+                accumulator. Must contain the {accumulator} placeholder.
         """
         self._model = model
         self._initial_prompt_template = initial_prompt_template
@@ -344,9 +375,9 @@ class Refiner:
 
         Args:
             chunks (List[str]): A list of chunks to be evaluated. Each chunk is
-            inserted into the initial_prompt_template and refine_prompt_template
-            and must therefore fit within the LLM's context window and still
-            leave room for the rest of the prompt.
+                inserted into the initial_prompt_template and refine_prompt_template
+                and must therefore fit within the LLM's context window and still
+                leave room for the rest of the prompt.
 
         Returns:
             str: The output of the refine process.
@@ -385,18 +416,18 @@ def _extract_label_and_explanation(
         unparsed_output (str): The raw output to be parsed.
 
         template (ClassificationTemplate): The template used to generate the
-        output.
+            output.
 
         provide_explanation (bool): Whether the output includes an explanation.
 
         use_openai_function_call (bool): Whether the output was generated using
-        function calling.
+            function calling.
 
         verbose (bool): If True, print verbose output to stdout.
 
     Returns:
         Tuple[str, Optional[str]]: A tuple containing the label and an
-        explanation (if one is provided).
+            explanation (if one is provided).
     """
     if not use_openai_function_call:
         if provide_explanation:

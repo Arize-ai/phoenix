@@ -1,22 +1,20 @@
 import gzip
 from itertools import chain
-from typing import AsyncContextManager, Callable, Iterator, Tuple
+from typing import Any, Callable, Iterator, Optional, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
+from fastapi import APIRouter, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
 from sqlalchemy.engine import Connectable
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-)
 from starlette.background import BackgroundTask
 from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
-    HTTP_403_FORBIDDEN,
+    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -26,9 +24,10 @@ from typing_extensions import TypeAlias
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
-from phoenix.session.evaluation import encode_evaluations
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
     Evaluations,
@@ -36,97 +35,98 @@ from phoenix.trace.span_evaluations import (
     TraceEvaluations,
 )
 
+from .utils import add_errors_to_responses
+
 EvaluationName: TypeAlias = str
 
+router = APIRouter(tags=["traces"], include_in_schema=False)
 
-async def post_evaluations(request: Request) -> Response:
-    """
-    summary: Add evaluations to a span, trace, or document
-    operationId: addEvaluations
-    tags:
-      - evaluations
-    parameters:
-      - name: project-name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to add the evaluation to
-    requestBody:
-      required: true
-      content:
-        application/x-protobuf:
-          schema:
-            type: string
-            format: binary
-        application/x-pandas-arrow:
-          schema:
-            type: string
-            format: binary
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      415:
-        description: Unsupported content type, only gzipped protobuf and pandas-arrow are supported
-      422:
-        description: Request body is invalid
-    """
-    if request.app.state.read_only:
-        return Response(status_code=HTTP_403_FORBIDDEN)
-    content_type = request.headers.get("content-type")
+
+@router.post(
+    "/evaluations",
+    operation_id="addEvaluations",
+    summary="Add span, trace, or document evaluations",
+    status_code=HTTP_204_NO_CONTENT,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "description": (
+                    "Unsupported content type, "
+                    "only gzipped protobuf and pandas-arrow are supported"
+                ),
+            },
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
+                "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}},
+            },
+        },
+    },
+)
+async def post_evaluations(
+    request: Request,
+    content_type: Optional[str] = Header(default=None),
+    content_encoding: Optional[str] = Header(default=None),
+) -> Response:
     if content_type == "application/x-pandas-arrow":
         return await _process_pyarrow(request)
     if content_type != "application/x-protobuf":
-        return Response("Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        raise HTTPException(
+            detail="Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
     body = await request.body()
-    content_encoding = request.headers.get("content-encoding")
     if content_encoding == "gzip":
         body = gzip.decompress(body)
     elif content_encoding:
-        return Response("Unsupported content encoding", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        raise HTTPException(
+            detail="Unsupported content encoding", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
     evaluation = pb.Evaluation()
     try:
         evaluation.ParseFromString(body)
     except DecodeError:
-        return Response("Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(
+            detail="Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY
+        )
     if not evaluation.name.strip():
-        return Response(
-            "Evaluation name must not be blank/empty",
+        raise HTTPException(
+            detail="Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     await request.state.queue_evaluation_for_bulk_insert(evaluation)
     return Response()
 
 
-async def get_evaluations(request: Request) -> Response:
-    """
-    summary: Get evaluations from Phoenix
-    operationId: getEvaluation
-    tags:
-      - evaluations
-    parameters:
-      - name: project-name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to get evaluations from
-    responses:
-      200:
-        description: Success
-      404:
-        description: Not found
-    """
+@router.get(
+    "/evaluations",
+    operation_id="getEvaluations",
+    summary="Get span, trace, or document evaluations from a project",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+)
+async def get_evaluations(
+    request: Request,
+    project_name: Optional[str] = Query(
+        default=None,
+        description=(
+            "The name of the project to get evaluations from (if omitted, "
+            f"evaluations will be drawn from the `{DEFAULT_PROJECT_NAME}` project)"
+        ),
+    ),
+) -> Response:
     project_name = (
-        request.query_params.get("project-name")
-        # read from headers for backwards compatibility
-        or request.headers.get("project-name")
+        project_name
+        or request.query_params.get("project-name")  # for backward compatibility
+        or request.headers.get("project-name")  # read from headers for backwards compatibility
         or DEFAULT_PROJECT_NAME
     )
 
-    db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
+    db: DbSessionFactory = request.app.state.db
     async with db() as session:
         connection = await session.connection()
         trace_evals_dataframe = await connection.run_sync(
@@ -174,28 +174,114 @@ async def _process_pyarrow(request: Request) -> Response:
     try:
         reader = pa.ipc.open_stream(body)
     except pa.ArrowInvalid:
-        return Response(
-            content="Request body is not valid pyarrow",
+        raise HTTPException(
+            detail="Request body is not valid pyarrow",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     try:
         evaluations = Evaluations.from_pyarrow_reader(reader)
     except Exception as e:
         if isinstance(e, PhoenixEvaluationNameIsMissing):
-            return Response(
-                "Evaluation name must not be blank/empty",
+            raise HTTPException(
+                detail="Evaluation name must not be blank/empty",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        return Response(
-            content="Invalid data in request body",
+        raise HTTPException(
+            detail="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     return Response(background=BackgroundTask(_add_evaluations, request.state, evaluations))
 
 
 async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
-    for evaluation in encode_evaluations(evaluations):
-        await state.queue_evaluation_for_bulk_insert(evaluation)
+    dataframe = evaluations.dataframe
+    eval_name = evaluations.eval_name
+    names = dataframe.index.names
+    if (
+        len(names) == 2
+        and "document_position" in names
+        and ("context.span_id" in names or "span_id" in names)
+    ):
+        cls = _document_annotation_factory(
+            names.index("span_id") if "span_id" in names else names.index("context.span_id"),
+            names.index("document_position"),
+        )
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            document_annotation = cls(cast(Union[Tuple[str, int], Tuple[int, str]], index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(document_annotation)
+    elif len(names) == 1 and names[0] in ("context.span_id", "span_id"):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            span_annotation = _span_annotation_factory(cast(str, index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(span_annotation)
+    elif len(names) == 1 and names[0] in ("context.trace_id", "trace_id"):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            trace_annotation = _trace_annotation_factory(cast(str, index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(trace_annotation)
+
+
+def _get_annotation_result(
+    row: "pd.Series[Any]",
+) -> Tuple[Optional[float], Optional[str], Optional[str]]:
+    return (
+        cast(Optional[float], row.get("score")),
+        cast(Optional[str], row.get("label")),
+        cast(Optional[str], row.get("explanation")),
+    )
+
+
+def _document_annotation_factory(
+    span_id_idx: int,
+    document_position_idx: int,
+) -> Callable[
+    [Union[Tuple[str, int], Tuple[int, str]]],
+    Callable[..., Precursors.DocumentAnnotation],
+]:
+    return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
+        span_id=str(index[span_id_idx]),
+        document_position=int(index[document_position_idx]),
+        obj=models.DocumentAnnotation(
+            document_position=int(index[document_position_idx]),
+            **kwargs,
+        ),
+    )
+
+
+def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnotation]:
+    return lambda **kwargs: Precursors.SpanAnnotation(
+        span_id=str(span_id),
+        obj=models.SpanAnnotation(**kwargs),
+    )
+
+
+def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
+    return lambda **kwargs: Precursors.TraceAnnotation(
+        trace_id=str(trace_id),
+        obj=models.TraceAnnotation(**kwargs),
+    )
 
 
 def _read_sql_trace_evaluations_into_dataframe(
