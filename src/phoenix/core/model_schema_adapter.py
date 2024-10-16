@@ -6,10 +6,10 @@ import pandas as pd
 from pandas.api.types import is_object_dtype
 from typing_extensions import TypeAlias, TypeGuard
 
-from phoenix import EmbeddingColumnNames, Inferences
 from phoenix.core.model import _get_embedding_dimensions
 from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
-from phoenix.inferences.schema import RetrievalEmbeddingColumnNames
+from phoenix.inferences.inferences import Inferences
+from phoenix.inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames
 from phoenix.inferences.schema import Schema as InferencesSchema
 
 InferencesName: TypeAlias = str

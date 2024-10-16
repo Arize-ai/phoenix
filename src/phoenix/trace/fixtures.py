@@ -28,7 +28,7 @@ from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from httpx import ConnectError, HTTPStatusError
 
 import phoenix.trace.v1 as pb
-from phoenix import Client
+from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import (
