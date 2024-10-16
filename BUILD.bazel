@@ -33,6 +33,7 @@ py_binary(
         "src/phoenix/**/*.py",
     ]),
     main = "src/phoenix/server/main.py",
+    visibility = ["//visibility:public"],
     deps = [
         requirement("scikit-learn"),
         requirement("numpy"),

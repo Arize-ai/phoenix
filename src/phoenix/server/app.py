@@ -71,6 +71,14 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
+from phoenix.server._types import (
+    CanGetLastUpdatedAt,
+    CanPutItem,
+    DaemonTask,
+    DbSessionFactory,
+    LastUpdatedAt,
+    TokenStore,
+)
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     AnnotationSummaryDataLoader,
@@ -110,19 +118,11 @@ from phoenix.server.api.schema import schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
-from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.pxemail.types import EmailSender
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
-from phoenix.server._types import (
-    CanGetLastUpdatedAt,
-    CanPutItem,
-    DaemonTask,
-    DbSessionFactory,
-    LastUpdatedAt,
-    TokenStore,
-)
 from phoenix.trace.fixtures import (
     TracesFixture,
     get_dataset_fixtures,

@@ -13,7 +13,6 @@ from urllib.parse import urljoin
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_env_access_token_expiry,
@@ -51,6 +50,7 @@ from phoenix.pointcloud.umap_parameters import (
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
+from phoenix.server._types import DbSessionFactory
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
@@ -58,8 +58,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
-from phoenix.server.email.sender import SimpleEmailSender
-from phoenix.server._types import DbSessionFactory
+from phoenix.server.pxemail.sender import SimpleEmailSender
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -72,6 +71,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.trace.v1 import evaluation_pb2 as pb
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 

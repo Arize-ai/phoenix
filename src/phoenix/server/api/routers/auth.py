@@ -33,9 +33,6 @@ from phoenix.auth import (
 )
 from phoenix.config import get_base_url, get_env_disable_rate_limit, get_env_host_root_path
 from phoenix.db import enums, models
-from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
-from phoenix.server.email.types import EmailSender
-from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
 from phoenix.server._types import (
     AccessTokenClaims,
     PasswordResetTokenClaims,
@@ -44,6 +41,9 @@ from phoenix.server._types import (
     TokenStore,
     UserId,
 )
+from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
+from phoenix.server.pxemail.types import EmailSender
+from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
 
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=0.2,
