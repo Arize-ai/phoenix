@@ -170,6 +170,7 @@ function getModelConfigFromAttributes(
       modelConfig: {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
+        invocationParameters: {},
       },
       parsingErrors: [],
     };
