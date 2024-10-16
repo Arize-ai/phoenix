@@ -1,4 +1,5 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { InvocationParameters } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { ToolDefinition } from "@phoenix/schemas";
 
 export type GenAIOperationType = "chat" | "text_completion";
@@ -96,6 +97,8 @@ export type ModelConfig = {
   modelName: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;
+  // TODO(apowell): Should we store this by provider/model? Should it be stored outside of the model config?
+  invocationParameters: Partial<Omit<InvocationParameters, "toolChoice">>;
 };
 
 /**
