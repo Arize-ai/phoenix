@@ -97,7 +97,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
     tools: [],
-    toolChoice: "auto",
+    toolChoice: undefined,
     // TODO(apowell) - use datasetId if in dataset mode
     input: { variablesValueCache: {}, variableKeys: [] },
     output: undefined,

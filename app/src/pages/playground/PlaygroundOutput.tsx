@@ -208,7 +208,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         name: instance.model.modelName || "",
       },
       invocationParameters: {
-        temperature: 0.1, // TODO: add invocation parameters
+        toolChoice: instance.toolChoice,
       },
       tools: instance.tools.map((tool) => tool.definition),
       apiKey: credentials[instance.model.provider],

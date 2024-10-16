@@ -81,6 +81,7 @@ export function PlaygroundTool({
                 instanceId: playgroundInstanceId,
                 patch: {
                   tools: instanceTools.filter((t) => t.id !== tool.id),
+                  toolChoice: undefined,
                 },
               });
             }}
