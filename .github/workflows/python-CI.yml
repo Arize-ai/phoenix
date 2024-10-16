@@ -179,6 +179,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
+        # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
         py: [ 3.11 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
