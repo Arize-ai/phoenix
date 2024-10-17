@@ -243,8 +243,8 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     params: {
       messages: instance.template.messages.map(toGqlChatCompletionMessage),
       model: {
-        providerKey: instance.model.provider,
-        name: instance.model.modelName || "",
+        providerKey: "AZURE_OPENAI",
+        name: "gpt-4o",
       },
       invocationParameters: {
         toolChoice: instance.toolChoice,
