@@ -92,7 +92,7 @@ jobs:
         with:
           sparse-checkout: |
             requirements/
-            src/phoenix/packages/evals/
+            packages/phoenix-evals/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
@@ -116,7 +116,7 @@ jobs:
         with:
           sparse-checkout: |
             requirements/
-            src/phoenix/packages/otel/
+            packages/phoenix-otel/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
