@@ -11,6 +11,7 @@ from typing import (
     AsyncIterator,
     DefaultDict,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -159,12 +160,12 @@ class Subscription:
         client = AsyncOpenAI(api_key=input.api_key)
         invocation_parameters = jsonify(input.invocation_parameters)
 
-        messages: Iterator[Tuple[ChatCompletionMessageRole, str]] = (
+        messages: List[Tuple[ChatCompletionMessageRole, str]] = [
             (message.role, message.content) for message in input.messages
-        )
+        ]
         if template_options := input.template:
-            messages = _formatted_messages(messages, template_options)
-        openai_messages = (to_openai_chat_completion_param(*message) for message in messages)
+            messages = list(_formatted_messages(messages, template_options))
+        openai_messages = [to_openai_chat_completion_param(*message) for message in messages]
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -180,7 +181,7 @@ class Subscription:
                     _llm_span_kind(),
                     _llm_model_name(input.model.name),
                     _llm_tools(input.tools or []),
-                    _llm_input_messages(input.messages),
+                    _llm_input_messages(messages),
                     _llm_invocation_parameters(invocation_parameters),
                     _input_value_and_mime_type(input),
                 )
@@ -317,10 +318,12 @@ def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
     yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
 
 
-def _llm_input_messages(messages: List[ChatCompletionMessageInput]) -> Iterator[Tuple[str, Any]]:
-    for i, message in enumerate(messages):
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", message.role.value.lower()
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", message.content
+def _llm_input_messages(
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str]],
+) -> Iterator[Tuple[str, Any]]:
+    for i, (role, content) in enumerate(messages):
+        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
+        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
 
 
 def _llm_output_messages(
@@ -359,7 +362,7 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
 
 
 def _formatted_messages(
-    messages: Iterator[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
 ) -> Iterator[Tuple[ChatCompletionMessageRole, str]]:
     """
     Formats the messages using the given template options.
