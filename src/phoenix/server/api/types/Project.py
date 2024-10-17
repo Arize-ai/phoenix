@@ -30,6 +30,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
 )
+from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -242,6 +243,46 @@ class Project(Node):
             except StopIteration:
                 has_next_page = False
 
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def sessions(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[ProjectSession]:
+        table = models.ProjectSession
+        stmt = select(table).filter_by(project_id=self.id_attr)
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= table.start_time)
+            if time_range.end:
+                stmt = stmt.where(table.start_time < time_range.end)
+        if after:
+            cursor = Cursor.from_string(after)
+            stmt = stmt.where(table.id > cursor.rowid)
+        if first:
+            stmt = stmt.limit(
+                first + 1  # over-fetch by one to determine whether there's a next page
+            )
+        stmt = stmt.order_by(table.id)
+        cursors_and_nodes = []
+        async with info.context.db() as session:
+            records = await session.scalars(stmt)
+            async for project_session in islice(records, first):
+                cursor = Cursor(rowid=project_session.id)
+                cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
+            has_next_page = True
+            try:
+                next(records)
+            except StopIteration:
+                has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
             has_previous_page=False,

@@ -1120,6 +1120,7 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 50, after: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -1156,6 +1157,31 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+type ProjectSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sessionId: String!
+  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
+}
+
+"""A connection to a list of items."""
+type ProjectSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectSession!
 }
 
 type PromptResponse {
@@ -1535,6 +1561,24 @@ type TraceAnnotationMutationPayload {
 input TraceAnnotationSort {
   col: TraceAnnotationColumn!
   dir: SortDir!
+}
+
+"""A connection to a list of items."""
+type TraceConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [TraceEdge!]!
+}
+
+"""An edge in a connection."""
+type TraceEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Trace!
 }
 
 type UMAPPoint {
