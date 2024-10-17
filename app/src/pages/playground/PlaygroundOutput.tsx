@@ -239,12 +239,21 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const [output, setOutput] = useState<string | undefined>(undefined);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
 
+  const azureModelParams =
+    instance.model.provider === "AZURE_OPENAI"
+      ? {
+          endpoint: instance.model.endpoint,
+          apiVersion: instance.model.apiVersion,
+        }
+      : {};
+
   useChatCompletionSubscription({
     params: {
       messages: instance.template.messages.map(toGqlChatCompletionMessage),
       model: {
-        providerKey: "AZURE_OPENAI",
-        name: "gpt-4o",
+        providerKey: instance.model.provider,
+        name: instance.model.modelName || "",
+        ...azureModelParams,
       },
       invocationParameters: {
         toolChoice: instance.toolChoice,

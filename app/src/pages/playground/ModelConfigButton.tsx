@@ -14,18 +14,94 @@ import {
   DialogContainer,
   Flex,
   Form,
+  Item,
+  Picker,
   Text,
   TextField,
   View,
 } from "@arizeai/components";
 
-import { ModelProviders } from "@phoenix/constants/generativeConstants";
+import {
+  AzureOpenAiApiVersions,
+  ModelProviders,
+} from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import { PlaygroundInstanceProps } from "./types";
+
+function AzureOpenAiModelConfigFormField({
+  instance,
+}: {
+  instance: PlaygroundInstance;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+
+  const updateModelConfig = useCallback(
+    ({
+      configKey,
+      value,
+    }: {
+      configKey: keyof PlaygroundInstance["model"];
+      value: string;
+    }) => {
+      updateModel({
+        instanceId: instance.id,
+        model: {
+          ...instance.model,
+          [configKey]: value,
+        },
+      });
+    },
+    [instance.id, instance.model, updateModel]
+  );
+
+  return (
+    <>
+      <TextField
+        label="Deployment Name"
+        value={instance.model.modelName ?? ""}
+        onChange={(value) => {
+          updateModelConfig({
+            configKey: "modelName",
+            value,
+          });
+        }}
+      />
+      <TextField
+        label="Endpoint"
+        value={instance.model.endpoint ?? ""}
+        onChange={(value) => {
+          updateModelConfig({
+            configKey: "endpoint",
+            value,
+          });
+        }}
+      />
+      <Picker
+        label="API Version"
+        selectedKey={instance.model.apiVersion ?? undefined}
+        aria-label="api version picker"
+        placeholder="Select an AzureOpenAi API Version"
+        onSelectionChange={(key) => {
+          if (typeof key === "string") {
+            updateModelConfig({
+              configKey: "apiVersion",
+              value: key,
+            });
+          }
+        }}
+      >
+        {AzureOpenAiApiVersions.map((version) => (
+          <Item key={version}>{version}</Item>
+        ))}
+      </Picker>
+    </>
+  );
+}
 
 interface ModelConfigButtonProps extends PlaygroundInstanceProps {}
 export function ModelConfigButton(props: ModelConfigButtonProps) {
@@ -128,11 +204,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           }}
         />
         {instance.model.provider === "AZURE_OPENAI" ? (
-          <TextField
-            label="Deployment Name"
-            value={instance.model.modelName ?? ""}
-            onChange={onModelNameChange}
-          />
+          <AzureOpenAiModelConfigFormField instance={instance} />
         ) : (
           <ModelPicker
             modelName={instance.model.modelName}
