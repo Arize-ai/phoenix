@@ -106,6 +106,11 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   };
 }
 
+/**
+ * Creates a new tool for a playground instance with a unique name
+ * @param toolNumber the number of the tool for the instance to give it a unique name
+ * @returns
+ */
 export function createTool(toolNumber: number): Tool {
   return {
     id: generateToolId(),
