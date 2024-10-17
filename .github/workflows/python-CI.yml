@@ -27,6 +27,9 @@ jobs:
     name: Filter Changes
     runs-on: ubuntu-latest
     outputs:
+      ipynb: ${{ steps.filter.outputs.ipynb }}
+      ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
+      proto: ${{ steps.filter.outputs.proto }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
@@ -35,7 +38,13 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          list-files: shell
           filters: |
+            ipynb:
+              - "**/*.ipynb"
+            proto:
+              - "src/phoenix/proto/**"
+              - "src/phoenix/trace/v1/**"
             phoenix:
               - "src/**"
               - "tests/**"
@@ -49,6 +58,26 @@ jobs:
               - "packages/phoenix-otel/**"
               - "tox.ini"
 
+  clean-jupyter-notebooks:
+    name: Clean Jupyter notebooks
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip==${{ env.pip-version }}
+          pip install hatch
+      - name: Check notebooks have cleaned output and metadata
+        run: hatch run notebooks:clean
+      - run: git diff --exit-code
+
   phoenix-evals:
     name: Phoenix Evals
     runs-on: ${{ matrix.os }}
@@ -60,12 +89,16 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-evals/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_evals -- -ra -x
 
@@ -80,47 +113,142 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-otel/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_otel -- -ra -x
 
-  lint:
-    name: Lint Phoenix
-    runs-on: ubuntu-latest
+#  clean-jupyter-notebooks:
+#    name: Clean Jupyter Notebooks
+#    needs: changes
+#    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+#    strategy:
+#      matrix:
+#        py: [ 3.12 ]
+#        os: [ ubuntu-latest ]
+#    runs-on: ${{ matrix.os }}
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#      - name: Set up Python ${{ matrix.py }}
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: ${{ matrix.py }}
+#      - name: Set up `uv`
+#        uses: astral-sh/setup-uv@v3
+#        with:
+#          version: 0.4.22
+#          enable-cache: true
+#          cache-dependency-glob: |
+#            pyproject.toml
+#            requirements/clean-jupyter-notebooks.txt
+#          github-token: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Set up `tox` with `tox-uv`
+#        run: uv tool install tox --with tox-uv
+#      - name: Clean Jupyter notebooks
+#        run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+#      - run: git diff --exit-code
+
+  build-graphql-schema:
+    name: Build GraphQL Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.12 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up python 3.9
+      - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Proto codegen
-        run: |
-          hatch run proto:recompile
-          git diff --exit-code
-      - name: Gql codegen
-        run: |
-          hatch run gql:build
-          git diff --exit-code
-      - name: Export OpenAPI schema
-        run: |
-          hatch run openapi:build
-          git diff --exit-code
-      - name: Check notebooks have cleaned output and metadata
-        run: |
-          hatch run notebooks:clean
-          git diff --exit-code
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/build-graphql-schema.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Build GraphQL schema
+        run: tox run -e build_graphql_schema
+      - run: git diff --exit-code
+
+  build-openapi-schema:
+    name: Build OpenAPI Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.12 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Build OpenAPI schema
+        run: tox run -e build_openapi_schema
+      - run: git diff --exit-code
+
+  compile-protobuf:
+    name: Compile Protobuf
+    needs: changes
+    if: ${{ needs.changes.outputs.proto == 'true' }}
+    strategy:
+      matrix:
+        # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
+        py: [ 3.11 ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/compile-protobuf.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Compile Protobuf
+        run: tox run -e compile_protobuf
+      - run: git diff --exit-code
 
   ruff:
     name: Ruff
@@ -141,7 +269,11 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install `ruff`
         run: uv tool install ruff@0.6.8
       - name: Check format
@@ -172,7 +304,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -209,7 +341,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -252,7 +384,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -310,7 +442,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.18
+          version: 0.4.22
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml

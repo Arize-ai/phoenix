@@ -321,10 +321,6 @@ clean = [
   "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
-[tool.hatch.envs.auth.scripts]
-up = "cd src/phoenix/db && alembic upgrade cd164e83824f && echo 'ran auth up-migration'"
-down = "cd src/phoenix/db && alembic downgrade 3be8647b87d8 && echo 'ran auth down-migration'"
-
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
@@ -345,36 +341,6 @@ pypi = [
 check = [
   "interrogate -vv src/",
 ]
-
-[tool.hatch.envs.gql]
-dependencies = [
-  "strawberry-graphql[cli]==0.243.1",  # need to pin version because we're monkey-patching
-  "requests",
-]
-
-[tool.hatch.envs.gql.scripts]
-build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
-
-[tool.hatch.envs.openapi]
-dependencies = [
-  "pydantic==2.8.2",
-  "fastapi==0.111.0",
-]
-
-[tool.hatch.envs.openapi.scripts]
-build = "python -m phoenix.server.api.openapi.main > schemas/openapi.json"
-
-[tool.hatch.envs.proto]
-detached = true
-dependencies = [
-  "grpcio-tools==1.54.3",
-  "mypy-protobuf==3.5.0",
-]
-
-[tool.hatch.envs.proto.scripts]
-recompile = """
-python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
-"""
 
 [tool.interrogate]
 fail-under = 0
