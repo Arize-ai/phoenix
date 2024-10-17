@@ -274,7 +274,9 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         variables: templateVariables,
         language: templateLanguage,
       },
-      tools: instance.tools.map((tool) => tool.definition),
+      tools: instance.tools.length
+        ? instance.tools.map((tool) => tool.definition)
+        : undefined,
       apiKey: credentials[instance.model.provider],
     },
     runId: instance.activeRunId,
