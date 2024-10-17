@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.3.0...arize-phoenix-v5.3.1) (2024-10-17)
+
+
+### Bug Fixes
+
+* **playground:** add openai as a container dependency ([#5074](https://github.com/Arize-ai/phoenix/issues/5074)) ([6bc625c](https://github.com/Arize-ai/phoenix/commit/6bc625cb6a32514b730ddd35f873c279be78775d))
+* Re-enable run button on subscription error ([#5081](https://github.com/Arize-ai/phoenix/issues/5081)) ([1418472](https://github.com/Arize-ai/phoenix/commit/14184723a582ad411d939c2f584c7a378bbe9bdc))
+
 ## [5.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.2...arize-phoenix-v5.3.0) (2024-10-17)
 
 
