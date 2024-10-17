@@ -123,11 +123,13 @@ function useChatCompletionSubscription({
   runId,
   onNext,
   onCompleted,
+  onFailed,
 }: {
   params: PlaygroundOutputSubscription$variables;
   runId: number;
   onNext: (response: PlaygroundOutputSubscription$data) => void;
   onCompleted: () => void;
+  onFailed: (error: Error) => void;
 }) {
   const config = useMemo<
     GraphQLSubscriptionConfig<PlaygroundOutputSubscription>
@@ -174,6 +176,9 @@ function useChatCompletionSubscription({
       },
       onCompleted: () => {
         onCompleted();
+      },
+      onError: (error) => {
+        onFailed(error);
       },
     }),
     // eslint-disable-next-line react-compiler/react-compiler
@@ -303,6 +308,11 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       }
     },
     onCompleted: () => {
+      markPlaygroundInstanceComplete(props.playgroundInstanceId);
+    },
+    onFailed: () => {
+      // TODO(apowell): display error message?
+      // TODO(apowell): clear run id?
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
     },
   });
