@@ -36,5 +36,7 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 .venv
 
 # Symbolic links
-src/phoenix/evals
-src/phoenix/otel
+/src/phoenix/evals
+/src/phoenix/otel
+!src/phoenix/evals/
+!src/phoenix/otel/
