@@ -3,24 +3,19 @@ import React from "react";
 import { Flex, Text, View } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import {
-  selectDerivedInputVariables,
-  selectInputVariableKeys,
-} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 import { VariableEditor } from "./VariableEditor";
 
 export function PlaygroundInput() {
-  const variables = usePlaygroundContext(selectDerivedInputVariables);
-  const variableKeys = usePlaygroundContext(selectInputVariableKeys);
+  const { variableKeys, variablesMap } = useDerivedPlaygroundVariables();
   const setVariableValue = usePlaygroundContext(
     (state) => state.setVariableValue
   );
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateLanguage) {
@@ -59,7 +54,7 @@ export function PlaygroundInput() {
             // change rapidly for a given variable
             key={i}
             label={variableKey}
-            value={variables[variableKey]}
+            value={variablesMap[variableKey]}
             onChange={(value) => setVariableValue(variableKey, value)}
           />
         );
