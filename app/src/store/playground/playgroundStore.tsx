@@ -97,7 +97,8 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
     tools: [],
-    toolChoice: undefined,
+    // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
+    toolChoice: "auto",
     // TODO(apowell) - use datasetId if in dataset mode
     input: { variablesValueCache: {}, variableKeys: [] },
     output: undefined,
