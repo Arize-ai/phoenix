@@ -219,6 +219,7 @@ function SortableMessageItem({
   return (
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
+        collapsible
         variant="compact"
         bodyStyle={{ padding: 0 }}
         {...messageCardStyles}

@@ -102,6 +102,11 @@ ChatCompletionChunk: TypeAlias = Annotated[
 class GenerativeModelInput:
     provider_key: GenerativeProviderKey
     name: str
+    """ The name of the model. Or the Deployment Name for Azure OpenAI models. """
+    endpoint: Optional[str] = UNSET
+    """ The endpoint to use for the model. Only required for Azure OpenAI models. """
+    api_version: Optional[str] = UNSET
+    """ The API version to use for the model. """
 
 
 @strawberry.input
@@ -155,9 +160,21 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN, AsyncOpenAI
+        from openai import NOT_GIVEN, AsyncAzureOpenAI, AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=input.api_key)
+        client: Union[AsyncAzureOpenAI, AsyncOpenAI]
+
+        if input.model.provider_key == GenerativeProviderKey.AZURE_OPENAI:
+            if input.model.endpoint is None or input.model.api_version is None:
+                raise ValueError("endpoint and api_version are required for Azure OpenAI models")
+            client = AsyncAzureOpenAI(
+                api_key=input.api_key,
+                azure_endpoint=input.model.endpoint,
+                api_version=input.model.api_version,
+            )
+        else:
+            client = AsyncOpenAI(api_key=input.api_key)
+
         invocation_parameters = jsonify(input.invocation_parameters)
 
         messages: List[Tuple[ChatCompletionMessageRole, str]] = [
