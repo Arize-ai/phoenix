@@ -42,6 +42,13 @@ from phoenix.utilities.template_formatters import (
         ),
         pytest.param(
             MustacheTemplateFormatter,
+            r"\{{ hello }}",
+            {"hello": "world"},
+            r"\{{ hello }}",
+            id="mustache-does-not-replace-escaped-sequences",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
             "{{ hello }}, {{ world }}",
             {"hello": "1", "world": "2"},
             "1, 2",

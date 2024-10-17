@@ -55,7 +55,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    PATTERN = re.compile(r"{{\s*(\w+)\s*}}")
+    PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
 
     def parse(self, template: str) -> Set[str]:
         return set(match for match in re.findall(self.PATTERN, template))
@@ -63,7 +63,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         for variable_name in variable_names:
             template = re.sub(
-                pattern=rf"{{{{\s*{variable_name}\s*}}}}",
+                pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
                 repl=variables[variable_name],
                 string=template,
             )
