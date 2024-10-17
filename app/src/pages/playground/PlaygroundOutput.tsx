@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons } from "@arizeai/components";
 
+import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -124,11 +125,13 @@ function useChatCompletionSubscription({
   runId,
   onNext,
   onCompleted,
+  onFailed,
 }: {
   params: PlaygroundOutputSubscription$variables;
   runId: number;
   onNext: (response: PlaygroundOutputSubscription$data) => void;
   onCompleted: () => void;
+  onFailed: (error: Error) => void;
 }) {
   const config = useMemo<
     GraphQLSubscriptionConfig<PlaygroundOutputSubscription>
@@ -176,6 +179,9 @@ function useChatCompletionSubscription({
       onCompleted: () => {
         onCompleted();
       },
+      onError: (error) => {
+        onFailed(error);
+      },
     }),
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,6 +225,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const instance = instances.find(
     (instance) => instance.id === props.playgroundInstanceId
   );
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
@@ -226,6 +233,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
+  const notifyError = useNotifyError();
   if (!instance) {
     throw new Error("No instance found");
   }
@@ -308,6 +316,19 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     },
     onCompleted: () => {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
+    },
+    onFailed: () => {
+      markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      updateInstance({
+        instanceId: props.playgroundInstanceId,
+        patch: {
+          activeRunId: null,
+        },
+      });
+      notifyError({
+        title: "Failed to get output",
+        message: "Please try again.",
+      });
     },
   });
 
