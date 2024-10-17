@@ -1,0 +1,32 @@
+# ###############################################################################
+# # Bazel now uses Bzlmod by default to manage external dependencies.
+# # Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+# #
+# # For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+# ###############################################################################
+# module(name = "arize-ai")
+#
+# bazel_dep(name = "rules_python", version = "0.34.0")
+# bazel_dep(name = "aspect_rules_py", version = "0.9.1")
+#
+# python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+# python.toolchain(
+#     configure_coverage_tool = False,
+#     python_version = "3.10",
+# )
+# use_repo(python, "python_3_10", "python_versions")
+#
+# pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+#
+# pip.parse(
+#     experimental_index_url = "https://pypi.org/simple/",
+#     # experimental_index_url_overrides = REPO_OVERRIDES,
+#     experimental_target_platforms = [
+#         "linux_x86_64",
+#         "osx_*",
+#     ],
+#     hub_name = "pip",
+#     python_version = "3.10",
+#     requirements_lock = "//:requirements.txt",
+# )
+# use_repo(pip, "pip")

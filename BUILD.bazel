@@ -1,0 +1,107 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+
+# load("//:requirements.bzl", "requirement")
+load("@pip//:requirements.bzl", _requirement = "requirement")
+load("@python_versions//3.9:defs.bzl", compile_pip_requirements_3_9 = "compile_pip_requirements")
+
+requirement = _requirement
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["requirements.txt"])
+
+exports_files(["requirements.in"])
+
+compile_pip_requirements_3_9(
+    name = "requirements",
+    timeout = "moderate",
+    src = ":requirements.in",
+    extra_args = [
+        "--pip-args",
+        "'--only-binary=:all: --no-deps'",
+        "--allow-unsafe",
+        "--no-annotate",  #don't add comments to requirements.txt about where the package came from. This is useful for reproducibility
+        "--index-url",
+        "https://us-central1-python.pkg.dev/primal-oxide-268801/third-party-python/simple/",
+        "--extra-index-url",
+        "https://pypi.org/simple/",
+    ],
+)
+
+py_library(
+    name = "arize-phoenix-lib",
+    srcs = glob([
+        "src/phoenix/**/*.py",
+    ]),
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("scikit-learn"),
+        requirement("numpy"),
+        requirement("pandas"),
+        requirement("jinja2"),
+        requirement("umap-learn"),
+        requirement("fast-hdbscan"),
+        requirement("numba"),
+        requirement("starlette"),
+        requirement("uvicorn"),
+        requirement("psutil"),
+        requirement("strawberry-graphql"),
+        requirement("pyarrow"),
+        requirement("typing-extensions"),
+        requirement("scipy"),
+        requirement("wrapt"),
+        requirement("protobuf"),
+        requirement("grpcio"),
+        requirement("grpc-interceptor"),
+        requirement("tqdm"),
+        requirement("httpx"),
+        requirement("opentelemetry-sdk"),
+        requirement("opentelemetry-proto"),
+        requirement("opentelemetry-exporter-otlp"),
+        requirement("opentelemetry-semantic-conventions"),
+        requirement("openinference-semantic-conventions"),
+        requirement("openinference-instrumentation"),
+        requirement("alembic"),
+        requirement("aiosqlite"),
+        requirement("aioitertools"),
+        requirement("sqlean.py"),
+        requirement("cachetools"),
+        requirement("python-multipart"),
+        requirement("arize-phoenix-evals"),
+        requirement("arize-phoenix-otel"),
+        requirement("fastapi"),
+        requirement("pydantic"),
+        requirement("authlib"),
+        requirement("prometheus-client"),
+        requirement("opentelemetry-instrumentation-fastapi"),
+        requirement("opentelemetry-instrumentation-sqlalchemy"),
+        requirement("opentelemetry-instrumentation-grpc"),
+        requirement("py-grpc-prometheus"),
+        requirement("uvloop"),
+        # requirement("sqlalchemy[asyncio]"),
+        # requirement("strawberry-graphql[opentelemetry]"),
+    ],
+)
+py_binary(
+    name = "arize-phoenix",
+    srcs = glob([
+        "src/phoenix/**/*.py",
+    ]),
+    main = "src/phoenix/server/main.py",
+    args = [
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "6006",
+        "serve",
+        "--with-fixture=chatbot",
+        "--with-project=demo_llama_index,demo_o1_preview_timeseries",
+    ],
+    visibility = ["//visibility:public"],
+    imports = [
+        "src",
+    ],
+    deps = [
+        ":arize-phoenix-lib",
+    ],
+)
