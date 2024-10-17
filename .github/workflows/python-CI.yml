@@ -109,7 +109,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: [3.8, 3.12]
+        py: [3.8, 3.13]
         os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
