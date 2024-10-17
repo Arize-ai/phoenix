@@ -358,17 +358,12 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     return datetime.fromtimestamp(epoch_seconds)
 
 
-def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
-    if template_language is TemplateLanguage.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_language is TemplateLanguage.F_STRING:
-        return FStringTemplateFormatter()
-    assert_never(template_language)
-
-
 def _formatted_messages(
     messages: Iterator[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
 ) -> Iterator[Tuple[ChatCompletionMessageRole, str]]:
+    """
+    Formats the messages using the given template options.
+    """
     template_formatter = _template_formatter(template_language=template_options.language)
     roles, templates = zip(*messages)
     formatted_templates = map(
@@ -377,6 +372,17 @@ def _formatted_messages(
     )
     formatted_messages = zip(roles, formatted_templates)
     return formatted_messages
+
+
+def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+    """
+    Instantiates the appropriate template formatter for the template language.
+    """
+    if template_language is TemplateLanguage.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_language is TemplateLanguage.F_STRING:
+        return FStringTemplateFormatter()
+    assert_never(template_language)
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value

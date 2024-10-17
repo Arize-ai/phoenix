@@ -24,7 +24,7 @@ from phoenix.utilities.template_formatters import (
             "{{hello}}",
             {"hello": "world"},
             "world",
-            id="nmustache-o-whitespace",
+            id="mustache-no-whitespace",
         ),
         pytest.param(
             MustacheTemplateFormatter,
