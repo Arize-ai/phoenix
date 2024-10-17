@@ -10,6 +10,6 @@
  * ```
  */
 export const TemplateLanguages = {
-  FString: "f-string", // {variable}
-  Mustache: "mustache", // {{variable}}
+  FString: "F_STRING", // {variable}
+  Mustache: "MUSTACHE", // {{variable}}
 } as const;

@@ -9,7 +9,11 @@ import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type { ToolCall } from "@phoenix/store";
-import { ChatMessage, generateMessageId } from "@phoenix/store";
+import {
+  ChatMessage,
+  generateMessageId,
+  selectDerivedInputVariables,
+} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -135,6 +139,7 @@ function useChatCompletionSubscription({
           $model: GenerativeModelInput!
           $invocationParameters: InvocationParameters!
           $tools: [JSON!]
+          $templateOptions: TemplateOptions
           $apiKey: String
         ) {
           chatCompletion(
@@ -143,6 +148,7 @@ function useChatCompletionSubscription({
               model: $model
               invocationParameters: $invocationParameters
               tools: $tools
+              template: $templateOptions
               apiKey: $apiKey
             }
           ) {
@@ -212,6 +218,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const instance = instances.find(
     (instance) => instance.id === props.playgroundInstanceId
   );
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
+  const templateVariables = usePlaygroundContext(selectDerivedInputVariables);
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
@@ -238,6 +248,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       },
       invocationParameters: {
         toolChoice: instance.toolChoice,
+      },
+      templateOptions: {
+        variables: templateVariables,
+        language: templateLanguage,
       },
       tools: instance.tools.map((tool) => tool.definition),
       apiKey: credentials[instance.model.provider],

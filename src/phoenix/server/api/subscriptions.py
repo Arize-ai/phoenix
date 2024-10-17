@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from dataclasses import fields
 from datetime import datetime
+from enum import Enum
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -57,6 +58,18 @@ PLAYGROUND_PROJECT_NAME = "playground"
 ToolCallIndex: TypeAlias = int
 
 
+@strawberry.enum
+class TemplateLanguage(Enum):
+    MUSTACHE = "MUSTACHE"
+    F_STRING = "F_STRING"
+
+
+@strawberry.input
+class TemplateOptions:
+    variables: JSONScalarType
+    language: TemplateLanguage
+
+
 @strawberry.type
 class TextChunk:
     content: str
@@ -91,6 +104,7 @@ class ChatCompletionInput:
     model: GenerativeModelInput
     invocation_parameters: InvocationParameters
     tools: Optional[List[JSONScalarType]] = UNSET
+    template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
 
 
