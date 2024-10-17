@@ -54,11 +54,11 @@ jobs:
               - "packages/phoenix-otel/**"
               - "tox.ini"
 
-  lint:
-    name: Lint Phoenix
+  clean-jupyter-notebooks:
+    name: Clean Jupyter notebooks
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.ipynb == 'true' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -71,9 +71,8 @@ jobs:
           python -m pip install --upgrade pip==${{ env.pip-version }}
           pip install hatch
       - name: Check notebooks have cleaned output and metadata
-        run: |
-          hatch run notebooks:clean
-          git diff --exit-code
+        run: hatch run notebooks:clean
+      - run: git diff --exit-code
 
   phoenix-evals:
     name: Phoenix Evals
