@@ -19,6 +19,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
+  InvocationParameters,
   PlaygroundOutputSubscription,
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
@@ -247,6 +248,11 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         }
       : {};
 
+  const invocationParameters: InvocationParameters = {};
+  if (instance.tools.length) {
+    invocationParameters["toolChoice"] = instance.toolChoice;
+  }
+
   useChatCompletionSubscription({
     params: {
       messages: instance.template.messages.map(toGqlChatCompletionMessage),
@@ -255,9 +261,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         name: instance.model.modelName || "",
         ...azureModelParams,
       },
-      invocationParameters: {
-        toolChoice: instance.toolChoice,
-      },
+      invocationParameters,
       templateOptions: {
         variables: templateVariables,
         language: templateLanguage,
