@@ -252,8 +252,6 @@ jobs:
 
   ruff:
     name: Ruff
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
