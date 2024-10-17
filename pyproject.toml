@@ -124,6 +124,7 @@ pg = [
 ]
 container = [
   "prometheus-client",
+  "openai>=1.0.0",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
