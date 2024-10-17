@@ -19,9 +19,9 @@ export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
  * Taken from @see https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference
  *
  * Which links from the data plane inference section here: @see https://learn.microsoft.com/en-us/azure/ai-services/openai/reference?WT.mc_id=AZ-MVP-5004796
- * Only api versions taken from 2024 onwards are included
+ * Only api versions taken from 2023 onwards are included
  */
-export const AzureOpenAiApiVersions = [
+export const AZURE_OPENAI_API_VERSIONS = [
   "2024-10-01-preview",
   "2024-09-01-preview",
   "2024-08-01-preview",
@@ -32,4 +32,11 @@ export const AzureOpenAiApiVersions = [
   "2024-03-01-preview",
   "2024-02-15-preview",
   "2024-02-01",
+  "2023-10-01-preview",
+  "2023-09-01-preview",
+  "2023-08-01-preview",
+  "2023-07-01-preview",
+  "2023-06-01-preview",
+  "2023-05-15",
+  "2023-03-15-preview",
 ];

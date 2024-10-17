@@ -22,7 +22,7 @@ import {
 } from "@arizeai/components";
 
 import {
-  AzureOpenAiApiVersions,
+  AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
 } from "@phoenix/constants/generativeConstants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -95,7 +95,7 @@ function AzureOpenAiModelConfigFormField({
           }
         }}
       >
-        {AzureOpenAiApiVersions.map((version) => (
+        {AZURE_OPENAI_API_VERSIONS.map((version) => (
           <Item key={version}>{version}</Item>
         ))}
       </Picker>
