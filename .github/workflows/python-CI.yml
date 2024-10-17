@@ -89,6 +89,10 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/packages/evals/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
@@ -109,6 +113,10 @@ jobs:
         os: [ ubuntu-latest, windows-latest, macos-13 ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/packages/otel/
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
