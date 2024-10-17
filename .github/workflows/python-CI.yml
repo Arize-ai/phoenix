@@ -29,6 +29,7 @@ jobs:
     outputs:
       ipynb: ${{ steps.filter.outputs.ipynb }}
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
+      proto: ${{ steps.filter.outputs.proto }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
@@ -41,6 +42,9 @@ jobs:
           filters: |
             ipynb:
               - "**/*.ipynb"
+            proto:
+              - "src/phoenix/proto/**"
+              - "src/phoenix/trace/v1/**"
             phoenix:
               - "src/**"
               - "tests/**"
@@ -209,7 +213,7 @@ jobs:
   compile-protobuf:
     name: Compile Protobuf
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.proto == 'true' }}
     strategy:
       matrix:
         # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
