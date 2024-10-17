@@ -9,11 +9,7 @@ import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type { ToolCall } from "@phoenix/store";
-import {
-  ChatMessage,
-  generateMessageId,
-  selectDerivedInputVariables,
-} from "@phoenix/store";
+import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -26,6 +22,7 @@ import {
 import { isChatMessages } from "./playgroundUtils";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
+import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
@@ -221,7 +218,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-  const templateVariables = usePlaygroundContext(selectDerivedInputVariables);
+  const { variablesMap: templateVariables } = useDerivedPlaygroundVariables();
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
