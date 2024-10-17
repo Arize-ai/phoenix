@@ -36,5 +36,9 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 .venv
 
 # Symbolic links
-src/phoenix/evals
-src/phoenix/otel
+# Note that this can affect hatch build for those packages. That's why
+# we need to un-ignore it if it's an actual folder (i.e. with the trailing /).
+/src/phoenix/evals
+!src/phoenix/evals/
+/src/phoenix/otel
+!src/phoenix/otel/
