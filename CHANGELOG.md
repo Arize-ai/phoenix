@@ -1,5 +1,81 @@
 # Changelog
 
+## [5.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.2...arize-phoenix-v5.3.0) (2024-10-17)
+
+
+### Features
+
+* add litellm integrations UI ([#5028](https://github.com/Arize-ai/phoenix/issues/5028)) ([5e895cb](https://github.com/Arize-ai/phoenix/commit/5e895cb3d51e8a47b6845a7595e165363da6703e))
+* Add model listing ([#4948](https://github.com/Arize-ai/phoenix/issues/4948)) ([94d92fb](https://github.com/Arize-ai/phoenix/commit/94d92fbb3529c894e81e241831d7424b61c80006))
+* **js:** Scaffold ts phoenix client ([#4847](https://github.com/Arize-ai/phoenix/issues/4847)) ([24f447e](https://github.com/Arize-ai/phoenix/commit/24f447ef80ff5d8cb6db7146ed00468f2c1ac8b9))
+* make model listing more generic ([#5022](https://github.com/Arize-ai/phoenix/issues/5022)) ([fd0c6ce](https://github.com/Arize-ai/phoenix/commit/fd0c6ce67354bb6cd1bce9b371436b79d60759b9))
+* Playground UI prototype ([#4778](https://github.com/Arize-ai/phoenix/issues/4778)) ([a0a83a2](https://github.com/Arize-ai/phoenix/commit/a0a83a29ce93b68c6272efca9195b00ce6397702))
+* **playground:** accumulate errors while parsing span attributes ([#4941](https://github.com/Arize-ai/phoenix/issues/4941)) ([c27dfb1](https://github.com/Arize-ai/phoenix/commit/c27dfb1e47bf55b0c7b9a64190bd0e87ab885ec5))
+* **playground:** add / delete messages ([#4947](https://github.com/Arize-ai/phoenix/issues/4947)) ([5d45e48](https://github.com/Arize-ai/phoenix/commit/5d45e481f1c131a8b9763b51f7ae2fe7c8bb11e7))
+* **playground:** add credential storage ([#4970](https://github.com/Arize-ai/phoenix/issues/4970)) ([b15f2a4](https://github.com/Arize-ai/phoenix/commit/b15f2a45772470d7769729ff7d40a06058778796))
+* **playground:** add tools ui ([#5002](https://github.com/Arize-ai/phoenix/issues/5002)) ([767bd37](https://github.com/Arize-ai/phoenix/commit/767bd37c0b6e9e63d24825fe9dbe7e4092d5a880))
+* **playground:** allow up to 4 instances, distinguish alphabetically ([#4951](https://github.com/Arize-ai/phoenix/issues/4951)) ([240bfe8](https://github.com/Arize-ai/phoenix/commit/240bfe8277f94b812ceb4a4ede46b88a85aa273b))
+* **playground:** copy messages to clipboard ([#5000](https://github.com/Arize-ai/phoenix/issues/5000)) ([23e9d82](https://github.com/Arize-ai/phoenix/commit/23e9d82046ed82ada238a0d8e7f8ece651d1d246))
+* **playground:** create llm span for playground runs ([#4982](https://github.com/Arize-ai/phoenix/issues/4982)) ([39c9940](https://github.com/Arize-ai/phoenix/commit/39c9940a4e6ea4f64d3a00872f836195b99e71d5))
+* **playground:** Extract and display variables from all message templates as "inputs" ([#4994](https://github.com/Arize-ai/phoenix/issues/4994)) ([b8cd777](https://github.com/Arize-ai/phoenix/commit/b8cd7772e59455b8b3c691609f4baee7a6157a24))
+* **playground:** Implement codemirror based template string editor ([#4943](https://github.com/Arize-ai/phoenix/issues/4943)) ([e20716f](https://github.com/Arize-ai/phoenix/commit/e20716f348279cb87b743d416c2b304d6f29cd82))
+* **playground:** Implement editable input variable textareas ([#4987](https://github.com/Arize-ai/phoenix/issues/4987)) ([#5006](https://github.com/Arize-ai/phoenix/issues/5006)) ([ab09109](https://github.com/Arize-ai/phoenix/commit/ab091093b7e0ba6308700fdcf6e07b7e931e349a))
+* **playground:** Implement message role picker callback ([#4909](https://github.com/Arize-ai/phoenix/issues/4909)) ([b2a8bd0](https://github.com/Arize-ai/phoenix/commit/b2a8bd0245bea2cc39e335dabaa70a856cacd423))
+* **playground:** make chat messages match style in traces ([#4931](https://github.com/Arize-ai/phoenix/issues/4931)) ([ed6e05e](https://github.com/Arize-ai/phoenix/commit/ed6e05eb318f6d204a21b2848312784a60f10708))
+* **playground:** model selector ([#4971](https://github.com/Arize-ai/phoenix/issues/4971)) ([025c33e](https://github.com/Arize-ai/phoenix/commit/025c33e8a15bf20de49280e2b19d19e3656b58e0))
+* **playground:** parse model name and infer provider form span ([#5021](https://github.com/Arize-ai/phoenix/issues/5021)) ([45973b7](https://github.com/Arize-ai/phoenix/commit/45973b7c0b9798d114c3e629861933ee0b287c07))
+* **playground:** parse span attribute `llm.input_messages` for playground span replay ([#4906](https://github.com/Arize-ai/phoenix/issues/4906)) ([f4b1d92](https://github.com/Arize-ai/phoenix/commit/f4b1d92512f21fa52e6a541f52021aa0cc6e17ca))
+* **playground:** playground layout ([#4978](https://github.com/Arize-ai/phoenix/issues/4978)) ([2c50441](https://github.com/Arize-ai/phoenix/commit/2c50441433b83cf7793d84adf16e3593d62b0bd7))
+* **playground:** plumb through and apply template variables ([#5052](https://github.com/Arize-ai/phoenix/issues/5052)) ([d0b1641](https://github.com/Arize-ai/phoenix/commit/d0b1641259d52321e3957765f04aed210a6c3077))
+* **playground:** provide a back to trace button from the span playgr… ([#4954](https://github.com/Arize-ai/phoenix/issues/4954)) ([01227e2](https://github.com/Arize-ai/phoenix/commit/01227e2c98d426efaff9d42bab3a73073d85eda7))
+* **playground:** re-ordering of messages using dnd ([#4936](https://github.com/Arize-ai/phoenix/issues/4936)) ([ad27394](https://github.com/Arize-ai/phoenix/commit/ad27394dcea64784b4cb9c4346fd254c128a821d))
+* **playground:** rudimentary graphql support for messages input ([#4907](https://github.com/Arize-ai/phoenix/issues/4907)) ([ee1f85b](https://github.com/Arize-ai/phoenix/commit/ee1f85b0e528fd32a83af47719dd53dd110fcc8e))
+* **playground:** streaming chat completions ([#4785](https://github.com/Arize-ai/phoenix/issues/4785)) ([5948ea3](https://github.com/Arize-ai/phoenix/commit/5948ea382f8f9069b32ba226d271c20abca7fd19))
+* **playground:** support azure openai ([#5065](https://github.com/Arize-ai/phoenix/issues/5065)) ([4df3f8a](https://github.com/Arize-ai/phoenix/commit/4df3f8a812c7720423021d431c61760e57a6290f))
+* **playground:** toggle for the template language ([#5004](https://github.com/Arize-ai/phoenix/issues/5004)) ([45755bb](https://github.com/Arize-ai/phoenix/commit/45755bbd2d52527bdbdfa58e4c7bd3e3577b1f79))
+* **playground:** tool call backend ([#5027](https://github.com/Arize-ai/phoenix/issues/5027)) ([5485c03](https://github.com/Arize-ai/phoenix/commit/5485c03abf4ffe87fe8501cba491613f3636e1c2))
+* **playground:** wire up tool calling ui ([#5029](https://github.com/Arize-ai/phoenix/issues/5029)) ([75b7000](https://github.com/Arize-ai/phoenix/commit/75b7000b1b3f5329841d6293ffdcc1bf1e993be9))
+
+
+### Bug Fixes
+
+* **playground:** authenticate websockets ([#4924](https://github.com/Arize-ai/phoenix/issues/4924)) ([4a53e8e](https://github.com/Arize-ai/phoenix/commit/4a53e8eaa185a52baee6cee4441723493723a00d))
+* **playground:** ignore keyboard events in template messages for drag and drop ([#4945](https://github.com/Arize-ai/phoenix/issues/4945)) ([2b6529f](https://github.com/Arize-ai/phoenix/commit/2b6529f997156cb033fb36ea63a8617024ad25d2))
+* **playground:** invalidate cache for playground span project to ensure new span is refetched ([#4991](https://github.com/Arize-ai/phoenix/issues/4991)) ([985042c](https://github.com/Arize-ai/phoenix/commit/985042cbb6a3f9804205e2458e2df35ea06f594d))
+* **playground:** make messages collapsible so they can be dragged ([#5062](https://github.com/Arize-ai/phoenix/issues/5062)) ([30d95b4](https://github.com/Arize-ai/phoenix/commit/30d95b48fdc829ab23b12bd72fcd5a10da9889ff))
+* **playground:** plumb through and record invocation parameters ([#5005](https://github.com/Arize-ai/phoenix/issues/5005)) ([9d375e5](https://github.com/Arize-ai/phoenix/commit/9d375e507d2eebaad910f94fcfad93b98d97f18b))
+* **playground:** plumb through credentials ([#5003](https://github.com/Arize-ai/phoenix/issues/5003)) ([0fa0c87](https://github.com/Arize-ai/phoenix/commit/0fa0c870ab6522e9931345fdd4110db35f2f116d))
+* **playground:** plumb through model name and providers ([#4999](https://github.com/Arize-ai/phoenix/issues/4999)) ([23958bd](https://github.com/Arize-ai/phoenix/commit/23958bd82922e4c09c662714c9f1b2db8b6f5dc9))
+* **playground:** remove toolChoice if no tools provided ([#5079](https://github.com/Arize-ai/phoenix/issues/5079)) ([c883b06](https://github.com/Arize-ai/phoenix/commit/c883b060bf9edb7cf198f10c85474752bd872351))
+* **playground:** Remove unused statements in language grammars ([#4992](https://github.com/Arize-ai/phoenix/issues/4992)) ([bbbfd22](https://github.com/Arize-ai/phoenix/commit/bbbfd220f7fdbe1bdf011a4328399cc0bc39331f))
+
+
+### Documentation
+
+* add environment variable PHOENIX_CSRF_TRUSTED_ORIGINS (GITBOOK-885) ([38fc7ba](https://github.com/Arize-ai/phoenix/commit/38fc7ba4a1e2988fd43ce38f561873359688cb8e))
+* Add Evaluating Phoenix Traces nbconverted page (GITBOOK-889) ([38912b4](https://github.com/Arize-ai/phoenix/commit/38912b4a045f0165e92eec07707b98b3c0816680))
+* Adding Auth Video (GITBOOK-896) ([11e5a07](https://github.com/Arize-ai/phoenix/commit/11e5a071e876e12d086283fab443e652fe25efe2))
+* auth-related environment variables (GITBOOK-887) ([8a8ec8d](https://github.com/Arize-ai/phoenix/commit/8a8ec8d36fe7c3934ab49af244c18d30a0c1f600))
+* DSPy doc updates (GITBOOK-886) ([b00def9](https://github.com/Arize-ai/phoenix/commit/b00def9b853ea0175c27fb0d12497a40afca26a7))
+* Fixing Quickstart: Tracing (GITBOOK-888) ([e0f9fba](https://github.com/Arize-ai/phoenix/commit/e0f9fbab69bb9888c3ff4ebf53a87ebefac0bde9))
+* how to add evaluations to experiments after the fact (GITBOOK-895) ([7b584ee](https://github.com/Arize-ai/phoenix/commit/7b584eeb2b863d6db4dfd28e92c84ad3a0e87556))
+* initial playground PRD ([#4777](https://github.com/Arize-ai/phoenix/issues/4777)) ([2a0ddd9](https://github.com/Arize-ai/phoenix/commit/2a0ddd9d9183f761f7db9f47c9219ad615976cbe))
+* Mistral 1.0 Changes (GITBOOK-883) ([4e11e86](https://github.com/Arize-ai/phoenix/commit/4e11e86f532a85371a14c91c7962cd6dacc807b8))
+* Navbar changes (GITBOOK-884) ([62798ad](https://github.com/Arize-ai/phoenix/commit/62798ad899051574c0f3941fbd8445accd14fc90))
+* No subject (GITBOOK-890) ([54556a1](https://github.com/Arize-ai/phoenix/commit/54556a1316095c7aadccb7c298c1fcfaf948a7a4))
+* No subject (GITBOOK-891) ([4e5392f](https://github.com/Arize-ai/phoenix/commit/4e5392fa9e0c6bc27715d7ead4dee8ef71ede32b))
+* No subject (GITBOOK-892) ([70b386d](https://github.com/Arize-ai/phoenix/commit/70b386dd782ab60ba3dd76a98f7afee6f9a7d33d))
+* No subject (GITBOOK-894) ([5625288](https://github.com/Arize-ai/phoenix/commit/56252884ddbf0920e727b97246a2c31dba60c513))
+* No subject (GITBOOK-897) ([1d4c250](https://github.com/Arize-ai/phoenix/commit/1d4c250c2b63913c4242bc43fa86a6a5fbc8a561))
+* No subject (GITBOOK-898) ([3b56ecd](https://github.com/Arize-ai/phoenix/commit/3b56ecdd47177d60ed5acee035b21d7e4d3d48b5))
+* No subject (GITBOOK-899) ([842846a](https://github.com/Arize-ai/phoenix/commit/842846a37f9210edea9bdc8dc9792720959a283b))
+* No subject (GITBOOK-900) ([29495bc](https://github.com/Arize-ai/phoenix/commit/29495bcd4e3037cd14153ce6654db74dad22b763))
+* No subject (GITBOOK-901) ([8ec974e](https://github.com/Arize-ai/phoenix/commit/8ec974e71f21f3c7ef9e922aec1895e0ecfc7a74))
+* No subject (GITBOOK-902) ([290afb4](https://github.com/Arize-ai/phoenix/commit/290afb43af6c3ed0b4a56aa9c8af848be4eb9c7f))
+* No subject (GITBOOK-903) ([0d1f3e6](https://github.com/Arize-ai/phoenix/commit/0d1f3e626d41207fedfe4d34c996b5e5b309139c))
+* update crewai tutorial for 0.63.0+ ([#5026](https://github.com/Arize-ai/phoenix/issues/5026)) ([c89ba9e](https://github.com/Arize-ai/phoenix/commit/c89ba9e1a8c0918d27859309cead97f5415726c3))
+* update dspy notebook to reflect new instrumentation for v2.5 and above ([#4946](https://github.com/Arize-ai/phoenix/issues/4946)) ([61d8a1c](https://github.com/Arize-ai/phoenix/commit/61d8a1c18f76955e3b6b70388096979be2622435))
+
 ## [5.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.2.1...arize-phoenix-v5.2.2) (2024-10-09)
 
 
