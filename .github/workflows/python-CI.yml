@@ -94,34 +94,13 @@ jobs:
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_otel -- -ra -x
 
-  lint:
-    name: Lint Phoenix
-    runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Set up python 3.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Check notebooks have cleaned output and metadata
-        run: |
-          hatch run notebooks:clean
-          git diff --exit-code
-
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
     needs: changes
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: [ 3.11 ]
+        py: [ 3.12 ]
         os: [ ubuntu-latest ]
     runs-on: ${{ matrix.os }}
     steps:
@@ -138,14 +117,10 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
-            requirements/format-jupyter-notebooks.txt
             requirements/clean-jupyter-notebooks.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-#      - name: Format Jupyter notebooks
-#        run: tox run -e format_jupyter_notebooks -- **/*.ipynb
-#      - run: git diff --exit-code
       - name: Clean Jupyter notebooks
         run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
       - run: git diff --exit-code
