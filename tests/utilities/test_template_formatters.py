@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
 import pytest
 
@@ -91,8 +91,11 @@ from phoenix.utilities.template_formatters import (
         ),
     ),
 )
-def test_template_formatter(
-    formatter_cls: TemplateFormatter, template: str, variables: Dict[str, Any], expected_prompt: str
+def test_template_formatters_produce_expected_prompt(
+    formatter_cls: Type[TemplateFormatter],
+    template: str,
+    variables: Dict[str, Any],
+    expected_prompt: str,
 ) -> None:
     formatter = formatter_cls()
     prompt = formatter.format(template, **variables)
@@ -110,12 +113,12 @@ def test_template_formatter(
         pytest.param(
             FStringTemplateFormatter,
             "{hello}",
-            id="f-string-missing-template-variable",
+            id="f-string-missing-template-variables",
         ),
     ),
 )
-def test_template_formatter_raises_expected_error_on_missing_variables(
-    formatter_cls: TemplateFormatter, template: str
+def test_template_formatters_raise_expected_error_on_missing_variables(
+    formatter_cls: Type[TemplateFormatter], template: str
 ) -> None:
     formatter = formatter_cls()
     with pytest.raises(ValueError, match="Missing template variables"):

@@ -9,14 +9,14 @@ class TemplateFormatter(ABC):
     def parse(self, template: str) -> Set[str]:
         raise NotImplementedError
 
-    def format(self, template: str, **kwargs: Any) -> str:
+    def format(self, template: str, **variables: Any) -> str:
         template_variable_names = self.parse(template)
-        if missing_template_variables := template_variable_names - set(kwargs.keys()):
+        if missing_template_variables := template_variable_names - set(variables.keys()):
             raise ValueError(f"Missing template variables: {', '.join(missing_template_variables)}")
-        return self._format(template, template_variable_names, **kwargs)
+        return self._format(template, template_variable_names, **variables)
 
     @abstractmethod
-    def _format(self, template: str, variable_names: Iterable[str], **kwargs: Any) -> str:
+    def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         raise NotImplementedError
 
 
@@ -24,8 +24,8 @@ class FStringTemplateFormatter(TemplateFormatter):
     def parse(self, template: str) -> Set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
-    def _format(self, template: str, variable_names: Iterable[str], **kwargs: Any) -> str:
-        return template.format(**kwargs)
+    def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
+        return template.format(**variables)
 
 
 class MustacheTemplateFormatter(TemplateFormatter):
@@ -34,8 +34,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
     def parse(self, template: str) -> Set[str]:
         return set(match for match in re.findall(self.PATTERN, template))
 
-    def _format(self, template: str, variable_names: Iterable[str], **kwargs: Any) -> str:
-        variables = kwargs
+    def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         for variable_name in variable_names:
             template = re.sub(
                 pattern=rf"{{{{\s*{variable_name}\s*}}}}",
