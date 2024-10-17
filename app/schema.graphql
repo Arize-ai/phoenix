@@ -842,6 +842,8 @@ type GenerativeModel {
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
+  endpoint: String
+  apiVersion: String
 }
 
 type GenerativeProvider {

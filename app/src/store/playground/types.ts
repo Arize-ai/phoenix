@@ -95,6 +95,8 @@ type PlaygroundInput = DatasetInput | ManualInput;
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
+  endpoint?: string | null;
+  apiVersion?: string | null;
 };
 
 /**
