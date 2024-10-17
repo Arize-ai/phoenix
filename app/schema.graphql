@@ -72,6 +72,7 @@ input ChatCompletionInput {
   model: GenerativeModelInput!
   invocationParameters: InvocationParameters!
   tools: [JSON!]
+  template: TemplateOptions
   apiKey: String = null
 }
 
@@ -1457,6 +1458,16 @@ type SystemApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
+}
+
+enum TemplateLanguage {
+  MUSTACHE
+  F_STRING
+}
+
+input TemplateOptions {
+  variables: JSON!
+  language: TemplateLanguage!
 }
 
 type TextChunk {

@@ -24,11 +24,11 @@ export function PlaygroundInput() {
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateLanguage) {
-      case "f-string": {
+      case "F_STRING": {
         templateSyntax = "{input name}";
         break;
       }
-      case "mustache": {
+      case "MUSTACHE": {
         templateSyntax = "{{input name}}";
         break;
       }

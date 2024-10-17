@@ -1,0 +1,132 @@
+from typing import Any, Dict, Type
+
+import pytest
+
+from phoenix.utilities.template_formatters import (
+    FStringTemplateFormatter,
+    MustacheTemplateFormatter,
+    TemplateFormatter,
+)
+
+
+@pytest.mark.parametrize(
+    "formatter_cls, template, variables, expected_prompt",
+    (
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ hello }}",
+            {"hello": "world"},
+            "world",
+            id="mustache-whitespace-both-sides",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{hello}}",
+            {"hello": "world"},
+            "world",
+            id="mustache-no-whitespace",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{  hello}}",
+            {"hello": "world"},
+            "world",
+            id="mustache-whitespace-left",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{hello }}",
+            {"hello": "world"},
+            "world",
+            id="mustache-whitespace-right",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            r"\{{ hello }}",
+            {"hello": "world"},
+            r"\{{ hello }}",
+            id="mustache-does-not-replace-escaped-sequences",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ hello }}, {{ world }}",
+            {"hello": "1", "world": "2"},
+            "1, 2",
+            id="mustache-multiple-variables",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ hello }} + {{hello}} = {{ world }}",
+            {"hello": "1", "world": "2"},
+            "1 + 1 = 2",
+            id="mustache-duplicate-variables",
+        ),
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ hello }}, {{ world }}",
+            {"hello": "world", "world": "hello"},
+            "world, hello",
+            id="mustache-replaced-value-is-variable-name",
+        ),
+        pytest.param(
+            FStringTemplateFormatter,
+            "{hello}",
+            {"hello": "world"},
+            "world",
+            id="f-string-single-variable",
+        ),
+        pytest.param(
+            FStringTemplateFormatter,
+            "{hello}, {world}",
+            {"hello": "1", "world": "2"},
+            "1, 2",
+            id="f-string-multiple-variables",
+        ),
+        pytest.param(
+            FStringTemplateFormatter,
+            "{hello} + {hello} = {world}",
+            {"hello": "1", "world": "2"},
+            "1 + 1 = 2",
+            id="f-string-duplicate-variables",
+        ),
+        pytest.param(
+            FStringTemplateFormatter,
+            "{hello}, {world}",
+            {"hello": "world", "world": "hello"},
+            "world, hello",
+            id="f-string-replaced-value-is-variable-name",
+        ),
+    ),
+)
+def test_template_formatters_produce_expected_prompt(
+    formatter_cls: Type[TemplateFormatter],
+    template: str,
+    variables: Dict[str, Any],
+    expected_prompt: str,
+) -> None:
+    formatter = formatter_cls()
+    prompt = formatter.format(template, **variables)
+    assert prompt == expected_prompt
+
+
+@pytest.mark.parametrize(
+    "formatter_cls, template",
+    (
+        pytest.param(
+            MustacheTemplateFormatter,
+            "{{ hello }}",
+            id="mustache-missing-template-variables",
+        ),
+        pytest.param(
+            FStringTemplateFormatter,
+            "{hello}",
+            id="f-string-missing-template-variables",
+        ),
+    ),
+)
+def test_template_formatters_raise_expected_error_on_missing_variables(
+    formatter_cls: Type[TemplateFormatter], template: str
+) -> None:
+    formatter = formatter_cls()
+    with pytest.raises(ValueError, match="Missing template variables"):
+        formatter.format(template)

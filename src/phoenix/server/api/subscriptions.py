@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 from dataclasses import fields
 from datetime import datetime
+from enum import Enum
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -10,6 +11,7 @@ from typing import (
     AsyncIterator,
     DefaultDict,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -46,6 +48,11 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.utilities.json import jsonify
+from phoenix.utilities.template_formatters import (
+    FStringTemplateFormatter,
+    MustacheTemplateFormatter,
+    TemplateFormatter,
+)
 
 if TYPE_CHECKING:
     from openai.types.chat import (
@@ -55,6 +62,18 @@ if TYPE_CHECKING:
 PLAYGROUND_PROJECT_NAME = "playground"
 
 ToolCallIndex: TypeAlias = int
+
+
+@strawberry.enum
+class TemplateLanguage(Enum):
+    MUSTACHE = "MUSTACHE"
+    F_STRING = "F_STRING"
+
+
+@strawberry.input
+class TemplateOptions:
+    variables: JSONScalarType
+    language: TemplateLanguage
 
 
 @strawberry.type
@@ -91,11 +110,12 @@ class ChatCompletionInput:
     model: GenerativeModelInput
     invocation_parameters: InvocationParameters
     tools: Optional[List[JSONScalarType]] = UNSET
+    template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
 
 
 def to_openai_chat_completion_param(
-    message: ChatCompletionMessageInput,
+    role: ChatCompletionMessageRole, content: JSONScalarType
 ) -> "ChatCompletionMessageParam":
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
@@ -103,30 +123,30 @@ def to_openai_chat_completion_param(
         ChatCompletionUserMessageParam,
     )
 
-    if message.role is ChatCompletionMessageRole.USER:
+    if role is ChatCompletionMessageRole.USER:
         return ChatCompletionUserMessageParam(
             {
-                "content": message.content,
+                "content": content,
                 "role": "user",
             }
         )
-    if message.role is ChatCompletionMessageRole.SYSTEM:
+    if role is ChatCompletionMessageRole.SYSTEM:
         return ChatCompletionSystemMessageParam(
             {
-                "content": message.content,
+                "content": content,
                 "role": "system",
             }
         )
-    if message.role is ChatCompletionMessageRole.AI:
+    if role is ChatCompletionMessageRole.AI:
         return ChatCompletionAssistantMessageParam(
             {
-                "content": message.content,
+                "content": content,
                 "role": "assistant",
             }
         )
-    if message.role is ChatCompletionMessageRole.TOOL:
+    if role is ChatCompletionMessageRole.TOOL:
         raise NotImplementedError
-    assert_never(message.role)
+    assert_never(role)
 
 
 @strawberry.type
@@ -139,6 +159,13 @@ class Subscription:
 
         client = AsyncOpenAI(api_key=input.api_key)
         invocation_parameters = jsonify(input.invocation_parameters)
+
+        messages: List[Tuple[ChatCompletionMessageRole, str]] = [
+            (message.role, message.content) for message in input.messages
+        ]
+        if template_options := input.template:
+            messages = list(_formatted_messages(messages, template_options))
+        openai_messages = [to_openai_chat_completion_param(*message) for message in messages]
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -154,7 +181,7 @@ class Subscription:
                     _llm_span_kind(),
                     _llm_model_name(input.model.name),
                     _llm_tools(input.tools or []),
-                    _llm_input_messages(input.messages),
+                    _llm_input_messages(messages),
                     _llm_invocation_parameters(invocation_parameters),
                     _input_value_and_mime_type(input),
                 )
@@ -165,7 +192,7 @@ class Subscription:
             tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
             role: Optional[str] = None
             async for chunk in await client.chat.completions.create(
-                messages=(to_openai_chat_completion_param(message) for message in input.messages),
+                messages=openai_messages,
                 model=input.model.name,
                 stream=True,
                 tools=input.tools or NOT_GIVEN,
@@ -291,10 +318,12 @@ def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
     yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
 
 
-def _llm_input_messages(messages: List[ChatCompletionMessageInput]) -> Iterator[Tuple[str, Any]]:
-    for i, message in enumerate(messages):
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", message.role.value.lower()
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", message.content
+def _llm_input_messages(
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str]],
+) -> Iterator[Tuple[str, Any]]:
+    for i, (role, content) in enumerate(messages):
+        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
+        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
 
 
 def _llm_output_messages(
@@ -330,6 +359,33 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     """
     epoch_seconds = epoch_nanoseconds / 1e9
     return datetime.fromtimestamp(epoch_seconds)
+
+
+def _formatted_messages(
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
+) -> Iterator[Tuple[ChatCompletionMessageRole, str]]:
+    """
+    Formats the messages using the given template options.
+    """
+    template_formatter = _template_formatter(template_language=template_options.language)
+    roles, templates = zip(*messages)
+    formatted_templates = map(
+        lambda template: template_formatter.format(template, **template_options.variables),
+        templates,
+    )
+    formatted_messages = zip(roles, formatted_templates)
+    return formatted_messages
+
+
+def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+    """
+    Instantiates the appropriate template formatter for the template language.
+    """
+    if template_language is TemplateLanguage.MUSTACHE:
+        return MustacheTemplateFormatter()
+    if template_language is TemplateLanguage.F_STRING:
+        return FStringTemplateFormatter()
+    assert_never(template_language)
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
