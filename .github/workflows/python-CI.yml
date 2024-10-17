@@ -2,7 +2,7 @@ name: Python CI
 
 on:
   push:
-    branches: [ main, playground ]
+    branches: [main, sessions]
   pull_request:
     paths:
       - "src/**"
@@ -85,8 +85,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
-        py: [ 3.8, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.8, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,8 +109,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: [ 3.8, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.8, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -126,36 +126,36 @@ jobs:
       - run: uv tool install tox --with tox-uv
       - run: tox run -e phoenix_otel -- -ra -x
 
-#  clean-jupyter-notebooks:
-#    name: Clean Jupyter Notebooks
-#    needs: changes
-#    if: ${{ needs.changes.outputs.ipynb == 'true' }}
-#    strategy:
-#      matrix:
-#        py: [ 3.12 ]
-#        os: [ ubuntu-latest ]
-#    runs-on: ${{ matrix.os }}
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#      - name: Set up Python ${{ matrix.py }}
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.py }}
-#      - name: Set up `uv`
-#        uses: astral-sh/setup-uv@v3
-#        with:
-#          version: 0.4.22
-#          enable-cache: true
-#          cache-dependency-glob: |
-#            pyproject.toml
-#            requirements/clean-jupyter-notebooks.txt
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#      - name: Set up `tox` with `tox-uv`
-#        run: uv tool install tox --with tox-uv
-#      - name: Clean Jupyter notebooks
-#        run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
-#      - run: git diff --exit-code
+  #  clean-jupyter-notebooks:
+  #    name: Clean Jupyter Notebooks
+  #    needs: changes
+  #    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+  #    strategy:
+  #      matrix:
+  #        py: [ 3.12 ]
+  #        os: [ ubuntu-latest ]
+  #    runs-on: ${{ matrix.os }}
+  #    steps:
+  #      - name: Checkout repository
+  #        uses: actions/checkout@v4
+  #      - name: Set up Python ${{ matrix.py }}
+  #        uses: actions/setup-python@v5
+  #        with:
+  #          python-version: ${{ matrix.py }}
+  #      - name: Set up `uv`
+  #        uses: astral-sh/setup-uv@v3
+  #        with:
+  #          version: 0.4.22
+  #          enable-cache: true
+  #          cache-dependency-glob: |
+  #            pyproject.toml
+  #            requirements/clean-jupyter-notebooks.txt
+  #          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #      - name: Set up `tox` with `tox-uv`
+  #        run: uv tool install tox --with tox-uv
+  #      - name: Clean Jupyter notebooks
+  #        run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+  #      - run: git diff --exit-code
 
   build-graphql-schema:
     name: Build GraphQL Schema
@@ -163,8 +163,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.12 ]
-        os: [ ubuntu-latest ]
+        py: [3.12]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -194,8 +194,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.12 ]
-        os: [ ubuntu-latest ]
+        py: [3.12]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -225,8 +225,8 @@ jobs:
     strategy:
       matrix:
         # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
-        py: [ 3.11 ]
-        os: [ ubuntu-latest ]
+        py: [3.11]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -257,8 +257,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        py: [ 3.12 ]
-        os: [ ubuntu-latest ]
+        py: [3.12]
+        os: [ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -288,8 +288,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest ]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -323,8 +323,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -367,8 +367,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest ]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -404,9 +404,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [ 3.9, 3.12 ]
-        db: [ sqlite, postgresql ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.9, 3.12]
+        db: [sqlite, postgresql]
+        os: [ubuntu-latest, windows-latest, macos-13]
         exclude:
           - db: postgresql
             os: windows-latest
