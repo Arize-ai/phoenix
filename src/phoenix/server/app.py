@@ -53,7 +53,6 @@ from strawberry.schema import BaseSchema
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
-import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
@@ -137,6 +136,7 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -219,7 +219,7 @@ class Static(StaticFiles):
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
                     "basename": self._sanitize_basename(request.scope.get("root_path", "")),
-                    "platform_version": phoenix.__version__,
+                    "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
@@ -257,7 +257,7 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
@@ -270,7 +270,7 @@ ProjectRowId: TypeAlias = int
 
 @router.get("/arize_phoenix_version")
 async def version() -> PlainTextResponse:
-    return PlainTextResponse(f"{phoenix.__version__}")
+    return PlainTextResponse(f"{phoenix_version}")
 
 
 DB_MUTEX: Optional[asyncio.Lock] = None

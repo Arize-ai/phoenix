@@ -3,7 +3,6 @@ import codecs
 import os
 import sys
 from argparse import SUPPRESS, ArgumentParser
-from importlib.metadata import version
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
@@ -72,6 +71,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.version import __version__ as phoenix_version
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -351,7 +351,7 @@ def main() -> None:
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
-        version=version("arize-phoenix"),
+        version=phoenix_version,
         ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
