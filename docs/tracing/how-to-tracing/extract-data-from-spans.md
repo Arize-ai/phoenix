@@ -8,7 +8,7 @@ description: >-
 
 ## How to Run a Query
 
-You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md). \
+You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md).\
 \
 To simply get DataFrames of spans, you can simply ask for a DataFrame. Each row of the DataFrame with be a span that matches the filter criteria and time range passed in. If you leave the parameters blank, you will get all the spans.
 
@@ -205,7 +205,7 @@ query = SpanQuery().select(
 )
 ```
 
-#### Arbitrary Output Column Names&#x20;
+#### Arbitrary Output Column Names
 
 If arbitrary output names are desired, e.g. names with spaces and symbols, we can leverage Python's double-asterisk idiom for unpacking a dictionary, as shown below.
 
@@ -220,7 +220,7 @@ query = SpanQuery().select(**{
 
 ### Concatenating
 
-The document contents can also be concatenated together. The query below concatenates the list of `document.content` with `\n\n` (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
+The document contents can also be concatenated together. The query below concatenates the list of `document.content` with `\n` (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
 ```python
 query = SpanQuery().concat(
@@ -231,7 +231,7 @@ query = SpanQuery().concat(
 
 #### Special Separators
 
-If a different separator is desired, say `\n************\n`, it can be specified as follows.
+If a different separator is desired, say `\n************`, it can be specified as follows.
 
 ```python
 query = SpanQuery().concat(

@@ -9,9 +9,9 @@ description: How to get started with Phoenix
 Phoenix is designed to be extremely portable and can run as a container or in a notebook.
 
 * [Hosted Phoenix Sandboxes by Arize](../deployment/hosted-phoenix.md)
-* [In a python notebook](../environments.md#notebooks)
-* [From the command line](../environments.md#terminal)
-* [In a Container](../environments.md#container)
+* [In a python notebook](environments.md#notebooks)
+* [From the command line](environments.md#terminal)
+* [In a Container](environments.md#container)
 
 ## How to configure phoenix
 
@@ -20,6 +20,5 @@ Phoenix is designed to be extremely portable and can run as a container or in a 
 
 ## Setup Authentication
 
-* [Setup authentication ](authentication.md)
+* [Setup authentication](authentication.md)
 * Configuring OAuth2 (Google, AWS Cognito)
-

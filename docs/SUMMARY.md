@@ -5,7 +5,7 @@
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Setup](setup/README.md)
-  * [Environments](environments.md)
+  * [Environments](setup/environments.md)
   * [Configuration](setup/configuration.md)
   * [Authentication](setup/authentication.md)
 * [Deployment](deployment/README.md)
@@ -18,7 +18,7 @@
 
 ## 🔭 Tracing
 
-* [Overview: Tracing](concepts/llm-traces.md)
+* [Overview: Tracing](tracing/llm-traces.md)
 * [Quickstart: Tracing](tracing/llm-traces-1.md)
 * [Integrations: Tracing](tracing/integrations-tracing/README.md)
   * [OpenAI](tracing/integrations-tracing/openai.md)
@@ -40,7 +40,7 @@
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
-* [Concepts: Tracing](tracing/concepts-tracing.md)
+* [Concepts: Tracing](tracing/concepts-tracing/README.md)
   * [Traces](tracing/concepts-tracing/what-are-traces.md)
   * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
   * [Annotating Traces](tracing/concepts-tracing/how-to-annotate-traces.md)
@@ -68,14 +68,14 @@
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
   * [Configure Tracing](tracing/how-to-tracing/configure-tracing.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Evaluate RAG](use-cases/rag-evaluation.md)
+  * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 * [FAQs: Tracing](tracing/faqs-tracing.md)
 
 ## 🧠 Evaluation
 
-* [Overview: Evals](llm-evals/llm-evals.md)
-* [Quickstart: Evals](quickstart/evals.md)
+* [Overview: Evals](evaluation/llm-evals.md)
+* [Quickstart: Evals](evaluation/evals.md)
 * [Concepts: Evals](evaluation/concepts-evals/README.md)
   * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
   * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
@@ -127,15 +127,15 @@
 
 ## 🌌 inferences
 
-* [Quickstart: Inferences](quickstart/phoenix-inferences/README.md)
+* [Quickstart: Inferences](inferences/phoenix-inferences.md)
 * [How-to: Inferences](inferences/how-to-inferences/README.md)
-  * [Import Your Data](how-to/define-your-schema/README.md)
+  * [Import Your Data](inferences/how-to-inferences/define-your-schema/README.md)
     * [Prompt and Response (LLM)](inferences/how-to-inferences/define-your-schema/prompt-and-response-llm.md)
-    * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
+    * [Retrieval (RAG)](inferences/how-to-inferences/define-your-schema/retrieval-rag.md)
     * [Corpus Data](inferences/how-to-inferences/define-your-schema/corpus-data.md)
-  * [Export Data](how-to/export-your-data.md)
+  * [Export Data](inferences/how-to-inferences/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
-  * [Manage the App](how-to/manage-the-app.md)
+  * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
   * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
 * [Concepts: Inferences](inferences/inferences.md)
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
@@ -152,7 +152,7 @@
 ## 🔌 INTEGRATIONS
 
 * [Arize](integrations/arize/README.md)
-  * [Export Data from Arize to Phoenix](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+  * [Export Data from Arize to Phoenix](integrations/arize/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference

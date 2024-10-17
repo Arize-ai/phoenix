@@ -3,8 +3,8 @@
 This section introduces _inferences_ and _schemas,_ the starting concepts needed to use Phoenix with inferences.
 
 {% hint style="info" %}
-* For comprehensive descriptions of `phoenix.Inferences` and `phoenix.Schema`, see the [API reference](broken-reference).
-* For tips on creating your own Phoenix inferences and schemas, see the [how-to guide](../how-to/define-your-schema/).
+* For comprehensive descriptions of `phoenix.Inferences` and `phoenix.Schema`, see the [API reference](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/broken-reference/README.md).
+* For tips on creating your own Phoenix inferences and schemas, see the [how-to guide](how-to-inferences/define-your-schema/).
 {% endhint %}
 
 ## Inferences
@@ -12,7 +12,7 @@ This section introduces _inferences_ and _schemas,_ the starting concepts needed
 _Phoenix inferences_ are an instance of `phoenix.Inferences` that contains three pieces of information:
 
 * The data itself (a pandas dataframe)
-* A [schema](broken-reference) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema/) of your dataframe
+* A [schema](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/broken-reference/README.md) (a `phoenix.Schema` instance) that describes the [columns](how-to-inferences/define-your-schema/) of your dataframe
 * A name that appears in the UI
 
 For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define inferences `prod_ds` with
@@ -45,7 +45,7 @@ The only difference for the [corpus](how-to-inferences/define-your-schema/corpus
 
 ## Schemas
 
-A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the [columns](../how-to/define-your-schema/) of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
+A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the [columns](how-to-inferences/define-your-schema/) of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
 
 For example, if you have a dataframe containing Fisher's Iris data that looks like this:
 
@@ -85,7 +85,7 @@ Each inference set needs a schema. If your primary and reference inferences have
 Sometimes, you'll encounter scenarios where the formats of your primary and reference inference sets differ. For example, you'll need two schemas if:
 
 * Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
-* Your training data has [ground truth](../how-to/define-your-schema/#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
+* Your training data has [ground truth](how-to-inferences/define-your-schema/#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
 In cases like these, you'll need to define two schemas, one for each inference set. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define inference sets `train_ds` and `prod_ds` with
