@@ -78,6 +78,7 @@ def llm_classify(
     exit_on_error: bool = True,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
+    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -135,6 +136,11 @@ def llm_classify(
             submission is possible. If not provided, a recommended default concurrency is
             set on a per-model basis.
 
+        progress_bar_format(Optional[str]): An optional format for progress bar shown. If not
+            specified, defaults to: llm_classify |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+            "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}". If 'None' is passed in specifically,
+            the progress_bar log will be disabled.
+
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
             the classification labels. If provide_explanation=True, then an additional column named
@@ -150,7 +156,6 @@ def llm_classify(
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
 
-    tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -230,7 +235,7 @@ def llm_classify(
         _run_llm_classification_async,
         run_sync=run_sync,
         concurrency=concurrency,
-        tqdm_bar_format=tqdm_bar_format,
+        tqdm_bar_format=progress_bar_format,
         max_retries=max_retries,
         exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,
