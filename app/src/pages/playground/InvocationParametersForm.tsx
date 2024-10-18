@@ -1,76 +1,20 @@
 import React from "react";
-import { z } from "zod";
 
 import { Flex, Slider, TextField } from "@arizeai/components";
 
 import { ModelConfig } from "@phoenix/store";
-import { schemaForType } from "@phoenix/typeUtils";
+import { Mutable } from "@phoenix/typeUtils";
 
-import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
-
-/**
- * Model invocation parameters schema in zod.
- *
- * Includes all keys besides toolChoice
- */
-const invocationParameterSchema = schemaForType<InvocationParameters>()(
-  z.object({
-    temperature: z.number().optional(),
-    topP: z.number().optional(),
-    maxTokens: z.number().optional(),
-    stop: z.array(z.string()).optional(),
-    seed: z.number().optional(),
-    maxCompletionTokens: z.number().optional(),
-  })
-);
-
-type InvocationParametersSchema = z.infer<typeof invocationParameterSchema>;
-
-/**
- * Default set of invocation parameters for all providers and models.
- */
-const baseInvocationParameterSchema = invocationParameterSchema.omit({
-  maxCompletionTokens: true,
-});
-
-type BaseInvocationParameters = z.infer<typeof baseInvocationParameterSchema>;
-
-/**
- * Invocation parameters for O1 models.
- */
-const o1BaseInvocationParameterSchema = baseInvocationParameterSchema
-  .extend({
-    maxCompletionTokens: z.number().optional(),
-  })
-  .omit({ maxTokens: true });
-
-/**
- * Provider schemas for all models and optionally for a specific model.
- */
-const providerSchemas = {
-  OPENAI: {
-    default: baseInvocationParameterSchema,
-    "o1-preview": o1BaseInvocationParameterSchema,
-    "o1-preview-2024-09-12": o1BaseInvocationParameterSchema,
-    "o1-mini": o1BaseInvocationParameterSchema,
-    "o1-mini-2024-09-12": o1BaseInvocationParameterSchema,
-  },
-  AZURE_OPENAI: {
-    default: baseInvocationParameterSchema,
-  },
-  ANTHROPIC: {
-    default: baseInvocationParameterSchema,
-  },
-} satisfies Record<
-  ModelProvider,
-  Record<string, z.ZodType<BaseInvocationParameters>>
->;
+import { getInvocationParametersSchema } from "./playgroundUtils";
+import { InvocationParametersSchema } from "./schemas";
 
 /**
  * Form field for a single invocation parameter.
  *
  * TODO(apowell): Should this be generic over the schema field data type? There
  * probably aren't enough fields for that to be worthwhile at the moment.
+ * TODO(apowell): Read disabled state and default values from schema and apply them
+ * to the input.
  */
 const FormField = ({
   field,
@@ -167,25 +111,19 @@ export const InvocationParametersForm = ({
 }: InvocationParametersFormProps) => {
   const { invocationParameters, provider, modelName } = model;
   // Get the schema for the incoming provider and model combination.
-  const schema =
-    providerSchemas?.[provider]?.[
-      (modelName || "default") as keyof (typeof providerSchemas)[ModelProvider]
-    ] ?? providerSchemas[provider].default;
+  const schema = getInvocationParametersSchema({
+    modelProvider: provider,
+    modelName: modelName || "default",
+  });
 
-  // TODO(apowell): Should we instead fail open here and display all inputs?
-  const valid = schema.safeParse(invocationParameters);
-  if (!valid.success) {
-    return null;
-  }
-  // Generate form fields for all invocation parameters, constrained by the schema.
-  const parameters = valid.data;
   const fieldsForSchema = Object.keys(schema.shape).map((field) => {
-    const fieldKey = field as keyof typeof parameters;
+    const fieldKey = field as keyof (typeof schema)["shape"];
+    const value = invocationParameters[fieldKey];
     return (
       <FormField
         key={fieldKey}
         field={fieldKey}
-        value={parameters[fieldKey]}
+        value={value === null ? undefined : (value as Mutable<typeof value>)}
         onChange={(value) => onChange(fieldKey, value)}
       />
     );
