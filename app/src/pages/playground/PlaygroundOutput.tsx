@@ -269,7 +269,9 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         }
       : {};
 
-  const invocationParameters: InvocationParameters = {};
+  const invocationParameters: InvocationParameters = {
+    ...instance.model.invocationParameters,
+  };
   if (instance.tools.length) {
     invocationParameters["toolChoice"] = instance.toolChoice;
   }
