@@ -21,7 +21,10 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import { isChatMessages } from "./playgroundUtils";
+import {
+  getInvocationParametersSchema,
+  isChatMessages,
+} from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
@@ -269,9 +272,26 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         }
       : {};
 
-  const invocationParameters: InvocationParameters = {
+  const invocationParametersSchema = getInvocationParametersSchema({
+    modelProvider: instance.model.provider,
+    modelName: instance.model.modelName || "default",
+  });
+
+  // Constrain the invocation parameters to the schema.
+  // This prevents us from sending invalid parameters to the LLM.
+  let invocationParameters: InvocationParameters = {
     ...instance.model.invocationParameters,
   };
+
+  const valid = invocationParametersSchema.safeParse(invocationParameters);
+  if (!valid.success) {
+    // TODO(apowell): We should fail open here and display all inputs.
+    // eslint-disable-next-line no-console
+    console.error(valid.error);
+    // Fall back to the model's invocation parameters.
+    invocationParameters = instance.model.invocationParameters;
+  }
+
   if (instance.tools.length) {
     invocationParameters["toolChoice"] = instance.toolChoice;
   }
@@ -341,7 +361,10 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     onCompleted: () => {
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
     },
-    onFailed: () => {
+    onFailed: (error) => {
+      // TODO(apowell): We should display this error to the user after formatting it nicely.
+      // eslint-disable-next-line no-console
+      console.error(error);
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
       updateInstance({
         instanceId: props.playgroundInstanceId,

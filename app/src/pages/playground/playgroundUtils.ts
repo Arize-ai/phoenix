@@ -30,6 +30,7 @@ import {
   MessageSchema,
   modelConfigSchema,
   outputSchema,
+  providerSchemas,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -289,4 +290,32 @@ export const extractVariablesFromInstances = ({
   });
 
   return Array.from(variables);
+};
+
+/**
+ * Gets the invocation parameters schema for a given model provider and model name.
+ *
+ * Falls back to the default schema for provider if the model name is not found.
+ *
+ * Falls back to the default schema for all providers if provider is not found.
+ */
+export const getInvocationParametersSchema = ({
+  modelProvider,
+  modelName,
+}: {
+  modelProvider: ModelProvider;
+  modelName: string;
+}) => {
+  const providerSupported = modelProvider in providerSchemas;
+  if (!providerSupported) {
+    return providerSchemas[DEFAULT_MODEL_PROVIDER].default;
+  }
+
+  const byProvider = providerSchemas[modelProvider];
+  const modelSupported = modelName in byProvider;
+  if (!modelSupported) {
+    return byProvider.default;
+  }
+
+  return byProvider[modelName as keyof typeof byProvider];
 };
