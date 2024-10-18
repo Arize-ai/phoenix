@@ -14,6 +14,7 @@ import {
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
@@ -26,10 +27,12 @@ import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
+import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
 export function Playground(props: InitialPlaygroundState) {
+  const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
   return (
     <PlaygroundProvider {...props}>
       <Flex direction="column" height="100%">
@@ -46,6 +49,7 @@ export function Playground(props: InitialPlaygroundState) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
+              {showStreamToggle ? <PlaygroundStreamToggle /> : null}
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>
@@ -121,6 +125,9 @@ const playgroundInputOutputPanelContentCSS = css`
 `;
 
 function PlaygroundContent() {
+  const playgroundWithDatasetsEnabled = useFeatureFlag(
+    "playgroundWithDatasets"
+  );
   const instances = usePlaygroundContext((state) => state.instances);
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
@@ -168,7 +175,11 @@ function PlaygroundContent() {
             <AccordionItem
               title="Inputs"
               id="input"
-              extra={<PlaygroundInputTypeTypeRadioGroup />}
+              extra={
+                playgroundWithDatasetsEnabled ? (
+                  <PlaygroundInputTypeTypeRadioGroup />
+                ) : null
+              }
             >
               <View padding="size-200">
                 <PlaygroundInput />
