@@ -1,4 +1,5 @@
 -r ci.txt
+anthropic
 grpcio
 litellm>=1.0.3
 openai>=1.0.0

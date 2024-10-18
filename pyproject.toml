@@ -123,6 +123,7 @@ pg = [
   "psycopg[binary,pool]",
 ]
 container = [
+  "anthropic",
   "prometheus-client",
   "openai>=1.0.0",
   "opentelemetry-sdk",
