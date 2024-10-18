@@ -266,6 +266,13 @@ vision_fixture = TracesFixture(
     file_name="vision_fixture_trace_datasets.parquet",
 )
 
+anthropic_tools_fixture = TracesFixture(
+    name="anthropic_tools",
+    project_name="anthropic_tools",
+    description="Anthropic tools traces",
+    file_name="anthropic_tools.parquet",
+)
+
 random_fixture = TracesFixture(
     name="random",
     project_name="demo_random",
@@ -288,6 +295,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
     langchain_qa_with_sources_fixture,
     llama_index_calculator_agent_fixture,
     vision_fixture,
+    anthropic_tools_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
