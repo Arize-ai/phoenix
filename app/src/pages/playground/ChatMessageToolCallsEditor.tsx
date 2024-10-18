@@ -15,7 +15,7 @@ import { PlaygroundInstanceProps } from "./types";
 /**
  * Editor for message tool calls
  */
-export function PlaygroundToolCallsEditor({
+export function ChatMessageToolCallsEditor({
   playgroundInstanceId,
   toolCalls,
   templateMessages,
