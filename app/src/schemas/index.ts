@@ -1,1 +1,1 @@
-export * from "./toolSchema";
+export * from "./toolSchemas";
