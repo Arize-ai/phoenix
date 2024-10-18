@@ -40,8 +40,8 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
+import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import { MessageRolePicker } from "./MessageRolePicker";
-import { PlaygroundToolCallsEditor } from "./PlaygroundToolCallsEditor";
 import { PlaygroundTools } from "./PlaygroundTools";
 import { ToolToggleButton } from "./ToolToggleButton";
 import { PlaygroundInstanceProps } from "./types";
@@ -339,7 +339,7 @@ function SortableMessageItem({
             <View padding="size-100">
               <Field label={"Tool Calls"}>
                 <CodeWrap width={"100%"}>
-                  <PlaygroundToolCallsEditor
+                  <ChatMessageToolCallsEditor
                     playgroundInstanceId={playgroundInstanceId}
                     toolCalls={message.toolCalls}
                     templateMessages={template.messages}

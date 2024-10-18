@@ -18,24 +18,22 @@ export function ToolToggleButton({
   onClick: () => void;
 }) {
   return (
-    <div>
-      <TooltipTrigger delay={0} offset={5}>
-        <Button
-          icon={
-            hasTools ? (
-              <Icon svg={<Icons.MinusOutline />} />
-            ) : (
-              <Icon svg={<ToolOutline />} />
-            )
-          }
-          aria-label={hasTools ? "Remove tool calls" : "Add tool calls"}
-          title={hasTools ? "Remove tool calls" : "Add tool calls"}
-          size="compact"
-          variant="default"
-          onClick={onClick}
-        />
-        <Tooltip>{hasTools ? "Remove tool calls" : "Add tool calls"}</Tooltip>
-      </TooltipTrigger>
-    </div>
+    <TooltipTrigger delay={0} offset={5}>
+      <Button
+        icon={
+          hasTools ? (
+            <Icon svg={<Icons.MinusOutline />} />
+          ) : (
+            <Icon svg={<ToolOutline />} />
+          )
+        }
+        aria-label={hasTools ? "Remove tool calls" : "Add tool calls"}
+        title={hasTools ? "Remove tool calls" : "Add tool calls"}
+        size="compact"
+        variant="default"
+        onClick={onClick}
+      />
+      <Tooltip>{hasTools ? "Remove tool calls" : "Add tool calls"}</Tooltip>
+    </TooltipTrigger>
   );
 }
