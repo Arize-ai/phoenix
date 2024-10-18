@@ -172,6 +172,11 @@ export interface PlaygroundProps {
    * @default "mustache"
    */
   templateLanguage: TemplateLanguage;
+  /**
+   * Whether or not to use streaming or not
+   * @default true
+   */
+  streaming: boolean;
 }
 
 export type InitialPlaygroundState = Partial<PlaygroundProps>;
@@ -233,6 +238,10 @@ export interface PlaygroundState extends PlaygroundProps {
    * Set the value of a variable in the input
    */
   setVariableValue: (key: string, value: string) => void;
+  /**
+   * set the streaming mode for the playground
+   */
+  setStreaming: (streaming: boolean) => void;
 }
 
 /**

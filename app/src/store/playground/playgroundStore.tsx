@@ -130,6 +130,7 @@ export const createPlaygroundStore = (
   initialProps?: InitialPlaygroundState
 ) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
+    streaming: true,
     operationType: "chat",
     inputMode: "manual",
     input: {
@@ -300,6 +301,9 @@ export const createPlaygroundStore = (
           },
         });
       }
+    },
+    setStreaming: (streaming: boolean) => {
+      set({ streaming });
     },
     ...initialProps,
   });
