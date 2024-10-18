@@ -1,7 +1,7 @@
 import os
 from contextlib import ExitStack
-from dataclasses import asdict
 from itertools import count, starmap
+from secrets import token_hex
 from typing import Generator, Iterator, List, Optional, Tuple, cast
 from unittest import mock
 
@@ -11,7 +11,6 @@ from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 from phoenix.config import (
     ENV_PHOENIX_GRPC_PORT,
     ENV_PHOENIX_PORT,
@@ -113,30 +112,40 @@ def _env_phoenix_sql_database_url(
     _fake: Faker,
 ) -> Iterator[None]:
     values = [(ENV_PHOENIX_SQL_DATABASE_URL, _sql_database_url.render_as_string())]
+    with mock.patch.dict(os.environ, values):
+        yield
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _env_postgresql_schema(
+    _sql_database_url: URL,
+) -> Iterator[None]:
+    if not _sql_database_url.get_backend_name().startswith("postgresql"):
+        yield
+        return
     with ExitStack() as stack:
-        if _sql_database_url.get_backend_name().startswith("postgresql"):
-            schema = stack.enter_context(_random_schema(_sql_database_url))
-            values.append((ENV_PHOENIX_SQL_DATABASE_SCHEMA, schema))
+        schema = stack.enter_context(_random_schema(_sql_database_url))
+        values = [(ENV_PHOENIX_SQL_DATABASE_SCHEMA, schema)]
         stack.enter_context(mock.patch.dict(os.environ, values))
         yield
 
 
-@pytest.fixture(scope="module")
-def _emails(_fake: Faker) -> Iterator[_Email]:
-    return (_fake.unique.email() for _ in count())
+@pytest.fixture
+def _emails() -> Iterator[_Email]:
+    return (f"{token_hex(32)}@{token_hex(32)}.com" for _ in count())
 
 
-@pytest.fixture(scope="module")
-def _passwords(_fake: Faker) -> Iterator[_Password]:
-    return (_fake.unique.password(**asdict(REQUIREMENTS_FOR_PHOENIX_SECRET)) for _ in count())
+@pytest.fixture
+def _passwords() -> Iterator[_Password]:
+    return (token_hex(32) for _ in count())
 
 
-@pytest.fixture(scope="module")
-def _usernames(_fake: Faker) -> Iterator[_Username]:
-    return (_fake.unique.pystr() for _ in count())
+@pytest.fixture
+def _usernames() -> Iterator[_Username]:
+    return (token_hex(32) for _ in count())
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def _profiles(
     _emails: Iterator[_Email],
     _passwords: Iterator[_Password],
@@ -145,7 +154,7 @@ def _profiles(
     return starmap(_Profile, zip(_emails, _passwords, _usernames))
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def _users(
     _profiles: Iterator[_Profile],
 ) -> _UserGenerator:
@@ -160,7 +169,7 @@ def _users(
     return cast(_UserGenerator, g)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def _new_user(
     _users: _UserGenerator,
 ) -> _UserFactory:
@@ -175,7 +184,7 @@ def _new_user(
     return _
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def _get_user(
     _new_user: _UserFactory,
 ) -> _GetUser:
