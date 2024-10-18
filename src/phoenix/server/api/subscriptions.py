@@ -179,7 +179,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
         # Convert standard messages to OpenAI messages
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
-
+        tool_call_ids: Dict[int, str] = {}
         async for chunk in await self.client.chat.completions.create(
             messages=openai_messages,
             model=self.model_name,
@@ -189,17 +189,21 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         ):
             choice = chunk.choices[0]
             delta = choice.delta
-
             if choice.finish_reason is None:
                 if isinstance(chunk_content := delta.content, str):
                     text_chunk = TextChunk(content=chunk_content)
                     yield text_chunk
-
                 if (tool_calls := delta.tool_calls) is not None:
-                    for tool_call in tool_calls:
+                    for tool_call_index, tool_call in enumerate(tool_calls):
+                        tool_call_id = (
+                            tool_call.id
+                            if tool_call.id is not None
+                            else tool_call_ids[tool_call_index]
+                        )
+                        tool_call_ids[tool_call_index] = tool_call_id
                         if (function := tool_call.function) is not None:
                             tool_call_chunk = ToolCallChunk(
-                                id=tool_call.id or "",
+                                id=tool_call_id,
                                 function=FunctionCallChunk(
                                     name=function.name or "",
                                     arguments=function.arguments or "",
