@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.3.1...arize-phoenix-v5.4.0) (2024-10-18)
+
+
+### Features
+
+* add support for secure wss connection ([#5110](https://github.com/Arize-ai/phoenix/issues/5110)) ([9bf0740](https://github.com/Arize-ai/phoenix/commit/9bf0740bf891544bf68c5ce6d8514ccc70e56acc))
+* **playground:** return finalized span at end of subscription ([#5089](https://github.com/Arize-ai/phoenix/issues/5089)) ([6ca4288](https://github.com/Arize-ai/phoenix/commit/6ca428886ee14f6866aeee2b64bfa243a7bbf93f))
+* **playground:** show span details when playground run ends ([#5108](https://github.com/Arize-ai/phoenix/issues/5108)) ([acce9d9](https://github.com/Arize-ai/phoenix/commit/acce9d94cff415e3fe8b5b85fa1e40d7492130d3))
+
+
+### Bug Fixes
+
+* Derive playground values instead of storing them in state ([#5067](https://github.com/Arize-ai/phoenix/issues/5067)) ([d935d4b](https://github.com/Arize-ai/phoenix/commit/d935d4bf7063eb9a8ee614431538fbcd753540ba))
+* **playground:** optional type in playground tool calls ([#5080](https://github.com/Arize-ai/phoenix/issues/5080)) ([925b496](https://github.com/Arize-ai/phoenix/commit/925b496349ca2167c7a37c980c8981712c3c608a))
+
+
+### Documentation
+
+* anthropic tools tracing tutorial and fixture ([#5094](https://github.com/Arize-ai/phoenix/issues/5094)) ([51b0201](https://github.com/Arize-ai/phoenix/commit/51b02010fafc51fb5c6aaa2a87abd9b767140303))
+
 ## [5.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.3.0...arize-phoenix-v5.3.1) (2024-10-17)
 
 
