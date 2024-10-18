@@ -2,13 +2,11 @@ import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
-import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   GenAIOperationType,
@@ -100,7 +98,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     // TODO(apowell) - use datasetId if in dataset mode
-    input: { variablesValueCache: {}, variableKeys: [] },
+    input: { variablesValueCache: {} },
     output: undefined,
     activeRunId: null,
     isRunning: false,
@@ -135,13 +133,10 @@ export const createPlaygroundStore = (
     operationType: "chat",
     inputMode: "manual",
     input: {
-      // to get a record of visible variables and their values,
-      // use usePlaygroundContext(selectDerivedInputVariables). do not render variablesValueCache
-      // directly or users will see stale values.
-      variablesValueCache: {
-        question: "",
-      },
-      variableKeys: ["question"],
+      // variablesValueCache is used to store the values of variables for the
+      // manual input mode. It is indexed by the variable key. It keeps old
+      // values when variables are removed so that they can be restored.
+      variablesValueCache: {},
     },
     templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
@@ -252,7 +247,6 @@ export const createPlaygroundStore = (
           return instance;
         }),
       });
-      get().calculateVariables();
     },
     runPlaygroundInstances: () => {
       const instances = get().instances;
@@ -295,49 +289,6 @@ export const createPlaygroundStore = (
     },
     setTemplateLanguage: (templateLanguage: TemplateLanguage) => {
       set({ templateLanguage });
-      // Re-compute variables when the template language changes
-      get().calculateVariables();
-    },
-    calculateVariables: () => {
-      const instances = get().instances;
-      const variables = new Set<string>();
-      const utils = getTemplateLanguageUtils(get().templateLanguage);
-      instances.forEach((instance) => {
-        const instanceType = instance.template.__type;
-        // this double nested loop should be okay since we don't expect more than 4 instances
-        // and a handful of messages per instance
-        switch (instanceType) {
-          case "chat": {
-            // for each chat message in the instance
-            instance.template.messages.forEach((message) => {
-              // extract variables from the message content
-              const extractedVariables =
-                message.content == null
-                  ? []
-                  : utils.extractVariables(message.content);
-              extractedVariables.forEach((variable) => {
-                variables.add(variable);
-              });
-            });
-            break;
-          }
-          case "text_completion": {
-            const extractedVariables = utils.extractVariables(
-              instance.template.prompt
-            );
-            extractedVariables.forEach((variable) => {
-              variables.add(variable);
-            });
-            break;
-          }
-          default: {
-            assertUnreachable(instanceType);
-          }
-        }
-      });
-      set({
-        input: { ...get().input, variableKeys: [...Array.from(variables)] },
-      });
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
@@ -356,34 +307,3 @@ export const createPlaygroundStore = (
 };
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;
-
-/**
- * Selects the variable keys from the playground state
- * @param state the playground state
- * @returns the variable keys
- */
-export const selectInputVariableKeys = (state: PlaygroundState) => {
-  if (isManualInput(state.input)) {
-    return state.input.variableKeys;
-  }
-  return [];
-};
-
-/**
- * Selects the derived input variables from the playground state
- * @param state the playground state
- * @returns the derived input variables
- */
-export const selectDerivedInputVariables = (state: PlaygroundState) => {
-  if (isManualInput(state.input)) {
-    const input = state.input;
-    const variableKeys = input.variableKeys;
-    const variablesValueCache = input.variablesValueCache;
-    const valueMap: Record<string, string> = {};
-    variableKeys.forEach((key) => {
-      valueMap[key] = variablesValueCache?.[key] || "";
-    });
-    return valueMap;
-  }
-  return {};
-};

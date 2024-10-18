@@ -1,3 +1,5 @@
+import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
@@ -8,6 +10,7 @@ import {
   createPlaygroundInstance,
   generateMessageId,
 } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
@@ -239,4 +242,50 @@ export const isChatMessages = (
   messages: unknown
 ): messages is ChatMessage[] => {
   return chatMessagesSchema.safeParse(messages).success;
+};
+
+export const extractVariablesFromInstances = ({
+  instances,
+  templateLanguage,
+}: {
+  instances: PlaygroundInstance[];
+  templateLanguage: TemplateLanguage;
+}) => {
+  const variables = new Set<string>();
+  const utils = getTemplateLanguageUtils(templateLanguage);
+  instances.forEach((instance) => {
+    const instanceType = instance.template.__type;
+    // this double nested loop should be okay since we don't expect more than 4 instances
+    // and a handful of messages per instance
+    switch (instanceType) {
+      case "chat": {
+        // for each chat message in the instance
+        instance.template.messages.forEach((message) => {
+          // extract variables from the message content
+          const extractedVariables =
+            message.content == null
+              ? []
+              : utils.extractVariables(message.content);
+          extractedVariables.forEach((variable) => {
+            variables.add(variable);
+          });
+        });
+        break;
+      }
+      case "text_completion": {
+        const extractedVariables = utils.extractVariables(
+          instance.template.prompt
+        );
+        extractedVariables.forEach((variable) => {
+          variables.add(variable);
+        });
+        break;
+      }
+      default: {
+        assertUnreachable(instanceType);
+      }
+    }
+  });
+
+  return Array.from(variables);
 };
