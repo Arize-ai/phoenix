@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.1...arize-phoenix-evals-v0.17.2) (2024-10-18)
+
+
+### Bug Fixes
+
+* allow progress bar to be disabled ([#5064](https://github.com/Arize-ai/phoenix/issues/5064)) ([07d9856](https://github.com/Arize-ai/phoenix/commit/07d985672de77ed5f90a8195cbac24554c951ac4))
+
 ## [0.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.0...arize-phoenix-evals-v0.17.1) (2024-10-17)
 
 
