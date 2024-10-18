@@ -15,7 +15,7 @@ Stack Used:
 - Clone the repo
 
 ```bash
-git clone https://github.com/arize-ai/phoenix/examples/llamaindex-workflows-research-agent
+git clone https://github.com/Arize-ai/phoenix/tree/llamaindex-workflows-example/examples/llamaindex-workflows-research-agent
 cd Llama-Researcher
 ```
 
