@@ -8,6 +8,7 @@ portpicker
 psutil
 pyjwt
 pytest-randomly
+pytest-rerunfailures
 pytest-smtpd
 types-beautifulsoup4
 types-psutil
