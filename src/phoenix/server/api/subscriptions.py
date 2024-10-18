@@ -1,4 +1,5 @@
 import json
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import fields
 from datetime import datetime
@@ -16,11 +17,9 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Protocol,
     Tuple,
     Type,
     Union,
-    runtime_checkable,
 )
 
 import strawberry
@@ -147,20 +146,23 @@ def register_llm_client(
     return decorator
 
 
-@runtime_checkable
-class PlaygroundStreamingClient(Protocol):
-    def __init__(self, model: GenerativeModelInput, api_key: str) -> None: ...
+class PlaygroundStreamingClient(ABC):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None: ...
 
+    @abstractmethod
     async def chat_completion_create(
         self,
         messages: List[Tuple[ChatCompletionMessageRole, str]],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]: ...
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        # a yield statement is needed to satisfy the type-checker
+        # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
+        yield TextChunk(content="")
 
 
-@register_llm_client(GenerativeProviderKey.OPENAI)  # type: ignore
-class OpenAIStreamingClient:
+@register_llm_client(GenerativeProviderKey.OPENAI)
+class OpenAIStreamingClient(PlaygroundStreamingClient):
     def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
         from openai import AsyncOpenAI
 
@@ -181,6 +183,7 @@ class OpenAIStreamingClient:
         async for chunk in await self.client.chat.completions.create(
             messages=openai_messages,
             model=self.model_name,
+            stream=True,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         ):
@@ -239,7 +242,7 @@ class OpenAIStreamingClient:
         assert_never(role)
 
 
-@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)  # type: ignore
+@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
 class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None):
         from openai import AsyncAzureOpenAI
@@ -253,8 +256,8 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         )
 
 
-@register_llm_client(GenerativeProviderKey.ANTHROPIC)  # type: ignore
-class AnthropicStreamingClient:
+@register_llm_client(GenerativeProviderKey.ANTHROPIC)
+class AnthropicStreamingClient(PlaygroundStreamingClient):
     def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
         import anthropic
 
