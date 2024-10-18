@@ -34,7 +34,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
-from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from strawberry.types import Info
@@ -292,46 +291,34 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            trace_rowid = await session.scalar(
-                insert(models.Trace)
-                .returning(models.Trace.id)
-                .values(
-                    project_rowid=playground_project_id,
-                    trace_id=trace_id,
-                    start_time=start_time,
-                    end_time=end_time,
-                )
+            playground_trace = models.Trace(
+                project_rowid=playground_project_id,
+                trace_id=trace_id,
+                start_time=start_time,
+                end_time=end_time,
             )
-            span_id = await session.scalar(
-                insert(models.Span)
-                .returning(models.Span.id)
-                .values(
-                    trace_rowid=trace_rowid,
-                    span_id=span_id,
-                    parent_id=None,
-                    name=span_name,
-                    span_kind=LLM,
-                    start_time=start_time,
-                    end_time=end_time,
-                    attributes=unflatten(attributes.items()),
-                    events=finished_span.events,
-                    status_code=status.status_code.name,
-                    status_message=status.description or "",
-                    cumulative_error_count=int(not status.is_ok),
-                    cumulative_llm_token_count_prompt=prompt_tokens,
-                    cumulative_llm_token_count_completion=completion_tokens,
-                    llm_token_count_prompt=prompt_tokens,
-                    llm_token_count_completion=completion_tokens,
-                )
+            playground_span = models.Span(
+                trace_rowid=playground_trace.id,
+                span_id=span_id,
+                parent_id=None,
+                name=span_name,
+                span_kind=LLM,
+                start_time=start_time,
+                end_time=end_time,
+                attributes=unflatten(attributes.items()),
+                events=finished_span.events,
+                status_code=status.status_code.name,
+                status_message=status.description or "",
+                cumulative_error_count=int(not status.is_ok),
+                cumulative_llm_token_count_prompt=prompt_tokens,
+                cumulative_llm_token_count_completion=completion_tokens,
+                llm_token_count_prompt=prompt_tokens,
+                llm_token_count_completion=completion_tokens,
+                trace=playground_trace,
             )
-            playground_span = await session.scalar(
-                select(models.Span)
-                .where(models.Span.id == span_id)
-                .options(
-                    joinedload(models.Span.trace, innerjoin=True).load_only(models.Trace.trace_id)
-                )
-            )
-            assert playground_span is not None
+            session.add(playground_trace)
+            session.add(playground_span)
+            await session.flush()
             yield FinishedChatCompletion(span=to_gql_span(playground_span))
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
 
