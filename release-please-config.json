@@ -5,7 +5,21 @@
         ".": {
             "package-name": "arize-phoenix",
             "release-type": "python",
-            "exclude-paths": ["packages"]
+            "exclude-paths": [
+              ".github",
+              ".tours",
+              "api_reference",
+              "docs",
+              "examples",
+              "internal_docs",
+              "js",
+              "kustomize",
+              "packages",
+              "requirements",
+              "scripts",
+              "tests",
+              "tutorials"
+            ]
         },
         "packages/phoenix-evals": {
             "package-name": "arize-phoenix-evals",
