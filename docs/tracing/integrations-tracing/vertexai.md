@@ -103,7 +103,7 @@ For more info on using Phoenix with Docker, see [#docker](vertexai.md#docker "me
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
-If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at[https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
 **Install packages:**
 
