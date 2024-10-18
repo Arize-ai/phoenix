@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-import secrets
 import sys
 from abc import ABC, abstractmethod
 from contextlib import contextmanager, nullcontext
@@ -12,6 +11,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
+from secrets import token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
@@ -423,14 +423,18 @@ def _get_tracer(
 
 def _start_span(
     *,
-    project_name: str,
-    span_name: str,
     exporter: SpanExporter,
+    project_name: Optional[str] = None,
+    span_name: Optional[str] = None,
+    attributes: Optional[Mapping[str, AttributeValue]] = None,
 ) -> Span:
     return _get_tracer(
-        project_name=project_name,
+        project_name=project_name or token_hex(16),
         exporter=exporter,
-    ).start_span(span_name)
+    ).start_span(
+        name=span_name or token_hex(16),
+        attributes=attributes,
+    )
 
 
 class _DefaultAdminTokens(ABC):
@@ -660,7 +664,7 @@ def _random_schema(
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     engine.connect().close()
     engine.dispose()
-    schema = f"_{secrets.token_hex(15)}"
+    schema = f"_{token_hex(15)}"
     yield schema
     time_limit = time() + 30
     while time() < time_limit:
