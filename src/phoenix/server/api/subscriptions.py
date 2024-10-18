@@ -1,5 +1,4 @@
 import json
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import fields
 from datetime import datetime
@@ -17,9 +16,11 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Protocol,
     Tuple,
     Type,
     Union,
+    runtime_checkable,
 )
 
 import strawberry
@@ -59,6 +60,7 @@ from phoenix.utilities.template_formatters import (
 )
 
 if TYPE_CHECKING:
+    from anthropic.types import MessageParam
     from openai.types import CompletionUsage
     from openai.types.chat import (
         ChatCompletionMessageParam,
@@ -145,24 +147,21 @@ def register_llm_client(
     return decorator
 
 
-class PlaygroundStreamingClient(ABC):
-    @abstractmethod
-    def __init__(self, model: GenerativeModelInput, api_key: str) -> None:
-        ...
+@runtime_checkable
+class PlaygroundStreamingClient(Protocol):
+    def __init__(self, model: GenerativeModelInput, api_key: str) -> None: ...
 
-    @abstractmethod
     async def chat_completion_create(
         self,
         messages: List[Tuple[ChatCompletionMessageRole, str]],
-        stream: bool,
         tools: List[JSONScalarType],
-        **invocation_parameters,
+        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]: ...
 
 
-@register_llm_client(GenerativeProviderKey.OPENAI)
-class OpenAIStreamingClient(PlaygroundStreamingClient):
-    def __init__(self, model: GenerativeModelInput, api_key: str) -> None:
+@register_llm_client(GenerativeProviderKey.OPENAI)  # type: ignore
+class OpenAIStreamingClient:
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
         from openai import AsyncOpenAI
 
         self.client = AsyncOpenAI(api_key=api_key)
@@ -171,9 +170,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
     async def chat_completion_create(
         self,
         messages: List[Tuple[ChatCompletionMessageRole, str]],
-        stream: bool,
         tools: List[JSONScalarType],
-        **invocation_parameters,
+        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         from openai import NOT_GIVEN
 
@@ -183,7 +181,6 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         async for chunk in await self.client.chat.completions.create(
             messages=openai_messages,
             model=self.model_name,
-            stream=stream,
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         ):
@@ -242,9 +239,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         assert_never(role)
 
 
-@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
+@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)  # type: ignore
 class AzureOpenAIStreamingClient(OpenAIStreamingClient):
-    def __init__(self, model: GenerativeModelInput, api_key: str):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None):
         from openai import AsyncAzureOpenAI
 
         if model.endpoint is None or model.api_version is None:
@@ -256,9 +253,9 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         )
 
 
-@register_llm_client(GenerativeProviderKey.ANTHROPIC)
-class AnthropicStreamingClient(PlaygroundStreamingClient):
-    def __init__(self, model: GenerativeModelInput, api_key: str) -> None:
+@register_llm_client(GenerativeProviderKey.ANTHROPIC)  # type: ignore
+class AnthropicStreamingClient:
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
         import anthropic
 
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
@@ -267,16 +264,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     async def chat_completion_create(
         self,
         messages: List[Tuple[ChatCompletionMessageRole, str]],
-        stream: bool,
         tools: List[JSONScalarType],
-        **invocation_parameters,
+        **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        messages, system_prompt = self._build_anthropic_messages(messages)
+        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
 
         anthropic_params = {
-            'messages': messages,
-            'model': self.model_name,
-            'system': system_prompt,
+            "messages": anthropic_messages,
+            "model": self.model_name,
+            "system": system_prompt,
+            "max_tokens": 1024,
             **invocation_parameters,
         }
 
@@ -286,20 +283,20 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     def _build_anthropic_messages(
         self, messages: List[Tuple[ChatCompletionMessageRole, str]]
-    ) -> Tuple[List[Dict[str, str]], str]:
-        messages = []
+    ) -> Tuple[List["MessageParam"], str]:
+        anthropic_messages: List["MessageParam"] = []
         system_prompt = ""
         for role, content in messages:
             if role == ChatCompletionMessageRole.USER:
-                messages.append({"role": "user", "content": content})
+                anthropic_messages.append({"role": "user", "content": content})
             elif role == ChatCompletionMessageRole.AI:
-                messages.append({"role": "assistant", "content": content})
+                anthropic_messages.append({"role": "assistant", "content": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             else:
                 raise ValueError(f"Unsupported role: {role}")
 
-        return messages, system_prompt
+        return anthropic_messages, system_prompt
 
 
 @strawberry.type
@@ -348,9 +345,9 @@ class Subscription:
             text_chunks: List[TextChunk] = []
             tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
 
+            token_usage: Optional["CompletionUsage"] = None
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
-                stream=True,
                 tools=input.tools or [],
                 **invocation_parameters,
             ):
