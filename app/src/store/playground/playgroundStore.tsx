@@ -256,6 +256,7 @@ export const createPlaygroundStore = (
           ...instance,
           activeRunId: playgroundRunId++,
           isRunning: true,
+          spanId: null, // Clear out the span when (re)running
         })),
       });
     },
