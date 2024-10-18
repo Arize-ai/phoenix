@@ -65,8 +65,6 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
-union ChatCompletionChunk = TextChunk | ToolCallChunk
-
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
@@ -89,6 +87,8 @@ enum ChatCompletionMessageRole {
   TOOL
   AI
 }
+
+union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
 
 input ClearProjectInput {
   id: GlobalID!
@@ -821,6 +821,10 @@ type ExportedFile {
   fileName: String!
 }
 
+type FinishedChatCompletion {
+  span: Span!
+}
+
 type FunctionCallChunk {
   name: String!
   arguments: String!
@@ -1442,7 +1446,7 @@ enum SpanStatusCode {
 }
 
 type Subscription {
-  chatCompletion(input: ChatCompletionInput!): ChatCompletionChunk!
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
