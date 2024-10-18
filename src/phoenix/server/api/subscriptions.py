@@ -257,6 +257,52 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         )
 
 
+@register_llm_client(GenerativeProviderKey.ANTHROPIC)
+class AnthropicStreamingClient(PlaygroundStreamingClient):
+    def __init__(self, model: GenerativeModelInput, api_key: str) -> None:
+        import anthropic
+
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.model_name = model.name
+
+    async def chat_completion_create(
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        stream: bool,
+        tools: List[JSONScalarType],
+        **invocation_parameters,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        messages, system_prompt = self._build_anthropic_messages(messages)
+
+        anthropic_params = {
+            'messages': messages,
+            'model': self.model_name,
+            'system': system_prompt,
+            **invocation_parameters,
+        }
+
+        async with self.client.messages.stream(**anthropic_params) as stream:
+            async for text in stream.text_stream:
+                yield TextChunk(content=text)
+
+    def _build_anthropic_messages(
+        self, messages: List[Tuple[ChatCompletionMessageRole, str]]
+    ) -> Tuple[List[Dict[str, str]], str]:
+        messages = []
+        system_prompt = ""
+        for role, content in messages:
+            if role == ChatCompletionMessageRole.USER:
+                messages.append({"role": "user", "content": content})
+            elif role == ChatCompletionMessageRole.AI:
+                messages.append({"role": "assistant", "content": content})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+            else:
+                raise ValueError(f"Unsupported role: {role}")
+
+        return messages, system_prompt
+
+
 @strawberry.type
 class Subscription:
     @strawberry.subscription
