@@ -173,6 +173,8 @@ export const createPlaygroundStore = (
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
+            isRunning: false,
+            spanId: null,
           },
         ],
       });
