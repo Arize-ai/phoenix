@@ -128,6 +128,7 @@ export interface PlaygroundInstance {
   input: PlaygroundInput;
   model: ModelConfig;
   output: ChatMessage[] | undefined | string;
+  spanId: string | null;
   activeRunId: number | null;
   /**
    * Whether or not the playground instance is actively running or not
