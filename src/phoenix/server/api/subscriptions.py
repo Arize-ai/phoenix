@@ -157,7 +157,7 @@ class PlaygroundStreamingClient(ABC):
         stream: bool,
         tools: List[JSONScalarType],
         **invocation_parameters,
-    ) -> AsyncIterator[ChatCompletionChunk]: ...
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]: ...
 
 
 @register_llm_client(GenerativeProviderKey.OPENAI)
@@ -174,7 +174,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         stream: bool,
         tools: List[JSONScalarType],
         **invocation_parameters,
-    ) -> AsyncIterator[ChatCompletionChunk]:
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         from openai import NOT_GIVEN
 
         # Convert standard messages to OpenAI messages
@@ -187,7 +187,6 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         ):
-            # Process chunk into ChatCompletionChunk instances
             choice = chunk.choices[0]
             delta = choice.delta
 
@@ -271,7 +270,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         stream: bool,
         tools: List[JSONScalarType],
         **invocation_parameters,
-    ) -> AsyncIterator[ChatCompletionChunk]:
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         messages, system_prompt = self._build_anthropic_messages(messages)
 
         anthropic_params = {
@@ -308,7 +307,7 @@ class Subscription:
     @strawberry.subscription
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
-    ) -> AsyncIterator[ChatCompletionChunk]:
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         # Determine which LLM client to use based on provider_key
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)
