@@ -9,7 +9,7 @@ import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import type { ToolCall } from "@phoenix/store";
+import { OpenAIToolCall } from "@phoenix/schemas";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -51,7 +51,9 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
               >
                 {toolCall.function.name}(
                 {JSON.stringify(
-                  JSON.parse(toolCall.function.arguments),
+                  typeof toolCall.function.arguments === "string"
+                    ? JSON.parse(toolCall.function.arguments)
+                    : toolCall.function.arguments,
                   null,
                   2
                 )}
@@ -243,7 +245,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   }
 
   const [output, setOutput] = useState<string | undefined>(undefined);
-  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [toolCalls, setToolCalls] = useState<OpenAIToolCall[]>([]);
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"

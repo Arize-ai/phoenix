@@ -1,5 +1,5 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import { ToolDefinition } from "@phoenix/schemas";
+import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
 
 export type GenAIOperationType = "chat" | "text_completion";
 /**
@@ -7,27 +7,6 @@ export type GenAIOperationType = "chat" | "text_completion";
  * @example "manual" or "dataset"
  */
 export type PlaygroundInputMode = "manual" | "dataset";
-
-/**
- * A tool call that invokes a function with JSON arguments
- * @example
- * ```typescript
- *  {
- *   id: "1",
- *   function: {
- *     name: "getCurrentWeather",
- *     arguments: "{ \"city\": \"San Francisco\" }"
- *   }
- * }
- * ```
- */
-export type ToolCall = {
-  id: string;
-  function: {
-    name: string;
-    arguments: string;
-  };
-};
 
 /**
  * A chat message with a role and content
@@ -52,7 +31,8 @@ export type ChatMessage = {
   id: number;
   role: ChatMessageRole;
   content?: string;
-  toolCalls?: ToolCall[];
+  toolCalls?: OpenAIToolCall[];
+  toolCallId?: string;
 };
 
 /**
@@ -101,9 +81,9 @@ export type ModelConfig = {
 /**
  * The type of a tool in the playground
  */
-export type Tool = {
+export type OpenAITool = {
   id: number;
-  definition: Partial<ToolDefinition>;
+  definition: Partial<OpenAIToolDefinition>;
 };
 
 /**
@@ -119,7 +99,7 @@ export interface PlaygroundInstance {
    */
   id: number;
   template: PlaygroundTemplate;
-  tools: Tool[];
+  tools: OpenAITool[];
   /**
    * How the LLM should choose the tool to use
    * @default "auto"

@@ -15,9 +15,18 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Button, Card, Flex, Icon, Icons, View } from "@arizeai/components";
+import {
+  Button,
+  Card,
+  Field,
+  Flex,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { CodeWrap } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { TemplateEditor } from "@phoenix/components/templateEditor";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
@@ -25,13 +34,16 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
-  createTool,
+  createOpenAITool,
+  createOpenAIToolCall,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
 
 import { MessageRolePicker } from "./MessageRolePicker";
+import { PlaygroundToolCallsEditor } from "./PlaygroundToolCallsEditor";
 import { PlaygroundTools } from "./PlaygroundTools";
+import { ToolToggleButton } from "./ToolToggleButton";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -142,7 +154,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                 patch: {
                   tools: [
                     ...playgroundInstance.tools,
-                    createTool(playgroundInstance.tools.length + 1),
+                    createOpenAITool(playgroundInstance.tools.length + 1),
                   ],
                 },
               });
@@ -216,6 +228,8 @@ function SortableMessageItem({
     zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
   };
 
+  const hasTools = message.toolCalls != null;
+
   return (
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
@@ -244,6 +258,33 @@ function SortableMessageItem({
         }
         extra={
           <Flex direction="row" gap="size-100">
+            {message.role !== "tool" && (
+              <ToolToggleButton
+                hasTools={hasTools}
+                onClick={() => {
+                  updateInstance({
+                    instanceId: playgroundInstanceId,
+                    patch: {
+                      template: {
+                        __type: "chat",
+                        messages: template.messages.map((msg) => {
+                          if (msg.id === message.id) {
+                            return {
+                              ...msg,
+                              toolCalls: hasTools
+                                ? undefined
+                                : [createOpenAIToolCall()],
+                            };
+                          }
+                          return msg;
+                        }),
+                      },
+                    },
+                  });
+                }}
+              />
+            )}
+
             {message.content != null && (
               <CopyToClipboardButton text={message.content} />
             )}
@@ -274,7 +315,7 @@ function SortableMessageItem({
           </Flex>
         }
       >
-        <div>
+        <Flex gap={"size-100"} direction="column">
           <TemplateEditor
             height="100%"
             value={message.content}
@@ -294,7 +335,21 @@ function SortableMessageItem({
               });
             }}
           />
-        </div>
+          {hasTools && message.role !== "tool" && (
+            <View padding="size-100">
+              <Field label={"Tool Calls"}>
+                <CodeWrap width={"100%"}>
+                  <PlaygroundToolCallsEditor
+                    playgroundInstanceId={playgroundInstanceId}
+                    toolCalls={message.toolCalls}
+                    templateMessages={template.messages}
+                    messageId={0}
+                  />
+                </CodeWrap>
+              </Field>
+            </View>
+          )}
+        </Flex>
       </Card>
     </li>
   );
