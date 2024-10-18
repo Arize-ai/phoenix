@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Card, Flex, Icon, Icons } from "@arizeai/components";
+import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -22,6 +22,7 @@ import {
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { isChatMessages } from "./playgroundUtils";
+import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
@@ -111,8 +112,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       collapsible
       variant="compact"
+      bodyStyle={{ padding: 0 }}
     >
-      {OutputEl}
+      <View padding="size-200">{OutputEl}</View>
+      <Suspense>
+        {instance.spanId ? (
+          <RunMetadataFooter spanId={instance.spanId} />
+        ) : null}
+      </Suspense>
     </Card>
   );
 }
@@ -162,6 +169,11 @@ function useChatCompletionSubscription({
               function {
                 name
                 arguments
+              }
+            }
+            ... on FinishedChatCompletion {
+              span {
+                id
               }
             }
           }
@@ -310,6 +322,13 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
             });
           }
           return updated;
+        });
+      } else if (chatCompletion.__typename === "FinishedChatCompletion") {
+        updateInstance({
+          instanceId: props.playgroundInstanceId,
+          patch: {
+            spanId: chatCompletion.span.id,
+          },
         });
       }
     },

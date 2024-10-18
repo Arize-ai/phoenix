@@ -100,6 +100,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     // TODO(apowell) - use datasetId if in dataset mode
     input: { variablesValueCache: {} },
     output: undefined,
+    spanId: null,
     activeRunId: null,
     isRunning: false,
   };
@@ -267,6 +268,7 @@ export const createPlaygroundStore = (
               ...instance,
               activeRunId: playgroundRunId++,
               isRunning: true,
+              spanId: null, // Clear out the span when (re)running
             };
           }
           return instance;
