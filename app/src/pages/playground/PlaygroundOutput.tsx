@@ -198,6 +198,8 @@ function toGqlChatCompletionMessage(
   return {
     content: message.content,
     role: toGqlChatCompletionRole(message.role),
+    toolCalls: message.toolCalls,
+    toolCallId: message.toolCallId,
   };
 }
 

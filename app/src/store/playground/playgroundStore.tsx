@@ -113,8 +113,8 @@ export function createOpenAIToolCall(): OpenAIToolCall {
   return {
     id: "",
     function: {
-      arguments: {},
       name: "",
+      arguments: {},
     },
   };
 }
