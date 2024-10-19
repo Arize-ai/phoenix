@@ -132,17 +132,17 @@ def _env_postgresql_schema(
 
 @pytest.fixture
 def _emails() -> Iterator[_Email]:
-    return (f"{token_hex(32)}@{token_hex(32)}.com" for _ in count())
+    return (f"{token_hex(16)}@{token_hex(16)}.com" for _ in count())
 
 
 @pytest.fixture
 def _passwords() -> Iterator[_Password]:
-    return (token_hex(32) for _ in count())
+    return (token_hex(16) for _ in count())
 
 
 @pytest.fixture
 def _usernames() -> Iterator[_Username]:
-    return (token_hex(32) for _ in count())
+    return (token_hex(16) for _ in count())
 
 
 @pytest.fixture

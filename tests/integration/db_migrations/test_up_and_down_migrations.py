@@ -5,11 +5,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA
-from sqlalchemy import (
-    Engine,
-    Row,
-    text,
-)
+from sqlalchemy import Engine, Row, text
 
 
 def test_up_and_down_migrations(
