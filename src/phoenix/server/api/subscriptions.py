@@ -61,9 +61,7 @@ from phoenix.utilities.template_formatters import (
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from openai.types import CompletionUsage
-    from openai.types.chat import (
-        ChatCompletionMessageParam,
-    )
+    from openai.types.chat import ChatCompletionMessageParam
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
@@ -160,6 +158,10 @@ class PlaygroundStreamingClient(ABC):
         # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
         yield TextChunk(content="")
 
+    @property
+    @abstractmethod
+    def attributes(self) -> Dict[str, Any]: ...
+
 
 @register_llm_client(GenerativeProviderKey.OPENAI)
 class OpenAIStreamingClient(PlaygroundStreamingClient):
@@ -168,6 +170,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
+        self._attributes: Dict[str, Any] = {}
 
     async def chat_completion_create(
         self,
@@ -176,17 +179,23 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         from openai import NOT_GIVEN
+        from openai.types.chat import ChatCompletionStreamOptionsParam
 
         # Convert standard messages to OpenAI messages
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
         tool_call_ids: Dict[int, str] = {}
+        token_usage: Optional["CompletionUsage"] = None
         async for chunk in await self.client.chat.completions.create(
             messages=openai_messages,
             model=self.model_name,
             stream=True,
+            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
             tools=tools or NOT_GIVEN,
             **invocation_parameters,
         ):
+            if (usage := chunk.usage) is not None:
+                token_usage = usage
+                continue
             choice = chunk.choices[0]
             delta = choice.delta
             if choice.finish_reason is None:
@@ -210,6 +219,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                                 ),
                             )
                             yield tool_call_chunk
+        if token_usage is not None:
+            self._attributes.update(_llm_token_counts(token_usage))
 
     def to_openai_chat_completion_param(
         self, role: ChatCompletionMessageRole, content: JSONScalarType
@@ -244,6 +255,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         if role is ChatCompletionMessageRole.TOOL:
             raise NotImplementedError
         assert_never(role)
+
+    @property
+    def attributes(self) -> Dict[str, Any]:
+        return self._attributes
 
 
 @register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
@@ -305,6 +320,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
         return anthropic_messages, system_prompt
 
+    @property
+    def attributes(self) -> Dict[str, Any]:
+        return dict()
+
 
 @strawberry.type
 class Subscription:
@@ -352,7 +371,6 @@ class Subscription:
             text_chunks: List[TextChunk] = []
             tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
 
-            token_usage: Optional["CompletionUsage"] = None
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
                 tools=input.tools or [],
@@ -368,11 +386,13 @@ class Subscription:
                     tool_call_chunks[tool_call_index].append(chunk)
 
             span.set_status(StatusCode.OK)
+            llm_client_attributes = llm_client.attributes
+
             span.set_attributes(
                 dict(
                     chain(
                         _output_value_and_mime_type(response_chunks),
-                        _llm_token_counts(token_usage) if token_usage is not None else [],
+                        llm_client_attributes.items(),
                         _llm_output_messages(text_chunks, tool_call_chunks),
                     )
                 )
@@ -384,8 +404,8 @@ class Subscription:
         assert (attributes := finished_span.attributes) is not None
         start_time = _datetime(epoch_nanoseconds=finished_span.start_time)
         end_time = _datetime(epoch_nanoseconds=finished_span.end_time)
-        prompt_tokens = token_usage.prompt_tokens if token_usage is not None else 0
-        completion_tokens = token_usage.completion_tokens if token_usage is not None else 0
+        prompt_tokens = llm_client_attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
+        completion_tokens = llm_client_attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
         trace_id = _hex(finished_span.context.trace_id)
         span_id = _hex(finished_span.context.span_id)
         status = finished_span.status
