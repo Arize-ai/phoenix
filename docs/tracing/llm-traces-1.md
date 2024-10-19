@@ -50,7 +50,7 @@ tracer_provider = register()
 
 Now we need to indicate which methods and attributes we want to trace. Phoenix has a number of built-in tracers for popular frameworks, and provides tools to manually instrument your application if needed. See [here for a list of integrations](https://docs.arize.com/phoenix/tracing/integrations-tracing)
 
-Here we're using OpenAI, so we'll the built-in OpenAI instrumentor we provide.
+Here we're using OpenAI, so we'll install the built-in OpenAI instrumentor we provide.
 
 ```python
 !pip install -q openinference-instrumentation-openai openai
