@@ -34,7 +34,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 - **_Datasets_** - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
 - **_Experiments_** - Track and evaluate changes to prompts, LLMs, and retrieval.
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, Haystack, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
@@ -69,7 +69,7 @@ See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 ## Copyright, Patent, and License
 
-Copyright 2023 Arize AI, Inc. All Rights Reserved.
+Copyright 2024 Arize AI, Inc. All Rights Reserved.
 
 Portions of this code are patent protected by one or more U.S. Patents. See [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
