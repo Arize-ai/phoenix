@@ -219,7 +219,12 @@ function MessageEditor({
 }) {
   if (messageMode === "toolCalls") {
     return (
-      <View padding="size-100">
+      <View
+        paddingTop="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingBottom="size-200"
+      >
         <Field label={"Tool Calls"}>
           <CodeWrap width={"100%"}>
             <ChatMessageToolCallsEditor
@@ -235,12 +240,26 @@ function MessageEditor({
   }
   if (message.role === "tool") {
     return (
-      <Form>
-        <TextField
-          value={message.toolCallId}
-          onChange={(val) => updateMessage({ toolCallId: val })}
-          label="Tool Call ID"
-        />
+      <Form
+        onSubmit={() => {
+          //Do nothing
+        }}
+      >
+        <View
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-200"
+          paddingBottom="size-200"
+          borderColor="yellow-700"
+          borderBottomWidth="thin"
+        >
+          <TextField
+            value={message.toolCallId}
+            onChange={(val) => updateMessage({ toolCallId: val })}
+            aria-label="Tool Call ID"
+            addonBefore="Tool Call ID"
+          />
+        </View>
         <JSONEditor
           value={
             message.content == null || message.content === ""

@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Button, Card, Flex, Icon, Icons } from "@arizeai/components";
+import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
+import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { openAIToolJSONSchema, openAIToolSchema } from "@phoenix/schemas";
 import { OpenAITool } from "@phoenix/store";
@@ -65,7 +66,12 @@ export function PlaygroundTool({
       borderColor={"yellow-700"}
       variant="compact"
       key={tool.id}
-      title={tool.definition.function?.name ?? "Tool"}
+      title={
+        <Flex direction="row" gap="size-100">
+          <SpanKindIcon spanKind="tool" />
+          <Text>{tool.definition.function?.name ?? "Tool"}</Text>
+        </Flex>
+      }
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
