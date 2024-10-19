@@ -1,16 +1,24 @@
-import React from "react";
+import React, { ReactNode, startTransition, Suspense, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Flex, View } from "@arizeai/components";
+import {
+  Button,
+  DialogContainer,
+  Flex,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
+import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
 export function RunMetadataFooter({ spanId }: { spanId: string }) {
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
       query RunMetadataFooterQuery($spanId: GlobalID!) {
@@ -35,9 +43,13 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
     { spanId }
   );
 
-  if (!data.span) {
+  if (!data.span || !data.span.project || !data.span.context) {
     return null;
   }
+  const {
+    project,
+    context: { traceId },
+  } = data.span;
 
   return (
     <View
@@ -49,7 +61,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
       paddingBottom="size-100"
     >
       <Flex direction="row" gap="size-200" justifyContent="space-between">
-        <Flex direction="row" gap="size-100">
+        <Flex direction="row" gap="size-100" alignItems="center">
           <TokenCount
             tokenCountTotal={data.span.tokenCountTotal || 0}
             tokenCountPrompt={data.span.tokenCountPrompt || 0}
@@ -57,12 +69,34 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
           />
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>
-        <ExternalLink
-          href={`/projects/${data.span?.project?.id}/traces/${data.span?.context?.traceId}?selectedSpanId=${data.span?.context?.spanId}`}
+        <Button
+          size="compact"
+          variant="default"
+          icon={<Icon svg={<Icons.Trace />} />}
+          onClick={() => {
+            startTransition(() => {
+              setDialog(
+                <Suspense>
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={traceId}
+                    projectId={project.id}
+                    title={`Playground Trace`}
+                  />
+                </Suspense>
+              );
+            });
+          }}
         >
           View Trace
-        </ExternalLink>
+        </Button>
       </Flex>
+      <DialogContainer
+        type="slideOver"
+        isDismissable
+        onDismiss={() => setDialog(null)}
+      >
+        {dialog}
+      </DialogContainer>
     </View>
   );
 }
