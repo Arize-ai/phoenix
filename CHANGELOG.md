@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.0...arize-phoenix-v5.5.1) (2024-10-19)
+
+
+### Bug Fixes
+
+* **UI:** bad looking button styles ([#5119](https://github.com/Arize-ai/phoenix/issues/5119)) ([e0e8cc7](https://github.com/Arize-ai/phoenix/commit/e0e8cc780f1b35b61fc4f7a643b40cd3f692d72e))
+
+
+### Documentation
+
+* add more links and integrations to the readme ([#5121](https://github.com/Arize-ai/phoenix/issues/5121)) ([dc90a6d](https://github.com/Arize-ai/phoenix/commit/dc90a6db43e1a0a9b42bf2f90b39abfc9a9e78e7))
+* Update README.md ([e9c081c](https://github.com/Arize-ai/phoenix/commit/e9c081ce2a7488d499d785e79563d74e8add3a57))
+* Update README.md wit hmore links ([52af0af](https://github.com/Arize-ai/phoenix/commit/52af0af52a5e5f9c58682f3f2da97044342833fe))
+
 ## [5.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.4.0...arize-phoenix-v5.5.0) (2024-10-19)
 
 
