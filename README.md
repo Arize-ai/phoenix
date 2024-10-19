@@ -29,12 +29,12 @@
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
 
-- [**_Tracing_**](https://docs.arize.com/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
+- [**_Tracing_**](https://docs.arize.com/phoenix/tracing/integrations-tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
 - [**_Evaluation_**](https://docs.arize.com/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
 - [**_Datasets_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
 - [**_Experiments_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
@@ -49,6 +49,65 @@ pip install arize-phoenix
 ```
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
+
+## Features
+
+| Key Features                                                                                                     | Availability   |
+| ---------------------------------------------------------------------------------------------------------------- | -------------- |
+| [Tracing](https://docs.arize.com/phoenix/tracing/concepts-tracing/what-are-traces)                               | ✅             |
+| [Evaluation](https://docs.arize.com/phoenix/evaluation/llm-evals)                                                | ✅             |
+| [Retrieval (RAG) Analysis](https://docs.arize.com/phoenix/tracing/use-cases-tracing/rag-evaluation)              | ✅             |
+| [Datasets](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets)                            | ✅             |
+| [Fine-Tuning Export](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets) | ✅             |
+| [Annotations](https://docs.arize.com/phoenix/tracing/concepts-tracing/how-to-annotate-traces)                    | ✅             |
+| [Human Feedback](https://docs.arize.com/phoenix/tracing/how-to-tracing/capture-feedback)                         | ✅             |
+| [Experiments](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)        | ✅             |
+| [Embeddings Analysis](https://docs.arize.com/phoenix/inferences/phoenix-inferences)                              | ✅             |
+| [Data Export](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans)                     | ✅             |
+| REST API                                                                                                         | ✅             |
+| GraphQL API                                                                                                      | ✅             |
+| Data Retention                                                                                                   | Costomizable   |
+| Authentication                                                                                                   | ✅             |
+| Social Login                                                                                                     | ✅             |
+| RBAC                                                                                                             | ✅             |
+| Projects                                                                                                         | ✅             |
+| Self-Hosting                                                                                                     | ✅             |
+| Jupyter Notebooks                                                                                                | ✅             |
+| Sessions                                                                                                         | In Progress 🚧 |
+| Prompt Playground                                                                                                | In Progress 🚧 |
+| Prompt Management                                                                                                | Coming soon ⏱️ |
+
+## Tracing Integrations
+
+Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic.
+
+**Python**
+| Integration | Package | Version Badge |
+|------------------|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| [OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai) | `openinference-instrumentation-openai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai) |
+| [LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex) | `openinference-instrumentation-llama-index` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-llama-index.svg)](https://pypi.python.org/pypi/openinference-instrumentation-llama-index) |
+| [DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy) | `openinference-instrumentation-dspy` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-dspy.svg)](https://pypi.python.org/pypi/openinference-instrumentation-dspy) |
+| [AWS Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock) | `openinference-instrumentation-bedrock` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-bedrock.svg)](https://pypi.python.org/pypi/openinference-instrumentation-bedrock) |
+| [LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain) | `openinference-instrumentation-langchain` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-langchain.svg)](https://pypi.python.org/pypi/openinference-instrumentation-langchain) |
+| [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai) | `openinference-instrumentation-mistralai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-mistralai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-mistralai) |
+| [Guardrails](https://docs.arize.com/phoenix/tracing/integrations-tracing/guardrails) | `openinference-instrumentation-guardrails` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-guardrails.svg)](https://pypi.python.org/pypi/openinference-instrumentation-guardrails) |
+| [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai) | `openinference-instrumentation-vertexai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-vertexai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-vertexai) |
+| [CrewAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/crewai) | `openinference-instrumentation-crewai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-crewai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-crewai) |
+| [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack) | `openinference-instrumentation-haystack` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-haystack.svg)](https://pypi.python.org/pypi/openinference-instrumentation-haystack) |
+| [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm) | `openinference-instrumentation-litellm` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-litellm.svg)](https://pypi.python.org/pypi/openinference-instrumentation-litellm) |
+| [Groq](https://docs.arize.com/phoenix/tracing/integrations-tracing/groq) | `openinference-instrumentation-groq` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-groq.svg)](https://pypi.python.org/pypi/openinference-instrumentation-groq) |
+| [Instructor](https://docs.arize.com/phoenix/tracing/integrations-tracing/instructor) | `openinference-instrumentation-instructor` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-instructor.svg)](https://pypi.python.org/pypi/openinference-instrumentation-instructor) |
+| [Anthropic](https://docs.arize.com/phoenix/tracing/integrations-tracing/anthropic) | `openinference-instrumentation-anthropic` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-anthropic.svg)](https://pypi.python.org/pypi/openinference-instrumentation-anthropic) |
+
+### JavaScript
+
+| Integration                                                                                | Package                                            | Version Badge                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-node-sdk)      | `@arizeai/openinference-instrumentation-openai`    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-openai.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai)       |
+| [LangChain.js](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js)   | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
+| [Vercel AI SDK](https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
+
+For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 ## Community
 
