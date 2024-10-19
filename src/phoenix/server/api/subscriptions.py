@@ -1,4 +1,5 @@
 import json
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import fields
 from datetime import datetime
@@ -9,6 +10,7 @@ from typing import (
     Annotated,
     Any,
     AsyncIterator,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -16,6 +18,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 
@@ -56,14 +59,13 @@ from phoenix.utilities.template_formatters import (
 )
 
 if TYPE_CHECKING:
+    from anthropic.types import MessageParam
     from openai.types import CompletionUsage
-    from openai.types.chat import (
-        ChatCompletionMessageParam,
-    )
+    from openai.types.chat import ChatCompletionMessageParam
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
-ToolCallIndex: TypeAlias = int
+ToolCallID: TypeAlias = str
 
 
 @strawberry.enum
@@ -127,39 +129,202 @@ class ChatCompletionInput:
     api_key: Optional[str] = strawberry.field(default=None)
 
 
-def to_openai_chat_completion_param(
-    role: ChatCompletionMessageRole, content: JSONScalarType
-) -> "ChatCompletionMessageParam":
-    from openai.types.chat import (
-        ChatCompletionAssistantMessageParam,
-        ChatCompletionSystemMessageParam,
-        ChatCompletionUserMessageParam,
-    )
+PLAYGROUND_STREAMING_CLIENT_REGISTRY: Dict[
+    GenerativeProviderKey, Type["PlaygroundStreamingClient"]
+] = {}
 
-    if role is ChatCompletionMessageRole.USER:
-        return ChatCompletionUserMessageParam(
-            {
-                "content": content,
-                "role": "user",
-            }
+
+def register_llm_client(
+    provider_key: GenerativeProviderKey,
+) -> Callable[[Type["PlaygroundStreamingClient"]], Type["PlaygroundStreamingClient"]]:
+    def decorator(cls: Type["PlaygroundStreamingClient"]) -> Type["PlaygroundStreamingClient"]:
+        PLAYGROUND_STREAMING_CLIENT_REGISTRY[provider_key] = cls
+        return cls
+
+    return decorator
+
+
+class PlaygroundStreamingClient(ABC):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None: ...
+
+    @abstractmethod
+    async def chat_completion_create(
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        # a yield statement is needed to satisfy the type-checker
+        # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
+        yield TextChunk(content="")
+
+    @property
+    @abstractmethod
+    def attributes(self) -> Dict[str, Any]: ...
+
+
+@register_llm_client(GenerativeProviderKey.OPENAI)
+class OpenAIStreamingClient(PlaygroundStreamingClient):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
+        from openai import AsyncOpenAI
+
+        self.client = AsyncOpenAI(api_key=api_key)
+        self.model_name = model.name
+        self._attributes: Dict[str, Any] = {}
+
+    async def chat_completion_create(
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        from openai import NOT_GIVEN
+        from openai.types.chat import ChatCompletionStreamOptionsParam
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+        tool_call_ids: Dict[int, str] = {}
+        token_usage: Optional["CompletionUsage"] = None
+        async for chunk in await self.client.chat.completions.create(
+            messages=openai_messages,
+            model=self.model_name,
+            stream=True,
+            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        ):
+            if (usage := chunk.usage) is not None:
+                token_usage = usage
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if choice.finish_reason is None:
+                if isinstance(chunk_content := delta.content, str):
+                    text_chunk = TextChunk(content=chunk_content)
+                    yield text_chunk
+                if (tool_calls := delta.tool_calls) is not None:
+                    for tool_call_index, tool_call in enumerate(tool_calls):
+                        tool_call_id = (
+                            tool_call.id
+                            if tool_call.id is not None
+                            else tool_call_ids[tool_call_index]
+                        )
+                        tool_call_ids[tool_call_index] = tool_call_id
+                        if (function := tool_call.function) is not None:
+                            tool_call_chunk = ToolCallChunk(
+                                id=tool_call_id,
+                                function=FunctionCallChunk(
+                                    name=function.name or "",
+                                    arguments=function.arguments or "",
+                                ),
+                            )
+                            yield tool_call_chunk
+        if token_usage is not None:
+            self._attributes.update(_llm_token_counts(token_usage))
+
+    def to_openai_chat_completion_param(
+        self, role: ChatCompletionMessageRole, content: JSONScalarType
+    ) -> "ChatCompletionMessageParam":
+        from openai.types.chat import (
+            ChatCompletionAssistantMessageParam,
+            ChatCompletionSystemMessageParam,
+            ChatCompletionUserMessageParam,
         )
-    if role is ChatCompletionMessageRole.SYSTEM:
-        return ChatCompletionSystemMessageParam(
-            {
-                "content": content,
-                "role": "system",
-            }
+
+        if role is ChatCompletionMessageRole.USER:
+            return ChatCompletionUserMessageParam(
+                {
+                    "content": content,
+                    "role": "user",
+                }
+            )
+        if role is ChatCompletionMessageRole.SYSTEM:
+            return ChatCompletionSystemMessageParam(
+                {
+                    "content": content,
+                    "role": "system",
+                }
+            )
+        if role is ChatCompletionMessageRole.AI:
+            return ChatCompletionAssistantMessageParam(
+                {
+                    "content": content,
+                    "role": "assistant",
+                }
+            )
+        if role is ChatCompletionMessageRole.TOOL:
+            raise NotImplementedError
+        assert_never(role)
+
+    @property
+    def attributes(self) -> Dict[str, Any]:
+        return self._attributes
+
+
+@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
+class AzureOpenAIStreamingClient(OpenAIStreamingClient):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None):
+        from openai import AsyncAzureOpenAI
+
+        if model.endpoint is None or model.api_version is None:
+            raise ValueError("endpoint and api_version are required for Azure OpenAI models")
+        self.client = AsyncAzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=model.endpoint,
+            api_version=model.api_version,
         )
-    if role is ChatCompletionMessageRole.AI:
-        return ChatCompletionAssistantMessageParam(
-            {
-                "content": content,
-                "role": "assistant",
-            }
-        )
-    if role is ChatCompletionMessageRole.TOOL:
-        raise NotImplementedError
-    assert_never(role)
+
+
+@register_llm_client(GenerativeProviderKey.ANTHROPIC)
+class AnthropicStreamingClient(PlaygroundStreamingClient):
+    def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None:
+        import anthropic
+
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.model_name = model.name
+
+    async def chat_completion_create(
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+
+        anthropic_params = {
+            "messages": anthropic_messages,
+            "model": self.model_name,
+            "system": system_prompt,
+            "max_tokens": 1024,
+            **invocation_parameters,
+        }
+
+        async with self.client.messages.stream(**anthropic_params) as stream:
+            async for text in stream.text_stream:
+                yield TextChunk(content=text)
+
+    def _build_anthropic_messages(
+        self, messages: List[Tuple[ChatCompletionMessageRole, str]]
+    ) -> Tuple[List["MessageParam"], str]:
+        anthropic_messages: List["MessageParam"] = []
+        system_prompt = ""
+        for role, content in messages:
+            if role == ChatCompletionMessageRole.USER:
+                anthropic_messages.append({"role": "user", "content": content})
+            elif role == ChatCompletionMessageRole.AI:
+                anthropic_messages.append({"role": "assistant", "content": content})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+            elif role == ChatCompletionMessageRole.TOOL:
+                raise NotImplementedError
+            else:
+                assert_never(role)
+
+        return anthropic_messages, system_prompt
+
+    @property
+    def attributes(self) -> Dict[str, Any]:
+        return dict()
 
 
 @strawberry.type
@@ -168,30 +333,20 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        from openai import NOT_GIVEN, AsyncAzureOpenAI, AsyncOpenAI
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        # Determine which LLM client to use based on provider_key
+        provider_key = input.model.provider_key
+        llm_client_class = PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)
+        if llm_client_class is None:
+            raise ValueError(f"No LLM client registered for provider '{provider_key}'")
 
-        client: Union[AsyncAzureOpenAI, AsyncOpenAI]
+        llm_client = llm_client_class(model=input.model, api_key=input.api_key)
 
-        if input.model.provider_key == GenerativeProviderKey.AZURE_OPENAI:
-            if input.model.endpoint is None or input.model.api_version is None:
-                raise ValueError("endpoint and api_version are required for Azure OpenAI models")
-            client = AsyncAzureOpenAI(
-                api_key=input.api_key,
-                azure_endpoint=input.model.endpoint,
-                api_version=input.model.api_version,
-            )
-        else:
-            client = AsyncOpenAI(api_key=input.api_key)
+        messages = [(message.role, message.content) for message in input.messages]
 
-        invocation_parameters = jsonify(input.invocation_parameters)
-
-        messages: List[Tuple[ChatCompletionMessageRole, str]] = [
-            (message.role, message.content) for message in input.messages
-        ]
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
-        openai_messages = [to_openai_chat_completion_param(*message) for message in messages]
+
+        invocation_parameters = jsonify(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -200,6 +355,7 @@ class Subscription:
         )
         tracer = tracer_provider.get_tracer(__name__)
         span_name = "ChatCompletion"
+
         with tracer.start_span(
             span_name,
             attributes=dict(
@@ -215,52 +371,29 @@ class Subscription:
         ) as span:
             response_chunks = []
             text_chunks: List[TextChunk] = []
-            tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
-            role: Optional[str] = None
-            token_usage: Optional[CompletionUsage] = None
-            async for chunk in await client.chat.completions.create(
-                messages=openai_messages,
-                model=input.model.name,
-                stream=True,
-                tools=input.tools or NOT_GIVEN,
-                stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
+            tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
+
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages,
+                tools=input.tools or [],
                 **invocation_parameters,
             ):
                 response_chunks.append(chunk)
-                if (usage := chunk.usage) is not None:
-                    token_usage = usage
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if role is None:
-                    role = delta.role
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
-                        text_chunks.append(text_chunk)
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            if (function := tool_call.function) is not None:
-                                if (tool_call_id := tool_call.id) is None:
-                                    first_tool_call_chunk = tool_call_chunks[tool_call_index][0]
-                                    tool_call_id = first_tool_call_chunk.id
-                                tool_call_chunk = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
-                                )
-                                yield tool_call_chunk
-                                tool_call_chunks[tool_call_index].append(tool_call_chunk)
+                if isinstance(chunk, TextChunk):
+                    yield chunk
+                    text_chunks.append(chunk)
+                elif isinstance(chunk, ToolCallChunk):
+                    yield chunk
+                    tool_call_chunks[chunk.id].append(chunk)
+
             span.set_status(StatusCode.OK)
-            assert role is not None
+            llm_client_attributes = llm_client.attributes
+
             span.set_attributes(
                 dict(
                     chain(
                         _output_value_and_mime_type(response_chunks),
-                        _llm_token_counts(token_usage) if token_usage is not None else [],
+                        llm_client_attributes.items(),
                         _llm_output_messages(text_chunks, tool_call_chunks),
                     )
                 )
@@ -272,8 +405,8 @@ class Subscription:
         assert (attributes := finished_span.attributes) is not None
         start_time = _datetime(epoch_nanoseconds=finished_span.start_time)
         end_time = _datetime(epoch_nanoseconds=finished_span.end_time)
-        prompt_tokens = token_usage.prompt_tokens if token_usage is not None else 0
-        completion_tokens = token_usage.completion_tokens if token_usage is not None else 0
+        prompt_tokens = llm_client_attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
+        completion_tokens = llm_client_attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
         trace_id = _hex(finished_span.context.trace_id)
         span_id = _hex(finished_span.context.span_id)
         status = finished_span.status
@@ -367,7 +500,7 @@ def _llm_input_messages(
 
 def _llm_output_messages(
     text_chunks: List[TextChunk],
-    tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]],
+    tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]],
 ) -> Iterator[Tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):
