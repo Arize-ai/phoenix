@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de616faa0d64ff5bb1c2d87ece3ac113>>
+ * @generated SignedSource<<5ae8bd5b9a7f4980d21938d2eda3ce0d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,8 @@ export type TemplateLanguage = "F_STRING" | "MUSTACHE";
 export type ChatCompletionMessageInput = {
   content: any;
   role: ChatCompletionMessageRole;
+  toolCallId?: string | null;
+  toolCalls?: ReadonlyArray<any> | null;
 };
 export type GenerativeModelInput = {
   apiVersion?: string | null;

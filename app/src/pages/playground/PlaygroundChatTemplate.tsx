@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, useCallback, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -20,13 +20,15 @@ import {
   Card,
   Field,
   Flex,
+  Form,
   Icon,
   Icons,
+  TextField,
   View,
 } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
-import { CodeWrap } from "@phoenix/components/code";
+import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { TemplateEditor } from "@phoenix/components/templateEditor";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
@@ -39,11 +41,16 @@ import {
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
 } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
+import {
+  MessageContentRadioGroup,
+  MessageMode,
+} from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundTools } from "./PlaygroundTools";
-import { ToolToggleButton } from "./ToolToggleButton";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -195,6 +202,76 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   );
 }
 
+function MessageEditor({
+  message,
+  updateMessage,
+  templateLanguage,
+  playgroundInstanceId,
+  template,
+  messageMode,
+}: {
+  playgroundInstanceId: number;
+  message: ChatMessage;
+  template: PlaygroundChatTemplateType;
+  templateLanguage: TemplateLanguage;
+  updateMessage: (patch: Partial<ChatMessage>) => void;
+  messageMode: MessageMode;
+}) {
+  if (messageMode === "toolCalls") {
+    return (
+      <View padding="size-100">
+        <Field label={"Tool Calls"}>
+          <CodeWrap width={"100%"}>
+            <ChatMessageToolCallsEditor
+              playgroundInstanceId={playgroundInstanceId}
+              toolCalls={message.toolCalls}
+              templateMessages={template.messages}
+              messageId={message.id}
+            />
+          </CodeWrap>
+        </Field>
+      </View>
+    );
+  }
+  if (message.role === "tool") {
+    return (
+      <Form>
+        <TextField
+          value={message.toolCallId}
+          onChange={(val) => updateMessage({ toolCallId: val })}
+          label="Tool Call ID"
+        />
+        <JSONEditor
+          value={
+            message.content == null || message.content === ""
+              ? "{}"
+              : message.content
+          }
+          aria-label="tool message content"
+          height={"100%"}
+          onChange={(val) => updateMessage({ content: val })}
+          onBlur={() => {
+            if (message.content == null) {
+              return;
+            }
+            const { json: parsedContent } = safelyParseJSON(message.content);
+            updateMessage({ content: JSON.stringify(parsedContent, null, 2) });
+          }}
+        />
+      </Form>
+    );
+  }
+  return (
+    <TemplateEditor
+      height="100%"
+      value={message.content}
+      aria-label="Message content"
+      templateLanguage={templateLanguage}
+      onChange={(val) => updateMessage({ content: val })}
+    />
+  );
+}
+
 function SortableMessageItem({
   playgroundInstanceId,
   templateLanguage,
@@ -228,7 +305,28 @@ function SortableMessageItem({
     zIndex: isDragging ? DRAGGING_MESSAGE_Z_INDEX : MESSAGE_Z_INDEX,
   };
 
-  const hasTools = message.toolCalls != null;
+  const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
+
+  const [messageMode, setMessageMode] = useState<MessageMode>(
+    hasTools ? "toolCalls" : "text"
+  );
+
+  const updateMessage = useCallback(
+    (patch: Partial<ChatMessage>) => {
+      updateInstance({
+        instanceId: playgroundInstanceId,
+        patch: {
+          template: {
+            __type: "chat",
+            messages: template.messages.map((msg) =>
+              msg.id === message.id ? { ...msg, ...patch } : msg
+            ),
+          },
+        },
+      });
+    },
+    [message.id, playgroundInstanceId, template.messages, updateInstance]
+  );
 
   return (
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
@@ -258,33 +356,33 @@ function SortableMessageItem({
         }
         extra={
           <Flex direction="row" gap="size-100">
-            {message.role !== "tool" && (
-              <ToolToggleButton
-                hasTools={hasTools}
-                onClick={() => {
-                  updateInstance({
-                    instanceId: playgroundInstanceId,
-                    patch: {
-                      template: {
-                        __type: "chat",
-                        messages: template.messages.map((msg) => {
-                          if (msg.id === message.id) {
-                            return {
-                              ...msg,
-                              toolCalls: hasTools
-                                ? undefined
-                                : [createOpenAIToolCall()],
-                            };
-                          }
-                          return msg;
-                        }),
-                      },
-                    },
-                  });
-                }}
-              />
-            )}
-
+            {
+              // Only show tool calls option for AI messages
+              message.role === "ai" && (
+                <MessageContentRadioGroup
+                  messageMode={messageMode}
+                  onChange={(mode) => {
+                    setMessageMode(mode);
+                    switch (mode) {
+                      case "text":
+                        updateMessage({
+                          content: "",
+                          toolCalls: undefined,
+                        });
+                        break;
+                      case "toolCalls":
+                        updateMessage({
+                          content: "",
+                          toolCalls: [createOpenAIToolCall()],
+                        });
+                        break;
+                      default:
+                        assertUnreachable(mode);
+                    }
+                  }}
+                />
+              )
+            }
             {message.content != null && (
               <CopyToClipboardButton text={message.content} />
             )}
@@ -315,41 +413,14 @@ function SortableMessageItem({
           </Flex>
         }
       >
-        <Flex gap={"size-100"} direction="column">
-          <TemplateEditor
-            height="100%"
-            value={message.content}
-            aria-label="Message content"
-            templateLanguage={templateLanguage}
-            onChange={(val) => {
-              updateInstance({
-                instanceId: playgroundInstanceId,
-                patch: {
-                  template: {
-                    __type: "chat",
-                    messages: template.messages.map((msg) =>
-                      msg.id === message.id ? { ...msg, content: val } : msg
-                    ),
-                  },
-                },
-              });
-            }}
-          />
-          {hasTools && message.role !== "tool" && (
-            <View padding="size-100">
-              <Field label={"Tool Calls"}>
-                <CodeWrap width={"100%"}>
-                  <ChatMessageToolCallsEditor
-                    playgroundInstanceId={playgroundInstanceId}
-                    toolCalls={message.toolCalls}
-                    templateMessages={template.messages}
-                    messageId={0}
-                  />
-                </CodeWrap>
-              </Field>
-            </View>
-          )}
-        </Flex>
+        <MessageEditor
+          message={message}
+          messageMode={messageMode}
+          playgroundInstanceId={playgroundInstanceId}
+          template={template}
+          templateLanguage={templateLanguage}
+          updateMessage={updateMessage}
+        />
       </Card>
     </li>
   );
