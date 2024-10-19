@@ -60,7 +60,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -95,7 +95,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -124,7 +124,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="https://app.phoenix.arize.com/v1/traces",
-) 
+)
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -134,7 +134,7 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-groq groq 
+pip install openinference-instrumentation-groq groq
 ```
 
 ## Setup
