@@ -29,10 +29,10 @@
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
 
-- **_Tracing_** - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
-- **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
-- **_Datasets_** - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
-- **_Experiments_** - Track and evaluate changes to prompts, LLMs, and retrieval.
+- [**_Tracing_**](https://docs.arize.com/phoenix/tracing/llm-traces) - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
+- [**_Evaluation_**](https://docs.arize.com/phoenix/evaluation/llm-evals) - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
+- [**_Datasets_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
+- [**_Experiments_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
 
 Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
