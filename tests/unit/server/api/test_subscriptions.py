@@ -1,7 +1,9 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
+import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -44,6 +46,10 @@ def remove_all_vcr_response_headers(response: Dict[str, Any]) -> Dict[str, Any]:
     return response
 
 
+@pytest.mark.skipif(
+    sys.platform in ("win32", "linux"),
+    reason="subscriptions are not currently supported on windows or linux",
+)
 class TestChatCompletionSubscription:
     QUERY = """
       subscription ChatCompletionSubscription($input: ChatCompletionInput!) {
