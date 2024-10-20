@@ -320,7 +320,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
         py: [3.9, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
