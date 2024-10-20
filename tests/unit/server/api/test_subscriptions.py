@@ -1,14 +1,46 @@
 import json
-from typing import Any
+from typing import Any, Dict
 
+import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
 
-from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
+
+
+def remove_all_vcr_request_headers(request: Any) -> Any:
+    """
+    Removes all request headers.
+
+    Example:
+    ```
+    @pytest.mark.vcr(
+        before_record_response=remove_all_vcr_request_headers
+    )
+    def test_openai() -> None:
+        # make request to OpenAI
+    """
+    request.headers.clear()
+    return request
+
+
+def remove_all_vcr_response_headers(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Removes all response headers.
+
+    Example:
+    ```
+    @pytest.mark.vcr(
+        before_record_response=remove_all_vcr_response_headers
+    )
+    def test_openai() -> None:
+        # make request to OpenAI
+    """
+    response["headers"] = {}
+    return response
 
 
 class TestChatCompletionSubscription:
@@ -82,11 +114,16 @@ class TestChatCompletionSubscription:
       }
     """
 
+    @pytest.mark.vcr(
+        decode_compressed_response=True,
+        before_record_request=remove_all_vcr_request_headers,
+        before_record_response=remove_all_vcr_response_headers,
+        ignore_hosts=["test"],
+    )
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
         gql_client: Any,
-        db: DbSessionFactory,
-        # openai_api_key: str,
+        openai_api_key: str,
     ) -> None:
         variables = {
             "input": {
