@@ -392,7 +392,12 @@ class AsyncGraphQLClient:
         return data
 
     @contextlib.asynccontextmanager
-    async def session(self) -> "GraphQLSubscriptionSession":
+    async def subscription(
+        self,
+        query: str,
+        variables: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> "GraphQLSubscription":
         """
         Returns a subscription client.
         """
@@ -405,21 +410,33 @@ class AsyncGraphQLClient:
             message = await session.receive_json(timeout=self._timeout_seconds)
             if message.get("type") != "connection_ack":
                 raise RuntimeError("Websocket connection failed")
-            yield GraphQLSubscriptionSession(session)
+            yield GraphQLSubscription(
+                session=session,
+                query=query,
+                variables=variables,
+                operation_name=operation_name,
+                timeout_seconds=self._timeout_seconds,
+            )
 
 
-class GraphQLSubscriptionSession:
+class GraphQLSubscription:
     def __init__(
-        self, session: AsyncWebSocketSession, timeout_seconds: Optional[str] = None
-    ) -> None:
-        self._session = session
-        self._timeout_seconds = timeout_seconds
-
-    async def subscribe(
         self,
+        *,
+        session: AsyncWebSocketSession,
         query: str,
         variables: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
+        timeout_seconds: Optional[str] = None,
+    ) -> None:
+        self._session = session
+        self._query = query
+        self._variables = variables
+        self._operation_name = operation_name
+        self._timeout_seconds = timeout_seconds
+
+    async def stream(
+        self,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Streams subscription payloads.
@@ -430,9 +447,13 @@ class GraphQLSubscriptionSession:
                 "id": connection_id,
                 "type": "subscribe",
                 "payload": {
-                    "query": query,
-                    **({"variables": variables} if variables is not None else {}),
-                    **({"operationName": operation_name} if operation_name is not None else {}),
+                    "query": self._query,
+                    **({"variables": self._variables} if self._variables is not None else {}),
+                    **(
+                        {"operationName": self._operation_name}
+                        if self._operation_name is not None
+                        else {}
+                    ),
                 },
             }
         )

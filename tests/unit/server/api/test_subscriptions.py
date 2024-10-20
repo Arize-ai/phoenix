@@ -133,18 +133,15 @@ class TestChatCompletionSubscription:
                 },
             },
         }
-        async with gql_client.session() as session:
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
             with use_cassette(
                 "../cassettes/tests/unit/server/api/cassettes/test_subscriptions/TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml"
             ):
-                payloads = [
-                    payload["chatCompletion"]
-                    async for payload in session.subscribe(
-                        query=self.QUERY,
-                        variables=variables,
-                        operation_name="ChatCompletionSubscription",
-                    )
-                ]
+                payloads = [payload["chatCompletion"] async for payload in subscription.stream()]
 
         # check subscription payloads
         assert payloads
