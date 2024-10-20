@@ -11,12 +11,16 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
+    Dict,
     Iterator,
     List,
     Literal,
+    Optional,
     Set,
     Tuple,
 )
+from urllib.parse import urljoin
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -26,11 +30,14 @@ from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import URL, Request, Response
+from httpx_ws import AsyncWebSocketSession, aconnect_ws
+from httpx_ws.transport import ASGIWebSocketTransport
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 
 import phoenix.trace.v1 as pb
 from phoenix.config import EXPORT_DIR
@@ -221,8 +228,8 @@ def httpx_clients(
                 request=request,
             )
 
-    asgi_transport = httpx.ASGITransport(app=app)
-    transport = Transport(httpx.ASGITransport(app), asgi_transport=asgi_transport)
+    asgi_transport = ASGIWebSocketTransport(app=app)
+    transport = Transport(ASGIWebSocketTransport(app), asgi_transport=asgi_transport)
     base_url = "http://test"
     return (
         httpx.Client(transport=transport, base_url=base_url),
@@ -235,6 +242,11 @@ def httpx_client(
     httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
 ) -> httpx.AsyncClient:
     return httpx_clients[1]
+
+
+@pytest.fixture
+def gql_client(httpx_client: httpx.AsyncClient) -> "AsyncGraphQLClient":
+    yield AsyncGraphQLClient(httpx_client)
 
 
 @pytest.fixture
@@ -341,3 +353,123 @@ def rand_trace_id() -> Iterator[str]:
                 yield span_id
 
     return _(set())
+
+
+class AsyncGraphQLClient:
+    """
+    Async GraphQL client that can execute queries, mutations, and subscriptions.
+    """
+
+    def __init__(
+        self, httpx_client: httpx.AsyncClient, timeout_seconds: Optional[float] = 10
+    ) -> None:
+        self._httpx_client = httpx_client
+        self._timeout_seconds = timeout_seconds
+        self._gql_url = urljoin(str(httpx_client.base_url), "/graphql")
+
+    async def execute(
+        self,
+        query: str,
+        variables: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Executes queries and mutations.
+        """
+        response = await self._httpx_client.post(
+            self._gql_url,
+            json={
+                "query": query,
+                **({"variables": variables} if variables is not None else {}),
+                **({"operationName": operation_name} if operation_name is not None else {}),
+            },
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        if (errors := response_json.get("errors")) is not None:
+            raise RuntimeError(errors)
+        assert isinstance(data := response_json.get("data"), dict)
+        return data
+
+    @contextlib.asynccontextmanager
+    async def subscription(
+        self,
+        query: str,
+        variables: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+    ) -> "GraphQLSubscription":
+        """
+        Starts a GraphQL subscription session.
+        """
+        async with aconnect_ws(
+            self._gql_url,
+            self._httpx_client,
+            subprotocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
+        ) as session:
+            await session.send_json({"type": "connection_init"})
+            message = await session.receive_json(timeout=self._timeout_seconds)
+            if message.get("type") != "connection_ack":
+                raise RuntimeError("Websocket connection failed")
+            yield GraphQLSubscription(
+                session=session,
+                query=query,
+                variables=variables,
+                operation_name=operation_name,
+                timeout_seconds=self._timeout_seconds,
+            )
+
+
+class GraphQLSubscription:
+    """
+    A session for a GraphQL subscription.
+    """
+
+    def __init__(
+        self,
+        *,
+        session: AsyncWebSocketSession,
+        query: str,
+        variables: Optional[Dict[str, Any]] = None,
+        operation_name: Optional[str] = None,
+        timeout_seconds: Optional[str] = None,
+    ) -> None:
+        self._session = session
+        self._query = query
+        self._variables = variables
+        self._operation_name = operation_name
+        self._timeout_seconds = timeout_seconds
+
+    async def stream(
+        self,
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        Streams subscription payloads.
+        """
+        connection_id = str(uuid4())
+        await self._session.send_json(
+            {
+                "id": connection_id,
+                "type": "subscribe",
+                "payload": {
+                    "query": self._query,
+                    **({"variables": self._variables} if self._variables is not None else {}),
+                    **(
+                        {"operationName": self._operation_name}
+                        if self._operation_name is not None
+                        else {}
+                    ),
+                },
+            }
+        )
+        while True:
+            message = await self._session.receive_json(timeout=self._timeout_seconds)
+            message_type = message.get("type")
+            assert message.get("id") == connection_id
+            if message_type == "complete":
+                break
+            elif message_type == "next":
+                yield message["payload"]["data"]
+            elif message_type == "error":
+                raise RuntimeError(message["payload"])
+            else:
+                assert False, f"Unexpected message type: {message_type}"
