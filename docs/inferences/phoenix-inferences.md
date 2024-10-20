@@ -18,10 +18,10 @@ We will begin by logging just a training set. Then proceed to add a production s
 
 ### Step 1: Install and load dependencies
 
-Use `pip` or `conda`to install `arize-phoenix`.
+Use `pip` or `conda`to install `arize-phoenix`. Note that since we are going to do embedding analysis we must also add the embeddings extra.
 
 ```python
-!pip install arize-phoenix
+!pip install 'arize-phoenix[embeddings]'
 
 import phoenix as px
 ```
