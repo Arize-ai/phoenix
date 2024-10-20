@@ -399,7 +399,7 @@ class AsyncGraphQLClient:
         operation_name: Optional[str] = None,
     ) -> "GraphQLSubscription":
         """
-        Returns a subscription client.
+        Starts a GraphQL subscription session.
         """
         async with aconnect_ws(
             self._gql_url,
@@ -420,6 +420,10 @@ class AsyncGraphQLClient:
 
 
 class GraphQLSubscription:
+    """
+    A session for a GraphQL subscription.
+    """
+
     def __init__(
         self,
         *,
