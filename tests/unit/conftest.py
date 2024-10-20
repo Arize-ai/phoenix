@@ -30,7 +30,7 @@ from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import URL, Request, Response
-from httpx_ws import aconnect_ws
+from httpx_ws import AsyncWebSocketSession, aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 from psycopg import Connection
 from pytest_postgresql import factories
@@ -391,6 +391,30 @@ class AsyncGraphQLClient:
         assert isinstance(data := response_json.get("data"), dict)
         return data
 
+    @contextlib.asynccontextmanager
+    async def session(self) -> "GraphQLSubscriptionSession":
+        """
+        Returns a subscription client.
+        """
+        async with aconnect_ws(
+            self._gql_url,
+            self._httpx_client,
+            subprotocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
+        ) as session:
+            await session.send_json({"type": "connection_init"})
+            message = await session.receive_json(timeout=self._timeout_seconds)
+            if message.get("type") != "connection_ack":
+                raise RuntimeError("Websocket connection failed")
+            yield GraphQLSubscriptionSession(session)
+
+
+class GraphQLSubscriptionSession:
+    def __init__(
+        self, session: AsyncWebSocketSession, timeout_seconds: Optional[str] = None
+    ) -> None:
+        self._session = session
+        self._timeout_seconds = timeout_seconds
+
     async def subscribe(
         self,
         query: str,
@@ -400,36 +424,27 @@ class AsyncGraphQLClient:
         """
         Streams subscription payloads.
         """
-        async with aconnect_ws(
-            self._gql_url,
-            self._httpx_client,
-            subprotocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
-        ) as session:
-            await session.send_json({"type": "connection_init"})
-            message = await session.receive_json(timeout=self._timeout_seconds)
-            if (message_type := message.get("type")) != "connection_ack":
-                raise RuntimeError("Websocket connection failed")
-            connection_id = str(uuid4())
-            await session.send_json(
-                {
-                    "id": connection_id,
-                    "type": "subscribe",
-                    "payload": {
-                        "query": query,
-                        **({"variables": variables} if variables is not None else {}),
-                        **({"operationName": operation_name} if operation_name is not None else {}),
-                    },
-                }
-            )
-            while True:
-                message = await session.receive_json(timeout=self._timeout_seconds)
-                message_type = message.get("type")
-                assert message.get("id") == connection_id
-                if message_type == "complete":
-                    break
-                elif message_type == "next":
-                    yield message["payload"]["data"]
-                elif message_type == "error":
-                    raise RuntimeError(message["payload"])
-                else:
-                    assert False, f"Unexpected message type: {message_type}"
+        connection_id = str(uuid4())
+        await self._session.send_json(
+            {
+                "id": connection_id,
+                "type": "subscribe",
+                "payload": {
+                    "query": query,
+                    **({"variables": variables} if variables is not None else {}),
+                    **({"operationName": operation_name} if operation_name is not None else {}),
+                },
+            }
+        )
+        while True:
+            message = await self._session.receive_json(timeout=self._timeout_seconds)
+            message_type = message.get("type")
+            assert message.get("id") == connection_id
+            if message_type == "complete":
+                break
+            elif message_type == "next":
+                yield message["payload"]["data"]
+            elif message_type == "error":
+                raise RuntimeError(message["payload"])
+            else:
+                assert False, f"Unexpected message type: {message_type}"

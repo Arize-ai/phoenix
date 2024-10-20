@@ -1,12 +1,12 @@
 import json
 from typing import Any, Dict
 
-import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
+from vcr import use_cassette
 
 from phoenix.trace.attributes import flatten
 
@@ -114,12 +114,6 @@ class TestChatCompletionSubscription:
       }
     """
 
-    @pytest.mark.vcr(
-        decode_compressed_response=True,
-        before_record_request=remove_all_vcr_request_headers,
-        before_record_response=remove_all_vcr_response_headers,
-        ignore_hosts=["test"],
-    )
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
         gql_client: Any,
@@ -139,12 +133,18 @@ class TestChatCompletionSubscription:
                 },
             },
         }
-        payloads = [
-            payload["chatCompletion"]
-            async for payload in gql_client.subscribe(
-                query=self.QUERY, variables=variables, operation_name="ChatCompletionSubscription"
-            )
-        ]
+        async with gql_client.session() as session:
+            with use_cassette(
+                "../cassettes/tests/unit/server/api/cassettes/test_subscriptions/TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml"
+            ):
+                payloads = [
+                    payload["chatCompletion"]
+                    async for payload in session.subscribe(
+                        query=self.QUERY,
+                        variables=variables,
+                        operation_name="ChatCompletionSubscription",
+                    )
+                ]
 
         # check subscription payloads
         assert payloads

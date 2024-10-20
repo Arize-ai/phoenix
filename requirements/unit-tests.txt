@@ -13,9 +13,9 @@ openai>=1.0.0
 protobuf==3.20.2  # version minimum (for tests)
 psycopg[binary,pool]
 pytest-postgresql
-pytest-recording
 responses
 respx # For OpenAI testing
 tenacity
 tiktoken
 typing-extensions==4.7.0
+vcrpy
