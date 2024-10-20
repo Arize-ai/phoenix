@@ -47,7 +47,11 @@ def remove_all_vcr_response_headers(response: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @pytest.mark.skipif(
-    sys.platform in ("win32", "linux"),
+    sys.platform
+    in (
+        "win32",
+        "linux",
+    ),  # todo: support windows and linux https://github.com/Arize-ai/phoenix/issues/5126
     reason="subscriptions are not currently supported on windows or linux",
 )
 class TestChatCompletionSubscription:
@@ -147,7 +151,10 @@ class TestChatCompletionSubscription:
         ) as subscription:
             with use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml"
+                "TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
+                decode_compressed_response=True,
+                before_record_request=remove_all_vcr_request_headers,
+                before_record_response=remove_all_vcr_response_headers,
             ):
                 payloads = [payload["chatCompletion"] async for payload in subscription.stream()]
 
