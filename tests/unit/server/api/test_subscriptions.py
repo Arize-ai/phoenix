@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any, Dict
 
 from openinference.semconv.trace import (
@@ -139,7 +140,8 @@ class TestChatCompletionSubscription:
             operation_name="ChatCompletionSubscription",
         ) as subscription:
             with use_cassette(
-                "tests/unit/server/api/cassettes/test_subscriptions/TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml"
+                Path(__file__).parent / "cassettes/test_subscriptions/"
+                "TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml"
             ):
                 payloads = [payload["chatCompletion"] async for payload in subscription.stream()]
 
