@@ -295,6 +295,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            tests/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
