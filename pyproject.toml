@@ -112,11 +112,11 @@ embeddings = [
 evals = []
 experimental = []
 llama-index = [
-  "llama-index==0.10.51",  # always pin to a version that keeps our notebooks working
-  "llama-index-readers-file==0.1.25",
-  "llama-index-llms-openai==0.1.24",
-  "llama-index-embeddings-openai==0.1.10",
-  "llama-index-agent-openai==0.2.7",
+  "llama-index==0.11.0",  # always pin to a version that keeps our notebooks working
+  "llama-index-readers-file>=0.1.25",
+  "llama-index-llms-openai>=0.1.24",
+  "llama-index-embeddings-openai>=0.1.10",
+  "llama-index-agent-openai>=0.2.7",
 ]
 pg = [
   "asyncpg",
