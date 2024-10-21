@@ -1,8 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from typing import (
@@ -355,7 +354,6 @@ class Subscription:
         )
         tracer = tracer_provider.get_tracer(__name__)
         span_name = "ChatCompletion"
-
         with tracer.start_span(
             span_name,
             attributes=dict(
@@ -480,9 +478,11 @@ def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
-    assert any(field.name == (api_key := "api_key") for field in fields(ChatCompletionInput))
+    assert (api_key := "api_key") in (input_data := jsonify(input))
+    input_data = {k: v for k, v in input_data.items() if k != api_key}
+    assert api_key not in input_data
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, safe_json_dumps({k: v for k, v in jsonify(input).items() if k != api_key})
+    yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
@@ -530,7 +530,7 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     Converts a Unix epoch timestamp in nanoseconds to a datetime.
     """
     epoch_seconds = epoch_nanoseconds / 1e9
-    return datetime.fromtimestamp(epoch_seconds)
+    return datetime.fromtimestamp(epoch_seconds).replace(tzinfo=timezone.utc)
 
 
 def _formatted_messages(
