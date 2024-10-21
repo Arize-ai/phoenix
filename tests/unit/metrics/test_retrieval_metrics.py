@@ -2,7 +2,7 @@ from typing import List, Optional
 
 import numpy as np
 import pytest
-from sklearn.metrics import ndcg_score  # type: ignore[import-untyped]
+from sklearn.metrics import ndcg_score
 
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 

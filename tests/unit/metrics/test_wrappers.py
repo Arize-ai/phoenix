@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 from pandas.core.dtypes.common import is_object_dtype
-from sklearn import metrics as sk  # type: ignore[import-untyped]
+from sklearn import metrics as sk
 
 from phoenix.core.model_schema import Column
 from phoenix.metrics.mixins import EvaluationMetric, EvaluationMetricKeywordParameters
