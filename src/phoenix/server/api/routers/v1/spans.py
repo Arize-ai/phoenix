@@ -120,14 +120,21 @@ async def query_spans_handler(
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
     print(f"{results=}\n\n")
 
-    async def content() -> AsyncIterator[bytes]:
-        for result in results:
-            yield df_to_bytes(result)
+    if len(results) == 1:
+        return Response(
+            content=df_to_bytes(results[0]),
+            media_type="application/x-pandas-arrow",
+        )
+    else:
 
-    return Response(
-        content=content(),
-        media_type="application/x-pandas-arrow",
-    )
+        async def content() -> AsyncIterator[bytes]:
+            for result in results:
+                yield df_to_bytes(result)
+
+        return StreamingResponse(
+            content=content(),
+            media_type="application/x-pandas-arrow",
+        )
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)
