@@ -245,6 +245,7 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path: Path) -> None:
     assert dataset_path.exists()
 
     schema = parquet.read_schema(dataset_path)
+    assert schema.metadata
     arize_metadata = json.loads(schema.metadata[b"arize"])
     assert arize_metadata == {
         "dataset_id": str(ds._id),
