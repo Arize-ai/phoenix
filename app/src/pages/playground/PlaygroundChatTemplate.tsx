@@ -221,8 +221,8 @@ function MessageEditor({
     return (
       <View
         paddingTop="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
+        paddingStart="size-250"
+        paddingEnd="size-250"
         paddingBottom="size-200"
       >
         <Field label={"Tool Calls"}>
@@ -281,13 +281,26 @@ function MessageEditor({
     );
   }
   return (
-    <TemplateEditor
-      height="100%"
-      value={message.content}
-      aria-label="Message content"
-      templateLanguage={templateLanguage}
-      onChange={(val) => updateMessage({ content: val })}
-    />
+    <div
+      css={css`
+        & .cm-content {
+          padding-left: var(--ac-global-dimension-size-250);
+          padding-right: var(--ac-global-dimension-size-250);
+        }
+        & .cm-line {
+          padding-left: 0;
+          padding-right: 0;
+        }
+      `}
+    >
+      <TemplateEditor
+        height="100%"
+        value={message.content}
+        aria-label="Message content"
+        templateLanguage={templateLanguage}
+        onChange={(val) => updateMessage({ content: val })}
+      />
+    </div>
   );
 }
 
