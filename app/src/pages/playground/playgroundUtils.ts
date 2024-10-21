@@ -16,7 +16,7 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
-  MODEL_NAME_PARSING_ERROR,
+  MODEL_CONFIG_PARSING_ERROR,
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
@@ -176,7 +176,7 @@ function getModelConfigFromAttributes(
       parsingErrors: [],
     };
   }
-  return { modelConfig: null, parsingErrors: [MODEL_NAME_PARSING_ERROR] };
+  return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
 }
 
 /**

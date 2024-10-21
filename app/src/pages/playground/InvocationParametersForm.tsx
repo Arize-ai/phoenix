@@ -10,11 +10,6 @@ import { InvocationParametersSchema } from "./schemas";
 
 /**
  * Form field for a single invocation parameter.
- *
- * TODO(apowell): Should this be generic over the schema field data type? There
- * probably aren't enough fields for that to be worthwhile at the moment.
- * TODO(apowell): Read disabled state and default values from schema and apply them
- * to the input.
  */
 const FormField = ({
   field,
