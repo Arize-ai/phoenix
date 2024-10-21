@@ -9,7 +9,7 @@ import httpx
 import pandas as pd
 import pyarrow as pa
 import pytest
-from httpx import Response
+from httpx import Request, Response
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -53,7 +53,7 @@ def test_get_spans_dataframe(
     url = urljoin(endpoint, "v1/spans")
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(dataframe)))
-    df = client.get_spans_dataframe()
+    assert (df := client.get_spans_dataframe()) is not None
     assert_frame_equal(df, dataframe)
 
     respx_mock.post(url).mock(Response(404))
@@ -73,7 +73,7 @@ def test_query_spans(
         Response(200, content=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
     )
     query = SpanQuery()
-    dfs = client.query_spans(query, query)
+    assert isinstance(dfs := client.query_spans(query, query), list)
     assert len(dfs) == 2
     assert_frame_equal(dfs[0], df0)
     assert_frame_equal(dfs[1], df1)
@@ -82,10 +82,12 @@ def test_query_spans(
     assert client.query_spans(query) is None
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(df0)))
-    assert_frame_equal(client.query_spans(query), df0)
+    assert isinstance(df := client.query_spans(query), pd.DataFrame)
+    assert_frame_equal(df, df0)
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(df1)))
-    assert_frame_equal(client.query_spans(), df1)
+    assert isinstance(df := client.query_spans(query), pd.DataFrame)
+    assert_frame_equal(df, df1)
 
 
 def test_query_spans_raises_custom_error_with_instructions_to_increase_timeout_parameter_on_timeout(
@@ -127,7 +129,7 @@ def test_log_traces_sends_oltp_spans(
 ) -> None:
     span_counter = 0
 
-    def request_callback(request) -> None:
+    def request_callback(request: Request) -> Response:
         assert request.headers["content-type"] == "application/x-protobuf"
         assert request.headers["content-encoding"] == "gzip"
         content = gzip.decompress(request.content)
@@ -135,7 +137,7 @@ def test_log_traces_sends_oltp_spans(
         req.ParseFromString(content)
         nonlocal span_counter
         span_counter += 1
-        return httpx.Response(200)
+        return Response(200)
 
     url = urljoin(endpoint, "v1/traces")
     respx_mock.post(url).mock(side_effect=request_callback)
@@ -276,7 +278,7 @@ def test_get_dataset_returns_expected_dataset(
     assert dataset.id == dataset_id
     assert dataset.version_id == str(GlobalID("DatasetVersion", str(1)))
     assert dataset.examples
-    example = next(iter(dataset.examples.values()), None)
+    assert (example := next(iter(dataset.examples.values()), None)) is not None
     assert example.id == str(GlobalID("DatasetExample", str(1)))
     assert example.input == {"input": "input"}
     assert example.output == {"output": "output"}
