@@ -87,8 +87,6 @@ jobs:
       matrix:
         py: [3.8, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
-    env:
-      TOX_TESTENV: phoenix_evals
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,7 +100,7 @@ jobs:
         with:
           version: 0.4.25
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e ${{ env.TOX_TESTENV }} -- -ra -x
+      - run: tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
     name: Phoenix OTel
@@ -113,8 +111,6 @@ jobs:
       matrix:
         py: [3.8, 3.13]
         os: [ubuntu-latest, windows-latest, macos-13]
-    env:
-      TOX_TESTENV: phoenix_otel
     steps:
       - uses: actions/checkout@v4
         with:
@@ -128,7 +124,7 @@ jobs:
         with:
           version: 0.4.25
       - run: uv tool install tox --with tox-uv
-      - run: tox run -e ${{ env.TOX_TESTENV }} -- -ra -x
+      - run: tox run -e phoenix_otel -- -ra -x
 
   #  clean-jupyter-notebooks:
   #    name: Clean Jupyter Notebooks
@@ -170,8 +166,6 @@ jobs:
         py: [3.12]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      TOX_TESTENV: build_graphql_schema
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -190,15 +184,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/build-graphql-schema.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Build GraphQL schema
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e build_graphql_schema
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -210,8 +197,6 @@ jobs:
         py: [3.12]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      TOX_TESTENV: build_openapi_schema
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -229,15 +214,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Build OpenAPI schema
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e build_openapi_schema
       - run: git diff --exit-code
 
   compile-protobuf:
@@ -250,8 +228,6 @@ jobs:
         py: [3.11]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      TOX_TESTENV: compile_protobuf
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -270,15 +246,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/compile-protobuf.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Compile Protobuf
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e compile_protobuf
       - run: git diff --exit-code
 
   ruff:
@@ -319,8 +288,6 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         os: [ubuntu-latest]
-    env:
-      TOX_TESTENV: type_check
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -345,15 +312,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/ci.txt', 'requirements/type-check.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Check types
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e type_check
 
   type-check-unit-tests:
     name: Type Check Unit Tests
@@ -364,8 +324,6 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         os: [ubuntu-latest]
-    env:
-        TOX_TESTENV: type_check_unit_tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -390,15 +348,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/ci.txt', 'requirements/unit-tests.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Check types on unit tests
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e type_check_unit_tests
 
   unit-tests:
     name: Unit Tests
@@ -409,8 +360,6 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         os: [ubuntu-latest, windows-latest, macos-13]
-    env:
-      TOX_TESTENV: unit_tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -436,22 +385,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/ci.txt', 'requirements/unit-tests.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Install PostgreSQL (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: tox run -e ${{ env.TOX_TESTENV }} -- -ra -x --run-postgres
+        run: tox run -e unit_tests -- -ra -x --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: tox run -e ${{ env.TOX_TESTENV }} -- -ra -x
+        run: tox run -e unit_tests -- -ra -x
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -462,8 +404,6 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         os: [ubuntu-latest]
-    env:
-      TOX_TESTENV: type_check_integration_tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -488,15 +428,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/ci.txt', 'requirements/integration-tests.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Check types on integration tests
-        run: tox run -e ${{ env.TOX_TESTENV }}
+        run: tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests
@@ -515,7 +448,6 @@ jobs:
           - db: postgresql
             os: macos-13
     env:
-      TOX_TESTENV: integration_tests
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
       postgres:
@@ -554,12 +486,5 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
-      - name: Cache `.tox` folder
-        uses: actions/cache@v4
-        with:
-          path: .tox
-          key: tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-${{ hashFiles('pyproject.toml', 'requirements/ci.txt', 'requirements/integration-tests.txt') }}
-          restore-keys: |
-            tox-${{ env.TOX_TESTENV }}-${{ matrix.os }}-${{ matrix.py }}-
       - name: Run integration tests
-        run: tox run -e ${{ env.TOX_TESTENV }} -- -ra -x -n auto
+        run: tox run -e integration_tests -- -ra -x -n auto
