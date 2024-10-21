@@ -311,7 +311,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         ...spanAttributesWithInputMessages,
         llm: {
           ...spanAttributesWithInputMessages.llm,
-          // note that camel case keys are automatically converted to snake case
+          // note that snake case keys are automatically converted to camel case
           invocation_parameters:
             '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
         },
