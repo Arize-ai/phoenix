@@ -370,6 +370,7 @@ exclude = [
   "scripts/",
   "sdist/",
   "src/phoenix/evals/",
+  "tests/",
   "tutorials/",
   "js/",
 ]
