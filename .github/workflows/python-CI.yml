@@ -331,6 +331,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            tests/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -349,7 +350,7 @@ jobs:
         run: uv tool install tox --with tox-uv
       - name: Check types on unit tests
         run: tox run -e type_check_unit_tests
-        
+
   unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
