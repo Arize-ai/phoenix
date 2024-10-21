@@ -277,18 +277,17 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     modelName: instance.model.modelName || "default",
   });
 
-  // Constrain the invocation parameters to the schema.
-  // This prevents us from sending invalid parameters to the LLM.
   let invocationParameters: InvocationParameters = {
     ...instance.model.invocationParameters,
   };
 
+  // Constrain the invocation parameters to the schema.
+  // This prevents us from sending invalid parameters to the LLM since we may be
+  // storing parameters from previously selected models/providers within this instance.
   const valid = invocationParametersSchema.safeParse(invocationParameters);
   if (!valid.success) {
-    // TODO(apowell): We should fail open here and display all inputs.
-    // eslint-disable-next-line no-console
-    console.error(valid.error);
-    // Fall back to the model's invocation parameters.
+    // If we cannot successfully parse the invocation parameters, just send them
+    // all and let the API fail if they are invalid.
     invocationParameters = instance.model.invocationParameters;
   }
 
