@@ -13,7 +13,7 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
-from phoenix.server.api.schema import Query
+from phoenix.server.api.queries import Query
 from phoenix.server.types import DbSessionFactory
 
 
@@ -46,8 +46,10 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
         return Context(
             model=create_model_from_inferences(primary_inferences, reference_inferences),
             export_path=Path(TemporaryDirectory().name),
-            db=None,  # TODO(persistence): add mock for db
-            data_loaders=None,  # TODO(persistence): add mock for data_loaders
+            # TODO(persistence): add mock for db
+            db=None,  # type: ignore[arg-type]
+            # TODO(persistence): add mock for data_loaders
+            data_loaders=None,  # type: ignore[arg-type]
             cache_for_dataloaders=None,
         )
 
