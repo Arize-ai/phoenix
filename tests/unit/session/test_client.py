@@ -1,6 +1,5 @@
 import gzip
 from datetime import datetime
-from typing import cast
 from unittest.mock import patch
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -359,7 +358,7 @@ def _table_to_bytes(table: pa.Table) -> bytes:
     sink = pa.BufferOutputStream()
     with pa.ipc.new_stream(sink, table.schema) as writer:
         writer.write_table(table, max_chunksize=65536)
-    return cast(bytes, sink.getvalue().to_pybytes())
+    return sink.getvalue().to_pybytes()
 
 
 @pytest.fixture
