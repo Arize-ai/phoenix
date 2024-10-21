@@ -1175,7 +1175,7 @@ class Schema(SchemaSpec):
     prediction_score: Optional[str] = None
     actual_label: Optional[str] = None
     actual_score: Optional[str] = None
-    prompt: Optional[RetrievalEmbedding] = None
+    prompt: Optional[Embedding] = None
     response: Optional[Union[str, Embedding]] = None
     features: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
