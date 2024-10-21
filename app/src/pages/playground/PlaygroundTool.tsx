@@ -95,7 +95,6 @@ export function PlaygroundTool({
       }
     >
       <JSONEditor
-        height={"100%"}
         value={toolDefinition}
         onChange={onChange}
         jsonSchema={openAIToolJSONSchema as JSONSchema7}

@@ -415,9 +415,13 @@ function SortableMessageItem({
                 />
               )
             }
-            {message.content != null && (
-              <CopyToClipboardButton text={message.content} />
-            )}
+            <CopyToClipboardButton
+              text={
+                messageMode === "toolCalls"
+                  ? JSON.stringify(message.toolCalls)
+                  : (message.content ?? "")
+              }
+            />
             <Button
               aria-label="Delete message"
               icon={<Icon svg={<Icons.TrashOutline />} />}
@@ -445,14 +449,16 @@ function SortableMessageItem({
           </Flex>
         }
       >
-        <MessageEditor
-          message={message}
-          messageMode={messageMode}
-          playgroundInstanceId={playgroundInstanceId}
-          template={template}
-          templateLanguage={templateLanguage}
-          updateMessage={updateMessage}
-        />
+        <div>
+          <MessageEditor
+            message={message}
+            messageMode={messageMode}
+            playgroundInstanceId={playgroundInstanceId}
+            template={template}
+            templateLanguage={templateLanguage}
+            updateMessage={updateMessage}
+          />
+        </div>
       </Card>
     </li>
   );
