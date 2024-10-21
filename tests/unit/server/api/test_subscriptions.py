@@ -178,7 +178,7 @@ class TestChatCompletionSubscription:
 
         # check attributes
         assert span.pop("id") == span_id
-        assert span.pop("name") == "Chat Completion"
+        assert span.pop("name") == "ChatCompletion"
         assert span.pop("statusCode") == "OK"
         assert not span.pop("statusMessage")
         assert span.pop("startTime")

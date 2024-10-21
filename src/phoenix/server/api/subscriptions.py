@@ -353,7 +353,7 @@ class Subscription:
             span_processor=SimpleSpanProcessor(span_exporter=in_memory_span_exporter)
         )
         tracer = tracer_provider.get_tracer(__name__)
-        span_name = "Chat Completion"
+        span_name = "ChatCompletion"
         with tracer.start_span(
             span_name,
             attributes=dict(
