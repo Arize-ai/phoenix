@@ -9,9 +9,11 @@ from pandas import DataFrame, Series, Timestamp
 from strawberry.types.info import Info
 from typing_extensions import TypeAlias
 
+import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_inferences
-from phoenix.inferences.inferences import EmbeddingColumnNames, Inferences, Schema
+from phoenix.inferences.inferences import Inferences
+from phoenix.inferences.schema import EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -52,10 +54,11 @@ class TestDriftMetricTimeSeries:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         drift_time_series = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -126,10 +129,11 @@ class TestDriftMetricTimeSeries:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         distance = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
@@ -192,10 +196,11 @@ class TestDriftMetricTimeSeries:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         drift_time_series = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -283,10 +288,11 @@ class TestDriftMetricTimeSeries:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         drift_time_series = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -341,10 +347,11 @@ class TestDriftMetric:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         distance = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -411,10 +418,11 @@ class TestDriftMetric:
             schema=schema,
         )
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         distance = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
@@ -479,10 +487,11 @@ class TestDriftMetric:
         primary_inferences = Inferences(dataframe=primary_dataframe, schema=schema)
         reference_inferences = Inferences(dataframe=reference_dataframe, schema=schema)
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         distance = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -538,10 +547,11 @@ class TestDriftMetric:
         primary_inferences = Inferences(dataframe=primary_dataframe, schema=schema)
         reference_inferences = Inferences(dataframe=reference_dataframe, schema=schema)
         model = create_model_from_inferences(primary_inferences, reference_inferences)
+        assert isinstance(embedding_vector := model["embedding_vector"], ms.EmbeddingDimension)
         distance = EmbeddingDimension(
             name="embedding_feature",
             id_attr=0,
-            dimension=model["embedding_vector"],
+            dimension=embedding_vector,
         ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
