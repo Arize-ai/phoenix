@@ -121,6 +121,7 @@ async def query_spans_handler(
     print(f"{results=}\n\n")
 
     if len(results) == 1:
+        print(f"{df_to_bytes(results[0])=}\n\n")
         return Response(
             content=df_to_bytes(results[0]),
             media_type="application/x-pandas-arrow",
