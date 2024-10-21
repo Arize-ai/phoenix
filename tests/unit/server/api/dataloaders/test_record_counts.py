@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import List, Literal
 
 import pandas as pd
 from sqlalchemy import func, select
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders import RecordCountDataLoader
+from phoenix.server.api.dataloaders.record_counts import Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
@@ -40,16 +42,17 @@ async def test_record_counts(
             )
         )
     expected = trace_df.loc[:, "count"].to_list() + span_df.loc[:, "count"].to_list()
-    actual = await RecordCountDataLoader(db)._load_fn(
-        [
-            (
-                kind,
-                id_ + 1,
-                TimeRange(start=start_time, end=end_time),
-                "'_5_' in name" if kind == "span" else None,
-            )
-            for kind in ("trace", "span")
-            for id_ in range(10)
-        ]
-    )
+    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
+    keys: List[Key] = [
+        (
+            kind,
+            id_ + 1,
+            TimeRange(start=start_time, end=end_time),
+            "'_5_' in name" if kind == "span" else None,
+        )
+        for kind in kinds
+        for id_ in range(10)
+    ]
+
+    actual = await RecordCountDataLoader(db)._load_fn(keys)
     assert actual == expected

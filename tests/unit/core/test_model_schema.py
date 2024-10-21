@@ -1,6 +1,6 @@
 from itertools import chain
 from random import random
-from typing import Any, Iterable, Union
+from typing import Any, Dict, Iterable, Union
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,7 @@ from phoenix.core.model_schema import (
     InferencesRole,
     InvalidRole,
     MultiDimensionalRole,
+    RetrievalEmbedding,
     Schema,
     SingularDimensionalRole,
 )
@@ -57,8 +58,9 @@ def test_column_names_coerced_to_str() -> None:
     df = pd.DataFrame(columns=["0", 1, "2"])
     model = Schema()(df)
     assert set(model[PRIMARY].columns) == set(map(str, model[PRIMARY].columns))
-    assert tuple(df.columns) == ("0", 1, "2")
-    assert 1 in set(df.columns) - set(model[PRIMARY].columns)
+    assert df.columns.tolist() == ["0", 1, "2"]
+    assert 1 in set(df.columns.tolist())  # type: ignore[comparison-overlap]
+    assert 1 not in set(model[PRIMARY].columns)
 
 
 def test_df_padding() -> None:
@@ -166,7 +168,8 @@ def test_singular_dimensional_role_one_df(
     display_name: str,
     series: "pd.Series[Any]",
 ) -> None:
-    schema = Schema(**{role.name.lower(): column_spec})
+    schema_args: Dict[str, Any] = {role.name.lower(): column_spec}
+    schema = Schema(**schema_args)
     for _, df in {
         "zero columns": pd.DataFrame(),
         "zero rows": pd.DataFrame({str(column_spec): pd.Series(dtype=series.dtype)}),
@@ -207,7 +210,7 @@ def test_singular_dimensional_role_one_df(
         (Schema(features=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
         (Schema(features=np.array(range(5))), (pd.DataFrame(),), "01234"),
         (Schema(features=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
-        (Schema(features=pd.Index(range(3))), (pd.DataFrame(),), "012"),
+        (Schema(features=pd.Index(range(3))), (pd.DataFrame(),), "012"),  # type: ignore[arg-type]
         (Schema(features=list("ABC")), (pd.DataFrame(),), "ABC"),
         (Schema(features=list("ABC")), (pd.DataFrame({"D": []}),), "ABCD"),
         (Schema(features=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABCD"),
@@ -252,7 +255,7 @@ def test_feature_names(
         (Schema(tags=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
         (Schema(tags=np.array(range(5))), (pd.DataFrame(),), "01234"),
         (Schema(tags=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
-        (Schema(tags=pd.Index(range(3))), (pd.DataFrame(),), "012"),
+        (Schema(tags=pd.Index(range(3))), (pd.DataFrame(),), "012"),  # type: ignore[arg-type]
         (Schema(tags=list("ABC")), (pd.DataFrame(),), "ABC"),
         (Schema(tags=list("ABC")), (pd.DataFrame({"D": []}),), "ABC"),
         (Schema(tags=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABC"),
@@ -309,7 +312,7 @@ def test_scalar_dimensions_extraction() -> None:
                 timestamp="B",
                 features=["C", Embedding("E")],
                 tags=[Embedding("F"), "D"],
-                prompt=Embedding("G"),
+                prompt=RetrievalEmbedding("G"),
                 response=Embedding("H"),
             )(pd.DataFrame(columns=list("ABC"))).scalar_dimensions,
         )
@@ -325,7 +328,7 @@ def test_embedding_dimensions_extraction() -> None:
                 timestamp="B",
                 features=["C", Embedding("E")],
                 tags=[Embedding("F"), "D"],
-                prompt=Embedding("G"),
+                prompt=RetrievalEmbedding("G"),
             )(pd.DataFrame(columns=list("ABC"))).embedding_dimensions,
         )
     ) == {"E": FEATURE, "F": TAG, "G": PROMPT}
@@ -334,13 +337,13 @@ def test_embedding_dimensions_extraction() -> None:
 def test_raise_if_dim_role_is_unassigned() -> None:
     with pytest.raises(ValueError):
         _ = Dimension()
-    for role in InvalidRole:
+    for invalid_role in InvalidRole:
         with pytest.raises(ValueError):
-            _ = Dimension(role=role)
-    for role in SingularDimensionalRole:
-        _ = Dimension(role=role)
-    for role in MultiDimensionalRole:
-        _ = Dimension(role=role)
+            _ = Dimension(role=invalid_role)
+    for singular_dimensional_role in SingularDimensionalRole:
+        _ = Dimension(role=singular_dimensional_role)
+    for multidimensional_role in MultiDimensionalRole:
+        _ = Dimension(role=multidimensional_role)
 
 
 @pytest.mark.parametrize(

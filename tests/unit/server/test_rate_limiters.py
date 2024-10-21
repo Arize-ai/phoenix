@@ -1,6 +1,6 @@
 import time
 from contextlib import contextmanager
-from typing import Optional
+from typing import Callable, Iterator, List, Optional
 from unittest import mock
 
 import pytest
@@ -9,7 +9,7 @@ from phoenix.server.rate_limiters import ServerRateLimiter, TokenBucket, Unavail
 
 
 @contextmanager
-def freeze_time(frozen_time: Optional[float] = None):
+def freeze_time(frozen_time: Optional[float] = None) -> Iterator[Callable[[], None]]:
     frozen_time = time.time() if frozen_time is None else frozen_time
 
     with mock.patch("time.time") as mock_time:
@@ -18,16 +18,16 @@ def freeze_time(frozen_time: Optional[float] = None):
 
 
 @contextmanager
-def warp_time(start: Optional[float]):
-    sleeps = [0]
+def warp_time(start: float) -> Iterator[None]:
+    sleeps: List[float] = [0]
     current_time = start
     start = time.time() if start is None else start
 
-    def instant_sleep(time):
+    def instant_sleep(time: float) -> None:
         nonlocal sleeps
         sleeps.append(time)
 
-    def time_warp():
+    def time_warp() -> float:
         try:
             nonlocal current_time
             nonlocal sleeps
@@ -40,10 +40,10 @@ def warp_time(start: Optional[float]):
         with mock.patch("time.sleep") as mock_sleep:
             mock_sleep.side_effect = instant_sleep
             mock_time.side_effect = time_warp
-            yield
+            yield None
 
 
-def test_token_bucket_gains_tokens_over_time():
+def test_token_bucket_gains_tokens_over_time() -> None:
     start = time.time()
 
     with freeze_time(start):
@@ -57,7 +57,7 @@ def test_token_bucket_gains_tokens_over_time():
         assert bucket.available_tokens() == 10
 
 
-def test_token_bucket_can_max_out_on_requests():
+def test_token_bucket_can_max_out_on_requests() -> None:
     start = time.time()
 
     with freeze_time(start):
@@ -74,7 +74,7 @@ def test_token_bucket_can_max_out_on_requests():
         assert bucket.available_tokens() == 120  # should max out at 120
 
 
-def test_token_bucket_spends_tokens():
+def test_token_bucket_spends_tokens() -> None:
     start = time.time()
 
     with freeze_time(start):
@@ -87,7 +87,7 @@ def test_token_bucket_spends_tokens():
         assert bucket.available_tokens() == 2
 
 
-def test_token_bucket_cannot_spend_unavailable_tokens():
+def test_token_bucket_cannot_spend_unavailable_tokens() -> None:
     start = time.time()
 
     with freeze_time(start):
@@ -101,7 +101,7 @@ def test_token_bucket_cannot_spend_unavailable_tokens():
             bucket.make_request_if_ready()  # should raise since no tokens left
 
 
-def test_rate_limiter_cleans_up_old_partitions():
+def test_rate_limiter_cleans_up_old_partitions() -> None:
     start = time.time()
 
     with freeze_time(start):
@@ -133,7 +133,7 @@ def test_rate_limiter_cleans_up_old_partitions():
         assert sum(len(partition) for partition in limiter.cache_partitions) == 1
 
 
-def test_rate_limiter_caches_token_buckets():
+def test_rate_limiter_caches_token_buckets() -> None:
     start = time.time()
 
     with freeze_time(start):

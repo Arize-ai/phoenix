@@ -1,10 +1,12 @@
 from datetime import datetime
+from typing import List, Literal
 
 import pandas as pd
 from sqlalchemy import func, select
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders import TokenCountDataLoader
+from phoenix.server.api.dataloaders.token_counts import Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
@@ -40,16 +42,16 @@ async def test_token_counts(
         + span_df.loc[:, "completion"].to_list()
         + (span_df.loc[:, "prompt"] + span_df.loc[:, "completion"]).to_list()
     )
-    actual = await TokenCountDataLoader(db)._load_fn(
-        [
-            (
-                kind,
-                id_ + 1,
-                TimeRange(start=start_time, end=end_time),
-                "'_5_' in name",
-            )
-            for kind in ("prompt", "completion", "total")
-            for id_ in range(10)
-        ]
-    )
+    kinds: List[Literal["prompt", "completion", "total"]] = ["prompt", "completion", "total"]
+    keys: List[Key] = [
+        (
+            kind,
+            id_ + 1,
+            TimeRange(start=start_time, end=end_time),
+            "'_5_' in name",
+        )
+        for kind in kinds
+        for id_ in range(10)
+    ]
+    actual = await TokenCountDataLoader(db)._load_fn(keys)
     assert actual == expected

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Protocol, Set, Tuple
+from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
 
 import numpy as np
 import numpy.typing as npt
-from strawberry import ID
 from typing_extensions import TypeAlias
 
 from phoenix.pointcloud.clustering import RawCluster
@@ -11,6 +10,8 @@ from phoenix.pointcloud.clustering import RawCluster
 Vector: TypeAlias = npt.NDArray[np.float64]
 Matrix: TypeAlias = npt.NDArray[np.float64]
 RowIndex: TypeAlias = int
+
+_IdType = TypeVar("_IdType", bound=Hashable)
 
 
 class DimensionalityReducer(Protocol):
@@ -28,9 +29,9 @@ class PointCloud:
 
     def generate(
         self,
-        data: Mapping[ID, Vector],
+        data: Mapping[_IdType, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[ID, Vector], Dict[str, Set[ID]]]:
+    ) -> Tuple[Dict[_IdType, Vector], Dict[str, Set[_IdType]]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.

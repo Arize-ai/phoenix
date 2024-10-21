@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Literal
 
 import pandas as pd
 import pytest
@@ -6,6 +7,7 @@ from sqlalchemy import func, select
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders import AnnotationSummaryDataLoader
+from phoenix.server.api.dataloaders.annotation_summaries import Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
@@ -53,23 +55,25 @@ async def test_evaluation_summaries(
             )
         )
     expected = trace_df.loc[:, "mean_score"].to_list() + span_df.loc[:, "mean_score"].to_list()
-    actual = [
-        smry.mean_score()
-        for smry in (
-            await AnnotationSummaryDataLoader(db)._load_fn(
-                [
-                    (
-                        kind,
-                        id_ + 1,
-                        TimeRange(start=start_time, end=end_time),
-                        "'_5_' in name" if kind == "span" else None,
-                        eval_name,
-                    )
-                    for kind in ("trace", "span")
-                    for id_ in range(10)
-                    for eval_name in (("B", "D") if kind == "trace" else ("A", "C"))
-                ]
-            )
+    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
+    keys: List[Key] = [
+        (
+            kind,
+            id_ + 1,
+            TimeRange(start=start_time, end=end_time),
+            "'_5_' in name" if kind == "span" else None,
+            eval_name,
         )
+        for kind in kinds
+        for id_ in range(10)
+        for eval_name in (("B", "D") if kind == "trace" else ("A", "C"))
     ]
+
+    summaries = [summary for summary in await AnnotationSummaryDataLoader(db)._load_fn(keys)]
+    actual = []
+    for summary in summaries:
+        assert summary is not None
+        actual.append(
+            summary.mean_score(),  # type: ignore[call-arg]
+        )
     assert actual == pytest.approx(expected, 1e-7)

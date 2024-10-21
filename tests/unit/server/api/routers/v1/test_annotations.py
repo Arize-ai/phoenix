@@ -114,7 +114,7 @@ class TestSendingAnnotationsBeforeSpans:
     async def clear_all_projects(
         self,
         httpx_client: AsyncClient,
-    ) -> None:
+    ) -> Callable[[], Awaitable[None]]:
         async def _() -> None:
             q = "query{projects{edges{node{id}}}}"
             resp = await httpx_client.post("/graphql", json=dict(query=q))
@@ -231,7 +231,7 @@ class TestSendingAnnotationsBeforeSpans:
         self,
         project_names: List[str],
         httpx_client: AsyncClient,
-    ) -> Callable[[datetime], Awaitable[None]]:
+    ) -> Callable[[Callable[[datetime, datetime], bool], datetime], Awaitable[None]]:
         async def _(compare: Callable[[datetime, datetime], bool], t: datetime) -> None:
             projects = await self._last_updated_at(project_names, httpx_client)
             for project_name in project_names:

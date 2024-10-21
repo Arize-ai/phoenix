@@ -3,7 +3,8 @@ import pandas as pd
 from pandas import DataFrame
 
 from phoenix.inferences import errors as err
-from phoenix.inferences.inferences import EmbeddingColumnNames, Schema, validate_inferences_inputs
+from phoenix.inferences.schema import EmbeddingColumnNames, Schema
+from phoenix.inferences.validation import validate_inferences_inputs
 
 _NUM_RECORDS = 5
 _EMBEDDING_DIMENSION = 7

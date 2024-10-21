@@ -1,14 +1,16 @@
+from typing import Any
+
 import pytest
 
 from phoenix.utilities.error_handling import graceful_fallback
 
 
 def test_graceful_fallback_forwards_call_to_fallback_function() -> None:
-    def fallback(v) -> int:
+    def fallback(v: int) -> int:
         return v - 1
 
     @graceful_fallback(fallback_method=fallback)
-    def check_the_answer(v) -> int:
+    def check_the_answer(v: int) -> int:
         if v == 42:
             raise ValueError("42 is not the answer")
         return v
@@ -16,9 +18,9 @@ def test_graceful_fallback_forwards_call_to_fallback_function() -> None:
     assert check_the_answer(42) == 41
 
 
-def test_graceful_fallback_logs_errors(caplog) -> None:
+def test_graceful_fallback_logs_errors(caplog: pytest.LogCaptureFixture) -> None:
     @graceful_fallback(fallback_method=lambda *args, **kwargs: None)
-    def failing_function(*args, **kwargs) -> None:
+    def failing_function(*args: Any, **kwargs: Any) -> None:
         raise ValueError("This is a test error.")
 
     failing_function("foo", bar="baz")  # graceful_fallback suppresses the error

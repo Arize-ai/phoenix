@@ -1,6 +1,6 @@
 import textwrap
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 import httpx
 import pytest
@@ -76,8 +76,8 @@ class TestPatchDatasetMutation:
     async def test_patch_all_dataset_fields(
         self,
         httpx_client: httpx.AsyncClient,
-        dataset_with_a_single_version: Any,
-    ):
+        dataset_with_a_single_version: None,
+    ) -> None:
         response = await httpx_client.post(
             "/graphql",
             json={
@@ -107,8 +107,8 @@ class TestPatchDatasetMutation:
     async def test_only_description_field_can_be_set_to_null(
         self,
         httpx_client: httpx.AsyncClient,
-        dataset_with_a_single_version: Any,
-    ):
+        dataset_with_a_single_version: None,
+    ) -> None:
         response = await httpx_client.post(
             "/graphql",
             json={
@@ -138,8 +138,8 @@ class TestPatchDatasetMutation:
     async def test_updating_a_single_field_leaves_remaining_fields_unchannged(
         self,
         httpx_client: httpx.AsyncClient,
-        dataset_with_a_single_version: Any,
-    ):
+        dataset_with_a_single_version: None,
+    ) -> None:
         response = await httpx_client.post(
             "/graphql",
             json={
@@ -167,9 +167,9 @@ class TestPatchDatasetMutation:
 
 async def test_add_span_to_dataset(
     httpx_client: httpx.AsyncClient,
-    empty_dataset,
-    spans,
-    span_annotation,
+    empty_dataset: None,
+    spans: None,
+    span_annotation: None,
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
@@ -348,7 +348,7 @@ class TestPatchDatasetExamples:
     async def test_happy_path(
         self,
         httpx_client: httpx.AsyncClient,
-        dataset_with_revisions,
+        dataset_with_revisions: None,
     ) -> None:
         # todo: update this test case to verify that version description and
         # metadata are updated once a versions resolver has been implemented
@@ -505,11 +505,11 @@ class TestPatchDatasetExamples:
     )
     async def test_raises_value_error_for_invalid_input(
         self,
-        mutation_input,
-        expected_error_message,
+        mutation_input: Dict[str, Any],
+        expected_error_message: str,
         httpx_client: httpx.AsyncClient,
-        dataset_with_revisions,
-        dataset_with_a_single_version,
+        dataset_with_revisions: None,
+        dataset_with_a_single_version: None,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -527,7 +527,7 @@ class TestPatchDatasetExamples:
 async def test_delete_a_dataset(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
-    empty_dataset: Any,
+    empty_dataset: None,
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
@@ -718,7 +718,7 @@ async def spans(db: DbSessionFactory) -> None:
 
 
 @pytest.fixture
-async def span_annotation(db):
+async def span_annotation(db: DbSessionFactory) -> None:
     async with db() as session:
         span_annotation = models.SpanAnnotation(
             span_rowid=1,
