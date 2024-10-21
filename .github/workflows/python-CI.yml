@@ -315,6 +315,42 @@ jobs:
       - name: Check types
         run: tox run -e type_check
 
+  type-check-unit-tests:
+    name: Type Check Unit Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [3.9, 3.12]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/unit-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Check types on unit tests
+        run: tox run -e type_check_unit_tests
+        
   unit-tests:
     name: Unit Tests
     runs-on: ${{ matrix.os }}
@@ -358,6 +394,42 @@ jobs:
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
         run: tox run -e unit_tests -- -ra -x
+
+  type-check-integration-tests:
+    name: Type Check Integration Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      matrix:
+        py: [3.9, 3.12]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/integration/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: 0.4.22
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up `tox` with `tox-uv`
+        run: uv tool install tox --with tox-uv
+      - name: Check types on integration tests
+        run: tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests
