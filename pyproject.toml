@@ -77,7 +77,7 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.6.9",
-  "mypy==1.11.2",
+  "mypy==1.12.1",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
@@ -215,7 +215,7 @@ dependencies = [
 dependencies = [
   "grpcio",
   "litellm>=1.0.3",
-  "mypy==1.11.2",
+  "mypy==1.12.1",
   "openai>=1.0.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-fastapi",
