@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.1...arize-phoenix-v5.5.2) (2024-10-21)
+
+
+### Bug Fixes
+
+* **playground:** do nothing on credential form submit ([#5128](https://github.com/Arize-ai/phoenix/issues/5128)) ([a2de578](https://github.com/Arize-ai/phoenix/commit/a2de578ce8cf735e81fbb50e2ba8c7616b34c065))
+
 ## [5.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.0...arize-phoenix-v5.5.1) (2024-10-19)
 
 
