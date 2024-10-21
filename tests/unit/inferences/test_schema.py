@@ -42,9 +42,9 @@ def test_json_serialization_with_LLM() -> None:
     p = s.to_json()
     schema_from_json = Schema.from_json(p)
 
-    assert schema_from_json.prompt_column_names is not None
+    assert isinstance(schema_from_json.prompt_column_names, EmbeddingColumnNames)
     assert schema_from_json.prompt_column_names.vector_column_name == "prompt_vector"
-    assert schema_from_json.response_column_names is not None
+    assert isinstance(schema_from_json.response_column_names, EmbeddingColumnNames)
     assert schema_from_json.response_column_names.vector_column_name == "response_vector"
 
 
@@ -60,7 +60,7 @@ def test_json_serialization_with_relationships() -> None:
     p = s.to_json()
     schema_from_json = Schema.from_json(p)
 
-    assert schema_from_json.prompt_column_names is not None
+    assert isinstance(schema_from_json.prompt_column_names, RetrievalEmbeddingColumnNames)
     assert schema_from_json.prompt_column_names.context_retrieval_ids_column_name == "ids_1"
 
 
