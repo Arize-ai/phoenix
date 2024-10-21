@@ -1,11 +1,14 @@
 from datetime import datetime
+from typing import List, Literal
 
+import numpy as np
 import pandas as pd
 import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders import LatencyMsQuantileDataLoader
+from phoenix.server.api.dataloaders.latency_ms_quantile import Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
@@ -38,26 +41,26 @@ async def test_latency_ms_quantiles_p25_p50_p75(
         )
     expected = (
         trace_df.groupby("project_rowid")["latency_ms"]
-        .quantile([0.25, 0.50, 0.75])
+        .quantile(np.array([0.25, 0.50, 0.75]))
         .sort_index()
         .to_list()
         + span_df.groupby("project_rowid")["latency_ms"]
-        .quantile([0.25, 0.50, 0.75])
+        .quantile(np.array([0.25, 0.50, 0.75]))
         .sort_index()
         .to_list()
     )
-    actual = await LatencyMsQuantileDataLoader(db)._load_fn(
-        [
-            (
-                kind,
-                id_ + 1,
-                TimeRange(start=start_time, end=end_time),
-                "'_5_' in name" if kind == "span" else None,
-                probability,
-            )
-            for kind in ("trace", "span")
-            for id_ in range(10)
-            for probability in (0.25, 0.50, 0.75)
-        ]
-    )
+    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
+    keys: List[Key] = [
+        (
+            kind,
+            id_ + 1,
+            TimeRange(start=start_time, end=end_time),
+            "'_5_' in name" if kind == "span" else None,
+            probability,
+        )
+        for kind in kinds
+        for id_ in range(10)
+        for probability in (0.25, 0.50, 0.75)
+    ]
+    actual = await LatencyMsQuantileDataLoader(db)._load_fn(keys)
     assert actual == pytest.approx(expected, 1e-7)
