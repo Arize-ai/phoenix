@@ -18,7 +18,7 @@ def txt2arr(s: str) -> Union[float, npt.NDArray[np.float64]]:
     return float(s)
 
 
-reference_data = pd.read_csv(
+reference_data = pd.read_csv(  # type: ignore[call-overload]
     StringIO(
         """
         2023-01-01 11:50:52Z,0,839,A,[1 2 3 4 5]
@@ -63,7 +63,7 @@ stop = pd.to_datetime("2023-01-28 11:26:50Z")  # end instant is exclusive
 # The `index` column is added here because it can be a common occurrence in
 # dataframes read from csv files, and it will confuse `pandas.DataFrame.query()`
 # when index filtering is attempted, so it's a good edge case for testing.
-data = pd.read_csv(
+data = pd.read_csv(  # type: ignore[call-overload]
     StringIO(
         """
         2023-01-01 11:50:52Z,0,839,A,[1 2 3 4 5]
@@ -105,7 +105,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-02 11:26:50Z,839.,1,[1. 2. 3. 4. 5.],[1. 2. 3. 4. 5.],4.47214
@@ -154,7 +154,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-02 11:26:50Z,839.,1.,[1. 2. 3. 4. 5.],[1. 2. 3. 4. 5.],4.47214
@@ -187,7 +187,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-03 17:26:50Z,839.,1,[1. 2. 3. 4. 5.],[1. 2. 3. 4. 5.],4.47214
@@ -216,7 +216,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-11 23:26:50Z,329.,2,[7. 9. 11. 13. 15.],[3.5 4.5 5.5 6.5 7.5],1.11803
@@ -242,7 +242,7 @@ def test_timeseries_simple_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-01 19:26:50Z,839.,1,[1. 2. 3. 4. 5.],[1. 2. 3. 4. 5.],4.47214
@@ -275,7 +275,7 @@ def test_timeseries_all_granularity() -> None:
         ),
         metrics=metrics,
     )
-    expected = pd.read_csv(
+    expected = pd.read_csv(  # type: ignore[call-overload]
         StringIO(
             """
             2023-01-28 11:26:50Z,653.3333333333334,9,[45. 54. 63. 72. 81.],[5. 6. 7. 8. 9.],4.472135955
