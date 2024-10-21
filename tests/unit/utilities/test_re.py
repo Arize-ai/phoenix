@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 import pytest
 
 from phoenix.utilities.re import parse_env_headers
@@ -55,7 +57,9 @@ from phoenix.utilities.re import parse_env_headers
         ),
     ],
 )
-def test_get_env_client_headers(headers, expected, warn, caplog) -> None:
+def test_get_env_client_headers(
+    headers: str, expected: List[Tuple[str, str]], warn: bool, caplog: pytest.LogCaptureFixture
+) -> None:
     if warn:
         with caplog.at_level(level="WARNING"):
             assert parse_env_headers(headers) == dict(expected)
