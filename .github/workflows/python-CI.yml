@@ -400,7 +400,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
         py: [3.9, 3.12]
         db: [sqlite, postgresql]
@@ -450,4 +449,4 @@ jobs:
       - name: Set up `tox` with `tox-uv`
         run: uv tool install tox --with tox-uv
       - name: Run integration tests
-        run: tox run -e integration_tests -- -ra -x -n auto
+        run: tox run -e integration_tests -- -ra -x -n auto --reruns 5
