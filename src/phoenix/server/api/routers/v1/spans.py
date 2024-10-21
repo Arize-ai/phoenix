@@ -93,6 +93,10 @@ async def query_spans_handler(
             detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
+    print(f"{queries=}\n\n")
+    print(f"{span_queries=}\n\n")
+    print(f"{project_name=}\n\n")
+    print(f"{end_time=}\n\n")
     async with request.app.state.db() as session:
         results = []
         for query in span_queries:
@@ -114,12 +118,13 @@ async def query_spans_handler(
             )
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+    print(f"{results=}\n\n")
 
     async def content() -> AsyncIterator[bytes]:
         for result in results:
             yield df_to_bytes(result)
 
-    return StreamingResponse(
+    return Response(
         content=content(),
         media_type="application/x-pandas-arrow",
     )
