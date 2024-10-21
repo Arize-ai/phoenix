@@ -105,6 +105,7 @@ async def test_annotating_a_trace(
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
         )
+    assert orm_annotation is not None
     assert orm_annotation.name == "Test Annotation"
     assert orm_annotation.annotator_kind == "HUMAN"
     assert orm_annotation.label == "True"
@@ -150,6 +151,7 @@ async def test_annotating_a_trace(
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
         )
+    assert orm_annotation is not None
     assert orm_annotation.name == "Updated Annotation"
     assert orm_annotation.label == "Positive"
     assert orm_annotation.explanation == "Updated explanation"
