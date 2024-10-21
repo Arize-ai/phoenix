@@ -50,7 +50,7 @@ async def test_project_resolver_returns_correct_project(
 
 async def test_querying_spans_contained_in_datasets(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any, simple_dataset: Any
-):
+) -> None:
     query = """
       query ($spanId: GlobalID!) {
         span: node(id: $spanId) {
@@ -79,7 +79,7 @@ async def test_querying_spans_contained_in_datasets(
 
 async def test_querying_spans_not_contained_in_datasets(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any
-):
+) -> None:
     query = """
       query ($spanId: GlobalID!) {
         span: node(id: $spanId) {
