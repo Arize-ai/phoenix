@@ -15,9 +15,10 @@ async def new_database(db: DbSessionFactory) -> None:
         await session.flush()
 
 
-async def test_scaffolding(db, new_database) -> None:
+async def test_scaffolding(db: DbSessionFactory, new_database: None) -> None:
     async with db() as session:
         created_at = await session.scalar(
             select(models.Project.created_at).where(models.Project.name == "default")
         )
+    assert created_at is not None
     assert created_at - datetime.now(timezone.utc) < timedelta(minutes=5)
