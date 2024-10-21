@@ -3,7 +3,7 @@ import inspect
 import io
 import json
 from io import BytesIO, StringIO
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import httpx
 import pandas as pd
@@ -101,7 +101,7 @@ async def test_list_datasets(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values = {
+    fixture_values: Dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(2))),
         "name": "revised dataset",
         "description": "this dataset grows over time",
@@ -147,7 +147,7 @@ async def test_list_fewer_datasets(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values = {
+    fixture_values: Dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(1))),
         "name": "empty dataset",
         "description": "emptied after two revisions",
@@ -185,7 +185,7 @@ async def test_list_datasets_with_cursor(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values = {
+    fixture_values: Dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(2))),
         "name": "revised dataset",
         "description": "this dataset grows over time",
