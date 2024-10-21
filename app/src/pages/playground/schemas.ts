@@ -95,6 +95,28 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
+ * Model invocation parameters schema in zod.
+ *
+ * Includes all keys besides toolChoice
+ */
+const invocationParameterSchema = schemaForType<
+  Mutable<InvocationParameters>
+>()(
+  z.object({
+    temperature: z.coerce.number().optional(),
+    topP: z.coerce.number().optional(),
+    maxTokens: z.coerce.number().optional(),
+    stop: z.array(z.string()).optional(),
+    seed: z.coerce.number().optional(),
+    maxCompletionTokens: z.coerce.number().optional(),
+  })
+);
+
+export type InvocationParametersSchema = z.infer<
+  typeof invocationParameterSchema
+>;
+
+/**
  * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
@@ -104,38 +126,28 @@ export const modelConfigSchema = z.object({
     [LLMAttributePostfixes.invocation_parameters]: z
       .string()
       .transform((s) =>
-        z
-          // TODO(apowell): specify schema for parameters that we care about
-          // convert them to camelCase after parsing so that we don't have to convert
-          // before hitting zustand
-          .object({})
+        // using the invocationParameterSchema as a base,
+        // apply all matching keys from the input string,
+        // and then map snake cased keys to camel case on top
+        invocationParameterSchema
+          .passthrough()
+          .transform((o) => ({
+            ...o,
+            // map snake cased keys to camel case, the first char after each _ is uppercase
+            ...Object.fromEntries(
+              Object.entries(o).map(([k, v]) => [
+                k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
+                v,
+              ])
+            ),
+          }))
+          // reparse the object to ensure the mapped keys are also validated
+          .transform(invocationParameterSchema.parse)
           .parse(JSON.parse(s))
       )
       .default("{}"),
   }),
 });
-
-/**
- * Model invocation parameters schema in zod.
- *
- * Includes all keys besides toolChoice
- */
-const invocationParameterSchema = schemaForType<
-  Mutable<InvocationParameters>
->()(
-  z.object({
-    temperature: z.number().optional(),
-    topP: z.number().optional(),
-    maxTokens: z.number().optional(),
-    stop: z.array(z.string()).optional(),
-    seed: z.number().optional(),
-    maxCompletionTokens: z.number().optional(),
-  })
-);
-
-export type InvocationParametersSchema = z.infer<
-  typeof invocationParameterSchema
->;
 
 /**
  * Default set of invocation parameters for all providers and models.

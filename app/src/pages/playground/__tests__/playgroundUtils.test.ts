@@ -303,6 +303,36 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       parsingErrors: [],
     });
   });
+
+  it("should correctly parse the invocation parameters", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          // note that camel case keys are automatically converted to snake case
+          invocation_parameters:
+            '{"topP": 0.5, "maxTokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          invocationParameters: {
+            topP: 0.5,
+            maxTokens: 100,
+            seed: 12345,
+            stop: ["stop", "me"],
+          },
+        },
+      },
+      parsingErrors: [],
+    });
+  });
 });
 
 describe("getChatRole", () => {
