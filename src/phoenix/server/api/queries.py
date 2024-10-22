@@ -43,6 +43,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameterBase
 from phoenix.server.api.subscriptions import PLAYGROUND_STREAMING_CLIENT_REGISTRY
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -65,7 +66,6 @@ from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProviderKey,
 )
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.InvocationParameter import InvocationParameterBase
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
