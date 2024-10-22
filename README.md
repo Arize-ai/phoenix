@@ -66,7 +66,7 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 | [Data Export](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans)                     | ✅             |
 | REST API                                                                                                         | ✅             |
 | GraphQL API                                                                                                      | ✅             |
-| Data Retention                                                                                                   | Costomizable   |
+| Data Retention                                                                                                   | Customizable   |
 | Authentication                                                                                                   | ✅             |
 | Social Login                                                                                                     | ✅             |
 | RBAC                                                                                                             | ✅             |
