@@ -269,7 +269,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                     {
                         "content": content,
                         "role": "assistant",
-                        "tool_calls": self.to_openai_tool_call_param(tool_calls),
+                        "tool_calls": [
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                        ],
                     }
                 )
         if role is ChatCompletionMessageRole.TOOL:
@@ -282,23 +284,18 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
     def to_openai_tool_call_param(
         self,
-        tool_calls: List[JSONScalarType],
-    ) -> List["ChatCompletionMessageToolCallParam"]:
+        tool_call: JSONScalarType,
+    ) -> "ChatCompletionMessageToolCallParam":
         from openai.types.chat import ChatCompletionMessageToolCallParam
 
-        return [
-            ChatCompletionMessageToolCallParam(
-                id=tool_call.get("id", ""),
-                function={
-                    "name": tool_call.get("function", {}).get("name", ""),
-                    "arguments": safe_json_dumps(
-                        tool_call.get("function", {}).get("arguments", "")
-                    ),
-                },
-                type="function",
-            )
-            for tool_call in tool_calls
-        ]
+        return ChatCompletionMessageToolCallParam(
+            id=tool_call.get("id", ""),
+            function={
+                "name": tool_call.get("function", {}).get("name", ""),
+                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
+            },
+            type="function",
+        )
 
     @property
     def attributes(self) -> Dict[str, Any]:

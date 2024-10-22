@@ -18,6 +18,6 @@ class ChatCompletionMessageInput:
         default=UNSET,
     )
     tool_call_id: Optional[str] = strawberry.field(
-        description="The ID of the tool call that was made in a prior message",
+        description="The ID that corresponds to a prior tool call. Used to link a tool message to a pre-existing tool call.",  # noqa: E501
         default=UNSET,
     )
