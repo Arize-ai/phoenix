@@ -72,6 +72,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -476,6 +477,14 @@ class Query:
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
             return to_gql_span(span)
+        elif type_name == ProjectSession.__name__:
+            async with info.context.db() as session:
+                project_session = await session.scalar(
+                    select(models.ProjectSession).filter_by(id=node_id)
+                )
+            if project_session is None:
+                raise NotFound(f"Unknown project_session: {id}")
+            return to_gql_project_session(project_session)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
