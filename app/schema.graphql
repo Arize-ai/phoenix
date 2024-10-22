@@ -68,7 +68,7 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
-  invocationParameters: InvocationParameters! = {}
+  invocationParameters: [InvocationParameterInput!]!
   tools: [JSON!]
   template: TemplateOptions
   apiKey: String = null
@@ -924,14 +924,20 @@ type IntervalBin {
   range: NumericRange!
 }
 
-input InvocationParameters {
-  temperature: Float
-  maxCompletionTokens: Int
-  maxTokens: Int
-  topP: Float
-  stop: [String!]
-  seed: Int
-  toolChoice: JSON
+type InvocationParameterBase {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+}
+
+input InvocationParameterInput {
+  invocationName: String!
+  valueInt: Int
+  valueFloat: Float
+  valueBool: Boolean
+  valueString: String
+  valueJson: JSON
+  valueStringList: [String!]
 }
 
 """
@@ -1181,6 +1187,7 @@ type PromptResponse {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
+  modelInvocationParameters(input: ModelsInput = null): [InvocationParameterBase!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!

@@ -6,17 +6,6 @@ from strawberry import UNSET
 from strawberry.scalars import JSON
 
 
-@strawberry.enum
-class InvocationParameterValueType(Enum):
-    INT = "INT"
-    FLOAT = "FLOAT"
-    STRING = "STRING"
-    JSON = "JSON"
-    BOUNDED_FLOAT = "BOUNDED_FLOAT"
-    STRING_LIST = "STRING_LIST"
-    BOOLEAN = "BOOLEAN"
-
-
 @strawberry.input
 class InvocationParameterInput:
     invocation_name: str
