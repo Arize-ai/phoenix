@@ -99,8 +99,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.25
-      - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_evals -- -ra -x
+      - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
     name: Phoenix OTel
@@ -123,8 +122,7 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.25
-      - run: uv tool install tox --with tox-uv
-      - run: tox run -e phoenix_otel -- -ra -x
+      - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
 
   #  clean-jupyter-notebooks:
   #    name: Clean Jupyter Notebooks
@@ -151,10 +149,8 @@ jobs:
   #            pyproject.toml
   #            requirements/clean-jupyter-notebooks.txt
   #          github-token: ${{ secrets.GITHUB_TOKEN }}
-  #      - name: Set up `tox` with `tox-uv`
-  #        run: uv tool install tox --with tox-uv
   #      - name: Clean Jupyter notebooks
-  #        run: tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+  #        run: uvx --with tox-uv tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
   #      - run: git diff --exit-code
 
   build-graphql-schema:
@@ -182,10 +178,8 @@ jobs:
             pyproject.toml
             requirements/build-graphql-schema.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Build GraphQL schema
-        run: tox run -e build_graphql_schema
+        run: uvx --with tox-uv tox run -e build_graphql_schema
       - run: git diff --exit-code
 
   build-openapi-schema:
@@ -212,10 +206,8 @@ jobs:
           cache-dependency-glob: |
             pyproject.toml
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Build OpenAPI schema
-        run: tox run -e build_openapi_schema
+        run: uvx --with tox-uv tox run -e build_openapi_schema
       - run: git diff --exit-code
 
   compile-protobuf:
@@ -244,10 +236,8 @@ jobs:
             pyproject.toml
             requirements/compile-protobuf.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Compile Protobuf
-        run: tox run -e compile_protobuf
+        run: uvx --with tox-uv tox run -e compile_protobuf
       - run: git diff --exit-code
 
   ruff:
@@ -268,22 +258,15 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: 0.4.25
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install `ruff`
-        run: uv tool install ruff@0.6.8
-      - name: Check format
-        run: uv tool run ruff format --diff
-      - name: Check lint
-        run: uv tool run ruff check --no-fix
+      - name: Run `ruff`
+        run: uvx --with tox-uv tox run -e ruff
+      - run: git diff --exit-code
 
   type-check:
     name: Type Check
     runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+#    needs: changes
+#    if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
         py: [3.9, 3.12]
@@ -310,10 +293,8 @@ jobs:
             requirements/ci.txt
             requirements/type-check.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Check types
-        run: tox run -e type_check
+        run: uvx --with tox-uv tox run -e type_check
 
   type-check-unit-tests:
     name: Type Check Unit Tests
@@ -346,10 +327,8 @@ jobs:
             requirements/ci.txt
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Check types on unit tests
-        run: tox run -e type_check_unit_tests
+        run: uvx --with tox-uv tox run -e type_check_unit_tests
 
   unit-tests:
     name: Unit Tests
@@ -383,17 +362,15 @@ jobs:
             requirements/ci.txt
             requirements/unit-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Install PostgreSQL (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
       - name: Run tests with PostgreSQL (Linux)
         if: runner.os == 'Linux'
-        run: tox run -e unit_tests -- -ra -x --run-postgres
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x --run-postgres
       - name: Run tests without PostgreSQL (non-Linux)
         if: runner.os != 'Linux'
-        run: tox run -e unit_tests -- -ra -x
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x
 
   type-check-integration-tests:
     name: Type Check Integration Tests
@@ -426,10 +403,8 @@ jobs:
             requirements/ci.txt
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Check types on integration tests
-        run: tox run -e type_check_integration_tests
+        run: uvx --with tox-uv tox run -e type_check_integration_tests
 
   integration-tests:
     name: Integration Tests
@@ -484,7 +459,5 @@ jobs:
             requirements/ci.txt
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up `tox` with `tox-uv`
-        run: uv tool install tox --with tox-uv
       - name: Run integration tests
-        run: tox run -e integration_tests -- -ra -x -n auto
+        run: uvx --with tox-uv tox run -e integration_tests -- -ra -x -n auto
