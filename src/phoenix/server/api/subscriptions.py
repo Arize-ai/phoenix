@@ -125,7 +125,7 @@ class GenerativeModelInput:
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
-    invocation_parameters: InvocationParameters
+    invocation_parameters: InvocationParameters = strawberry.field(default_factory=dict)
     tools: Optional[List[JSONScalarType]] = UNSET
     template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)

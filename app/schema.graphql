@@ -68,7 +68,7 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
-  invocationParameters: InvocationParameters!
+  invocationParameters: InvocationParameters! = {}
   tools: [JSON!]
   template: TemplateOptions
   apiKey: String = null

@@ -11,6 +11,7 @@ from openinference.semconv.trace import (
 )
 from vcr import use_cassette
 
+from phoenix.server.api.subscriptions import FinishedChatCompletion, TextChunk, ToolCallChunk
 from phoenix.trace.attributes import flatten
 
 
@@ -156,15 +157,19 @@ class TestChatCompletionSubscription:
                 before_record_request=remove_all_vcr_request_headers,
                 before_record_response=remove_all_vcr_response_headers,
             ):
-                payloads = [payload["chatCompletion"] async for payload in subscription.stream()]
+                payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
         assert payloads
-        assert (last_payload := payloads.pop())["__typename"] == "FinishedChatCompletion"
-        assert all(payload["__typename"] == "TextChunk" for payload in payloads)
-        response_text = "".join(payload["content"] for payload in payloads)
+        assert (last_payload := payloads.pop())["chatCompletion"][
+            "__typename"
+        ] == FinishedChatCompletion.__name__
+        assert all(
+            payload["chatCompletion"]["__typename"] == TextChunk.__name__ for payload in payloads
+        )
+        response_text = "".join(payload["chatCompletion"]["content"] for payload in payloads)
         assert "france" in response_text.lower()
-        subscription_span = last_payload["span"]
+        subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
         # query for the span via the node interface to ensure that the span
@@ -250,6 +255,159 @@ class TestChatCompletionSubscription:
         ]
         assert not attributes
 
+    async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
+        self,
+        gql_client: Any,
+        openai_api_key: str,
+    ) -> None:
+        get_current_weather_tool_schema = {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city name, e.g. San Francisco",
+                        },
+                    },
+                    "required": ["location"],
+                },
+            },
+        }
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "How's the weather in San Francisco?",
+                    }
+                ],
+                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "tools": [get_current_weather_tool_schema],
+                "invocationParameters": {
+                    "toolChoice": "auto",
+                },
+            },
+        }
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with use_cassette(
+                Path(__file__).parent / "cassettes/test_subscriptions/"
+                "TestChatCompletionSubscription.test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
+                decode_compressed_response=True,
+                before_record_request=remove_all_vcr_request_headers,
+                before_record_response=remove_all_vcr_response_headers,
+            ):
+                payloads = [payload async for payload in subscription.stream()]
+
+        # check subscription payloads
+        assert payloads
+        assert (last_payload := payloads.pop())["chatCompletion"][
+            "__typename"
+        ] == FinishedChatCompletion.__name__
+        assert all(
+            payload["chatCompletion"]["__typename"] == ToolCallChunk.__name__
+            for payload in payloads
+        )
+        json.loads(
+            "".join(payload["chatCompletion"]["function"]["arguments"] for payload in payloads)
+        ) == {"location": "San Francisco"}
+        subscription_span = last_payload["chatCompletion"]["span"]
+        span_id = subscription_span["id"]
+
+        # query for the span via the node interface to ensure that the span
+        # recorded in the db contains identical information as the span emitted
+        # by the subscription
+        data = await gql_client.execute(
+            query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
+        )
+        span = data["span"]
+        assert span == subscription_span
+
+        # check attributes
+        assert span.pop("id") == span_id
+        assert span.pop("name") == "ChatCompletion"
+        assert span.pop("statusCode") == "OK"
+        assert not span.pop("statusMessage")
+        assert span.pop("startTime")
+        assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
+        assert span.pop("parentId") is None
+        assert span.pop("spanKind") == "llm"
+        assert (context := span.pop("context")).pop("spanId")
+        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
+        assert context.pop("traceId")
+        assert not context
+        assert span.pop("metadata") is None
+        assert span.pop("numDocuments") is None
+        assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
+        assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
+        assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
+        assert token_count_prompt > 0
+        assert token_count_completion > 0
+        assert token_count_total == token_count_prompt + token_count_completion
+        assert (input := span.pop("input")).pop("mimeType") == "json"
+        assert (input_value := input.pop("value"))
+        assert not input
+        assert "api_key" not in input_value
+        assert "apiKey" not in input_value
+        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert output.pop("value")
+        assert not output
+        assert not span.pop("events")
+        assert isinstance(
+            cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), int
+        )
+        assert isinstance(
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+        )
+        assert isinstance(
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+        )
+        assert cumulative_token_count_total == token_count_total
+        assert cumulative_token_count_prompt == token_count_prompt
+        assert cumulative_token_count_completion == token_count_completion
+        assert span.pop("propagatedStatusCode") == "OK"
+        assert not span
+
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"tool_choice": "auto"})
+        assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(INPUT_VALUE)
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_VALUE)
+        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(LLM_INPUT_MESSAGES) == [
+            {
+                "message": {
+                    "role": "user",
+                    "content": "How's the weather in San Francisco?",
+                }
+            }
+        ]
+        assert (output_messages := attributes.pop(LLM_OUTPUT_MESSAGES))
+        assert len(output_messages) == 1
+        assert (output_message := output_messages[0]["message"])["role"] == "assistant"
+        assert "content" not in output_message
+        assert (tool_calls := output_message["tool_calls"])
+        assert len(tool_calls) == 1
+        assert (tool_call := tool_calls.popitem()[-1]["tool_call"])
+        assert (function := tool_call["function"])
+        assert function["name"] == "get_current_weather"
+        assert json.loads(function["arguments"]) == {"location": "San Francisco"}
+        assert (llm_tools := attributes.pop(LLM_TOOLS))
+        assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
+        assert not attributes
+
 
 LLM = OpenInferenceSpanKindValues.LLM.value
 JSON = OpenInferenceMimeTypeValues.JSON.value
@@ -262,6 +420,7 @@ LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
