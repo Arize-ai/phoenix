@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ae8bd5b9a7f4980d21938d2eda3ce0d>>
+ * @generated SignedSource<<310f2749422dcd246ac79c7ddf439c23>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE";
 export type ChatCompletionMessageInput = {
-  content: any;
+  content?: any;
   role: ChatCompletionMessageRole;
   toolCallId?: string | null;
   toolCalls?: ReadonlyArray<any> | null;
