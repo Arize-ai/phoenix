@@ -7,7 +7,8 @@ import {
 
 import {
   INPUT_MESSAGES_PARSING_ERROR,
-  MODEL_NAME_PARSING_ERROR,
+  MODEL_CONFIG_PARSING_ERROR,
+  MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -30,6 +31,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
+    invocationParameters: {},
   },
   input: { variablesValueCache: {} },
   tools: [],
@@ -79,6 +81,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
+          invocationParameters: {},
         },
         template: defaultTemplate,
         output: undefined,
@@ -96,6 +99,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
         },
@@ -107,7 +111,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         INPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_VALUE_PARSING_ERROR,
-        MODEL_NAME_PARSING_ERROR,
+        MODEL_CONFIG_PARSING_ERROR,
       ],
     });
   });
@@ -200,6 +204,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
         },
@@ -251,6 +256,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-3.5-turbo",
         },
@@ -270,6 +276,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: "ANTHROPIC",
           modelName: "claude-3-5-sonnet-20240620",
         },
@@ -289,11 +296,81 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
         model: {
+          ...expectedPlaygroundInstanceWithIO.model,
           provider: DEFAULT_MODEL_PROVIDER,
           modelName: "test-my-deployment",
         },
       },
       parsingErrors: [],
+    });
+  });
+
+  it("should correctly parse the invocation parameters", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          // note that snake case keys are automatically converted to camel case
+          invocation_parameters:
+            '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          invocationParameters: {
+            topP: 0.5,
+            maxTokens: 100,
+            seed: 12345,
+            stop: ["stop", "me"],
+          },
+        },
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should still parse the model name and provider even if invocation parameters are malformed", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: "invalid json",
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return invocation parameters parsing errors if the invocation parameters are the wrong type", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: null,
+        },
+      }),
+    };
+
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
   });
 });
