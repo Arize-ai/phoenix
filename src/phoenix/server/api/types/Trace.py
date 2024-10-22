@@ -82,3 +82,11 @@ class Trace(Node):
                 stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
             annotations = await session.scalars(stmt)
         return [to_gql_trace_annotation(annotation) for annotation in annotations]
+
+
+def to_gql_trace(trace: models.Trace) -> Trace:
+    return Trace(
+        id_attr=trace.id,
+        project_rowid=trace.project_rowid,
+        trace_id=trace.trace_id,
+    )

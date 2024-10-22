@@ -156,6 +156,24 @@ class Project(Base):
     )
 
 
+class ProjectSession(Base):
+    __tablename__ = "project_sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    traces: Mapped[List["Trace"]] = relationship(
+        "Trace",
+        back_populates="project_session",
+        uselist=True,
+    )
+
+
 class Trace(Base):
     __tablename__ = "traces"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -164,6 +182,11 @@ class Trace(Base):
         index=True,
     )
     trace_id: Mapped[str]
+    project_session_id: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
@@ -187,6 +210,10 @@ class Trace(Base):
         back_populates="trace",
         cascade="all, delete-orphan",
         uselist=True,
+    )
+    project_session: Mapped[ProjectSession] = relationship(
+        "ProjectSession",
+        back_populates="traces",
     )
     experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
