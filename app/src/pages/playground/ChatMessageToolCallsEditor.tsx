@@ -26,7 +26,7 @@ export function ChatMessageToolCallsEditor({
   messageId: number;
 }) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const [toolCallsValue, setToolCallsValue] = useState(
+  const [toolCallsValue, setToolCallsValue] = useState(() =>
     JSON.stringify(toolCalls, null, 2)
   );
 

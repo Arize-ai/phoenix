@@ -152,7 +152,9 @@ class PlaygroundStreamingClient(ABC):
     @abstractmethod
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -176,7 +178,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -325,7 +329,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -344,11 +350,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 yield TextChunk(content=text)
 
     def _build_anthropic_messages(
-        self, messages: List[Tuple[ChatCompletionMessageRole, str]]
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
     ) -> Tuple[List["MessageParam"], str]:
         anthropic_messages: List["MessageParam"] = []
         system_prompt = ""
-        for role, content in messages:
+        for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 anthropic_messages.append({"role": "user", "content": content})
             elif role == ChatCompletionMessageRole.AI:

@@ -241,8 +241,9 @@ function MessageEditor({
   if (message.role === "tool") {
     return (
       <Form
-        onSubmit={() => {
-          //Do nothing
+        onSubmit={(e) => {
+          // Block default form submission to prevent page from refreshing
+          e.preventDefault();
         }}
       >
         <View
@@ -372,13 +373,20 @@ function SortableMessageItem({
             includeLabel={false}
             role={message.role}
             onChange={(role) => {
+              let toolCalls = message.toolCalls;
+              // Tool calls should only be attached to ai messages
+              // Clear tools from the message and reset the message mode when switching away form ai
+              if (role !== "ai") {
+                toolCalls = undefined;
+                setMessageMode("text");
+              }
               updateInstance({
                 instanceId: playgroundInstanceId,
                 patch: {
                   template: {
                     __type: "chat",
                     messages: template.messages.map((msg) =>
-                      msg.id === message.id ? { ...msg, role } : msg
+                      msg.id === message.id ? { ...msg, role, toolCalls } : msg
                     ),
                   },
                 },
