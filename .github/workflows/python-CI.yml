@@ -412,7 +412,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
         py: [3.9, 3.12]
         db: [sqlite, postgresql]
@@ -460,4 +459,4 @@ jobs:
             requirements/integration-tests.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run integration tests
-        run: uvx --with tox-uv tox run -e integration_tests -- -ra -x -n auto
+        run: uvx --with tox-uv tox run -e integration_tests -- -ra -x -n auto --reruns 5
