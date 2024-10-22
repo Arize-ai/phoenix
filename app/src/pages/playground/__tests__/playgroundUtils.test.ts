@@ -8,6 +8,7 @@ import {
 import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
+  MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -331,6 +332,45 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         },
       },
       parsingErrors: [],
+    });
+  });
+
+  it("should still parse the model name and provider even if invocation parameters are malformed", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: "invalid json",
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return invocation parameters parsing errors if the invocation parameters are the wrong type", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: null,
+        },
+      }),
+    };
+
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
   });
 });

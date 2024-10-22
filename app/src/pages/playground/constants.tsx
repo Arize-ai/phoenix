@@ -23,7 +23,9 @@ export const OUTPUT_VALUE_PARSING_ERROR =
 export const SPAN_ATTRIBUTES_PARSING_ERROR =
   "Unable to parse span attributes, attributes must be valid JSON.";
 export const MODEL_CONFIG_PARSING_ERROR =
-  "Unable to parse model config, expected llm.model_name, or valid llm.invocation_parameters to be present.";
+  "Unable to parse model config, expected llm.model_name to be present.";
+export const MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR =
+  "Unable to parse model config, expected llm.invocation_parameters json string to be present.";
 
 export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],

@@ -95,7 +95,7 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * Model invocation parameters schema in zod.
+ * Model graphql invocation parameters schema in zod.
  *
  * Includes all keys besides toolChoice
  */
@@ -112,9 +112,51 @@ const invocationParameterSchema = schemaForType<
   })
 );
 
+/**
+ * The type of the invocation parameters schema
+ */
 export type InvocationParametersSchema = z.infer<
   typeof invocationParameterSchema
 >;
+
+/**
+ * Transform a string to an invocation parameters schema.
+ *
+ * If the string is not valid JSON, return an empty object.
+ * If the string is valid JSON, but does not match the invocation parameters schema,
+ * map the snake cased keys to camel case and return the result.
+ */
+const stringToInvocationParametersSchema = z
+  .string()
+  .transform((s) => {
+    let json;
+    try {
+      json = JSON.parse(s);
+    } catch (e) {
+      return {};
+    }
+    // using the invocationParameterSchema as a base,
+    // apply all matching keys from the input string,
+    // and then map snake cased keys to camel case on top
+    return (
+      invocationParameterSchema
+        .passthrough()
+        .transform((o) => ({
+          ...o,
+          // map snake cased keys to camel case, the first char after each _ is uppercase
+          ...Object.fromEntries(
+            Object.entries(o).map(([k, v]) => [
+              k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
+              v,
+            ])
+          ),
+        }))
+        // reparse the object to ensure the mapped keys are also validated
+        .transform(invocationParameterSchema.parse)
+        .parse(json)
+    );
+  })
+  .default("{}");
 
 /**
  * The zod schema for llm model config
@@ -123,29 +165,17 @@ export type InvocationParametersSchema = z.infer<
 export const modelConfigSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.model_name]: z.string(),
-    [LLMAttributePostfixes.invocation_parameters]: z
-      .string()
-      .transform((s) =>
-        // using the invocationParameterSchema as a base,
-        // apply all matching keys from the input string,
-        // and then map snake cased keys to camel case on top
-        invocationParameterSchema
-          .passthrough()
-          .transform((o) => ({
-            ...o,
-            // map snake cased keys to camel case, the first char after each _ is uppercase
-            ...Object.fromEntries(
-              Object.entries(o).map(([k, v]) => [
-                k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
-                v,
-              ])
-            ),
-          }))
-          // reparse the object to ensure the mapped keys are also validated
-          .transform(invocationParameterSchema.parse)
-          .parse(JSON.parse(s))
-      )
-      .default("{}"),
+  }),
+});
+
+/**
+ * The zod schema for llm.invocation_parameters attributes
+ * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ */
+export const modelConfigWithInvocationParametersSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema,
   }),
 });
 
