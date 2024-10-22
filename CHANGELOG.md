@@ -1,5 +1,54 @@
 # Changelog
 
+## [5.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.1...arize-phoenix-v5.5.2) (2024-10-21)
+
+
+### Bug Fixes
+
+* **playground:** do nothing on credential form submit ([#5128](https://github.com/Arize-ai/phoenix/issues/5128)) ([a2de578](https://github.com/Arize-ai/phoenix/commit/a2de578ce8cf735e81fbb50e2ba8c7616b34c065))
+* update llama-index versions in extra ([#5141](https://github.com/Arize-ai/phoenix/issues/5141)) ([df2d2a7](https://github.com/Arize-ai/phoenix/commit/df2d2a7a10dc7d839cfbc1c8a2a5bc5b64fa01d8))
+
+## [5.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.0...arize-phoenix-v5.5.1) (2024-10-19)
+
+
+### Bug Fixes
+
+* **UI:** bad looking button styles ([#5119](https://github.com/Arize-ai/phoenix/issues/5119)) ([e0e8cc7](https://github.com/Arize-ai/phoenix/commit/e0e8cc780f1b35b61fc4f7a643b40cd3f692d72e))
+
+
+### Documentation
+
+* add more links and integrations to the readme ([#5121](https://github.com/Arize-ai/phoenix/issues/5121)) ([dc90a6d](https://github.com/Arize-ai/phoenix/commit/dc90a6db43e1a0a9b42bf2f90b39abfc9a9e78e7))
+* Update README.md ([e9c081c](https://github.com/Arize-ai/phoenix/commit/e9c081ce2a7488d499d785e79563d74e8add3a57))
+* Update README.md wit hmore links ([52af0af](https://github.com/Arize-ai/phoenix/commit/52af0af52a5e5f9c58682f3f2da97044342833fe))
+
+## [5.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.4.0...arize-phoenix-v5.5.0) (2024-10-19)
+
+
+### Features
+
+* Refactor subscription streaming and plumb through anthropic support ([#5105](https://github.com/Arize-ai/phoenix/issues/5105)) ([d405f61](https://github.com/Arize-ai/phoenix/commit/d405f6178ad00e85cf852ae4a772363ab71d1a25))
+
+## [5.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.3.1...arize-phoenix-v5.4.0) (2024-10-18)
+
+
+### Features
+
+* add support for secure wss connection ([#5110](https://github.com/Arize-ai/phoenix/issues/5110)) ([9bf0740](https://github.com/Arize-ai/phoenix/commit/9bf0740bf891544bf68c5ce6d8514ccc70e56acc))
+* **playground:** return finalized span at end of subscription ([#5089](https://github.com/Arize-ai/phoenix/issues/5089)) ([6ca4288](https://github.com/Arize-ai/phoenix/commit/6ca428886ee14f6866aeee2b64bfa243a7bbf93f))
+* **playground:** show span details when playground run ends ([#5108](https://github.com/Arize-ai/phoenix/issues/5108)) ([acce9d9](https://github.com/Arize-ai/phoenix/commit/acce9d94cff415e3fe8b5b85fa1e40d7492130d3))
+
+
+### Bug Fixes
+
+* Derive playground values instead of storing them in state ([#5067](https://github.com/Arize-ai/phoenix/issues/5067)) ([d935d4b](https://github.com/Arize-ai/phoenix/commit/d935d4bf7063eb9a8ee614431538fbcd753540ba))
+* **playground:** optional type in playground tool calls ([#5080](https://github.com/Arize-ai/phoenix/issues/5080)) ([925b496](https://github.com/Arize-ai/phoenix/commit/925b496349ca2167c7a37c980c8981712c3c608a))
+
+
+### Documentation
+
+* anthropic tools tracing tutorial and fixture ([#5094](https://github.com/Arize-ai/phoenix/issues/5094)) ([51b0201](https://github.com/Arize-ai/phoenix/commit/51b02010fafc51fb5c6aaa2a87abd9b767140303))
+
 ## [5.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.3.0...arize-phoenix-v5.3.1) (2024-10-17)
 
 

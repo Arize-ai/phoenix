@@ -1,12 +1,12 @@
 # Generate Embeddings
 
-Phoenix supports any type of dense [embedding](broken-reference) generated for almost any type of data.
+Phoenix supports any type of dense [embedding](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/how-to-inferences/broken-reference/README.md) generated for almost any type of data.
 
 But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.
 
 ### What are Auto-Embeddings?
 
-Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python [SDK](https://app.gitbook.com/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class), you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained [models](broken-reference) that will capture information from your inputs and encode it into embedding vectors.
+Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python [SDK](https://app.gitbook.com/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class), you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained [models](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/how-to-inferences/broken-reference/README.md) that will capture information from your inputs and encode it into embedding vectors.
 
 We support generating embeddings for you for the following types of data:
 

@@ -2,11 +2,12 @@ import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
+from typing import Any, Dict
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToJson  # type: ignore[import-untyped]
 from openinference.semconv.trace import (
     SpanAttributes,
 )
@@ -35,7 +36,7 @@ from phoenix.trace.schemas import (
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
 
-def test_decode_encode(span) -> None:
+def test_decode_encode(span: Span) -> None:
     otlp_span = encode_span_to_otlp(span)
     assert otlp_span.name == "test_span"
     assert otlp_span.trace_id == _encode_identifier(span.context.trace_id)
@@ -78,16 +79,20 @@ def test_decode_encode(span) -> None:
         (SpanStatusCode.UNSET, otlp.Status.StatusCode.STATUS_CODE_UNSET),
     ],
 )
-def test_decode_encode_status_code(span, span_status_code, otlp_status_code) -> None:
+def test_decode_encode_status_code(
+    span: Span,
+    span_status_code: SpanStatusCode,
+    otlp_status_code: otlp.Status.StatusCode,
+) -> None:
     span = replace(span, status_code=span_status_code)
     otlp_span = encode_span_to_otlp(span)
-    assert otlp_span.status.code == otlp_status_code
+    assert otlp_span.status.code == otlp_status_code  # type: ignore[comparison-overlap]
     decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.status_code == span.status_code
 
 
 @pytest.mark.parametrize("span_kind", list(SpanKind))
-def test_decode_encode_span_kind(span, span_kind) -> None:
+def test_decode_encode_span_kind(span: Span, span_kind: SpanKind) -> None:
     span = replace(span, span_kind=span_kind)
     span = replace(
         span,
@@ -142,7 +147,9 @@ def test_decode_encode_span_kind(span, span_kind) -> None:
         ),
     ],
 )
-def test_decode_encode_attributes(span, attributes, otlp_key_value) -> None:
+def test_decode_encode_attributes(
+    span: Span, attributes: Dict[str, Any], otlp_key_value: KeyValue
+) -> None:
     span = replace(span, attributes={**span.attributes, **attributes})
     otlp_span = encode_span_to_otlp(span)
     assert MessageToJson(otlp_key_value) in set(map(MessageToJson, otlp_span.attributes))
@@ -150,7 +157,7 @@ def test_decode_encode_attributes(span, attributes, otlp_key_value) -> None:
     assert decoded_span.attributes == span.attributes
 
 
-def test_decode_encode_events(span) -> None:
+def test_decode_encode_events(span: Span) -> None:
     event_name = str(random())
     exception_message = str(random())
     exception_type = str(random())
@@ -227,7 +234,7 @@ def test_decode_encode_events(span) -> None:
     assert decoded_span.events == span.events
 
 
-def test_decode_encode_documents(span) -> None:
+def test_decode_encode_documents(span: Span) -> None:
     content = str(random())
     score = random()
     document_metadata = {
@@ -295,7 +302,7 @@ def test_decode_encode_documents(span) -> None:
     )
 
 
-def test_decode_encode_embeddings(span) -> None:
+def test_decode_encode_embeddings(span: Span) -> None:
     text = str(random())
     vector = list(np.random.rand(3))
     attributes = {
@@ -344,7 +351,7 @@ def test_decode_encode_embeddings(span) -> None:
     )
 
 
-def test_decode_encode_message_tool_calls(span) -> None:
+def test_decode_encode_message_tool_calls(span: Span) -> None:
     attributes = {
         "llm": {
             "output_messages": [
@@ -399,7 +406,7 @@ def test_decode_encode_message_tool_calls(span) -> None:
     )
 
 
-def test_decode_encode_llm_prompt_template_variables(span) -> None:
+def test_decode_encode_llm_prompt_template_variables(span: Span) -> None:
     attributes = {
         "llm": {"prompt_template": {"variables": {"context_str": "123", "query_str": "321"}}}
     }
@@ -425,7 +432,7 @@ def test_decode_encode_llm_prompt_template_variables(span) -> None:
     )
 
 
-def test_decode_encode_tool_parameters(span) -> None:
+def test_decode_encode_tool_parameters(span: Span) -> None:
     attributes = {
         "tool": {
             "parameters": {

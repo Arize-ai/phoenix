@@ -1,13 +1,14 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Button, Card, Flex, Icon, Icons } from "@arizeai/components";
+import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
+import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { toolJSONSchema, toolSchema } from "@phoenix/schemas";
-import { Tool } from "@phoenix/store";
+import { openAIToolJSONSchema, openAIToolSchema } from "@phoenix/schemas";
+import { OpenAITool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PlaygroundInstanceProps } from "./types";
@@ -16,7 +17,10 @@ export function PlaygroundTool({
   playgroundInstanceId,
   tool,
   instanceTools,
-}: PlaygroundInstanceProps & { tool: Tool; instanceTools: Tool[] }) {
+}: PlaygroundInstanceProps & {
+  tool: OpenAITool;
+  instanceTools: OpenAITool[];
+}) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
 
   const [toolDefinition, setToolDefinition] = useState(
@@ -34,7 +38,7 @@ export function PlaygroundTool({
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = toolSchema.safeParse(definition);
+      const { success } = openAIToolSchema.safeParse(definition);
       if (!success) {
         return;
       }
@@ -45,10 +49,6 @@ export function PlaygroundTool({
             t.id === tool.id
               ? {
                   ...t,
-                  // Don't use data here returned by safeParse, as we want to allow for extra keys,
-                  // there is no "deepPassthrough" to allow for extra keys
-                  // at all levels of the schema, so we just use the json parsed value here,
-                  // knowing that it is valid with potentially extra keys
                   definition,
                 }
               : t
@@ -66,7 +66,12 @@ export function PlaygroundTool({
       borderColor={"yellow-700"}
       variant="compact"
       key={tool.id}
-      title={tool.definition.function?.name ?? "Tool"}
+      title={
+        <Flex direction="row" gap="size-100">
+          <SpanKindIcon spanKind="tool" />
+          <Text>{tool.definition.function?.name ?? "Tool"}</Text>
+        </Flex>
+      }
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
@@ -92,7 +97,7 @@ export function PlaygroundTool({
       <JSONEditor
         value={toolDefinition}
         onChange={onChange}
-        jsonSchema={toolJSONSchema as JSONSchema7}
+        jsonSchema={openAIToolJSONSchema as JSONSchema7}
       />
     </Card>
   );

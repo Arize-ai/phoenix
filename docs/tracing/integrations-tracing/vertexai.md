@@ -30,7 +30,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-)  
+)
 ```
 
 {% hint style="info" %}
@@ -60,7 +60,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -95,7 +95,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -103,7 +103,7 @@ For more info on using Phoenix with Docker, see [#docker](vertexai.md#docker "me
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
-If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at[https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
 **Install packages:**
 
@@ -124,7 +124,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
 register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="https://app.phoenix.arize.com/v1/traces",
-) 
+)
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).

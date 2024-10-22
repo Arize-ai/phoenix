@@ -17,7 +17,7 @@
 
 Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/run-llama/llama\_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.
 
-<figure><img src="../../.gitbook/assets/image (1) (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (11).png" alt=""><figcaption></figcaption></figure>
 
 ## How to Evaluate Retrieval Systems
 
@@ -29,7 +29,7 @@ There are varying degrees of how we can evaluate retrieval systems.
 
 **Step 3:** If retrieval is not the issue, we should check if we even have the right documents to answer the question.
 
-<figure><img src="../../.gitbook/assets/image (10).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (26).png" alt=""><figcaption></figcaption></figure>
 
 <table data-full-width="true"><thead><tr><th width="200">Question</th><th>Metric</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Is this a bad response to the answer?</td><td>User feedback or <a href="../../evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md">LLM Eval for Q&#x26;A</a></td><td>Most relevant way to measure application</td><td>Hard to trace down specifically what to fix</td></tr><tr><td>Is the retrieved context relevant?</td><td><a href="../../evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md">LLM Eval for Relevance</a></td><td>Directly measures effectiveness of retrieval</td><td>Requires additional LLMs calls</td></tr><tr><td>Is the knowledge base missing areas of user queries?</td><td>Query density (drift) - Phoenix generated</td><td>Highlights groups of queries with large distance from context</td><td>Identifies broad topics missing from knowledge base, but not small gaps</td></tr></tbody></table>
 
@@ -37,11 +37,11 @@ There are varying degrees of how we can evaluate retrieval systems.
 
 Visualize the chain of the traces and spans for a Q\&A chatbot use case. You can click into specific spans.
 
-<figure><img src="../../.gitbook/assets/image (1) (1) (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (12).png" alt=""><figcaption></figcaption></figure>
 
 When clicking into the retrieval span, you can see the relevance score for each document. This can surface irrelevant context.
 
-<figure><img src="../../.gitbook/assets/image (2) (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (13).png" alt=""><figcaption></figcaption></figure>
 
 ## Using Phoenix Inferences to Analyze RAG (Retrieval Augmented Generation)
 

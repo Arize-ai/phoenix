@@ -6,7 +6,7 @@ from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
 from phoenix.inferences.inferences import Inferences as InternalInferences
-from phoenix.inferences.inferences import Schema
+from phoenix.inferences.schema import Schema
 from phoenix.server.api.context import Context
 
 ContextFactory: TypeAlias = Callable[[InternalInferences, Optional[InternalInferences]], Context]

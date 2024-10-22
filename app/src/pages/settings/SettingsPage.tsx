@@ -56,7 +56,12 @@ export function SettingsPage() {
                 />
                 <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="end"
+                justifyContent="center"
+              >
                 <TextField
                   label="Python Version"
                   isReadOnly

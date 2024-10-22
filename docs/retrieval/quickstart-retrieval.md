@@ -14,7 +14,7 @@ _Follow our tutorial in a notebook with our Langchain and LlamaIndex integration
 
 ## Logging Retrievals to Phoenix (as Inferences)
 
-<figure><img src="../.gitbook/assets/image (11).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (27).png" alt=""><figcaption></figcaption></figure>
 
 #### Step 1: Logging Knowledge Base
 
@@ -38,7 +38,7 @@ corpus_schema = px.Schema(
 
 We also will be logging the prompt/response pairs from the deployed application.
 
-For more details, visit this [page](../how-to/define-your-schema/retrieval-rag.md).
+For more details, visit this [page](../inferences/how-to-inferences/define-your-schema/retrieval-rag.md).
 
 <table><thead><tr><th width="159.33333333333331">query</th><th width="125">embedding</th><th width="164">retrieved_document_ids</th><th width="139">relevance_scores</th><th>response</th></tr></thead><tbody><tr><td>who was the first person that walked on the moon</td><td>[-0.0126, 0.0039, 0.0217, ...</td><td>[7395, 567965, 323794, ...</td><td>[11.30, 7.67, 5.85, ...</td><td>Neil Armstrong</td></tr></tbody></table>
 
@@ -164,4 +164,3 @@ px.Client().log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe
 The calculation is done using the LLM Eval on all chunks returned for the span and the log\_evaluations connects the Evals back to the original spans.
 
 <figure><img src="../.gitbook/assets/databricks_notebook_retriever_eval.png" alt=""><figcaption><p>Retrieval Evals</p></figcaption></figure>
-

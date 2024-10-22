@@ -658,4 +658,6 @@ async def dataset_with_messages(
                 },
             ],
         )
+        assert dataset_id is not None
+        assert dataset_version_id is not None
         return dataset_id, dataset_version_id

@@ -77,8 +77,16 @@ input ChatCompletionInput {
 input ChatCompletionMessageInput {
   role: ChatCompletionMessageRole!
 
-  """The content of the message as JSON to support text and tools"""
+  """The content of the message as JSON to support various kinds of text"""
   content: JSON!
+
+  """The tool calls that were made in the message"""
+  toolCalls: [JSON!]
+
+  """
+  The ID that corresponds to a prior tool call. Used to link a tool message to a pre-existing tool call.
+  """
+  toolCallId: String
 }
 
 enum ChatCompletionMessageRole {

@@ -6,7 +6,7 @@ description: Oftentimes you want to customize various aspects of traces you log 
 
 ## Log to a specific project
 
-Phoenix uses [projects](../concepts-tracing.md#projects) to group traces. If left unspecified, all traces are sent to a default project.
+Phoenix uses [projects](../concepts-tracing/#projects) to group traces. If left unspecified, all traces are sent to a default project.
 
 {% embed url="https://www.youtube.com/watch?v=GPno92s9WFM" %}
 
@@ -28,7 +28,7 @@ Note that setting a project via an environment variable only works in a notebook
 {% endtab %}
 
 {% tab title="Server (Python)" %}
-If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.&#x20;
+If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.
 
 ```python
 from openinference.semconv.resource import ResourceAttributes
@@ -57,7 +57,7 @@ Projects work by setting something called the **Resource** attributes (as seen i
 
 ## Switching projects in a notebook
 
-Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects.  You can use this to trace things like evaluations.
+Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects. You can use this to trace things like evaluations.
 
 {% tabs %}
 {% tab title="Notebook" %}
@@ -75,8 +75,7 @@ with using_project("my-eval-project"):
 
 ## Adding custom metadata to spans
 
-Spans produced by [auto-instrumentation](instrumentation/) can get you very far. However at some point you may want to track `metadata` - things like account or user info. \
-
+Spans produced by [auto-instrumentation](instrumentation/) can get you very far. However at some point you may want to track `metadata` - things like account or user info. \\
 
 {% tabs %}
 {% tab title="LangChain" %}
@@ -93,7 +92,7 @@ print(completion)
 {% endtab %}
 
 {% tab title="DSPy" %}
-To add metadata to a span, you will have to use OpenTelemetry's trace\_api.&#x20;
+To add metadata to a span, you will have to use OpenTelemetry's trace\_api.
 
 ```python
 import dspy

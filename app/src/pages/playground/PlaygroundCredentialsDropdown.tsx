@@ -42,7 +42,11 @@ export function PlaygroundCredentialsDropdown() {
         <DropdownButton size="compact">API Keys</DropdownButton>
         <DropdownMenu>
           <View padding="size-200">
-            <Flex direction={"column"} gap={"size-100"}>
+            <Form
+              onSubmit={() => {
+                // TODO: close the dropdown
+              }}
+            >
               <Heading level={2} weight="heavy">
                 API Keys
               </Heading>
@@ -50,7 +54,7 @@ export function PlaygroundCredentialsDropdown() {
                 API keys are stored in your browser and used to communicate with
                 their respective API&apos;s.
               </Text>
-              <Form>
+              <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
                   const credentialName = ProviderToCredentialNameMap[provider];
                   return (
@@ -66,8 +70,8 @@ export function PlaygroundCredentialsDropdown() {
                     />
                   );
                 })}
-              </Form>
-            </Flex>
+              </Flex>
+            </Form>
           </View>
         </DropdownMenu>
       </DropdownTrigger>

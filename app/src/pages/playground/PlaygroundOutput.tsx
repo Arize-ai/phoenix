@@ -1,15 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Card, Flex, Icon, Icons } from "@arizeai/components";
+import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import type { ToolCall } from "@phoenix/store";
+import { OpenAIToolCall } from "@phoenix/schemas";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -22,6 +22,7 @@ import {
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { isChatMessages } from "./playgroundUtils";
+import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
@@ -51,7 +52,9 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
               >
                 {toolCall.function.name}(
                 {JSON.stringify(
-                  JSON.parse(toolCall.function.arguments),
+                  typeof toolCall.function.arguments === "string"
+                    ? JSON.parse(toolCall.function.arguments)
+                    : toolCall.function.arguments,
                   null,
                   2
                 )}
@@ -111,8 +114,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       collapsible
       variant="compact"
+      bodyStyle={{ padding: 0 }}
     >
-      {OutputEl}
+      <View padding="size-200">{OutputEl}</View>
+      <Suspense>
+        {instance.spanId ? (
+          <RunMetadataFooter spanId={instance.spanId} />
+        ) : null}
+      </Suspense>
     </Card>
   );
 }
@@ -164,6 +173,11 @@ function useChatCompletionSubscription({
                 arguments
               }
             }
+            ... on FinishedChatCompletion {
+              span {
+                id
+              }
+            }
           }
         }
       `,
@@ -196,6 +210,8 @@ function toGqlChatCompletionMessage(
   return {
     content: message.content,
     role: toGqlChatCompletionRole(message.role),
+    toolCalls: message.toolCalls,
+    toolCallId: message.toolCallId,
   };
 }
 
@@ -243,7 +259,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
   }
 
   const [output, setOutput] = useState<string | undefined>(undefined);
-  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [toolCalls, setToolCalls] = useState<OpenAIToolCall[]>([]);
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
@@ -310,6 +326,13 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
             });
           }
           return updated;
+        });
+      } else if (chatCompletion.__typename === "FinishedChatCompletion") {
+        updateInstance({
+          instanceId: props.playgroundInstanceId,
+          patch: {
+            spanId: chatCompletion.span.id,
+          },
         });
       }
     },

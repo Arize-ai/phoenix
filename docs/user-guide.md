@@ -24,7 +24,7 @@ Leverage experiments to measure prompt and model performance. Typically during t
 
 Either as a part of experiments or a standalone feature, evaluations help you understand how your app is performing at a granular level. Typical evaluations might be correctness evals compared against a ground truth data set, or LLM-as-a-judge evals to detect hallucinations or relevant RAG output.
 
-* [evals.md](quickstart/evals.md "mention")
+* [evals.md](evaluation/evals.md "mention")
 
 ### Prompt Tracking
 
@@ -36,7 +36,7 @@ Instrument prompt and prompt variable collection to associate iterations of your
 
 Phoenix's search and retrieval optimization tools include an embeddings visualizer that helps teams understand how their data is being represented and clustered. This visual insight can guide decisions on indexing strategies, similarity measures, and data organization to improve the relevance and efficiency of search results.
 
-* [phoenix-inferences](quickstart/phoenix-inferences/ "mention")
+* [phoenix-inferences.md](inferences/phoenix-inferences.md "mention")
 
 ## 🧪 Testing/Staging
 
@@ -52,7 +52,7 @@ With a stable set of test cases and evaluations defined, you can now easily iter
 
 Phoenix's flexible evaluation framework supports thorough testing of LLM outputs. Teams can define custom metrics, collect user feedback, and leverage separate LLMs for automated assessment. Phoenix offers tools for analyzing evaluation results, identifying trends, and tracking improvements over time.
 
-* [evals.md](quickstart/evals.md "mention")
+* [evals.md](evaluation/evals.md "mention")
 
 ### Curate Data
 
@@ -72,7 +72,7 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
 ### Traces in Production
 
-Phoenix and Arize use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.&#x20;
+Phoenix and Arize use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.
 
 ### Evals for Production
 

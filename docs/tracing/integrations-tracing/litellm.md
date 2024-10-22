@@ -66,7 +66,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -101,7 +101,7 @@ from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006",
+  endpoint="http://localhost:6006/v1/traces",
 )
 ```
 
@@ -166,7 +166,7 @@ You can now use LiteLLM as normal and calls will be traces in Phoenix.
 
 ```python
 import litellm
-completion_response = litellm.completion(model="gpt-3.5-turbo", 
+completion_response = litellm.completion(model="gpt-3.5-turbo",
                    messages=[{"content": "What's the capital of China?", "role": "user"}])
 print(completion_response)
 ```

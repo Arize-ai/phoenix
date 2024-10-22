@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pandas as pd
@@ -67,7 +68,7 @@ def test_trace_dataset_construction_from_spans() -> None:
     spans = [
         Span(
             name="name-0",
-            parent_id=UUID(int=0),
+            parent_id=str(UUID(int=0)),
             start_time=datetime(year=2000, month=1, day=1, hour=0, minute=0),
             end_time=datetime(year=2000, month=1, day=1, hour=0, minute=1),
             span_kind=SpanKind.CHAIN,
@@ -84,7 +85,7 @@ def test_trace_dataset_construction_from_spans() -> None:
                     timestamp=datetime(year=2000, month=1, day=1, hour=0, minute=3),
                 ),
             ],
-            context=SpanContext(trace_id=UUID(int=0), span_id=UUID(int=0)),
+            context=SpanContext(trace_id=str(UUID(int=0)), span_id=str(UUID(int=0))),
             conversation=None,
         ),
         Span(
@@ -97,7 +98,7 @@ def test_trace_dataset_construction_from_spans() -> None:
             status_message="status-message-1",
             attributes={},
             events=[],
-            context=SpanContext(trace_id=UUID(int=1), span_id=UUID(int=1)),
+            context=SpanContext(trace_id=str(UUID(int=1)), span_id=str(UUID(int=1))),
             conversation=SpanConversationAttributes(conversation_id=UUID(int=3)),
         ),
     ]
@@ -204,7 +205,7 @@ def test_trace_dataset_construction_with_evaluations() -> None:
     assert "context.span_id" in df_with_evals.columns
 
 
-def test_trace_dataset_save_and_load_preserve_values(tmp_path) -> None:
+def test_trace_dataset_save_and_load_preserve_values(tmp_path: Path) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -244,6 +245,7 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path) -> None:
     assert dataset_path.exists()
 
     schema = parquet.read_schema(dataset_path)
+    assert schema.metadata
     arize_metadata = json.loads(schema.metadata[b"arize"])
     assert arize_metadata == {
         "dataset_id": str(ds._id),
@@ -262,7 +264,9 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path) -> None:
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
 
 
-def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path) -> None:
+def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(
+    tmp_path: Path,
+) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -313,7 +317,9 @@ def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp
     assert read_ds.evaluations == []
 
 
-def test_trace_dataset_load_raises_error_when_input_id_does_not_match_metadata(tmp_path) -> None:
+def test_trace_dataset_load_raises_error_when_input_id_does_not_match_metadata(
+    tmp_path: Path,
+) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
