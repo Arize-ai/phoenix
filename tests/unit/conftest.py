@@ -8,19 +8,16 @@ from importlib.metadata import version
 from random import getrandbits
 from typing import (
     Any,
-    AsyncIterable,
     AsyncIterator,
     Awaitable,
     Callable,
     Dict,
-    Iterable,
     Iterator,
     List,
     Literal,
     Optional,
     Set,
     Tuple,
-    cast,
 )
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -32,7 +29,7 @@ from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
 from faker import Faker
-from httpx import ASGITransport, Request, Response
+from httpx import AsyncByteStream, Request, Response
 from httpx_ws import AsyncWebSocketSession, aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 from psycopg import Connection
@@ -138,7 +135,7 @@ async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
 
 @pytest.fixture(params=["sqlite", "postgresql"])
 def dialect(request: SubRequest) -> str:
-    return cast(str, request.param)
+    return str(request.param)
 
 
 @pytest.fixture(scope="function")
@@ -208,12 +205,11 @@ def httpx_clients(
     app: ASGIApp,
 ) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport):
-        def __init__(self, app: ASGIApp, asgi_transport: ASGITransport) -> None:
+        def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
             import nest_asyncio
 
             nest_asyncio.apply()
 
-            self.app = app
             self.asgi_transport = asgi_transport
 
         def handle_request(self, request: Request) -> Response:
@@ -221,13 +217,9 @@ def httpx_clients(
 
             async def read_stream() -> bytes:
                 content = b""
-                stream = response.stream
-                if isinstance(stream, AsyncIterable):
-                    async for chunk in stream:
-                        content += chunk
-                elif isinstance(stream, Iterable):
-                    for chunk in stream:
-                        content += chunk
+                assert isinstance(stream := response.stream, AsyncByteStream)
+                async for chunk in stream:
+                    content += chunk
                 return content
 
             content = asyncio.run(read_stream())
@@ -239,7 +231,7 @@ def httpx_clients(
             )
 
     asgi_transport = ASGIWebSocketTransport(app=app)
-    transport = Transport(app, asgi_transport=asgi_transport)
+    transport = Transport(asgi_transport=asgi_transport)
     base_url = "http://test"
     return (
         httpx.Client(transport=transport, base_url=base_url),
@@ -265,7 +257,7 @@ def px_client(
 ) -> Client:
     sync_client, _ = httpx_clients
     client = Client(warn_if_server_not_running=False)
-    client._client = sync_client
+    client._client = sync_client  # type: ignore[assignment]
     client._base_url = str(sync_client.base_url)
     sync_client._base_url = httpx.URL("")
     return client
@@ -291,7 +283,7 @@ class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
     ) -> Tuple[
-        Callable[[Any], Awaitable[None]],
+        Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
@@ -314,9 +306,8 @@ class TestBulkInserter(BulkInserter):
         async for event in self._queue_inserters.insert():
             self._event_queue.put(event)
 
-    async def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
-        async with self._db() as session:
-            await operation(session)
+    def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
+        raise NotImplementedError
 
     async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         await self._insert_spans([(span, project_name)])
