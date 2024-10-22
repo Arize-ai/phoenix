@@ -7,7 +7,9 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { ChatMessage } from "@phoenix/store";
-import { schemaForType } from "@phoenix/typeUtils";
+import { Mutable, schemaForType } from "@phoenix/typeUtils";
+
+import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -93,11 +95,122 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * The zod schema for llm model name
+ * Model graphql invocation parameters schema in zod.
+ *
+ * Includes all keys besides toolChoice
+ */
+const invocationParameterSchema = schemaForType<
+  Mutable<InvocationParameters>
+>()(
+  z.object({
+    temperature: z.coerce.number().optional(),
+    topP: z.coerce.number().optional(),
+    maxTokens: z.coerce.number().optional(),
+    stop: z.array(z.string()).optional(),
+    seed: z.coerce.number().optional(),
+    maxCompletionTokens: z.coerce.number().optional(),
+  })
+);
+
+/**
+ * The type of the invocation parameters schema
+ */
+export type InvocationParametersSchema = z.infer<
+  typeof invocationParameterSchema
+>;
+
+/**
+ * Transform a string to an invocation parameters schema.
+ *
+ * If the string is not valid JSON, return an empty object.
+ * If the string is valid JSON, but does not match the invocation parameters schema,
+ * map the snake cased keys to camel case and return the result.
+ */
+const stringToInvocationParametersSchema = z
+  .string()
+  .transform((s) => {
+    let json;
+    try {
+      json = JSON.parse(s);
+    } catch (e) {
+      return {};
+    }
+    // using the invocationParameterSchema as a base,
+    // apply all matching keys from the input string,
+    // and then map snake cased keys to camel case on top
+    return (
+      invocationParameterSchema
+        .passthrough()
+        .transform((o) => ({
+          ...o,
+          // map snake cased keys to camel case, the first char after each _ is uppercase
+          ...Object.fromEntries(
+            Object.entries(o).map(([k, v]) => [
+              k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
+              v,
+            ])
+          ),
+        }))
+        // reparse the object to ensure the mapped keys are also validated
+        .transform(invocationParameterSchema.parse)
+        .parse(json)
+    );
+  })
+  .default("{}");
+
+/**
+ * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  */
-export const modelNameSchema = z.object({
+export const modelConfigSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.model_name]: z.string(),
   }),
 });
+
+/**
+ * The zod schema for llm.invocation_parameters attributes
+ * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ */
+export const modelConfigWithInvocationParametersSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema,
+  }),
+});
+
+/**
+ * Default set of invocation parameters for all providers and models.
+ */
+const baseInvocationParameterSchema = invocationParameterSchema.omit({
+  maxCompletionTokens: true,
+});
+
+/**
+ * Invocation parameters for O1 models.
+ */
+const o1BaseInvocationParameterSchema = invocationParameterSchema.pick({
+  maxCompletionTokens: true,
+});
+
+/**
+ * Provider schemas for all models and optionally for a specific model.
+ */
+export const providerSchemas = {
+  OPENAI: {
+    default: baseInvocationParameterSchema,
+    "o1-preview": o1BaseInvocationParameterSchema,
+    "o1-preview-2024-09-12": o1BaseInvocationParameterSchema,
+    "o1-mini": o1BaseInvocationParameterSchema,
+    "o1-mini-2024-09-12": o1BaseInvocationParameterSchema,
+  },
+  AZURE_OPENAI: {
+    default: baseInvocationParameterSchema,
+  },
+  ANTHROPIC: {
+    default: baseInvocationParameterSchema,
+  },
+} satisfies Record<
+  ModelProvider,
+  Record<string, z.ZodType<InvocationParametersSchema>>
+>;
