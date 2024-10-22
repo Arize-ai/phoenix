@@ -43,6 +43,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.subscriptions import PLAYGROUND_STREAMING_CLIENT_REGISTRY
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -64,6 +65,7 @@ from phoenix.server.api.types.GenerativeProvider import (
     GenerativeProviderKey,
 )
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.InvocationParameter import InvocationParameterBase
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -151,6 +153,18 @@ class Query:
             return [model for model in all_models if model.provider_key == input.provider_key]
 
         return all_models
+
+    @strawberry.field
+    async def model_invocation_parameters(
+        self, input: Optional[ModelsInput] = None
+    ) -> List[InvocationParameterBase]:
+        provider_key = input.provider_key
+        if provider_key is not None:
+            return PLAYGROUND_STREAMING_CLIENT_REGISTRY[
+                provider_key
+            ].supported_invocation_parameters()
+        else:
+            return []
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
