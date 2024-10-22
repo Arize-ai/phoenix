@@ -78,7 +78,7 @@ input ChatCompletionMessageInput {
   role: ChatCompletionMessageRole!
 
   """The content of the message as JSON to support various kinds of text"""
-  content: JSON!
+  content: JSON! = ""
 
   """The tool calls that were made in the message"""
   toolCalls: [JSON!]
