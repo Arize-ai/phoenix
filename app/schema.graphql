@@ -83,7 +83,9 @@ input ChatCompletionMessageInput {
   """The tool calls that were made in the message"""
   toolCalls: [JSON!]
 
-  """The ID of the tool call that was made in a prior message"""
+  """
+  The ID that corresponds to a prior tool call. Used to link a tool message to a pre-existing tool call.
+  """
   toolCallId: String
 }
 
