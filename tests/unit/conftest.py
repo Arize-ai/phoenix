@@ -469,7 +469,8 @@ class GraphQLSubscription:
             if message_type == "complete":
                 break
             elif message_type == "next":
-                yield message["payload"]["data"]
+                if (data := message["payload"]["data"]) is not None:
+                    yield data
             elif message_type == "error":
                 raise RuntimeError(message["payload"])
             else:
