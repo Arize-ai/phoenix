@@ -1,6 +1,8 @@
 import json
 from itertools import chain, combinations
+from pathlib import Path
 from random import random
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from uuid import uuid4
 
 import pandas as pd
@@ -10,9 +12,9 @@ from pandas.testing import assert_frame_equal
 from pyarrow import parquet
 
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
+from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.span_evaluations import (
     EVAL_NAME_COLUMN_PREFIX,
-    InvalidParquetMetadataError,
     _parse_schema_metadata,
 )
 
@@ -39,7 +41,7 @@ def test_span_evaluations_construction() -> None:
     assert "score" in eval_ds.dataframe.columns
 
 
-def power_set(s) -> None:
+def power_set(s: List[Tuple[str, Any]]) -> Iterator[Dict[str, Any]]:
     for result in chain.from_iterable(combinations(s, r) for r in range(len(s) + 1)):
         yield dict(result)
 
@@ -51,10 +53,15 @@ BAD_RESULTS = list(power_set(list({"score": "0", "label": 1, "explanation": 2}.i
 @pytest.mark.parametrize("span_id", [None, "span_id", "context.span_id"])
 @pytest.mark.parametrize("position", [None, "position", "document_position"])
 @pytest.mark.parametrize("result", RESULTS)
-def test_document_evaluations_construction(span_id, position, result) -> None:
+def test_document_evaluations_construction(
+    span_id: Optional[str], position: Optional[str], result: Dict[str, Any]
+) -> None:
     eval_name = "my_eval"
     rand1, rand2 = random(), random()
-    df = pd.DataFrame([{**result, **{span_id: "x", position: 0, rand1: rand1, rand2: rand2}}])
+    data: List[Dict[Any, Any]] = [
+        {**result, **{span_id: "x", position: 0, rand1: rand1, rand2: rand2}}
+    ]
+    df = pd.DataFrame(data)
     if not result or not span_id or not position:
         with pytest.raises(ValueError):
             DocumentEvaluations(eval_name=eval_name, dataframe=df)
@@ -85,7 +92,7 @@ def test_document_evaluations_construction(span_id, position, result) -> None:
 
 
 @pytest.mark.parametrize("result", BAD_RESULTS)
-def test_document_evaluations_bad_results(result) -> None:
+def test_document_evaluations_bad_results(result: Dict[str, Any]) -> None:
     eval_name = "my_eval"
     df = pd.DataFrame([{**result, **{"span_id": "x", "position": 0}}])
     with pytest.raises(ValueError):
@@ -103,7 +110,7 @@ def test_document_evaluations_edge_cases() -> None:
     assert actual.shape == (0, 0)
 
 
-def test_span_evaluations_save_and_load_preserves_data(tmp_path) -> None:
+def test_span_evaluations_save_and_load_preserves_data(tmp_path: Path) -> None:
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
     dataframe = pd.DataFrame(
@@ -134,7 +141,7 @@ def test_span_evaluations_save_and_load_preserves_data(tmp_path) -> None:
     assert read_evals.id == evals.id
 
 
-def test_document_evaluations_save_and_load_preserves_data(tmp_path) -> None:
+def test_document_evaluations_save_and_load_preserves_data(tmp_path: Path) -> None:
     dataframe = pd.DataFrame(
         {
             "context.span_id": ["span_1", "span_1", "span_2"],
@@ -164,7 +171,9 @@ def test_document_evaluations_save_and_load_preserves_data(tmp_path) -> None:
     assert read_evals.id == evals.id
 
 
-def test_evaluations_load_raises_error_when_input_id_does_not_match_metadata(tmp_path) -> None:
+def test_evaluations_load_raises_error_when_input_id_does_not_match_metadata(
+    tmp_path: Path,
+) -> None:
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
     dataframe = pd.DataFrame(

@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
+from phoenix import Client
 from phoenix.db import models
 from phoenix.experiments import evaluate_experiment, run_experiment
 from phoenix.experiments.evaluators import (
@@ -33,7 +34,7 @@ from phoenix.server.types import DbSessionFactory
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment(
-    _,
+    _: Any,
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
@@ -62,7 +63,7 @@ async def test_run_experiment(
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
         task_output = {"doesn't matter": "this is the output"}
 
-        def experiment_task(_) -> Dict[str, str]:
+        def experiment_task(_: Any) -> Dict[str, str]:
             assert _ == example_input
             assert _ is not example_input
             return task_output
@@ -109,7 +110,7 @@ async def test_run_experiment(
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_experiment_with_llm_eval(
-    _,
+    _: Any,
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
@@ -152,7 +153,11 @@ async def test_run_experiment_with_llm_eval(
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
 
-        def experiment_task(input, example, metadata) -> None:
+        def experiment_task(
+            input: Dict[str, Any],
+            example: Example,
+            metadata: Dict[str, Any],
+        ) -> str:
             assert input == {"input": "fancy input 1"}
             assert metadata == {}
             assert isinstance(example, Example)
@@ -185,7 +190,7 @@ async def test_run_experiment_with_llm_eval(
 @pytest.mark.skipif(platform.system() in ("Windows", "Darwin"), reason="Flaky on CI")
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
 async def test_run_evaluation(
-    _,
+    _: Any,
     db: DbSessionFactory,
     httpx_clients: httpx.AsyncClient,
     simple_dataset_with_one_experiment_run: Any,
@@ -296,30 +301,33 @@ def test_binding_arguments_to_decorated_evaluators() -> None:
     output = experiment_run.output
     expected, metadata, input = example.output["output"], example.metadata, example.input["input"]
     kwargs = dict(output=output, expected=expected, metadata=metadata, input=input, extra="junk")
-    evaluation = can_i_count_this_high.evaluate(**kwargs)
+    evaluation = can_i_count_this_high.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With one argument, evaluates against output.result"
 
-    evaluation = can_i_evaluate_the_output.evaluate(**kwargs)
+    evaluation = can_i_evaluate_the_output.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With output arg, evaluates against output.result"
 
-    evaluation = can_i_evaluate_the_expected.evaluate(**kwargs)
+    evaluation = can_i_evaluate_the_expected.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With expected arg, evaluates against example.output"
 
-    evaluation = can_i_evaluate_the_input.evaluate(**kwargs)
+    evaluation = can_i_evaluate_the_input.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With input arg, evaluates against example.input"
 
-    evaluation = can_i_evaluate_using_metadata.evaluate(**kwargs)
+    evaluation = can_i_evaluate_using_metadata.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "With metadata arg, evaluates against example.metadata"
 
-    evaluation = can_i_evaluate_with_everything.evaluate(**kwargs)
+    evaluation = can_i_evaluate_with_everything.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "evaluates against named args in any order"
 
-    evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(**kwargs)
+    evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(**kwargs)  # type: ignore[arg-type]
     assert evaluation.score == 1.0, "evaluates against named args in any order"
 
 
-async def test_get_experiment_client_method(px_client, simple_dataset_with_one_experiment_run):
+async def test_get_experiment_client_method(
+    px_client: Client,
+    simple_dataset_with_one_experiment_run: Any,
+) -> None:
     experiment_gid = GlobalID("Experiment", "0")
-    experiment = px_client.get_experiment(experiment_id=experiment_gid)
+    experiment = px_client.get_experiment(experiment_id=str(experiment_gid))
     assert experiment
     assert isinstance(experiment, Experiment)

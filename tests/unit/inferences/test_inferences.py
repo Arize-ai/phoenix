@@ -8,7 +8,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Optional, Type
+from typing import Iterator, List, Type
 
 import numpy as np
 import pandas as pd
@@ -106,7 +106,7 @@ class TestParseDataFrameAndSchema:
     def test_some_features_excluded_removes_excluded_features_columns_and_keeps_the_rest(
         self,
         caplog: LogCaptureFixture,
-    ):
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -717,11 +717,11 @@ class TestParseDataFrameAndSchema:
         assert output_dataframe.dtypes["prediction_id"], "string"
 
     @property
-    def num_records(self) -> None:
+    def num_records(self) -> int:
         return self._NUM_RECORDS
 
     @property
-    def embedding_dimension(self) -> None:
+    def embedding_dimension(self) -> int:
         return self._EMBEDDING_DIMENSION
 
 
@@ -850,7 +850,7 @@ class TestDataset:
             Inferences(dataframe=input_df, schema=input_schema)
 
     @property
-    def num_records(self) -> None:
+    def num_records(self) -> int:
         return self._NUM_RECORDS
 
 
@@ -858,7 +858,7 @@ class TestDataset:
 def raises_inferences_error(
     validation_error_type: Type[BaseException],
     message: str,
-) -> None:
+) -> Iterator[None]:
     with raises(DatasetError) as exc_info:
         yield
     assert [type(error) for error in exc_info.value.errors] == [validation_error_type]
@@ -866,7 +866,7 @@ def raises_inferences_error(
     assert str(error) == str(exc_info.value) == message
 
 
-def random_uuids(num_records: int) -> None:
+def random_uuids(num_records: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_records)]
 
 
@@ -1325,7 +1325,7 @@ def random_uuids(num_records: int) -> None:
 def test_normalize_timestamps_produces_expected_output_for_valid_input(
     input_dataframe: DataFrame,
     input_schema: Schema,
-    default_timestamp: Optional[Timestamp],
+    default_timestamp: Timestamp,
     expected_dataframe: DataFrame,
     expected_schema: Schema,
 ) -> None:
@@ -1352,12 +1352,14 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
             schema=Schema(
                 timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"
             ),
-            default_timestamp=None,
+            default_timestamp=Timestamp.utcnow(),
         )
 
 
 def test_inferences_with_arize_schema() -> None:
-    from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames
+    from arize.utils.types import (  # type: ignore[import-untyped]
+        EmbeddingColumnNames as ArizeEmbeddingColumnNames,
+    )
     from arize.utils.types import Schema as ArizeSchema
 
     input_df = DataFrame(
@@ -1392,7 +1394,6 @@ def test_inferences_with_arize_schema() -> None:
     inferences = Inferences(dataframe=input_df, schema=input_schema)
     assert isinstance(inferences.schema, Schema)
     assert inferences.schema.prediction_id_column_name == "prediction_id"
-    assert (
-        inferences.schema.embedding_feature_column_names["embedding"].vector_column_name
-        == "embedding"
-    )
+    assert (inferences.schema.embedding_feature_column_names or {})[
+        "embedding"
+    ].vector_column_name == "embedding"

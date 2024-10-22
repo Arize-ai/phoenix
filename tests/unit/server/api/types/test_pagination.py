@@ -1,8 +1,13 @@
 from datetime import datetime
 
+from strawberry.relay.types import Connection
+
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE
 from phoenix.server.api.types.Dimension import Dimension
+from phoenix.server.api.types.DimensionDataType import DimensionDataType
+from phoenix.server.api.types.DimensionShape import DimensionShape
+from phoenix.server.api.types.DimensionType import DimensionType
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -10,6 +15,7 @@ from phoenix.server.api.types.pagination import (
     CursorSortColumnDataType,
     connection_from_list,
 )
+from phoenix.server.api.types.Span import Span
 
 
 def test_connection_from_list() -> None:
@@ -17,26 +23,26 @@ def test_connection_from_list() -> None:
         Dimension(
             id_attr=0,
             name="first",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
         Dimension(
             id_attr=1,
             name="second",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
         Dimension(
             id_attr=2,
             name="third",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(first=2))
@@ -58,26 +64,26 @@ def test_connection_from_list_reverse() -> None:
         Dimension(
             id_attr=0,
             name="first",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
         Dimension(
             id_attr=1,
             name="second",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
         Dimension(
             id_attr=2,
             name="third",
-            type="feature",
-            dataType="categorical",
-            shape="discrete",
-            dimension=ms.Dimension(role=FEATURE),
+            type=DimensionType.feature,
+            dataType=DimensionDataType.categorical,
+            shape=DimensionShape.discrete,
+            dimension=ms.ScalarDimension(role=FEATURE),
         ),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(last=2))
@@ -96,7 +102,7 @@ def test_connection_from_list_reverse() -> None:
 
 
 def test_connection_from_empty_list() -> None:
-    connection = connection_from_list([], ConnectionArgs(first=2))
+    connection: Connection[Span] = connection_from_list([], ConnectionArgs(first=2))
 
     assert len(connection.edges) == 0
     assert connection.page_info.has_next_page is False
@@ -149,7 +155,8 @@ class TestCursor:
         assert deserialized.rowid == 10
         assert (sort_column := deserialized.sort_column) is not None
         assert sort_column.type == CursorSortColumnDataType.FLOAT
-        assert abs(sort_column.value - 11.5) < 1e-8
+        assert isinstance(sort_column_value := sort_column.value, float)
+        assert abs(sort_column_value - 11.5) < 1e-8
 
     def test_to_and_from_string_with_rowid_and_float_passed_as_int_deserializes_original_as_float(
         self,
@@ -183,7 +190,8 @@ class TestCursor:
         assert (sort_column := deserialized.sort_column) is not None
         assert sort_column.type == CursorSortColumnDataType.DATETIME
         assert sort_column.value == timestamp
-        assert sort_column.value.tzinfo is None
+        assert isinstance(sort_column_value := sort_column.value, datetime)
+        assert sort_column_value.tzinfo is None
 
     def test_to_and_from_string_with_rowid_and_tz_aware_datetime_deserializes_original(
         self,
@@ -199,4 +207,5 @@ class TestCursor:
         assert (sort_column := deserialized.sort_column) is not None
         assert sort_column.type == CursorSortColumnDataType.DATETIME
         assert sort_column.value == timestamp
-        assert sort_column.value.tzinfo is not None
+        assert isinstance(sort_column_value := sort_column.value, datetime)
+        assert sort_column_value.tzinfo is not None

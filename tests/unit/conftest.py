@@ -29,12 +29,12 @@ from _pytest.fixtures import SubRequest
 from _pytest.terminal import TerminalReporter
 from asgi_lifespan import LifespanManager
 from faker import Faker
-from httpx import URL, Request, Response
+from httpx import AsyncByteStream, Request, Response
 from httpx_ws import AsyncWebSocketSession, aconnect_ws
 from httpx_ws.transport import ASGIWebSocketTransport
 from psycopg import Connection
 from pytest_postgresql import factories
-from sqlalchemy import make_url
+from sqlalchemy import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
@@ -72,11 +72,13 @@ def pytest_terminal_summary(
                 terminalreporter.write_sep(
                     "=", "Within xfail threshold. Passing the test suite.", green=True
                 )
+                assert terminalreporter._session is not None
                 terminalreporter._session.exitstatus = pytest.ExitCode.OK
             else:
                 terminalreporter.write_sep(
                     "=", "Too many flaky tests. Failing the test suite.", red=True
                 )
+                assert terminalreporter._session is not None
                 terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
@@ -133,7 +135,7 @@ async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
 
 @pytest.fixture(params=["sqlite", "postgresql"])
 def dialect(request: SubRequest) -> str:
-    return request.param
+    return str(request.param)
 
 
 @pytest.fixture(scope="function")
@@ -203,20 +205,20 @@ def httpx_clients(
     app: ASGIApp,
 ) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport):
-        def __init__(self, app, asgi_transport):
+        def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
             import nest_asyncio
 
             nest_asyncio.apply()
 
-            self.app = app
             self.asgi_transport = asgi_transport
 
         def handle_request(self, request: Request) -> Response:
             response = asyncio.run(self.asgi_transport.handle_async_request(request))
 
-            async def read_stream():
+            async def read_stream() -> bytes:
                 content = b""
-                async for chunk in response.stream:
+                assert isinstance(stream := response.stream, AsyncByteStream)
+                async for chunk in stream:
                     content += chunk
                 return content
 
@@ -229,7 +231,7 @@ def httpx_clients(
             )
 
     asgi_transport = ASGIWebSocketTransport(app=app)
-    transport = Transport(ASGIWebSocketTransport(app), asgi_transport=asgi_transport)
+    transport = Transport(asgi_transport=asgi_transport)
     base_url = "http://test"
     return (
         httpx.Client(transport=transport, base_url=base_url),
@@ -245,7 +247,7 @@ def httpx_client(
 
 
 @pytest.fixture
-def gql_client(httpx_client: httpx.AsyncClient) -> "AsyncGraphQLClient":
+def gql_client(httpx_client: httpx.AsyncClient) -> Iterator["AsyncGraphQLClient"]:
     yield AsyncGraphQLClient(httpx_client)
 
 
@@ -255,9 +257,9 @@ def px_client(
 ) -> Client:
     sync_client, _ = httpx_clients
     client = Client(warn_if_server_not_running=False)
-    client._client = sync_client
+    client._client = sync_client  # type: ignore[assignment]
     client._base_url = str(sync_client.base_url)
-    sync_client._base_url = URL("")
+    sync_client._base_url = httpx.URL("")
     return client
 
 
@@ -281,7 +283,7 @@ class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
     ) -> Tuple[
-        Callable[[Any], Awaitable[None]],
+        Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
@@ -304,9 +306,8 @@ class TestBulkInserter(BulkInserter):
         async for event in self._queue_inserters.insert():
             self._event_queue.put(event)
 
-    async def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
-        async with self._db() as session:
-            await operation(session)
+    def _enqueue_operation_immediate(self, operation: DataManipulation) -> None:
+        raise NotImplementedError
 
     async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         await self._insert_spans([(span, project_name)])
@@ -397,7 +398,7 @@ class AsyncGraphQLClient:
         query: str,
         variables: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-    ) -> "GraphQLSubscription":
+    ) -> AsyncIterator["GraphQLSubscription"]:
         """
         Starts a GraphQL subscription session.
         """
@@ -431,7 +432,7 @@ class GraphQLSubscription:
         query: str,
         variables: Optional[Dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-        timeout_seconds: Optional[str] = None,
+        timeout_seconds: Optional[float] = None,
     ) -> None:
         self._session = session
         self._query = query
