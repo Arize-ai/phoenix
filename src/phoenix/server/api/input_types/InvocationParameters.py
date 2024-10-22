@@ -117,7 +117,7 @@ def extract_parameter(
         )
 
 
-def validate_parameters(
+def validate_invocation_parameters(
     parameters: list[InvocationParameterBase],
     input: Mapping[str, Any],
 ) -> None:
