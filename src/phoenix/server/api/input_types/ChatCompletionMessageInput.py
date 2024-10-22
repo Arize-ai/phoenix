@@ -13,7 +13,11 @@ class ChatCompletionMessageInput:
     content: JSON = strawberry.field(
         description="The content of the message as JSON to support various kinds of text"
     )
-    tool_calls: Optional[List[JSON]] = UNSET
-    """The tool calls that were made in the message"""
-    tool_call_id: Optional[str] = UNSET
-    """The ID of the tool call that was made in a prior message"""
+    tool_calls: Optional[List[JSON]] = strawberry.field(
+        description="The tool calls that were made in the message",
+        default=UNSET,
+    )
+    tool_call_id: Optional[str] = strawberry.field(
+        description="The ID of the tool call that was made in a prior message",
+        default=UNSET,
+    )
