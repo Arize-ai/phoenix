@@ -160,8 +160,9 @@ def _users(
 ) -> _UserGenerator:
     def _() -> Generator[Optional[_User], Tuple[UserRoleInput, Optional[_Profile]], None]:
         role, profile = yield None
+        admin = _DEFAULT_ADMIN.log_in()
         while True:
-            user = _DEFAULT_ADMIN.create_user(role, profile=profile or next(_profiles))
+            user = admin.create_user(role, profile=profile or next(_profiles))
             role, profile = yield user
 
     g = _()
