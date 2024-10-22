@@ -424,22 +424,18 @@ class Subscription:
             text_chunks: List[TextChunk] = []
             tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
 
-            try:
-                async for chunk in llm_client.chat_completion_create(
-                    messages=messages,
-                    tools=input.tools or [],
-                    **invocation_parameters,
-                ):
-                    response_chunks.append(chunk)
-                    if isinstance(chunk, TextChunk):
-                        yield chunk
-                        text_chunks.append(chunk)
-                    elif isinstance(chunk, ToolCallChunk):
-                        yield chunk
-                        tool_call_chunks[chunk.id].append(chunk)
-            except Exception as error:
-                print(f"{error=}")
-                raise
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages,
+                tools=input.tools or [],
+                **invocation_parameters,
+            ):
+                response_chunks.append(chunk)
+                if isinstance(chunk, TextChunk):
+                    yield chunk
+                    text_chunks.append(chunk)
+                elif isinstance(chunk, ToolCallChunk):
+                    yield chunk
+                    tool_call_chunks[chunk.id].append(chunk)
 
             span.set_status(StatusCode.OK)
             llm_client_attributes = llm_client.attributes
