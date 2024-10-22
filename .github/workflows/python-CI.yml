@@ -265,8 +265,8 @@ jobs:
   type-check:
     name: Type Check
     runs-on: ${{ matrix.os }}
-#    needs: changes
-#    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
         py: [3.9, 3.12]
