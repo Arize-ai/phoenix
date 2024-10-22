@@ -44,7 +44,15 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameters
+from phoenix.server.api.input_types.InvocationParameters import (
+    BoundedFloatInvocationParameter,
+    IntInvocationParameter,
+    InvocationParameterInput,
+    InvocationParameterType,
+    StringListInvocationParameter,
+    extract_parameter,
+    validate_invocation_parameters,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -125,7 +133,7 @@ class GenerativeModelInput:
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
-    invocation_parameters: InvocationParameters = strawberry.field(default_factory=dict)
+    invocation_parameters: List[InvocationParameterInput]
     tools: Optional[List[JSONScalarType]] = UNSET
     template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
@@ -149,6 +157,10 @@ def register_llm_client(
 class PlaygroundStreamingClient(ABC):
     def __init__(self, model: GenerativeModelInput, api_key: Optional[str] = None) -> None: ...
 
+    @classmethod
+    @abstractmethod
+    def supported_invocation_parameters(cls) -> List[InvocationParameterType]: ...
+
     @abstractmethod
     async def chat_completion_create(
         self,
@@ -166,6 +178,27 @@ class PlaygroundStreamingClient(ABC):
     @abstractmethod
     def attributes(self) -> Dict[str, Any]: ...
 
+    @classmethod
+    def construct_invocation_parameters(
+        cls, invocation_parameters: List[InvocationParameterInput]
+    ) -> Dict[str, Any]:
+        supported_params = cls.supported_invocation_parameters()
+        params = {param.invocation_name: param for param in supported_params}
+
+        invocation_parameters = dict()
+
+        for param_input in invocation_parameters:
+            invocation_name = param_input.invocation_name
+            if invocation_name not in params:
+                raise ValueError(f"Unsupported invocation parameter: {invocation_name}")
+
+            param_def = params[invocation_name]
+            value = extract_parameter(param_def, param_input)
+            if value is not UNSET:
+                invocation_parameters[invocation_name] = value
+        validate_invocation_parameters(supported_params, invocation_parameters)
+        return invocation_parameters
+
 
 @register_llm_client(GenerativeProviderKey.OPENAI)
 class OpenAIStreamingClient(PlaygroundStreamingClient):
@@ -175,6 +208,28 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
         self._attributes: Dict[str, Any] = {}
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                label="Temperature",
+                default_value=0.0,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_tokens",
+                label="Max Tokens",
+                default_value=UNSET,
+            ),
+            IntInvocationParameter(
+                invocation_name="seed",
+                label="Seed",
+                default_value=UNSET,
+            ),
+        ]
 
     async def chat_completion_create(
         self,
@@ -324,6 +379,29 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
 
+    @classmethod
+    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+        return [
+            IntInvocationParameter(
+                invocation_name="max_completion_tokens",
+                label="Max Completion Tokens",
+                default_value=UNSET,
+                required=True,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                label="Temperature",
+                default_value=UNSET,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop_sequence",
+                label="Stop Sequence",
+                default_value=UNSET,
+            ),
+        ]
+
     async def chat_completion_create(
         self,
         messages: List[
@@ -398,7 +476,9 @@ class Subscription:
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
 
-        invocation_parameters = jsonify(input.invocation_parameters)
+        invocation_parameters = llm_client.construct_invocation_parameters(
+            input.invocation_parameters
+        )
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
