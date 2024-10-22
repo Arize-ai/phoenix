@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.1...arize-phoenix-v5.5.2) (2024-10-21)
+
+
+### Bug Fixes
+
+* **playground:** do nothing on credential form submit ([#5128](https://github.com/Arize-ai/phoenix/issues/5128)) ([a2de578](https://github.com/Arize-ai/phoenix/commit/a2de578ce8cf735e81fbb50e2ba8c7616b34c065))
+* update llama-index versions in extra ([#5141](https://github.com/Arize-ai/phoenix/issues/5141)) ([df2d2a7](https://github.com/Arize-ai/phoenix/commit/df2d2a7a10dc7d839cfbc1c8a2a5bc5b64fa01d8))
+
 ## [5.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.0...arize-phoenix-v5.5.1) (2024-10-19)
 
 

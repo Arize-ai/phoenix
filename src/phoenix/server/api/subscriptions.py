@@ -1,8 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from typing import (
@@ -61,7 +60,10 @@ from phoenix.utilities.template_formatters import (
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from openai.types import CompletionUsage
-    from openai.types.chat import ChatCompletionMessageParam
+    from openai.types.chat import (
+        ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
+    )
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
@@ -150,7 +152,9 @@ class PlaygroundStreamingClient(ABC):
     @abstractmethod
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -174,7 +178,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -223,11 +229,16 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             self._attributes.update(_llm_token_counts(token_usage))
 
     def to_openai_chat_completion_param(
-        self, role: ChatCompletionMessageRole, content: JSONScalarType
+        self,
+        role: ChatCompletionMessageRole,
+        content: JSONScalarType,
+        tool_call_id: Optional[str] = None,
+        tool_calls: Optional[List[JSONScalarType]] = None,
     ) -> "ChatCompletionMessageParam":
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionSystemMessageParam,
+            ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
 
@@ -246,15 +257,45 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 }
             )
         if role is ChatCompletionMessageRole.AI:
-            return ChatCompletionAssistantMessageParam(
-                {
-                    "content": content,
-                    "role": "assistant",
-                }
-            )
+            if tool_calls is None:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                    }
+                )
+            else:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                        "tool_calls": [
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                        ],
+                    }
+                )
         if role is ChatCompletionMessageRole.TOOL:
-            raise NotImplementedError
+            if tool_call_id is None:
+                raise ValueError("tool_call_id is required for tool messages")
+        return ChatCompletionToolMessageParam(
+            {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+        )
         assert_never(role)
+
+    def to_openai_tool_call_param(
+        self,
+        tool_call: JSONScalarType,
+    ) -> "ChatCompletionMessageToolCallParam":
+        from openai.types.chat import ChatCompletionMessageToolCallParam
+
+        return ChatCompletionMessageToolCallParam(
+            id=tool_call.get("id", ""),
+            function={
+                "name": tool_call.get("function", {}).get("name", ""),
+                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
+            },
+            type="function",
+        )
 
     @property
     def attributes(self) -> Dict[str, Any]:
@@ -285,7 +326,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str]],
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -304,11 +347,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 yield TextChunk(content=text)
 
     def _build_anthropic_messages(
-        self, messages: List[Tuple[ChatCompletionMessageRole, str]]
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
     ) -> Tuple[List["MessageParam"], str]:
         anthropic_messages: List["MessageParam"] = []
         system_prompt = ""
-        for role, content in messages:
+        for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 anthropic_messages.append({"role": "user", "content": content})
             elif role == ChatCompletionMessageRole.AI:
@@ -341,7 +385,15 @@ class Subscription:
 
         llm_client = llm_client_class(model=input.model, api_key=input.api_key)
 
-        messages = [(message.role, message.content) for message in input.messages]
+        messages = [
+            (
+                message.role,
+                message.content,
+                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
+                message.tool_calls if isinstance(message.tool_calls, list) else None,
+            )
+            for message in input.messages
+        ]
 
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
@@ -355,7 +407,6 @@ class Subscription:
         )
         tracer = tracer_provider.get_tracer(__name__)
         span_name = "ChatCompletion"
-
         with tracer.start_span(
             span_name,
             attributes=dict(
@@ -480,9 +531,11 @@ def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
-    assert any(field.name == (api_key := "api_key") for field in fields(ChatCompletionInput))
+    assert (api_key := "api_key") in (input_data := jsonify(input))
+    input_data = {k: v for k, v in input_data.items() if k != api_key}
+    assert api_key not in input_data
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, safe_json_dumps({k: v for k, v in jsonify(input).items() if k != api_key})
+    yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
@@ -491,11 +544,24 @@ def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
 
 
 def _llm_input_messages(
-    messages: Iterable[Tuple[ChatCompletionMessageRole, str]],
+    messages: Iterable[
+        Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+    ],
 ) -> Iterator[Tuple[str, Any]]:
-    for i, (role, content) in enumerate(messages):
+    for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
+        if tool_calls is not None:
+            for tool_call_index, tool_call in enumerate(tool_calls):
+                yield (
+                    f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                    tool_call["function"]["name"],
+                )
+                if arguments := tool_call["function"]["arguments"]:
+                    yield (
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                        safe_json_dumps(jsonify(arguments)),
+                    )
 
 
 def _llm_output_messages(
@@ -530,22 +596,28 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     Converts a Unix epoch timestamp in nanoseconds to a datetime.
     """
     epoch_seconds = epoch_nanoseconds / 1e9
-    return datetime.fromtimestamp(epoch_seconds)
+    return datetime.fromtimestamp(epoch_seconds).replace(tzinfo=timezone.utc)
 
 
 def _formatted_messages(
-    messages: Iterable[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
-) -> Iterator[Tuple[ChatCompletionMessageRole, str]]:
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
+    template_options: TemplateOptions,
+) -> Iterator[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]]:
     """
     Formats the messages using the given template options.
     """
     template_formatter = _template_formatter(template_language=template_options.language)
-    roles, templates = zip(*messages)
+    (
+        roles,
+        templates,
+        tool_call_id,
+        tool_calls,
+    ) = zip(*messages)
     formatted_templates = map(
         lambda template: template_formatter.format(template, **template_options.variables),
         templates,
     )
-    formatted_messages = zip(roles, formatted_templates)
+    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
     return formatted_messages
 
 

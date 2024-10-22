@@ -43,7 +43,7 @@ async def test_get_qa_with_reference(
             "reference": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    actual = get_qa_with_reference(px_client)
+    assert (actual := get_qa_with_reference(px_client)) is not None
     actual["reference"] = actual["reference"].map(lambda s: "\n\n".join(sorted(s.split("\n\n"))))
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),

@@ -223,18 +223,13 @@ class Project(Node):
             span_records = await session.execute(stmt)
             async for span_record in islice(span_records, first):
                 span = span_record[0]
-                sort_column_value = span_record[1] if len(span_record) > 1 else None
-                cursor = Cursor(
-                    rowid=span.id,
-                    sort_column=(
-                        CursorSortColumn(
-                            type=sort_config.column_data_type,
-                            value=sort_column_value,
-                        )
-                        if sort_config
-                        else None
-                    ),
-                )
+                cursor = Cursor(rowid=span.id)
+                if sort_config:
+                    assert len(span_record) > 1
+                    cursor.sort_column = CursorSortColumn(
+                        type=sort_config.column_data_type,
+                        value=span_record[1],
+                    )
                 cursors_and_nodes.append((cursor, to_gql_span(span)))
             has_next_page = True
             try:

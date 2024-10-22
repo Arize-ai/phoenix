@@ -16,7 +16,8 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
-  MODEL_NAME_PARSING_ERROR,
+  MODEL_CONFIG_PARSING_ERROR,
+  MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
@@ -28,8 +29,10 @@ import {
   llmInputMessageSchema,
   llmOutputMessageSchema,
   MessageSchema,
-  modelNameSchema,
+  modelConfigSchema,
+  modelConfigWithInvocationParametersSchema,
   outputSchema,
+  providerSchemas,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -155,26 +158,37 @@ export function getModelProviderFromModelName(
 }
 
 /**
- * Attempts to get the llm.model_name and inferred provider from the span attributes.
+ * Attempts to get the llm.model_name, inferred provider, and invocation parameters from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns the model config if it exists or parsing errors if it does not
  */
-function getModelConfigFromAttributes(
-  parsedAttributes: unknown
-):
-  | { modelConfig: ModelConfig; parsingErrors: never[] }
-  | { modelConfig: null; parsingErrors: string[] } {
-  const { success, data } = modelNameSchema.safeParse(parsedAttributes);
+function getModelConfigFromAttributes(parsedAttributes: unknown): {
+  modelConfig: ModelConfig | null;
+  parsingErrors: string[];
+} {
+  const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
+    // parse invocation params separately, to avoid throwing away other model config if invocation params are invalid
+    const {
+      success: invocationParametersSuccess,
+      data: invocationParametersData,
+    } = modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+    const parsingErrors: string[] = [];
+    if (!invocationParametersSuccess) {
+      parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
+    }
     return {
       modelConfig: {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
+        invocationParameters: invocationParametersSuccess
+          ? invocationParametersData.llm.invocation_parameters
+          : {},
       },
-      parsingErrors: [],
+      parsingErrors,
     };
   }
-  return { modelConfig: null, parsingErrors: [MODEL_NAME_PARSING_ERROR] };
+  return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
 }
 
 /**
@@ -288,4 +302,32 @@ export const extractVariablesFromInstances = ({
   });
 
   return Array.from(variables);
+};
+
+/**
+ * Gets the invocation parameters schema for a given model provider and model name.
+ *
+ * Falls back to the default schema for provider if the model name is not found.
+ *
+ * Falls back to the default schema for all providers if provider is not found.
+ */
+export const getInvocationParametersSchema = ({
+  modelProvider,
+  modelName,
+}: {
+  modelProvider: ModelProvider;
+  modelName: string;
+}) => {
+  const providerSupported = modelProvider in providerSchemas;
+  if (!providerSupported) {
+    return providerSchemas[DEFAULT_MODEL_PROVIDER].default;
+  }
+
+  const byProvider = providerSchemas[modelProvider];
+  const modelSupported = modelName in byProvider;
+  if (!modelSupported) {
+    return byProvider.default;
+  }
+
+  return byProvider[modelName as keyof typeof byProvider];
 };

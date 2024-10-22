@@ -7,17 +7,18 @@ import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { OpenAIToolCall } from "@phoenix/schemas";
 
 import {
   GenAIOperationType,
   InitialPlaygroundState,
   isManualInput,
+  OpenAITool,
   PlaygroundChatTemplate,
   PlaygroundInputMode,
   PlaygroundInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
-  Tool,
 } from "./types";
 
 let playgroundInstanceId = 0;
@@ -93,7 +94,11 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
-    model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
+    model: {
+      provider: DEFAULT_MODEL_PROVIDER,
+      modelName: "gpt-4o",
+      invocationParameters: {},
+    },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
@@ -106,7 +111,25 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   };
 }
 
-export function createTool(toolNumber: number): Tool {
+/**
+ * Creates an empty OpenAI tool call with fields but no values filled in
+ */
+export function createOpenAIToolCall(): OpenAIToolCall {
+  return {
+    id: "",
+    function: {
+      name: "",
+      arguments: {},
+    },
+  };
+}
+
+/**
+ * Creates a default tool with a unique ID and a function definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1
+ * @returns a {@link Tool} with a unique ID and a function definition
+ */
+export function createOpenAITool(toolNumber: number): OpenAITool {
   return {
     id: generateToolId(),
     definition: {
@@ -202,6 +225,10 @@ export const createPlaygroundStore = (
               model: {
                 ...instance.model,
                 ...model,
+                invocationParameters: {
+                  ...instance.model.invocationParameters,
+                  ...model.invocationParameters,
+                },
               },
             };
           }
