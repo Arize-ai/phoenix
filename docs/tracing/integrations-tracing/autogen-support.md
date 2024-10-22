@@ -11,11 +11,10 @@ The AutoGen Agent framework allows creation of multiple agents and connection of
 First install dependencies
 
 ```shell
-pip install openinference-instrumentation-openai arize-phoenix-otel
+pip install openinference-instrumentation-openai arize-phoenix-otel arize-phoenix
 ```
 
 Then instrument the application
-```
 
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
@@ -23,7 +22,6 @@ from phoenix.otel import register
 import phoenix as px
 
 px.launch_app()
-
 tracer_provider = register()
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
@@ -32,8 +30,4 @@ The Phoenix support is simple in its first incarnation but allows for capturing 
 
 <figure><img src="../../.gitbook/assets/auto_gen_phoenix.png" alt=""><figcaption><p>Agent Reply</p></figcaption></figure>
 
-The individual prompt and responses are captured directly through OpenAI calls.
-
-{% hint style="info" %}
-As callbacks are supported in AutoGen Phoenix will add more agent level information.
-{% endhint %}
+The individual prompt and responses are captured directly through OpenAI calls. If you're using a different underlying model provider than OpenAI, instrument your application using the respective instrumentor instead.
