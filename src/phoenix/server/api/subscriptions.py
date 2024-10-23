@@ -346,7 +346,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
-        self._attributes: Dict[str, Any] = {}
 
     async def chat_completion_create(
         self,
