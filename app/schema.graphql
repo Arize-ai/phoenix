@@ -65,14 +65,14 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
-type BooleanInvocationParameter {
+type BooleanInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
   defaultValue: Boolean
 }
 
-type BoundedFloatInvocationParameter {
+type BoundedFloatInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
@@ -849,7 +849,7 @@ type FinishedChatCompletion {
   span: Span!
 }
 
-type FloatInvocationParameter {
+type FloatInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
@@ -943,24 +943,24 @@ input InputCoordinate3D {
   z: Float!
 }
 
-type IntInvocationParameter {
+type IntInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
   defaultValue: Int
 }
 
+union IntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
+
 type IntervalBin {
   range: NumericRange!
 }
 
-type InvocationParameterBase {
+interface InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
 }
-
-union InvocationParameterBaseIntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter = InvocationParameterBase | IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
 
 input InvocationParameterInput {
   invocationName: String!
@@ -977,7 +977,7 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](https:/
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
 
-type JSONInvocationParameter {
+type JSONInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
@@ -1226,7 +1226,7 @@ type PromptResponse {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
-  modelInvocationParameters(input: ModelsInput = null): [InvocationParameterBaseIntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter!]!
+  modelInvocationParameters(input: ModelsInput = null): [IntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -1499,14 +1499,14 @@ enum SpanStatusCode {
   UNSET
 }
 
-type StringInvocationParameter {
+type StringInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!
   defaultValue: String
 }
 
-type StringListInvocationParameter {
+type StringListInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   label: String!
   required: Boolean!

@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Any, List, Mapping, Optional, Union
 
 import strawberry
@@ -17,7 +16,7 @@ class InvocationParameterInput:
     value_string_list: Optional[List[str]] = UNSET
 
 
-@strawberry.type
+@strawberry.interface
 class InvocationParameterBase:
     invocation_name: str
     label: str
@@ -130,7 +129,6 @@ InvocationParameter = strawberry.union(
 )
 
 InvocationParameterType = Union[
-    InvocationParameterBase,
     IntInvocationParameter,
     FloatInvocationParameter,
     BoundedFloatInvocationParameter,

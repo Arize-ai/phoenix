@@ -43,7 +43,9 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameterType
+from phoenix.server.api.input_types.InvocationParameters import (
+    InvocationParameterType,
+)
 from phoenix.server.api.subscriptions import PLAYGROUND_STREAMING_CLIENT_REGISTRY
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
