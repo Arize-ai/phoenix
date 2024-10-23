@@ -235,7 +235,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                             )
                             yield tool_call_chunk
         if token_usage is not None and self._set_span_attributes:
-            self._set_span_attributes(dict(_llm_token_counts_openai(token_usage)))
+            self._set_span_attributes(dict(self._llm_token_counts(token_usage)))
 
     def to_openai_chat_completion_param(
         self,
@@ -305,6 +305,12 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             },
             type="function",
         )
+
+    @staticmethod
+    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
+        yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
+        yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
+        yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
 
 @register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
@@ -563,12 +569,6 @@ def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterato
 def _llm_tools(tools: List[JSONScalarType]) -> Iterator[Tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
-
-
-def _llm_token_counts_openai(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
-    yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
-    yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
-    yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
