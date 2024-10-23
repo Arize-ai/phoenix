@@ -323,6 +323,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
+        self._attributes: Dict[str, Any] = {}
 
     async def chat_completion_create(
         self,
@@ -332,6 +333,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        import anthropic.lib.streaming as anthropic_streaming
+        import anthropic.types as anthropic_types
+
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
 
         anthropic_params = {
@@ -341,10 +345,29 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "max_tokens": 1024,
             **invocation_parameters,
         }
-
         async with self.client.messages.stream(**anthropic_params) as stream:
-            async for text in stream.text_stream:
-                yield TextChunk(content=text)
+            async for event in stream:
+                if isinstance(event, anthropic_types.RawMessageStartEvent):
+                    self._attributes[LLM_TOKEN_COUNT_PROMPT] = event.message.usage.input_tokens
+                elif isinstance(event, anthropic_streaming.TextEvent):
+                    yield TextChunk(content=event.text)
+                elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    self._attributes[LLM_TOKEN_COUNT_COMPLETION] = event.message.usage.output_tokens
+                elif isinstance(
+                    event,
+                    (
+                        anthropic_types.RawContentBlockStartEvent,
+                        anthropic_types.RawContentBlockDeltaEvent,
+                        anthropic_types.RawMessageDeltaEvent,
+                        anthropic_streaming.ContentBlockStopEvent,
+                    ),
+                ):
+                    # event types emitted by the stream that don't contain useful information
+                    pass
+                elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                    raise NotImplementedError
+                else:
+                    assert_never(event)
 
     def _build_anthropic_messages(
         self,
@@ -368,7 +391,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     @property
     def attributes(self) -> Dict[str, Any]:
-        return dict()
+        return self._attributes
 
 
 @strawberry.type

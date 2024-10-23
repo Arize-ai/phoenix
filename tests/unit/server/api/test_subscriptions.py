@@ -642,8 +642,8 @@ class TestChatCompletionSubscription:
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
-        assert token_count_prompt == 0
-        assert token_count_completion == 0
+        assert token_count_prompt > 0
+        assert token_count_completion > 0
         assert token_count_total == token_count_prompt + token_count_completion
         assert (input := span.pop("input")).pop("mimeType") == "json"
         assert (input_value := input.pop("value"))
@@ -672,6 +672,8 @@ class TestChatCompletionSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "claude-3-5-sonnet-20240620"
         assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"temperature": 0.1})
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
