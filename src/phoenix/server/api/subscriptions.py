@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 PLAYGROUND_PROJECT_NAME = "playground"
 
 ToolCallID: TypeAlias = str
-SpanSpanAttributesFn: TypeAlias = Callable[[Dict[str, AttributeValue]], None]
+SetSpanAttributesFn: TypeAlias = Callable[[Dict[str, AttributeValue]], None]
 
 
 @strawberry.enum
@@ -153,7 +153,7 @@ class PlaygroundStreamingClient(ABC):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SpanSpanAttributesFn] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         self._set_span_attributes = set_span_attributes
 
@@ -177,7 +177,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SpanSpanAttributesFn] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
@@ -313,7 +313,7 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SpanSpanAttributesFn] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ):
         from openai import AsyncAzureOpenAI
 
@@ -333,7 +333,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SpanSpanAttributesFn] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         import anthropic
 
