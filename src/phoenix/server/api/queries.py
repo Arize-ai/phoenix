@@ -43,7 +43,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameterBase
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameterType
 from phoenix.server.api.subscriptions import PLAYGROUND_STREAMING_CLIENT_REGISTRY
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -157,7 +157,7 @@ class Query:
     @strawberry.field
     async def model_invocation_parameters(
         self, input: Optional[ModelsInput] = None
-    ) -> List[InvocationParameterBase]:
+    ) -> List[InvocationParameterType]:
         provider_key = input.provider_key
         if provider_key is not None:
             return PLAYGROUND_STREAMING_CLIENT_REGISTRY[
