@@ -130,6 +130,7 @@ InvocationParameter = strawberry.union(
 )
 
 InvocationParameterType = Union[
+    InvocationParameterBase,
     IntInvocationParameter,
     FloatInvocationParameter,
     BoundedFloatInvocationParameter,
