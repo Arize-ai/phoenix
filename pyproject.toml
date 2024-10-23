@@ -393,6 +393,8 @@ module = [
   "orjson",  # suppress fastapi internal type errors
   "pypistats",
   "authlib.*",
+  "google.*",
+  "mistralai.*",
 ]
 ignore_missing_imports = true
 
