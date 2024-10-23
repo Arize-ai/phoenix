@@ -325,10 +325,11 @@ class LLMRelationalEvaluator(LLMEvaluator):
     An LLM experiment evaluator that checks how a response is related to reference text.
 
     `LLMRelationalEvaluator` uses the chain-of-thought technique to perform a binary evaluation of
-    how a response is related to reference text. When used as an experiment evaluator,
-    `LLMRelationalEvaluator` will return a score of 1.0 if the response is related to the reference
-    text in the specified manner and a score of 0.0 if not. The explanation produced by the
-    chain-of-thought technique will be included in the experiment evaluation as well.
+    how a response is related to reference text in a specified manner. When used as an experiment
+    evaluator, `LLMRelationalEvaluator` will return a score of 1.0 if the response is related to
+    the reference text in the specified manner and a score of 0.0 if not. The explanation
+    produced by the chain-of-thought technique will be included in the experiment evaluation as
+    well.
 
     In order to evaluate how a response is related to reference text, a specific relation and
     description of that relation must be specified. The relation should be a phrase that can be
