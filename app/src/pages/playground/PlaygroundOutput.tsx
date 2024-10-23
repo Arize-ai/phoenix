@@ -16,15 +16,12 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
-  InvocationParameters,
+  InvocationParameterInput,
   PlaygroundOutputSubscription,
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import {
-  getInvocationParametersSchema,
-  isChatMessages,
-} from "./playgroundUtils";
+import { isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
@@ -150,7 +147,7 @@ function useChatCompletionSubscription({
         subscription PlaygroundOutputSubscription(
           $messages: [ChatCompletionMessageInput!]!
           $model: GenerativeModelInput!
-          $invocationParameters: InvocationParameters!
+          $invocationParameters: [InvocationParameterInput!]!
           $tools: [JSON!]
           $templateOptions: TemplateOptions
           $apiKey: String
@@ -272,28 +269,14 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
         }
       : {};
 
-  const invocationParametersSchema = getInvocationParametersSchema({
-    modelProvider: instance.model.provider,
-    modelName: instance.model.modelName || "default",
-  });
-
-  let invocationParameters: InvocationParameters = {
+  const invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
-  };
-
-  // Constrain the invocation parameters to the schema.
-  // This prevents us from sending invalid parameters to the LLM since we may be
-  // storing parameters from previously selected models/providers within this instance.
-  const valid = invocationParametersSchema.safeParse(invocationParameters);
-  if (!valid.success) {
-    // If we cannot successfully parse the invocation parameters, just send them
-    // all and let the API fail if they are invalid.
-    invocationParameters = instance.model.invocationParameters;
-  }
-
-  if (instance.tools.length) {
-    invocationParameters["toolChoice"] = instance.toolChoice;
-  }
+    // TODO(apowell): add toolChoice to invocation parameters
+    // {
+    //   invocationName: "toolChoice",
+    //   valueString: instance.toolChoice, // this doesn't work because toolChoice may be json
+    // },
+  ];
 
   useChatCompletionSubscription({
     params: {

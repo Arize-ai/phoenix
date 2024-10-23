@@ -97,7 +97,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: "gpt-4o",
-      invocationParameters: {},
+      invocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -337,6 +337,9 @@ export const createPlaygroundStore = (
     setStreaming: (streaming: boolean) => {
       set({ streaming });
     },
+    // TODO add method to merge incoming modelInvocationParameters with store.model.invocationParameters
+    // remove any invocationParameters that are not in the incoming modelInvocationParameters
+    // keep the ones that are in the incoming modelInvocationParameters
     ...initialProps,
   });
   return create(devtools(playgroundStore));

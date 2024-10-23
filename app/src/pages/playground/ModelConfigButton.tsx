@@ -30,7 +30,7 @@ import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import {
-  InvocationParametersChangeHandler,
+  HandleInvocationParameterChange,
   InvocationParametersForm,
 } from "./InvocationParametersForm";
 import { ModelPicker } from "./ModelPicker";
@@ -191,17 +191,16 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     [instance.model.provider, playgroundInstanceId, updateModel]
   );
 
-  const onInvocationParametersChange: InvocationParametersChangeHandler =
+  const onInvocationParametersChange: HandleInvocationParameterChange =
     useCallback(
-      (parameter, value) => {
+      // TODO(apowell): implement
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (parameterDefinition, value) => {
         updateModel({
           instanceId: playgroundInstanceId,
           model: {
             ...instance.model,
-            invocationParameters: {
-              ...instance.model.invocationParameters,
-              [parameter]: value,
-            },
+            invocationParameters: [],
           },
         });
       },
@@ -234,10 +233,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
             onChange={onModelNameChange}
           />
         )}
-        <InvocationParametersForm
-          model={instance.model}
-          onChange={onInvocationParametersChange}
-        />
+        {instance.model.modelName ? (
+          <InvocationParametersForm
+            model={instance.model}
+            onChange={onInvocationParametersChange}
+          />
+        ) : (
+          <></>
+        )}
       </Form>
     </View>
   );

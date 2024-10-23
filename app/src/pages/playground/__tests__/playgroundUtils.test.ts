@@ -31,7 +31,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
-    invocationParameters: {},
+    invocationParameters: [],
   },
   input: { variablesValueCache: {} },
   tools: [],
