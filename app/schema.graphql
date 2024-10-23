@@ -65,6 +65,22 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+type BooleanInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: Boolean
+}
+
+type BoundedFloatInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: Float
+  minValue: Float!
+  maxValue: Float!
+}
+
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
@@ -833,6 +849,13 @@ type FinishedChatCompletion {
   span: Span!
 }
 
+type FloatInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: Float
+}
+
 type FunctionCallChunk {
   name: String!
   arguments: String!
@@ -920,6 +943,13 @@ input InputCoordinate3D {
   z: Float!
 }
 
+type IntInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: Int
+}
+
 type IntervalBin {
   range: NumericRange!
 }
@@ -929,6 +959,8 @@ type InvocationParameterBase {
   label: String!
   required: Boolean!
 }
+
+union InvocationParameterBaseIntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter = InvocationParameterBase | IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
 
 input InvocationParameterInput {
   invocationName: String!
@@ -944,6 +976,13 @@ input InvocationParameterInput {
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
+
+type JSONInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: JSON
+}
 
 type LabelFraction {
   label: String!
@@ -1187,7 +1226,7 @@ type PromptResponse {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
-  modelInvocationParameters(input: ModelsInput = null): [InvocationParameterBase!]!
+  modelInvocationParameters(input: ModelsInput = null): [InvocationParameterBaseIntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -1458,6 +1497,20 @@ enum SpanStatusCode {
   OK
   ERROR
   UNSET
+}
+
+type StringInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: String
+}
+
+type StringListInvocationParameter {
+  invocationName: String!
+  label: String!
+  required: Boolean!
+  defaultValue: [String!]
 }
 
 type Subscription {
