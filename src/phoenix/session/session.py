@@ -638,7 +638,7 @@ def close_app(delete_data: bool = False) -> None:
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if notebook_env == NotebookEnvironment.COLAB:
-        from google.colab.output import eval_js  # type: ignore
+        from google.colab.output import eval_js
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
     if notebook_env == NotebookEnvironment.SAGEMAKER:
@@ -656,7 +656,7 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import google.colab  # type: ignore # noqa: F401
+        import google.colab  # noqa: F401
     except ImportError:
         return False
     try:
