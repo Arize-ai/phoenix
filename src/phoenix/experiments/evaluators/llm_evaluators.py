@@ -240,7 +240,7 @@ class RelevanceEvaluator(LLMEvaluator):
         "LABEL: *true or false*\n\n"
         "Follow this template for the following example:\n\n"
         "CRITERIA: the response is 'relevant' to the query\n"
-        "QUERY: {reference}\n"
+        "QUERY: {query}\n"
         "RESPONSE: {response}\n"
         "EXPLANATION: "
     )
