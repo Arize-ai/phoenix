@@ -193,6 +193,7 @@ class Client(TraceDataExtractor):
             raise ValueError(response.content.decode())
         response.raise_for_status()
         source = BytesIO(response.content)
+        print(f"{response.headers=}")
         results = []
         while True:
             try:

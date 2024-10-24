@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - sessions
+      - managed-phoenix/test
 
 jobs:
   push_to_registry:
