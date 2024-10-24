@@ -1,10 +1,10 @@
 from typing import List
 
-from llama_index.core.schema import Document
-from llama_index.core.embeddings import BaseEmbedding
-from llama_index.core.text_splitter import SentenceSplitter
 from llama_index.core import VectorStoreIndex
+from llama_index.core.embeddings import BaseEmbedding
 from llama_index.core.postprocessor import SimilarityPostprocessor
+from llama_index.core.schema import Document
+from llama_index.core.text_splitter import SentenceSplitter
 
 
 async def get_compressed_context(

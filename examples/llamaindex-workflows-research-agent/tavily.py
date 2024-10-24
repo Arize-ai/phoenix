@@ -1,8 +1,7 @@
 import os
-from typing import List
+
 import requests
 from dotenv import load_dotenv
-
 from llama_index.core.schema import Document
 
 
