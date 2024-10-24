@@ -182,8 +182,8 @@ class PlaygroundStreamingClient(ABC):
 
     @classmethod
     def construct_invocation_parameters(
-        cls, invocation_parameters: List[InvocationParameterInput]
-    ) -> Dict[str, Any]:
+        cls, invocation_parameters: list[InvocationParameterInput]
+    ) -> dict[str, Any]:
         supported_params = cls.supported_invocation_parameters()
         params = {param.invocation_name: param for param in supported_params}
 
@@ -239,7 +239,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         ]
 
     @classmethod
-    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
         return [
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
@@ -423,7 +423,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self.model_name = model.name
 
     @classmethod
-    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
         return [
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",

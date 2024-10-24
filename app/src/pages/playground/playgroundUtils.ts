@@ -38,7 +38,6 @@ import {
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
   outputSchema,
-  providerSchemas,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -213,10 +212,8 @@ export function getModelConfigFromAttributes(parsedAttributes: unknown): {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
     // parse invocation params separately, to avoid throwing away other model config if invocation params are invalid
-    const {
-      success: invocationParametersSuccess,
-      data: invocationParametersData,
-    } = modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+    const { success: invocationParametersSuccess } =
+      modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
     const parsingErrors: string[] = [];
     if (!invocationParametersSuccess) {
       parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
@@ -225,9 +222,7 @@ export function getModelConfigFromAttributes(parsedAttributes: unknown): {
       modelConfig: {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
-        invocationParameters: invocationParametersSuccess
-          ? invocationParametersData.llm.invocation_parameters
-          : {},
+        invocationParameters: [],
       },
       parsingErrors,
     };
@@ -407,23 +402,23 @@ export const extractVariablesFromInstances = ({
  *
  * Falls back to the default schema for all providers if provider is not found.
  */
-export const getInvocationParametersSchema = ({
-  modelProvider,
-  modelName,
-}: {
-  modelProvider: ModelProvider;
-  modelName: string;
-}) => {
-  const providerSupported = modelProvider in providerSchemas;
-  if (!providerSupported) {
-    return providerSchemas[DEFAULT_MODEL_PROVIDER].default;
-  }
+// export const getInvocationParametersSchema = ({
+//   modelProvider,
+//   modelName,
+// }: {
+//   modelProvider: ModelProvider;
+//   modelName: string;
+// }) => {
+//   const providerSupported = modelProvider in providerSchemas;
+//   if (!providerSupported) {
+//     return providerSchemas[DEFAULT_MODEL_PROVIDER].default;
+//   }
 
-  const byProvider = providerSchemas[modelProvider];
-  const modelSupported = modelName in byProvider;
-  if (!modelSupported) {
-    return byProvider.default;
-  }
+//   const byProvider = providerSchemas[modelProvider];
+//   const modelSupported = modelName in byProvider;
+//   if (!modelSupported) {
+//     return byProvider.default;
+//   }
 
-  return byProvider[modelName as keyof typeof byProvider];
-};
+//   return byProvider[modelName as keyof typeof byProvider];
+// };

@@ -98,7 +98,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
-      invocationParameters: {},
+      invocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -271,10 +271,10 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               model: {
                 ...instance.model,
                 ...model,
-                invocationParameters: {
-                  ...instance.model.invocationParameters,
-                  ...model.invocationParameters,
-                },
+                invocationParameters: [
+                  ...(instance.model.invocationParameters || []),
+                  ...(model.invocationParameters || []),
+                ],
               },
             };
           }
@@ -382,6 +382,54 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
+    },
+    filterInstanceModelInvocationParameters: ({
+      instanceId,
+      modelSupportedInvocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters:
+                  instance.model.invocationParameters.filter((ip) =>
+                    modelSupportedInvocationParameters.some(
+                      (mp) => mp.invocationName === ip.invocationName
+                    )
+                  ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstanceModelInvocationParameters: ({
+      instanceId,
+      invocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: { ...instance.model, invocationParameters },
+            };
+          }
+          return instance;
+        }),
+      });
     },
     ...initialProps,
   });
