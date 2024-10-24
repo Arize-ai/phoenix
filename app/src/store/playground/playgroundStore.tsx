@@ -225,10 +225,10 @@ export const createPlaygroundStore = (
               model: {
                 ...instance.model,
                 ...model,
-                invocationParameters: {
-                  ...instance.model.invocationParameters,
-                  ...model.invocationParameters,
-                },
+                invocationParameters: [
+                  ...(instance.model.invocationParameters || []),
+                  ...(model.invocationParameters || []),
+                ],
               },
             };
           }
@@ -337,9 +337,54 @@ export const createPlaygroundStore = (
     setStreaming: (streaming: boolean) => {
       set({ streaming });
     },
-    // TODO add method to merge incoming modelInvocationParameters with store.model.invocationParameters
-    // remove any invocationParameters that are not in the incoming modelInvocationParameters
-    // keep the ones that are in the incoming modelInvocationParameters
+    filterInstanceModelInvocationParameters: ({
+      instanceId,
+      modelSupportedInvocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters:
+                  instance.model.invocationParameters.filter((ip) =>
+                    modelSupportedInvocationParameters.some(
+                      (mp) => mp.invocationName === ip.invocationName
+                    )
+                  ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstanceModelInvocationParameters: ({
+      instanceId,
+      invocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: { ...instance.model, invocationParameters },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
     ...initialProps,
   });
   return create(devtools(playgroundStore));

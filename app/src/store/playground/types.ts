@@ -1,5 +1,6 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
 import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
 
 export type GenAIOperationType = "chat" | "text_completion";
@@ -193,6 +194,20 @@ export interface PlaygroundState extends PlaygroundProps {
   updateInstance: (params: {
     instanceId: number;
     patch: Partial<PlaygroundInstance>;
+  }) => void;
+  /**
+   * Update the invocation parameters for a model
+   */
+  updateInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    invocationParameters: InvocationParameterInput[];
+  }) => void;
+  /**
+   * Filter the invocation parameters for a model based on the model's supported parameters
+   */
+  filterInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    modelSupportedInvocationParameters: InvocationParameter[];
   }) => void;
   /**
    * Update an instance's model configuration

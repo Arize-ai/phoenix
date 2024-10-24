@@ -234,10 +234,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           />
         )}
         {instance.model.modelName ? (
-          <InvocationParametersForm
-            model={instance.model}
-            onChange={onInvocationParametersChange}
-          />
+          <InvocationParametersForm instance={instance} />
         ) : (
           <></>
         )}
