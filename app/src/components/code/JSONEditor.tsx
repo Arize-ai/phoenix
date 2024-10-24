@@ -76,6 +76,7 @@ export function JSONEditor(props: JSONEditorProps) {
    * When it is rendered outside of the viewport, the dimensions may not always be calculated correctly,
    * resulting in the editor being invisible or cut off when it is scrolled into view.
    * Below we use a combination of an intersection observer and a delay to ensure that the editor is initialized correctly.
+   * For a related issue @see https://github.com/codemirror/dev/issues/1076
    */
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
