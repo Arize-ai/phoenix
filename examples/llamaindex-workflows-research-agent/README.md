@@ -16,7 +16,7 @@ Stack Used:
 
 ```bash
 git clone https://github.com/Arize-ai/phoenix
-cd examples/llamaindex-workflows-research-agent/Llama-Researcher
+cd examples/llamaindex-workflows-research-agent
 ```
 
 - Install dependencies
