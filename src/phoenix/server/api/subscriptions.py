@@ -692,6 +692,9 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
 
 
 def _serialize_event(event: SpanEvent) -> Dict[str, Any]:
+    """
+    Serializes a SpanEvent to a dictionary.
+    """
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
 
 
