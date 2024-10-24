@@ -31,18 +31,18 @@ import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
 
+const playgroundWrapCSS = css`
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  height: 100%;
+`;
+
 export function Playground(props: InitialPlaygroundState) {
   const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
   return (
     <PlaygroundProvider {...props}>
-      <div
-        css={css`
-          display: flex;
-          overflow: hidden;
-          flex-direction: column;
-          height: 100%;
-        `}
-      >
+      <div css={playgroundWrapCSS}>
         <View
           borderBottomColor="dark"
           borderBottomWidth="thin"
@@ -131,7 +131,6 @@ const playgroundInputOutputPanelContentCSS = css`
   flex-direction: column;
   height: 100%;
   flex: 1 1 auto;
-  /* overflow: auto; */
 `;
 
 function PlaygroundContent() {
