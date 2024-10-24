@@ -35,7 +35,14 @@ export function Playground(props: InitialPlaygroundState) {
   const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
   return (
     <PlaygroundProvider {...props}>
-      <Flex direction="column" height="100%">
+      <div
+        css={css`
+          display: flex;
+          overflow: hidden;
+          flex-direction: column;
+          height: 100%;
+        `}
+      >
         <View
           borderBottomColor="dark"
           borderBottomWidth="thin"
@@ -56,7 +63,7 @@ export function Playground(props: InitialPlaygroundState) {
           </Flex>
         </View>
         <PlaygroundContent />
-      </Flex>
+      </div>
     </PlaygroundProvider>
   );
 }
@@ -100,6 +107,8 @@ const playgroundPromptPanelContentCSS = css`
     flex: 1 1 auto;
     & > .ac-accordion-item {
       height: 100%;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
       flex: 1 1 auto;
       .ac-accordion-itemContent {
@@ -121,7 +130,8 @@ const playgroundInputOutputPanelContentCSS = css`
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: auto;
+  flex: 1 1 auto;
+  /* overflow: auto; */
 `;
 
 function PlaygroundContent() {
@@ -152,7 +162,7 @@ function PlaygroundContent() {
                 </Flex>
               }
             >
-              <View height="100%" padding="size-200" paddingBottom="size-900">
+              <View height="100%" padding="size-200">
                 <Flex direction="row" gap="size-200">
                   {instances.map((instance) => (
                     <View key={instance.id} flex="1 1 0px">
