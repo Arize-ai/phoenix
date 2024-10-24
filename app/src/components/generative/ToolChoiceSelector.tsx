@@ -77,24 +77,26 @@ export function ToolChoicePicker({
       }}
     >
       {[
-        <Item key="auto">
+        <Item key="auto" textValue="auto">
           <Flex gap={"size-100"}>
             Tools auto-selected by LLM <Label>auto</Label>
           </Flex>
         </Item>,
-        <Item key="required">
+        <Item key="required" textValue="required">
           <Flex gap={"size-100"}>
             Use at least one tool <Label>required</Label>
           </Flex>
         </Item>,
-        <Item key="none">
+        <Item key="none" textValue="none">
           <Flex gap={"size-100"}>
             Don&apos;t use any tools <Label>none</Label>
           </Flex>
         </Item>,
         // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys
         ...toolNames.map((toolName) => (
-          <Item key={addToolNamePrefix(toolName)}>{toolName}</Item>
+          <Item key={addToolNamePrefix(toolName)} textValue={toolName}>
+            {toolName}
+          </Item>
         )),
       ]}
     </Picker>
