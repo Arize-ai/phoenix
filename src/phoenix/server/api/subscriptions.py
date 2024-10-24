@@ -1,9 +1,11 @@
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from dataclasses import asdict
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
+from traceback import format_exc
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -15,10 +17,12 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     Optional,
     Tuple,
     Type,
     Union,
+    cast,
 )
 
 import strawberry
@@ -31,19 +35,18 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
-from opentelemetry.util.types import AttributeValue
 from sqlalchemy import insert, select
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameters
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -51,6 +54,10 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
+from phoenix.trace.schemas import (
+    SpanEvent,
+    SpanException,
+)
 from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -69,7 +76,7 @@ if TYPE_CHECKING:
 PLAYGROUND_PROJECT_NAME = "playground"
 
 ToolCallID: TypeAlias = str
-SetSpanAttributesFn: TypeAlias = Callable[[Dict[str, AttributeValue]], None]
+SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 
 
 @strawberry.enum
@@ -102,12 +109,19 @@ class ToolCallChunk:
 
 
 @strawberry.type
+class ChatCompletionSubscriptionError:
+    message: str
+
+
+@strawberry.type
 class FinishedChatCompletion:
     span: Span
 
 
+ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+
 ChatCompletionSubscriptionPayload: TypeAlias = Annotated[
-    Union[TextChunk, ToolCallChunk, FinishedChatCompletion],
+    Union[TextChunk, ToolCallChunk, FinishedChatCompletion, ChatCompletionSubscriptionError],
     strawberry.union("ChatCompletionSubscriptionPayload"),
 ]
 
@@ -165,7 +179,7 @@ class PlaygroundStreamingClient(ABC):
         ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    ) -> AsyncIterator[ChatCompletionChunk]:
         # a yield statement is needed to satisfy the type-checker
         # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
         yield TextChunk(content="")
@@ -192,7 +206,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import NOT_GIVEN
         from openai.types.chat import ChatCompletionStreamOptionsParam
 
@@ -354,7 +368,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         ],
         tools: List[JSONScalarType],
         **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
 
@@ -426,10 +440,13 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         # Determine which LLM client to use based on provider_key
         provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)
-        if llm_client_class is None:
-            raise ValueError(f"No LLM client registered for provider '{provider_key}'")
-
+        if (llm_client_class := PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)) is None:
+            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+        llm_client = llm_client_class(
+            model=input.model,
+            api_key=input.api_key,
+            set_span_attributes=lambda attrs: attributes.update(attrs),
+        )
         messages = [
             (
                 message.role,
@@ -439,39 +456,29 @@ class Subscription:
             )
             for message in input.messages
         ]
-
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
-
         invocation_parameters = jsonify(input.invocation_parameters)
-
-        in_memory_span_exporter = InMemorySpanExporter()
-        tracer_provider = TracerProvider()
-        tracer_provider.add_span_processor(
-            span_processor=SimpleSpanProcessor(span_exporter=in_memory_span_exporter)
-        )
-        tracer = tracer_provider.get_tracer(__name__)
-        span_name = "ChatCompletion"
-        with tracer.start_span(
-            span_name,
-            attributes=dict(
-                chain(
-                    _llm_span_kind(),
-                    _llm_model_name(input.model.name),
-                    _llm_tools(input.tools or []),
-                    _llm_input_messages(messages),
-                    _llm_invocation_parameters(invocation_parameters),
-                    _input_value_and_mime_type(input),
-                )
-            ),
-        ) as span:
-            response_chunks = []
-            text_chunks: List[TextChunk] = []
-            tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
-
-            llm_client = llm_client_class(
-                model=input.model, api_key=input.api_key, set_span_attributes=span.set_attributes
+        attributes = dict(
+            chain(
+                _llm_span_kind(),
+                _llm_model_name(input.model.name),
+                _llm_tools(input.tools or []),
+                _llm_input_messages(messages),
+                _llm_invocation_parameters(invocation_parameters),
+                _input_value_and_mime_type(input),
             )
+        )
+        status_code: StatusCode
+        status_message = ""
+        events: List[SpanEvent] = []
+        start_time: datetime
+        end_time: datetime
+        response_chunks = []
+        text_chunks: List[TextChunk] = []
+        tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
+        try:
+            start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
             async for chunk in llm_client.chat_completion_create(
                 messages=messages,
                 tools=input.tools or [],
@@ -484,29 +491,35 @@ class Subscription:
                 elif isinstance(chunk, ToolCallChunk):
                     yield chunk
                     tool_call_chunks[chunk.id].append(chunk)
-
-            span.set_status(StatusCode.OK)
-
-            span.set_attributes(
-                dict(
-                    chain(
-                        _output_value_and_mime_type(response_chunks),
-                        _llm_output_messages(text_chunks, tool_call_chunks),
-                    )
+                else:
+                    assert_never(chunk)
+            status_code = StatusCode.OK
+        except Exception as error:
+            end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+            status_code = StatusCode.ERROR
+            status_message = str(error)
+            events.append(
+                SpanException(
+                    timestamp=end_time,
+                    message=status_message,
+                    exception_type=type(error).__name__,
+                    exception_escaped=False,
+                    exception_stacktrace=format_exc(),
                 )
             )
-        assert len(spans := in_memory_span_exporter.get_finished_spans()) == 1
-        finished_span = spans[0]
-        assert finished_span.start_time is not None
-        assert finished_span.end_time is not None
-        assert (attributes := finished_span.attributes) is not None
-        start_time = _datetime(epoch_nanoseconds=finished_span.start_time)
-        end_time = _datetime(epoch_nanoseconds=finished_span.end_time)
+            yield ChatCompletionSubscriptionError(message=status_message)
+        else:
+            end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+            attributes.update(
+                chain(
+                    _output_value_and_mime_type(response_chunks),
+                    _llm_output_messages(text_chunks, tool_call_chunks),
+                )
+            )
         prompt_tokens = attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
         completion_tokens = attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
-        trace_id = _hex(finished_span.context.trace_id)
-        span_id = _hex(finished_span.context.span_id)
-        status = finished_span.status
+        trace_id = _generate_trace_id()
+        span_id = _generate_span_id()
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -531,15 +544,15 @@ class Subscription:
                 trace_rowid=playground_trace.id,
                 span_id=span_id,
                 parent_id=None,
-                name=span_name,
+                name="ChatCompletion",
                 span_kind=LLM,
                 start_time=start_time,
                 end_time=end_time,
                 attributes=unflatten(attributes.items()),
-                events=finished_span.events,
-                status_code=status.status_code.name,
-                status_message=status.description or "",
-                cumulative_error_count=int(not status.is_ok),
+                events=[_serialize_event(event) for event in events],
+                status_code=status_code.name,
+                status_message=status_message,
+                cumulative_error_count=int(status_code is StatusCode.ERROR),
                 cumulative_llm_token_count_prompt=prompt_tokens,
                 cumulative_llm_token_count_completion=completion_tokens,
                 llm_token_count_prompt=prompt_tokens,
@@ -624,19 +637,25 @@ def _llm_output_messages(
             )
 
 
+def _generate_trace_id() -> str:
+    """
+    Generates a random trace ID in hexadecimal format.
+    """
+    return _hex(DefaultOTelIDGenerator().generate_trace_id())
+
+
+def _generate_span_id() -> str:
+    """
+    Generates a random span ID in hexadecimal format.
+    """
+    return _hex(DefaultOTelIDGenerator().generate_span_id())
+
+
 def _hex(number: int) -> str:
     """
     Converts an integer to a hexadecimal string.
     """
     return hex(number)[2:]
-
-
-def _datetime(*, epoch_nanoseconds: float) -> datetime:
-    """
-    Converts a Unix epoch timestamp in nanoseconds to a datetime.
-    """
-    epoch_seconds = epoch_nanoseconds / 1e9
-    return datetime.fromtimestamp(epoch_seconds).replace(tzinfo=timezone.utc)
 
 
 def _formatted_messages(
@@ -670,6 +689,10 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
     assert_never(template_language)
+
+
+def _serialize_event(event: SpanEvent) -> Dict[str, Any]:
+    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
