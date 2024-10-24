@@ -29,10 +29,12 @@ registerInstrumentations({
 });
 ```
 
+## Support
+
+Instrumentation version >1.0.0 supports both [attribute masking](../how-to-tracing/customize-spans/masking-span-attributes.md) and [context attribute propagation](../how-to-tracing/customize-spans/) to spans.
+
 ## Resources
 
 * [Example project](https://github.com/Arize-ai/openinference/tree/main/js/examples/openai)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-openai)
 * [Working examples](https://github.com/Arize-ai/openinference/blob/main/js/examples/openai)
-
-\

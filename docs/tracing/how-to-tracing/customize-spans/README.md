@@ -22,11 +22,17 @@ Supported Context Attributes include:
 ### Install Core Instrumentation Package
 
 {% tabs %}
-{% tab title="undefined" %}
+{% tab title="Python" %}
 Install the core instrumentation package:
 
 ```sh
 pip install openinference-instrumentation
+```
+{% endtab %}
+
+{% tab title="JS" %}
+```bash
+npm install --save @arizeai/openinference-core @opentelemetry/api
 ```
 {% endtab %}
 {% endtabs %}
@@ -34,7 +40,7 @@ pip install openinference-instrumentation
 ### Specifying a session
 
 {% hint style="warning" %}
-Sessions are not currently supported in Phoenix and only supported via the Arize OTel collector ([https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions](https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions)). Support for sessions in Phoenix is coming in an upcoming release.
+Sessions are not currently supported in Phoenix and only supported via the [Arize OTel collector](https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions). Support for sessions in Phoenix is coming in an upcoming release.
 {% endhint %}
 
 {% tabs %}
@@ -60,6 +66,22 @@ def call_fn(*args, **kwargs):
     ...
 ```
 {% endtab %}
+
+{% tab title="JS" %}
+We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback.
+
+<pre class="language-typescript"><code class="lang-typescript"><strong>import { context } from "@opentelemetry/api"
+</strong>import { setSession } from "@openinference-core"
+
+context.with(
+  setSession(context.active(), { sessionId: "session-id" }),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "session.id" = "session-id"
+  }
+)
+</code></pre>
+{% endtab %}
 {% endtabs %}
 
 ### Specifying users <a href="#using_user" id="using_user"></a>
@@ -84,6 +106,23 @@ def call_fn(*args, **kwargs):
     # Calls within this function will generate spans with the attributes:
     # "user.id" = "my-user-id"
     ...
+```
+{% endtab %}
+
+{% tab title="JS" %}
+We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback.
+
+```typescript
+import { context } from "@opentelemetry/api"
+import { setUser } from "@openinference-core"
+
+context.with(
+  setUser(context.active(), { userId: "user-id" }),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "user.id" = "user-id"
+  }
+)
 ```
 {% endtab %}
 {% endtabs %}
@@ -117,13 +156,30 @@ def call_fn(*args, **kwargs):
     ...
 ```
 {% endtab %}
+
+{% tab title="JS" %}
+We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+
+```typescript
+import { context } from "@opentelemetry/api"
+import { setMetadata } from "@openinference-core"
+
+context.with(
+  setMetadata(context.active(), { key1: "value1", key2: "value2" }),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "metadata" = '{"key1": "value1", "key2": "value2"}'
+  }
+)
+```
+{% endtab %}
 {% endtabs %}
 
 ### Specifying Tags
 
 {% tabs %}
 {% tab title="Python" %}
-We provide a `using_tags` context manager to add tags to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). ts input, the tag list, must be a list of strings.
+We provide a `using_tags` context manager to add tags to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The input, the tag list, must be a list of strings.
 
 ```python
 from openinference.instrumentation import using_tags
@@ -142,6 +198,23 @@ def call_fn(*args, **kwargs):
     # Calls within this function will generate spans with the attributes:
     # "tag.tags" = "["tag_1","tag_2",...]"
     ...
+```
+{% endtab %}
+
+{% tab title="JS" %}
+We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+
+```typescript
+import { context } from "@opentelemetry/api"
+import { setTags } from "@openinference-core"
+
+context.with(
+  setTags(context.active(), ["value1", "value2"]),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "tag.tags" = '["value1", "value2"]'
+  }
+)
 ```
 {% endtab %}
 {% endtabs %}
@@ -230,6 +303,60 @@ def call_fn(*args, **kwargs):
     # "llm.prompt_template.variables" = "{\"city\": \"Johannesburg\", \"date\": \"July 11\"}" # JSON serialized
     # "llm.prompt_template.version " = "v1.0"
     ...
+```
+{% endtab %}
+
+{% tab title="JS" %}
+We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
+
+<pre class="language-typescript"><code class="lang-typescript"><strong>import { context } from "@opentelemetry/api"
+</strong>import { setAttributes } from "@openinference-core"
+
+context.with(
+  setAttributes(context.active(), { myAttribute: "test" }),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "myAttribute" = "test"
+  }
+)
+</code></pre>
+
+You can also use multiple setters at the same time to propagate multiple attributes to the span below. Since each setter function returns a new context, they can be used together as follows.
+
+```typescript
+import { context } from "@opentelemetry/api"
+import { setAttributes } from "@openinference-core"
+
+context.with(
+  setAttributes(
+    setSession(context.active(), { sessionId: "session-id"}),
+    { myAttribute: "test" }
+  ),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "myAttribute" = "test"
+      // "session.id" = "session-id"
+  }
+)
+```
+
+You can also use `setAttributes` in conjunction with the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md) to set OpenInference attributes manually.
+
+```typescript
+import { context } from "@opentelemetry/api"
+import { setAttributes } from "@openinference-core"
+import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+
+
+context.with(
+  setAttributes(
+    { [SemanticConventions.SESSION_ID: "session-id" }
+  ),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "session.id" = "session-id"
+  }
+)
 ```
 {% endtab %}
 {% endtabs %}

@@ -26,7 +26,7 @@ npm i @opentelemetry/api @vercel/otel @opentelemetry/exporter-trace-otlp-proto @
 
 To process your Vercel AI SDK Spans add a `OpenInferenceSimpleSpanProcessor` or `OpenInferenceBatchSpanProcessor` to your OpenTelemetry configuration.
 
-> Note: The `OpenInferenceSpanProcessor` does not handle the exporting of spans so you will pass it an [exporter](https://opentelemetry.io/docs/languages/js/exporters/) as a parameter.
+> Note: The `OpenInferenceSpanProcessor` does not handle the exporting of spans so you will need to pass it an [exporter](https://opentelemetry.io/docs/languages/js/exporters/) as a parameter.
 
 ```typescript
 import { registerOTel } from "@vercel/otel";
@@ -39,20 +39,22 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
+// This is not required and should not be added in a production setting
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
 export function register() {
   registerOTel({
     serviceName: "phoenix-next-app",
     attributes: {
-      // This is not required but it will
+      // This is not required but it will allow you to send traces to a specific 
+      // project in phoenix
       [SEMRESATTRS_PROJECT_NAME]: "your-next-app",
     },
     spanProcessors: [
       new OpenInferenceSimpleSpanProcessor({
         exporter: new OTLPTraceExporter({
           headers: {
-            // API key if you are sending it ot Phoenix
+            // API key if you're sending it to Phoenix
             api_key: process.env["PHOENIX_API_KEY"],
           },
           url:
@@ -60,7 +62,7 @@ export function register() {
             "https://app.phoenix.arize.com/v1/traces",
         }),
         spanFilter: (span) => {
-          // Only export spans that are OpenInference to negate non-generative spans
+          // Only export spans that are OpenInference to remove non-generative spans
           // This should be removed if you want to export all spans
           return isOpenInferenceSpan(span);
         },
@@ -86,6 +88,6 @@ For details on Vercel AI SDK telemetry see the [Vercel AI SDK Telemetry document
 
 ### Examples
 
-To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the examples directory of this repo.
+To see an example go to the [Next.js OpenAI Telemetry Example](https://github.com/Arize-ai/openinference/tree/main/js/examples/next-openai-telemetry-app) in the [OpenInference repo](https://github.com/Arize-ai/openinference/tree/main/js).
 
 For more information on Vercel OpenTelemetry support see the [Vercel AI SDK Telemetry documentation](https://sdk.vercel.ai/docs/ai-sdk-core/telemetry).

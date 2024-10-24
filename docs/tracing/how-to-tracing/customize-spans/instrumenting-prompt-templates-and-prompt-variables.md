@@ -45,4 +45,35 @@ def call_fn(*args, **kwargs):
     ...
 ```
 {% endtab %}
+
+{% tab title="JS" %}
+We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
+
+* template - a string with templated variables ex. `"hello {{name}}"`
+* variables - an object with variable names and their values ex. `{name: "world"}`
+* version - a string version of the template ex. `v1.0`
+
+All of these are optional. Application of variables to a template will typically happen before the call to an llm and may not be picked up by auto instrumentation. So, this can be helpful to add to ensure you can see the templates and variables while troubleshooting.
+
+<pre class="language-typescript"><code class="lang-typescript"><strong>mport { context } from "@opentelemetry/api"
+</strong>import { setSession } from "@openinference-core"
+
+context.with(
+  setPromptTemplate(
+    context.active(),
+    { 
+      template: "hello {{name}}",
+      variables: { name: "world" },
+      version: "v1.0"
+    }
+  ),
+  () => {
+      // Calls within this block will generate spans with the attributes:
+      // "llm.prompt_template.template" = "hello {{name}}"
+      // "llm.prompt_template.version" = "v1.0"
+      // "llm.prompt_template.variables" = '{ "name": "world" }'
+  }
+)
+</code></pre>
+{% endtab %}
 {% endtabs %}

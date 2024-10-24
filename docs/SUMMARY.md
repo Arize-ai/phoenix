@@ -55,6 +55,7 @@
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
   * [Customize Spans](tracing/how-to-tracing/customize-spans/README.md)
     * [Instrumenting Prompt Templates and Prompt Variables](tracing/how-to-tracing/customize-spans/instrumenting-prompt-templates-and-prompt-variables.md)
+    * [Masking Span Attributes](tracing/how-to-tracing/customize-spans/masking-span-attributes.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
     * [Auto Instrument: Python](tracing/how-to-tracing/instrumentation/auto-instrument-python.md)
     * [Auto Instrument: TS](tracing/how-to-tracing/instrumentation/auto-instrument-ts.md)

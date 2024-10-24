@@ -31,6 +31,7 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 * [Setting a user](customize-spans/#using\_user)
 * [Setting prompt template attributes](customize-spans/#specifying-the-prompt-template)
 * [How to read attributes from context](customize-spans/#using\_attributes)
+* [Masking attributes on spans](customize-spans/masking-span-attributes.md)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 
@@ -98,4 +99,4 @@ How to log evaluation results to annotate traces with evals
 
 * [How to instrument an application](trace-a-deployed-app.md#how-to-instrument-an-application)
 * [How to deploy a Phoenix server (collector)](../../deployment/deploying-phoenix.md)
-* [How to use Arize as a collector ](trace-a-deployed-app.md#exporting-traces-to-arize)
+* [How to use Arize as a collector](trace-a-deployed-app.md#exporting-traces-to-arize)
