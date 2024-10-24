@@ -64,16 +64,18 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
                 toolNames={toolNames}
               />
             </Form>
-            {tools.map((tool) => {
-              return (
-                <PlaygroundTool
-                  key={tool.id}
-                  playgroundInstanceId={instanceId}
-                  tool={tool}
-                  instanceTools={instance.tools}
-                />
-              );
-            })}
+            <Flex direction={"column"} gap={"size-200"}>
+              {tools.map((tool) => {
+                return (
+                  <PlaygroundTool
+                    key={tool.id}
+                    playgroundInstanceId={instanceId}
+                    tool={tool}
+                    instanceTools={instance.tools}
+                  />
+                );
+              })}
+            </Flex>
           </Flex>
         </View>
       </AccordionItem>
