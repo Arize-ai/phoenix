@@ -40,7 +40,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
-Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../concepts/llm-traces.md) for more about tracing your LLM application.\
+Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/llm-traces.md) for more about tracing your LLM application.\
 \
 **Parameters**
 

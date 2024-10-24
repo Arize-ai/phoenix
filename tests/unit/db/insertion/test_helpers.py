@@ -102,6 +102,8 @@ class Test_insert_on_conflict:
                 .where(models.TraceAnnotation.trace_rowid == trace_rowid)
                 .order_by(models.TraceAnnotation.created_at)
             )
+        assert anno is not None
+        assert record is not None
         assert anno.id == record.id
         assert anno.created_at == record.created_at
         assert anno.name == record.name

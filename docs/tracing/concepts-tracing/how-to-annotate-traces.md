@@ -14,9 +14,9 @@ For more information on how to wire up your application to collect feedback from
 
 ### Evaluations from LLMs
 
-When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../llm-evals/llm-evals.md) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
+When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../evaluation/llm-evals.md) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
 
-* [evals.md](../../quickstart/evals.md "mention")to generate evaluation results
+* [evals.md](../../evaluation/evals.md "mention") to generate evaluation results
 * [llm-evaluations.md](../how-to-tracing/llm-evaluations.md "mention") to add evaluation results to spans
 
 ### Human Annotations
@@ -27,8 +27,7 @@ Sometimes you need to rely on human annotators to attach feedback to specific tr
 
 ## How to Use Feedback
 
-Feedback / Annotations can help you share valuble insight about how your application is performing. However making these insights actionable can be difficult. With Phoenix, the annotations you add to your trace data is propagated to datasets so that you can use the annotations during experimentation.\
-
+Feedback / Annotations can help you share valuble insight about how your application is performing. However making these insights actionable can be difficult. With Phoenix, the annotations you add to your trace data is propagated to datasets so that you can use the annotations during experimentation.\\
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_to_dataset_example.png" alt=""><figcaption><p>A span's attributes as well as annotations are propagated to example metadata</p></figcaption></figure>
 
@@ -51,4 +50,3 @@ Since Phoenix datasets preserve the annotations in the example metadata, you can
 {% hint style="info" %}
 Training human-aligned LLM judges is still under active development. If this is an area you are interested in, please reach out!
 {% endhint %}
-

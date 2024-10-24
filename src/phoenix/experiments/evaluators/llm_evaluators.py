@@ -240,8 +240,8 @@ class RelevanceEvaluator(LLMEvaluator):
         "LABEL: *true or false*\n\n"
         "Follow this template for the following example:\n\n"
         "CRITERIA: the response is 'relevant' to the query\n"
-        "QUERY: {reference}\n"
-        "RESPONSE: {submission}\n"
+        "QUERY: {query}\n"
+        "RESPONSE: {response}\n"
         "EXPLANATION: "
     )
 
@@ -287,6 +287,158 @@ class RelevanceEvaluator(LLMEvaluator):
         )
 
     def _default_get_query(self, input: ExampleInput, *args: Any, **kwargs: Any) -> str:
+        return str(input)
+
+    def _default_get_response(
+        self, output: Optional[TaskOutput] = None, *args: Any, **kwargs: Any
+    ) -> str:
+        assert output is not None
+        return str(unwrap_json(output))
+
+    def evaluate(
+        self,
+        *,
+        output: Optional[TaskOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
+        **_: Any,
+    ) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output, input, metadata)
+        unparsed_response = self.model._generate(formatted_template)
+        return self._parse_eval_output(unparsed_response)
+
+    async def async_evaluate(
+        self,
+        *,
+        output: Optional[TaskOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
+        **_: Any,
+    ) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output, input, metadata)
+        unparsed_response = await self.model._async_generate(formatted_template)
+        return self._parse_eval_output(unparsed_response)
+
+
+class LLMRelationalEvaluator(LLMEvaluator):
+    """
+    An LLM experiment evaluator that checks how a response is related to reference text.
+
+    `LLMRelationalEvaluator` uses the chain-of-thought technique to perform a binary evaluation of
+    how a response is related to reference text in a specified manner. When used as an experiment
+    evaluator, `LLMRelationalEvaluator` will return a score of 1.0 if the response is related to
+    the reference text in the specified manner and a score of 0.0 if not. The explanation
+    produced by the chain-of-thought technique will be included in the experiment evaluation as
+    well.
+
+    In order to evaluate how a response is related to reference text, a specific relation and
+    description of that relation must be specified. The relation should be a phrase that can be
+    used in the following manner: "The response '{relation}' the reference". The description
+    should complete the sentence "In this context, '{relation}' means the response {description}".
+
+    Example relations and descriptions:
+        - "is a good summary of" - "the response clearly concisely summarizes the reference"
+        - "directly quotes" - "the response contains specific information from the reference"
+        - "professionally addresses" - "the response is respectful and relevant to the reference"
+
+    Args:
+        model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+            the `phoenix.evals` module.
+        relation: The relation to evaluate the text against, the relation should be a phrase that
+            can be used in the following manner: "The response '{relation}' the reference".
+        description (str): A description of the relation, used to clarify instructions to the LLM.
+            The description should complete the sentence "In this context, '{relation}'
+            means {description}". It is helpful to specifically use the words "response" and
+            "reference" to describe the relation.
+        name (str): The name of the evaluator
+        get_reference (callable, optional): A function that extracts the reference from the input of
+            the experiment task. The function should take the input and metadata of the dataset
+            example and return a string. By default, the function will return the string
+            representation of the input.
+        get_response (callable, optional): A function that extracts the response from the output of
+            the experiment task. The function should take the output and metadata of the experiment
+            task and return a string. By default, the function will return the string representation
+            of the output.
+    """
+
+    _base_template = (
+        "Determine if the following response '{relation}' the reference. {description}"
+        "First, explain step-by-step why you think the response '{relation}' the reference. "
+        "Then provide a single word label; 'true' if the response '{relation}' the reference or "
+        "'false' if the text is not '{relation}' to the reference. "
+        "Here is an example template for your reponse:\n\n"
+        "CRITERIA: the response '{relation}' the reference\n"
+        "REFERENCE: *text that contains a reference*\n"
+        "RESPONSE: *a response that may or may not be '{relation}' to the reference*\n"
+        "EXPLANATION: *a step by step explanation of your reasoning for whether or not the "
+        "response '{relation}' the reference*\n"
+        "LABEL: *true or false*\n\n"
+        "Follow this template for the following example:\n\n"
+        "CRITERIA: the response '{relation}' the reference\n"
+        "REFERENCE: {reference}\n"
+        "RESPONSE: {response}\n"
+        "EXPLANATION: "
+    )
+    _description = "In this context, '{relation}' means '{description}'. "
+
+    def __init__(
+        self,
+        model: LLMBaseModel,
+        relation: str,
+        description: str,
+        name: str,
+        get_reference: Optional[Callable[[ExampleInput, ExampleMetadata], str]] = None,
+        get_response: Optional[Callable[[Optional[TaskOutput], ExampleMetadata], str]] = None,
+    ):
+        self.model = model
+        self._name = name
+        self.relation = relation
+        self.description = description
+        self.template = self._format_base_template(self.relation, self.description)
+        self.get_reference = get_reference or self._default_get_reference
+        self.get_response = get_response or self._default_get_response
+
+    @classmethod
+    def _format_base_template(cls, relation: str, description: Optional[str] = None) -> str:
+        formatted_description = cls._description.format(relation=relation, description=description)
+        formatted_template = cls._base_template.format(
+            relation=relation,
+            description=formatted_description,
+            response="{response}",  # leave the response field as a placeholder
+            reference="{reference}",  # leave the reference field as a placeholder
+        )
+        return formatted_template
+
+    def _format_eval_template(
+        self,
+        output: Optional[TaskOutput] = None,
+        input: ExampleInput = MappingProxyType({}),
+        metadata: ExampleMetadata = MappingProxyType({}),
+    ) -> str:
+        assert output is not None
+        reference = self.get_reference(input, metadata)
+        response = self.get_response(output, metadata)
+        return self.template.format(reference=reference, response=response)
+
+    def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
+        raw_label, explanation = (
+            _parse_label_from_explanation(unparsed_response),
+            unparsed_response,
+        )
+        label = snap_to_rail(raw_label, ["true", "false"])
+        if label == "true":
+            score = 1.0
+        elif label == "false":
+            score = 0.0
+        else:
+            raise RuntimeError(f"Could not parse LLM evaluation: {unparsed_response}")
+        return EvaluationResult(
+            score=score,
+            explanation=explanation,
+            metadata={},
+        )
+
+    def _default_get_reference(self, input: ExampleInput, *args: Any, **kwargs: Any) -> str:
         return str(input)
 
     def _default_get_response(

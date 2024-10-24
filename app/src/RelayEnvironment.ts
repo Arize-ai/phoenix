@@ -13,7 +13,7 @@ import {
 } from "relay-runtime";
 
 import { authFetch } from "@phoenix/authFetch";
-import { BASE_URL } from "@phoenix/config";
+import { BASE_URL, WS_BASE_URL } from "@phoenix/config";
 
 const graphQLPath = BASE_URL + "/graphql";
 
@@ -56,8 +56,11 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   return json;
 };
 
+/**
+ * Check whether or not we are running
+ */
 const wsClient = createClient({
-  url: "ws://localhost:6006/graphql",
+  url: `${WS_BASE_URL}/graphql`,
 });
 
 const subscribe: SubscribeFunction = (

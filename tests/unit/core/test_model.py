@@ -3,12 +3,14 @@ import pandas as pd
 import pytest
 from pandas import DataFrame, Timestamp
 
-from phoenix.core.model import EmbeddingDimension, _get_embedding_dimensions
-from phoenix.inferences.inferences import EmbeddingColumnNames, Inferences, Schema
+from phoenix.core.embedding_dimension import EmbeddingDimension
+from phoenix.core.model import _get_embedding_dimensions
+from phoenix.inferences.inferences import Inferences
+from phoenix.inferences.schema import EmbeddingColumnNames, Schema
 
 
 @pytest.fixture
-def inferences_with_large_embedding_vector() -> None:
+def inferences_with_large_embedding_vector() -> Inferences:
     num_records = 3
     embedding_dimensions = 7
 
@@ -49,7 +51,7 @@ def inferences_with_large_embedding_vector() -> None:
 
 
 @pytest.fixture
-def inferences_with_embedding_vector() -> None:
+def inferences_with_embedding_vector() -> Inferences:
     num_records = 3
     embedding_dimensions = 5
 
@@ -87,7 +89,7 @@ def inferences_with_embedding_vector() -> None:
 
 
 def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
-    inferences_with_embedding_vector, inferences_with_large_embedding_vector
+    inferences_with_embedding_vector: Inferences, inferences_with_large_embedding_vector: Inferences
 ) -> None:
     with pytest.raises(ValueError):
         _ = _get_embedding_dimensions(
@@ -95,7 +97,7 @@ def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
         )
 
 
-def test_valid_model_embeddings(inferences_with_embedding_vector) -> None:
+def test_valid_model_embeddings(inferences_with_embedding_vector: Inferences) -> None:
     embedding_dimensions = _get_embedding_dimensions(
         inferences_with_embedding_vector, inferences_with_embedding_vector
     )
@@ -107,7 +109,7 @@ def test_valid_model_embeddings(inferences_with_embedding_vector) -> None:
 
 
 def test_valid_model_embeddings_one_inferences_missing_embeddings_feature(
-    inferences_with_embedding_vector,
+    inferences_with_embedding_vector: Inferences,
 ) -> None:
     num_records = 3
     input_dataframe = DataFrame(
@@ -136,7 +138,7 @@ def test_valid_model_embeddings_one_inferences_missing_embeddings_feature(
     ]
 
 
-def test_valid_model_with_nan_embeddings(inferences_with_embedding_vector) -> None:
+def test_valid_model_with_nan_embeddings(inferences_with_embedding_vector: Inferences) -> None:
     inferences_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
     embedding_dimensions = _get_embedding_dimensions(
         inferences_with_embedding_vector,

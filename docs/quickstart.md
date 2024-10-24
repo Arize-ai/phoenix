@@ -118,7 +118,7 @@ register(
 ```
 
 {% hint style="info" %}
-You do not have to use phoenix.otel to connect to your phoenix instance, you can use OpenTelemetry itself to initialize  your OTEL connection. See[using-otel-python-directly.md](tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly.md "mention")
+You do not have to use phoenix.otel to connect to your phoenix instance, you can use OpenTelemetry itself to initialize your OTEL connection. See[using-otel-python-directly.md](tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly.md "mention")
 {% endhint %}
 
 See [setup-tracing-python](tracing/how-to-tracing/setup-tracing/setup-tracing-python/ "mention") for more details on configuration and setup
@@ -172,5 +172,5 @@ Your Phoenix API key can be found on the Keys section of your dashboard.
 ## Next Steps
 
 * [Trace](tracing/llm-traces-1.md) a running application
-* Run [evaluations](quickstart/evals.md) on traces
+* Run [evaluations](evaluation/evals.md) on traces
 * Test changes to you prompts, models, and application via [experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)

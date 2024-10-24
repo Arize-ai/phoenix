@@ -5,6 +5,8 @@ from phoenix.trace.schemas import (
     Span,
     SpanContext,
     SpanException,
+    SpanKind,
+    SpanStatusCode,
 )
 
 
@@ -14,12 +16,12 @@ def test_span_construction() -> None:
         parent_id=None,
         start_time=datetime.now(),
         end_time=datetime.now(),
-        span_kind="TOOL",
-        status_code="OK",
+        span_kind=SpanKind.TOOL,
+        status_code=SpanStatusCode.OK,
         status_message="",
         attributes={},
         events=[],
-        context=SpanContext(trace_id=uuid4(), span_id=uuid4()),
+        context=SpanContext(trace_id=str(uuid4()), span_id=str(uuid4())),
         conversation=None,
     )
     assert span.name == "test"
@@ -31,12 +33,12 @@ def test_span_with_exception() -> None:
         parent_id=None,
         start_time=datetime.now(),
         end_time=datetime.now(),
-        span_kind="TOOL",
-        status_code="OK",
+        span_kind=SpanKind.TOOL,
+        status_code=SpanStatusCode.OK,
         status_message="",
         attributes={},
         events=[SpanException(timestamp=datetime.now(), message="")],
-        context=SpanContext(trace_id=uuid4(), span_id=uuid4()),
+        context=SpanContext(trace_id=str(uuid4()), span_id=str(uuid4())),
         conversation=None,
     )
     assert span.name == "exception-span"

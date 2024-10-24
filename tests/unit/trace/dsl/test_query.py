@@ -4,6 +4,7 @@ from typing import Any, List
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from sqlalchemy.engine.base import Engine
 
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
@@ -1254,7 +1255,8 @@ async def test_explode_and_concat_on_same_array_with_same_label(
     abc_project: Any,
 ) -> None:
     async with db() as session:
-        if "asyncpg" in str(session.get_bind().url):
+        assert isinstance(engine := session.get_bind(), Engine)
+        if "asyncpg" in str(engine.url):
             pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()
@@ -1320,7 +1322,8 @@ async def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_n
     abc_project: None,
 ) -> None:
     async with db() as session:
-        if "asyncpg" in str(session.get_bind().url):
+        assert isinstance(engine := session.get_bind(), Engine)
+        if "asyncpg" in str(engine.url):
             pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()

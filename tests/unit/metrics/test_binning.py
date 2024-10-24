@@ -1,6 +1,6 @@
 import math
 from dataclasses import MISSING
-from typing import Any, List, Tuple, cast
+from typing import Any, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -164,7 +164,8 @@ def test_quantile_binning_dropna_adherence(dropna: bool) -> None:
     )
     new_data = pd.Series([None])
     hist = method.histogram(new_data)
-    diff = hist.index.difference(method.bins)
+    assert (method_bins := method.bins) is not None
+    diff = hist.index.difference(method_bins.tolist())
     if dropna:
         assert hist.sum() == 0
         assert diff.empty
@@ -267,7 +268,7 @@ def test_segmented_summary_with_interval_binning(
         dict(zip((m.id() for m in metrics), desired_values)),
     ).set_axis(
         pd.CategoricalIndex(
-            cast(List[Any], [] if dropna else [np.nan])
+            ([] if dropna else [np.nan])
             + [
                 pd.Interval(-2, 2, closed="left"),
                 pd.Interval(-np.inf, -200, closed="left"),
@@ -364,8 +365,7 @@ def test_segmented_summary_with_categorical_binning(
         dict(zip((m.id() for m in metrics), desired_values)),
     ).set_axis(
         pd.CategoricalIndex(
-            cast(List[Any], [] if dropna else [np.nan])
-            + [MISSING, 0.1, 1, "", "1", "nan", -np.inf],
+            ([] if dropna else [np.nan]) + [MISSING, 0.1, 1, "", "1", "nan", -np.inf],
             ordered=False,
         ),
         axis=0,
@@ -388,7 +388,9 @@ def _compare_summaries(
             except KeyError:
                 results.append({})
         for metric in metrics:
+            actual_value, desired_value = map(metric.get_value, results)
             assert_almost_equal(
-                *map(metric.get_value, results),
+                actual_value,
+                desired_value,
                 err_msg=f"{repr(idx)}:{repr(metric)}",
             )

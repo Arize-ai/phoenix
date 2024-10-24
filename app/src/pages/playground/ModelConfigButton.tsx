@@ -29,6 +29,10 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
+import {
+  InvocationParametersChangeHandler,
+  InvocationParametersForm,
+} from "./InvocationParametersForm";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -187,8 +191,25 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     [instance.model.provider, playgroundInstanceId, updateModel]
   );
 
+  const onInvocationParametersChange: InvocationParametersChangeHandler =
+    useCallback(
+      (parameter, value) => {
+        updateModel({
+          instanceId: playgroundInstanceId,
+          model: {
+            ...instance.model,
+            invocationParameters: {
+              ...instance.model.invocationParameters,
+              [parameter]: value,
+            },
+          },
+        });
+      },
+      [instance.model, playgroundInstanceId, updateModel]
+    );
+
   return (
-    <View padding="size-200">
+    <View padding="size-200" overflow="auto">
       <Form>
         <ModelProviderPicker
           provider={instance.model.provider}
@@ -213,6 +234,10 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
             onChange={onModelNameChange}
           />
         )}
+        <InvocationParametersForm
+          model={instance.model}
+          onChange={onInvocationParametersChange}
+        />
       </Form>
     </View>
   );

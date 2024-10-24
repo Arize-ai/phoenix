@@ -28,7 +28,7 @@ class TestLaunchApp:
                     _start_span(
                         project_name=project_name,
                         span_name=span_name,
-                        exporter=exporter(headers=None),
+                        exporter=exporter(),
                     ).end()
                 sleep(2)
                 project = _get_gql_spans(None, "name")[project_name]

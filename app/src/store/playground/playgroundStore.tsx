@@ -7,17 +7,18 @@ import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { OpenAIToolCall } from "@phoenix/schemas";
 
 import {
   GenAIOperationType,
   InitialPlaygroundState,
   isManualInput,
+  OpenAITool,
   PlaygroundChatTemplate,
   PlaygroundInputMode,
   PlaygroundInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
-  Tool,
 } from "./types";
 
 let playgroundInstanceId = 0;
@@ -93,19 +94,42 @@ export function createPlaygroundInstance(): PlaygroundInstance {
   return {
     id: generateInstanceId(),
     template: generateChatCompletionTemplate(),
-    model: { provider: DEFAULT_MODEL_PROVIDER, modelName: "gpt-4o" },
+    model: {
+      provider: DEFAULT_MODEL_PROVIDER,
+      modelName: "gpt-4o",
+      invocationParameters: {},
+    },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
     // TODO(apowell) - use datasetId if in dataset mode
     input: { variablesValueCache: {} },
     output: undefined,
+    spanId: null,
     activeRunId: null,
     isRunning: false,
   };
 }
 
-export function createTool(toolNumber: number): Tool {
+/**
+ * Creates an empty OpenAI tool call with fields but no values filled in
+ */
+export function createOpenAIToolCall(): OpenAIToolCall {
+  return {
+    id: "",
+    function: {
+      name: "",
+      arguments: {},
+    },
+  };
+}
+
+/**
+ * Creates a default tool with a unique ID and a function definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1
+ * @returns a {@link Tool} with a unique ID and a function definition
+ */
+export function createOpenAITool(toolNumber: number): OpenAITool {
   return {
     id: generateToolId(),
     definition: {
@@ -130,6 +154,7 @@ export const createPlaygroundStore = (
   initialProps?: InitialPlaygroundState
 ) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
+    streaming: true,
     operationType: "chat",
     inputMode: "manual",
     input: {
@@ -172,6 +197,8 @@ export const createPlaygroundStore = (
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
+            isRunning: false,
+            spanId: null,
           },
         ],
       });
@@ -198,6 +225,10 @@ export const createPlaygroundStore = (
               model: {
                 ...instance.model,
                 ...model,
+                invocationParameters: {
+                  ...instance.model.invocationParameters,
+                  ...model.invocationParameters,
+                },
               },
             };
           }
@@ -255,6 +286,7 @@ export const createPlaygroundStore = (
           ...instance,
           activeRunId: playgroundRunId++,
           isRunning: true,
+          spanId: null, // Clear out the span when (re)running
         })),
       });
     },
@@ -267,6 +299,7 @@ export const createPlaygroundStore = (
               ...instance,
               activeRunId: playgroundRunId++,
               isRunning: true,
+              spanId: null, // Clear out the span when (re)running
             };
           }
           return instance;
@@ -300,6 +333,9 @@ export const createPlaygroundStore = (
           },
         });
       }
+    },
+    setStreaming: (streaming: boolean) => {
+      set({ streaming });
     },
     ...initialProps,
   });

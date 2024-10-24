@@ -6,14 +6,12 @@ description: How to use phoenix outside of the notebook environment.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt=""><figcaption><p>The phoenix server can be run as a collector of spans over OTLP</p></figcaption></figure>
 
-
-
-Phoenix's notebook-first approach to observability makes it a great tool to utilize during experimentation and pre-production. However at some point you are going to want to ship your application and continue to monitor your application as it runs.&#x20;
+Phoenix's notebook-first approach to observability makes it a great tool to utilize during experimentation and pre-production. However at some point you are going to want to ship your application and continue to monitor your application as it runs.
 
 In order to run Phoenix tracing in production, you will have to follow these following steps:
 
 1. [**Setup a Server**](deploying-phoenix.md#setup-a-server)**:** your LLM application to run on a server
-2. [**Instrument**](deploying-phoenix.md#instrument): Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server&#x20;
+2. [**Instrument**](deploying-phoenix.md#instrument): Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server
 3. [**Observe**](deploying-phoenix.md#observe): Run the Phoenix server as or a standalone instance and point your tracing instrumentation to the phoenix server
 
 {% hint style="info" %}
@@ -37,7 +35,7 @@ In order to make your LLM application observable, it must be **instrumented**. T
 
 Phoenix collects traces from your running application using OTLP (OpenTelemetry Protocol). Notably, Phoenix accepts traces produced via instrumentation provided by [OpenInference](https://github.com/Arize-ai/openinference). OpenInference instrumentations automatically instrument your code so that LLM Traces can be exported and collected by Phoenix. To learn more about instrumentation, check out the full details [here](../tracing/how-to-tracing/instrumentation/).
 
-OpenInference currently supports instrumenting your application in both Python and Javascript.  For each of these languages, you will first need to install the `opentelemetry` and `openinference` packages necessary to trace your application.
+OpenInference currently supports instrumenting your application in both Python and Javascript. For each of these languages, you will first need to install the `opentelemetry` and `openinference` packages necessary to trace your application.
 
 ### Install OpenTelemetry
 
@@ -47,7 +45,7 @@ OpenInference currently supports instrumenting your application in both Python a
 For a comprehensive guide to python instrumentation, please consult [OpenTelemetry's guide](https://opentelemetry.io/docs/languages/python/)
 {% endhint %}
 
-### Install OpenTelemetry packages
+#### Install OpenTelemetry packages
 
 ```
 pip install opentelemetry-api opentelemetry-instrumentation opentelemetry-semantic-conventions opentelemetry-exporter-otlp-proto-http
@@ -74,7 +72,7 @@ To have your code produce LLM spans using OpenInference, you must pick the appro
 In order for your application to export traces, it must be instrumented using OpenInference instrumentors. Note that instrumentation strategies differ by language so please consult OpenTelemetry's [guidelines for full details.](https://opentelemetry.io/docs/languages/)
 
 {% hint style="info" %}
-Note that the below examples assume you are running phoenix via docker compose and thus simply have the URL http://phoenix:6006. If you are deploying phoenix separately, replace this string with the full URL of your running phoenix instance&#x20;
+Note that the below examples assume you are running phoenix via docker compose and thus simply have the URL http://phoenix:6006. If you are deploying phoenix separately, replace this string with the full URL of your running phoenix instance
 {% endhint %}
 
 {% tabs %}
@@ -106,7 +104,7 @@ Code below is written in ESM format
 
 For instrumentation to work with NodeJS to work, you must create a file `instrumentation.js` and have it run **BEFORE** all other server code in `index.js`
 
-place the following code in a `instrumentation.js` file&#x20;
+place the following code in a `instrumentation.js` file
 
 ```typescript
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
@@ -246,8 +244,4 @@ docker compose up
 
 For the full details of on how to configure Phoenix, check out the [Configuration section](../setup/configuration.md)
 
-
-
-
-
-\
+\\

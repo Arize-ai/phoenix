@@ -1,7 +1,7 @@
 import json
+from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from typing import (
@@ -9,6 +9,7 @@ from typing import (
     Annotated,
     Any,
     AsyncIterator,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -16,6 +17,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 
@@ -33,6 +35,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
+from opentelemetry.util.types import AttributeValue
 from sqlalchemy import insert, select
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
@@ -56,14 +59,17 @@ from phoenix.utilities.template_formatters import (
 )
 
 if TYPE_CHECKING:
+    from anthropic.types import MessageParam
     from openai.types import CompletionUsage
     from openai.types.chat import (
         ChatCompletionMessageParam,
+        ChatCompletionMessageToolCallParam,
     )
 
 PLAYGROUND_PROJECT_NAME = "playground"
 
-ToolCallIndex: TypeAlias = int
+ToolCallID: TypeAlias = str
+SetSpanAttributesFn: TypeAlias = Callable[[Dict[str, AttributeValue]], None]
 
 
 @strawberry.enum
@@ -121,45 +127,295 @@ class GenerativeModelInput:
 class ChatCompletionInput:
     messages: List[ChatCompletionMessageInput]
     model: GenerativeModelInput
-    invocation_parameters: InvocationParameters
+    invocation_parameters: InvocationParameters = strawberry.field(default_factory=dict)
     tools: Optional[List[JSONScalarType]] = UNSET
     template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
 
 
-def to_openai_chat_completion_param(
-    role: ChatCompletionMessageRole, content: JSONScalarType
-) -> "ChatCompletionMessageParam":
-    from openai.types.chat import (
-        ChatCompletionAssistantMessageParam,
-        ChatCompletionSystemMessageParam,
-        ChatCompletionUserMessageParam,
-    )
+PLAYGROUND_STREAMING_CLIENT_REGISTRY: Dict[
+    GenerativeProviderKey, Type["PlaygroundStreamingClient"]
+] = {}
 
-    if role is ChatCompletionMessageRole.USER:
-        return ChatCompletionUserMessageParam(
-            {
-                "content": content,
-                "role": "user",
-            }
+
+def register_llm_client(
+    provider_key: GenerativeProviderKey,
+) -> Callable[[Type["PlaygroundStreamingClient"]], Type["PlaygroundStreamingClient"]]:
+    def decorator(cls: Type["PlaygroundStreamingClient"]) -> Type["PlaygroundStreamingClient"]:
+        PLAYGROUND_STREAMING_CLIENT_REGISTRY[provider_key] = cls
+        return cls
+
+    return decorator
+
+
+class PlaygroundStreamingClient(ABC):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
+    ) -> None:
+        self._set_span_attributes = set_span_attributes
+
+    @abstractmethod
+    async def chat_completion_create(
+        self,
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        # a yield statement is needed to satisfy the type-checker
+        # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
+        yield TextChunk(content="")
+
+
+@register_llm_client(GenerativeProviderKey.OPENAI)
+class OpenAIStreamingClient(PlaygroundStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        self.client = AsyncOpenAI(api_key=api_key)
+        self.model_name = model.name
+
+    async def chat_completion_create(
+        self,
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        from openai import NOT_GIVEN
+        from openai.types.chat import ChatCompletionStreamOptionsParam
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+        tool_call_ids: Dict[int, str] = {}
+        token_usage: Optional["CompletionUsage"] = None
+        async for chunk in await self.client.chat.completions.create(
+            messages=openai_messages,
+            model=self.model_name,
+            stream=True,
+            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        ):
+            if (usage := chunk.usage) is not None:
+                token_usage = usage
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if choice.finish_reason is None:
+                if isinstance(chunk_content := delta.content, str):
+                    text_chunk = TextChunk(content=chunk_content)
+                    yield text_chunk
+                if (tool_calls := delta.tool_calls) is not None:
+                    for tool_call_index, tool_call in enumerate(tool_calls):
+                        tool_call_id = (
+                            tool_call.id
+                            if tool_call.id is not None
+                            else tool_call_ids[tool_call_index]
+                        )
+                        tool_call_ids[tool_call_index] = tool_call_id
+                        if (function := tool_call.function) is not None:
+                            tool_call_chunk = ToolCallChunk(
+                                id=tool_call_id,
+                                function=FunctionCallChunk(
+                                    name=function.name or "",
+                                    arguments=function.arguments or "",
+                                ),
+                            )
+                            yield tool_call_chunk
+        if token_usage is not None and self._set_span_attributes:
+            self._set_span_attributes(dict(self._llm_token_counts(token_usage)))
+
+    def to_openai_chat_completion_param(
+        self,
+        role: ChatCompletionMessageRole,
+        content: JSONScalarType,
+        tool_call_id: Optional[str] = None,
+        tool_calls: Optional[List[JSONScalarType]] = None,
+    ) -> "ChatCompletionMessageParam":
+        from openai.types.chat import (
+            ChatCompletionAssistantMessageParam,
+            ChatCompletionSystemMessageParam,
+            ChatCompletionToolMessageParam,
+            ChatCompletionUserMessageParam,
         )
-    if role is ChatCompletionMessageRole.SYSTEM:
-        return ChatCompletionSystemMessageParam(
-            {
-                "content": content,
-                "role": "system",
-            }
+
+        if role is ChatCompletionMessageRole.USER:
+            return ChatCompletionUserMessageParam(
+                {
+                    "content": content,
+                    "role": "user",
+                }
+            )
+        if role is ChatCompletionMessageRole.SYSTEM:
+            return ChatCompletionSystemMessageParam(
+                {
+                    "content": content,
+                    "role": "system",
+                }
+            )
+        if role is ChatCompletionMessageRole.AI:
+            if tool_calls is None:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                    }
+                )
+            else:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                        "tool_calls": [
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                        ],
+                    }
+                )
+        if role is ChatCompletionMessageRole.TOOL:
+            if tool_call_id is None:
+                raise ValueError("tool_call_id is required for tool messages")
+        return ChatCompletionToolMessageParam(
+            {"content": content, "role": "tool", "tool_call_id": tool_call_id}
         )
-    if role is ChatCompletionMessageRole.AI:
-        return ChatCompletionAssistantMessageParam(
-            {
-                "content": content,
-                "role": "assistant",
-            }
+        assert_never(role)
+
+    def to_openai_tool_call_param(
+        self,
+        tool_call: JSONScalarType,
+    ) -> "ChatCompletionMessageToolCallParam":
+        from openai.types.chat import ChatCompletionMessageToolCallParam
+
+        return ChatCompletionMessageToolCallParam(
+            id=tool_call.get("id", ""),
+            function={
+                "name": tool_call.get("function", {}).get("name", ""),
+                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
+            },
+            type="function",
         )
-    if role is ChatCompletionMessageRole.TOOL:
-        raise NotImplementedError
-    assert_never(role)
+
+    @staticmethod
+    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
+        yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
+        yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
+        yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
+
+
+@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
+class AzureOpenAIStreamingClient(OpenAIStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
+    ):
+        from openai import AsyncAzureOpenAI
+
+        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        if model.endpoint is None or model.api_version is None:
+            raise ValueError("endpoint and api_version are required for Azure OpenAI models")
+        self.client = AsyncAzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=model.endpoint,
+            api_version=model.api_version,
+        )
+
+
+@register_llm_client(GenerativeProviderKey.ANTHROPIC)
+class AnthropicStreamingClient(PlaygroundStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+        set_span_attributes: Optional[SetSpanAttributesFn] = None,
+    ) -> None:
+        import anthropic
+
+        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.model_name = model.name
+
+    async def chat_completion_create(
+        self,
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        import anthropic.lib.streaming as anthropic_streaming
+        import anthropic.types as anthropic_types
+
+        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+
+        anthropic_params = {
+            "messages": anthropic_messages,
+            "model": self.model_name,
+            "system": system_prompt,
+            "max_tokens": 1024,
+            **invocation_parameters,
+        }
+        async with self.client.messages.stream(**anthropic_params) as stream:
+            async for event in stream:
+                if isinstance(event, anthropic_types.RawMessageStartEvent):
+                    if self._set_span_attributes:
+                        self._set_span_attributes(
+                            {LLM_TOKEN_COUNT_PROMPT: event.message.usage.input_tokens}
+                        )
+                elif isinstance(event, anthropic_streaming.TextEvent):
+                    yield TextChunk(content=event.text)
+                elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    if self._set_span_attributes:
+                        self._set_span_attributes(
+                            {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
+                        )
+                elif isinstance(
+                    event,
+                    (
+                        anthropic_types.RawContentBlockStartEvent,
+                        anthropic_types.RawContentBlockDeltaEvent,
+                        anthropic_types.RawMessageDeltaEvent,
+                        anthropic_streaming.ContentBlockStopEvent,
+                    ),
+                ):
+                    # event types emitted by the stream that don't contain useful information
+                    pass
+                elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                    raise NotImplementedError
+                else:
+                    assert_never(event)
+
+    def _build_anthropic_messages(
+        self,
+        messages: List[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
+    ) -> Tuple[List["MessageParam"], str]:
+        anthropic_messages: List["MessageParam"] = []
+        system_prompt = ""
+        for role, content, _tool_call_id, _tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                anthropic_messages.append({"role": "user", "content": content})
+            elif role == ChatCompletionMessageRole.AI:
+                anthropic_messages.append({"role": "assistant", "content": content})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+            elif role == ChatCompletionMessageRole.TOOL:
+                raise NotImplementedError
+            else:
+                assert_never(role)
+
+        return anthropic_messages, system_prompt
 
 
 @strawberry.type
@@ -168,30 +424,26 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        from openai import NOT_GIVEN, AsyncAzureOpenAI, AsyncOpenAI
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        # Determine which LLM client to use based on provider_key
+        provider_key = input.model.provider_key
+        llm_client_class = PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)
+        if llm_client_class is None:
+            raise ValueError(f"No LLM client registered for provider '{provider_key}'")
 
-        client: Union[AsyncAzureOpenAI, AsyncOpenAI]
-
-        if input.model.provider_key == GenerativeProviderKey.AZURE_OPENAI:
-            if input.model.endpoint is None or input.model.api_version is None:
-                raise ValueError("endpoint and api_version are required for Azure OpenAI models")
-            client = AsyncAzureOpenAI(
-                api_key=input.api_key,
-                azure_endpoint=input.model.endpoint,
-                api_version=input.model.api_version,
+        messages = [
+            (
+                message.role,
+                message.content,
+                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
+                message.tool_calls if isinstance(message.tool_calls, list) else None,
             )
-        else:
-            client = AsyncOpenAI(api_key=input.api_key)
-
-        invocation_parameters = jsonify(input.invocation_parameters)
-
-        messages: List[Tuple[ChatCompletionMessageRole, str]] = [
-            (message.role, message.content) for message in input.messages
+            for message in input.messages
         ]
+
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
-        openai_messages = [to_openai_chat_completion_param(*message) for message in messages]
+
+        invocation_parameters = jsonify(input.invocation_parameters)
 
         in_memory_span_exporter = InMemorySpanExporter()
         tracer_provider = TracerProvider()
@@ -215,52 +467,30 @@ class Subscription:
         ) as span:
             response_chunks = []
             text_chunks: List[TextChunk] = []
-            tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]] = defaultdict(list)
-            role: Optional[str] = None
-            token_usage: Optional[CompletionUsage] = None
-            async for chunk in await client.chat.completions.create(
-                messages=openai_messages,
-                model=input.model.name,
-                stream=True,
-                tools=input.tools or NOT_GIVEN,
-                stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
+            tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
+
+            llm_client = llm_client_class(
+                model=input.model, api_key=input.api_key, set_span_attributes=span.set_attributes
+            )
+            async for chunk in llm_client.chat_completion_create(
+                messages=messages,
+                tools=input.tools or [],
                 **invocation_parameters,
             ):
                 response_chunks.append(chunk)
-                if (usage := chunk.usage) is not None:
-                    token_usage = usage
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if role is None:
-                    role = delta.role
-                if choice.finish_reason is None:
-                    if isinstance(chunk_content := delta.content, str):
-                        text_chunk = TextChunk(content=chunk_content)
-                        yield text_chunk
-                        text_chunks.append(text_chunk)
-                    if (tool_calls := delta.tool_calls) is not None:
-                        for tool_call_index, tool_call in enumerate(tool_calls):
-                            if (function := tool_call.function) is not None:
-                                if (tool_call_id := tool_call.id) is None:
-                                    first_tool_call_chunk = tool_call_chunks[tool_call_index][0]
-                                    tool_call_id = first_tool_call_chunk.id
-                                tool_call_chunk = ToolCallChunk(
-                                    id=tool_call_id,
-                                    function=FunctionCallChunk(
-                                        name=function.name or "",
-                                        arguments=function.arguments or "",
-                                    ),
-                                )
-                                yield tool_call_chunk
-                                tool_call_chunks[tool_call_index].append(tool_call_chunk)
+                if isinstance(chunk, TextChunk):
+                    yield chunk
+                    text_chunks.append(chunk)
+                elif isinstance(chunk, ToolCallChunk):
+                    yield chunk
+                    tool_call_chunks[chunk.id].append(chunk)
+
             span.set_status(StatusCode.OK)
-            assert role is not None
+
             span.set_attributes(
                 dict(
                     chain(
                         _output_value_and_mime_type(response_chunks),
-                        _llm_token_counts(token_usage) if token_usage is not None else [],
                         _llm_output_messages(text_chunks, tool_call_chunks),
                     )
                 )
@@ -272,8 +502,8 @@ class Subscription:
         assert (attributes := finished_span.attributes) is not None
         start_time = _datetime(epoch_nanoseconds=finished_span.start_time)
         end_time = _datetime(epoch_nanoseconds=finished_span.end_time)
-        prompt_tokens = token_usage.prompt_tokens if token_usage is not None else 0
-        completion_tokens = token_usage.completion_tokens if token_usage is not None else 0
+        prompt_tokens = attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
+        completion_tokens = attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
         trace_id = _hex(finished_span.context.trace_id)
         span_id = _hex(finished_span.context.span_id)
         status = finished_span.status
@@ -340,16 +570,12 @@ def _llm_tools(tools: List[JSONScalarType]) -> Iterator[Tuple[str, Any]]:
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
-    yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
-    yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
-    yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
-
-
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
-    assert any(field.name == (api_key := "api_key") for field in fields(ChatCompletionInput))
+    assert (api_key := "api_key") in (input_data := jsonify(input))
+    input_data = {k: v for k, v in input_data.items() if k != api_key}
+    assert api_key not in input_data
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, safe_json_dumps({k: v for k, v in jsonify(input).items() if k != api_key})
+    yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
@@ -358,16 +584,29 @@ def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
 
 
 def _llm_input_messages(
-    messages: Iterable[Tuple[ChatCompletionMessageRole, str]],
+    messages: Iterable[
+        Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+    ],
 ) -> Iterator[Tuple[str, Any]]:
-    for i, (role, content) in enumerate(messages):
+    for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
+        if tool_calls is not None:
+            for tool_call_index, tool_call in enumerate(tool_calls):
+                yield (
+                    f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                    tool_call["function"]["name"],
+                )
+                if arguments := tool_call["function"]["arguments"]:
+                    yield (
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                        safe_json_dumps(jsonify(arguments)),
+                    )
 
 
 def _llm_output_messages(
     text_chunks: List[TextChunk],
-    tool_call_chunks: DefaultDict[ToolCallIndex, List[ToolCallChunk]],
+    tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]],
 ) -> Iterator[Tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):
@@ -397,22 +636,28 @@ def _datetime(*, epoch_nanoseconds: float) -> datetime:
     Converts a Unix epoch timestamp in nanoseconds to a datetime.
     """
     epoch_seconds = epoch_nanoseconds / 1e9
-    return datetime.fromtimestamp(epoch_seconds)
+    return datetime.fromtimestamp(epoch_seconds).replace(tzinfo=timezone.utc)
 
 
 def _formatted_messages(
-    messages: Iterable[Tuple[ChatCompletionMessageRole, str]], template_options: TemplateOptions
-) -> Iterator[Tuple[ChatCompletionMessageRole, str]]:
+    messages: Iterable[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
+    template_options: TemplateOptions,
+) -> Iterator[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]]:
     """
     Formats the messages using the given template options.
     """
     template_formatter = _template_formatter(template_language=template_options.language)
-    roles, templates = zip(*messages)
+    (
+        roles,
+        templates,
+        tool_call_id,
+        tool_calls,
+    ) = zip(*messages)
     formatted_templates = map(
         lambda template: template_formatter.format(template, **template_options.variables),
         templates,
     )
-    formatted_messages = zip(roles, formatted_templates)
+    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
     return formatted_messages
 
 
