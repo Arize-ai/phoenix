@@ -14,6 +14,8 @@ import {
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
+import { EditSpanAnnotationsDialog } from "../trace/EditSpanAnnotationsDialog";
+
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
@@ -69,26 +71,43 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
           />
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>
-        <Button
-          size="compact"
-          variant="default"
-          icon={<Icon svg={<Icons.Trace />} />}
-          onClick={() => {
-            startTransition(() => {
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Button
+            size="compact"
+            variant="default"
+            icon={<Icon svg={<Icons.EditOutline />} />}
+            onClick={() =>
               setDialog(
-                <Suspense>
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={traceId}
-                    projectId={project.id}
-                    title={`Playground Trace`}
-                  />
-                </Suspense>
-              );
-            });
-          }}
-        >
-          View Trace
-        </Button>
+                <EditSpanAnnotationsDialog
+                  spanNodeId={spanId}
+                  projectId={project.id}
+                />
+              )
+            }
+          >
+            Annotate
+          </Button>
+          <Button
+            size="compact"
+            variant="default"
+            icon={<Icon svg={<Icons.Trace />} />}
+            onClick={() => {
+              startTransition(() => {
+                setDialog(
+                  <Suspense>
+                    <PlaygroundRunTraceDetailsDialog
+                      traceId={traceId}
+                      projectId={project.id}
+                      title={`Playground Trace`}
+                    />
+                  </Suspense>
+                );
+              });
+            }}
+          >
+            View Trace
+          </Button>
+        </Flex>
       </Flex>
       <DialogContainer
         type="slideOver"
