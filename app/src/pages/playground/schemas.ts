@@ -12,7 +12,7 @@ import { ChatMessage } from "@phoenix/store";
 import { isObject, Mutable, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -111,15 +111,16 @@ export const chatMessagesSchema = z.array(chatMessageSchema);
  * Includes all keys besides toolChoice
  */
 const invocationParameterSchema = schemaForType<
-  Mutable<InvocationParameters>
+  Mutable<InvocationParameterInput>
 >()(
   z.object({
-    temperature: z.coerce.number().optional(),
-    topP: z.coerce.number().optional(),
-    maxTokens: z.coerce.number().optional(),
-    stop: z.array(z.string()).optional(),
-    seed: z.coerce.number().optional(),
-    maxCompletionTokens: z.coerce.number().optional(),
+    invocationName: z.string(),
+    valueBool: z.boolean().optional(),
+    valueFloat: z.number().optional(),
+    valueInt: z.number().optional(),
+    valueJson: z.any().optional(),
+    valueString: z.string().optional(),
+    valueStringList: z.array(z.string()).optional(),
   })
 );
 
@@ -259,39 +260,3 @@ export const llmToolSchema = z
   .optional();
 
 export type LlmToolSchema = z.infer<typeof llmToolSchema>;
-
-/**
- * Default set of invocation parameters for all providers and models.
- */
-const baseInvocationParameterSchema = invocationParameterSchema.omit({
-  maxCompletionTokens: true,
-});
-
-/**
- * Invocation parameters for O1 models.
- */
-const o1BaseInvocationParameterSchema = invocationParameterSchema.pick({
-  maxCompletionTokens: true,
-});
-
-/**
- * Provider schemas for all models and optionally for a specific model.
- */
-export const providerSchemas = {
-  OPENAI: {
-    default: baseInvocationParameterSchema,
-    "o1-preview": o1BaseInvocationParameterSchema,
-    "o1-preview-2024-09-12": o1BaseInvocationParameterSchema,
-    "o1-mini": o1BaseInvocationParameterSchema,
-    "o1-mini-2024-09-12": o1BaseInvocationParameterSchema,
-  },
-  AZURE_OPENAI: {
-    default: baseInvocationParameterSchema,
-  },
-  ANTHROPIC: {
-    default: baseInvocationParameterSchema,
-  },
-} satisfies Record<
-  ModelProvider,
-  Record<string, z.ZodType<InvocationParametersSchema>>
->;

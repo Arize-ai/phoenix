@@ -159,7 +159,7 @@ class Query:
     @strawberry.field
     async def model_invocation_parameters(
         self, input: Optional[ModelsInput] = None
-    ) -> List[InvocationParameterType]:
+    ) -> list[InvocationParameterType]:
         provider_key = input.provider_key
         if provider_key is not None:
             return PLAYGROUND_STREAMING_CLIENT_REGISTRY[
