@@ -5,6 +5,7 @@ import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
+import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { openAIToolJSONSchema, openAIToolSchema } from "@phoenix/schemas";
@@ -12,6 +13,12 @@ import { OpenAITool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PlaygroundInstanceProps } from "./types";
+
+/**
+ * The minimum height for the editor before it is initialized.
+ * This is to ensure that the editor is properly initialized when it is rendered outside of the viewport.
+ */
+const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
 export function PlaygroundTool({
   playgroundInstanceId,
@@ -93,11 +100,15 @@ export function PlaygroundTool({
         </Flex>
       }
     >
-      <JSONEditor
-        value={toolDefinition}
-        onChange={onChange}
-        jsonSchema={openAIToolJSONSchema as JSONSchema7}
-      />
+      <LazyEditorWrapper
+        preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
+      >
+        <JSONEditor
+          value={toolDefinition}
+          onChange={onChange}
+          jsonSchema={openAIToolJSONSchema as JSONSchema7}
+        />
+      </LazyEditorWrapper>
     </Card>
   );
 }
