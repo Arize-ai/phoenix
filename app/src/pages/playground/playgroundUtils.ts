@@ -240,6 +240,7 @@ export function transformSpanAttributesToPlaygroundInstance(
             }
           : basePlaygroundInstance.template,
       output,
+      spanId: span.id,
     },
     parsingErrors: [
       ...messageParsingErrors,
