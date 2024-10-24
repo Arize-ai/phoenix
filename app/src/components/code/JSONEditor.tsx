@@ -28,6 +28,7 @@ export type JSONEditorProps = Omit<
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
+  const { jsonSchema, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
     const baseExtensions = [
@@ -35,25 +36,26 @@ export function JSONEditor(props: JSONEditorProps) {
       EditorView.lineWrapping,
       linter(jsonParseLinter()),
     ];
-    if (props.jsonSchema) {
+    if (jsonSchema) {
       baseExtensions.push(
         linter(jsonSchemaLinter(), { needsRefresh: handleRefresh }),
         jsonLanguage.data.of({
           autocomplete: jsonCompletion(),
         }),
         hoverTooltip(jsonSchemaHover()),
-        stateExtensions(props.jsonSchema)
+        stateExtensions(jsonSchema)
       );
     }
     return baseExtensions;
-  }, [props.jsonSchema]);
+  }, [jsonSchema]);
+
   return (
     <CodeMirror
       value={props.value}
       extensions={extensions}
       editable
       theme={codeMirrorTheme}
-      {...props}
+      {...restProps}
     />
   );
 }
