@@ -11,7 +11,7 @@ from typing import (
 import strawberry
 from aioitertools.itertools import islice
 from sqlalchemy import and_, desc, distinct, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
@@ -173,7 +173,7 @@ class Project(Node):
             select(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
+            .options(joinedload(models.Span.trace).load_only(models.Trace.trace_id))
         )
         if time_range:
             stmt = stmt.where(
