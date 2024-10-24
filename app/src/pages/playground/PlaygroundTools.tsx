@@ -49,7 +49,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
         titleExtra={<Counter variant="light">{tools.length}</Counter>}
       >
         <View padding="size-200">
-          <Flex direction="column">
+          <Flex direction="column" gap={"size-100"}>
             <Form>
               <ToolChoicePicker
                 choice={instance.toolChoice}

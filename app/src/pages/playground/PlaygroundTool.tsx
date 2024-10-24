@@ -65,7 +65,6 @@ export function PlaygroundTool({
       backgroundColor={"yellow-100"}
       borderColor={"yellow-700"}
       variant="compact"
-      key={tool.id}
       title={
         <Flex direction="row" gap="size-100">
           <SpanKindIcon spanKind="tool" />
