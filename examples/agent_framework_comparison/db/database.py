@@ -3,7 +3,7 @@ import sqlite3
 
 import numpy as np
 
-DATABASE_NAME = "examples/agent_framework_comparison/db/traces.db"
+DATABASE_NAME = "examples/agent_framework_comparison/db/example_traces.db"
 TABLE_NAME = "traces"
 
 
