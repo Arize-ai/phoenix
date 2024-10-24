@@ -55,7 +55,7 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>0.1.3'
 {% endhint %}
 
-llama-index 0.10 introduced modular sub-packages. To use llama-index's one click,  you must install the small integration first:
+llama-index 0.10 introduced modular sub-packages. To use llama-index's one click, you must install the small integration first:
 
 ```bash
 pip install 'llama-index-callbacks-arize-phoenix>0.1.3'
@@ -102,5 +102,4 @@ llama_index.set_global_handler("arize_phoenix")
 
 By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix Server.
 
-For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
-
+For a fully working example of tracing with LlamaIndex, checkout our colab notebook above.

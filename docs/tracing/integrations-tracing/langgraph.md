@@ -1,10 +1,10 @@
----
-description: How to use the python LangChainInstrumentor to trace LangChain and LangGraph
----
+# LangGraph
 
-# LangChain
+Phoenix has first-class support for [LangGraph](https://www.langchain.com/langgraph) applications.
 
-Phoenix has first-class support for [LangChain](https://langchain.com/) applications.
+{% hint style="info" %}
+LangGraph is supported by our [LangChain instrumentor](langchain.md). If you've already set up instrumentation with LangChain, you don't need to complete the set up below
+{% endhint %}
 
 ## Launch Phoenix
 
@@ -99,7 +99,7 @@ tracer_provider = register(
 )
 ```
 
-For more info on using Phoenix with Docker, see [#docker](langchain.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](langgraph.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -139,7 +139,7 @@ pip install openinference-instrumentation-langchain
 
 ## Setup
 
-Initialize the LangChainInstrumentor before your application code.
+Initialize the LangChainInstrumentor before your application code. Our LangChainInstrumentor works for both standard LangChain applications and for LangGraph agents.
 
 ```python
 from openinference.instrumentation.langchain import LangChainInstrumentor
@@ -147,18 +147,9 @@ from openinference.instrumentation.langchain import LangChainInstrumentor
 LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-## Run LangChain
+## Run LangGraph
 
-By instrumenting LangChain, spans will be created whenever a chain is run and will be sent to the Phoenix server for collection.
-
-```python
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
-prompt = ChatPromptTemplate.from_template("{x} {y} {z}?").partial(x="why is", z="blue")
-chain = prompt | ChatOpenAI(model_name="gpt-3.5-turbo")
-chain.invoke(dict(y="sky"))
-```
+By instrumenting LangGraph, spans will be created whenever an agent is invoked and will be sent to the Phoenix server for collection.
 
 ## Observe
 
@@ -166,6 +157,6 @@ Now that you have tracing setup, all invocations of chains will be streamed to y
 
 ## Resources
 
-* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain\_tracing\_tutorial.ipynb)
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/langgraph\_agent\_tracing\_tutorial.ipynb)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain/examples)
+* [Blog walkthrough](https://arize.com/blog/langgraph/)

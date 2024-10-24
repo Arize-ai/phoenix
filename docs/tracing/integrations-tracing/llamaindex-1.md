@@ -1,10 +1,14 @@
 ---
-description: How to use the python LangChainInstrumentor to trace LangChain and LangGraph
+description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex Workflows
 ---
 
-# LangChain
+# LlamaIndex Workflows
 
-Phoenix has first-class support for [LangChain](https://langchain.com/) applications.
+[LlamaIndex Workflows](https://www.llamaindex.ai/blog/introducing-workflows-beta-a-new-way-to-create-complex-ai-applications-with-llamaindex) are a subset of the LlamaIndex package specifically designed to support agent development.
+
+{% hint style="info" %}
+Our [LlamaIndexInstrumentor](llamaindex.md) automatically captures traces for LlamaIndex Workflows agents. If you've already enabled that instrumentor, you do not need to complete the steps below.
+{% endhint %}
 
 ## Launch Phoenix
 
@@ -99,7 +103,7 @@ tracer_provider = register(
 )
 ```
 
-For more info on using Phoenix with Docker, see [#docker](langchain.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](llamaindex-1.md#docker "mention")
 {% endtab %}
 
 {% tab title="app.phoenix.arize.com" %}
@@ -134,31 +138,22 @@ Your **Phoenix API key** can be found on the Keys section of your [dashboard](ht
 ## Install
 
 ```bash
-pip install openinference-instrumentation-langchain
+pip install openinference-instrumentation-llama_index
 ```
 
 ## Setup
 
-Initialize the LangChainInstrumentor before your application code.
+Initialize the LlamaIndexInstrumentor before your application code. This instrumentor will trace both LlamaIndex Workflows calls, as well as calls to the general LlamaIndex package.
 
 ```python
-from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-## Run LangChain
+## Run LlamaIndex Workflows
 
-By instrumenting LangChain, spans will be created whenever a chain is run and will be sent to the Phoenix server for collection.
-
-```python
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-
-prompt = ChatPromptTemplate.from_template("{x} {y} {z}?").partial(x="why is", z="blue")
-chain = prompt | ChatOpenAI(model_name="gpt-3.5-turbo")
-chain.invoke(dict(y="sky"))
-```
+By instrumenting LlamaIndex, spans will be created whenever an agent is invoked and will be sent to the Phoenix server for collection.
 
 ## Observe
 
@@ -166,6 +161,5 @@ Now that you have tracing setup, all invocations of chains will be streamed to y
 
 ## Resources
 
-* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain\_tracing\_tutorial.ipynb)
+* [Example project](https://github.com/Arize-ai/phoenix/tree/main/examples/llamaindex-workflows-research-agent)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain/examples)
