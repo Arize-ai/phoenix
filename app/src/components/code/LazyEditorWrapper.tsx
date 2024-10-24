@@ -54,7 +54,6 @@ export function LazyEditorWrapper({
     };
   }, []);
 
-  console.log("test--what2");
   useLayoutEffect(() => {
     if (isVisible && !isInitialized) {
       setIsInitialized(true);
