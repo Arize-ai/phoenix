@@ -26,7 +26,7 @@ export function SpanPlaygroundPage() {
   );
 
   return (
-    <Flex direction="column" height="100%">
+    <Flex direction="column" height={"100%"}>
       <SpanPlaygroundBanners span={span} parsingErrors={parsingErrors} />
       <Playground instances={[playgroundInstance]} />
     </Flex>

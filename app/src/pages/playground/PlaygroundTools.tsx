@@ -64,7 +64,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
                 toolNames={toolNames}
               />
             </Form>
-            <Flex direction="column" gap="size-200">
+            <Flex direction={"column"} gap={"size-200"}>
               {tools.map((tool) => {
                 return (
                   <PlaygroundTool
