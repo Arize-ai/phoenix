@@ -96,7 +96,11 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
+type ChatCompletionSubscriptionError {
+  message: String!
+}
+
+union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion | ChatCompletionSubscriptionError
 
 input ClearProjectInput {
   id: GlobalID!

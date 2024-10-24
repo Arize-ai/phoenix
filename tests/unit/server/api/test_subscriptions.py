@@ -1,5 +1,6 @@
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -11,7 +12,12 @@ from openinference.semconv.trace import (
 )
 from vcr import use_cassette
 
-from phoenix.server.api.subscriptions import FinishedChatCompletion, TextChunk, ToolCallChunk
+from phoenix.server.api.subscriptions import (
+    ChatCompletionSubscriptionError,
+    FinishedChatCompletion,
+    TextChunk,
+    ToolCallChunk,
+)
 from phoenix.trace.attributes import flatten
 
 
@@ -74,6 +80,9 @@ class TestChatCompletionSubscription:
             span {
               ...SpanFragment
             }
+          }
+          ... on ChatCompletionSubscriptionError {
+            message
           }
         }
       }
@@ -250,6 +259,126 @@ class TestChatCompletionSubscription:
                 "message": {
                     "role": "assistant",
                     "content": response_text,
+                }
+            }
+        ]
+        assert not attributes
+
+    async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
+        self,
+        gql_client: Any,
+        openai_api_key: str,
+    ) -> None:
+        variables = {
+            "input": {
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "Who won the World Cup in 2018? Answer in one word",
+                    }
+                ],
+                "model": {"name": "gpt-4", "providerKey": "OPENAI"},
+                "invocationParameters": {
+                    "temperature": 0.1,
+                },
+            },
+        }
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionSubscription",
+        ) as subscription:
+            with use_cassette(
+                Path(__file__).parent / "cassettes/test_subscriptions/"
+                "TestChatCompletionSubscription.test_openai_emits_expected_payloads_and_records_expected_span_on_error[sqlite].yaml",
+                decode_compressed_response=True,
+                before_record_request=remove_all_vcr_request_headers,
+                before_record_response=remove_all_vcr_response_headers,
+            ):
+                payloads = [payload async for payload in subscription.stream()]
+
+        # check subscription payloads
+        assert len(payloads) == 2
+        assert (error_payload := payloads[0])["chatCompletion"][
+            "__typename"
+        ] == ChatCompletionSubscriptionError.__name__
+        assert "401" in (status_message := error_payload["chatCompletion"]["message"])
+        assert "api key" in status_message.lower()
+        assert (last_payload := payloads.pop())["chatCompletion"][
+            "__typename"
+        ] == FinishedChatCompletion.__name__
+        subscription_span = last_payload["chatCompletion"]["span"]
+        span_id = subscription_span["id"]
+
+        # query for the span via the node interface to ensure that the span
+        # recorded in the db contains identical information as the span emitted
+        # by the subscription
+        data = await gql_client.execute(
+            query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
+        )
+        span = data["span"]
+        assert span == subscription_span
+
+        # check attributes
+        assert span.pop("id") == span_id
+        assert span.pop("name") == "ChatCompletion"
+        assert span.pop("statusCode") == "ERROR"
+        assert span.pop("statusMessage") == status_message
+        assert span.pop("startTime")
+        assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
+        assert span.pop("parentId") is None
+        assert span.pop("spanKind") == "llm"
+        assert (context := span.pop("context")).pop("spanId")
+        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
+        assert context.pop("traceId")
+        assert not context
+        assert span.pop("metadata") is None
+        assert span.pop("numDocuments") is None
+        assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
+        assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
+        assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
+        assert token_count_prompt == 0
+        assert token_count_completion == 0
+        assert token_count_total == token_count_prompt + token_count_completion
+        assert (input := span.pop("input")).pop("mimeType") == "json"
+        assert (input_value := input.pop("value"))
+        assert not input
+        assert "api_key" not in input_value
+        assert "apiKey" not in input_value
+        assert span.pop("output") is None
+        assert (events := span.pop("events"))
+        assert len(events) == 1
+        assert (event := events[0])
+        assert event.pop("name") == "exception"
+        assert event.pop("message") == status_message
+        assert datetime.fromisoformat(event.pop("timestamp"))
+        assert not event
+        assert isinstance(
+            cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), int
+        )
+        assert isinstance(
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+        )
+        assert isinstance(
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+        )
+        assert cumulative_token_count_total == token_count_total
+        assert cumulative_token_count_prompt == token_count_prompt
+        assert cumulative_token_count_completion == token_count_completion
+        assert span.pop("propagatedStatusCode") == "ERROR"
+        assert not span
+
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"temperature": 0.1})
+        assert attributes.pop(INPUT_VALUE)
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(LLM_INPUT_MESSAGES) == [
+            {
+                "message": {
+                    "role": "user",
+                    "content": "Who won the World Cup in 2018? Answer in one word",
                 }
             }
         ]

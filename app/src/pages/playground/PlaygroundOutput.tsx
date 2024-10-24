@@ -181,6 +181,9 @@ function useChatCompletionSubscription({
                 id
               }
             }
+            ... on ChatCompletionSubscriptionError {
+              message
+            }
           }
         }
       `,
@@ -355,6 +358,20 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
             spanId: chatCompletion.span.id,
           },
         });
+      } else if (
+        chatCompletion.__typename === "ChatCompletionSubscriptionError"
+      ) {
+        markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        updateInstance({
+          instanceId: props.playgroundInstanceId,
+          patch: {
+            isRunning: false,
+          },
+        });
+        notifyError({
+          title: "Chat completion failed",
+          message: chatCompletion.message,
+        });
       }
     },
     onCompleted: () => {
@@ -378,7 +395,7 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
     },
   });
 
-  if (!output && (toolCalls.length === 0 || instance.isRunning)) {
+  if (instance.isRunning) {
     return (
       <Flex direction="row" gap="size-100" alignItems="center">
         <Icon svg={<Icons.LoadingOutline />} />
@@ -386,14 +403,17 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
       </Flex>
     );
   }
-  return (
-    <PlaygroundOutputMessage
-      message={{
-        id: generateMessageId(),
-        content: output,
-        role: "ai",
-        toolCalls: toolCalls,
-      }}
-    />
-  );
+  if (output || toolCalls.length) {
+    return (
+      <PlaygroundOutputMessage
+        message={{
+          id: generateMessageId(),
+          content: output,
+          role: "ai",
+          toolCalls: toolCalls,
+        }}
+      />
+    );
+  }
+  return "";
 }
