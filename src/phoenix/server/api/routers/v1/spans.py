@@ -134,7 +134,7 @@ async def query_spans_handler(
 
         return StreamingResponse(
             content=content(),
-            media_type="application/x-pandas-arrow",
+            media_type="application/octet-stream",
         )
 
 
