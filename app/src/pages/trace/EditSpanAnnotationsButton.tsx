@@ -2,7 +2,7 @@ import React, { ReactNode, useState } from "react";
 
 import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
 
-import { EditSpanAnnotationsDialog } from "./EditSpanAnnotationsDialog";
+import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 
 export function EditSpanAnnotationsButton(props: {
   spanNodeId: string;

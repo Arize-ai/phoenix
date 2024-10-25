@@ -11,10 +11,9 @@ import {
   View,
 } from "@arizeai/components";
 
+import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
-
-import { EditSpanAnnotationsDialog } from "../trace/EditSpanAnnotationsDialog";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
