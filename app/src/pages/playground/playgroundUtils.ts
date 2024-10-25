@@ -197,6 +197,8 @@ export function getModelProviderFromModelName(
  * Attempts to get the llm.model_name, inferred provider, and invocation parameters from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns the model config if it exists or parsing errors if it does not
+ *
+ * NB: Only exported for testing
  */
 export function getModelConfigFromAttributes(parsedAttributes: unknown): {
   modelConfig: ModelConfig | null;

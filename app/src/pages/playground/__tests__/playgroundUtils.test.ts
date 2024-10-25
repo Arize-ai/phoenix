@@ -17,7 +17,6 @@ import {
 import {
   extractVariablesFromInstances,
   getChatRole,
-  getInvocationParametersSchema,
   getModelConfigFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
@@ -46,8 +45,6 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   spanId: null,
   template: {
     __type: "chat",
-    // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
-    // Doing so increments the message id counter
     messages: [],
   },
 };
