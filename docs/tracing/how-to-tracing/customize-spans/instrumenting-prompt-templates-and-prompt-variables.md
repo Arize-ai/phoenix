@@ -55,8 +55,8 @@ We provide a `setPromptTemplate` function which allows you to set a template, ve
 
 All of these are optional. Application of variables to a template will typically happen before the call to an llm and may not be picked up by auto instrumentation. So, this can be helpful to add to ensure you can see the templates and variables while troubleshooting.
 
-<pre class="language-typescript"><code class="lang-typescript"><strong>mport { context } from "@opentelemetry/api"
-</strong>import { setSession } from "@openinference-core"
+<pre class="language-typescript"><code class="lang-typescript"><strong>import { context } from "@opentelemetry/api"
+</strong>import { setPromptTemplate } from "@openinference-core"
 
 context.with(
   setPromptTemplate(
