@@ -8,6 +8,7 @@ import {
 
 import { ChatMessage } from "@phoenix/store";
 import { Mutable, schemaForType } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
@@ -17,10 +18,15 @@ import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscripti
  */
 const toolCallSchema = z
   .object({
-    function: z
+    tool_call: z
       .object({
-        name: z.string(),
-        arguments: z.string(),
+        id: z.string().optional(),
+        function: z
+          .object({
+            name: z.string(),
+            arguments: z.string(),
+          })
+          .partial(),
       })
       .partial(),
   })
@@ -129,10 +135,8 @@ export type InvocationParametersSchema = z.infer<
 const stringToInvocationParametersSchema = z
   .string()
   .transform((s) => {
-    let json;
-    try {
-      json = JSON.parse(s);
-    } catch (e) {
+    const { json } = safelyParseJSON(s);
+    if (json == null) {
       return {};
     }
     // using the invocationParameterSchema as a base,
@@ -157,7 +161,6 @@ const stringToInvocationParametersSchema = z
     );
   })
   .default("{}");
-
 /**
  * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}

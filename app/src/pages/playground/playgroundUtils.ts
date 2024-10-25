@@ -65,6 +65,37 @@ export function getChatRole(role: string): ChatMessageRole {
 }
 
 /**
+ * Takes tool calls on a message from span attributes and transforms them into tool calls for a message in the playground
+ * @param toolCalls Tool calls from a spans message to tool calls from a chat message in the playground
+ * @returns Tool calls for a message in the playground
+ *
+ * NB: Only exported for testing
+ */
+export function processAttributeToolCalls(
+  toolCalls?: MessageSchema["message"]["tool_calls"]
+): ChatMessage["toolCalls"] {
+  if (toolCalls == null) {
+    return;
+  }
+  return toolCalls
+    .map(({ tool_call }) => {
+      if (tool_call == null) {
+        return null;
+      }
+      return {
+        id: tool_call.id ?? "",
+        function: {
+          name: tool_call.function?.name ?? "",
+          arguments: tool_call.function?.arguments ?? {},
+        },
+      };
+    })
+    .filter((toolCall): toolCall is NonNullable<typeof toolCall> => {
+      return toolCall != null;
+    });
+}
+
+/**
  * Takes a list of messages from span attributes and transforms them into a list of {@link ChatMessage|ChatMessages}
  * @param messages messages from attributes either input or output @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}}
  * returns a list of {@link ChatMessage|ChatMessages}
@@ -77,6 +108,7 @@ function processAttributeMessagesToChatMessage(
       id: generateMessageId(),
       role: getChatRole(message.role),
       content: message.content,
+      toolCalls: processAttributeToolCalls(message.tool_calls),
     };
   });
 }
@@ -85,8 +117,10 @@ function processAttributeMessagesToChatMessage(
  * Attempts to parse the input messages from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns an object containing the parsed {@link ChatMessage|ChatMessages} and any parsing errors
+ *
+ * NB: Only exported for testing
  */
-function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
+export function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
   const inputMessages = llmInputMessageSchema.safeParse(parsedAttributes);
   if (!inputMessages.success) {
     return {
@@ -107,8 +141,10 @@ function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
  * Attempts to get llm.output_messages then output.value from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns an object containing the parsed output and any parsing errors
+ *
+ * NB: Only exported for testing
  */
-function getOutputFromAttributes(parsedAttributes: unknown) {
+export function getOutputFromAttributes(parsedAttributes: unknown) {
   const outputParsingErrors: string[] = [];
   const outputMessages = llmOutputMessageSchema.safeParse(parsedAttributes);
   if (outputMessages.success) {
@@ -161,8 +197,10 @@ export function getModelProviderFromModelName(
  * Attempts to get the llm.model_name, inferred provider, and invocation parameters from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns the model config if it exists or parsing errors if it does not
+ *
+ * NB: Only exported for testing
  */
-function getModelConfigFromAttributes(parsedAttributes: unknown): {
+export function getModelConfigFromAttributes(parsedAttributes: unknown): {
   modelConfig: ModelConfig | null;
   parsingErrors: string[];
 } {
