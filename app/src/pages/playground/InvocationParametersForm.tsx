@@ -108,14 +108,14 @@ const getInvocationParameterValue = (
     case "BooleanInvocationParameter":
       return parameterInput.valueBool;
     default:
-      throw new Error(`Unsupported invocation parameter type: ${type}`);
+      return null;
   }
 };
 
 const makeInvocationParameterInput = (
   field: InvocationParameter,
   value: string | number | string[] | boolean | undefined
-): InvocationParameterInput => {
+): InvocationParameterInput | null => {
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
   }
@@ -148,7 +148,7 @@ const makeInvocationParameterInput = (
         valueBool: value === undefined ? undefined : Boolean(value),
       };
     default:
-      throw new Error(`Unsupported invocation parameter type: ${type}`);
+      return null;
   }
 };
 
@@ -180,7 +180,20 @@ export const InvocationParametersForm = ({
             ... on BoundedFloatInvocationParameter {
               minValue
               maxValue
+              # defaultValueFloat: defaultValue
             }
+            # ... on IntInvocationParameter {
+            #   defaultValueInt: defaultValue
+            # }
+            # ... on StringInvocationParameter {
+            #   defaultValueString: defaultValue
+            # }
+            # ... on StringListInvocationParameter {
+            #   defaultValueStringList: defaultValue
+            # }
+            # ... on BooleanInvocationParameter {
+            #   defaultValueBool: defaultValue
+            # }
           }
         }
       `,
@@ -214,22 +227,26 @@ export const InvocationParametersForm = ({
       );
 
       if (existingParameter) {
-        updateInstanceModelInvocationParameters({
-          instanceId: instance.id,
-          invocationParameters: instance.model.invocationParameters.map((p) =>
-            p.invocationName === field.invocationName
-              ? makeInvocationParameterInput(field, value)
-              : p
-          ),
-        });
+        const input = makeInvocationParameterInput(field, value);
+        if (input) {
+          updateInstanceModelInvocationParameters({
+            instanceId: instance.id,
+            invocationParameters: instance.model.invocationParameters.map(
+              (p) => (p.invocationName === field.invocationName ? input : p)
+            ),
+          });
+        }
       } else {
-        updateInstanceModelInvocationParameters({
-          instanceId: instance.id,
-          invocationParameters: [
-            ...instance.model.invocationParameters,
-            makeInvocationParameterInput(field, value),
-          ],
-        });
+        const input = makeInvocationParameterInput(field, value);
+        if (input) {
+          updateInstanceModelInvocationParameters({
+            instanceId: instance.id,
+            invocationParameters: [
+              ...instance.model.invocationParameters,
+              input,
+            ],
+          });
+        }
       }
     },
     [instance, updateInstanceModelInvocationParameters]
