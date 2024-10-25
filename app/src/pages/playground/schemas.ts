@@ -202,7 +202,7 @@ export const modelConfigWithInvocationParametersSchema = z.object({
 
 /**
  *  The zod schema for llm.tools.{i}.tool.json_schema attribute
- *  This will be a json string parsed into n object
+ *  This will be a json string parsed into an object
  */
 export const toolJSONSchemaSchema = z
   .string()
