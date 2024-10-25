@@ -78,8 +78,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
-        // do we still want to set spanId if we can't parse the attributes?
-        spanId: null,
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",

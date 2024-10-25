@@ -214,7 +214,10 @@ export function transformSpanAttributesToPlaygroundInstance(
   );
   if (parseError) {
     return {
-      playgroundInstance: basePlaygroundInstance,
+      playgroundInstance: {
+        ...basePlaygroundInstance,
+        spanId: span?.id ?? null,
+      },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
   }
