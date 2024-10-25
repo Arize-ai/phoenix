@@ -7,7 +7,15 @@ from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from traceback import format_exc
-from typing import TYPE_CHECKING, Annotated, Any, Optional, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    List,
+    Optional,
+    Union,
+    cast,
+)
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -31,9 +39,15 @@ from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.playground_registry import (
+    PLAYGROUND_CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
+    register_llm_client,
+)
 from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
+    CanonicalParameterName,
     IntInvocationParameter,
     InvocationParameterInput,
     InvocationParameterType,
@@ -139,21 +153,6 @@ class ChatCompletionInput:
     api_key: Optional[str] = strawberry.field(default=None)
 
 
-PLAYGROUND_STREAMING_CLIENT_REGISTRY: dict[
-    GenerativeProviderKey, type["PlaygroundStreamingClient"]
-] = {}
-
-
-def register_llm_client(
-    provider_key: GenerativeProviderKey,
-) -> Callable[[type["PlaygroundStreamingClient"]], type["PlaygroundStreamingClient"]]:
-    def decorator(cls: type["PlaygroundStreamingClient"]) -> type["PlaygroundStreamingClient"]:
-        PLAYGROUND_STREAMING_CLIENT_REGISTRY[provider_key] = cls
-        return cls
-
-    return decorator
-
-
 class PlaygroundStreamingClient(ABC):
     def __init__(
         self,
@@ -202,7 +201,29 @@ class PlaygroundStreamingClient(ABC):
         return invocation_parameters
 
 
-@register_llm_client(GenerativeProviderKey.OPENAI)
+@register_llm_client(
+    provider_key=GenerativeProviderKey.OPENAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "gpt-4o",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-05-13",
+        "chatgpt-4o-latest",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-4-turbo",
+        "gpt-4-turbo-2024-04-09",
+        "gpt-4-turbo-preview",
+        "gpt-4-0125-preview",
+        "gpt-4-1106-preview",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-3.5-turbo-0125",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-1106",
+        "gpt-3.5-turbo-instruct",
+    ],
+)
 class OpenAIStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
@@ -221,6 +242,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         return [
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
                 default_value=0.0,
                 min_value=0.0,
@@ -228,33 +250,13 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             ),
             IntInvocationParameter(
                 invocation_name="max_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
                 default_value=UNSET,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
-                label="Seed",
-                default_value=UNSET,
-            ),
-        ]
-
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
-        return [
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                label="Temperature",
-                default_value=0.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="max_tokens",
-                label="Max Tokens",
-                default_value=UNSET,
-            ),
-            IntInvocationParameter(
-                invocation_name="seed",
+                canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
                 default_value=UNSET,
             ),
@@ -388,7 +390,40 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
 
-@register_llm_client(GenerativeProviderKey.AZURE_OPENAI)
+@register_llm_client(
+    provider_key=GenerativeProviderKey.OPENAI,
+    model_names=[
+        "o1-preview",
+        "o1-preview-2024-09-12",
+        "o1-mini",
+        "o1-mini-2024-09-12",
+    ],
+)
+class OpenAIO1StreamingClient(OpenAIStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+        return [
+            IntInvocationParameter(
+                invocation_name="max_completion_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Completion Tokens",
+                default_value=UNSET,
+            ),
+            IntInvocationParameter(
+                invocation_name="seed",
+                canonical_name=CanonicalParameterName.RANDOM_SEED,
+                label="Seed",
+                default_value=UNSET,
+            ),
+        ]
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.AZURE_OPENAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
+)
 class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     def __init__(
         self,
@@ -408,7 +443,16 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         )
 
 
-@register_llm_client(GenerativeProviderKey.ANTHROPIC)
+@register_llm_client(
+    provider_key=GenerativeProviderKey.ANTHROPIC,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "claude-3-5-sonnet-20240620",
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307",
+    ],
+)
 class AnthropicStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
@@ -426,13 +470,15 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
         return [
             IntInvocationParameter(
-                invocation_name="max_completion_tokens",
-                label="Max Completion Tokens",
+                invocation_name="max_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Tokens",
                 default_value=UNSET,
                 required=True,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
                 default_value=UNSET,
                 min_value=0.0,
@@ -440,6 +486,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             ),
             StringListInvocationParameter(
                 invocation_name="stop_sequence",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
                 label="Stop Sequence",
                 default_value=UNSET,
             ),
@@ -524,13 +571,16 @@ class Subscription:
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         # Determine which LLM client to use based on provider_key
         provider_key = input.model.provider_key
-        if (llm_client_class := PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)) is None:
+        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
+        if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+
         llm_client = llm_client_class(
             model=input.model,
             api_key=input.api_key,
             set_span_attributes=lambda attrs: attributes.update(attrs),
         )
+
         messages = [
             (
                 message.role,
