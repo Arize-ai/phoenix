@@ -1,8 +1,30 @@
+from enum import Enum
 from typing import Any, Mapping, Optional, Union
 
 import strawberry
 from strawberry import UNSET
 from strawberry.scalars import JSON
+
+
+@strawberry.enum
+class CanonicalParameterName(str, Enum):
+    TEMPERATURE = "temperature"
+    MAX_COMPLETION_TOKENS = "max_completion_tokens"
+    STOP_SEQUENCES = "stop_sequences"
+    TOP_P = "top_p"
+    TOP_K = "top_k"
+    RANDOM_SEED = "random_seed"
+
+
+@strawberry.enum
+class InvocationInputField(str, Enum):
+    value_int = "value_int"
+    value_float = "value_float"
+    value_bool = "value_bool"
+    value_string = "value_string"
+    value_json = "value_json"
+    value_string_list = "value_string_list"
+    value_boolean = "value_boolean"
 
 
 @strawberry.input
@@ -13,28 +35,33 @@ class InvocationParameterInput:
     value_bool: Optional[bool] = UNSET
     value_string: Optional[str] = UNSET
     value_json: Optional[JSON] = UNSET
-    value_string_list: Optional[list[str]] = UNSET
+    value_string_list: Optional[[str]] = UNSET
+    value_boolean: Optional[bool] = UNSET
 
 
 @strawberry.interface
 class InvocationParameterBase:
     invocation_name: str
+    canonical_name: Optional[CanonicalParameterName] = UNSET
     label: str
     required: bool = False
 
 
 @strawberry.type
 class IntInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_int
     default_value: Optional[int] = UNSET
 
 
 @strawberry.type
 class FloatInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_float
     default_value: Optional[float] = UNSET
 
 
 @strawberry.type
 class BoundedFloatInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_float
     default_value: Optional[float] = UNSET
     min_value: float
     max_value: float
@@ -42,21 +69,25 @@ class BoundedFloatInvocationParameter(InvocationParameterBase):
 
 @strawberry.type
 class StringInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_string
     default_value: Optional[str] = UNSET
 
 
 @strawberry.type
 class JSONInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_json
     default_value: Optional[JSON] = UNSET
 
 
 @strawberry.type
 class StringListInvocationParameter(InvocationParameterBase):
-    default_value: Optional[list[str]] = UNSET
+    invocation_input_field: InvocationInputField = InvocationInputField.value_string_list
+    default_value: Optional[[str]] = UNSET
 
 
 @strawberry.type
 class BooleanInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_bool
     default_value: Optional[bool] = UNSET
 
 
