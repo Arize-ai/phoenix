@@ -34,7 +34,6 @@ interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
 function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
   const { role, content, toolCalls } = message;
-  console.log("test--", message);
   const styles = useChatMessageStyles(role);
 
   return (

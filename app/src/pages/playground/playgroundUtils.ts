@@ -258,6 +258,8 @@ function processAttributeTools(tools: LlmToolSchema): OpenAITool[] {
  * Attempts to get llm.tools from the span attributes.
  * @param parsedAttributes the JSON parsed span attributes
  * @returns the tools from the span attributes
+ *
+ * NB: Only exported for testing
  */
 export function getToolsFromAttributes(
   parsedAttributes: unknown

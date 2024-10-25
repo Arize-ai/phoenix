@@ -4,7 +4,6 @@ import {
   LLMAttributePostfixes,
   MessageAttributePostfixes,
   SemanticAttributePrefixes,
-  SemanticConventions,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
@@ -203,7 +202,7 @@ export const modelConfigWithInvocationParametersSchema = z.object({
 
 /**
  *  The zod schema for llm.tools.{i}.tool.json_schema attribute
- *  This will be a json string but should be parsed as an object
+ *  This will be a json string parsed into n object
  */
 export const toolJSONSchemaSchema = z
   .string()
@@ -237,8 +236,7 @@ export const toolJSONSchemaSchema = z
  * The zod schema for llm.tools
  * @see {@link  https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
  * Note there are other attributes that can be on llm.tools.{i}.tool, namely description, name, and parameters
- * however, these are encompassed by the json schema in some cases and calls to api's using tools in a non json format
- * is not supported in the playground yet
+ * however, these are encompassed by the json schema in some cases and calls to api's using destructured tools is not supported in the playground yet
  */
 export const llmToolSchema = z
   .object({
