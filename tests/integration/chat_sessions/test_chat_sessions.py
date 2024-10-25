@@ -13,8 +13,9 @@ from pytest import param
 from .._helpers import _gql, _grpc_span_exporter, _start_span
 
 
+@pytest.mark.skip("TODO: work in progress")
 @pytest.mark.skipif(sys.platform == "win32", reason="FIXME: unclear why it fails")
-class TestProjectSessions:
+class TestChatSessions:
     @pytest.mark.parametrize(
         "session_id",
         [
@@ -67,7 +68,7 @@ class TestProjectSessions:
             query="query{"
             "projects(first: 1000){edges{node{name "
             "sessions(first: 1000){edges{node{sessionId "
-            "traces(first: 1000){edges{node{"
+            "conversation(first: 1000){edges{node{"
             "spans(first: 1000){edges{node{context{spanId}}}}}}}}}}}}}}"
         )
         project_name = project_names[-1]

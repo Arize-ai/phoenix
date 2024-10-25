@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
-from strawberry import ID, UNSET
+from sqlalchemy import select
+from strawberry import ID, UNSET, lazy
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -23,18 +24,20 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
+from phoenix.server.api.types.ChatMessage import ChatMessage, to_gql_chat_message
+from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
+from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
 
-from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from .Evaluation import DocumentEvaluation
-from .ExampleRevisionInterface import ExampleRevision
-from .MimeType import MimeType
-from .SpanAnnotation import SpanAnnotation
-
 if TYPE_CHECKING:
+    # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
+    from phoenix.server.api.types.ChatSession import ChatSession
     from phoenix.server.api.types.Project import Project
+    from phoenix.server.api.types.Trace import Trace
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -276,14 +279,53 @@ class Span(Node):
     async def project(
         self,
         info: Info[Context, None],
-    ) -> Annotated[
-        "Project", strawberry.lazy("phoenix.server.api.types.Project")
-    ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
+    ) -> Annotated["Project", lazy(".Project")]:
         from phoenix.server.api.types.Project import to_gql_project
 
         span_id = self.id_attr
         project = await info.context.data_loaders.span_projects.load(span_id)
         return to_gql_project(project)
+
+    @strawberry.field(description="The trace that this span belongs to.")  # type: ignore
+    async def trace(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Trace", lazy(".Trace")]:
+        from phoenix.server.api.types.Trace import Trace
+
+        return Trace(
+            id_attr=self.db_span.trace_rowid,
+            trace_id=self.context.trace_id,
+        )
+
+    @strawberry.field(description="The session that this span belongs to.")  # type: ignore
+    async def session(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Annotated["ChatSession", lazy(".ChatSession")]]:
+        from phoenix.server.api.types.ChatSession import ChatSession
+
+        async with info.context.db() as session:
+            session_id = await session.scalar(
+                select(models.ChatSessionSpan.session_id).filter_by(span_rowid=self.id_attr)
+            )
+        if session_id is None:
+            return None
+        return ChatSession(id_attr=session_id)
+
+    @strawberry.field
+    async def input_message(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[ChatMessage]:
+        return to_gql_chat_message(self.db_span.last_input_message)
+
+    @strawberry.field
+    async def output_message(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[ChatMessage]:
+        return to_gql_chat_message(self.db_span.first_output_message)
 
     @strawberry.field(description="Indicates if the span is contained in any dataset")  # type: ignore
     async def contained_in_dataset(self, info: Info[Context, None]) -> bool:

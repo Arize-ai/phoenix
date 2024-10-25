@@ -25,11 +25,18 @@ from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_tra
 @strawberry.type
 class Trace(Node):
     id_attr: NodeID[int]
-    project_rowid: Private[int]
+    project_rowid: Private[Optional[int]] = None
     trace_id: str
 
     @strawberry.field
-    async def project_id(self) -> GlobalID:
+    async def project_id(self, info: Info) -> GlobalID:
+        if self.project_rowid is None:
+            async with info.context.db() as session:
+                project_id = await session.scalar(
+                    select(models.Trace.project_rowid).filter_by(id=self.id_attr)
+                )
+            assert isinstance(project_id, int)
+            self.project_rowid = project_id
         from phoenix.server.api.types.Project import Project
 
         return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))

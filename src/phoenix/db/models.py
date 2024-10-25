@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, TypedDict
 
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -22,6 +23,7 @@ from sqlalchemy import (
     not_,
     select,
     text,
+    type_coerce,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -38,6 +40,8 @@ from sqlalchemy.sql import expression
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.chat_message import MessageEntry, MessageEntryDict
+from phoenix.trace.attributes import get_attribute_value
 
 
 class AuthMethod(Enum):
@@ -103,6 +107,30 @@ class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
 
+class _MessageEntry(TypeDecorator[MessageEntry]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self,
+        value: Optional[MessageEntry],
+        _: Dialect,
+    ) -> Optional[MessageEntryDict]:
+        if value is None:
+            return None
+        return value.to_dict()
+
+    def process_result_value(
+        self,
+        value: Optional[Dict[str, Any]],
+        _: Dialect,
+    ) -> Optional[MessageEntry]:
+        if value is None:
+            return None
+        return MessageEntry.from_dict(value)
+
+
 class Base(DeclarativeBase):
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
@@ -120,6 +148,7 @@ class Base(DeclarativeBase):
         Dict[str, Any]: JsonDict,
         List[Dict[str, Any]]: JsonList,
         ExperimentRunOutput: JsonDict,
+        MessageEntry: _MessageEntry,
     }
 
 
@@ -160,18 +189,14 @@ class ProjectSession(Base):
     __tablename__ = "project_sessions"
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    session_user: Mapped[Optional[str]]
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
-    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
-    traces: Mapped[List["Trace"]] = relationship(
-        "Trace",
-        back_populates="project_session",
-        uselist=True,
-    )
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
 
 
 class Trace(Base):
@@ -182,11 +207,6 @@ class Trace(Base):
         index=True,
     )
     trace_id: Mapped[str]
-    project_session_id: Mapped[int] = mapped_column(
-        ForeignKey("project_sessions.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
@@ -210,10 +230,6 @@ class Trace(Base):
         back_populates="trace",
         cascade="all, delete-orphan",
         uselist=True,
-    )
-    project_session: Mapped[ProjectSession] = relationship(
-        "ProjectSession",
-        back_populates="traces",
     )
     experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
@@ -274,6 +290,36 @@ class Span(Base):
             return None
         return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
 
+    @hybrid_property
+    def last_input_message(self) -> Optional[MessageEntry]:
+        messages = get_attribute_value(self.attributes, SpanAttributes.LLM_INPUT_MESSAGES)
+        if not messages:
+            return None
+        return MessageEntry.from_dict(messages[-1])
+
+    @last_input_message.inplace.expression
+    @classmethod
+    def _last_input_message_expression(cls) -> Any:
+        return type_coerce(
+            LastArrayElement(cls.attributes[SpanAttributes.LLM_INPUT_MESSAGES.split(".")]),
+            _MessageEntry,
+        )
+
+    @hybrid_property
+    def first_output_message(self) -> Optional[MessageEntry]:
+        messages = get_attribute_value(self.attributes, SpanAttributes.LLM_OUTPUT_MESSAGES)
+        if not messages:
+            return None
+        return MessageEntry.from_dict(messages[0])
+
+    @first_output_message.inplace.expression
+    @classmethod
+    def _first_output_message_expression(cls) -> Any:
+        return type_coerce(
+            cls.attributes[SpanAttributes.LLM_OUTPUT_MESSAGES.split(".")][0],
+            _MessageEntry,
+        )
+
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[List["DatasetExample"]] = relationship(back_populates="span")
@@ -288,6 +334,42 @@ class Span(Base):
             "ix_cumulative_llm_token_count_total",
             text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
         ),
+    )
+
+
+class LastArrayElement(expression.FunctionElement[Any]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = JSON_
+    name = "last_array_element"
+
+
+@compiles(LastArrayElement)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    array = list(element.clauses)[0]
+    return compiler.process(array[-1], **kw)
+
+
+@compiles(LastArrayElement, "sqlite")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    array = list(element.clauses)[0]
+    return compiler.process(array["$[#-1]"], **kw)
+
+
+@compiles(LastArrayElement, "sqlite")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    array = list(element.clauses)[0]
+    return compiler.process(
+        case(
+            (
+                func.json_array_length(array) > 0,
+                func.json_extract(array, "$[#-1]"),
+            )
+        ),
+        **kw,
     )
 
 
@@ -794,3 +876,36 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class ChatSessionSpan(Base):
+    __tablename__ = "chat_session_spans"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_id: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        index=True,
+    )  # stopgap pending trigger implementation
+    session_user: Mapped[Optional[str]] = mapped_column(
+        index=True,
+    )  # stopgap pending trigger implementation
+    timestamp: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )

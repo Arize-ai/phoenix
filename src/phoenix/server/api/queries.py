@@ -43,6 +43,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.types.ChatSession import ChatSession
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -72,7 +73,6 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -428,6 +428,8 @@ class Query:
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
+        if id.type_name == ChatSession.__name__:
+            return ChatSession(id_attr=id.node_id)
         type_name, node_id = from_global_id(id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
@@ -477,14 +479,6 @@ class Query:
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
             return to_gql_span(span)
-        elif type_name == ProjectSession.__name__:
-            async with info.context.db() as session:
-                project_session = await session.scalar(
-                    select(models.ProjectSession).filter_by(id=node_id)
-                )
-            if project_session is None:
-                raise NotFound(f"Unknown project_session: {id}")
-            return to_gql_project_session(project_session)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:

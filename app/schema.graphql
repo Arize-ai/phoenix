@@ -102,6 +102,43 @@ type ChatCompletionSubscriptionError {
 
 union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion | ChatCompletionSubscriptionError
 
+type ChatMessage {
+  role: String
+  content: String
+}
+
+type ChatSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sessionId: String!
+  sessionUser: String
+  timeInterval: TimeInterval!
+  numSpans: Int!
+  firstInputMessage: ChatMessage
+  lastOutputMessage: ChatMessage
+  tokenUsage: TokenUsage!
+  spans: SpanConnection!
+  traces: TraceConnection!
+}
+
+"""A connection to a list of items."""
+type ChatSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ChatSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type ChatSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ChatSession!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -1136,7 +1173,7 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
-  sessions(timeRange: TimeRange, first: Int = 50, after: String): ProjectSessionConnection!
+  sessions(timeRange: TimeRange, first: Int = 100, after: String): ChatSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -1173,31 +1210,6 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
-}
-
-type ProjectSession implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  sessionId: String!
-  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
-}
-
-"""A connection to a list of items."""
-type ProjectSessionConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ProjectSessionEdge!]!
-}
-
-"""An edge in a connection."""
-type ProjectSessionEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ProjectSession!
 }
 
 type PromptResponse {
@@ -1355,6 +1367,14 @@ type Span implements Node {
 
   """The project that this span belongs to."""
   project: Project!
+
+  """The trace that this span belongs to."""
+  trace: Trace!
+
+  """The session that this span belongs to."""
+  session: ChatSession
+  inputMessage: ChatMessage
+  outputMessage: ChatMessage
 
   """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
@@ -1518,6 +1538,14 @@ type TextChunk {
   content: String!
 }
 
+type TimeInterval {
+  start: DateTime!
+  end: DateTime!
+
+  """The duration of the time interval in milliseconds."""
+  durationMs: Int!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1533,6 +1561,12 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type TokenUsage {
+  prompt: Int!
+  completion: Int!
+  total: Int!
 }
 
 type ToolCallChunk {

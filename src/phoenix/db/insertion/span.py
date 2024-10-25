@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from typing import NamedTuple, Optional, cast
 
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,49 +36,6 @@ async def insert_span(
         )
     assert project_rowid is not None
 
-    project_session: Optional[models.ProjectSession] = None
-    session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
-    if session_id is not None and (not isinstance(session_id, str) or session_id.strip()):
-        session_id = str(session_id).strip()
-        assert isinstance(session_id, str)
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(session_id=session_id)
-        )
-        if project_session:
-            project_session_needs_update = False
-            project_session_end_time = None
-            project_session_project_id = None
-            if project_session.end_time < span.end_time:
-                project_session_needs_update = True
-                project_session_end_time = span.end_time
-                project_session_project_id = project_rowid
-            project_session_start_time = None
-            if span.start_time < project_session.start_time:
-                project_session_needs_update = True
-                project_session_start_time = span.start_time
-            if project_session_needs_update:
-                project_session = await session.scalar(
-                    update(models.ProjectSession)
-                    .filter_by(id=project_session.id)
-                    .values(
-                        start_time=project_session_start_time or project_session.start_time,
-                        end_time=project_session_end_time or project_session.end_time,
-                        project_id=project_session_project_id or project_session.project_id,
-                    )
-                    .returning(models.ProjectSession)
-                )
-        else:
-            project_session = await session.scalar(
-                insert(models.ProjectSession)
-                .values(
-                    project_id=project_rowid,
-                    session_id=session_id,
-                    start_time=span.start_time,
-                    end_time=span.end_time,
-                )
-                .returning(models.ProjectSession)
-            )
-
     trace_id = span.context.trace_id
     trace: Optional[models.Trace] = await session.scalar(
         select(models.Trace).filter_by(trace_id=trace_id)
@@ -87,12 +44,10 @@ async def insert_span(
         trace_needs_update = False
         trace_end_time = None
         trace_project_rowid = None
-        trace_project_session_id = None
         if trace.end_time < span.end_time:
             trace_needs_update = True
             trace_end_time = span.end_time
             trace_project_rowid = project_rowid
-            trace_project_session_id = project_session.id if project_session else None
         trace_start_time = None
         if span.start_time < trace.start_time:
             trace_needs_update = True
@@ -105,7 +60,6 @@ async def insert_span(
                     start_time=trace_start_time or trace.start_time,
                     end_time=trace_end_time or trace.end_time,
                     project_rowid=trace_project_rowid or trace.project_rowid,
-                    project_session_id=trace_project_session_id or trace.project_session_id,
                 )
             )
     else:
@@ -116,7 +70,6 @@ async def insert_span(
                 trace_id=span.context.trace_id,
                 start_time=span.start_time,
                 end_time=span.end_time,
-                project_session_id=project_session.id if project_session else None,
             )
             .returning(models.Trace)
         )
@@ -201,4 +154,63 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
+    if (
+        (chat_session_id := get_attribute_value(span.attributes, SpanAttributes.SESSION_ID))
+        is not None  # caveat: check for None because it could be the number 0, which is falsy
+        and (not isinstance(chat_session_id, str) or chat_session_id.strip())
+        and isinstance(
+            span_kind := get_attribute_value(
+                span.attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND
+            ),
+            str,
+        )
+        and span_kind.lower() == OpenInferenceSpanKindValues.LLM.value.lower()
+        and (
+            get_attribute_value(span.attributes, SpanAttributes.LLM_INPUT_MESSAGES)
+            or get_attribute_value(span.attributes, SpanAttributes.LLM_OUTPUT_MESSAGES)
+        )
+    ):
+        session_user = get_attribute_value(span.attributes, SpanAttributes.USER_ID)
+        session_id = str(chat_session_id).strip()
+        project_session = await session.scalar(
+            select(models.ProjectSession).filter_by(session_id=session_id)
+        )
+        if project_session is None:
+            project_session = models.ProjectSession(
+                session_id=session_id,
+                session_user=session_user,
+                project_id=project_rowid,
+                start_time=span.start_time,
+                end_time=span.end_time,
+            )
+            session.add(project_session)
+            await session.flush()
+        else:
+            project_session_needs_update = False
+            if trace.start_time < project_session.start_time:
+                project_session_needs_update = True
+                project_session.start_time = trace.start_time
+            if project_session.end_time < trace.end_time:
+                project_session_needs_update = True
+                project_session.end_time = trace.end_time
+            if project_session.session_user is None and session_user is not None:
+                project_session_needs_update = True
+                project_session.session_user = session_user
+            if project_session.project_id != project_rowid:
+                project_session_needs_update = True
+                project_session.project_id = project_rowid
+            if project_session_needs_update:
+                assert project_session in session.dirty
+                await session.flush()
+        chat_session_span = models.ChatSessionSpan(
+            session_rowid=project_session.id,
+            session_id=session_id,
+            session_user=session_user,
+            timestamp=span.start_time,
+            span_rowid=span_rowid,
+            trace_rowid=trace.id,
+            project_id=project_rowid,
+        )
+        session.add(chat_session_span)
+        await session.flush()
     return SpanInsertionEvent(project_rowid)

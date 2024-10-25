@@ -10,7 +10,7 @@ from typing import (
 
 import strawberry
 from aioitertools.itertools import islice
-from sqlalchemy import and_, desc, distinct, select
+from sqlalchemy import and_, desc, distinct, func, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
@@ -23,6 +23,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.ChatSession import ChatSession
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
     Cursor,
@@ -30,7 +31,6 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
 )
-from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -249,34 +249,46 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = 100,
         after: Optional[CursorString] = UNSET,
-    ) -> Connection[ProjectSession]:
-        table = models.ProjectSession
-        stmt = select(table).filter_by(project_id=self.id_attr)
-        if time_range:
-            if time_range.start:
-                stmt = stmt.where(time_range.start <= table.start_time)
-            if time_range.end:
-                stmt = stmt.where(table.start_time < time_range.end)
+    ) -> Connection[ChatSession]:
+        table = models.ChatSessionSpan
+        cte_stmt = (
+            select(
+                table.id,
+                table.session_id,
+                func.max(table.timestamp).label("max_timestamp"),
+            )
+            .filter_by(project_id=self.id_attr)
+            .group_by(table.session_id)
+            .order_by(desc("max_timestamp"))
+        )
         if after:
             cursor = Cursor.from_string(after)
-            stmt = stmt.where(table.id > cursor.rowid)
+            cte_stmt = cte_stmt.where(table.id < cursor.rowid)
+        cte = cte_stmt.cte()
+        stmt = select(cte)
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= cte.c.max_timestamp)
+            if time_range.end:
+                stmt = stmt.where(cte.c.max_timestamp < time_range.end)
         if first:
             stmt = stmt.limit(
                 first + 1  # over-fetch by one to determine whether there's a next page
             )
-        stmt = stmt.order_by(table.id)
         cursors_and_nodes = []
         async with info.context.db() as session:
-            records = await session.scalars(stmt)
-            async for project_session in islice(records, first):
-                cursor = Cursor(rowid=project_session.id)
-                cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
+            records = await session.stream(stmt)
+            async for record in records:
+                cursor = Cursor(rowid=record.id)
+                cursors_and_nodes.append((cursor, ChatSession(id_attr=record.session_id)))
+                if first and len(cursors_and_nodes) >= first:
+                    break
             has_next_page = True
             try:
-                next(records)
-            except StopIteration:
+                await records.__anext__()
+            except StopAsyncIteration:
                 has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,

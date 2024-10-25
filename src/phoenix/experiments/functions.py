@@ -290,7 +290,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
             resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
@@ -351,7 +351,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=output,
             error=repr(error) if error else None,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
             # Below is a workaround to avoid timeout errors sometimes
@@ -541,7 +541,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
             resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
@@ -593,7 +593,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
-            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
+            trace_id=_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
             # Below is a workaround to avoid timeout errors sometimes
@@ -690,7 +690,7 @@ def _get_tracer(project_name: Optional[str] = None) -> Tuple[Tracer, Resource]:
     return tracer_provider.get_tracer(__name__), resource
 
 
-def _str_trace_id(id_: int) -> str:
+def _trace_id(id_: int) -> str:
     return hexlify(id_.to_bytes(16, "big")).decode()
 
 
