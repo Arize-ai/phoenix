@@ -142,10 +142,8 @@ const playgroundPromptPanelContentCSS = css`
 `;
 
 const playgroundInputOutputPanelContentCSS = css`
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  flex: 1 1 auto;
+  overflow: auto;
 `;
 
 function PlaygroundContent() {
@@ -205,7 +203,7 @@ function PlaygroundContent() {
                 ) : null
               }
             >
-              <View padding="size-200">
+              <View padding="size-200" height={"100%"}>
                 <PlaygroundInput />
               </View>
             </AccordionItem>
