@@ -109,7 +109,7 @@ export interface PlaygroundInstance {
   toolChoice: ToolChoice;
   input: PlaygroundInput;
   model: ModelConfig;
-  output: ChatMessage[] | undefined | string;
+  output?: ChatMessage[] | string;
   spanId: string | null;
   activeRunId: number | null;
   /**

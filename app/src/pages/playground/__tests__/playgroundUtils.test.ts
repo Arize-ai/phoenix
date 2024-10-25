@@ -1,3 +1,4 @@
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
   _resetInstanceId,
@@ -14,8 +15,14 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
 } from "../constants";
 import {
+  extractVariablesFromInstances,
   getChatRole,
+  getInvocationParametersSchema,
+  getModelConfigFromAttributes,
   getModelProviderFromModelName,
+  getOutputFromAttributes,
+  getTemplateMessagesFromAttributes,
+  processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 
@@ -23,6 +30,27 @@ import {
   basePlaygroundSpan,
   spanAttributesWithInputMessages,
 } from "./fixtures";
+
+const baseTestPlaygroundInstance: PlaygroundInstance = {
+  id: 0,
+  activeRunId: null,
+  isRunning: false,
+  model: {
+    provider: "OPENAI",
+    modelName: "gpt-3.5-turbo",
+    invocationParameters: {},
+  },
+  input: { variablesValueCache: {} },
+  tools: [],
+  toolChoice: "auto",
+  spanId: null,
+  template: {
+    __type: "chat",
+    // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
+    // Doing so increments the message id counter
+    messages: [],
+  },
+};
 
 const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
@@ -408,5 +436,261 @@ describe("getModelProviderFromModelName", () => {
     expect(getModelProviderFromModelName("test-my-model")).toEqual(
       DEFAULT_MODEL_PROVIDER
     );
+  });
+});
+
+const testSpanToolCall = {
+  tool_call: {
+    id: "1",
+    function: {
+      name: "functionName",
+      arguments: JSON.stringify({ arg1: "value1" }),
+    },
+  },
+};
+
+const expectedTestToolCall = {
+  id: "1",
+  function: {
+    name: "functionName",
+    arguments: JSON.stringify({ arg1: "value1" }),
+  },
+};
+describe("processAttributeToolCalls", () => {
+  it("should transform tool calls correctly", () => {
+    const toolCalls = [testSpanToolCall];
+    expect(processAttributeToolCalls(toolCalls)).toEqual([
+      expectedTestToolCall,
+    ]);
+  });
+
+  it("should filter out nullish tool calls", () => {
+    const toolCalls = [{}, testSpanToolCall];
+    expect(processAttributeToolCalls(toolCalls)).toEqual([
+      expectedTestToolCall,
+    ]);
+  });
+});
+
+describe("getTemplateMessagesFromAttributes", () => {
+  it("should return parsing errors if input messages are invalid", () => {
+    const parsedAttributes = { llm: { input_messages: "invalid" } };
+    expect(getTemplateMessagesFromAttributes(parsedAttributes)).toEqual({
+      messageParsingErrors: [INPUT_MESSAGES_PARSING_ERROR],
+      messages: null,
+    });
+  });
+
+  it("should return parsed messages as ChatMessages if input messages are valid", () => {
+    const parsedAttributes = {
+      llm: {
+        input_messages: [
+          {
+            message: {
+              role: "human",
+              content: "Hello",
+              tool_calls: [testSpanToolCall],
+            },
+          },
+        ],
+      },
+    };
+    expect(getTemplateMessagesFromAttributes(parsedAttributes)).toEqual({
+      messageParsingErrors: [],
+      messages: [
+        {
+          id: expect.any(Number),
+          role: "user",
+          content: "Hello",
+          toolCalls: [expectedTestToolCall],
+        },
+      ],
+    });
+  });
+});
+
+describe("getOutputFromAttributes", () => {
+  it("should return parsing errors if output messages are invalid", () => {
+    const parsedAttributes = { llm: { output_messages: "invalid" } };
+    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+      output: undefined,
+      outputParsingErrors: [
+        OUTPUT_MESSAGES_PARSING_ERROR,
+        OUTPUT_VALUE_PARSING_ERROR,
+      ],
+    });
+  });
+
+  it("should return parsed output if output messages are valid", () => {
+    const parsedAttributes = {
+      llm: {
+        output_messages: [
+          {
+            message: {
+              role: "ai",
+              content: "This is an AI Answer",
+            },
+          },
+        ],
+      },
+    };
+    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+      output: [
+        {
+          id: expect.any(Number),
+          role: "ai",
+          content: "This is an AI Answer",
+        },
+      ],
+      outputParsingErrors: [],
+    });
+  });
+
+  it("should fallback to output.value if output_messages is not present", () => {
+    const parsedAttributes = {
+      output: {
+        value: "This is an AI Answer",
+      },
+    };
+    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+      output: "This is an AI Answer",
+      outputParsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
+    });
+  });
+});
+
+describe("getModelConfigFromAttributes", () => {
+  it("should return parsing errors if model config is invalid", () => {
+    const parsedAttributes = { llm: { model_name: 123 } };
+    expect(getModelConfigFromAttributes(parsedAttributes)).toEqual({
+      modelConfig: null,
+      parsingErrors: [MODEL_CONFIG_PARSING_ERROR],
+    });
+  });
+
+  it("should return parsed model config if valid with the provider inferred", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: '{"top_p": 0.5, "max_tokens": 100}',
+      },
+    };
+    expect(getModelConfigFromAttributes(parsedAttributes)).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: {
+          topP: 0.5,
+          maxTokens: 100,
+        },
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return invocation parameters parsing errors if they are malformed", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+    };
+    expect(getModelConfigFromAttributes(parsedAttributes)).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: {},
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+    });
+  });
+});
+
+describe("extractVariablesFromInstances", () => {
+  it("should extract variables from chat messages", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {{name}}", role: "user" },
+            { id: 1, content: "How are you, {{name}}?", role: "ai" },
+          ],
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    expect(
+      extractVariablesFromInstances({ instances, templateLanguage })
+    ).toEqual(["name"]);
+  });
+
+  it("should extract variables from text completion prompts", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Hello {{name}}",
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    expect(
+      extractVariablesFromInstances({ instances, templateLanguage })
+    ).toEqual(["name"]);
+  });
+
+  it("should handle multiple instances and variable extraction", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {{name}}", role: "user" },
+            { id: 1, content: "How are you, {{name}}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Your age is {{age}}",
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    expect(
+      extractVariablesFromInstances({ instances, templateLanguage })
+    ).toEqual(["name", "age"]);
+  });
+
+  it("should handle multiple instances and variable extraction with fstring", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {name}", role: "user" },
+            { id: 1, content: "How are you, {{escaped}}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Your age is {age}",
+        },
+      },
+    ];
+    const templateLanguage: TemplateLanguage = "F_STRING";
+    expect(
+      extractVariablesFromInstances({ instances, templateLanguage })
+    ).toEqual(["name", "age"]);
   });
 });
