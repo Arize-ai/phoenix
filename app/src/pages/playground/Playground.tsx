@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -40,6 +41,20 @@ const playgroundWrapCSS = css`
 
 export function Playground(props: InitialPlaygroundState) {
   const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
+  const [, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    setSearchParams(
+      (searchParams) => {
+        // remove lingering selectedSpanNodeId param so as to not poison the trace details slideover
+        // with stale data from previous pages
+        searchParams.delete("selectedSpanNodeId");
+        return searchParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
   return (
     <PlaygroundProvider {...props}>
       <div css={playgroundWrapCSS}>
