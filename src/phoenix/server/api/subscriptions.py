@@ -624,7 +624,7 @@ def _llm_output_messages(
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):
         yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
-    for tool_call_index, tool_call_chunks_ in tool_call_chunks.items():
+    for tool_call_index, (_tool_call_id, tool_call_chunks_) in enumerate(tool_call_chunks.items()):
         if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
             yield (
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
