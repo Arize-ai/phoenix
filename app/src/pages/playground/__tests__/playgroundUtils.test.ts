@@ -375,7 +375,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
       },
-      parsingErrors: [],
+      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
   });
 
@@ -394,6 +394,23 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+    });
+  });
+
+  it("should return invocation parameters parsing errors if they are malformed", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: '"invalid"',
+      },
+    };
+    expect(getModelConfigFromAttributes(parsedAttributes)).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: {},
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
