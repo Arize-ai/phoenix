@@ -48,19 +48,14 @@ async def insert_span(
             select(models.ProjectSession).filter_by(session_id=session_id)
         )
         if project_session:
-            project_session_needs_update = False
             if project_session.end_time < span.end_time:
-                project_session_needs_update = True
                 project_session.end_time = span.end_time
                 project_session.project_id = project_rowid
             if span.start_time < project_session.start_time:
-                project_session_needs_update = True
                 project_session.start_time = span.start_time
             if session_user and project_session.session_user != session_user:
-                project_session_needs_update = True
                 project_session.session_user = session_user
-            if project_session_needs_update:
-                assert project_session in session.dirty
+            if project_session in session.dirty:
                 await session.flush()
         else:
             project_session = models.ProjectSession(
@@ -76,22 +71,17 @@ async def insert_span(
     trace_id = span.context.trace_id
     trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
     if trace:
-        trace_needs_update = False
         if project_session and (
             trace.project_session_id is None
             or (trace.end_time < span.end_time and trace.project_session_id != project_session.id)
         ):
-            trace_needs_update = True
             trace.project_session_id = project_session.id
         if trace.end_time < span.end_time:
-            trace_needs_update = True
             trace.end_time = span.end_time
             trace.project_rowid = project_rowid
         if span.start_time < trace.start_time:
-            trace_needs_update = True
             trace.start_time = span.start_time
-        if trace_needs_update:
-            assert trace in session.dirty
+        if trace in session.dirty:
             await session.flush()
     else:
         trace = models.Trace(
