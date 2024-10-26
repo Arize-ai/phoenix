@@ -108,11 +108,6 @@ export function SessionsTable(props: SessionsTableProps) {
       cell: TextCell,
     },
     {
-      header: "num traces",
-      accessorKey: "numTraces",
-      cell: IntCell,
-    },
-    {
       header: "first input",
       accessorKey: "firstInputValue",
       cell: TextCell,
@@ -150,6 +145,11 @@ export function SessionsTable(props: SessionsTableProps) {
           />
         );
       },
+    },
+    {
+      header: "num traces",
+      accessorKey: "numTraces",
+      cell: IntCell,
     },
   ];
   useEffect(() => {
