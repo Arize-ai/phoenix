@@ -96,15 +96,22 @@ class ProjectSession(Node):
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
         from phoenix.server.api.types.Trace import to_gql_trace
 
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
         stmt = (
             select(models.Trace)
             .filter_by(project_session_id=self.id_attr)
             .order_by(models.Trace.start_time)
+            .limit(first)
         )
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)
             data = [to_gql_trace(trace) async for trace in traces]
-        return connection_from_list(data=data, args=ConnectionArgs())
+        return connection_from_list(data=data, args=args)
 
 
 def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:
