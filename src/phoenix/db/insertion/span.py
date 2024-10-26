@@ -59,7 +59,7 @@ async def insert_span(
             project_session = models.ProjectSession(
                 project_id=project_rowid,
                 session_id=session_id,
-                session_user=session_user,
+                session_user=session_user if session_user else None,
                 start_time=span.start_time,
                 end_time=span.end_time,
             )
