@@ -47,10 +47,10 @@ class ProjectMutationMixin:
             delete_statement = delete_statement.where(models.Trace.start_time < input.end_time)
         async with info.context.db() as session:
             res = await session.stream_scalars(delete_statement)
-            if project_session_ids := set([id_ async for id_ in res]):
+            if project_session_ids := [id_ async for id_ in res]:
                 await session.execute(
                     delete(models.ProjectSession).where(
-                        models.ProjectSession.id.in_(project_session_ids)
+                        models.ProjectSession.id.in_(set(project_session_ids))
                     )
                 )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
