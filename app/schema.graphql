@@ -1179,6 +1179,13 @@ type ProjectSession implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   sessionId: String!
+  sessionUser: String
+  startTime: DateTime!
+  endTime: DateTime!
+  numTraces: Int!
+  firstInputValue: String
+  lastOutputValue: String
+  tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
 }
 
@@ -1535,6 +1542,12 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+type TokenUsage {
+  prompt: Int!
+  completion: Int!
+  total: Int!
+}
+
 type ToolCallChunk {
   id: String!
   function: FunctionCallChunk!
@@ -1544,11 +1557,14 @@ type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   traceId: String!
+  startTime: DateTime!
+  endTime: DateTime!
   projectId: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""
   spanAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  ioValue: TraceIoValue
 }
 
 type TraceAnnotation implements Node {
@@ -1595,6 +1611,11 @@ type TraceEdge {
 
   """The item at the end of the edge"""
   node: Trace!
+}
+
+type TraceIoValue {
+  inputValue: String
+  outputValue: String
 }
 
 type UMAPPoint {

@@ -38,88 +38,71 @@ async def insert_span(
 
     project_session: Optional[models.ProjectSession] = None
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
+    session_user = get_attribute_value(span.attributes, SpanAttributes.USER_ID)
     if session_id is not None and (not isinstance(session_id, str) or session_id.strip()):
         session_id = str(session_id).strip()
         assert isinstance(session_id, str)
+        session_user = str(session_user).strip()
+        assert isinstance(session_user, str)
         project_session = await session.scalar(
             select(models.ProjectSession).filter_by(session_id=session_id)
         )
         if project_session:
             project_session_needs_update = False
-            project_session_end_time = None
-            project_session_project_id = None
             if project_session.end_time < span.end_time:
                 project_session_needs_update = True
-                project_session_end_time = span.end_time
-                project_session_project_id = project_rowid
-            project_session_start_time = None
+                project_session.end_time = span.end_time
+                project_session.project_id = project_rowid
             if span.start_time < project_session.start_time:
                 project_session_needs_update = True
-                project_session_start_time = span.start_time
+                project_session.start_time = span.start_time
+            if session_user and project_session.session_user != session_user:
+                project_session_needs_update = True
+                project_session.session_user = session_user
             if project_session_needs_update:
-                project_session = await session.scalar(
-                    update(models.ProjectSession)
-                    .filter_by(id=project_session.id)
-                    .values(
-                        start_time=project_session_start_time or project_session.start_time,
-                        end_time=project_session_end_time or project_session.end_time,
-                        project_id=project_session_project_id or project_session.project_id,
-                    )
-                    .returning(models.ProjectSession)
-                )
+                assert project_session in session.dirty
+                await session.flush()
         else:
-            project_session = await session.scalar(
-                insert(models.ProjectSession)
-                .values(
-                    project_id=project_rowid,
-                    session_id=session_id,
-                    start_time=span.start_time,
-                    end_time=span.end_time,
-                )
-                .returning(models.ProjectSession)
-            )
-
-    trace_id = span.context.trace_id
-    trace: Optional[models.Trace] = await session.scalar(
-        select(models.Trace).filter_by(trace_id=trace_id)
-    )
-    if trace:
-        trace_needs_update = False
-        trace_end_time = None
-        trace_project_rowid = None
-        trace_project_session_id = None
-        if trace.end_time < span.end_time:
-            trace_needs_update = True
-            trace_end_time = span.end_time
-            trace_project_rowid = project_rowid
-            trace_project_session_id = project_session.id if project_session else None
-        trace_start_time = None
-        if span.start_time < trace.start_time:
-            trace_needs_update = True
-            trace_start_time = span.start_time
-        if trace_needs_update:
-            await session.execute(
-                update(models.Trace)
-                .filter_by(id=trace.id)
-                .values(
-                    start_time=trace_start_time or trace.start_time,
-                    end_time=trace_end_time or trace.end_time,
-                    project_rowid=trace_project_rowid or trace.project_rowid,
-                    project_session_id=trace_project_session_id or trace.project_session_id,
-                )
-            )
-    else:
-        trace = await session.scalar(
-            insert(models.Trace)
-            .values(
-                project_rowid=project_rowid,
-                trace_id=span.context.trace_id,
+            project_session = models.ProjectSession(
+                project_id=project_rowid,
+                session_id=session_id,
+                session_user=session_user,
                 start_time=span.start_time,
                 end_time=span.end_time,
-                project_session_id=project_session.id if project_session else None,
             )
-            .returning(models.Trace)
+            session.add(project_session)
+            await session.flush()
+
+    trace_id = span.context.trace_id
+    trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
+    if trace:
+        trace_needs_update = False
+        if project_session and (
+            trace.project_session_id is None
+            or (trace.end_time < span.end_time and trace.project_session_id != project_session.id)
+        ):
+            trace_needs_update = True
+            trace.project_session_id = project_session.id
+        if trace.end_time < span.end_time:
+            trace_needs_update = True
+            trace.end_time = span.end_time
+            trace.project_rowid = project_rowid
+        if span.start_time < trace.start_time:
+            trace_needs_update = True
+            trace.start_time = span.start_time
+        if trace_needs_update:
+            assert trace in session.dirty
+            await session.flush()
+    else:
+        trace = models.Trace(
+            project_rowid=project_rowid,
+            trace_id=span.context.trace_id,
+            start_time=span.start_time,
+            end_time=span.end_time,
+            project_session_id=project_session.id if project_session else None,
         )
+        session.add(trace)
+        await session.flush()
     assert trace is not None
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(

@@ -23,6 +23,7 @@ def upgrade() -> None:
         "project_sessions",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("session_id", sa.String, unique=True, nullable=False),
+        sa.Column("session_user", sa.String, index=True),
         sa.Column(
             "project_id",
             sa.Integer,
@@ -30,7 +31,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), index=True, nullable=False),
-        sa.Column("end_time", sa.TIMESTAMP(timezone=True), index=True, nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
     )
     with op.batch_alter_table("traces") as batch_op:
         batch_op.add_column(

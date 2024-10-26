@@ -33,7 +33,7 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import Trace, to_gql_trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
@@ -148,14 +148,14 @@ class Project(Node):
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
         stmt = (
-            select(models.Trace.id)
+            select(models.Trace)
             .where(models.Trace.trace_id == str(trace_id))
             .where(models.Trace.project_rowid == self.id_attr)
         )
         async with info.context.db() as session:
-            if (id_attr := await session.scalar(stmt)) is None:
+            if (trace := await session.scalar(stmt)) is None:
                 return None
-        return Trace(id_attr=id_attr, trace_id=trace_id, project_rowid=self.id_attr)
+        return to_gql_trace(trace)
 
     @strawberry.field
     async def spans(
@@ -261,12 +261,12 @@ class Project(Node):
                 stmt = stmt.where(table.start_time < time_range.end)
         if after:
             cursor = Cursor.from_string(after)
-            stmt = stmt.where(table.id > cursor.rowid)
+            stmt = stmt.where(table.id < cursor.rowid)
         if first:
             stmt = stmt.limit(
                 first + 1  # over-fetch by one to determine whether there's a next page
             )
-        stmt = stmt.order_by(table.id)
+        stmt = stmt.order_by(table.id.desc())
         cursors_and_nodes = []
         async with info.context.db() as session:
             records = await session.scalars(stmt)

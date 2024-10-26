@@ -76,7 +76,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_proje
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
@@ -453,17 +453,12 @@ class Query:
                 gradient_end_color=project.gradient_end_color,
             )
         elif type_name == "Trace":
-            trace_stmt = select(
-                models.Trace.id,
-                models.Trace.project_rowid,
-            ).where(models.Trace.id == node_id)
+            trace_stmt = select(models.Trace).filter_by(id=node_id)
             async with info.context.db() as session:
-                trace = (await session.execute(trace_stmt)).first()
+                trace = await session.scalar(trace_stmt)
             if trace is None:
                 raise NotFound(f"Unknown trace: {id}")
-            return Trace(
-                id_attr=trace.id, trace_id=trace.trace_id, project_rowid=trace.project_rowid
-            )
+            return to_gql_trace(trace)
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
@@ -477,14 +472,6 @@ class Query:
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
             return to_gql_span(span)
-        elif type_name == ProjectSession.__name__:
-            async with info.context.db() as session:
-                project_session = await session.scalar(
-                    select(models.ProjectSession).filter_by(id=node_id)
-                )
-            if project_session is None:
-                raise NotFound(f"Unknown project_session: {id}")
-            return to_gql_project_session(project_session)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
@@ -560,6 +547,15 @@ class Query:
                 ):
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_user(user)
+        elif type_name == ProjectSession.__name__:
+            async with info.context.db() as session:
+                if not (
+                    project_session := await session.scalar(
+                        select(models.ProjectSession).filter_by(id=node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown user: {id}")
+            return to_gql_project_session(project_session)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
