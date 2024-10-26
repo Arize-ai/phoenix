@@ -55,8 +55,6 @@ async def insert_span(
                 project_session.start_time = span.start_time
             if session_user and project_session.session_user != session_user:
                 project_session.session_user = session_user
-            if project_session in session.dirty:
-                await session.flush()
         else:
             project_session = models.ProjectSession(
                 project_id=project_rowid,
@@ -66,6 +64,7 @@ async def insert_span(
                 end_time=span.end_time,
             )
             session.add(project_session)
+        if project_session in session.dirty:
             await session.flush()
 
     trace_id = span.context.trace_id
@@ -81,8 +80,6 @@ async def insert_span(
             trace.project_rowid = project_rowid
         if span.start_time < trace.start_time:
             trace.start_time = span.start_time
-        if trace in session.dirty:
-            await session.flush()
     else:
         trace = models.Trace(
             project_rowid=project_rowid,
@@ -92,8 +89,9 @@ async def insert_span(
             project_session_id=project_session.id if project_session else None,
         )
         session.add(trace)
+    if trace in session.dirty:
         await session.flush()
-    assert trace is not None
+
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(
         int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
