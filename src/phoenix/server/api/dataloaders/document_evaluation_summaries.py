@@ -3,9 +3,7 @@ from datetime import datetime
 from typing import (
     Any,
     DefaultDict,
-    List,
     Optional,
-    Tuple,
 )
 
 import numpy as np
@@ -25,20 +23,20 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
-TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
+TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 EvalName: TypeAlias = str
 
-Segment: TypeAlias = Tuple[ProjectRowId, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[ProjectRowId, TimeInterval, FilterCondition]
 Param: TypeAlias = EvalName
 
-Key: TypeAlias = Tuple[ProjectRowId, Optional[TimeRange], FilterCondition, EvalName]
+Key: TypeAlias = tuple[ProjectRowId, Optional[TimeRange], FilterCondition, EvalName]
 Result: TypeAlias = Optional[DocumentEvaluationSummary]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
 
 
-def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     project_rowid, time_range, filter_condition, eval_name = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
@@ -46,8 +44,8 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
     return (project_rowid, interval, filter_condition), eval_name
 
 
-_Section: TypeAlias = Tuple[ProjectRowId, EvalName]
-_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
+_Section: TypeAlias = tuple[ProjectRowId, EvalName]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
 
 
 class DocumentEvaluationSummaryCache(
@@ -67,7 +65,7 @@ class DocumentEvaluationSummaryCache(
             if section[0] == project_rowid:
                 del self._cache[section]
 
-    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (project_rowid, interval, filter_condition), eval_name = _cache_key_fn(key)
         return (project_rowid, eval_name), (interval, filter_condition)
 
@@ -85,11 +83,11 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: List[Result] = [DEFAULT_VALUE] * len(keys)
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        results: list[Result] = [DEFAULT_VALUE] * len(keys)
         arguments: DefaultDict[
             Segment,
-            DefaultDict[Param, List[ResultPosition]],
+            DefaultDict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)

@@ -5,20 +5,19 @@ Fetches the Arize documentation from Gitbook and serializes it into LangChain fo
 import json
 import logging
 import sys
-from typing import List
 
 from langchain.docstore.document import Document as LangChainDocument
 from langchain.document_loaders import GitbookLoader
 
 
-def load_gitbook_docs(docs_url: str) -> List[LangChainDocument]:
+def load_gitbook_docs(docs_url: str) -> list[LangChainDocument]:
     """Loads documents from a Gitbook URL.
 
     Args:
         docs_url (str): URL to Gitbook docs.
 
     Returns:
-        List[LangChainDocument]: List of documents in LangChain format.
+        list[LangChainDocument]: List of documents in LangChain format.
     """
     loader = GitbookLoader(
         docs_url,

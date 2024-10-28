@@ -1,8 +1,9 @@
 import functools
 import inspect
 from abc import ABC
+from collections.abc import Callable
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Optional, Union
+from typing import Any, Awaitable, Optional, Union
 
 from typing_extensions import TypeAlias
 

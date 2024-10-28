@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Mapping, Type
+from typing import Mapping
 
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -15,6 +15,6 @@ class UserRole(Enum):
     MEMBER = "MEMBER"
 
 
-COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], Type[Enum]] = {
+COLUMN_ENUMS: Mapping[InstrumentedAttribute[str], type[Enum]] = {
     models.UserRole.name: UserRole,
 }

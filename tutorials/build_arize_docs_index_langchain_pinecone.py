@@ -12,7 +12,7 @@ import argparse
 import logging
 import sys
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ from langchain.vectorstores import Pinecone
 from tiktoken import Encoding
 
 
-def load_gitbook_docs(docs_url: str) -> List[Document]:
+def load_gitbook_docs(docs_url: str) -> list[Document]:
     """
     Loads documentation from a Gitbook URL.
     """
@@ -48,7 +48,7 @@ def tiktoken_len(text: str, tokenizer: Encoding) -> int:
     return len(tokens)
 
 
-def chunk_docs(documents: List[Document], embedding_model_name: str) -> List[Document]:
+def chunk_docs(documents: list[Document], embedding_model_name: str) -> list[Document]:
     """
     Chunks the documents.
 
@@ -72,7 +72,7 @@ def chunk_docs(documents: List[Document], embedding_model_name: str) -> List[Doc
 
 
 def build_pinecone_index(
-    documents: List[Document], embeddings: Embeddings, index_name: str
+    documents: list[Document], embeddings: Embeddings, index_name: str
 ) -> None:
     """
     Builds a Pinecone index from a list of documents.
@@ -94,15 +94,15 @@ class OpenAIEmbeddingsWrapper(OpenAIEmbeddings):
     Wrapper around OpenAIEmbeddings that stores the query and document embeddings in memory.
     """
 
-    query_text_to_embedding: Dict[str, List[float]] = {}
-    document_text_to_embedding: Dict[str, List[float]] = {}
+    query_text_to_embedding: dict[str, list[float]] = {}
+    document_text_to_embedding: dict[str, list[float]] = {}
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> list[float]:
         embedding = super().embed_query(text)
         self.query_text_to_embedding[text] = embedding
         return embedding
 
-    def embed_documents(self, texts: List[str], chunk_size: Optional[int] = 0) -> List[List[float]]:
+    def embed_documents(self, texts: list[str], chunk_size: Optional[int] = 0) -> list[list[float]]:
         embeddings = super().embed_documents(texts, chunk_size)
         for text, embedding in zip(texts, embeddings):
             self.document_text_to_embedding[text] = embedding
@@ -118,7 +118,7 @@ class OpenAIEmbeddingsWrapper(OpenAIEmbeddings):
 
     @staticmethod
     def _convert_text_to_embedding_map_to_dataframe(
-        text_to_embedding: Dict[str, List[float]],
+        text_to_embedding: dict[str, list[float]],
     ) -> pd.DataFrame:
         texts, embeddings = map(list, zip(*text_to_embedding.items()))
         embedding_arrays = [np.array(embedding) for embedding in embeddings]

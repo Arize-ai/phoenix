@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import DefaultDict, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -89,7 +89,7 @@ class ModelsInput:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(self) -> List[GenerativeProvider]:
+    async def model_providers(self) -> list[GenerativeProvider]:
         return [
             GenerativeProvider(
                 name="OpenAI",
@@ -106,7 +106,7 @@ class Query:
         ]
 
     @strawberry.field
-    async def models(self, input: Optional[ModelsInput] = None) -> List[GenerativeModel]:
+    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
         openai_models = [
             "o1-preview",
             "o1-preview-2024-09-12",
@@ -183,7 +183,7 @@ class Query:
     async def user_roles(
         self,
         info: Info[Context, None],
-    ) -> List[UserRole]:
+    ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
                 select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
@@ -197,7 +197,7 @@ class Query:
         ]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
+    async def user_api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -209,7 +209,7 @@ class Query:
         return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
+    async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -304,8 +304,8 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: List[GlobalID],
-    ) -> List[ExperimentComparison]:
+        experiment_ids: list[GlobalID],
+    ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
@@ -369,7 +369,7 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
+            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, list[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
             async for run in await session.stream_scalars(
@@ -576,9 +576,9 @@ class Query:
     @strawberry.field
     def clusters(
         self,
-        clusters: List[ClusterInput],
-    ) -> List[Cluster]:
-        clustered_events: Dict[str, Set[ID]] = defaultdict(set)
+        clusters: list[ClusterInput],
+    ) -> list[Cluster]:
+        clustered_events: dict[str, set[ID]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
             clustered_events[cluster.id or str(i)].update(cluster.event_ids)
         return to_gql_clusters(
@@ -590,19 +590,19 @@ class Query:
         self,
         info: Info[Context, None],
         event_ids: Annotated[
-            List[ID],
+            list[ID],
             strawberry.argument(
                 description="Event ID of the coordinates",
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[InputCoordinate2D]],
+            Optional[list[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[InputCoordinate3D]],
+            Optional[list[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -625,7 +625,7 @@ class Query:
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> List[Cluster]:
+    ) -> list[Cluster]:
         coordinates_3d = ensure_list(coordinates_3d)
         coordinates_2d = ensure_list(coordinates_2d)
 
@@ -661,13 +661,13 @@ class Query:
         if len(event_ids) == 0:
             return []
 
-        grouped_event_ids: Dict[
+        grouped_event_ids: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[ID],
+            list[ID],
         ] = defaultdict(list)
-        grouped_coordinates: Dict[
+        grouped_coordinates: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[npt.NDArray[np.float64]],
+            list[npt.NDArray[np.float64]],
         ] = defaultdict(list)
 
         for event_id, coordinate in zip(event_ids, coordinates):

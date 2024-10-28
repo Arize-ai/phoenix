@@ -2,7 +2,7 @@ import json
 from itertools import chain, combinations
 from pathlib import Path
 from random import random
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Iterator, Optional
 from uuid import uuid4
 
 import pandas as pd
@@ -41,7 +41,7 @@ def test_span_evaluations_construction() -> None:
     assert "score" in eval_ds.dataframe.columns
 
 
-def power_set(s: List[Tuple[str, Any]]) -> Iterator[Dict[str, Any]]:
+def power_set(s: list[tuple[str, Any]]) -> Iterator[dict[str, Any]]:
     for result in chain.from_iterable(combinations(s, r) for r in range(len(s) + 1)):
         yield dict(result)
 
@@ -54,11 +54,11 @@ BAD_RESULTS = list(power_set(list({"score": "0", "label": 1, "explanation": 2}.i
 @pytest.mark.parametrize("position", [None, "position", "document_position"])
 @pytest.mark.parametrize("result", RESULTS)
 def test_document_evaluations_construction(
-    span_id: Optional[str], position: Optional[str], result: Dict[str, Any]
+    span_id: Optional[str], position: Optional[str], result: dict[str, Any]
 ) -> None:
     eval_name = "my_eval"
     rand1, rand2 = random(), random()
-    data: List[Dict[Any, Any]] = [
+    data: list[dict[Any, Any]] = [
         {**result, **{span_id: "x", position: 0, rand1: rand1, rand2: rand2}}
     ]
     df = pd.DataFrame(data)
@@ -92,7 +92,7 @@ def test_document_evaluations_construction(
 
 
 @pytest.mark.parametrize("result", BAD_RESULTS)
-def test_document_evaluations_bad_results(result: Dict[str, Any]) -> None:
+def test_document_evaluations_bad_results(result: dict[str, Any]) -> None:
     eval_name = "my_eval"
     df = pd.DataFrame([{**result, **{"span_id": "x", "position": 0}}])
     with pytest.raises(ValueError):

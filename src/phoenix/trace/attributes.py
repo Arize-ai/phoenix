@@ -20,15 +20,11 @@ import json
 from typing import (
     Any,
     DefaultDict,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Mapping,
     Optional,
     Sequence,
-    Set,
-    Tuple,
     Union,
     cast,
 )
@@ -51,7 +47,7 @@ JSON_STRING_ATTRIBUTES = (
     TOOL_PARAMETERS,
 )
 
-SEMANTIC_CONVENTIONS: List[str] = sorted(
+SEMANTIC_CONVENTIONS: list[str] = sorted(
     # e.g. "input.value", "llm.token_count.total", etc.
     (
         cast(str, getattr(klass, attr))
@@ -66,11 +62,11 @@ SEMANTIC_CONVENTIONS: List[str] = sorted(
 
 
 def unflatten(
-    key_value_pairs: Iterable[Tuple[str, Any]],
+    key_value_pairs: Iterable[tuple[str, Any]],
     *,
     prefix_exclusions: Sequence[str] = (),
     separator: str = ".",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # `prefix_exclusions` is intended to contain the semantic conventions
     trie = _build_trie(key_value_pairs, separator=separator, prefix_exclusions=prefix_exclusions)
     return dict(_walk(trie, separator=separator))
@@ -83,7 +79,7 @@ def flatten(
     separator: str = ".",
     recurse_on_sequence: bool = False,
     json_string_attributes: Optional[Sequence[str]] = None,
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     """
     Flatten a nested dictionary or a sequence of dictionaries into a list of
     key value pairs. If `recurse_on_sequence` is True, then the function will
@@ -149,7 +145,7 @@ def get_attribute_value(
     return attributes.get(sub_keys[-1])
 
 
-def load_json_strings(key_values: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
+def load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[str, Any]]:
     for key, value in key_values:
         if key.endswith(JSON_STRING_ATTRIBUTES):
             try:
@@ -167,7 +163,7 @@ def _partition_with_prefix_exclusion(
     key: str,
     separator: str = ".",
     prefix_exclusions: Sequence[str] = (),
-) -> Tuple[str, str, str]:
+) -> tuple[str, str, str]:
     """
     Partition `key` by `separator`, but exclude prefixes in `prefix_exclusions`,
     which is usually the list of semantic conventions. `prefix_exclusions` should
@@ -191,8 +187,8 @@ class _Trie(DefaultDict[Union[str, int], "_Trie"]):
     def __init__(self) -> None:
         super().__init__(_Trie)
         self.value: Any = None
-        self.indices: Set[int] = set()
-        self.branches: Set[Union[str, int]] = set()
+        self.indices: set[int] = set()
+        self.branches: set[Union[str, int]] = set()
 
     def set_value(self, value: Any) -> None:
         self.value = value
@@ -215,7 +211,7 @@ class _Trie(DefaultDict[Union[str, int], "_Trie"]):
 
 
 def _build_trie(
-    key_value_pairs: Iterable[Tuple[str, Any]],
+    key_value_pairs: Iterable[tuple[str, Any]],
     *,
     prefix_exclusions: Sequence[str] = (),
     separator: str = ".",
@@ -254,7 +250,7 @@ def _walk(
     *,
     prefix: str = "",
     separator: str = ".",
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     """
     Walk the Trie and yield key value pairs. If the Trie node has a value, then
     yield the prefix and the value. If the Trie node has indices, then yield the
@@ -286,7 +282,7 @@ def _flatten_mapping(
     recurse_on_sequence: bool = False,
     json_string_attributes: Optional[Sequence[str]] = None,
     separator: str = ".",
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     """
     Flatten a nested dictionary into a list of key value pairs. If `recurse_on_sequence`
     is True, then the function will also recursively flatten nested sequences of dictionaries.
@@ -327,7 +323,7 @@ def _flatten_sequence(
     recurse_on_sequence: bool = False,
     json_string_attributes: Optional[Sequence[str]] = None,
     separator: str = ".",
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     """
     Flatten a sequence of dictionaries into a list of key value pairs. If `recurse_on_sequence`
     is True, then the function will also recursively flatten nested sequences of dictionaries.

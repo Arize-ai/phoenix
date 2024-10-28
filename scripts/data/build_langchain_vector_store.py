@@ -9,7 +9,6 @@ import logging
 import shutil
 import sys
 from functools import partial
-from typing import List
 
 from langchain.docstore.document import Document as LangChainDocument
 from langchain.document_loaders import GitbookLoader
@@ -19,14 +18,14 @@ from langchain.vectorstores import Chroma
 from tiktoken import Encoding, encoding_for_model
 
 
-def load_gitbook_docs(docs_url: str) -> List[LangChainDocument]:
+def load_gitbook_docs(docs_url: str) -> list[LangChainDocument]:
     """Loads documents from a Gitbook URL.
 
     Args:
         docs_url (str): URL to Gitbook docs.
 
     Returns:
-        List[LangChainDocument]: List of documents in LangChain format.
+        list[LangChainDocument]: List of documents in LangChain format.
     """
     loader = GitbookLoader(
         docs_url,
@@ -51,11 +50,11 @@ def tiktoken_len(text: str, tokenizer: Encoding) -> int:
 
 
 def chunk_docs(
-    documents: List[LangChainDocument],
+    documents: list[LangChainDocument],
     tokenizer: Encoding,
     chunk_size: int = 400,
     chunk_overlap: int = 20,
-) -> List[LangChainDocument]:
+) -> list[LangChainDocument]:
     """Chunks the documents.
 
     The chunking strategy used in this function is from the following notebook and accompanying
@@ -66,7 +65,7 @@ def chunk_docs(
     - https://www.youtube.com/watch?v=eqOfr4AGLk8
 
     Args:
-        documents (List[LangChainDocument]): A list of input documents.
+        documents (list[LangChainDocument]): A list of input documents.
 
         tokenizer (tiktoken.Encoding): The tokenizer used to count the number of tokens in a text.
 
@@ -75,7 +74,7 @@ def chunk_docs(
         chunk_overlap (int, optional): The chunk overlap in tokens.
 
     Returns:
-        List[LangChainDocument]: The chunked documents.
+        list[LangChainDocument]: The chunked documents.
     """
 
     text_splitter = RecursiveCharacterTextSplitter(

@@ -8,7 +8,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Iterator, List, Type
+from typing import Iterator
 
 import numpy as np
 import pandas as pd
@@ -856,7 +856,7 @@ class TestDataset:
 
 @contextmanager
 def raises_inferences_error(
-    validation_error_type: Type[BaseException],
+    validation_error_type: type[BaseException],
     message: str,
 ) -> Iterator[None]:
     with raises(DatasetError) as exc_info:
@@ -866,7 +866,7 @@ def raises_inferences_error(
     assert str(error) == str(exc_info.value) == message
 
 
-def random_uuids(num_records: int) -> List[str]:
+def random_uuids(num_records: int) -> list[str]:
     return [str(uuid.uuid4()) for _ in range(num_records)]
 
 

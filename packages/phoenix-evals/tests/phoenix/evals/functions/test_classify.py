@@ -1,6 +1,5 @@
 import json
 from contextlib import ExitStack
-from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -418,7 +417,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
 def test_classify_tolerance_to_exceptions(
     openai_api_key: str,
     classification_dataframe: pd.DataFrame,
-    classification_responses: List[str],
+    classification_responses: list[str],
     classification_template: str,
     respx_mock: respx.mock,
     capfd,
@@ -450,7 +449,7 @@ def test_classify_tolerance_to_exceptions(
 def test_classify_exits_on_missing_input(
     openai_api_key: str,
     classification_dataframe: pd.DataFrame,
-    classification_responses: List[str],
+    classification_responses: list[str],
     classification_template: str,
     respx_mock: respx.mock,
 ):
@@ -497,7 +496,7 @@ def test_classify_exits_on_missing_input(
 def test_classify_skips_missing_input_with_when_exit_on_error_false(
     openai_api_key: str,
     classification_dataframe: pd.DataFrame,
-    classification_responses: List[str],
+    classification_responses: list[str],
     classification_template: str,
     respx_mock: respx.mock,
     capfd,

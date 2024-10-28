@@ -9,13 +9,10 @@ from datetime import datetime, timezone
 from typing import (
     Any,
     Generic,
-    List,
     Mapping,
     Optional,
     Protocol,
     Sequence,
-    Tuple,
-    Type,
     TypeVar,
     cast,
 )
@@ -59,12 +56,12 @@ class Postponed(Received[_AnyT]):
 
 
 class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
-    table: Type[_RowT]
+    table: type[_RowT]
     unique_by: Sequence[str]
 
     def __init_subclass__(
         cls,
-        table: Type[_RowT],
+        table: type[_RowT],
         unique_by: Sequence[str],
     ) -> None:
         cls.table = table
@@ -76,7 +73,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         retry_delay_sec: float = DEFAULT_RETRY_DELAY_SEC,
         retry_allowance: int = DEFAULT_RETRY_ALLOWANCE,
     ) -> None:
-        self._queue: List[Received[_PrecursorT]] = []
+        self._queue: list[Received[_PrecursorT]] = []
         self._db = db
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
@@ -93,17 +90,17 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         self,
         session: AsyncSession,
         *parcels: Received[_PrecursorT],
-    ) -> Tuple[
-        List[Received[_InsertableT]],
-        List[Postponed[_PrecursorT]],
-        List[Received[_PrecursorT]],
+    ) -> tuple[
+        list[Received[_InsertableT]],
+        list[Postponed[_PrecursorT]],
+        list[Received[_PrecursorT]],
     ]: ...
 
-    async def insert(self) -> Optional[List[_DmlEventT]]:
+    async def insert(self) -> Optional[list[_DmlEventT]]:
         if not self._queue:
             return None
         self._queue, parcels = [], self._queue
-        events: List[_DmlEventT] = []
+        events: list[_DmlEventT] = []
         async with self._db() as session:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
             if to_insert:
@@ -128,20 +125,20 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         self,
         session: AsyncSession,
         *insertions: _InsertableT,
-    ) -> List[_DmlEventT]: ...
+    ) -> list[_DmlEventT]: ...
 
     async def _insert(
         self,
         session: AsyncSession,
         *parcels: Received[_InsertableT],
-    ) -> Tuple[
-        List[_DmlEventT],
-        List[Postponed[_PrecursorT]],
-        List[Received[_InsertableT]],
+    ) -> tuple[
+        list[_DmlEventT],
+        list[Postponed[_PrecursorT]],
+        list[Received[_InsertableT]],
     ]:
-        to_retry: List[Postponed[_PrecursorT]] = []
-        failures: List[Received[_InsertableT]] = []
-        events: List[_DmlEventT] = []
+        to_retry: list[Postponed[_PrecursorT]] = []
+        failures: list[Received[_InsertableT]] = []
+        events: list[_DmlEventT] = []
         try:
             async with session.begin_nested():
                 events.extend(await self._events(session, *(p.item for p in parcels)))

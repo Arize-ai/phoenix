@@ -4,11 +4,9 @@ from typing import (
     Any,
     AsyncIterator,
     DefaultDict,
-    List,
     Literal,
     Mapping,
     Optional,
-    Tuple,
     cast,
 )
 
@@ -39,15 +37,15 @@ from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
-TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
+TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = Tuple[Kind, TimeInterval, FilterCondition]
-Param: TypeAlias = Tuple[ProjectRowId, Probability]
+Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition]
+Param: TypeAlias = tuple[ProjectRowId, Probability]
 
-Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability]
+Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability]
 Result: TypeAlias = Optional[QuantileValue]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -55,7 +53,7 @@ DEFAULT_VALUE: Result = None
 FloatCol: TypeAlias = SQLColumnExpression[Float[float]]
 
 
-def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     kind, project_rowid, time_range, filter_condition, probability = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
@@ -64,7 +62,7 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind, Probability]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind, Probability]
 
 
 class LatencyMsQuantileCache(
@@ -79,7 +77,7 @@ class LatencyMsQuantileCache(
             sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2 * 16),
         )
 
-    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (kind, interval, filter_condition), (project_rowid, probability) = _cache_key_fn(key)
         return project_rowid, (interval, filter_condition, kind, probability)
 
@@ -97,11 +95,11 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: List[Result] = [DEFAULT_VALUE] * len(keys)
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        results: list[Result] = [DEFAULT_VALUE] * len(keys)
         arguments: DefaultDict[
             Segment,
-            DefaultDict[Param, List[ResultPosition]],
+            DefaultDict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
@@ -120,8 +118,8 @@ async def _get_results(
     dialect: SupportedSQLDialect,
     session: AsyncSession,
     segment: Segment,
-    params: Mapping[Param, List[ResultPosition]],
-) -> AsyncIterator[Tuple[ResultPosition, QuantileValue]]:
+    params: Mapping[Param, list[ResultPosition]],
+) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
     kind, (start_time, end_time), filter_condition = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
@@ -154,9 +152,9 @@ async def _get_results_sqlite(
     session: AsyncSession,
     base_stmt: Select[Any],
     latency_column: FloatCol,
-    params: Mapping[Param, List[ResultPosition]],
-) -> AsyncIterator[Tuple[ResultPosition, QuantileValue]]:
-    projects_per_prob: DefaultDict[Probability, List[ProjectRowId]] = defaultdict(list)
+    params: Mapping[Param, list[ResultPosition]],
+) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
+    projects_per_prob: DefaultDict[Probability, list[ProjectRowId]] = defaultdict(list)
     for project_rowid, probability in params.keys():
         projects_per_prob[probability].append(project_rowid)
     pid = models.Trace.project_rowid
@@ -175,9 +173,9 @@ async def _get_results_postgresql(
     session: AsyncSession,
     base_stmt: Select[Any],
     latency_column: FloatCol,
-    params: Mapping[Param, List[ResultPosition]],
-) -> AsyncIterator[Tuple[ResultPosition, QuantileValue]]:
-    probs_per_project: DefaultDict[ProjectRowId, List[Probability]] = defaultdict(list)
+    params: Mapping[Param, list[ResultPosition]],
+) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
+    probs_per_project: DefaultDict[ProjectRowId, list[Probability]] = defaultdict(list)
     for project_rowid, probability in params.keys():
         probs_per_project[project_rowid].append(probability)
     pp: Values = values(

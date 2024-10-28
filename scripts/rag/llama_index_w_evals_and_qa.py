@@ -8,7 +8,7 @@ import logging
 import os
 import pickle
 import time
-from typing import Dict, List
+from typing import Dict
 
 import cohere
 import numpy as np
@@ -127,11 +127,11 @@ def max_context_size(model: BaseModel) -> int:
     return MODEL_TOKEN_LIMIT.get(model._model_name, 4096)
 
 
-def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> List[int]:
+def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> list[int]:
     return encoder.encode(text)
 
 
-def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: List[int]) -> str:
+def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: list[int]) -> str:
     return encoder.decode(tokens)
 
 
@@ -154,13 +154,13 @@ def truncate_text_by_model(model: BaseModel, text: str, token_buffer: int = 0) -
     return text
 
 
-def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_buffer: int) -> str:
+def concatenate_and_truncate_chunks(chunks: list[str], model: BaseModel, token_buffer: int) -> str:
     """_summary_"""
     """Given a list of `chunks` of text, this function will return the concatenated chunks
     truncated to a token limit given by the `model` and `token_buffer`. See the function
     `truncate_text_by_model` for information on the truncation process.
     Args:
-        chunks (List[str]): A list of pieces of text.
+        chunks (list[str]): A list of pieces of text.
         model (BaseModel): The model to use as reference.
         token_buffer (int): The number of tokens to be left as buffer. For example, if the
         `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
@@ -172,7 +172,7 @@ def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_b
 
 
 # URL and Website download utilities
-def get_urls(base_url: str) -> List[str]:
+def get_urls(base_url: str) -> list[str]:
     if not base_url.endswith("/"):
         base_url = base_url + "/"
     page = requests.get(f"{base_url}sitemap.xml")
@@ -645,7 +645,7 @@ def run_relevance_eval(
         https://github.com/Arize-ai/openinference/.
         model (BaseEvalModel): The model used for evaluation.
         template (Union[PromptTemplate, str], optional): The template used for evaluation.
-        rails (List[str], optional): A list of strings representing the possible output classes of
+        rails (list[str], optional): A list of strings representing the possible output classes of
         the model's predictions.
         query_column_name (str, optional): The name of the query column in the dataframe, which
         should also be a template variable.
@@ -655,7 +655,7 @@ def run_relevance_eval(
         verbose (bool, optional): If True, prints detailed information to stdout such as model
         invocation parameters and retry info. Default False.
     Returns:
-        List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
+        list[list[str]]: A list of relevant and not relevant classifications. The "shape" of the
         list should mirror the "shape" of the retrieved documents column, in the sense that it has
         the same length as the input dataframe and each sub-list has the same length as the
         corresponding list in the retrieved documents column. The values in the sub-lists are either
@@ -707,7 +707,7 @@ def run_relevance_eval(
             system_instruction=system_instruction,
             verbose=verbose,
         ).iloc[:, 0]
-        outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
+        outputs: list[list[str]] = [[] for _ in range(len(dataframe))]
         for index, prediction in zip(indexes, predictions):
             outputs[index].append(prediction)
         return outputs

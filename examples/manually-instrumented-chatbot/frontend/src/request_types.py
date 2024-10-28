@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
@@ -18,7 +18,7 @@ class Message(BaseModel):
 
 
 class MessagesPayload(BaseModel):
-    messages: List[Message] = Field(..., title="Messages")
+    messages: list[Message] = Field(..., title="Messages")
 
 
 class MessagesResponse(BaseModel):
@@ -26,10 +26,10 @@ class MessagesResponse(BaseModel):
 
 
 class ValidationError(BaseModel):
-    loc: List[Union[str, int]] = Field(..., title="Location")
+    loc: list[Union[str, int]] = Field(..., title="Location")
     msg: str = Field(..., title="Message")
     type: str = Field(..., title="Error Type")
 
 
 class HTTPValidationError(BaseModel):
-    detail: Optional[List[ValidationError]] = Field(None, title="Detail")
+    detail: Optional[list[ValidationError]] = Field(None, title="Detail")

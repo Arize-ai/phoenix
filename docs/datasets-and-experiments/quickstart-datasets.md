@@ -93,7 +93,7 @@ Define custom evaluators with code...
 from typing import Any, Dict
 
 
-def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
+def jaccard_similarity(output: str, expected: dict[str, Any]) -> float:
     # https://en.wikipedia.org/wiki/Jaccard_index
     actual_words = set(output.lower().split(" "))
     expected_words = set(expected["answer"].lower().split(" "))
@@ -123,7 +123,7 @@ ACCURACY (accurate / inaccurate):
 
 
 @create_evaluator(kind="llm")  # need the decorator or the kind will default to "code"
-def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> float:
+def accuracy(input: dict[str, Any], output: str, expected: dict[str, Any]) -> float:
     message_content = eval_prompt_template.format(
         question=input["question"], reference_answer=expected["answer"], answer=output
     )

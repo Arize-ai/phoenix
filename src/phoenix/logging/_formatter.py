@@ -1,7 +1,7 @@
 import datetime as dt
 import json
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 LOG_RECORD_BUILTIN_ATTRS = {
     "args",
@@ -34,7 +34,7 @@ class PhoenixJSONFormatter(logging.Formatter):
     def __init__(
         self,
         *,
-        fmt_keys: Optional[Dict[str, str]] = None,
+        fmt_keys: Optional[dict[str, str]] = None,
     ):
         super().__init__()
         self.fmt_keys = fmt_keys if fmt_keys is not None else {}
@@ -43,7 +43,7 @@ class PhoenixJSONFormatter(logging.Formatter):
         message = self._prepare_log_dict(record)
         return json.dumps(message, default=str)
 
-    def _prepare_log_dict(self, record: logging.LogRecord) -> Dict[str, str]:
+    def _prepare_log_dict(self, record: logging.LogRecord) -> dict[str, str]:
         always_fields = {
             "message": record.getMessage(),
             "timestamp": dt.datetime.fromtimestamp(record.created, tz=dt.timezone.utc).isoformat(),

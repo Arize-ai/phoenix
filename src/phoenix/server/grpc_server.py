@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor
@@ -66,7 +67,7 @@ class GrpcServer:
     async def __aenter__(self) -> None:
         if self._disabled:
             return
-        interceptors: List[ServerInterceptor] = []
+        interceptors: list[ServerInterceptor] = []
         if self._token_store:
             interceptors.append(ApiKeyInterceptor(self._token_store))
         if self._enable_prometheus:

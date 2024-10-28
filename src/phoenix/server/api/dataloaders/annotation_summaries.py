@@ -3,10 +3,8 @@ from datetime import datetime
 from typing import (
     Any,
     DefaultDict,
-    List,
     Literal,
     Optional,
-    Tuple,
 )
 
 import pandas as pd
@@ -25,20 +23,20 @@ from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
-TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
+TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 AnnotationName: TypeAlias = str
 
-Segment: TypeAlias = Tuple[Kind, ProjectRowId, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, FilterCondition]
 Param: TypeAlias = AnnotationName
 
-Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, AnnotationName]
+Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, AnnotationName]
 Result: TypeAlias = Optional[AnnotationSummary]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
 
 
-def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     kind, project_rowid, time_range, filter_condition, eval_name = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
@@ -46,8 +44,8 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
     return (kind, project_rowid, interval, filter_condition), eval_name
 
 
-_Section: TypeAlias = Tuple[ProjectRowId, AnnotationName, Kind]
-_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
+_Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition]
 
 
 class AnnotationSummaryCache(
@@ -67,7 +65,7 @@ class AnnotationSummaryCache(
             if section[0] == project_rowid:
                 del self._cache[section]
 
-    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (kind, project_rowid, interval, filter_condition), annotation_name = _cache_key_fn(key)
         return (project_rowid, annotation_name, kind), (interval, filter_condition)
 
@@ -85,11 +83,11 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: List[Result] = [DEFAULT_VALUE] * len(keys)
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        results: list[Result] = [DEFAULT_VALUE] * len(keys)
         arguments: DefaultDict[
             Segment,
-            DefaultDict[Param, List[ResultPosition]],
+            DefaultDict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)

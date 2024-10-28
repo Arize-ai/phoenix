@@ -3,9 +3,7 @@ from datetime import datetime
 from typing import (
     Any,
     ClassVar,
-    List,
     Optional,
-    Type,
 )
 
 import strawberry
@@ -39,7 +37,7 @@ from phoenix.trace.dsl import SpanFilter
 
 @strawberry.type
 class Project(Node):
-    _table: ClassVar[Type[models.Base]] = models.Project
+    _table: ClassVar[type[models.Base]] = models.Project
     id_attr: NodeID[int]
     name: str
     gradient_start_color: str
@@ -250,7 +248,7 @@ class Project(Node):
     async def trace_annotations_names(
         self,
         info: Info[Context, None],
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.TraceAnnotation.name))
             .join(models.Trace)
@@ -266,7 +264,7 @@ class Project(Node):
     async def span_annotation_names(
         self,
         info: Info[Context, None],
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.SpanAnnotation.name))
             .join(models.Span)
@@ -283,7 +281,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         span_id: Optional[ID] = UNSET,
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.DocumentAnnotation.name))
             .join(models.Span)

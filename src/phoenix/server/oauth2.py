@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable
+from typing import Any, Iterable
 
 from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
@@ -24,7 +24,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
 class OAuth2Clients:
     def __init__(self) -> None:
-        self._clients: Dict[str, OAuth2Client] = {}
+        self._clients: dict[str, OAuth2Client] = {}
 
     def add_client(self, config: OAuth2ClientConfig) -> None:
         if (idp_name := config.idp_name) in self._clients:

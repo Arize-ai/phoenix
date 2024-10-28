@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET, Info
@@ -135,7 +135,7 @@ class Model:
     async def exported_files(
         self,
         info: Info[Context, None],
-    ) -> List[ExportedFile]:
+    ) -> list[ExportedFile]:
         loop = asyncio.get_running_loop()
         return [
             ExportedFile(file_name=path.stem)

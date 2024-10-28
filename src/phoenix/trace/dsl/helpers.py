@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime
-from typing import List, Optional, Protocol, Tuple, Union, cast
+from typing import Optional, Protocol, Union, cast
 
 import pandas as pd
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
@@ -31,7 +31,7 @@ class CanQuerySpans(Protocol):
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
+    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]: ...
 
 
 def get_retrieved_documents(
@@ -94,7 +94,7 @@ def get_qa_with_reference(
         .with_index("trace_id")
     )
     df_qa, df_docs = cast(
-        Tuple[pd.DataFrame, pd.DataFrame],
+        tuple[pd.DataFrame, pd.DataFrame],
         obj.query_spans(
             qa_query,
             docs_query,

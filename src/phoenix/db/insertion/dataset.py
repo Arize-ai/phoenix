@@ -6,7 +6,6 @@ from itertools import chain
 from typing import (
     Any,
     Awaitable,
-    Dict,
     FrozenSet,
     Iterable,
     Iterator,
@@ -34,9 +33,9 @@ SpanRowId: TypeAlias = int
 
 @dataclass(frozen=True)
 class ExampleContent:
-    input: Dict[str, Any] = field(default_factory=dict)
-    output: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    input: dict[str, Any] = field(default_factory=dict)
+    output: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 Examples: TypeAlias = Iterable[ExampleContent]

@@ -1,14 +1,11 @@
 import logging
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields
 from typing import (
     Any,
-    Callable,
-    Dict,
-    List,
     Mapping,
     Optional,
-    Tuple,
     Union,
     get_args,
     get_origin,
@@ -90,9 +87,9 @@ class OpenAIModel(BaseModel):
             Defaults to 0.
         presence_penalty (float, optional): Penalizes repeated tokens. Defaults to 0.
         n (int, optional): How many completions to generate for each prompt. Defaults to 1.
-        model_kwargs (Dict[str, Any], optional): Holds any model parameters valid for `create` call
+        model_kwargs (dict[str, Any], optional): Holds any model parameters valid for `create` call
             not explicitly specified. Defaults to an empty dictionary.
-        request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
+        request_timeout (Optional[Union[float, tuple[float, float]]], optional): Timeout for
             requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
             https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
@@ -139,8 +136,8 @@ class OpenAIModel(BaseModel):
     frequency_penalty: float = 0
     presence_penalty: float = 0
     n: int = 1
-    model_kwargs: Dict[str, Any] = field(default_factory=dict)
-    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
+    request_timeout: Optional[Union[float, tuple[float, float]]] = None
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -279,7 +276,7 @@ class OpenAIModel(BaseModel):
 
     def _build_messages(
         self, prompt: str, system_instruction: Optional[str] = None
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         messages = [{"role": "system", "content": prompt}]
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
@@ -373,7 +370,7 @@ class OpenAIModel(BaseModel):
         return _completion(**kwargs)
 
     @property
-    def public_invocation_params(self) -> Dict[str, Any]:
+    def public_invocation_params(self) -> dict[str, Any]:
         return {
             **({"model": self.model}),
             **self._default_params,
@@ -381,13 +378,13 @@ class OpenAIModel(BaseModel):
         }
 
     @property
-    def invocation_params(self) -> Dict[str, Any]:
+    def invocation_params(self) -> dict[str, Any]:
         return {
             **self.public_invocation_params,
         }
 
     @property
-    def _default_params(self) -> Dict[str, Any]:
+    def _default_params(self) -> dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
         params = {
             "frequency_penalty": self.frequency_penalty,

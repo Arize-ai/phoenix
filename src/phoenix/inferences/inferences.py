@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass, fields, replace
 from enum import Enum
 from itertools import groupby
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -154,7 +154,7 @@ class Inferences:
     @deprecated("Inferences.from_open_inference is deprecated and will be removed.")
     def from_open_inference(cls, dataframe: DataFrame) -> "Inferences":
         schema = Schema()
-        column_renaming: Dict[str, str] = {}
+        column_renaming: dict[str, str] = {}
         for group_name, group in groupby(
             sorted(
                 map(_parse_open_inference_column_name, dataframe.columns),
@@ -351,7 +351,7 @@ def _parse_open_inference_column_name(column_name: str) -> _OpenInferenceColumnN
     raise ValueError(f"Invalid format for column name: {column_name}")
 
 
-def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
+def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> tuple[DataFrame, Schema]:
     """
     Parses a dataframe according to a schema, infers feature columns names when
     they are not explicitly provided, and removes excluded column names from
@@ -364,12 +364,12 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     names present in the dataframe but not included in any other schema fields.
     """
 
-    unseen_excluded_column_names: Set[str] = (
+    unseen_excluded_column_names: set[str] = (
         set(schema.excluded_column_names) if schema.excluded_column_names is not None else set()
     )
-    unseen_column_names: Set[str] = set(dataframe.columns.to_list())
-    column_name_to_include: Dict[str, bool] = {}
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue] = {}
+    unseen_column_names: set[str] = set(dataframe.columns.to_list())
+    column_name_to_include: dict[str, bool] = {}
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue] = {}
 
     for schema_field_name in SINGLE_COLUMN_SCHEMA_FIELD_NAMES:
         _check_single_column_schema_field_for_excluded_columns(
@@ -434,10 +434,10 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
 def _check_single_column_schema_field_for_excluded_columns(
     schema: Schema,
     schema_field_name: str,
-    unseen_excluded_column_names: Set[str],
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
+    unseen_excluded_column_names: set[str],
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: dict[str, bool],
+    unseen_column_names: set[str],
 ) -> None:
     """
     Checks single-column schema fields for excluded column names.
@@ -455,18 +455,18 @@ def _check_single_column_schema_field_for_excluded_columns(
 def _check_multi_column_schema_field_for_excluded_columns(
     schema: Schema,
     schema_field_name: str,
-    unseen_excluded_column_names: Set[str],
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
+    unseen_excluded_column_names: set[str],
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: dict[str, bool],
+    unseen_column_names: set[str],
 ) -> None:
     """
     Checks multi-column schema fields for excluded columns names.
     """
-    column_names: Optional[List[str]] = getattr(schema, schema_field_name)
+    column_names: Optional[list[str]] = getattr(schema, schema_field_name)
     if column_names:
-        included_column_names: List[str] = []
-        excluded_column_names: List[str] = []
+        included_column_names: list[str] = []
+        excluded_column_names: list[str] = []
         for column_name in column_names:
             is_included_column = column_name not in unseen_excluded_column_names
             column_name_to_include[column_name] = is_included_column
@@ -482,10 +482,10 @@ def _check_multi_column_schema_field_for_excluded_columns(
 
 def _check_embedding_features_schema_field_for_excluded_columns(
     embedding_features: EmbeddingFeatures,
-    unseen_excluded_column_names: Set[str],
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
+    unseen_excluded_column_names: set[str],
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: dict[str, bool],
+    unseen_column_names: set[str],
 ) -> None:
     """
     Check embedding features for excluded column names.
@@ -527,8 +527,8 @@ def _check_embedding_features_schema_field_for_excluded_columns(
 
 def _check_embedding_column_names_for_excluded_columns(
     embedding_column_name_mapping: EmbeddingColumnNames,
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
+    column_name_to_include: dict[str, bool],
+    unseen_column_names: set[str],
 ) -> None:
     """
     Check embedding column names for excluded column names.
@@ -542,10 +542,10 @@ def _check_embedding_column_names_for_excluded_columns(
 
 def _discover_feature_columns(
     dataframe: DataFrame,
-    unseen_excluded_column_names: Set[str],
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
+    unseen_excluded_column_names: set[str],
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: dict[str, bool],
+    unseen_column_names: set[str],
 ) -> None:
     """
     Adds unseen and un-excluded columns as features, with the exception of "prediction_id"
@@ -559,10 +559,10 @@ def _discover_feature_columns(
         else:
             unseen_excluded_column_names.discard(column_name)
             logger.debug(f"excluded feature: {column_name}")
-    original_column_positions: List[int] = dataframe.columns.get_indexer(
+    original_column_positions: list[int] = dataframe.columns.get_indexer(
         discovered_feature_column_names
     )  # type: ignore
-    feature_column_name_to_position: Dict[str, int] = dict(
+    feature_column_name_to_position: dict[str, int] = dict(
         zip(discovered_feature_column_names, original_column_positions)
     )
     discovered_feature_column_names.sort(key=lambda col: feature_column_name_to_position[col])
@@ -575,16 +575,16 @@ def _discover_feature_columns(
 def _create_and_normalize_dataframe_and_schema(
     dataframe: DataFrame,
     schema: Schema,
-    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
-    column_name_to_include: Dict[str, bool],
-) -> Tuple[DataFrame, Schema]:
+    schema_patch: dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: dict[str, bool],
+) -> tuple[DataFrame, Schema]:
     """
     Creates new dataframe and schema objects to reflect excluded column names
     and discovered features. This also normalizes dataframe columns to ensure a
     standard set of columns (i.e. timestamp and prediction_id) and datatypes for
     those columns.
     """
-    included_column_names: List[str] = []
+    included_column_names: list[str] = []
     for column_name in dataframe.columns:
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
@@ -648,7 +648,7 @@ def _normalize_timestamps(
     dataframe: DataFrame,
     schema: Schema,
     default_timestamp: Timestamp,
-) -> Tuple[DataFrame, Schema]:
+) -> tuple[DataFrame, Schema]:
     """
     Ensures that the dataframe has a timestamp column and the schema has a timestamp field. If the
     input dataframe contains a Unix or datetime timestamp or ISO8601 timestamp strings column, it
@@ -686,7 +686,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         if not isinstance(schemaLike, ArizeSchema):
             raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
 
-        embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
+        embedding_feature_column_names: dict[str, EmbeddingColumnNames] = {}
         if schemaLike.embedding_feature_column_names is not None:
             for (
                 embedding_name,
@@ -734,7 +734,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         )
 
 
-def _add_prediction_id(num_rows: int) -> List[str]:
+def _add_prediction_id(num_rows: int) -> list[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
 
 

@@ -1,5 +1,4 @@
 from typing import (
-    List,
     Optional,
 )
 
@@ -21,7 +20,7 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         example_ids = keys
         async with self._db() as session:
             spans = {

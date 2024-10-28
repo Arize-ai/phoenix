@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import strawberry
 from openinference.semconv.trace import (
@@ -175,7 +175,7 @@ class DatasetMutationMixin:
                 )
             ).all()
 
-            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
@@ -287,7 +287,7 @@ class DatasetMutationMixin:
                 )
             ).all()
 
-            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
@@ -577,7 +577,7 @@ def _to_orm_revision(
     patch: DatasetExamplePatch,
     example_id: int,
     version_id: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Creates a new revision from an existing revision and a patch. The output is a
     dictionary suitable for insertion into the database using the sqlalchemy

@@ -160,7 +160,7 @@ Function arguments `output` and `expected` refer to the attributes of the same n
 llm = OpenAI(temperature=0, model="gpt-4o")
 
 
-async def pairwise(output, input, expected) -> Tuple[Score, Explanation]:
+async def pairwise(output, input, expected) -> tuple[Score, Explanation]:
     ans = await PairwiseComparisonEvaluator(llm=llm).aevaluate(
         query=input["instruction"],
         response=output,

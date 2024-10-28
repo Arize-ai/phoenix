@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
+from typing import Hashable, Mapping, Protocol, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -19,7 +19,7 @@ class DimensionalityReducer(Protocol):
 
 
 class ClustersFinder(Protocol):
-    def find_clusters(self, mat: Matrix) -> List[RawCluster]: ...
+    def find_clusters(self, mat: Matrix) -> list[RawCluster]: ...
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class PointCloud:
         self,
         data: Mapping[_IdType, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[_IdType, Vector], Dict[str, Set[_IdType]]]:
+    ) -> tuple[dict[_IdType, Vector], dict[str, set[_IdType]]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.

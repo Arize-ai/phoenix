@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Literal, Optional
+from typing import Any, AsyncIterator, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field
@@ -28,16 +28,16 @@ router = APIRouter(tags=["spans"])
 
 
 class SpanQuery(V1RoutesBaseModel):
-    select: Optional[Dict[str, Any]] = None
-    filter: Optional[Dict[str, Any]] = None
-    explode: Optional[Dict[str, Any]] = None
-    concat: Optional[Dict[str, Any]] = None
-    rename: Optional[Dict[str, Any]] = None
-    index: Optional[Dict[str, Any]] = None
+    select: Optional[dict[str, Any]] = None
+    filter: Optional[dict[str, Any]] = None
+    explode: Optional[dict[str, Any]] = None
+    concat: Optional[dict[str, Any]] = None
+    rename: Optional[dict[str, Any]] = None
+    index: Optional[dict[str, Any]] = None
 
 
 class QuerySpansRequestBody(V1RoutesBaseModel):
-    queries: List[SpanQuery]
+    queries: list[SpanQuery]
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
@@ -153,7 +153,7 @@ class SpanAnnotation(V1RoutesBaseModel):
     result: Optional[SpanAnnotationResult] = Field(
         default=None, description="The result of the annotation"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
 
@@ -171,15 +171,15 @@ class SpanAnnotation(V1RoutesBaseModel):
         )
 
 
-class AnnotateSpansRequestBody(RequestBody[List[SpanAnnotation]]):
-    data: List[SpanAnnotation]
+class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotation]]):
+    data: list[SpanAnnotation]
 
 
 class InsertedSpanAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted span annotation")
 
 
-class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
+class AnnotateSpansResponseBody(ResponseBody[list[InsertedSpanAnnotation]]):
     pass
 
 

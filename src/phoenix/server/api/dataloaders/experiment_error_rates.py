@@ -1,5 +1,4 @@
 from typing import (
-    List,
     Optional,
 )
 
@@ -24,7 +23,7 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
         resolved_experiment_ids = (
             select(models.Experiment.id)

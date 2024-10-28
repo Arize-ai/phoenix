@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal
+from typing import Literal
 
 import pandas as pd
 from sqlalchemy import func, select
@@ -42,8 +42,8 @@ async def test_token_counts(
         + span_df.loc[:, "completion"].to_list()
         + (span_df.loc[:, "prompt"] + span_df.loc[:, "completion"]).to_list()
     )
-    kinds: List[Literal["prompt", "completion", "total"]] = ["prompt", "completion", "total"]
-    keys: List[Key] = [
+    kinds: list[Literal["prompt", "completion", "total"]] = ["prompt", "completion", "total"]
+    keys: list[Key] = [
         (
             kind,
             id_ + 1,

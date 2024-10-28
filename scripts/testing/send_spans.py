@@ -6,7 +6,7 @@ from queue import SimpleQueue
 from random import choice, randint, random
 from threading import Thread
 from time import sleep
-from typing import Any, Dict, Iterator, Set, Tuple, Type
+from typing import Any, Iterator
 
 import numpy as np
 from faker import Faker
@@ -57,7 +57,7 @@ def _get_tracer() -> Tracer:
 
 
 def _gen_spans(
-    eval_queue: "SimpleQueue[Tuple[SpanContext, SpanKind]]",
+    eval_queue: "SimpleQueue[tuple[SpanContext, SpanKind]]",
     tracer: Tracer,
     recurse_depth: int,
     recurse_width: int,
@@ -108,7 +108,7 @@ def _gen_spans(
 def _gen_attributes(
     span_kind: str,
     num_docs: int = 0,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     yield SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind
     yield SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
     yield (
@@ -157,7 +157,7 @@ def _gen_attributes(
 def _gen_llm(
     n_input_messages: int,
     n_output_messages: int,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     tcc, tcp = randint(0, 1000), randint(0, 1000)
     yield SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, tcc
     yield SpanAttributes.LLM_TOKEN_COUNT_PROMPT, tcp
@@ -173,7 +173,7 @@ def _gen_llm(
 def _gen_messages(
     n: int,
     prefix: str,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     for i in range(n):
         role = choice(["user", "system", "assistant"])
         yield f"{prefix}.{i}.{MessageAttributes.MESSAGE_ROLE}", role
@@ -195,7 +195,7 @@ def _gen_messages(
         )
 
 
-def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
+def _gen_embeddings(n: int = 10) -> Iterator[tuple[str, types.AttributeValue]]:
     prefix = SpanAttributes.EMBEDDING_EMBEDDINGS
     for i in range(n):
         yield (
@@ -211,7 +211,7 @@ def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
 def _gen_documents(
     n: int = 10,
     prefix: str = SpanAttributes.RETRIEVAL_DOCUMENTS,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     for i in range(n):
         yield (
             f"{prefix}.{i}.{DocumentAttributes.DOCUMENT_CONTENT}",
@@ -235,18 +235,18 @@ def _gen_documents(
 
 
 def _gen_evals(
-    queue: "SimpleQueue[Tuple[SpanContext, NumDocs]]",
-    span_eval_name_and_labels: Dict[str, Set[str]],
-    doc_eval_name_and_labels: Dict[str, Set[str]],
+    queue: "SimpleQueue[tuple[SpanContext, NumDocs]]",
+    span_eval_name_and_labels: dict[str, set[str]],
+    doc_eval_name_and_labels: dict[str, set[str]],
 ) -> None:
     # Implementation remains the same
     ...
 
 
 def _send_eval_pyarrow(
-    queue: "SimpleQueue[Tuple[EvalName, Dict[str, Any]]]",
+    queue: "SimpleQueue[tuple[EvalName, dict[str, Any]]]",
     endpoint: str,
-    cls: Type[Evaluations],
+    cls: type[Evaluations],
 ) -> None:
     # Implementation remains the same
     ...

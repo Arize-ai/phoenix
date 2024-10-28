@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal
+from typing import Literal
 
 import pandas as pd
 import pytest
@@ -55,8 +55,8 @@ async def test_evaluation_summaries(
             )
         )
     expected = trace_df.loc[:, "mean_score"].to_list() + span_df.loc[:, "mean_score"].to_list()
-    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
-    keys: List[Key] = [
+    kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    keys: list[Key] = [
         (
             kind,
             id_ + 1,

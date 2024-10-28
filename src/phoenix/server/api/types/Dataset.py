@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncIterable, ClassVar, List, Optional, Tuple, Type, cast
+from typing import AsyncIterable, ClassVar, Optional, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
@@ -27,7 +27,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 @strawberry.type
 class Dataset(Node):
-    _table: ClassVar[Type[models.Base]] = models.Experiment
+    _table: ClassVar[type[models.Base]] = models.Experiment
     id_attr: NodeID[int]
     name: str
     description: Optional[str]
@@ -233,7 +233,7 @@ class Dataset(Node):
             experiments = [
                 to_gql_experiment(experiment, sequence_number)
                 async for experiment, sequence_number in cast(
-                    AsyncIterable[Tuple[models.Experiment, int]],
+                    AsyncIterable[tuple[models.Experiment, int]],
                     await session.stream(query),
                 )
             ]
@@ -242,7 +242,7 @@ class Dataset(Node):
     @strawberry.field
     async def experiment_annotation_summaries(
         self, info: Info[Context, None]
-    ) -> List[ExperimentAnnotationSummary]:
+    ) -> list[ExperimentAnnotationSummary]:
         dataset_id = self.id_attr
         query = (
             select(

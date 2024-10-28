@@ -1,5 +1,3 @@
-from typing import List
-
 from llama_index.core import VectorStoreIndex
 from llama_index.core.embeddings import BaseEmbedding
 from llama_index.core.postprocessor import SimilarityPostprocessor
@@ -8,7 +6,7 @@ from llama_index.core.text_splitter import SentenceSplitter
 
 
 async def get_compressed_context(
-    query: str, docs: List[Document], embed_model: BaseEmbedding
+    query: str, docs: list[Document], embed_model: BaseEmbedding
 ) -> str:
     index = VectorStoreIndex.from_documents(
         docs,

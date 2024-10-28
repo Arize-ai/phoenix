@@ -1,4 +1,4 @@
-from typing import List, Sequence
+from typing import Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -19,7 +19,7 @@ from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotation
 
 @strawberry.type
 class TraceAnnotationMutationPayload:
-    trace_annotations: List[TraceAnnotation]
+    trace_annotations: list[TraceAnnotation]
     query: Query
 
 
@@ -27,7 +27,7 @@ class TraceAnnotationMutationPayload:
 class TraceAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def create_trace_annotations(
-        self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
+        self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
@@ -61,7 +61,7 @@ class TraceAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_trace_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationInput]
+        self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:

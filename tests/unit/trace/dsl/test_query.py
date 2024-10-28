@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -920,7 +920,7 @@ async def test_filter_on_span_annotation(
     db: DbSessionFactory,
     abc_project: Any,
     condition: str,
-    expected: List[str],
+    expected: list[str],
 ) -> None:
     sq = SpanQuery().select("span_id").where(condition)
     async with db() as session:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -49,8 +49,8 @@ async def test_latency_ms_quantiles_p25_p50_p75(
         .sort_index()
         .to_list()
     )
-    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
-    keys: List[Key] = [
+    kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    keys: list[Key] = [
         (
             kind,
             id_ + 1,

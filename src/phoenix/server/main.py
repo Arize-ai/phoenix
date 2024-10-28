@@ -6,7 +6,7 @@ from argparse import SUPPRESS, ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
 from jinja2 import BaseLoader, Environment
@@ -312,8 +312,8 @@ def main() -> None:
 
     authentication_enabled, secret = get_env_auth_settings()
 
-    fixture_spans: List[Span] = []
-    fixture_evals: List[pb.Evaluation] = []
+    fixture_spans: list[Span] = []
+    fixture_evals: list[pb.Evaluation] = []
     if trace_dataset_name is not None:
         fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (

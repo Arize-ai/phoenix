@@ -1,7 +1,7 @@
 from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import total_ordering
-from typing import Iterable, List, Optional, Tuple, Union, cast
+from typing import Iterable, Optional, Union, cast
 
 import pandas as pd
 import strawberry
@@ -39,7 +39,7 @@ def to_gql_datapoints(
     df: pd.DataFrame,
     metric: Metric,
     timestamps: Iterable[datetime],
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     data = []
     for timestamp in timestamps:
         try:
@@ -59,7 +59,7 @@ def to_gql_datapoints(
 class TimeSeries:
     """A collection of data points over time"""
 
-    data: List[TimeSeriesDataPoint]
+    data: list[TimeSeriesDataPoint]
 
 
 def get_timeseries_data(
@@ -67,7 +67,7 @@ def get_timeseries_data(
     metric: Metric,
     time_range: TimeRange,
     granularity: Granularity,
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     return df.pipe(
         timeseries(
             start_time=time_range.start,
@@ -98,7 +98,7 @@ def get_data_quality_timeseries_data(
     time_range: TimeRange,
     granularity: Granularity,
     inferences_role: InferencesRole,
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     metric_instance = metric.value()
     if isinstance(metric_instance, UnaryOperator):
         metric_instance = replace(
@@ -128,7 +128,7 @@ def get_drift_timeseries_data(
     time_range: TimeRange,
     granularity: Granularity,
     reference_data: pd.DataFrame,
-) -> List[TimeSeriesDataPoint]:
+) -> list[TimeSeriesDataPoint]:
     metric_instance = metric.value()
     metric_instance = replace(
         metric_instance,
@@ -163,7 +163,7 @@ def ensure_timeseries_parameters(
     inferences: Inferences,
     time_range: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
-) -> Tuple[TimeRange, Granularity]:
+) -> tuple[TimeRange, Granularity]:
     if not isinstance(time_range, TimeRange):
         start, stop = inferences.time_range
         time_range = TimeRange(start=start, end=stop)

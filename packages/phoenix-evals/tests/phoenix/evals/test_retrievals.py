@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -33,7 +33,7 @@ from phoenix.evals.retrievals import compute_precisions_at_k
     ],
 )
 def test_compute_precisions_at_k(
-    relevance_classifications: List[Optional[bool]], expected_precisions_at_k: List[Optional[float]]
+    relevance_classifications: list[Optional[bool]], expected_precisions_at_k: list[Optional[float]]
 ) -> None:
     precisions_at_k = compute_precisions_at_k(relevance_classifications)
     precisions_at_k_array = np.array(

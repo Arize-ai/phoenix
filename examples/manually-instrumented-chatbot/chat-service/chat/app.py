@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Iterator
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -131,14 +131,14 @@ async def post_feedback(feedback_request: FeedbackRequest) -> None:
         warnings.warn("Could not connect to Phoenix server.")
 
 
-def _llm_span_kind_attributes() -> Iterator[Tuple[str, str]]:
+def _llm_span_kind_attributes() -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference span kind attribute for LLMs.
     """
     yield SpanAttributes.OPENINFERENCE_SPAN_KIND, OpenInferenceSpanKindValues.LLM.value
 
 
-def _llm_model_name_attributes(model_name: str) -> Iterator[Tuple[str, str]]:
+def _llm_model_name_attributes(model_name: str) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference model name attribute.
     """
@@ -146,15 +146,15 @@ def _llm_model_name_attributes(model_name: str) -> Iterator[Tuple[str, str]]:
 
 
 def _llm_invocation_parameters_attributes(
-    invocation_parameters: Dict[str, Any],
-) -> Iterator[Tuple[str, str]]:
+    invocation_parameters: dict[str, Any],
+) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference invocation parameters attribute as a JSON string.
     """
     yield SpanAttributes.LLM_INVOCATION_PARAMETERS, json.dumps(invocation_parameters)
 
 
-def _input_attributes(payload: Any) -> Iterator[Tuple[str, str]]:
+def _input_attributes(payload: Any) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference input value attribute as a JSON string if the
     payload can be serialized as JSON, otherwise as a string.
@@ -168,8 +168,8 @@ def _input_attributes(payload: Any) -> Iterator[Tuple[str, str]]:
 
 
 def _llm_input_messages_attributes(
-    messages: List[Message],
-) -> Iterator[Tuple[str, str]]:
+    messages: list[Message],
+) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference input messages attributes for each message in the list.
     """
@@ -184,7 +184,7 @@ def _llm_input_messages_attributes(
         )
 
 
-def _output_attributes(payload: Any) -> Iterator[Tuple[str, str]]:
+def _output_attributes(payload: Any) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference output value attribute as a JSON string if the
     payload can be serialized as JSON, otherwise as a string.
@@ -197,7 +197,7 @@ def _output_attributes(payload: Any) -> Iterator[Tuple[str, str]]:
         yield SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
 
 
-def _llm_output_message_attributes(message: Message) -> Iterator[Tuple[str, str]]:
+def _llm_output_message_attributes(message: Message) -> Iterator[tuple[str, str]]:
     """
     Yields the OpenInference output message attributes.
     """
@@ -212,8 +212,8 @@ def _llm_output_message_attributes(message: Message) -> Iterator[Tuple[str, str]
 
 
 def _llm_token_usage_attributes(
-    response_data: Dict[str, Any],
-) -> Iterator[Tuple[str, int]]:
+    response_data: dict[str, Any],
+) -> Iterator[tuple[str, int]]:
     """
     Parses and yields token usage attributes from the response data.
     """

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, overload
+from typing import Optional, overload
 from urllib.parse import urlparse
 
 from phoenix.utilities.logging import log_a_list
@@ -273,7 +273,7 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return os.environ.get(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
+def get_env_auth_settings() -> tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
@@ -329,8 +329,8 @@ def get_env_refresh_token_expiry() -> timedelta:
     return timedelta(minutes=minutes)
 
 
-def get_env_csrf_trusted_origins() -> List[str]:
-    origins: List[str] = []
+def get_env_csrf_trusted_origins() -> list[str]:
+    origins: list[str] = []
     if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
     for origin in csrf_trusted_origins.split(","):
@@ -428,7 +428,7 @@ class OAuth2ClientConfig:
         )
 
 
-def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
+def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
     Get OAuth2 settings from environment variables.
     """
@@ -494,7 +494,7 @@ def ensure_working_dir() -> None:
 ensure_working_dir()
 
 
-def get_exported_files(directory: Path) -> List[Path]:
+def get_exported_files(directory: Path) -> list[Path]:
     """
     Yields the list of paths of exported files.
 
@@ -505,7 +505,7 @@ def get_exported_files(directory: Path) -> List[Path]:
 
     Returns
     -------
-    list: List[Path]
+    list: list[Path]
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
@@ -584,7 +584,7 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
-def get_env_client_headers() -> Optional[Dict[str, str]]:
+def get_env_client_headers() -> Optional[dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None

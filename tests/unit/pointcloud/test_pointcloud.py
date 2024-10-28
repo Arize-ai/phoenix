@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from itertools import chain, cycle
-from typing import Dict, List, Set
 
 import numpy as np
 import numpy.typing as npt
@@ -20,10 +19,10 @@ class MockDimensionalityReducer:
 
 @dataclass
 class MockClustersFinder:
-    cluster_assignments: Dict[int, int]
+    cluster_assignments: dict[int, int]
 
-    def find_clusters(self, arr: npt.NDArray[np.float64]) -> List[Set[int]]:
-        ans: List[Set[int]] = [set() for _ in range(len(set(self.cluster_assignments.values())))]
+    def find_clusters(self, arr: npt.NDArray[np.float64]) -> list[set[int]]:
+        ans: list[set[int]] = [set() for _ in range(len(set(self.cluster_assignments.values())))]
         for i in range(arr.shape[0]):
             ans[self.cluster_assignments[i]].add(i)
         return ans

@@ -1,7 +1,7 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from phoenix.evals.models.base import BaseModel
 
@@ -35,7 +35,7 @@ class LiteLLMModel(BaseModel):
             OpenAIError, or ServiceUnavailableError occurs. Defaults to 0.
         request_timeout (int, optional): Maximum number of seconds to wait when retrying.
             Defaults to 60.
-        model_kwargs (Dict[str, Any], optional): Model specific params. Defaults to an empty dict.
+        model_kwargs (dict[str, Any], optional): Model specific params. Defaults to an empty dict.
 
     Example:
         .. code-block:: python
@@ -53,7 +53,7 @@ class LiteLLMModel(BaseModel):
     top_p: float = 1
     num_retries: int = 0
     request_timeout: int = 60
-    model_kwargs: Dict[str, Any] = field(default_factory=dict)
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
 
     # Deprecated fields
     model_name: Optional[str] = None
@@ -103,10 +103,10 @@ class LiteLLMModel(BaseModel):
                 package_name="litellm",
             )
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
             model=self.model,
@@ -120,7 +120,7 @@ class LiteLLMModel(BaseModel):
         )
         return str(response.choices[0].message.content)
 
-    def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
+    def _get_messages_from_prompt(self, prompt: str) -> list[dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
         # messages=[{"content": "ABC?","role": "user"}]
         return [{"content": prompt, "role": "user"}]

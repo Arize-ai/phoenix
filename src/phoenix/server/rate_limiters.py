@@ -1,13 +1,12 @@
 import re
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from functools import partial
 from typing import (
     Any,
-    Callable,
     Coroutine,
     DefaultDict,
-    List,
     Optional,
     Pattern,  # import from re module when we drop support for 3.8
     Union,
@@ -98,7 +97,7 @@ class ServerRateLimiter:
         self._last_cleanup_time = time.time()
 
     def _reset_rate_limiters(self) -> None:
-        self.cache_partitions: List[DefaultDict[Any, TokenBucket]] = [
+        self.cache_partitions: list[DefaultDict[Any, TokenBucket]] = [
             defaultdict(self.bucket_factory) for _ in range(self.num_partitions)
         ]
 
@@ -107,10 +106,10 @@ class ServerRateLimiter:
             int(timestamp // self.partition_seconds) % self.num_partitions
         )  # a cyclic bucket index
 
-    def _active_partition_indices(self, current_index: int) -> List[int]:
+    def _active_partition_indices(self, current_index: int) -> list[int]:
         return [(current_index - ii) % self.num_partitions for ii in range(self.active_partitions)]
 
-    def _inactive_partition_indices(self, current_index: int) -> List[int]:
+    def _inactive_partition_indices(self, current_index: int) -> list[int]:
         active_indices = set(self._active_partition_indices(current_index))
         all_indices = set(range(self.num_partitions))
         return list(all_indices - active_indices)
@@ -156,7 +155,7 @@ class ServerRateLimiter:
 
 
 def fastapi_ip_rate_limiter(
-    rate_limiter: ServerRateLimiter, paths: Optional[List[Union[str, Pattern[str]]]] = None
+    rate_limiter: ServerRateLimiter, paths: Optional[list[Union[str, Pattern[str]]]] = None
 ) -> Callable[[Request], Coroutine[Any, Any, Request]]:
     async def dependency(request: Request) -> Request:
         if paths is None or any(path_match(request.url.path, path) for path in paths):

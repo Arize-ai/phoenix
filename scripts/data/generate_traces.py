@@ -9,7 +9,7 @@ from queue import SimpleQueue
 from random import choice, randint, random
 from threading import Thread
 from time import sleep
-from typing import Any, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple, Type
+from typing import Any, DefaultDict, Iterator, Optional
 from urllib.parse import urljoin
 
 import numpy as np
@@ -71,7 +71,7 @@ NumDocs: TypeAlias = int
 END_OF_QUEUE = None
 
 
-def _get_tracers(project_names: List[str]) -> Iterator[trace_api.Tracer]:
+def _get_tracers(project_names: list[str]) -> Iterator[trace_api.Tracer]:
     for project_name in cycle(project_names):
         tracer_provider = trace_sdk.TracerProvider(
             resource=Resource({ResourceAttributes.PROJECT_NAME: project_name}),
@@ -90,7 +90,7 @@ def _get_tracers(project_names: List[str]) -> Iterator[trace_api.Tracer]:
 
 
 def _gen_spans(
-    eval_queue: "SimpleQueue[Tuple[trace_api.SpanContext, SpanKind]]",
+    eval_queue: "SimpleQueue[tuple[trace_api.SpanContext, SpanKind]]",
     tracer: trace_api.Tracer,
     recurse_depth: int,
     recurse_width: int,
@@ -142,7 +142,7 @@ def _gen_spans(
 def _gen_attributes(
     span_kind: str,
     num_docs: int = 0,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     yield SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind
     yield SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
     yield SpanAttributes.INPUT_VALUE, fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1))
@@ -188,7 +188,7 @@ def _gen_attributes(
 def _gen_llm(
     n_input_messages: int,
     n_output_messages: int,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     tcc, tcp = randint(0, 1000), randint(0, 1000)
     yield SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, tcc
     yield SpanAttributes.LLM_TOKEN_COUNT_PROMPT, tcp
@@ -204,7 +204,7 @@ def _gen_llm(
 def _gen_messages(
     n: int,
     prefix: str,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     for i in range(n):
         role = choice(["user", "system", "assistant"])
         yield f"{prefix}.{i}.{MessageAttributes.MESSAGE_ROLE}", role
@@ -226,7 +226,7 @@ def _gen_messages(
         )
 
 
-def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
+def _gen_embeddings(n: int = 10) -> Iterator[tuple[str, types.AttributeValue]]:
     prefix = SpanAttributes.EMBEDDING_EMBEDDINGS
     for i in range(n):
         yield (
@@ -242,7 +242,7 @@ def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
 def _gen_documents(
     n: int = 10,
     prefix: str = SpanAttributes.RETRIEVAL_DOCUMENTS,
-) -> Iterator[Tuple[str, types.AttributeValue]]:
+) -> Iterator[tuple[str, types.AttributeValue]]:
     for i in range(n):
         yield (
             f"{prefix}.{i}.{DocumentAttributes.DOCUMENT_CONTENT}",
@@ -266,12 +266,12 @@ def _gen_documents(
 
 
 def _gen_evals(
-    queue: "SimpleQueue[Tuple[trace_api.SpanContext, NumDocs]]",
-    span_eval_name_and_labels: Dict[str, Set[str]],
-    doc_eval_name_and_labels: Dict[str, Set[str]],
+    queue: "SimpleQueue[tuple[trace_api.SpanContext, NumDocs]]",
+    span_eval_name_and_labels: dict[str, set[str]],
+    doc_eval_name_and_labels: dict[str, set[str]],
 ) -> None:
-    span_pyarrow_queue: "SimpleQueue[Optional[Tuple[EvalName, Dict[str, Any]]]]" = SimpleQueue()
-    doc_pyarrow_queue: "SimpleQueue[Optional[Tuple[EvalName, Dict[str, Any]]]]" = SimpleQueue()
+    span_pyarrow_queue: "SimpleQueue[Optional[tuple[EvalName, dict[str, Any]]]]" = SimpleQueue()
+    doc_pyarrow_queue: "SimpleQueue[Optional[tuple[EvalName, dict[str, Any]]]]" = SimpleQueue()
     protos_queue: "SimpleQueue[Optional[pb.Evaluation]]" = SimpleQueue()
     span_pyarrow_thread = Thread(
         target=_send_eval_pyarrow,
@@ -349,12 +349,12 @@ def _gen_evals(
 
 
 def _send_eval_pyarrow(
-    queue: "SimpleQueue[Tuple[EvalName, Dict[str, Any]]]",
+    queue: "SimpleQueue[tuple[EvalName, dict[str, Any]]]",
     endpoint: str,
-    cls: Type[Evaluations],
+    cls: type[Evaluations],
 ) -> None:
     client = px.Client(endpoint=endpoint)
-    tables: DefaultDict[EvalName, List[Dict[str, Any]]] = defaultdict(list)
+    tables: DefaultDict[EvalName, list[dict[str, Any]]] = defaultdict(list)
     while (item := queue.get()) is not END_OF_QUEUE:
         name, row = item
         tables[name].append(row)
@@ -395,7 +395,7 @@ def _send_eval_protos(
 
 
 if __name__ == "__main__":
-    eval_queue: "SimpleQueue[Optional[Tuple[trace_api.SpanContext, SpanKind]]]" = SimpleQueue()
+    eval_queue: "SimpleQueue[Optional[tuple[trace_api.SpanContext, SpanKind]]]" = SimpleQueue()
     span_eval_name_and_labels = {
         fake.color_name(): set(fake.safe_color_name() for _ in range(randint(2, 10)))
         for _ in range(5)

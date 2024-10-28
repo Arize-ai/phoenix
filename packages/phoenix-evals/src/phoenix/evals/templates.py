@@ -1,7 +1,8 @@
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from string import Formatter
-from typing import Callable, List, Mapping, Optional, Tuple, Union
+from typing import Mapping, Optional, Union
 
 import pandas as pd
 
@@ -23,12 +24,12 @@ class InvalidClassificationTemplateError(PhoenixException):
 
 class PromptTemplate:
     template: str
-    variables: List[str]
+    variables: list[str]
 
     def __init__(
         self,
         template: str,
-        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+        delimiters: tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
         self.template = template
         self._start_delim, self._end_delim = delimiters
@@ -53,7 +54,7 @@ class PromptTemplate:
                 )
         return prompt
 
-    def _parse_variables(self, text: str) -> List[str]:
+    def _parse_variables(self, text: str) -> list[str]:
         if self._start_delim == "{" and self._end_delim == "}":
             formatter = Formatter()
             variables = [field_name for _, field_name, _, _ in formatter.parse(text) if field_name]
@@ -69,12 +70,12 @@ class PromptTemplate:
 class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
-        rails: List[str],
+        rails: list[str],
         template: str,
         explanation_template: Optional[str] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
-        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
-        scores: Optional[List[float]] = None,
+        delimiters: tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+        scores: Optional[list[float]] = None,
     ):
         if scores is not None and len(rails) != len(scores):
             raise InvalidClassificationTemplateError(
@@ -86,7 +87,7 @@ class ClassificationTemplate(PromptTemplate):
         self.explanation_template = explanation_template
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
-        self.variables: List[str] = []
+        self.variables: list[str] = []
         for text in [template, explanation_template]:
             if text is not None:
                 self.variables += self._parse_variables(text)
@@ -127,7 +128,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
 
 
 def normalize_classification_template(
-    rails: List[str], template: Union[PromptTemplate, ClassificationTemplate, str]
+    rails: list[str], template: Union[PromptTemplate, ClassificationTemplate, str]
 ) -> ClassificationTemplate:
     """
     Normalizes a template to a ClassificationTemplate object.

@@ -1,6 +1,5 @@
 import logging
 from re import compile, split
-from typing import Dict, List
 from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ _HEADER_PATTERN = compile(_KEY_VALUE_FORMAT)
 _DELIMITER_PATTERN = compile(r"[ \t]*,[ \t]*")
 
 
-def parse_env_headers(s: str) -> Dict[str, str]:
+def parse_env_headers(s: str) -> dict[str, str]:
     """
     Parse ``s``, which is a ``str`` instance containing HTTP headers encoded
     for use in ENV variables per the W3C Baggage HTTP header format at
@@ -28,8 +27,8 @@ def parse_env_headers(s: str) -> Dict[str, str]:
 
     src: https://github.com/open-telemetry/opentelemetry-python/blob/2d5cd58f33bd8a16f45f30be620a96699bc14297/opentelemetry-api/src/opentelemetry/util/re.py#L52
     """
-    headers: Dict[str, str] = {}
-    headers_list: List[str] = split(_DELIMITER_PATTERN, s)
+    headers: dict[str, str] = {}
+    headers_list: list[str] = split(_DELIMITER_PATTERN, s)
     for header in headers_list:
         if not header:  # empty string
             continue

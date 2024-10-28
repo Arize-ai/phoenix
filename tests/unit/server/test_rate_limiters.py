@@ -1,6 +1,6 @@
 import time
 from contextlib import contextmanager
-from typing import Callable, Iterator, List, Optional
+from typing import Callable, Iterator, Optional
 from unittest import mock
 
 import pytest
@@ -19,7 +19,7 @@ def freeze_time(frozen_time: Optional[float] = None) -> Iterator[Callable[[], No
 
 @contextmanager
 def warp_time(start: float) -> Iterator[None]:
-    sleeps: List[float] = [0]
+    sleeps: list[float] = [0]
     current_time = start
     start = time.time() if start is None else start
 

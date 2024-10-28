@@ -1,6 +1,6 @@
 from itertools import chain
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional, Sized, Tuple, Union
+from typing import Iterable, Optional, Sized, Union
 
 import pandas as pd
 from pandas.api.types import is_object_dtype
@@ -24,18 +24,18 @@ def create_model_from_inferences(*inference_sets: Optional[Inferences]) -> Model
         # have the same length between inferences.
         _ = _get_embedding_dimensions(inference_sets[0], inference_sets[1])
 
-    named_dataframes: List[Tuple[InferencesName, pd.DataFrame]] = []
-    prediction_ids: List[ColumnName] = []
-    timestamps: List[ColumnName] = []
-    prediction_labels: List[ColumnName] = []
-    prediction_scores: List[ColumnName] = []
-    actual_labels: List[ColumnName] = []
-    actual_scores: List[ColumnName] = []
-    features: List[ColumnName] = []
-    tags: List[ColumnName] = []
-    embeddings: Dict[DisplayName, EmbeddingColumnNames] = {}
-    prompts: List[EmbeddingColumnNames] = []
-    responses: List[Union[str, EmbeddingColumnNames]] = []
+    named_dataframes: list[tuple[InferencesName, pd.DataFrame]] = []
+    prediction_ids: list[ColumnName] = []
+    timestamps: list[ColumnName] = []
+    prediction_labels: list[ColumnName] = []
+    prediction_scores: list[ColumnName] = []
+    actual_labels: list[ColumnName] = []
+    actual_scores: list[ColumnName] = []
+    features: list[ColumnName] = []
+    tags: list[ColumnName] = []
+    embeddings: dict[DisplayName, EmbeddingColumnNames] = {}
+    prompts: list[EmbeddingColumnNames] = []
+    responses: list[Union[str, EmbeddingColumnNames]] = []
 
     for inferences in filter(_is_inferences, inference_sets):
         df = inferences.dataframe
@@ -184,14 +184,14 @@ def _translate_prompt_embedding(
 def _split_vectors_vs_scalars(
     names: Iterable[str],
     *dataframes: pd.DataFrame,
-) -> Tuple[List[str], List[Embedding]]:
+) -> tuple[list[str], list[Embedding]]:
     """A best-effort attempt at separating vector columns from scalar columns
     by examining the first non-null item of the column from each dataframe. If
     any item is `Iterable` and `Sized`, but not `str`, then the column is
     returned as `Embedding`, else it's returned as scalar.
     """
-    scalars: List[str] = []
-    vectors: List[Embedding] = []
+    scalars: list[str] = []
+    vectors: list[Embedding] = []
     # convert to sets for a speedier lookup
     column_names = [set(df.columns) for df in dataframes]
     for name in names:

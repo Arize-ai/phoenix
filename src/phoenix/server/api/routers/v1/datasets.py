@@ -6,22 +6,19 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import (
     Any,
     Awaitable,
-    Callable,
     Coroutine,
-    Dict,
     FrozenSet,
     Iterator,
-    List,
     Mapping,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -83,7 +80,7 @@ class Dataset(V1RoutesBaseModel):
     id: str
     name: str
     description: Optional[str]
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
@@ -246,7 +243,7 @@ async def get_dataset(
 class DatasetVersion(V1RoutesBaseModel):
     version_id: str
     description: Optional[str]
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     created_at: datetime
 
 
@@ -531,7 +528,7 @@ Examples: TypeAlias = Iterator[ExampleContent]
 
 def _process_json(
     data: Mapping[str, Any],
-) -> Tuple[Examples, DatasetAction, Name, Description]:
+) -> tuple[Examples, DatasetAction, Name, Description]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
@@ -547,7 +544,7 @@ def _process_json(
             raise ValueError(
                 f"{k} should be a list of same length as input containing only dictionary objects"
             )
-    examples: List[ExampleContent] = []
+    examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
         example = ExampleContent(
             input=obj,
@@ -639,7 +636,7 @@ def _check_keys_exist(
 
 async def _parse_form_data(
     form: FormData,
-) -> Tuple[
+) -> tuple[
     DatasetAction,
     Name,
     Description,
@@ -656,9 +653,9 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
-    input_keys = frozenset(filter(bool, cast(List[str], form.getlist("input_keys[]"))))
-    output_keys = frozenset(filter(bool, cast(List[str], form.getlist("output_keys[]"))))
-    metadata_keys = frozenset(filter(bool, cast(List[str], form.getlist("metadata_keys[]"))))
+    input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
+    output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
+    metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     return (
         action,
         name,
@@ -672,16 +669,16 @@ async def _parse_form_data(
 
 class DatasetExample(V1RoutesBaseModel):
     id: str
-    input: Dict[str, Any]
-    output: Dict[str, Any]
-    metadata: Dict[str, Any]
+    input: dict[str, Any]
+    output: dict[str, Any]
+    metadata: dict[str, Any]
     updated_at: datetime
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
-    examples: List[DatasetExample]
+    examples: list[DatasetExample]
 
 
 class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
@@ -914,7 +911,7 @@ async def get_dataset_jsonl_openai_evals(
     return content
 
 
-def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
+def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = [
         {
             "example_id": GlobalID(
@@ -930,7 +927,7 @@ def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
     return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
-def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
     for ex in examples:
         records.write(
@@ -951,7 +948,7 @@ def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) 
     return records.read()
 
 
-def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
     for ex in examples:
         records.write(
@@ -980,7 +977,7 @@ def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision
 
 async def _get_db_examples(
     *, session: Any, id: str, version_id: Optional[str]
-) -> Tuple[str, List[models.DatasetExampleRevision]]:
+) -> tuple[str, list[models.DatasetExampleRevision]]:
     dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
     dataset_version_id: Optional[int] = None
     if version_id:

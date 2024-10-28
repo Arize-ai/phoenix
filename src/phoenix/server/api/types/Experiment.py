@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import ClassVar, List, Optional, Type
+from typing import ClassVar, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -23,7 +23,7 @@ from phoenix.server.api.types.Project import Project
 
 @strawberry.type
 class Experiment(Node):
-    _table: ClassVar[Type[models.Base]] = models.Experiment
+    _table: ClassVar[type[models.Base]] = models.Experiment
     cached_sequence_number: Private[Optional[int]] = None
     id_attr: NodeID[int]
     name: str
@@ -84,7 +84,7 @@ class Experiment(Node):
     @strawberry.field
     async def annotation_summaries(
         self, info: Info[Context, None]
-    ) -> List[ExperimentAnnotationSummary]:
+    ) -> list[ExperimentAnnotationSummary]:
         experiment_id = self.id_attr
         return [
             ExperimentAnnotationSummary(

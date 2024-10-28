@@ -58,16 +58,16 @@ ds = px.Inferences(df, schema, name="training")
 class Schema(
     prediction_id_column_name: Optional[str] = None,
     timestamp_column_name: Optional[str] = None,
-    feature_column_names: Optional[List[str]] = None,
-    tag_column_names: Optional[List[str]] = None,
+    feature_column_names: Optional[list[str]] = None,
+    tag_column_names: Optional[list[str]] = None,
     prediction_label_column_name: Optional[str] = None,
     prediction_score_column_name: Optional[str] = None,
     actual_label_column_name: Optional[str] = None,
     actual_score_column_name: Optional[str] = None,
     prompt_column_names: Optional[EmbeddingColumnNames] = None
     response_column_names: Optional[EmbeddingColumnNames] = None
-    embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None,
-    excluded_column_names: Optional[List[str]] = None,
+    embedding_feature_column_names: Optional[dict[str, EmbeddingColumnNames]] = None,
+    excluded_column_names: Optional[list[str]] = None,
 )
 ```
 

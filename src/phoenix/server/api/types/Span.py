@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -152,7 +152,7 @@ class Span(Node):
     token_count_completion: Optional[int]
     input: Optional[SpanIOValue]
     output: Optional[SpanIOValue]
-    events: List[SpanEvent]
+    events: list[SpanEvent]
     cumulative_token_count_total: Optional[int] = strawberry.field(
         description="Cumulative (prompt plus completion) token count from "
         "self and all descendant spans (children, grandchildren, etc.)",
@@ -180,7 +180,7 @@ class Span(Node):
         self,
         info: Info[Context, None],
         sort: Optional[SpanAnnotationSort] = UNSET,
-    ) -> List[SpanAnnotation]:
+    ) -> list[SpanAnnotation]:
         span_id = self.id_attr
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
         sort_key = SpanAnnotationColumn.name.value
@@ -201,7 +201,7 @@ class Span(Node):
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    async def document_evaluations(self, info: Info[Context, None]) -> List[DocumentEvaluation]:
+    async def document_evaluations(self, info: Info[Context, None]) -> list[DocumentEvaluation]:
         return await info.context.data_loaders.document_evaluations.load(self.id_attr)
 
     @strawberry.field(
@@ -211,7 +211,7 @@ class Span(Node):
         self,
         info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
-    ) -> List[DocumentRetrievalMetrics]:
+    ) -> list[DocumentRetrievalMetrics]:
         if not self.num_documents:
             return []
         return await info.context.data_loaders.document_retrieval_metrics.load(
@@ -224,7 +224,7 @@ class Span(Node):
     async def descendants(
         self,
         info: Info[Context, None],
-    ) -> List["Span"]:
+    ) -> list["Span"]:
         span_id = str(self.context.span_id)
         spans = await info.context.data_loaders.span_descendants.load(span_id)
         return [to_gql_span(span) for span in spans]
@@ -292,7 +292,7 @@ class Span(Node):
 
 
 def to_gql_span(span: models.Span) -> Span:
-    events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
+    events: list[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
     input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
     output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
     retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)

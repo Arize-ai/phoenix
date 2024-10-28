@@ -18,17 +18,13 @@ from time import sleep, time
 from typing import (
     Any,
     ContextManager,
-    Dict,
     Generic,
     Iterable,
     Iterator,
-    List,
     Literal,
     Mapping,
     Optional,
     Protocol,
-    Set,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -82,7 +78,7 @@ _MEMBER = UserRoleInput.MEMBER
 
 _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
-_Headers: TypeAlias = Dict[str, Any]
+_Headers: TypeAlias = dict[str, Any]
 _Name: TypeAlias = str
 
 _Secret: TypeAlias = str
@@ -147,7 +143,7 @@ class _User:
         self,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
-    ) -> Tuple[Dict[str, Any], Headers]:
+    ) -> tuple[dict[str, Any], Headers]:
         return _gql(self, query=query, variables=variables)
 
     def create_user(
@@ -334,7 +330,7 @@ _SecurityArtifact: TypeAlias = Union[
 
 
 class _UserGenerator(Protocol):
-    def send(self, _: Tuple[UserRoleInput, Optional[_Profile]]) -> _User: ...
+    def send(self, _: tuple[UserRoleInput, Optional[_Profile]]) -> _User: ...
 
 
 class _UserFactory(Protocol):
@@ -371,7 +367,7 @@ class _GetSpan(Protocol):
         /,
         project_name: Optional[str] = None,
         span_name: Optional[str] = None,
-        attributes: Optional[Dict[str, AttributeValue]] = None,
+        attributes: Optional[dict[str, AttributeValue]] = None,
     ) -> ReadableSpan: ...
 
 
@@ -448,7 +444,7 @@ class _DefaultAdminTokens(ABC):
     disambiguated by the port of the server to which they belong.
     """
 
-    _set: Set[Tuple[int, str]] = set()
+    _set: set[tuple[int, str]] = set()
     _lock: Lock = Lock()
 
     @classmethod
@@ -560,7 +556,7 @@ class _LogTransport(httpx.BaseTransport):
 def _httpx_client(
     auth: Optional[_SecurityArtifact] = None,
     headers: Optional[_Headers] = None,
-    cookies: Optional[Dict[str, Any]] = None,
+    cookies: Optional[dict[str, Any]] = None,
     transport: Optional[httpx.BaseTransport] = None,
 ) -> httpx.Client:
     if isinstance(auth, _AccessToken):
@@ -609,7 +605,7 @@ def _server() -> Iterator[None]:
         assert get_env_database_schema()
     command = f"{sys.executable} -m phoenix.server.main serve"
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=os.environ)
-    log: List[str] = []
+    log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
     t = 60
@@ -647,7 +643,7 @@ def _is_alive(
 
 def _capture_stdout(
     process: Popen,
-    log: List[str],
+    log: list[str],
     lock: Lock,
 ) -> None:
     while _is_alive(process):
@@ -687,7 +683,7 @@ def _gql(
     *,
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
-) -> Tuple[Dict[str, Any], Headers]:
+) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}))
     resp = _httpx_client(auth).post("graphql", json=json_)
     return _json(resp), resp.headers
@@ -697,7 +693,7 @@ def _get_gql_spans(
     auth: Optional[_SecurityArtifact] = None,
     /,
     *fields: str,
-) -> Dict[_ProjectName, List[Dict[str, Any]]]:
+) -> dict[_ProjectName, list[dict[str, Any]]]:
     out = "name spans{edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
     resp_dict, headers = _gql(auth, query=query)
@@ -937,9 +933,9 @@ def _export_embeddings(auth: Optional[_SecurityArtifact] = None, /, *, filename:
 
 def _json(
     resp: httpx.Response,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     resp.raise_for_status()
-    assert (resp_dict := cast(Dict[str, Any], resp.json()))
+    assert (resp_dict := cast(dict[str, Any], resp.json()))
     if errers := resp_dict.get("errors"):
         msg = errers[0]["message"]
         if "not auth" in msg or IsAdmin.message in msg:
@@ -966,7 +962,7 @@ _EXPECTATION_404 = pytest.raises(HTTPStatusError, match="404 Not Found")
 def _extract_tokens(
     headers: Headers,
     key: Literal["cookie", "set-cookie"] = "cookie",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     if not (cookies := headers.get(key)):
         return {}
     parts = re.split(r"[ ,;=]", cookies)
@@ -976,7 +972,7 @@ def _extract_tokens(
 def _decode_token_ids(
     headers: Headers,
     key: Literal["cookie", "set-cookie"] = "cookie",
-) -> List[str]:
+) -> list[str]:
     ans = []
     for v in _extract_tokens(headers, key).values():
         if v == '""':

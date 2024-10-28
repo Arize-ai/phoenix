@@ -11,12 +11,12 @@ description: >-
 ```python
 def run_evals(
     dataframe: pd.DataFrame,
-    evaluators: List[LLMEvaluator],
+    evaluators: list[LLMEvaluator],
     provide_explanation: bool = False,
     use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: int = 20,
-) -> List[pd.DataFrame]
+) -> list[pd.DataFrame]
 ```
 
 Evaluates a pandas dataframe using a set of user-specified evaluators that assess each row for relevance of retrieved documents, hallucinations, toxicity, etc. Outputs a list of dataframes, one for each evaluator, that contain the labels, scores, and optional explanations from the corresponding evaluator applied to the input dataframe.
@@ -82,7 +82,7 @@ For an end-to-end example, see the [evals quickstart](../evaluation/evals.md).
 ```python
 class PromptTemplate(
     text: str
-    delimiters: List[str]
+    delimiters: list[str]
 )
 ```
 
@@ -146,7 +146,7 @@ def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
-    rails: List[str],
+    rails: list[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -179,8 +179,8 @@ def llm_generate(
     template: Union[PromptTemplate, str],
     model: Optional[BaseEvalModel] = None,
     system_instruction: Optional[str] = None,
-    output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,
-) -> List[str]
+    output_parser: Optional[Callable[[str, int], dict[str, Any]]] = None,
+) -> list[str]
 ```
 
 Generates a text using a template using an LLM. This function is useful if you want to generate synthetic data, such as irrelevant responses
@@ -234,7 +234,7 @@ import pandas as pd
 from phoenix.evals import OpenAIModel, PromptTemplate, llm_generate
 
 
-def output_parser(response: str) -> Dict[str, str]:
+def output_parser(response: str) -> dict[str, str]:
         try:
             return json.loads(response)
         except json.JSONDecodeError as e:

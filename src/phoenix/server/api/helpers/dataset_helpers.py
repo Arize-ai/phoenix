@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Literal, Mapping, Optional, Protocol
+from typing import Any, Literal, Mapping, Optional, Protocol
 
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -28,7 +28,7 @@ class HasSpanIO(Protocol):
     retrieval_documents: Any
 
 
-def get_dataset_example_input(span: HasSpanIO) -> Dict[str, Any]:
+def get_dataset_example_input(span: HasSpanIO) -> dict[str, Any]:
     """
     Extracts the input value from a span and returns it as a dictionary. Input
     values from LLM spans are extracted from the input messages and prompt
@@ -47,7 +47,7 @@ def get_dataset_example_input(span: HasSpanIO) -> Dict[str, Any]:
     return _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
 
 
-def get_dataset_example_output(span: HasSpanIO) -> Dict[str, Any]:
+def get_dataset_example_output(span: HasSpanIO) -> dict[str, Any]:
     """
     Extracts the output value from a span and returns it as a dictionary. Output
     values from LLM spans are extracted from the output messages (if present).
@@ -78,13 +78,13 @@ def _get_llm_span_input(
     input_value: Any,
     input_mime_type: Optional[str],
     prompt_template_variables: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Extracts the input value from an LLM span and returns it as a dictionary.
     The input is extracted from the input messages (if present) and prompt
     template variables (if present).
     """
-    input: Dict[str, Any] = {}
+    input: dict[str, Any] = {}
     if messages := [_get_message(m) for m in input_messages or ()]:
         input["messages"] = messages
     if not input:
@@ -98,7 +98,7 @@ def _get_llm_span_output(
     output_messages: Any,
     output_value: Any,
     output_mime_type: Optional[str],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Extracts the output value from an LLM span and returns it as a dictionary.
     The output is extracted from the output messages (if present).
@@ -112,7 +112,7 @@ def _get_retriever_span_output(
     retrieval_documents: Any,
     output_value: Any,
     output_mime_type: Optional[str],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Extracts the output value from a retriever span and returns it as a dictionary.
     The output is extracted from the retrieval documents (if present).
@@ -124,7 +124,7 @@ def _get_retriever_span_output(
 
 def _get_generic_io_value(
     io_value: Any, mime_type: Optional[str], kind: Literal["input", "output"]
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Makes a best-effort attempt to extract the input or output value from a span
     and returns it as a dictionary.
@@ -140,7 +140,7 @@ def _get_generic_io_value(
     return {}
 
 
-def _get_message(message: Mapping[str, Any]) -> Dict[str, Any]:
+def _get_message(message: Mapping[str, Any]) -> dict[str, Any]:
     content = get_attribute_value(message, MESSAGE_CONTENT)
     name = get_attribute_value(message, MESSAGE_NAME)
     function_call_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)

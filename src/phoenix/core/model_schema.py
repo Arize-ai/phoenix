@@ -15,18 +15,14 @@ from typing import (
     Any,
     BinaryIO,
     Callable,
-    Dict,
     Generic,
     Hashable,
     Iterable,
     Iterator,
-    List,
     Mapping,
     NamedTuple,
     Optional,
     Sequence,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -265,7 +261,7 @@ class _Cache(Generic[_Key, _Value]):
     2
     """
 
-    _cache: Dict[_Key, _Value] = field(
+    _cache: dict[_Key, _Value] = field(
         init=False,
         default_factory=dict,
     )
@@ -275,7 +271,7 @@ class _Cache(Generic[_Key, _Value]):
     )
 
     @contextmanager
-    def __call__(self) -> Iterator[Dict[_Key, _Value]]:
+    def __call__(self) -> Iterator[dict[_Key, _Value]]:
         with self._lock:
             yield self._cache
 
@@ -405,14 +401,14 @@ class Dimension(Column, ABC):
 @dataclass(frozen=True)
 class ScalarDimension(Dimension):
     @property
-    def min_max(self) -> Tuple[Any, Any]:
+    def min_max(self) -> tuple[Any, Any]:
         if self._model is None:
             return np.nan, np.nan
         model = cast(Model, self._model)
         return model.dimension_min_max_from_all_df(self.name)
 
     @property
-    def categories(self) -> Tuple[str, ...]:
+    def categories(self) -> tuple[str, ...]:
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
@@ -502,7 +498,7 @@ class RetrievalEmbeddingDimension(EmbeddingDimension):
 Name: TypeAlias = str
 ColumnKey: TypeAlias = Union[Name, Column, SingularDimensionalRole]
 MultiDimensionKey: TypeAlias = Union[MultiDimensionalRole, Sequence[DimensionRole]]
-RowNumbering: TypeAlias = Union[int, List[int]]
+RowNumbering: TypeAlias = Union[int, list[int]]
 
 
 def _is_column_key(key: Any) -> TypeGuard[ColumnKey]:
@@ -525,7 +521,7 @@ def _is_multi_dimension_key(
 
 def _is_dimension_type_filter(
     key: Any,
-) -> TypeGuard[Tuple[MultiDimensionKey, Union[Type[ScalarDimension], Type[EmbeddingDimension]]]]:
+) -> TypeGuard[tuple[MultiDimensionKey, Union[type[ScalarDimension], type[EmbeddingDimension]]]]:
     return (
         isinstance(key, tuple)
         and len(key) == 2
@@ -534,7 +530,7 @@ def _is_dimension_type_filter(
     )
 
 
-def _is_named_df(obj: Any) -> TypeGuard[Tuple[Name, pd.DataFrame]]:
+def _is_named_df(obj: Any) -> TypeGuard[tuple[Name, pd.DataFrame]]:
     return (
         isinstance(obj, tuple)
         and len(obj) == 2
@@ -664,7 +660,7 @@ class Events(ModelData):
     def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]": ...
 
     @overload
-    def __getitem__(self, key: List[RowId]) -> "Events": ...
+    def __getitem__(self, key: list[RowId]) -> "Events": ...
 
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
@@ -722,7 +718,7 @@ class Inferences(Events):
     def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]": ...
 
     @overload
-    def __getitem__(self, key: List[RowId]) -> Events: ...
+    def __getitem__(self, key: list[RowId]) -> Events: ...
 
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
@@ -746,19 +742,19 @@ class Model:
     a column of NaNs.
     """
 
-    _inference_sets: Dict[InferencesRole, Inferences]
-    _dimensions: Dict[Name, Dimension]
-    _dim_names_by_role: Dict[DimensionRole, List[Name]]
-    _original_columns_by_role: Dict[InferencesRole, "pd.Index[Any]"]
+    _inference_sets: dict[InferencesRole, Inferences]
+    _dimensions: dict[Name, Dimension]
+    _dim_names_by_role: dict[DimensionRole, list[Name]]
+    _original_columns_by_role: dict[InferencesRole, "pd.Index[Any]"]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
-    _dimension_categories_from_all_inferences: _Cache[Name, Tuple[str, ...]]
-    _dimension_min_max_from_all_inferences: _Cache[Name, Tuple[float, float]]
+    _dimension_categories_from_all_inferences: _Cache[Name, tuple[str, ...]]
+    _dimension_min_max_from_all_inferences: _Cache[Name, tuple[float, float]]
 
     def __init__(
         self,
         dimensions: Iterable[Dimension],
-        dataframes: Iterable[Union[pd.DataFrame, Tuple[Name, pd.DataFrame]]],
+        dataframes: Iterable[Union[pd.DataFrame, tuple[Name, pd.DataFrame]]],
         /,
         treat_omitted_columns_as_features: bool = True,
         timestamps_already_normalized: bool = False,
@@ -775,11 +771,11 @@ class Model:
         object.__setattr__(
             self,
             "_dimension_min_max_from_all_inferences",
-            _Cache[Name, Tuple[float, float]](),
+            _Cache[Name, tuple[float, float]](),
         )
 
         df_names, dfs = cast(
-            Tuple[Iterable[Name], Iterable[pd.DataFrame]],
+            tuple[Iterable[Name], Iterable[pd.DataFrame]],
             zip(*_coerce_tuple(dataframes)),
         )
         str_col_dfs = _coerce_str_column_names(dfs)
@@ -956,7 +952,7 @@ class Model:
         )
 
     @cached_property
-    def scalar_dimensions(self) -> Tuple[ScalarDimension, ...]:
+    def scalar_dimensions(self) -> tuple[ScalarDimension, ...]:
         """Put these in a cached sequence because currently their positions
         in this list also determine their node IDs in graphql.
         """
@@ -969,7 +965,7 @@ class Model:
         )
 
     @cached_property
-    def embedding_dimensions(self) -> Tuple[EmbeddingDimension, ...]:
+    def embedding_dimensions(self) -> tuple[EmbeddingDimension, ...]:
         """Put these in a cached sequence because currently their positions
         in this list also determine their node IDs in graphql.
         """
@@ -982,10 +978,10 @@ class Model:
     def dimension_categories_from_all_inferences(
         self,
         dimension_name: Name,
-    ) -> Tuple[str, ...]:
+    ) -> tuple[str, ...]:
         dim = self[dimension_name]
         if dim.data_type is CONTINUOUS:
-            return cast(Tuple[str, ...], ())
+            return cast(tuple[str, ...], ())
         with self._dimension_categories_from_all_inferences() as cache:
             try:
                 return cache[dimension_name]
@@ -1003,7 +999,7 @@ class Model:
     def dimension_min_max_from_all_df(
         self,
         dimension_name: Name,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         dim = self[dimension_name]
         if dim.data_type is not CONTINUOUS:
             return (np.nan, np.nan)
@@ -1021,7 +1017,7 @@ class Model:
         return ans
 
     @overload
-    def __getitem__(self, key: Type[Inferences]) -> Iterator[Inferences]: ...
+    def __getitem__(self, key: type[Inferences]) -> Iterator[Inferences]: ...
 
     @overload
     def __getitem__(self, key: InferencesRole) -> Inferences: ...
@@ -1033,20 +1029,20 @@ class Model:
     def __getitem__(self, key: MultiDimensionKey) -> Iterator[Dimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[ScalarDimension]) -> Iterator[ScalarDimension]: ...
+    def __getitem__(self, key: type[ScalarDimension]) -> Iterator[ScalarDimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[EmbeddingDimension]) -> Iterator[EmbeddingDimension]: ...
+    def __getitem__(self, key: type[EmbeddingDimension]) -> Iterator[EmbeddingDimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[Dimension]) -> Iterator[Dimension]: ...
+    def __getitem__(self, key: type[Dimension]) -> Iterator[Dimension]: ...
 
     @overload
     def __getitem__(
         self,
-        key: Tuple[
+        key: tuple[
             MultiDimensionKey,
-            Union[Type[ScalarDimension], Type[EmbeddingDimension]],
+            Union[type[ScalarDimension], type[EmbeddingDimension]],
         ],
     ) -> Iterator[Dimension]: ...
 
@@ -1094,9 +1090,9 @@ class Model:
 
     def _get_multi_dims_by_type(
         self,
-        key: Tuple[
+        key: tuple[
             MultiDimensionKey,
-            Union[Type[ScalarDimension], Type[EmbeddingDimension]],
+            Union[type[ScalarDimension], type[EmbeddingDimension]],
         ],
     ) -> Iterator[Dimension]:
         return filter(lambda dim: type(dim) is key[1], self[key[0]])
@@ -1105,7 +1101,7 @@ class Model:
     def _new_dimension(
         self,
         obj: DimensionRole,
-        cls: Type[Dimension] = ScalarDimension,
+        cls: type[Dimension] = ScalarDimension,
         **kwargs: Any,
     ) -> Dimension: ...
 
@@ -1113,7 +1109,7 @@ class Model:
     def _new_dimension(
         self,
         obj: Name,
-        cls: Type[Dimension] = ScalarDimension,
+        cls: type[Dimension] = ScalarDimension,
         **kwargs: Any,
     ) -> Dimension: ...
 
@@ -1125,7 +1121,7 @@ class Model:
     ) -> Dimension: ...
 
     def _new_dimension(
-        self, obj: Any, cls: Type[Dimension] = ScalarDimension, **kwargs: Any
+        self, obj: Any, cls: type[Dimension] = ScalarDimension, **kwargs: Any
     ) -> Dimension:
         """Creates a new Dimension or copies an existing one, setting the
         model weak reference to the `self` Model instance, and sharing the
@@ -1181,7 +1177,7 @@ class Schema(SchemaSpec):
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
 
     # internal attribute not exposed to users
-    _dimensions: List[Dimension] = field(
+    _dimensions: list[Dimension] = field(
         init=False, repr=False, hash=False, compare=False, default_factory=list
     )
 
@@ -1248,7 +1244,7 @@ class Schema(SchemaSpec):
 
     def __call__(
         self,
-        *dataframes: Union[pd.DataFrame, Tuple[Name, pd.DataFrame]],
+        *dataframes: Union[pd.DataFrame, tuple[Name, pd.DataFrame]],
         **kwargs: Any,
     ) -> Model:
         """Dimensions are the "baton" that Schema hands over to Model."""
@@ -1302,7 +1298,7 @@ def _get_omitted_column_names(
 
 def _group_names_by_dim_role(
     dimensions: Iterable[Dimension],
-) -> Iterator[Tuple[DimensionRole, List[str]]]:
+) -> Iterator[tuple[DimensionRole, list[str]]]:
     return (
         (role, [dim.name for dim in dims])
         for role, dims in groupby(
@@ -1356,8 +1352,8 @@ def _coerce_str(obj: Optional[str]) -> str:
 
 
 def _coerce_tuple(
-    dataframes: Iterable[Union[pd.DataFrame, Tuple[Name, pd.DataFrame]]],
-) -> Iterator[Tuple[Name, pd.DataFrame]]:
+    dataframes: Iterable[Union[pd.DataFrame, tuple[Name, pd.DataFrame]]],
+) -> Iterator[tuple[Name, pd.DataFrame]]:
     for dataframe in dataframes:
         if isinstance(dataframe, pd.DataFrame):
             yield (_rand_str(), dataframe)

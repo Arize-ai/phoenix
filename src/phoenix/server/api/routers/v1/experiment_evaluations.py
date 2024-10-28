@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
@@ -39,7 +39,7 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     error: Optional[str] = Field(
         None, description="Optional error message if the evaluation encountered an error"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the evaluation"
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")

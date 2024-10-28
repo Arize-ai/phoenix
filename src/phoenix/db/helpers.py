@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Hashable, Iterable, List, Optional, Set, Tuple, TypeVar
+from typing import Any, Hashable, Iterable, Optional, TypeVar
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
@@ -47,7 +48,7 @@ _RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
 _RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 
 
-def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
+def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
@@ -57,7 +58,7 @@ def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[
     )
 
 
-def get_project_names_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
+def get_project_names_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.Experiment.project_name))
         .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
@@ -65,7 +66,7 @@ def get_project_names_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[s
     )
 
 
-def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
+def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
@@ -74,7 +75,7 @@ def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Tuple[Opt
     )
 
 
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
+def get_project_names_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
     return (
         select(distinct(models.Experiment.project_name))
         .where(models.Experiment.id.in_(set(experiment_ids)))
@@ -89,12 +90,12 @@ _KeyT = TypeVar("_KeyT", bound=Hashable)
 def dedup(
     items: Iterable[_AnyT],
     key: Callable[[_AnyT], _KeyT],
-) -> List[_AnyT]:
+) -> list[_AnyT]:
     """
     Discard subsequent duplicates after the first appearance in `items`.
     """
     ans = []
-    seen: Set[_KeyT] = set()
+    seen: set[_KeyT] = set()
     for item in items:
         if (k := key(item)) in seen:
             continue

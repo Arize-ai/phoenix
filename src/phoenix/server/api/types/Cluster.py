@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from typing import Dict, List, Mapping, Optional, Set
+from typing import Mapping, Optional
 
 import strawberry
 from strawberry import ID
@@ -22,7 +22,7 @@ class Cluster:
         description="The ID of the cluster",
     )
 
-    event_ids: List[ID] = strawberry.field(
+    event_ids: list[ID] = strawberry.field(
         description="The event IDs of the points in the cluster",
     )
 
@@ -94,7 +94,7 @@ class Cluster:
         metric: DataQualityMetricInput,
     ) -> DatasetValues:
         model = info.context.model
-        row_ids: Dict[InferencesRole, List[int]] = defaultdict(list)
+        row_ids: dict[InferencesRole, list[int]] = defaultdict(list)
         for row_id, inferences_role in map(unpack_event_id, self.event_ids):
             if not isinstance(inferences_role, InferencesRole):
                 continue
@@ -120,7 +120,7 @@ class Cluster:
         metric: PerformanceMetricInput,
     ) -> DatasetValues:
         model = info.context.model
-        row_ids: Dict[InferencesRole, List[int]] = defaultdict(list)
+        row_ids: dict[InferencesRole, list[int]] = defaultdict(list)
         for row_id, inferences_role in map(unpack_event_id, self.event_ids):
             if not isinstance(inferences_role, InferencesRole):
                 continue
@@ -139,15 +139,15 @@ class Cluster:
 
 
 def to_gql_clusters(
-    clustered_events: Mapping[str, Set[ID]],
-) -> List[Cluster]:
+    clustered_events: Mapping[str, set[ID]],
+) -> list[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
     for the graphQL response
 
     Parameters
     ----------
-    clustered_events: Mapping[str, Set[ID]]
+    clustered_events: Mapping[str, set[ID]]
         A mapping of cluster ID to its set of event IDs
     """
 

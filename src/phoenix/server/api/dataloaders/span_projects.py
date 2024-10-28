@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -17,7 +17,7 @@ class SpanProjectsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
+    async def _load_fn(self, keys: list[Key]) -> list[Union[Result, ValueError]]:
         span_ids = list(set(keys))
         async with self._db() as session:
             projects = {

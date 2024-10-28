@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Mapping
+from typing import Any, Mapping
 
 import httpx
 import pytest
@@ -601,7 +601,7 @@ class TestDatasetExperimentsResolver:
     async def test_experiments_have_sequence_number(
         self,
         httpx_client: httpx.AsyncClient,
-        interlaced_experiments: List[int],
+        interlaced_experiments: list[int],
     ) -> None:
         variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
         response = await httpx_client.post(

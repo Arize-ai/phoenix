@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Tuple
+from typing import Optional
 
 import pytest
 from alembic import command
@@ -52,7 +52,7 @@ def _down(_engine: Engine, _alembic_config: Config, revision: str) -> None:
     assert _version_num(_engine) == (None if revision == "base" else (revision,))
 
 
-def _version_num(_engine: Engine) -> Optional[Row[Tuple[str]]]:
+def _version_num(_engine: Engine) -> Optional[Row[tuple[str]]]:
     schema_prefix = ""
     if _engine.url.get_backend_name().startswith("postgresql"):
         assert (schema := os.environ[ENV_PHOENIX_SQL_DATABASE_SCHEMA])

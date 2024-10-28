@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -11,16 +12,11 @@ from typing import (
     Annotated,
     Any,
     AsyncIterator,
-    Callable,
     DefaultDict,
-    Dict,
     Iterable,
     Iterator,
-    List,
     Mapping,
     Optional,
-    Tuple,
-    Type,
     Union,
     cast,
 )
@@ -139,23 +135,23 @@ class GenerativeModelInput:
 
 @strawberry.input
 class ChatCompletionInput:
-    messages: List[ChatCompletionMessageInput]
+    messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     invocation_parameters: InvocationParameters = strawberry.field(default_factory=dict)
-    tools: Optional[List[JSONScalarType]] = UNSET
+    tools: Optional[list[JSONScalarType]] = UNSET
     template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
 
 
-PLAYGROUND_STREAMING_CLIENT_REGISTRY: Dict[
-    GenerativeProviderKey, Type["PlaygroundStreamingClient"]
+PLAYGROUND_STREAMING_CLIENT_REGISTRY: dict[
+    GenerativeProviderKey, type["PlaygroundStreamingClient"]
 ] = {}
 
 
 def register_llm_client(
     provider_key: GenerativeProviderKey,
-) -> Callable[[Type["PlaygroundStreamingClient"]], Type["PlaygroundStreamingClient"]]:
-    def decorator(cls: Type["PlaygroundStreamingClient"]) -> Type["PlaygroundStreamingClient"]:
+) -> Callable[[type["PlaygroundStreamingClient"]], type["PlaygroundStreamingClient"]]:
+    def decorator(cls: type["PlaygroundStreamingClient"]) -> type["PlaygroundStreamingClient"]:
         PLAYGROUND_STREAMING_CLIENT_REGISTRY[provider_key] = cls
         return cls
 
@@ -174,10 +170,10 @@ class PlaygroundStreamingClient(ABC):
     @abstractmethod
     async def chat_completion_create(
         self,
-        messages: List[
-            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-        tools: List[JSONScalarType],
+        tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # a yield statement is needed to satisfy the type-checker
@@ -201,10 +197,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[
-            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-        tools: List[JSONScalarType],
+        tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import NOT_GIVEN
@@ -212,7 +208,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 
         # Convert standard messages to OpenAI messages
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
-        tool_call_ids: Dict[int, str] = {}
+        tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         async for chunk in await self.client.chat.completions.create(
             messages=openai_messages,
@@ -256,7 +252,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         role: ChatCompletionMessageRole,
         content: JSONScalarType,
         tool_call_id: Optional[str] = None,
-        tool_calls: Optional[List[JSONScalarType]] = None,
+        tool_calls: Optional[list[JSONScalarType]] = None,
     ) -> "ChatCompletionMessageParam":
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
@@ -321,7 +317,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         )
 
     @staticmethod
-    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[Tuple[str, Any]]:
+    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
         yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
         yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
         yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
@@ -363,10 +359,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[
-            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-        tools: List[JSONScalarType],
+        tools: list[JSONScalarType],
         **invocation_parameters: Any,
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
@@ -413,9 +409,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     def _build_anthropic_messages(
         self,
-        messages: List[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
-    ) -> Tuple[List["MessageParam"], str]:
-        anthropic_messages: List["MessageParam"] = []
+        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+    ) -> tuple[list["MessageParam"], str]:
+        anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
@@ -471,12 +467,12 @@ class Subscription:
         )
         status_code: StatusCode
         status_message = ""
-        events: List[SpanEvent] = []
+        events: list[SpanEvent] = []
         start_time: datetime
         end_time: datetime
         response_chunks = []
-        text_chunks: List[TextChunk] = []
-        tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]] = defaultdict(list)
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: DefaultDict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         try:
             start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
             async for chunk in llm_client.chat_completion_create(
@@ -566,24 +562,24 @@ class Subscription:
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
 
 
-def _llm_span_kind() -> Iterator[Tuple[str, Any]]:
+def _llm_span_kind() -> Iterator[tuple[str, Any]]:
     yield OPENINFERENCE_SPAN_KIND, LLM
 
 
-def _llm_model_name(model_name: str) -> Iterator[Tuple[str, Any]]:
+def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _llm_invocation_parameters(invocation_parameters: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+def _llm_invocation_parameters(invocation_parameters: dict[str, Any]) -> Iterator[tuple[str, Any]]:
     yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
-def _llm_tools(tools: List[JSONScalarType]) -> Iterator[Tuple[str, Any]]:
+def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str, Any]]:
+def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     input_data = {k: v for k, v in input_data.items() if k != api_key}
     assert api_key not in input_data
@@ -591,16 +587,16 @@ def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[Tuple[str
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def _output_value_and_mime_type(output: Any) -> Iterator[Tuple[str, Any]]:
+def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
     yield OUTPUT_MIME_TYPE, JSON
     yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
 
 
 def _llm_input_messages(
     messages: Iterable[
-        Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
     ],
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
@@ -618,9 +614,9 @@ def _llm_input_messages(
 
 
 def _llm_output_messages(
-    text_chunks: List[TextChunk],
-    tool_call_chunks: DefaultDict[ToolCallID, List[ToolCallChunk]],
-) -> Iterator[Tuple[str, Any]]:
+    text_chunks: list[TextChunk],
+    tool_call_chunks: DefaultDict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):
         yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
@@ -659,9 +655,9 @@ def _hex(number: int) -> str:
 
 
 def _formatted_messages(
-    messages: Iterable[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]],
+    messages: Iterable[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     template_options: TemplateOptions,
-) -> Iterator[Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[str]]]]:
+) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
     """
     Formats the messages using the given template options.
     """
@@ -691,7 +687,7 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     assert_never(template_language)
 
 
-def _serialize_event(event: SpanEvent) -> Dict[str, Any]:
+def _serialize_event(event: SpanEvent) -> dict[str, Any]:
     """
     Serializes a SpanEvent to a dictionary.
     """

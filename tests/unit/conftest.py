@@ -3,6 +3,7 @@ import contextlib
 import os
 import tempfile
 from asyncio import AbstractEventLoop
+from collections.abc import Callable
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
@@ -10,14 +11,9 @@ from typing import (
     Any,
     AsyncIterator,
     Awaitable,
-    Callable,
-    Dict,
     Iterator,
-    List,
     Literal,
     Optional,
-    Set,
-    Tuple,
 )
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -82,7 +78,7 @@ def pytest_terminal_summary(
                 terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
-def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
+def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:
@@ -210,7 +206,7 @@ async def app(
 @pytest.fixture
 def httpx_clients(
     app: ASGIApp,
-) -> Tuple[httpx.Client, httpx.AsyncClient]:
+) -> tuple[httpx.Client, httpx.AsyncClient]:
     class Transport(httpx.BaseTransport):
         def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
             import nest_asyncio
@@ -248,7 +244,7 @@ def httpx_clients(
 
 @pytest.fixture
 def httpx_client(
-    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
 ) -> httpx.AsyncClient:
     return httpx_clients[1]
 
@@ -260,7 +256,7 @@ def gql_client(httpx_client: httpx.AsyncClient) -> Iterator["AsyncGraphQLClient"
 
 @pytest.fixture
 def px_client(
-    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
 ) -> Client:
     sync_client, _ = httpx_clients
     client = Client(warn_if_server_not_running=False)
@@ -289,7 +285,7 @@ async def patch_grpc_server() -> AsyncIterator[None]:
 class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
-    ) -> Tuple[
+    ) -> tuple[
         Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
@@ -341,7 +337,7 @@ def fake() -> Faker:
 
 @pytest.fixture
 def rand_span_id() -> Iterator[str]:
-    def _(seen: Set[str]) -> Iterator[str]:
+    def _(seen: set[str]) -> Iterator[str]:
         while True:
             span_id = getrandbits(64).to_bytes(8, "big").hex()
             if span_id not in seen:
@@ -353,7 +349,7 @@ def rand_span_id() -> Iterator[str]:
 
 @pytest.fixture
 def rand_trace_id() -> Iterator[str]:
-    def _(seen: Set[str]) -> Iterator[str]:
+    def _(seen: set[str]) -> Iterator[str]:
         while True:
             span_id = getrandbits(128).to_bytes(16, "big").hex()
             if span_id not in seen:
@@ -378,9 +374,9 @@ class AsyncGraphQLClient:
     async def execute(
         self,
         query: str,
-        variables: Optional[Dict[str, Any]] = None,
+        variables: Optional[dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Executes queries and mutations.
         """
@@ -403,7 +399,7 @@ class AsyncGraphQLClient:
     async def subscription(
         self,
         query: str,
-        variables: Optional[Dict[str, Any]] = None,
+        variables: Optional[dict[str, Any]] = None,
         operation_name: Optional[str] = None,
     ) -> AsyncIterator["GraphQLSubscription"]:
         """
@@ -437,7 +433,7 @@ class GraphQLSubscription:
         *,
         session: AsyncWebSocketSession,
         query: str,
-        variables: Optional[Dict[str, Any]] = None,
+        variables: Optional[dict[str, Any]] = None,
         operation_name: Optional[str] = None,
         timeout_seconds: Optional[float] = None,
     ) -> None:
@@ -449,7 +445,7 @@ class GraphQLSubscription:
 
     async def stream(
         self,
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """
         Streams subscription payloads.
         """

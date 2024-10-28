@@ -1,7 +1,7 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from phoenix.evals.models.base import BaseModel
 
@@ -149,10 +149,10 @@ class VertexAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         response = self._model.predict(
             prompt=prompt,
@@ -165,7 +165,7 @@ class VertexAIModel(BaseModel):
         return is_codey_model(self.tuned_model or self.model)
 
     @property
-    def _init_params(self) -> Dict[str, Any]:
+    def _init_params(self) -> dict[str, Any]:
         return {
             "project": self.project,
             "location": self.location,
@@ -173,7 +173,7 @@ class VertexAIModel(BaseModel):
         }
 
     @property
-    def invocation_params(self) -> Dict[str, Any]:
+    def invocation_params(self) -> dict[str, Any]:
         params = {
             "temperature": self.temperature,
             "max_output_tokens": self.max_tokens,

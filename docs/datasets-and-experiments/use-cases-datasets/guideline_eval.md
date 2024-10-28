@@ -166,7 +166,7 @@ guidelines = {
 }
 
 
-async def adapt(fn, output, input) -> Tuple[Score, Explanation]:
+async def adapt(fn, output, input) -> tuple[Score, Explanation]:
     ans = await fn(
         query=input["messages"][0]["content"],
         response=output,

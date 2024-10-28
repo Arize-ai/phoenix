@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import textwrap
 from collections import Counter
+from collections.abc import Callable
 from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
@@ -13,15 +14,11 @@ from random import getrandbits
 from typing import (
     Any,
     Awaitable,
-    Callable,
-    Dict,
     FrozenSet,
     Iterable,
     Iterator,
-    List,
     Mapping,
     Optional,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -41,7 +38,7 @@ class AnnotatorKind(Enum):
     LLM = "LLM"
 
 
-JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
+JSONSerializable: TypeAlias = Optional[Union[dict[str, Any], list[Any], str, int, float, bool]]
 ExperimentId: TypeAlias = str
 DatasetId: TypeAlias = str
 DatasetVersionId: TypeAlias = str
@@ -63,7 +60,7 @@ Explanation: TypeAlias = Optional[str]
 EvaluatorName: TypeAlias = str
 EvaluatorKind: TypeAlias = str
 EvaluatorOutput: TypeAlias = Union[
-    "EvaluationResult", bool, int, float, str, Tuple[Score, Label, Explanation]
+    "EvaluationResult", bool, int, float, str, tuple[Score, Label, Explanation]
 ]
 
 DRY_RUN: ExperimentId = "DRY_RUN"
@@ -135,14 +132,14 @@ class Dataset:
         return iter(self.examples.values())
 
     @cached_property
-    def _keys(self) -> Tuple[str, ...]:
+    def _keys(self) -> tuple[str, ...]:
         return tuple(self.examples.keys())
 
     @overload
     def __getitem__(self, key: int) -> Example: ...
     @overload
-    def __getitem__(self, key: slice) -> List[Example]: ...
-    def __getitem__(self, key: Union[int, slice]) -> Union[Example, List[Example]]:
+    def __getitem__(self, key: slice) -> list[Example]: ...
+    def __getitem__(self, key: Union[int, slice]) -> Union[Example, list[Example]]:
         if isinstance(key, int):
             return self.examples[self._keys[key]]
         return [self.examples[k] for k in self._keys[key]]
@@ -485,8 +482,8 @@ class RanExperiment(Experiment):
     dataset: Dataset = field(repr=False)
     runs: Mapping[ExperimentRunId, ExperimentRun] = field(repr=False)
     task_summary: TaskSummary = field(repr=False)
-    eval_runs: Tuple[ExperimentEvaluationRun, ...] = field(repr=False, default=())
-    eval_summaries: Tuple[EvaluationSummary, ...] = field(repr=False, default=())
+    eval_runs: tuple[ExperimentEvaluationRun, ...] = field(repr=False, default=())
+    eval_summaries: tuple[EvaluationSummary, ...] = field(repr=False, default=())
 
     @property
     def url(self) -> str:
@@ -514,14 +511,14 @@ class RanExperiment(Experiment):
         return iter(self.runs.values())
 
     @cached_property
-    def _keys(self) -> Tuple[str, ...]:
+    def _keys(self) -> tuple[str, ...]:
         return tuple(self.runs.keys())
 
     @overload
     def __getitem__(self, key: int) -> ExperimentRun: ...
     @overload
-    def __getitem__(self, key: slice) -> List[ExperimentRun]: ...
-    def __getitem__(self, key: Union[int, slice]) -> Union[ExperimentRun, List[ExperimentRun]]:
+    def __getitem__(self, key: slice) -> list[ExperimentRun]: ...
+    def __getitem__(self, key: Union[int, slice]) -> Union[ExperimentRun, list[ExperimentRun]]:
         if isinstance(key, int):
             return self.runs[self._keys[key]]
         return [self.runs[k] for k in self._keys[key]]
@@ -596,7 +593,7 @@ class RanExperiment(Experiment):
         raise NotImplementedError
 
 
-def _asdict(dc: Any) -> Dict[str, Any]:
+def _asdict(dc: Any) -> dict[str, Any]:
     # non-recursive version of `dataclasses.asdict()`
     return {field.name: getattr(dc, field.name) for field in fields(dc)}
 

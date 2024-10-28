@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
+from typing import Any, Mapping, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +22,9 @@ _SpanId: TypeAlias = str
 _SpanRowId: TypeAlias = int
 _AnnoRowId: TypeAlias = int
 
-_Key: TypeAlias = Tuple[_Name, _SpanId]
-_UniqueBy: TypeAlias = Tuple[_Name, _SpanRowId]
-_Existing: TypeAlias = Tuple[
+_Key: TypeAlias = tuple[_Name, _SpanId]
+_UniqueBy: TypeAlias = tuple[_Name, _SpanRowId]
+_Existing: TypeAlias = tuple[
     _SpanRowId,
     _SpanId,
     Optional[_AnnoRowId],
@@ -47,7 +47,7 @@ class SpanAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *insertions: Insertables.SpanAnnotation,
-    ) -> List[SpanAnnotationDmlEvent]:
+    ) -> list[SpanAnnotationDmlEvent]:
         records = [dict(as_kv(ins.row)) for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
@@ -57,17 +57,17 @@ class SpanAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *parcels: Received[Precursors.SpanAnnotation],
-    ) -> Tuple[
-        List[Received[Insertables.SpanAnnotation]],
-        List[Postponed[Precursors.SpanAnnotation]],
-        List[Received[Precursors.SpanAnnotation]],
+    ) -> tuple[
+        list[Received[Insertables.SpanAnnotation]],
+        list[Postponed[Precursors.SpanAnnotation]],
+        list[Received[Precursors.SpanAnnotation]],
     ]:
-        to_insert: List[Received[Insertables.SpanAnnotation]] = []
-        to_postpone: List[Postponed[Precursors.SpanAnnotation]] = []
-        to_discard: List[Received[Precursors.SpanAnnotation]] = []
+        to_insert: list[Received[Insertables.SpanAnnotation]] = []
+        to_postpone: list[Postponed[Precursors.SpanAnnotation]] = []
+        to_discard: list[Received[Precursors.SpanAnnotation]] = []
 
         stmt = self._select_existing(*map(_key, parcels))
-        existing: List[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
+        existing: list[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
         existing_spans: Mapping[str, _SpanAttr] = {
             e.span_id: _SpanAttr(e.span_rowid) for e in existing
         }

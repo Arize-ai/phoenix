@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 from unittest.mock import Mock
 
 import pytest
@@ -62,7 +62,7 @@ def strawberry_schema() -> StrawberrySchema:
 
 
 @pytest.fixture
-async def interlaced_experiments(db: DbSessionFactory) -> List[int]:
+async def interlaced_experiments(db: DbSessionFactory) -> list[int]:
     async with db() as session:
         dataset_ids = list(
             await session.scalars(

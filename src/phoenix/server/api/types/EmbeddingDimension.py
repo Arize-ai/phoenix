@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import timedelta
 from itertools import chain, repeat
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Iterable, Iterator, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -313,8 +313,8 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[ID, npt.NDArray[np.float64]] = {}
-        retrievals: List[Tuple[ID, Any, Any]] = []
+        data: dict[ID, npt.NDArray[np.float64]] = {}
+        retrievals: list[tuple[ID, Any, Any]] = []
         for inferences in model[Inferences]:
             inferences_id = inferences.role
             row_id_start, row_id_stop = 0, len(inferences)
@@ -353,7 +353,7 @@ class EmbeddingDimension(Node):
                         )
                     )
 
-        context_retrievals: List[Retrieval] = []
+        context_retrievals: list[Retrieval] = []
         if isinstance(
             self.dimension,
             ms.RetrievalEmbeddingDimension,
@@ -414,7 +414,7 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[Union[InferencesRole, AncillaryInferencesRole], List[UMAPPoint]] = defaultdict(
+        points: dict[Union[InferencesRole, AncillaryInferencesRole], list[UMAPPoint]] = defaultdict(
             list
         )
         for event_id, vector in vectors.items():

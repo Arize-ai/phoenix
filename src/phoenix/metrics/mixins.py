@@ -7,10 +7,11 @@ on cooperative multiple inheritance and method resolution order in Python.
 import collections
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields, replace
 from functools import cached_property
 from itertools import repeat
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Iterator, Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -42,7 +43,7 @@ class VectorOperator(ABC):
 
 @dataclass(frozen=True)
 class NullaryOperator(Metric, ABC):
-    def operands(self) -> List[Column]:
+    def operands(self) -> list[Column]:
         return []
 
 
@@ -55,7 +56,7 @@ class UnaryOperator(Metric, ABC):
 
     operand: Column = Column()
 
-    def operands(self) -> List[Column]:
+    def operands(self) -> list[Column]:
         return [self.operand]
 
 
@@ -98,10 +99,10 @@ class EvaluationMetricKeywordParameters(_BaseMapping):
         return sum(1 for _ in self)
 
     @property
-    def columns(self) -> List[Column]:
+    def columns(self) -> list[Column]:
         return [v for v in self.values() if isinstance(v, Column)]
 
-    def __call__(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def __call__(self, df: pd.DataFrame) -> dict[str, Any]:
         return {k: v(df) if isinstance(v, Column) else v for k, v in self.items()}
 
 
@@ -142,7 +143,7 @@ class EvaluationMetric(Metric, ABC):
                 ),
             )
 
-    def operands(self) -> List[Column]:
+    def operands(self) -> list[Column]:
         return [self.actual, self.predicted] + self.parameters.columns
 
     def calc(self, df: pd.DataFrame) -> float:

@@ -12,13 +12,10 @@ from itertools import product
 from typing import (
     Any,
     Awaitable,
-    Dict,
     Literal,
     Mapping,
     Optional,
     Sequence,
-    Tuple,
-    Type,
     Union,
     cast,
 )
@@ -76,7 +73,7 @@ from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify
 
 
-def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
+def _phoenix_clients() -> tuple[httpx.Client, httpx.AsyncClient]:
     return VersionedClient(
         base_url=get_base_url(),
     ), VersionedAsyncClient(
@@ -91,7 +88,7 @@ Evaluators: TypeAlias = Union[
 ]
 
 
-RateLimitErrors: TypeAlias = Union[Type[BaseException], Sequence[Type[BaseException]]]
+RateLimitErrors: TypeAlias = Union[type[BaseException], Sequence[type[BaseException]]]
 
 
 def run_experiment(
@@ -369,7 +366,7 @@ def run_experiment(
             exp_run = replace(exp_run, id=resp.json()["data"]["id"])
         return exp_run
 
-    _errors: Tuple[Type[BaseException], ...]
+    _errors: tuple[type[BaseException], ...]
     if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
@@ -498,7 +495,7 @@ def evaluate_experiment(
     root_span_kind = EVALUATOR
 
     def sync_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, Evaluator],
+        obj: tuple[Example, ExperimentRun, Evaluator],
     ) -> ExperimentEvaluationRun:
         example, experiment_run, evaluator = obj
         result: Optional[EvaluationResult] = None
@@ -550,7 +547,7 @@ def evaluate_experiment(
         return eval_run
 
     async def async_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, Evaluator],
+        obj: tuple[Example, ExperimentRun, Evaluator],
     ) -> ExperimentEvaluationRun:
         example, experiment_run, evaluator = obj
         result: Optional[EvaluationResult] = None
@@ -611,7 +608,7 @@ def evaluate_experiment(
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
 
-    _errors: Tuple[Type[BaseException], ...]
+    _errors: tuple[type[BaseException], ...]
     if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
@@ -649,7 +646,7 @@ def evaluate_experiment(
 
 
 def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
-    evaluators_by_name: Dict[EvaluatorName, Evaluator] = {}
+    evaluators_by_name: dict[EvaluatorName, Evaluator] = {}
     if obj is None:
         return evaluators_by_name
     if isinstance(mapping := obj, Mapping):
@@ -678,7 +675,7 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
     return evaluators_by_name
 
 
-def _get_tracer(project_name: Optional[str] = None) -> Tuple[Tracer, Resource]:
+def _get_tracer(project_name: Optional[str] = None) -> tuple[Tracer, Resource]:
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
     span_processor = (

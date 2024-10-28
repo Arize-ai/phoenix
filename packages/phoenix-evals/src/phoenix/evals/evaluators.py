@@ -1,4 +1,4 @@
-from typing import List, Mapping, Optional, Tuple
+from typing import Mapping, Optional
 
 from phoenix.evals.default_templates import EvalCriteria
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
@@ -51,7 +51,7 @@ class LLMEvaluator:
         provide_explanation: bool = False,
         use_function_calling_if_available: bool = True,
         verbose: bool = False,
-    ) -> Tuple[str, Optional[float], Optional[str]]:
+    ) -> tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -69,7 +69,7 @@ class LLMEvaluator:
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            tuple[str, Optional[float], Optional[str]]: A tuple containing:
                 - label
                 - score (if scores for each label are specified by the template)
                 - explanation (if requested)
@@ -107,7 +107,7 @@ class LLMEvaluator:
         provide_explanation: bool = False,
         use_function_calling_if_available: bool = True,
         verbose: bool = False,
-    ) -> Tuple[str, Optional[float], Optional[str]]:
+    ) -> tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -125,7 +125,7 @@ class LLMEvaluator:
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            tuple[str, Optional[float], Optional[str]]: A tuple containing:
                 - label
                 - score (if scores for each label are specified by the template)
                 - explanation (if requested)
@@ -302,11 +302,11 @@ class MapReducer:
         self._map_prompt_template = map_prompt_template
         self._reduce_prompt_template = reduce_prompt_template
 
-    def evaluate(self, chunks: List[str]) -> str:
+    def evaluate(self, chunks: list[str]) -> str:
         """Evaluates a list of two or more chunks.
 
         Args:
-            chunks (List[str]): A list of chunks to be evaluated. Each chunk is
+            chunks (list[str]): A list of chunks to be evaluated. Each chunk is
                 inserted into the map_prompt_template and must therefore fit within
                 the LLM's context window and still leave room for the rest of the
                 prompt.
@@ -370,11 +370,11 @@ class Refiner:
         self._refine_prompt_template = refine_prompt_template
         self._synthesize_prompt_template = synthesize_prompt_template
 
-    def evaluate(self, chunks: List[str]) -> str:
+    def evaluate(self, chunks: list[str]) -> str:
         """Evaluates a list of two or more chunks.
 
         Args:
-            chunks (List[str]): A list of chunks to be evaluated. Each chunk is
+            chunks (list[str]): A list of chunks to be evaluated. Each chunk is
                 inserted into the initial_prompt_template and refine_prompt_template
                 and must therefore fit within the LLM's context window and still
                 leave room for the rest of the prompt.
@@ -408,7 +408,7 @@ def _extract_label_and_explanation(
     provide_explanation: bool,
     use_openai_function_call: bool,
     verbose: bool,
-) -> Tuple[str, Optional[str]]:
+) -> tuple[str, Optional[str]]:
     """
     Extracts the label and explanation from the unparsed output.
 
@@ -426,7 +426,7 @@ def _extract_label_and_explanation(
         verbose (bool): If True, print verbose output to stdout.
 
     Returns:
-        Tuple[str, Optional[str]]: A tuple containing the label and an
+        tuple[str, Optional[str]]: A tuple containing the label and an
             explanation (if one is provided).
     """
     if not use_openai_function_call:

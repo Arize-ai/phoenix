@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
@@ -35,7 +35,7 @@ class MistralAIModel(BaseModel):
         top_p (float, optional): Total probability mass of tokens to consider at each step.
             Defaults to None.
         random_seed (int, optional): Random seed to use for sampling. Defaults to None.
-        response_format (Dict[str, str], optional): A dictionary specifying the format of the
+        response_format (dict[str, str], optional): A dictionary specifying the format of the
             response. Defaults to None.
         safe_mode (bool, optional): Whether to use safe mode. Defaults to False.
         safe_prompt (bool, optional): Whether to use safe prompt. Defaults to False.
@@ -57,7 +57,7 @@ class MistralAIModel(BaseModel):
     temperature: float = 0
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
-    response_format: Optional[Dict[str, str]] = None
+    response_format: Optional[dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
     initial_rate_limit: int = 5
@@ -94,7 +94,7 @@ class MistralAIModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def invocation_parameters(self) -> Dict[str, Any]:
+    def invocation_parameters(self) -> dict[str, Any]:
         params = {
             "temperature": self.temperature,
             "top_p": self.top_p,
@@ -106,7 +106,7 @@ class MistralAIModel(BaseModel):
         # Mistral is strict about not passing None values to the API
         return {k: v for k, v in params.items() if v is not None}
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -134,7 +134,7 @@ class MistralAIModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -163,6 +163,6 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: str) -> List["ChatMessage"]:
+    def _format_prompt(self, prompt: str) -> list["ChatMessage"]:
         ChatMessage = self._ChatMessage
         return [ChatMessage(role="user", content=prompt)]

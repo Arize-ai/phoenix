@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Iterable, List, Union
+from typing import Any, Iterable, Union
 
 
 class ValidationError(Exception):
@@ -57,8 +57,8 @@ class InvalidSchemaError(ValidationError):
 class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""
 
-    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
-        self.errors: List[ValidationError] = errors if isinstance(errors, list) else [errors]
+    def __init__(self, errors: Union[ValidationError, list[ValidationError]]):
+        self.errors: list[ValidationError] = errors if isinstance(errors, list) else [errors]
 
     def __str__(self) -> str:
         return "\n".join(map(str, self.errors))
@@ -142,7 +142,7 @@ class EmbeddingVectorSizeMismatch(ValidationError):
     vector lengths"""
 
     def __init__(
-        self, embedding_feature_name: str, vector_column_name: str, vector_lengths: List[int]
+        self, embedding_feature_name: str, vector_column_name: str, vector_lengths: list[int]
     ) -> None:
         self.embedding_feature_name = embedding_feature_name
         self.vector_column_name = vector_column_name
@@ -238,5 +238,5 @@ class MissingTimestampColumnName(ValidationError):
 class SchemaError(Exception):
     """An error raised when the Schema is invalid or incomplete"""
 
-    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
+    def __init__(self, errors: Union[ValidationError, list[ValidationError]]):
         self.errors = errors

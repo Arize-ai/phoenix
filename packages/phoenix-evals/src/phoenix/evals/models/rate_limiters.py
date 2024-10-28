@@ -1,8 +1,9 @@
 import asyncio
 import time
+from collections.abc import Callable
 from functools import wraps
 from math import exp
-from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
+from typing import Any, Coroutine, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -154,7 +155,7 @@ class RateLimitError(PhoenixException): ...
 class RateLimiter:
     def __init__(
         self,
-        rate_limit_error: Optional[Type[BaseException]] = None,
+        rate_limit_error: Optional[type[BaseException]] = None,
         max_rate_limit_retries: int = 3,
         initial_per_second_request_rate: float = 1.0,
         maximum_per_second_request_rate: Optional[float] = None,
@@ -164,7 +165,7 @@ class RateLimiter:
         cooldown_seconds: float = 5,
         verbose: bool = False,
     ) -> None:
-        self._rate_limit_error: Tuple[Type[BaseException], ...]
+        self._rate_limit_error: tuple[type[BaseException], ...]
         self._rate_limit_error = (rate_limit_error,) if rate_limit_error is not None else tuple()
 
         self._max_rate_limit_retries = max_rate_limit_retries

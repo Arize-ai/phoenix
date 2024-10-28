@@ -2,7 +2,7 @@
 Helper functions for evaluating the retrieval step of retrieval-augmented generation.
 """
 
-from typing import List, Optional
+from typing import Optional
 
 _EVALUATION_SYSTEM_MESSAGE = (
     "You will be given a query and a reference text. "
@@ -20,13 +20,13 @@ _QUERY_CONTEXT_PROMPT_TEMPLATE = """# Query: {query}
 
 
 def compute_precisions_at_k(
-    relevance_classifications: List[Optional[bool]],
-) -> List[Optional[float]]:
+    relevance_classifications: list[Optional[bool]],
+) -> list[Optional[float]]:
     """Given a list of relevance classifications, computes precision@k for k = 1, 2, ..., n, where
     n is the length of the input list.
 
     Args:
-        relevance_classifications (List[Optional[bool]]): A list of relevance classifications for a
+        relevance_classifications (list[Optional[bool]]): A list of relevance classifications for a
             set of retrieved documents, sorted by order of retrieval (i.e., the first element is the
             classification for the first retrieved document, the second element is the
             classification for the second retrieved document, etc.). The list may contain None
@@ -34,7 +34,7 @@ def compute_precisions_at_k(
             is unknown.
 
     Returns:
-        List[Optional[float]]: A list of precision@k values for k = 1, 2, ..., n, where n is the
+        list[Optional[float]]: A list of precision@k values for k = 1, 2, ..., n, where n is the
             length of the input list. The first element is the precision@1 value, the second element
             is the precision@2 value, etc. If the input list contains any None values, those values
             are omitted when computing the precision@k values.

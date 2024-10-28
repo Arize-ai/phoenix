@@ -1,6 +1,6 @@
 import math
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Optional, Union, cast
 
 import strawberry
 from strawberry import ID
@@ -28,7 +28,7 @@ from .PromptResponse import PromptResponse
 class Event:
     id: strawberry.ID
     eventMetadata: EventMetadata
-    dimensions: List[DimensionWithValue]
+    dimensions: list[DimensionWithValue]
     prompt_and_response: Optional[PromptResponse] = strawberry.field(
         description="The prompt and response pair associated with the event",
         default=GqlValueMediator(),
@@ -53,7 +53,7 @@ def create_event_id(
 
 def unpack_event_id(
     event_id: ID,
-) -> Tuple[int, Union[InferencesRole, AncillaryInferencesRole]]:
+) -> tuple[int, Union[InferencesRole, AncillaryInferencesRole]]:
     row_id_str, inferences_role_str = str(event_id).split(":")
     row_id = int(row_id_str)
     inferences_role = STR_TO_INFEREENCES_ROLE[inferences_role_str]
@@ -61,12 +61,12 @@ def unpack_event_id(
 
 
 def parse_event_ids_by_inferences_role(
-    event_ids: List[ID],
-) -> Dict[Union[InferencesRole, AncillaryInferencesRole], List[int]]:
+    event_ids: list[ID],
+) -> dict[Union[InferencesRole, AncillaryInferencesRole], list[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
-    row_indexes: Dict[Union[InferencesRole, AncillaryInferencesRole], List[int]] = defaultdict(list)
+    row_indexes: dict[Union[InferencesRole, AncillaryInferencesRole], list[int]] = defaultdict(list)
     for event_id in event_ids:
         row_id, inferences_role = unpack_event_id(event_id)
         row_indexes[inferences_role].append(row_id)
@@ -76,7 +76,7 @@ def parse_event_ids_by_inferences_role(
 def create_event(
     event_id: ID,
     event: ms.Event,
-    dimensions: List[Dimension],
+    dimensions: list[Dimension],
     is_document_record: bool = False,
 ) -> Event:
     """

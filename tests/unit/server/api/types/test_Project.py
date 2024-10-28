@@ -1,7 +1,7 @@
 # ruff: noqa: E501
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 import pytest
@@ -479,7 +479,7 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
     ],
 )
 async def test_project_spans(
-    variables: Dict[str, Any],
+    variables: dict[str, Any],
     start_cursor: Cursor,
     end_cursor: Cursor,
     has_next_page: bool,

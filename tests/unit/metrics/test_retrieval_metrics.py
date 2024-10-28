@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])
 @pytest.mark.parametrize("scores", [[], [0], [1], [0, 0, 1], [np.nan, 1], [np.nan], [0, 2, np.nan]])
-def test_ranking_metrics_ndcg(k: Optional[int], scores: List[float]) -> None:
+def test_ranking_metrics_ndcg(k: Optional[int], scores: list[float]) -> None:
     actual = RetrievalMetrics(scores).ndcg(k)
     if not np.all(np.isfinite(np.array(scores))):
         desired = np.nan
@@ -28,7 +28,7 @@ def test_ranking_metrics_ndcg(k: Optional[int], scores: List[float]) -> None:
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])
 @pytest.mark.parametrize("scores", [[], [0], [1], [0, 0, 1], [np.nan, 1], [np.nan], [0, 2, np.nan]])
-def test_ranking_metrics_precision(k: Optional[int], scores: List[float]) -> None:
+def test_ranking_metrics_precision(k: Optional[int], scores: list[float]) -> None:
     actual = RetrievalMetrics(scores).precision(k)
     if not np.all(np.isfinite(np.array(scores))):
         desired = np.nan
@@ -50,7 +50,7 @@ def test_ranking_metrics_precision(k: Optional[int], scores: List[float]) -> Non
         ([0, 2, np.nan], 1 / 2),
     ],
 )
-def test_ranking_metrics_reciprocal_rank(scores: List[float], desired: float) -> None:
+def test_ranking_metrics_reciprocal_rank(scores: list[float], desired: float) -> None:
     actual = RetrievalMetrics(scores).reciprocal_rank()
     assert np.isclose(actual, desired, equal_nan=True)
 
@@ -67,6 +67,6 @@ def test_ranking_metrics_reciprocal_rank(scores: List[float], desired: float) ->
         ([0, 2, np.nan], 1),
     ],
 )
-def test_ranking_metrics_hit(scores: List[float], desired: float) -> None:
+def test_ranking_metrics_hit(scores: list[float], desired: float) -> None:
     actual = RetrievalMetrics(scores).hit()
     assert np.isclose(actual, desired, equal_nan=True)

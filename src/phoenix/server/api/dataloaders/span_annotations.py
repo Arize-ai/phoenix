@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import (
     DefaultDict,
-    List,
 )
 
 from sqlalchemy import select
@@ -12,7 +11,7 @@ from phoenix.db.models import SpanAnnotation as ORMSpanAnnotation
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int
-Result: TypeAlias = List[ORMSpanAnnotation]
+Result: TypeAlias = list[ORMSpanAnnotation]
 
 
 class SpanAnnotationsDataLoader(DataLoader[Key, Result]):
@@ -20,7 +19,7 @@ class SpanAnnotationsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         span_annotations_by_id: DefaultDict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             async for span_annotation in await session.stream_scalars(

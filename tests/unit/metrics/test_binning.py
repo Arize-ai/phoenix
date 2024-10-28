@@ -1,6 +1,6 @@
 import math
 from dataclasses import MISSING
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -219,8 +219,8 @@ def test_quantile_binning_dropna_adherence(dropna: bool) -> None:
     ],
 )
 def test_segmented_summary_with_interval_binning(
-    metrics: Tuple[Metric],
-    desired_values: List[List[Any]],
+    metrics: tuple[Metric],
+    desired_values: list[list[Any]],
     dropna: bool,
 ) -> None:
     df = pd.DataFrame(
@@ -325,8 +325,8 @@ def test_segmented_summary_with_interval_binning(
     ],
 )
 def test_segmented_summary_with_categorical_binning(
-    metrics: Tuple[Metric],
-    desired_values: List[List[Any]],
+    metrics: tuple[Metric],
+    desired_values: list[list[Any]],
     dropna: bool,
 ) -> None:
     df = pd.DataFrame(
@@ -374,7 +374,7 @@ def test_segmented_summary_with_categorical_binning(
 
 
 def _compare_summaries(
-    metrics: Tuple[Metric],
+    metrics: tuple[Metric],
     actual: pd.DataFrame,
     desired: pd.DataFrame,
 ) -> None:

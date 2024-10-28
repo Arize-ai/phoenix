@@ -1,6 +1,6 @@
 from itertools import chain
 from random import random
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Iterable, Union
 
 import numpy as np
 import pandas as pd
@@ -168,7 +168,7 @@ def test_singular_dimensional_role_one_df(
     display_name: str,
     series: "pd.Series[Any]",
 ) -> None:
-    schema_args: Dict[str, Any] = {role.name.lower(): column_spec}
+    schema_args: dict[str, Any] = {role.name.lower(): column_spec}
     schema = Schema(**schema_args)
     for _, df in {
         "zero columns": pd.DataFrame(),

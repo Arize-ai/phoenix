@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Iterable, List, Optional, Set, Union
+from typing import Iterable, Optional, Set, Union
 
 import strawberry
 from strawberry import ID, UNSET
@@ -30,9 +30,9 @@ class Inferences:
     @strawberry.field
     def events(
         self,
-        event_ids: List[ID],
-        dimensions: Optional[List[DimensionInput]] = UNSET,
-    ) -> List[Event]:
+        event_ids: list[ID],
+        dimensions: Optional[list[DimensionInput]] = UNSET,
+    ) -> list[Event]:
         """
         Returns events for specific event IDs and dimensions. If no input
         dimensions are provided, returns all features and tags.
@@ -62,13 +62,13 @@ class Inferences:
 
 def _get_requested_features_and_tags(
     core_dimensions: Iterable[ScalarDimension],
-    requested_dimension_names: Optional[Set[str]] = UNSET,
-) -> List[Dimension]:
+    requested_dimension_names: Optional[set[str]] = UNSET,
+) -> list[Dimension]:
     """
     Returns requested features and tags as a list of strawberry Inferences. If no
     dimensions are explicitly requested, returns all features and tags.
     """
-    requested_features_and_tags: List[Dimension] = []
+    requested_features_and_tags: list[Dimension] = []
     for id, dim in enumerate(core_dimensions):
         is_requested = (
             not isinstance(requested_dimension_names, Set)

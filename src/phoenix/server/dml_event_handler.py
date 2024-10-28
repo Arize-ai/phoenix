@@ -12,9 +12,6 @@ from typing import (
     Iterator,
     Mapping,
     Optional,
-    Set,
-    Tuple,
-    Type,
     TypedDict,
     TypeVar,
     Union,
@@ -54,7 +51,7 @@ _DmlEventT = TypeVar("_DmlEventT", bound=DmlEvent)
 class _DmlEventQueue(Generic[_DmlEventT]):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._events: Set[_DmlEventT] = set()
+        self._events: set[_DmlEventT] = set()
 
     @property
     def empty(self) -> bool:
@@ -120,7 +117,7 @@ class _GenericDmlEventHandler(_DmlEventHandler[DmlEvent]):
             for id_ in e.ids:
                 self._update(e.table, id_)
 
-    def _update(self, table: Type[Base], id_: int) -> None:
+    def _update(self, table: type[Base], id_: int) -> None:
         self._last_updated_at.set(table, id_)
 
 
@@ -146,9 +143,9 @@ class _SpanDeleteEventHandler(_SpanDmlEventHandler):
 
 
 _AnnotationTable: TypeAlias = Union[
-    Type[SpanAnnotation],
-    Type[TraceAnnotation],
-    Type[DocumentAnnotation],
+    type[SpanAnnotation],
+    type[TraceAnnotation],
+    type[DocumentAnnotation],
 ]
 
 _AnnotationDmlEventT = TypeVar(
@@ -165,7 +162,7 @@ class _AnnotationDmlEventHandler(
     ABC,
 ):
     _table: _AnnotationTable
-    _base_stmt: Union[Select[Tuple[int, str]], Select[Tuple[int]]] = (
+    _base_stmt: Union[Select[tuple[int, str]], Select[tuple[int]]] = (
         select(Project.id).join_from(Project, Trace).distinct()
     )
 
@@ -175,7 +172,7 @@ class _AnnotationDmlEventHandler(
         if self._cache_for_dataloaders:
             self._stmt = self._stmt.add_columns(self._table.name)
 
-    def _get_stmt(self) -> Union[Select[Tuple[int, str]], Select[Tuple[int]]]:
+    def _get_stmt(self) -> Union[Select[tuple[int, str]], Select[tuple[int]]]:
         ids = set(chain.from_iterable(e.ids for e in self._batch))
         return self._stmt.where(self._table.id.in_(ids))
 
@@ -242,7 +239,7 @@ class DmlEventHandler:
             cache_for_dataloaders=cache_for_dataloaders,
             sleep_seconds=sleep_seconds,
         )
-        self._handlers: Mapping[Type[DmlEvent], Iterable[_DmlEventHandler[Any]]] = {
+        self._handlers: Mapping[type[DmlEvent], Iterable[_DmlEventHandler[Any]]] = {
             DmlEvent: [_GenericDmlEventHandler(**kwargs)],
             SpanDmlEvent: [_SpanDmlEventHandler(**kwargs)],
             SpanDeleteEvent: [_SpanDeleteEventHandler(**kwargs)],

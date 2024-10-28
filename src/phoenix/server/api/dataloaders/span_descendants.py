@@ -1,8 +1,4 @@
 from random import randint
-from typing import (
-    Dict,
-    List,
-)
 
 from aioitertools.itertools import groupby
 from sqlalchemy import select
@@ -16,7 +12,7 @@ from phoenix.server.types import DbSessionFactory
 SpanId: TypeAlias = str
 
 Key: TypeAlias = SpanId
-Result: TypeAlias = List[models.Span]
+Result: TypeAlias = list[models.Span]
 
 
 class SpanDescendantsDataLoader(DataLoader[Key, Result]):
@@ -24,7 +20,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         root_ids = set(keys)
         root_id_label = f"root_id_{randint(0, 10**6):06}"
         descendant_ids = (
@@ -53,7 +49,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             .options(joinedload(models.Span.trace, innerjoin=True).load_only(models.Trace.trace_id))
             .order_by(descendant_ids.c[root_id_label])
         )
-        results: Dict[SpanId, Result] = {key: [] for key in keys}
+        results: dict[SpanId, Result] = {key: [] for key in keys}
         async with self._db() as session:
             data = await session.stream(stmt)
             async for root_id, group in groupby(data, key=lambda d: d[0]):

@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, replace
 from enum import Enum, auto
 from pathlib import Path
-from typing import Iterator, NamedTuple, Optional, Tuple
+from typing import Iterator, NamedTuple, Optional
 from urllib import request
 from urllib.parse import quote, urljoin
 
@@ -39,7 +39,7 @@ class Fixture:
     corpus_file_name: Optional[str] = None
     corpus_schema: Optional[Schema] = None
 
-    def paths(self) -> Iterator[Tuple[InferencesRole, Path]]:
+    def paths(self) -> Iterator[tuple[InferencesRole, Path]]:
         return (
             (role, Path(self.prefix) / name)
             for role, name in zip(
@@ -397,7 +397,7 @@ wikipedia_fixture = Fixture(
     corpus_file_name="corpus.parquet",
 )
 
-FIXTURES: Tuple[Fixture, ...] = (
+FIXTURES: tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     image_classification_fixture,
     fashion_mnist_fixture,
@@ -416,7 +416,7 @@ NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 def get_inferences(
     fixture_name: str,
     no_internet: bool = False,
-) -> Tuple[Inferences, Optional[Inferences], Optional[Inferences]]:
+) -> tuple[Inferences, Optional[Inferences], Optional[Inferences]]:
     """
     Downloads primary and reference inferences for a fixture if they are not found
     locally.
@@ -550,7 +550,7 @@ class GCSAssets(NamedTuple):
         )
 
 
-def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[InferencesRole, Path]]:
+def _download(fixture: Fixture, location: Path) -> Iterator[tuple[InferencesRole, Path]]:
     for role, path in fixture.paths():
         yield role, GCSAssets().metadata(path).save_artifact(location)
 

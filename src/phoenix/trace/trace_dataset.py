@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Iterable, Iterator, Optional, Union, cast
 from uuid import UUID, uuid4
 from warnings import warn
 
@@ -116,7 +116,7 @@ class TraceDataset:
     A human readable name for the dataset.
     """
     dataframe: pd.DataFrame
-    evaluations: List[Evaluations] = []
+    evaluations: list[Evaluations] = []
     _id: UUID
     _data_file_name: str = "data.parquet"
 
@@ -152,11 +152,11 @@ class TraceDataset:
         self.evaluations = list(evaluations)
 
     @classmethod
-    def from_spans(cls, spans: List[Span]) -> "TraceDataset":
+    def from_spans(cls, spans: list[Span]) -> "TraceDataset":
         """Creates a TraceDataset from a list of spans.
 
         Args:
-            spans (List[Span]): A list of spans.
+            spans (list[Span]): A list of spans.
 
         Returns:
             TraceDataset: A TraceDataset containing the spans.
@@ -349,7 +349,7 @@ class TraceDataset:
         return pd.concat([df, evals_df], axis=1)
 
 
-def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[UUID]]:
+def _parse_schema_metadata(schema: Schema) -> tuple[UUID, str, list[UUID]]:
     """
     Returns parsed metadata from a parquet schema or raises an exception if the
     metadata is invalid.

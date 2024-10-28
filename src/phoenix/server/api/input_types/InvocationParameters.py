@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -15,6 +15,6 @@ class InvocationParameters:
     max_completion_tokens: Optional[int] = UNSET
     max_tokens: Optional[int] = UNSET
     top_p: Optional[float] = UNSET
-    stop: Optional[List[str]] = UNSET
+    stop: Optional[list[str]] = UNSET
     seed: Optional[int] = UNSET
     tool_choice: Optional[JSON] = UNSET

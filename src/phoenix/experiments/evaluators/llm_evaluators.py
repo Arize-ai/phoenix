@@ -1,6 +1,7 @@
 import re
+from collections.abc import Callable
 from types import MappingProxyType
-from typing import Any, Callable, Optional, Type
+from typing import Any, Optional
 
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
 from phoenix.evals.utils import snap_to_rail
@@ -121,7 +122,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 
 def criteria_evaluator_factory(
     class_name: str, criteria: str, description: str, default_name: str
-) -> Type[ExperimentEvaluator]:
+) -> type[ExperimentEvaluator]:
     def _init(self, model: LLMBaseModel, name: str = default_name) -> None:  # type: ignore
         LLMCriteriaEvaluator.__init__(self, model, criteria, description, name=name)
 

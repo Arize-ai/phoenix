@@ -2,7 +2,7 @@ import logging
 import os
 import urllib
 from re import compile
-from typing import Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,13 @@ def get_env_project_name() -> str:
     return os.getenv(ENV_PHOENIX_PROJECT_NAME, "default")
 
 
-def get_env_client_headers() -> Optional[Dict[str, str]]:
+def get_env_client_headers() -> Optional[dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
 
 
-def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
+def get_env_phoenix_auth_header() -> Optional[dict[str, str]]:
     api_key = os.environ.get(ENV_PHOENIX_API_KEY)
     if api_key:
         return dict(authorization=f"Bearer {api_key}")
@@ -49,7 +49,7 @@ _HEADER_PATTERN = compile(_KEY_VALUE_FORMAT)
 _DELIMITER_PATTERN = compile(r"[ \t]*,[ \t]*")
 
 
-def parse_env_headers(s: str) -> Dict[str, str]:
+def parse_env_headers(s: str) -> dict[str, str]:
     """
     Parse ``s``, which is a ``str`` instance containing HTTP headers encoded
     for use in ENV variables per the W3C Baggage HTTP header format at
@@ -58,8 +58,8 @@ def parse_env_headers(s: str) -> Dict[str, str]:
 
     If the headers are not urlencoded, we will log a warning and attempt to urldecode them.
     """
-    headers: Dict[str, str] = {}
-    headers_list: List[str] = _DELIMITER_PATTERN.split(s)
+    headers: dict[str, str] = {}
+    headers_list: list[str] = _DELIMITER_PATTERN.split(s)
 
     for header in headers_list:
         if not header:  # empty string

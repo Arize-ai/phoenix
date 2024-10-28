@@ -2,7 +2,7 @@ import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
@@ -148,7 +148,7 @@ def test_decode_encode_span_kind(span: Span, span_kind: SpanKind) -> None:
     ],
 )
 def test_decode_encode_attributes(
-    span: Span, attributes: Dict[str, Any], otlp_key_value: KeyValue
+    span: Span, attributes: dict[str, Any], otlp_key_value: KeyValue
 ) -> None:
     span = replace(span, attributes={**span.attributes, **attributes})
     otlp_span = encode_span_to_otlp(span)

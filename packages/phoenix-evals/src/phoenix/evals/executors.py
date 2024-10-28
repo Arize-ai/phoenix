@@ -5,18 +5,16 @@ import logging
 import signal
 import threading
 import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
     Any,
-    Callable,
     Coroutine,
     Generator,
-    List,
     Optional,
     Protocol,
     Sequence,
-    Tuple,
     Union,
 )
 
@@ -43,7 +41,7 @@ class ExecutionStatus(Enum):
 
 class ExecutionDetails:
     def __init__(self) -> None:
-        self.exceptions: List[Exception] = []
+        self.exceptions: list[Exception] = []
         self.status = ExecutionStatus.DID_NOT_RUN
         self.execution_seconds: float = 0
 
@@ -64,7 +62,7 @@ class ExecutionDetails:
 
 
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]: ...
+    def run(self, inputs: Sequence[Any]) -> tuple[list[Any], list[ExecutionDetails]]: ...
 
 
 class AsyncExecutor(Executor):
@@ -117,7 +115,7 @@ class AsyncExecutor(Executor):
     async def producer(
         self,
         inputs: Sequence[Any],
-        queue: asyncio.PriorityQueue[Tuple[int, Any]],
+        queue: asyncio.PriorityQueue[tuple[int, Any]],
         max_fill: int,
         done_producing: asyncio.Event,
         termination_signal: asyncio.Event,
@@ -135,9 +133,9 @@ class AsyncExecutor(Executor):
 
     async def consumer(
         self,
-        outputs: List[Any],
-        execution_details: List[ExecutionDetails],
-        queue: asyncio.PriorityQueue[Tuple[int, Any]],
+        outputs: list[Any],
+        execution_details: list[ExecutionDetails],
+        queue: asyncio.PriorityQueue[tuple[int, Any]],
         done_producing: asyncio.Event,
         termination_event: asyncio.Event,
         progress_bar: tqdm[Any],
@@ -215,7 +213,7 @@ class AsyncExecutor(Executor):
                 if termination_event_watcher and not termination_event_watcher.done():
                     termination_event_watcher.cancel()
 
-    async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
+    async def execute(self, inputs: Sequence[Any]) -> tuple[list[Any], list[ExecutionDetails]]:
         termination_event = asyncio.Event()
 
         def termination_handler(signum: int, frame: Any) -> None:
@@ -233,7 +231,7 @@ class AsyncExecutor(Executor):
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
         max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
-        queue: asyncio.PriorityQueue[Tuple[int, Any]] = asyncio.PriorityQueue(
+        queue: asyncio.PriorityQueue[tuple[int, Any]] = asyncio.PriorityQueue(
             maxsize=max_queue_size
         )
         done_producing = asyncio.Event()
@@ -278,7 +276,7 @@ class AsyncExecutor(Executor):
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
         return outputs, execution_details
 
-    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
+    def run(self, inputs: Sequence[Any]) -> tuple[list[Any], list[ExecutionDetails]]:
         return asyncio.run(self.execute(inputs))
 
 
@@ -337,10 +335,10 @@ class SyncExecutor(Executor):
         else:
             yield
 
-    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
+    def run(self, inputs: Sequence[Any]) -> tuple[list[Any], list[Any]]:
         with self._executor_signal_handling(self.termination_signal):
             outputs = [self.fallback_return_value] * len(inputs)
-            execution_details: List[ExecutionDetails] = [
+            execution_details: list[ExecutionDetails] = [
                 ExecutionDetails() for _ in range(len(inputs))
             ]
             progress_bar = tqdm(

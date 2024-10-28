@@ -2,7 +2,7 @@ import logging
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -36,13 +36,13 @@ class Metric(ABC):
     def calc(self, dataframe: pd.DataFrame) -> Any: ...
 
     @abstractmethod
-    def operands(self) -> List[Column]: ...
+    def operands(self) -> list[Column]: ...
 
     def __call__(
         self,
         df: pd.DataFrame,
         /,
-        subset_rows: Optional[Union[slice, List[int]]] = None,
+        subset_rows: Optional[Union[slice, list[int]]] = None,
     ) -> Any:
         """
         Computes the metric on a dataframe.
@@ -51,7 +51,7 @@ class Metric(ABC):
         ----------
         df: pandas DataFrame
             The dataframe input to the metric.
-        subset_rows: Optional[Union[slice, List[int]]] = None
+        subset_rows: Optional[Union[slice, list[int]]] = None
             Optionally specifying a subset of rows for the computation.
             Can be a list or slice (e.g. `slice(100, 200)`) of integers.
         """

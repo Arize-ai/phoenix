@@ -175,7 +175,7 @@ from rouge import Rouge
 
 
 # convenience functions
-def _rouge_1(hypothesis: str, reference: str) -> Dict[str, Any]:
+def _rouge_1(hypothesis: str, reference: str) -> dict[str, Any]:
     scores = Rouge().get_scores(hypothesis, reference)
     return scores[0]["rouge-1"]
 
@@ -193,15 +193,15 @@ def _rouge_1_recall(hypothesis: str, reference: str) -> float:
 
 
 # evaluators
-def rouge_1_f1_score(output: str, expected: Dict[str, Any]) -> float:
+def rouge_1_f1_score(output: str, expected: dict[str, Any]) -> float:
     return _rouge_1_f1_score(hypothesis=output, reference=expected["summary"])
 
 
-def rouge_1_precision(output: str, expected: Dict[str, Any]) -> float:
+def rouge_1_precision(output: str, expected: dict[str, Any]) -> float:
     return _rouge_1_precision(hypothesis=output, reference=expected["summary"])
 
 
-def rouge_1_recall(output: str, expected: Dict[str, Any]) -> float:
+def rouge_1_recall(output: str, expected: dict[str, Any]) -> float:
     return _rouge_1_recall(hypothesis=output, reference=expected["summary"])
 
 

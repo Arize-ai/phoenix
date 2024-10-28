@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Any, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 import pandas as pd
 import pytz
@@ -96,7 +96,7 @@ MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
 def right_open_time_range(
     min_time: Optional[datetime],
     max_time: Optional[datetime],
-) -> Tuple[Optional[datetime], Optional[datetime]]:
+) -> tuple[Optional[datetime], Optional[datetime]]:
     """
     First adds one minute to `max_time`, because time intervals are right
     open and one minute is the smallest interval allowed, then rounds down

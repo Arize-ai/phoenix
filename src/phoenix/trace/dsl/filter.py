@@ -17,7 +17,7 @@ from typing_extensions import TypeAlias, TypeGuard, assert_never
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 
-_VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
+_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
 )
 
@@ -59,7 +59,7 @@ class AliasedAnnotationRelation:
         object.__setattr__(self, "table", table)
 
     @property
-    def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+    def attributes(self) -> typing.Iterator[tuple[str, Mapped[typing.Any]]]:
         """
         Alias names and attributes (i.e., columns) of the `span_annotation`
         relation.
@@ -142,12 +142,8 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
-    _aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
-        init=False, repr=False
-    )
-    _aliased_annotation_attributes: typing.Dict[str, Mapped[typing.Any]] = field(
-        init=False, repr=False
-    )
+    _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
+    _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -198,7 +194,7 @@ class SpanFilter:
             )
         )
 
-    def to_dict(self) -> typing.Dict[str, typing.Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
 
     @classmethod
@@ -439,7 +435,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
 class _FilterTranslator(_ProjectionTranslator):
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
         if len(node.comparators) > 1:
-            args: typing.List[typing.Any] = []
+            args: list[typing.Any] = []
             left = node.left
             for i, (op, comparator) in enumerate(zip(node.ops, node.comparators)):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
@@ -540,7 +536,7 @@ class _FilterTranslator(_ProjectionTranslator):
 def _validate_expression(
     expression: ast.Expression,
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
-    valid_eval_attributes: typing.Tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
+    valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
     """
     Validate primarily the structural (i.e. not semantic) characteristics of an
@@ -638,7 +634,7 @@ def _validate_expression(
 
 
 def _as_attribute(
-    keys: typing.List[ast.Constant],
+    keys: list[ast.Constant],
     # as_float: typing.Optional[bool] = None,
 ) -> ast.Subscript:
     return ast.Subscript(
@@ -675,14 +671,14 @@ def _is_subscript(
 
 def _get_attribute_keys_list(
     node: typing.Any,
-) -> typing.Optional[typing.List[ast.Constant]]:
+) -> typing.Optional[list[ast.Constant]]:
     # e.g. `attributes["key"]` -> `["key"]`
     # e.g. `attributes["a"]["b.c"][["d"]]` -> `["a", "b.c", "d"]`
     # e.g. `attributes["a"][["b.c", "d"]]` -> `["a", "b.c", "d"]`
     # e.g. `metadata["key"]` -> `["metadata", "key"]`
     # e.g. `metadata["a"]["b.c"][["d"]]` -> `["metadata", "a", "b.c", "d"]`
     # e.g. `metadata["a"][["b.c", "d"]]` -> `["metadata", "a", "b.c", "d"]`
-    keys: typing.List[ast.Constant] = []
+    keys: list[ast.Constant] = []
     if isinstance(node, ast.Attribute):
         while isinstance(node, ast.Attribute):
             keys.append(ast.Constant(value=node.attr, kind=None))
@@ -707,7 +703,7 @@ def _get_attribute_keys_list(
 
 def _get_subscript_keys_list(
     node: ast.Subscript,
-) -> typing.Optional[typing.List[ast.Constant]]:
+) -> typing.Optional[list[ast.Constant]]:
     child = node.slice
     if isinstance(child, ast.Constant):
         if not isinstance(child.value, (str, int)) or isinstance(child.value, bool):
@@ -751,7 +747,7 @@ def _disjunction(choices: typing.Sequence[str]) -> str:
 
 def _find_best_match(
     source: str, choices: typing.Iterable[str]
-) -> typing.Tuple[typing.Optional[str], float]:
+) -> tuple[typing.Optional[str], float]:
     best_choice, best_score = None, 0.0
     for choice in choices:
         score = SequenceMatcher(None, source, choice).ratio()
@@ -762,9 +758,9 @@ def _find_best_match(
 
 def _apply_eval_aliasing(
     source: str,
-) -> typing.Tuple[
+) -> tuple[
     str,
-    typing.Tuple[AliasedAnnotationRelation, ...],
+    tuple[AliasedAnnotationRelation, ...],
 ]:
     """
     Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
@@ -784,7 +780,7 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-    eval_aliases: typing.Dict[AnnotationName, AliasedAnnotationRelation] = {}
+    eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
     for (
         annotation_expression,
         annotation_type,
@@ -802,7 +798,7 @@ def _apply_eval_aliasing(
 def _parse_annotation_expressions_and_names(
     source: str,
 ) -> typing.Iterator[
-    typing.Tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
+    tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
 ]:
     """
     Parses filter conditions for evaluation expressions of the form:

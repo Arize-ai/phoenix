@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from asyncio import Queue, as_completed
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from itertools import islice
@@ -9,12 +10,8 @@ from typing import (
     Any,
     AsyncIterator,
     Awaitable,
-    Callable,
     Iterable,
-    List,
     Optional,
-    Set,
-    Tuple,
     cast,
 )
 
@@ -43,7 +40,7 @@ ProjectRowId: TypeAlias = int
 
 @dataclass(frozen=True)
 class TransactionResult:
-    updated_project_rowids: Set[ProjectRowId] = field(default_factory=set)
+    updated_project_rowids: set[ProjectRowId] = field(default_factory=set)
 
 
 class BulkInserter:
@@ -52,7 +49,7 @@ class BulkInserter:
         db: DbSessionFactory,
         *,
         event_queue: CanPutItem[DmlEvent],
-        initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+        initial_batch_of_spans: Optional[Iterable[tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
         max_ops_per_transaction: int = 1000,
@@ -76,10 +73,10 @@ class BulkInserter:
         self._max_ops_per_transaction = max_ops_per_transaction
         self._operations: Optional[Queue[DataManipulation]] = None
         self._max_queue_size = max_queue_size
-        self._spans: List[Tuple[Span, str]] = (
+        self._spans: list[tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: List[pb.Evaluation] = (
+        self._evaluations: list[pb.Evaluation] = (
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
@@ -91,7 +88,7 @@ class BulkInserter:
 
     async def __aenter__(
         self,
-    ) -> Tuple[
+    ) -> tuple[
         Callable[[Any], Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
@@ -183,7 +180,7 @@ class BulkInserter:
                 self._event_queue.put(event)
             await asyncio.sleep(self._sleep)
 
-    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
+    async def _insert_spans(self, spans: list[tuple[Span, str]]) -> None:
         project_ids = set()
         for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
@@ -220,7 +217,7 @@ class BulkInserter:
                 logger.exception("Failed to insert spans")
         self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
 
-    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
+    async def _insert_evaluations(self, evaluations: list[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -273,7 +270,7 @@ class _QueueInserters:
         if self.empty:
             return
         for coro in as_completed([q.insert() for q in self._queues if not q.empty]):
-            if events := cast(Optional[List[DmlEvent]], await coro):
+            if events := cast(Optional[list[DmlEvent]], await coro):
                 for event in events:
                     yield event
 

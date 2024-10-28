@@ -1,6 +1,6 @@
 import math
 from functools import cached_property
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Any, Iterable, Optional
 
 import pandas as pd
 import strawberry
@@ -24,8 +24,8 @@ class DocumentEvaluationSummary:
     ) -> None:
         self.evaluation_name = evaluation_name
         self.metrics_collection = pd.Series(metrics_collection, dtype=object)
-        self._cached_average_ndcg_results: Dict[Optional[int], Tuple[float, int]] = {}
-        self._cached_average_precision_results: Dict[Optional[int], Tuple[float, int]] = {}
+        self._cached_average_ndcg_results: dict[Optional[int], tuple[float, int]] = {}
+        self._cached_average_precision_results: dict[Optional[int], tuple[float, int]] = {}
 
     @strawberry.field
     def average_ndcg(self, k: Optional[int] = UNSET) -> Optional[float]:
@@ -67,7 +67,7 @@ class DocumentEvaluationSummary:
         _, count = self._average_hit
         return count
 
-    def _average_ndcg(self, k: Optional[int] = None) -> Tuple[float, int]:
+    def _average_ndcg(self, k: Optional[int] = None) -> tuple[float, int]:
         if (result := self._cached_average_ndcg_results.get(k)) is not None:
             return result
         values = self.metrics_collection.apply(lambda m: m.ndcg(k))
@@ -75,7 +75,7 @@ class DocumentEvaluationSummary:
         self._cached_average_ndcg_results[k] = result
         return result
 
-    def _average_precision(self, k: Optional[int] = None) -> Tuple[float, int]:
+    def _average_precision(self, k: Optional[int] = None) -> tuple[float, int]:
         if (result := self._cached_average_precision_results.get(k)) is not None:
             return result
         values = self.metrics_collection.apply(lambda m: m.precision(k))
@@ -84,11 +84,11 @@ class DocumentEvaluationSummary:
         return result
 
     @cached_property
-    def _average_reciprocal_rank(self) -> Tuple[float, int]:
+    def _average_reciprocal_rank(self) -> tuple[float, int]:
         values = self.metrics_collection.apply(lambda m: m.reciprocal_rank())
         return values.mean(), values.count()
 
     @cached_property
-    def _average_hit(self) -> Tuple[float, int]:
+    def _average_hit(self) -> tuple[float, int]:
         values = self.metrics_collection.apply(lambda m: m.hit())
         return values.mean(), values.count()

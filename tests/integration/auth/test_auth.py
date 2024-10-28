@@ -6,13 +6,11 @@ from typing import (
     Any,
     ContextManager,
     DefaultDict,
-    Dict,
     Generic,
     Iterator,
     Literal,
     Optional,
     Sequence,
-    Set,
     TypeVar,
 )
 
@@ -90,7 +88,7 @@ class TestOriginAndReferer:
     )
     def test_csrf_origin_validation(
         self,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         expectation: ContextManager[Any],
     ) -> None:
         resp = _httpx_client(headers=headers).get("/healthz")
@@ -332,7 +330,7 @@ class TestLogOut:
 class TestLoggedInTokens:
     class _JtiSet(Generic[_TokenT]):
         def __init__(self) -> None:
-            self._set: Set[str] = set()
+            self._set: set[str] = set()
 
         def add(self, token: _TokenT) -> None:
             assert (jti := _decode_jwt(token)["jti"]) not in self._set
@@ -390,7 +388,7 @@ class TestRefreshToken:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        logged_in_users: DefaultDict[int, Dict[int, _LoggedInUser]] = defaultdict(dict)
+        logged_in_users: DefaultDict[int, dict[int, _LoggedInUser]] = defaultdict(dict)
 
         # user logs into first browser
         logged_in_users[0][0] = u.log_in()

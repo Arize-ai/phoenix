@@ -1,8 +1,9 @@
 import math
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Callable, Union, cast
+from typing import Union, cast
 
 import numpy as np
 import numpy.typing as npt

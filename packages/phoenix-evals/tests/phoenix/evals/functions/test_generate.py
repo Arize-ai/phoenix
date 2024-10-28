@@ -1,7 +1,6 @@
 import json
 import sys
 from math import isnan
-from typing import Dict
 
 import httpx
 import numpy as np
@@ -161,7 +160,7 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
 
     model = OpenAIModel()
 
-    def output_parser(response: str, response_index: int) -> Dict[str, str]:
+    def output_parser(response: str, response_index: int) -> dict[str, str]:
         try:
             res = json.loads(response)
             res["category"] += str(response_index)

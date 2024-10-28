@@ -1,4 +1,4 @@
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Mapping
 
 import pytest
 
@@ -135,7 +135,7 @@ def test_get_attribute_value(
         ),
     ],
 )
-def test_unflatten(key_value_pairs: Tuple[Tuple[str, Any], ...], desired: Dict[str, Any]) -> None:
+def test_unflatten(key_value_pairs: tuple[tuple[str, Any], ...], desired: dict[str, Any]) -> None:
     actual = dict(unflatten(key_value_pairs))
     assert actual == desired
     actual = dict(unflatten(reversed(key_value_pairs)))
@@ -159,7 +159,7 @@ def test_unflatten(key_value_pairs: Tuple[Tuple[str, Any], ...], desired: Dict[s
     ],
 )
 def test_unflatten_separator(
-    separator: str, key_value_pairs: Tuple[Tuple[str, Any], ...], desired: Dict[str, Any]
+    separator: str, key_value_pairs: tuple[tuple[str, Any], ...], desired: dict[str, Any]
 ) -> None:
     actual = dict(unflatten(key_value_pairs, separator=separator))
     assert actual == desired

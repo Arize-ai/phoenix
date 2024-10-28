@@ -1,16 +1,14 @@
 from abc import ABC
+from collections.abc import Callable
 from enum import Enum, auto
 from typing import (
     Any,
     Awaitable,
-    Callable,
     Iterable,
     Iterator,
     Mapping,
     Optional,
     Sequence,
-    Tuple,
-    Type,
 )
 
 from sqlalchemy import Insert
@@ -41,7 +39,7 @@ class OnConflict(Enum):
 
 def insert_on_conflict(
     *records: Mapping[str, Any],
-    table: Type[Base],
+    table: type[Base],
     dialect: SupportedSQLDialect,
     unique_by: Sequence[str],
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
@@ -85,8 +83,8 @@ def insert_on_conflict(
 
 
 def _clean(
-    kv: Iterable[Tuple[str, KeyedColumnElement[Any]]],
-) -> Iterator[Tuple[str, KeyedColumnElement[Any]]]:
+    kv: Iterable[tuple[str, KeyedColumnElement[Any]]],
+) -> Iterator[tuple[str, KeyedColumnElement[Any]]]:
     for k, v in kv:
         if v.primary_key or v.foreign_keys or k == "created_at":
             continue
@@ -96,7 +94,7 @@ def _clean(
             yield k, v
 
 
-def as_kv(obj: models.Base) -> Iterator[Tuple[str, Any]]:
+def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
     for k, c in obj.__table__.c.items():
         if k in ["created_at", "updated_at"]:
             continue

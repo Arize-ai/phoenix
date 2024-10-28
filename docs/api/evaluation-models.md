@@ -44,11 +44,11 @@ class OpenAIModel:
     """Penalizes repeated tokens."""
     n: int = 1
     """How many completions to generate for each prompt."""
-    model_kwargs: Dict[str, Any] = field(default_factory=dict)
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
     """Holds any model parameters valid for `create` call not explicitly specified."""
     batch_size: int = 20
     """Batch size to use when passing multiple documents to generate."""
-    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    request_timeout: Optional[Union[float, tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
 ```
 
@@ -162,9 +162,9 @@ class AnthropicModel(BaseModel):
     """Total probability mass of tokens to consider at each step."""
     top_k: int = 256
     """The cutoff where the model no longer selects the words."""
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens."""
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    extra_parameters: dict[str, Any] = field(default_factory=dict)
     """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
@@ -184,7 +184,7 @@ class BedrockModel:
     """Total probability mass of tokens to consider at each step."""
     top_k: int = 256
     """The cutoff where the model no longer selects the words"""
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens. """
     session: Any = None
     """A bedrock session. If provided, a new bedrock client will be created using this session."""
@@ -192,7 +192,7 @@ class BedrockModel:
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    extra_parameters: dict[str, Any] = field(default_factory=dict)
     """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
 ```
 
@@ -254,7 +254,7 @@ class MistralAIModel(BaseModel):
     temperature: float = 0
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
-    response_format: Optional[Dict[str, str]] = None
+    response_format: Optional[dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
 ````
@@ -278,7 +278,7 @@ class LiteLLMModel(BaseEvalModel):
     ServiceUnavailableError occurs."""
     request_timeout: int = 60
     """Maximum number of seconds to wait when retrying."""
-    model_kwargs: Dict[str, Any] = field(default_factory=dict)
+    model_kwargs: dict[str, Any] = field(default_factory=dict)
     """Model specific params"""
 ```
 
@@ -306,6 +306,6 @@ In this section, we will showcase the methods and properties that our `EvalModel
 
 <pre class="language-python"><code class="lang-python"><strong># model = Instantiate your model here
 </strong>model("Hello there, how are you?")
-# Output: "As an artificial intelligence, I don't have feelings, 
+# Output: "As an artificial intelligence, I don't have feelings,
 #          but I'm here and ready to assist you. How can I help you today?"
 </code></pre>

@@ -9,9 +9,7 @@ from types import MappingProxyType
 from typing import (
     Any,
     DefaultDict,
-    Dict,
     Iterable,
-    List,
     Mapping,
     Optional,
     Sequence,
@@ -83,7 +81,7 @@ class Projection(_Base):
     def __call__(self) -> SQLColumnExpression[Any]:
         return self._projector()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"key": self.key}
 
     @classmethod
@@ -138,7 +136,7 @@ class Explosion(_HasTmpSuffix, Projection):
         object.__setattr__(self, "_array_tmp_col_label", f"__array_tmp_col_{random()}")
 
     @cached_property
-    def index_keys(self) -> List[str]:
+    def index_keys(self) -> list[str]:
         return [self._primary_index.key, f"{self._position_prefix}position"]
 
     def with_primary_index_key(self, _: str) -> "Explosion":
@@ -215,7 +213,7 @@ class Explosion(_HasTmpSuffix, Projection):
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
-            def _extract_values(array: List[Any]) -> List[Dict[str, Any]]:
+            def _extract_values(array: list[Any]) -> list[dict[str, Any]]:
                 if not isinstance(array, Iterable):
                     return []
                 if not self.kwargs:
@@ -227,11 +225,11 @@ class Explosion(_HasTmpSuffix, Projection):
                         for i, obj in enumerate(array)
                         if isinstance(obj, Mapping)
                     ]
-                res: List[Dict[str, Any]] = []
+                res: list[dict[str, Any]] = []
                 for i, obj in enumerate(array):
                     if not isinstance(obj, Mapping):
                         continue
-                    values: Dict[str, Any] = {f"{self._position_prefix}position": i}
+                    values: dict[str, Any] = {f"{self._position_prefix}position": i}
                     for name, key in self.kwargs.items():
                         if (value := get_attribute_value(obj, key)) is not None:
                             values[name] = value
@@ -261,7 +259,7 @@ class Explosion(_HasTmpSuffix, Projection):
         df = df.set_index(self.index_keys)
         return df
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             **super().to_dict(),
             **({"kwargs": dict(self.kwargs)} if self.kwargs else {}),
@@ -384,12 +382,12 @@ class Concatenation(_HasTmpSuffix, Projection):
             # Because SQLite doesn't support `WITH ORDINALITY`, the order of
             # the returned table-values is not guaranteed. So we resort to
             # post hoc processing using pandas.
-            def _concat_values(array: List[Any]) -> Dict[str, Any]:
+            def _concat_values(array: list[Any]) -> dict[str, Any]:
                 if not isinstance(array, Iterable):
                     return {}
                 if not self.kwargs:
                     return {self.key: self.separator.join(str(obj) for obj in array)}
-                values: DefaultDict[str, List[str]] = defaultdict(list)
+                values: DefaultDict[str, list[str]] = defaultdict(list)
                 for i, obj in enumerate(array):
                     if not isinstance(obj, Mapping):
                         continue
@@ -407,7 +405,7 @@ class Concatenation(_HasTmpSuffix, Projection):
             assert_never(dialect)
         return df
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             **super().to_dict(),
             **({"kwargs": dict(self.kwargs)} if self.kwargs else {}),
@@ -619,7 +617,7 @@ class SpanQuery(_HasTmpSuffix):
         df = df.rename(self._rename, axis=1, errors="ignore")
         return df
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             **(
                 {"select": {name: proj.to_dict() for name, proj in self._select.items()}}
@@ -771,7 +769,7 @@ def _outer_join(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> Dict[str, Any]:
+def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> dict[str, Any]:
     # This may be inefficient, but is needed to preserve backward-compatibility.
     # For example, custom attributes do not get flattened.
     ans = unflatten(

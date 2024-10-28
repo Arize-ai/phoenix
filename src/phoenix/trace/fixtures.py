@@ -10,14 +10,11 @@ from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
     DefaultDict,
-    Dict,
     Iterable,
     Iterator,
-    List,
     NamedTuple,
     Optional,
     Sequence,
-    Tuple,
     cast,
 )
 from urllib.parse import urljoin
@@ -280,7 +277,7 @@ random_fixture = TracesFixture(
     file_name="random.jsonl",
 )
 
-TRACES_FIXTURES: List[TracesFixture] = [
+TRACES_FIXTURES: list[TracesFixture] = [
     demo_llama_index_rag_fixture,
     demo_llama_index_rag_llm_fixture,
     demo_langgraph_agent_fixture,
@@ -298,10 +295,10 @@ TRACES_FIXTURES: List[TracesFixture] = [
     anthropic_tools_fixture,
 ]
 
-NAME_TO_TRACES_FIXTURE: Dict[str, TracesFixture] = {
+NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE: DefaultDict[str, List[TracesFixture]] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: DefaultDict[str, list[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)
@@ -322,7 +319,7 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def get_trace_fixtures_by_project_name(proj_name: str) -> List[TracesFixture]:
+def get_trace_fixtures_by_project_name(proj_name: str) -> list[TracesFixture]:
     """
     Returns a dictionary of project name (key) and set of TracesFixtures (value)
     whose project name matches the input name.
@@ -437,7 +434,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             explanation=StringValue(value=cast(str, explanation)) if explanation else None,
         )
         if isinstance(eval_fixture, DocumentEvaluationFixture):
-            span_id, document_position = cast(Tuple[str, int], index)
+            span_id, document_position = cast(tuple[str, int], index)
             # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
             # strings need to be removed because we are also removing the hyphens from the
             # span_ids of their corresponding traces. In general, hyphen is not an allowed
@@ -476,10 +473,10 @@ def _url(
 def reset_fixture_span_ids_and_timestamps(
     spans: Iterable[Span],
     evals: Iterable[pb.Evaluation] = (),
-) -> Tuple[List[Span], List[pb.Evaluation]]:
+) -> tuple[list[Span], list[pb.Evaluation]]:
     old_spans, old_evals = list(spans), list(evals)
-    new_trace_ids: Dict[str, str] = {}
-    new_span_ids: Dict[str, str] = {}
+    new_trace_ids: dict[str, str] = {}
+    new_span_ids: dict[str, str] = {}
     for old_span in old_spans:
         new_trace_ids[old_span.context.trace_id] = _new_trace_id()
         new_span_ids[old_span.context.span_id] = _new_span_id()
@@ -495,8 +492,8 @@ def reset_fixture_span_ids_and_timestamps(
             new_span_ids[span_id] = _new_span_id()
     max_end_time = max(old_span.end_time for old_span in old_spans)
     time_diff = datetime.now(timezone.utc) - max_end_time
-    new_spans: List[Span] = []
-    new_evals: List[pb.Evaluation] = []
+    new_spans: list[Span] = []
+    new_evals: list[pb.Evaluation] = []
     for old_span in old_spans:
         new_trace_id = new_trace_ids[old_span.context.trace_id]
         new_span_id = new_span_ids[old_span.context.span_id]

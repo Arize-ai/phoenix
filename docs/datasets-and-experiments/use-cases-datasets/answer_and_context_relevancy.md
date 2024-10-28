@@ -163,14 +163,14 @@ Function arguments `output` and `input` refers to the attributes of the same nam
 
 
 ```python
-async def answer_relevancy(output, input) -> Tuple[Score, Explanation]:
+async def answer_relevancy(output, input) -> tuple[Score, Explanation]:
     ans = await AnswerRelevancyEvaluator(
         llm=OpenAI(temperature=0, model="gpt-4o"),
     ).aevaluate(input["query"], response=output["response"])
     return ans.score, ans.feedback
 
 
-async def context_relevancy(output, input) -> Tuple[Score, Explanation]:
+async def context_relevancy(output, input) -> tuple[Score, Explanation]:
     ans = await ContextRelevancyEvaluator(
         llm=OpenAI(temperature=0, model="gpt-4o"),
     ).aevaluate(input["query"], contexts=output["contexts"])

@@ -3,20 +3,17 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import (
     Any,
     AsyncContextManager,
-    Callable,
     DefaultDict,
     Generic,
     Iterator,
-    List,
     Optional,
     Protocol,
-    Tuple,
-    Type,
     TypeVar,
     final,
 )
@@ -30,11 +27,11 @@ from phoenix.db.helpers import SupportedSQLDialect
 
 
 class CanSetLastUpdatedAt(Protocol):
-    def set(self, table: Type[models.Base], id_: int) -> None: ...
+    def set(self, table: type[models.Base], id_: int) -> None: ...
 
 
 class CanGetLastUpdatedAt(Protocol):
-    def get(self, table: Type[models.Base], id_: Optional[int] = None) -> Optional[datetime]: ...
+    def get(self, table: type[models.Base], id_: Optional[int] = None) -> Optional[datetime]: ...
 
 
 class DbSessionFactory:
@@ -79,7 +76,7 @@ class DaemonTask(ABC):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._running = False
-        self._tasks: List[Task[None]] = []
+        self._tasks: list[Task[None]] = []
 
     async def start(self) -> None:
         self._running = True
@@ -128,18 +125,18 @@ class BatchedCaller(DaemonTask, _HasBatch[_AnyT], Generic[_AnyT], ABC):
 class LastUpdatedAt:
     def __init__(self) -> None:
         self._cache: DefaultDict[
-            Type[models.Base],
+            type[models.Base],
             LRUCache[int, datetime],
         ] = defaultdict(lambda: LRUCache(maxsize=100))
 
-    def get(self, table: Type[models.Base], id_: Optional[int] = None) -> Optional[datetime]:
+    def get(self, table: type[models.Base], id_: Optional[int] = None) -> Optional[datetime]:
         if not (cache := self._cache.get(table)):
             return None
         if id_ is None:
             return max(filter(bool, cache.values()), default=None)
         return cache.get(id_)
 
-    def set(self, table: Type[models.Base], id_: int) -> None:
+    def set(self, table: type[models.Base], id_: int) -> None:
         self._cache[table][id_] = datetime.now(timezone.utc)
 
 
@@ -180,7 +177,7 @@ class ApiKeyAttributes(UserTokenAttributes):
 
 
 class _DbId(str, ABC):
-    table: Type[models.Base]
+    table: type[models.Base]
 
     def __new__(cls, id_: int) -> _DbId:
         assert isinstance(id_, int)
@@ -272,16 +269,16 @@ class TokenStore(CanReadToken, CanRevokeTokens, CanLogOutUser, Protocol):
     async def create_password_reset_token(
         self,
         claims: PasswordResetTokenClaims,
-    ) -> Tuple[PasswordResetToken, PasswordResetTokenId]: ...
+    ) -> tuple[PasswordResetToken, PasswordResetTokenId]: ...
     async def create_access_token(
         self,
         claims: AccessTokenClaims,
-    ) -> Tuple[AccessToken, AccessTokenId]: ...
+    ) -> tuple[AccessToken, AccessTokenId]: ...
     async def create_refresh_token(
         self,
         claims: RefreshTokenClaims,
-    ) -> Tuple[RefreshToken, RefreshTokenId]: ...
+    ) -> tuple[RefreshToken, RefreshTokenId]: ...
     async def create_api_key(
         self,
         claims: ApiKeyClaims,
-    ) -> Tuple[ApiKey, ApiKeyId]: ...
+    ) -> tuple[ApiKey, ApiKeyId]: ...

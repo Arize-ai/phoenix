@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -17,7 +18,7 @@ from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 logger = logging.getLogger(__name__)
 
 
-def _no_op_parser(response: str, response_index: int) -> Dict[str, str]:
+def _no_op_parser(response: str, response_index: int) -> dict[str, str]:
     return {"output": response}
 
 
@@ -27,7 +28,7 @@ def llm_generate(
     model: BaseModel,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
-    output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,
+    output_parser: Optional[Callable[[str, int], dict[str, Any]]] = None,
     include_prompt: bool = False,
     include_response: bool = False,
     run_sync: bool = False,
@@ -55,7 +56,7 @@ def llm_generate(
         verbose (bool, optional): If True, prints detailed information to stdout such as model
             invocation parameters and retry info. Default False.
 
-        output_parser (Callable[[str, int], Dict[str, Any]], optional): An optional function
+        output_parser (Callable[[str, int], dict[str, Any]], optional): An optional function
             that takes each generated response and response index and parses it to a dictionary. The
             keys of the dictionary should correspond to the column names of the output dataframe. If
             None, the output dataframe will have a single column named "output". Default None.
@@ -90,7 +91,7 @@ def llm_generate(
     logger.info(f"Template variables: {template.variables}")
     prompts = map_template(dataframe, template)
 
-    async def _run_llm_generation_async(enumerated_prompt: Tuple[int, str]) -> Dict[str, Any]:
+    async def _run_llm_generation_async(enumerated_prompt: tuple[int, str]) -> dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
@@ -104,7 +105,7 @@ def llm_generate(
             parsed_response["response"] = response
         return parsed_response
 
-    def _run_llm_generation_sync(enumerated_prompt: Tuple[int, str]) -> Dict[str, Any]:
+    def _run_llm_generation_sync(enumerated_prompt: tuple[int, str]) -> dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(

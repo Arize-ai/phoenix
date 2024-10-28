@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
+from typing import Any, Mapping, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +24,9 @@ _DocumentPosition: TypeAlias = int
 _AnnoRowId: TypeAlias = int
 _NumDocs: TypeAlias = int
 
-_Key: TypeAlias = Tuple[_Name, _SpanId, _DocumentPosition]
-_UniqueBy: TypeAlias = Tuple[_Name, _SpanRowId, _DocumentPosition]
-_Existing: TypeAlias = Tuple[
+_Key: TypeAlias = tuple[_Name, _SpanId, _DocumentPosition]
+_UniqueBy: TypeAlias = tuple[_Name, _SpanRowId, _DocumentPosition]
+_Existing: TypeAlias = tuple[
     _SpanRowId,
     _SpanId,
     _NumDocs,
@@ -51,7 +51,7 @@ class DocumentAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *insertions: Insertables.DocumentAnnotation,
-    ) -> List[DocumentAnnotationDmlEvent]:
+    ) -> list[DocumentAnnotationDmlEvent]:
         records = [dict(as_kv(ins.row)) for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
@@ -61,17 +61,17 @@ class DocumentAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *parcels: Received[Precursors.DocumentAnnotation],
-    ) -> Tuple[
-        List[Received[Insertables.DocumentAnnotation]],
-        List[Postponed[Precursors.DocumentAnnotation]],
-        List[Received[Precursors.DocumentAnnotation]],
+    ) -> tuple[
+        list[Received[Insertables.DocumentAnnotation]],
+        list[Postponed[Precursors.DocumentAnnotation]],
+        list[Received[Precursors.DocumentAnnotation]],
     ]:
-        to_insert: List[Received[Insertables.DocumentAnnotation]] = []
-        to_postpone: List[Postponed[Precursors.DocumentAnnotation]] = []
-        to_discard: List[Received[Precursors.DocumentAnnotation]] = []
+        to_insert: list[Received[Insertables.DocumentAnnotation]] = []
+        to_postpone: list[Postponed[Precursors.DocumentAnnotation]] = []
+        to_discard: list[Received[Precursors.DocumentAnnotation]] = []
 
         stmt = self._select_existing(*map(_key, parcels))
-        existing: List[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
+        existing: list[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
         existing_spans: Mapping[str, _SpanAttr] = {
             e.span_id: _SpanAttr(e.span_rowid, e.num_docs) for e in existing
         }

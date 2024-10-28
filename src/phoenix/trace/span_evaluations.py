@@ -1,10 +1,11 @@
 import json
 from abc import ABC
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 from uuid import UUID, uuid4
 
 import pandas as pd
@@ -20,11 +21,11 @@ EVAL_PARQUET_FILE_NAME = "evaluations-{id}.parquet"
 
 
 class NeedsNamedIndex(ABC):
-    index_names: Mapping[Tuple[str, ...], Callable[[Any], bool]]
-    all_valid_index_name_sorted_combos: Set[Tuple[str, ...]]
+    index_names: Mapping[tuple[str, ...], Callable[[Any], bool]]
+    all_valid_index_name_sorted_combos: set[tuple[str, ...]]
 
     @classmethod
-    def preferred_names(cls) -> List[str]:
+    def preferred_names(cls) -> list[str]:
         return [choices[0] for choices in cls.index_names.keys()]
 
     @classmethod
@@ -43,7 +44,7 @@ class NeedsNamedIndex(ABC):
         )
 
     @classmethod
-    def find_valid_index_names(cls, dtypes: "pd.Series[Any]") -> Optional[List[str]]:
+    def find_valid_index_names(cls, dtypes: "pd.Series[Any]") -> Optional[list[str]]:
         valid_names = []
         for names, check_type in cls.index_names.items():
             for name in names:
@@ -92,7 +93,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             f"dataframe=<rows: {len(self.dataframe)!r}>)"
         )
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         return ["get_dataframe"]
 
     def get_dataframe(self, prefix_columns_with_name: bool = True) -> pd.DataFrame:
@@ -153,7 +154,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
 
     def __init_subclass__(
         cls,
-        index_names: Mapping[Tuple[str, ...], Callable[[Any], bool]],
+        index_names: Mapping[tuple[str, ...], Callable[[Any], bool]],
         **kwargs: Any,
     ) -> None:
         super().__init_subclass__(**kwargs)
@@ -327,7 +328,7 @@ class TraceEvaluations(
 ): ...
 
 
-def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]]:
+def _parse_schema_metadata(schema: Schema) -> tuple[UUID, str, type[Evaluations]]:
     """
     Validates and parses the pyarrow schema metadata.
     """

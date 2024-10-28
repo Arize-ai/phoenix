@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
@@ -40,7 +40,7 @@ class GeminiModel(BaseModel):
             Defaults to 1.
         top_k (int, optional): The cutoff where the model no longer selects the words.
             Defaults to 32.
-        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+        stop_sequences (list[str], optional): If the model encounters a stop sequence, it stops
             generating further tokens. Defaults to an empty list.
         project (str, optional): The default project to use when making API calls. Defaults to
             None.
@@ -76,7 +76,7 @@ class GeminiModel(BaseModel):
     max_tokens: int = 256
     top_p: float = 1
     top_k: int = 32
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
     initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
@@ -118,7 +118,7 @@ class GeminiModel(BaseModel):
         )
 
     @property
-    def generation_config(self) -> Dict[str, Any]:
+    def generation_config(self) -> dict[str, Any]:
         return {
             "temperature": self.temperature,
             "max_output_tokens": self.max_tokens,
@@ -128,21 +128,21 @@ class GeminiModel(BaseModel):
         }
 
     @property
-    def _init_params(self) -> Dict[str, Any]:
+    def _init_params(self) -> dict[str, Any]:
         return {
             "project": self.project,
             "location": self.location,
             "credentials": self.credentials,
         }
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
         @self._rate_limiter.limit
         def _rate_limited_completion(
-            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+            prompt: str, generation_config: dict[str, Any], **kwargs: Any
         ) -> Any:
             response = self._model.generate_content(
                 contents=prompt, generation_config=generation_config, **kwargs
@@ -157,14 +157,14 @@ class GeminiModel(BaseModel):
 
         return str(response)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
         @self._rate_limiter.alimit
         async def _rate_limited_completion(
-            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+            prompt: str, generation_config: dict[str, Any], **kwargs: Any
         ) -> Any:
             response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs

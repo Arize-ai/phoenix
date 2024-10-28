@@ -1,12 +1,13 @@
 import logging
 import traceback
-from typing import Any, Callable, Iterable, Optional, Type, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, Iterable, Optional, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., Any])
 
 
 def graceful_fallback(
-    fallback_method: Callable[..., Any], exceptions: Optional[Iterable[Type[BaseException]]] = None
+    fallback_method: Callable[..., Any], exceptions: Optional[Iterable[type[BaseException]]] = None
 ) -> Callable[[F], F]:
     """
     Decorator that reroutes failing functions to a specified fallback method.

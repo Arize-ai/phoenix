@@ -10,11 +10,8 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     Iterator,
-    List,
     Literal,
-    Set,
     Union,
     cast,
     get_args,
@@ -74,9 +71,9 @@ class TestSendingAnnotationsBeforeSpans:
 
     @staticmethod
     async def _last_updated_at(
-        project_names: List[str],
+        project_names: list[str],
         httpx_client: AsyncClient,
-    ) -> Dict[str, datetime]:
+    ) -> dict[str, datetime]:
         q = "query{projects{edges{node{name streamingLastUpdatedAt}}}}"
         resp = await httpx_client.post("/graphql", json=dict(query=q))
         assert resp.status_code == 200
@@ -92,9 +89,9 @@ class TestSendingAnnotationsBeforeSpans:
     async def _mean_scores(
         httpx_client: AsyncClient,
         summary: _Summary,
-        project_names: List[str],
+        project_names: list[str],
         *names: str,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         ans = {}
         for name in names:
             q = "query{projects{edges{node{name " + f'{summary}Name:"{name}"' + "){meanScore}}}}}"
@@ -133,8 +130,8 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     def send_spans(
         self,
-        traces: Dict[str, TraceDataset],
-        project_names: List[str],
+        traces: dict[str, TraceDataset],
+        project_names: list[str],
         px_client: Client,
     ) -> Callable[[], Awaitable[None]]:
         log_traces = (
@@ -150,32 +147,32 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     def send_annotations(
         self,
-        project_names: List[str],
-        eval_names: List[str],
-        anno_names: List[str],
+        project_names: list[str],
+        eval_names: list[str],
+        anno_names: list[str],
         rand_span_id: Iterator[str],
         rand_trace_id: Iterator[str],
-        span_ids: Dict[str, List[str]],
-        trace_ids: Dict[str, List[str]],
-        traces: Dict[str, TraceDataset],
+        span_ids: dict[str, list[str]],
+        trace_ids: dict[str, list[str]],
+        traces: dict[str, TraceDataset],
         px_client: Client,
         httpx_client: AsyncClient,
         fake: Faker,
         size: int,
     ) -> Callable[[float], Awaitable[None]]:
-        def span_evaluations(s: float) -> Iterator[Dict[str, Any]]:
+        def span_evaluations(s: float) -> Iterator[dict[str, Any]]:
             for project_name in project_names:
                 for j, span_id in enumerate(span_ids[project_name]):
                     yield dict(score=j + s, span_id=next(rand_span_id))
                     yield dict(score=j + s, span_id=span_id)
 
-        def trace_evaluations(s: float) -> Iterator[Dict[str, Any]]:
+        def trace_evaluations(s: float) -> Iterator[dict[str, Any]]:
             for project_name in project_names:
                 for j, trace_id in enumerate(trace_ids[project_name]):
                     yield dict(score=j + s, trace_id=next(rand_trace_id))
                     yield dict(score=j + s, trace_id=trace_id)
 
-        def document_evaluations(s: float) -> Iterator[Dict[str, Any]]:
+        def document_evaluations(s: float) -> Iterator[dict[str, Any]]:
             for project_name in project_names:
                 for j, span_id in enumerate(span_ids[project_name]):
                     yield dict(score=j + s, span_id=next(rand_span_id), position=0)
@@ -193,16 +190,16 @@ class TestSendingAnnotationsBeforeSpans:
             ):
                 yield cls(name, pd.DataFrame(fn(s)).sample(frac=1))
 
-        def kwargs(name: str, s: float) -> Dict[str, Any]:
+        def kwargs(name: str, s: float) -> dict[str, Any]:
             return dict(annotator_kind="HUMAN", metadata={}, name=name, result=dict(score=s))
 
-        def span_annotations(s: float) -> Iterator[Dict[str, Any]]:
+        def span_annotations(s: float) -> Iterator[dict[str, Any]]:
             for name, project_name in product(anno_names, project_names):
                 for j, span_id in enumerate(span_ids[project_name]):
                     yield dict(span_id=next(rand_span_id), **kwargs(name, j + s))
                     yield dict(span_id=span_id, **kwargs(name, j + s))
 
-        def trace_annotations(s: float) -> Iterator[Dict[str, Any]]:
+        def trace_annotations(s: float) -> Iterator[dict[str, Any]]:
             for name, project_name in product(anno_names, project_names):
                 for j, trace_id in enumerate(trace_ids[project_name]):
                     yield dict(trace_id=next(rand_trace_id), **kwargs(name, j + s))
@@ -229,7 +226,7 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     def assert_last_updated_at(
         self,
-        project_names: List[str],
+        project_names: list[str],
         httpx_client: AsyncClient,
     ) -> Callable[[Callable[[datetime, datetime], bool], datetime], Awaitable[None]]:
         async def _(compare: Callable[[datetime, datetime], bool], t: datetime) -> None:
@@ -243,18 +240,18 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     def assert_evals(
         self,
-        project_names: List[str],
-        eval_names: List[str],
-        anno_names: List[str],
-        span_ids: Dict[str, List[str]],
-        trace_ids: Dict[str, List[str]],
-        traces: Dict[str, TraceDataset],
+        project_names: list[str],
+        eval_names: list[str],
+        anno_names: list[str],
+        span_ids: dict[str, list[str]],
+        trace_ids: dict[str, list[str]],
+        traces: dict[str, TraceDataset],
         px_client: Client,
         size: int,
     ) -> Callable[[bool, float], Awaitable[None]]:
         async def _(exist: bool, score_offset: float = 0) -> None:
             get_evaluations = (
-                cast(List[_Evals], px_client.get_evaluations(project_name))
+                cast(list[_Evals], px_client.get_evaluations(project_name))
                 for project_name in project_names
             )
             evals = dict(zip(project_names, await gather(*get_evaluations)))
@@ -297,12 +294,12 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     def assert_summaries(
         self,
-        project_names: List[str],
-        eval_names: List[str],
-        anno_names: List[str],
-        span_ids: Dict[str, List[str]],
-        trace_ids: Dict[str, List[str]],
-        traces: Dict[str, TraceDataset],
+        project_names: list[str],
+        eval_names: list[str],
+        anno_names: list[str],
+        span_ids: dict[str, list[str]],
+        trace_ids: dict[str, list[str]],
+        traces: dict[str, TraceDataset],
         px_client: Client,
         httpx_client: AsyncClient,
         mean_score: float,
@@ -340,7 +337,7 @@ class TestSendingAnnotationsBeforeSpans:
 
     @pytest.fixture
     def rand_str(self, fake: Faker) -> Iterator[str]:
-        def _(seen: Set[str]) -> Iterator[str]:
+        def _(seen: set[str]) -> Iterator[str]:
             while True:
                 if (name := fake.pystr()) not in seen:
                     seen.add(name)
@@ -349,15 +346,15 @@ class TestSendingAnnotationsBeforeSpans:
         return _(set())
 
     @pytest.fixture
-    def project_names(self, rand_str: Iterator[str], size: int) -> List[str]:
+    def project_names(self, rand_str: Iterator[str], size: int) -> list[str]:
         return [f"proj_{next(rand_str)}" for _ in range(size)]
 
     @pytest.fixture
-    def eval_names(self, rand_str: Iterator[str], size: int) -> List[str]:
+    def eval_names(self, rand_str: Iterator[str], size: int) -> list[str]:
         return [f"eval_{next(rand_str)}" for _ in range(size)]
 
     @pytest.fixture
-    def anno_names(self, rand_str: Iterator[str], size: int) -> List[str]:
+    def anno_names(self, rand_str: Iterator[str], size: int) -> list[str]:
         return [f"anno_{next(rand_str)}" for _ in range(size)]
 
     @pytest.fixture
@@ -372,9 +369,9 @@ class TestSendingAnnotationsBeforeSpans:
     def span_ids(
         self,
         rand_span_id: Iterator[str],
-        project_names: List[str],
+        project_names: list[str],
         size: int,
-    ) -> Dict[str, List[str]]:
+    ) -> dict[str, list[str]]:
         return {
             project_name: sorted(next(rand_span_id) for _ in range(size))
             for project_name in project_names
@@ -384,9 +381,9 @@ class TestSendingAnnotationsBeforeSpans:
     def trace_ids(
         self,
         rand_trace_id: Iterator[str],
-        project_names: List[str],
+        project_names: list[str],
         size: int,
-    ) -> Dict[str, List[str]]:
+    ) -> dict[str, list[str]]:
         return {
             project_name: sorted(next(rand_trace_id) for _ in range(size))
             for project_name in project_names
@@ -396,10 +393,10 @@ class TestSendingAnnotationsBeforeSpans:
     def traces(
         self,
         span: pd.DataFrame,
-        span_ids: Dict[str, List[str]],
-        trace_ids: Dict[str, List[str]],
-        project_names: List[str],
-    ) -> Dict[str, TraceDataset]:
+        span_ids: dict[str, list[str]],
+        trace_ids: dict[str, list[str]],
+        project_names: list[str],
+    ) -> dict[str, TraceDataset]:
         assert len(span) == 1
         return {
             project_name: TraceDataset(
@@ -430,7 +427,7 @@ _Summary: TypeAlias = Literal[
     "spanAnnotationSummary(annotation",
     "traceAnnotationSummary(annotation",
 ]
-anno_summaries: List[_Summary] = [
+anno_summaries: list[_Summary] = [
     "spanAnnotationSummary(annotation",
     "traceAnnotationSummary(annotation",
 ]

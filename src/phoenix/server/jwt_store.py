@@ -1,11 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
 from asyncio import create_task, gather, sleep
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from functools import cached_property, singledispatchmethod
-from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Coroutine, Generic, Optional, TypeVar
 
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
@@ -65,7 +66,7 @@ class JwtStore:
         self._api_key_store = _ApiKeyStore(*args, **kwargs)
 
     @cached_property
-    def _stores(self) -> Tuple[DaemonTask, ...]:
+    def _stores(self) -> tuple[DaemonTask, ...]:
         return tuple(dt for dt in self.__dict__.values() if isinstance(dt, _Store))
 
     async def __aenter__(self) -> None:
@@ -131,34 +132,34 @@ class JwtStore:
     async def create_password_reset_token(
         self,
         claim: PasswordResetTokenClaims,
-    ) -> Tuple[PasswordResetToken, PasswordResetTokenId]:
+    ) -> tuple[PasswordResetToken, PasswordResetTokenId]:
         return await self._password_reset_token_store.create(claim)
 
     async def create_access_token(
         self,
         claim: AccessTokenClaims,
-    ) -> Tuple[AccessToken, AccessTokenId]:
+    ) -> tuple[AccessToken, AccessTokenId]:
         return await self._access_token_store.create(claim)
 
     async def create_refresh_token(
         self,
         claim: RefreshTokenClaims,
-    ) -> Tuple[RefreshToken, RefreshTokenId]:
+    ) -> tuple[RefreshToken, RefreshTokenId]:
         return await self._refresh_token_store.create(claim)
 
     async def create_api_key(
         self,
         claim: ApiKeyClaims,
-    ) -> Tuple[ApiKey, ApiKeyId]:
+    ) -> tuple[ApiKey, ApiKeyId]:
         return await self._api_key_store.create(claim)
 
     async def revoke(self, *token_ids: TokenId) -> None:
         if not token_ids:
             return
-        password_reset_token_ids: List[PasswordResetTokenId] = []
-        access_token_ids: List[AccessTokenId] = []
-        refresh_token_ids: List[RefreshTokenId] = []
-        api_key_ids: List[ApiKeyId] = []
+        password_reset_token_ids: list[PasswordResetTokenId] = []
+        access_token_ids: list[AccessTokenId] = []
+        refresh_token_ids: list[RefreshTokenId] = []
+        api_key_ids: list[ApiKeyId] = []
         for token_id in token_ids:
             if isinstance(token_id, PasswordResetTokenId):
                 password_reset_token_ids.append(token_id)
@@ -168,7 +169,7 @@ class JwtStore:
                 refresh_token_ids.append(token_id)
             elif isinstance(token_id, ApiKeyId):
                 api_key_ids.append(token_id)
-        coroutines: List[Coroutine[None, None, None]] = []
+        coroutines: list[Coroutine[None, None, None]] = []
         if password_reset_token_ids:
             coroutines.append(self._password_reset_token_store.revoke(*password_reset_token_ids))
         if access_token_ids:
@@ -202,7 +203,7 @@ _RecordT = TypeVar(
 
 class _Claims(Generic[_TokenIdT, _ClaimSetT]):
     def __init__(self) -> None:
-        self._cache: Dict[_TokenIdT, _ClaimSetT] = {}
+        self._cache: dict[_TokenIdT, _ClaimSetT] = {}
 
     def __getitem__(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         claim = self._cache.get(token_id)
@@ -223,7 +224,7 @@ class _Claims(Generic[_TokenIdT, _ClaimSetT]):
 
 
 class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC):
-    _table: Type[_RecordT]
+    _table: type[_RecordT]
     _token_id: Callable[[int], _TokenIdT]
     _token: Callable[[str], _TokenT]
 
@@ -244,7 +245,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         self._algorithm = algorithm
 
     def _encode(self, claim: ClaimSet) -> str:
-        payload: Dict[str, Any] = dict(jti=claim.token_id)
+        payload: dict[str, Any] = dict(jti=claim.token_id)
         header = {"alg": self._algorithm}
         jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=self._secret)
         return jwt_bytes.decode()
@@ -275,12 +276,12 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
             await session.execute(stmt)
 
     @abstractmethod
-    def _from_db(self, record: _RecordT, role: UserRole) -> Tuple[_TokenIdT, _ClaimSetT]: ...
+    def _from_db(self, record: _RecordT, role: UserRole) -> tuple[_TokenIdT, _ClaimSetT]: ...
 
     @abstractmethod
     def _to_db(self, claims: _ClaimSetT) -> _RecordT: ...
 
-    async def create(self, claim: _ClaimSetT) -> Tuple[_TokenT, _TokenIdT]:
+    async def create(self, claim: _ClaimSetT) -> tuple[_TokenT, _TokenIdT]:
         record = self._to_db(claim)
         async with self._db() as session:
             session.add(record)
@@ -303,7 +304,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
         self._claims = claims
 
     @cached_property
-    def _update_stmt(self) -> Select[Tuple[_RecordT, str]]:
+    def _update_stmt(self) -> Select[tuple[_RecordT, str]]:
         return (
             select(self._table, models.UserRole.name)
             .join_from(self._table, models.User)
@@ -340,7 +341,7 @@ class _PasswordResetTokenStore(
         self,
         record: models.PasswordResetToken,
         user_role: UserRole,
-    ) -> Tuple[PasswordResetTokenId, PasswordResetTokenClaims]:
+    ) -> tuple[PasswordResetTokenId, PasswordResetTokenClaims]:
         token_id = PasswordResetTokenId(record.id)
         return token_id, PasswordResetTokenClaims(
             token_id=token_id,
@@ -379,7 +380,7 @@ class _AccessTokenStore(
         self,
         record: models.AccessToken,
         user_role: UserRole,
-    ) -> Tuple[AccessTokenId, AccessTokenClaims]:
+    ) -> tuple[AccessTokenId, AccessTokenClaims]:
         token_id = AccessTokenId(record.id)
         refresh_token_id = RefreshTokenId(record.refresh_token_id)
         return token_id, AccessTokenClaims(
@@ -423,7 +424,7 @@ class _RefreshTokenStore(
         self,
         record: models.RefreshToken,
         user_role: UserRole,
-    ) -> Tuple[RefreshTokenId, RefreshTokenClaims]:
+    ) -> tuple[RefreshTokenId, RefreshTokenClaims]:
         token_id = RefreshTokenId(record.id)
         return token_id, RefreshTokenClaims(
             token_id=token_id,
@@ -469,7 +470,7 @@ class _ApiKeyStore(
         self,
         record: models.ApiKey,
         user_role: UserRole,
-    ) -> Tuple[ApiKeyId, ApiKeyClaims]:
+    ) -> tuple[ApiKeyId, ApiKeyClaims]:
         token_id = ApiKeyId(record.id)
         return token_id, ApiKeyClaims(
             token_id=token_id,

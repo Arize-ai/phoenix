@@ -2,7 +2,7 @@ import json
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 import pypistats
 import requests
@@ -20,7 +20,7 @@ headers = {
 }
 
 
-def get_stars(repo: str) -> List[Dict[str, Any]]:
+def get_stars(repo: str) -> list[dict[str, Any]]:
     stars = []
     page = 1
     while True:
@@ -39,8 +39,8 @@ def get_stars(repo: str) -> List[Dict[str, Any]]:
     return stars
 
 
-def aggregate_weekly(stars: List[Dict[str, Any]]) -> Dict[str, int]:
-    weekly_counts: Dict[str, int] = defaultdict(int)
+def aggregate_weekly(stars: list[dict[str, Any]]) -> dict[str, int]:
+    weekly_counts: dict[str, int] = defaultdict(int)
     for star in stars:
         starred_at = star["starred_at"]
         week = datetime.strptime(starred_at, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%U")

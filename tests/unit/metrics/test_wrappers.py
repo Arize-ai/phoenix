@@ -1,7 +1,8 @@
 import inspect
 import math
 from collections import ChainMap
-from typing import Any, Callable, Dict, Iterable, Optional, cast
+from collections.abc import Callable
+from typing import Any, Iterable, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -105,7 +106,7 @@ def test_regression(
     df: pd.DataFrame,
     metric: Eval,
     desired: Callable[..., float],
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
 ) -> None:
     run_test(
         df,
@@ -160,7 +161,7 @@ def test_classification(
     df: pd.DataFrame,
     metric: Eval,
     desired: Callable[..., float],
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     is_binary: bool,
     pred_is_score: bool,
 ) -> None:
@@ -184,7 +185,7 @@ def run_test(
     sample_weight_column_name: str,
     eval: Eval,
     desired: Callable[..., float],
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     actual_label: Any = None,
     predicted_label: Any = None,
 ) -> None:

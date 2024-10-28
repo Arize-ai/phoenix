@@ -1,13 +1,13 @@
 import json
 from dataclasses import asdict, dataclass, replace
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import Any, Mapping, Optional, Union
 
-EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
+EmbeddingFeatures = dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str
-SchemaFieldValue = Union[Optional[str], Optional[List[str]], Optional[EmbeddingFeatures]]
+SchemaFieldValue = Union[Optional[str], Optional[list[str]], Optional[EmbeddingFeatures]]
 
-MULTI_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = ("feature_column_names", "tag_column_names")
-SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
+MULTI_COLUMN_SCHEMA_FIELD_NAMES: tuple[str, ...] = ("feature_column_names", "tag_column_names")
+SINGLE_COLUMN_SCHEMA_FIELD_NAMES: tuple[str, ...] = (
     "prediction_id_column_name",
     "timestamp_column_name",
     "prediction_label_column_name",
@@ -19,7 +19,7 @@ LLM_SCHEMA_FIELD_NAMES = ["prompt_column_names", "response_column_names"]
 
 
 @dataclass(frozen=True)
-class EmbeddingColumnNames(Dict[str, Any]):
+class EmbeddingColumnNames(dict[str, Any]):
     """
     A dataclass to hold the column names for the embedding features.
     An embedding feature is a feature that is represented by a vector.
@@ -80,8 +80,8 @@ class Schema:
     prediction_id_column_name: Optional[str] = None
     id_column_name: Optional[str] = None  # Syntax sugar for prediction_id_column_name
     timestamp_column_name: Optional[str] = None
-    feature_column_names: Optional[List[str]] = None
-    tag_column_names: Optional[List[str]] = None
+    feature_column_names: Optional[list[str]] = None
+    tag_column_names: Optional[list[str]] = None
     prediction_label_column_name: Optional[str] = None
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
@@ -91,7 +91,7 @@ class Schema:
     # document_column_names is used explicitly when the schema is used to capture a corpus
     document_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
-    excluded_column_names: Optional[List[str]] = None
+    excluded_column_names: Optional[list[str]] = None
 
     def __post_init__(self) -> None:
         # re-map document_column_names to be in the prompt_column_names position
@@ -107,7 +107,7 @@ class Schema:
     def replace(self, **changes: Any) -> "Schema":
         return replace(self, **changes)
 
-    def asdict(self) -> Dict[str, str]:
+    def asdict(self) -> dict[str, str]:
         return asdict(self)
 
     def to_json(self) -> str:

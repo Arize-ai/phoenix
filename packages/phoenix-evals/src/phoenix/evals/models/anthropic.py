@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
@@ -8,7 +8,7 @@ from phoenix.evals.models.rate_limiters import RateLimiter
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
 
-def anthropic_version(version_str: str) -> Tuple[int, ...]:
+def anthropic_version(version_str: str) -> tuple[int, ...]:
     return tuple(map(int, version_str.split(".")))
 
 
@@ -33,9 +33,9 @@ class AnthropicModel(BaseModel):
             Defaults to 1.
         top_k (int, optional): The cutoff where the model no longer selects the words.
             Defaults to 256.
-        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+        stop_sequences (list[str], optional): If the model encounters a stop sequence, it stops
             generating further tokens. Defaults to an empty list.
-        extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
+        extra_parameters (dict[str, Any], optional): Any extra parameters to add to the request
             body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
         max_content_size (Optional[int], optional): If using a fine-tuned model, set this to the
             maximum content size. Defaults to None.
@@ -57,8 +57,8 @@ class AnthropicModel(BaseModel):
     max_tokens: int = 256
     top_p: float = 1
     top_k: int = 256
-    stop_sequences: List[str] = field(default_factory=list)
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    stop_sequences: list[str] = field(default_factory=list)
+    extra_parameters: dict[str, Any] = field(default_factory=dict)
     max_content_size: Optional[int] = None
     initial_rate_limit: int = 5
 
@@ -101,7 +101,7 @@ class AnthropicModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def invocation_parameters(self) -> Dict[str, Any]:
+    def invocation_parameters(self) -> dict[str, Any]:
         return {
             "max_tokens": self.max_tokens,
             "stop_sequences": self.stop_sequences,
@@ -110,7 +110,7 @@ class AnthropicModel(BaseModel):
             "top_k": self.top_k,
         }
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -138,7 +138,7 @@ class AnthropicModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -166,7 +166,7 @@ class AnthropicModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
+    def _format_prompt_for_claude(self, prompt: str) -> list[dict[str, str]]:
         # the Anthropic messages API expects a list of messages
         return [
             {"role": "user", "content": prompt},

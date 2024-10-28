@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import (
     DefaultDict,
-    List,
 )
 
 from sqlalchemy import select
@@ -13,7 +12,7 @@ from phoenix.server.types import DbSessionFactory
 
 ExperimentRunID: TypeAlias = int
 Key: TypeAlias = ExperimentRunID
-Result: TypeAlias = List[OrmExperimentRunAnnotation]
+Result: TypeAlias = list[OrmExperimentRunAnnotation]
 
 
 class ExperimentRunAnnotations(DataLoader[Key, Result]):
@@ -24,7 +23,7 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         run_ids = keys
         annotations: DefaultDict[Key, Result] = defaultdict(list)
         async with self._db() as session:

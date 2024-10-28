@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Mapping, NamedTuple, Optional, Tuple
+from typing import Any, Mapping, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +22,9 @@ _TraceId: TypeAlias = str
 _TraceRowId: TypeAlias = int
 _AnnoRowId: TypeAlias = int
 
-_Key: TypeAlias = Tuple[_Name, _TraceId]
-_UniqueBy: TypeAlias = Tuple[_Name, _TraceRowId]
-_Existing: TypeAlias = Tuple[
+_Key: TypeAlias = tuple[_Name, _TraceId]
+_UniqueBy: TypeAlias = tuple[_Name, _TraceRowId]
+_Existing: TypeAlias = tuple[
     _TraceRowId,
     _TraceId,
     Optional[_AnnoRowId],
@@ -47,7 +47,7 @@ class TraceAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *insertions: Insertables.TraceAnnotation,
-    ) -> List[TraceAnnotationDmlEvent]:
+    ) -> list[TraceAnnotationDmlEvent]:
         records = [dict(as_kv(ins.row)) for ins in insertions]
         stmt = self._insert_on_conflict(*records).returning(self.table.id)
         ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
@@ -57,17 +57,17 @@ class TraceAnnotationQueueInserter(
         self,
         session: AsyncSession,
         *parcels: Received[Precursors.TraceAnnotation],
-    ) -> Tuple[
-        List[Received[Insertables.TraceAnnotation]],
-        List[Postponed[Precursors.TraceAnnotation]],
-        List[Received[Precursors.TraceAnnotation]],
+    ) -> tuple[
+        list[Received[Insertables.TraceAnnotation]],
+        list[Postponed[Precursors.TraceAnnotation]],
+        list[Received[Precursors.TraceAnnotation]],
     ]:
-        to_insert: List[Received[Insertables.TraceAnnotation]] = []
-        to_postpone: List[Postponed[Precursors.TraceAnnotation]] = []
-        to_discard: List[Received[Precursors.TraceAnnotation]] = []
+        to_insert: list[Received[Insertables.TraceAnnotation]] = []
+        to_postpone: list[Postponed[Precursors.TraceAnnotation]] = []
+        to_discard: list[Received[Precursors.TraceAnnotation]] = []
 
         stmt = self._select_existing(*map(_key, parcels))
-        existing: List[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
+        existing: list[Row[_Existing]] = [_ async for _ in await session.stream(stmt)]
         existing_traces: Mapping[str, _TraceAttr] = {
             e.trace_id: _TraceAttr(e.trace_rowid) for e in existing
         }

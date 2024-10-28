@@ -1,4 +1,4 @@
-from typing import List, Sequence
+from typing import Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -19,7 +19,7 @@ from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationIn
 
 @strawberry.type
 class SpanAnnotationMutationPayload:
-    span_annotations: List[SpanAnnotation]
+    span_annotations: list[SpanAnnotation]
     query: Query
 
 
@@ -27,7 +27,7 @@ class SpanAnnotationMutationPayload:
 class SpanAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def create_span_annotations(
-        self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
+        self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
@@ -61,7 +61,7 @@ class SpanAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_span_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationInput]
+        self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:

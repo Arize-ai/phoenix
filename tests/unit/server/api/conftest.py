@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Tuple
+from typing import Any
 
 import pytest
 from sqlalchemy import insert
@@ -603,7 +603,7 @@ async def dataset_with_experiments_runs_and_evals(
 @pytest.fixture
 async def dataset_with_messages(
     db: DbSessionFactory,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     async with db() as session:
         dataset_id = await session.scalar(
             insert(models.Dataset).returning(models.Dataset.id),

@@ -1,6 +1,6 @@
 from datetime import datetime
 from random import getrandbits
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import Field
@@ -40,7 +40,7 @@ class Experiment(V1RoutesBaseModel):
         description="The ID of the dataset version associated with the experiment"
     )
     repetitions: int = Field(description="Number of times the experiment is repeated")
-    metadata: Dict[str, Any] = Field(description="Metadata of the experiment")
+    metadata: dict[str, Any] = Field(description="Metadata of the experiment")
     project_name: Optional[str] = Field(
         description="The name of the project associated with the experiment"
     )
@@ -60,7 +60,7 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
     description: Optional[str] = Field(
         default=None, description="An optional description of the experiment"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the experiment"
     )
     version_id: Optional[str] = Field(
@@ -254,7 +254,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
     )
 
 
-class ListExperimentsResponseBody(ResponseBody[List[Experiment]]):
+class ListExperimentsResponseBody(ResponseBody[list[Experiment]]):
     pass
 
 

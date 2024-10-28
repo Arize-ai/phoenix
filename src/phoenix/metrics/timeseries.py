@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from itertools import accumulate, repeat
-from typing import Callable, Iterable, Iterator, Tuple, cast
+from typing import Callable, Iterable, Iterator, cast
 
 import pandas as pd
 from typing_extensions import TypeAlias
@@ -41,12 +41,12 @@ def row_interval_from_sorted_time_index(
     time_index: pd.DatetimeIndex,
     time_start: datetime,
     time_stop: datetime,
-) -> Tuple[StartIndex, StopIndex]:
+) -> tuple[StartIndex, StopIndex]:
     """
     Returns end exclusive time slice from sorted index.
     """
     return cast(
-        Tuple[StartIndex, StopIndex],
+        tuple[StartIndex, StopIndex],
         time_index.searchsorted((time_start, time_stop)),
     )
 
@@ -86,7 +86,7 @@ def _groupers(
     end_time: datetime,
     evaluation_window: timedelta,
     sampling_interval: timedelta,
-) -> Iterator[Tuple[StartTime, EndTime, pd.Grouper]]:
+) -> Iterator[tuple[StartTime, EndTime, pd.Grouper]]:
     """
     Yields pandas.Groupers from time series parameters.
     """

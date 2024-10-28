@@ -2,7 +2,7 @@ import inspect
 import os
 import sys
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Optional, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -38,7 +38,7 @@ def register(
     project_name: Optional[str] = None,
     batch: bool = False,
     set_global_tracer_provider: bool = True,
-    headers: Optional[Dict[str, str]] = None,
+    headers: Optional[dict[str, str]] = None,
     verbose: bool = True,
 ) -> _TracerProvider:
     """
@@ -153,7 +153,7 @@ class TracerProvider(_TracerProvider):
         processor_name: Optional[str] = None
         endpoint: Optional[str] = None
         transport: Optional[str] = None
-        headers: Optional[Union[Dict[str, str], str]] = None
+        headers: Optional[Union[dict[str, str], str]] = None
 
         if self._active_span_processor:
             if processors := self._active_span_processor._span_processors:
@@ -215,7 +215,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         self,
         span_exporter: Optional[SpanExporter] = None,
         endpoint: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
     ):
         if span_exporter is None:
             parsed_url, endpoint = _normalized_endpoint(endpoint)
@@ -265,7 +265,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         self,
         span_exporter: Optional[SpanExporter] = None,
         endpoint: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
     ):
         if span_exporter is None:
             parsed_url, endpoint = _normalized_endpoint(endpoint)
@@ -402,7 +402,7 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return exporter.__class__.__name__
 
 
-def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
+def _printable_headers(headers: Union[list[tuple[str, str]], dict[str, str]]) -> dict[str, str]:
     if isinstance(headers, dict):
         return {key: "****" for key, _ in headers.items()}
     return {key: "****" for key, _ in headers}
@@ -423,7 +423,7 @@ _KNOWN_PROVIDERS = {
 
 def _normalized_endpoint(
     endpoint: Optional[str], use_http: bool = False
-) -> Tuple[ParseResult, str]:
+) -> tuple[ParseResult, str]:
     if endpoint is None:
         base_endpoint = get_env_collector_endpoint() or "http://localhost:6006"
         parsed = urlparse(base_endpoint)
@@ -439,7 +439,7 @@ def _normalized_endpoint(
     return parsed, parsed.geturl()
 
 
-def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
+def _get_class_signature(fn: type[Any]) -> inspect.Signature:
     if sys.version_info >= (3, 9):
         return inspect.signature(fn)
     elif sys.version_info >= (3, 8):

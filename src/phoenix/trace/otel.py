@@ -4,14 +4,12 @@ from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import (
     Any,
-    Dict,
     Iterable,
     Iterator,
     Mapping,
     Optional,
     Sequence,
     SupportsFloat,
-    Tuple,
     cast,
 )
 
@@ -133,7 +131,7 @@ def _decode_unix_nano(time_unix_nano: int) -> datetime:
 
 def _decode_key_values(
     key_values: Iterable[KeyValue],
-) -> Iterator[Tuple[str, Any]]:
+) -> Iterator[tuple[str, Any]]:
     return ((kv.key, _decode_value(kv.value)) for kv in key_values)
 
 
@@ -169,7 +167,7 @@ _STATUS_DECODING = MappingProxyType(
 )
 
 
-def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMessage]:
+def _decode_status(otlp_status: otlp.Status) -> tuple[SpanStatusCode, StatusMessage]:
     status_code = _STATUS_DECODING.get(otlp_status.code, SpanStatusCode.UNSET)
     return status_code, otlp_status.message
 
@@ -186,7 +184,7 @@ def encode_span_to_otlp(span: Span) -> otlp.Span:
     start_time_unix_nano: int = int(span.start_time.timestamp() * _BILLION)
     end_time_unix_nano: int = int(span.end_time.timestamp() * _BILLION) if span.end_time else 0
 
-    attributes: Dict[str, Any] = dict(span.attributes)
+    attributes: dict[str, Any] = dict(span.attributes)
 
     for key, value in span.attributes.items():
         if value is None:

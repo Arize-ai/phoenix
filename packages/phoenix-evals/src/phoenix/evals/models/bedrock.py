@@ -3,7 +3,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
@@ -35,7 +35,7 @@ class BedrockModel(BaseModel):
             Defaults to 1.
         top_k (int, optional): The cutoff where the model no longer selects the words.
             Defaults to 256.
-        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+        stop_sequences (list[str], optional): If the model encounters a stop sequence, it stops
             generating further tokens. Defaults to an empty list.
         session (Any, optional): A bedrock session. If provided, a new bedrock client will be
             created using this session. Defaults to None.
@@ -43,7 +43,7 @@ class BedrockModel(BaseModel):
             boto3. Defaults to None.
         max_content_size (Optional[int], optional): If using a fine-tuned model, set this to the
             maximum content size. Defaults to None.
-        extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
+        extra_parameters (dict[str, Any], optional): Any extra parameters to add to the request
             body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
@@ -64,11 +64,11 @@ class BedrockModel(BaseModel):
     max_tokens: int = 256
     top_p: float = 1
     top_k: int = 256
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
     session: Any = None
     client: Any = None
     max_content_size: Optional[int] = None
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    extra_parameters: dict[str, Any] = field(default_factory=dict)
     initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
@@ -102,7 +102,7 @@ class BedrockModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         body = json.dumps(self._create_request_body(prompt))
         accept = "application/json"
         contentType = "application/json"
@@ -113,7 +113,7 @@ class BedrockModel(BaseModel):
 
         return self._parse_output(response) or ""
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: dict[str, Any]) -> str:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
 
@@ -142,13 +142,13 @@ class BedrockModel(BaseModel):
 
         return _completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
+    def _format_prompt_for_claude(self, prompt: str) -> list[dict[str, str]]:
         # Claude requires prompt in the format of Human: ... Assisatnt:
         return [
             {"role": "user", "content": prompt},
         ]
 
-    def _create_request_body(self, prompt: str) -> Dict[str, Any]:
+    def _create_request_body(self, prompt: str) -> dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
         if self.model_id.startswith("ai21"):
