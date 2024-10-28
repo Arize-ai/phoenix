@@ -58,9 +58,9 @@ class CustomRetriever(BaseRetriever):
 
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
-    ) -> list[Document]:
+    ) -> List[Document]:
         """Sync implementations for retriever."""
-        matching_documents: list[Document] = []
+        matching_documents: List[Document] = []
 
         # Custom logic to find the top k documents that contain the query
 
