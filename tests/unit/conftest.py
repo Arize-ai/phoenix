@@ -51,8 +51,8 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
-from tests.unit.httpx_ws import AsyncWebSocketSession, aconnect_ws
-from tests.unit.httpx_ws.transport import ASGIWebSocketTransport
+from tests.unit.vendor.httpx_ws import AsyncWebSocketSession, aconnect_ws
+from tests.unit.vendor.httpx_ws.transport import ASGIWebSocketTransport
 
 
 def pytest_terminal_summary(
