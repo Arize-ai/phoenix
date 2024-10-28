@@ -14,7 +14,6 @@ from random import getrandbits
 from typing import (
     Any,
     Awaitable,
-    FrozenSet,
     Iterable,
     Iterator,
     Mapping,
@@ -303,7 +302,7 @@ class ExperimentParameters:
 
 @dataclass(frozen=True)
 class EvaluationParameters:
-    eval_names: FrozenSet[str]
+    eval_names: frozenset[str]
     exp_params: ExperimentParameters
 
 

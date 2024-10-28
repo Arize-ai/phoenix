@@ -14,7 +14,6 @@ from typing import (
     Any,
     Awaitable,
     Coroutine,
-    FrozenSet,
     Iterator,
     Mapping,
     Optional,
@@ -519,9 +518,9 @@ class FileContentEncoding(Enum):
 
 Name: TypeAlias = str
 Description: TypeAlias = Optional[str]
-InputKeys: TypeAlias = FrozenSet[str]
-OutputKeys: TypeAlias = FrozenSet[str]
-MetadataKeys: TypeAlias = FrozenSet[str]
+InputKeys: TypeAlias = frozenset[str]
+OutputKeys: TypeAlias = frozenset[str]
+MetadataKeys: TypeAlias = frozenset[str]
 DatasetId: TypeAlias = int
 Examples: TypeAlias = Iterator[ExampleContent]
 
@@ -620,7 +619,7 @@ async def _check_table_exists(session: AsyncSession, name: str) -> bool:
 
 
 def _check_keys_exist(
-    column_headers: FrozenSet[str],
+    column_headers: frozenset[str],
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,

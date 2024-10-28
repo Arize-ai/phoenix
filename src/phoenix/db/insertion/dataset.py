@@ -6,7 +6,6 @@ from itertools import chain
 from typing import (
     Any,
     Awaitable,
-    FrozenSet,
     Iterable,
     Iterator,
     Mapping,
@@ -219,14 +218,14 @@ async def add_dataset_examples(
 
 @dataclass(frozen=True)
 class DatasetKeys:
-    input: FrozenSet[str]
-    output: FrozenSet[str]
-    metadata: FrozenSet[str]
+    input: frozenset[str]
+    output: frozenset[str]
+    metadata: frozenset[str]
 
     def __iter__(self) -> Iterator[str]:
         yield from sorted(set(chain(self.input, self.output, self.metadata)))
 
-    def check_differences(self, column_headers_set: FrozenSet[str]) -> None:
+    def check_differences(self, column_headers_set: frozenset[str]) -> None:
         for category, keys in (
             ("input", self.input),
             ("output", self.output),

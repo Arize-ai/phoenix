@@ -80,7 +80,7 @@ class AliasedAnnotationRelation:
 
 # Because postgresql is strongly typed, we cast JSON values to string
 # by default unless it's hinted otherwise as done here.
-_FLOAT_ATTRIBUTES: typing.FrozenSet[str] = frozenset(
+_FLOAT_ATTRIBUTES: frozenset[str] = frozenset(
     {
         "llm.token_count.completion",
         "llm.token_count.prompt",
