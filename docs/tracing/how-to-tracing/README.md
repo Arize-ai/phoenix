@@ -9,23 +9,14 @@ description: Guides on how to use traces
 * Setup Tracing in [Python](setup-tracing/setup-tracing-python/) or [TypeScript](setup-tracing/setup-tracing-ts.md)
 * Add Integrations via [Auto Intstrumentation](./#auto-instrumentation)
 
-## [Tracing Core Concepts](tracing-core-concepts.md)
-
-* [How to log traces](tracing-core-concepts.md#how-to-log-traces)
-* [How to turn off tracing](tracing-core-concepts.md#how-to-turn-off-tracing)
-
-## [Customize Traces](customize-traces.md)
-
-* [How to log to a specific project](customize-traces.md#log-to-a-specific-project)
-* [How to switch projects in a notebook](customize-traces.md#switching-projects-in-a-notebook)
-* [How to add auto-instrumentation](instrumentation/)
-* [How to create custom spans](manual-instrumentation/custom-spans.md)
-* [How to add custom metadata](customize-traces.md#adding-custom-metadata-to-spans)
-
-### [Customize Spans](./#customizing-spans)
+## [Customize Traces & Spans](customize-spans/)
 
 How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
 
+* [How to log to a specific project](setup-tracing/setup-tracing-python/#log-to-a-specific-project)
+* [How to switch projects in a notebook](setup-tracing/setup-tracing-python/#switching-projects-in-a-notebook)
+* [How to add auto-instrumentation](instrumentation/)
+* [How to create custom spans](manual-instrumentation/custom-spans.md)
 * [Setting metadata](customize-spans/#using\_metadata)
 * [Setting tags](customize-spans/#specifying-tags)
 * [Setting a user](customize-spans/#using\_user)

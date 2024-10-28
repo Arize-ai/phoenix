@@ -10,14 +10,14 @@ description: >-
 
 ## How to Instrument an Application
 
-The same tracing capabilities you used during your experimentation in the notebook is available when you deploy your application. As illustrated in the image above, Phoenix is made up of  **tracing** capabilities as well as **collecting** capabilities. Notably,`phoenix.trace` is in fact a wrapper around  [OpenInference auto-instrumentation](https://github.com/Arize-ai/openinference) and the OpenTelemetry SDK.  When you deploy your application, you only need to bring along the **instrumentation** parts. \
+The same tracing capabilities you used during your experimentation in the notebook is available when you deploy your application. As illustrated in the image above, Phoenix is made up of **tracing** capabilities as well as **collecting** capabilities. When you deploy your application, you only need to bring along the **instrumentation** parts.\
 \
 Let's take the following code in the notebook and look at how this might look on the server.\
 \
 **BEFORE**
 
 ```python
-from phoenix.trace.openai import OpenAIInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
 OpenAIInstrumentor().instrument()
 ```
@@ -58,10 +58,10 @@ pip install openinference-instrumentation-openai openinference-semantic-conventi
 Note that instrumentation **MUST** be initialized **BEFORE** you use initialize any library or package that you are instrumenting.
 {% endhint %}
 
-Once you've made the appropriate instrumentation, you can [deploy phoenix](../../deployment/deploying-phoenix.md) and  the traces will be exported to the phoenix server (collector).\
+Once you've made the appropriate instrumentation, you can [deploy phoenix](../../deployment/deploying-phoenix.md) and the traces will be exported to the phoenix server (collector).\
 \
 For fully working Python examples, [check out our example apps](https://github.com/Arize-ai/openinference/tree/main/python/examples)
 
 ## Exporting Traces to Arize
 
-Arize is an enterprise grade observability platform that supports the same capabilities as Phoenix. Note that you can export your traces to both Phoenix and Arize if you so desire (simply add two **exporters**).  See the [Arize documentation](https://docs.arize.com/arize/llm-large-language-models/llm-traces) for details.
+Arize is an enterprise grade observability platform that supports the same capabilities as Phoenix. Note that you can export your traces to both Phoenix and Arize if you so desire (simply add two **exporters**). See the [Arize documentation](https://docs.arize.com/arize/llm-large-language-models/llm-traces) for details.
