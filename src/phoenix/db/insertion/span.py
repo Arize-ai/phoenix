@@ -42,8 +42,9 @@ async def insert_span(
     if session_id is not None and (not isinstance(session_id, str) or session_id.strip()):
         session_id = str(session_id).strip()
         assert isinstance(session_id, str)
-        session_user = str(session_user).strip()
-        assert isinstance(session_user, str)
+        if session_user is not None:
+            session_user = str(session_user).strip()
+            assert isinstance(session_user, str)
         project_session = await session.scalar(
             select(models.ProjectSession).filter_by(session_id=session_id)
         )
