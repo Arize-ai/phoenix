@@ -1,10 +1,8 @@
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -53,14 +51,6 @@ def remove_all_vcr_response_headers(response: dict[str, Any]) -> dict[str, Any]:
     return response
 
 
-@pytest.mark.skipif(
-    sys.platform
-    in (
-        "win32",
-        "linux",
-    ),  # todo: support windows and linux https://github.com/Arize-ai/phoenix/issues/5126
-    reason="subscriptions are not currently supported on windows or linux",
-)
 class TestChatCompletionSubscription:
     QUERY = """
       subscription ChatCompletionSubscription($input: ChatCompletionInput!) {
@@ -188,6 +178,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -201,7 +195,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -317,6 +310,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -330,7 +327,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -457,6 +453,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -470,7 +470,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -607,6 +606,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -620,7 +623,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -750,6 +752,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -763,7 +769,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
