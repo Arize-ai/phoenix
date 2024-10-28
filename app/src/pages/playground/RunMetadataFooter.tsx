@@ -11,6 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
@@ -69,26 +70,43 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
           />
           <LatencyText latencyMs={data.span.latencyMs || 0} />
         </Flex>
-        <Button
-          size="compact"
-          variant="default"
-          icon={<Icon svg={<Icons.Trace />} />}
-          onClick={() => {
-            startTransition(() => {
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Button
+            size="compact"
+            variant="default"
+            icon={<Icon svg={<Icons.EditOutline />} />}
+            onClick={() =>
               setDialog(
-                <Suspense>
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={traceId}
-                    projectId={project.id}
-                    title={`Playground Trace`}
-                  />
-                </Suspense>
-              );
-            });
-          }}
-        >
-          View Trace
-        </Button>
+                <EditSpanAnnotationsDialog
+                  spanNodeId={spanId}
+                  projectId={project.id}
+                />
+              )
+            }
+          >
+            Annotate
+          </Button>
+          <Button
+            size="compact"
+            variant="default"
+            icon={<Icon svg={<Icons.Trace />} />}
+            onClick={() => {
+              startTransition(() => {
+                setDialog(
+                  <Suspense>
+                    <PlaygroundRunTraceDetailsDialog
+                      traceId={traceId}
+                      projectId={project.id}
+                      title={`Playground Trace`}
+                    />
+                  </Suspense>
+                );
+              });
+            }}
+          >
+            View Trace
+          </Button>
+        </Flex>
       </Flex>
       <DialogContainer
         type="slideOver"

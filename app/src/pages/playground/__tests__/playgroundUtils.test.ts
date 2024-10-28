@@ -61,7 +61,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   input: { variablesValueCache: {} },
   tools: [],
   toolChoice: "auto",
-  spanId: null,
+  spanId: "fake-id",
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
