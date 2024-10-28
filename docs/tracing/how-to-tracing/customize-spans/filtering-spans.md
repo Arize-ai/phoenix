@@ -29,6 +29,8 @@ Phoenix does not automatically instrument any libraries unless you've called one
 
 ## Filtering all Spans that meet a criteria
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/span_filtering_tutorial.ipynb" %}
+
 A good option if you want to keep both instrumentations running simultaneously is to define a custom ConditionalSpanProcessor. This custom processor can use conditions you define to selectively distribute spans.
 
 This example uses a ConsoleSpanExporter as the second exporter alongside Phoenix. You could replace this with another exporter of a different kind.
