@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type
+from typing import Any
 
 import pytest
 
@@ -99,9 +99,9 @@ from phoenix.utilities.template_formatters import (
     ),
 )
 def test_template_formatters_produce_expected_prompt(
-    formatter_cls: Type[TemplateFormatter],
+    formatter_cls: type[TemplateFormatter],
     template: str,
-    variables: Dict[str, Any],
+    variables: dict[str, Any],
     expected_prompt: str,
 ) -> None:
     formatter = formatter_cls()
@@ -125,7 +125,7 @@ def test_template_formatters_produce_expected_prompt(
     ),
 )
 def test_template_formatters_raise_expected_error_on_missing_variables(
-    formatter_cls: Type[TemplateFormatter], template: str
+    formatter_cls: type[TemplateFormatter], template: str
 ) -> None:
     formatter = formatter_cls()
     with pytest.raises(ValueError, match="Missing template variables"):

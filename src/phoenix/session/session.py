@@ -5,23 +5,14 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Iterable,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Set,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -88,8 +79,8 @@ class NotebookEnvironment(Enum):
 
 class ExportedData(_BaseList):
     def __init__(self) -> None:
-        self.paths: Set[Path] = set()
-        self.names: List[str] = []
+        self.paths: set[Path] = set()
+        self.names: list[str] = []
         super().__init__()
 
     def __repr__(self) -> str:
@@ -112,7 +103,7 @@ class Session(TraceDataExtractor, ABC):
     notebook_env: NotebookEnvironment
     """The notebook environment that the session is running in."""
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         return ["exports", "view", "url"]
 
     def __init__(
@@ -157,7 +148,7 @@ class Session(TraceDataExtractor, ABC):
         # Deprecated fields
         stop_time: Optional[datetime] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
         Queries the spans in the project based on the provided parameters.
 
@@ -203,7 +194,7 @@ class Session(TraceDataExtractor, ABC):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
-    ) -> List[Evaluations]:
+    ) -> list[Evaluations]:
         """
         Get the evaluations for a project.
 
@@ -216,7 +207,7 @@ class Session(TraceDataExtractor, ABC):
 
         Returns
         -------
-            evaluations : List[Evaluations]
+            evaluations : list[Evaluations]
                 A list of evaluations for the specified project.
 
         """
@@ -471,7 +462,7 @@ def launch_app(
         Defaults to 6006.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
-    default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
+    default_umap_parameters: dict[str, Union[int, float]], optional, default=None
         User specified default UMAP parameters
         eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
     notebook_environment: str, optional, default=None

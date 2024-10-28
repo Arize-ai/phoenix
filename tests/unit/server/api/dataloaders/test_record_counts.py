@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal
+from typing import Literal
 
 import pandas as pd
 from sqlalchemy import func, select
@@ -42,8 +42,8 @@ async def test_record_counts(
             )
         )
     expected = trace_df.loc[:, "count"].to_list() + span_df.loc[:, "count"].to_list()
-    kinds: List[Literal["span", "trace"]] = ["trace", "span"]
-    keys: List[Key] = [
+    kinds: list[Literal["span", "trace"]] = ["trace", "span"]
+    keys: list[Key] = [
         (
             kind,
             id_ + 1,

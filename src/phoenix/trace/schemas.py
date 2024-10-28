@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Mapping, NamedTuple, Optional
+from typing import Any, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 EXCEPTION_TYPE = "exception.type"
@@ -169,7 +169,7 @@ class Span:
     OpenTelemetry Inspiration:
     https://opentelemetry.io/docs/concepts/signals/traces/#span-events
     """
-    events: List[SpanEvent]
+    events: list[SpanEvent]
 
     """
     An extension of the OpenTelemetry Span interface to include the

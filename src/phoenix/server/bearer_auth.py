@@ -1,14 +1,8 @@
 from abc import ABC
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import Any, Optional, cast
 
 import grpc
 from fastapi import HTTPException, Request, WebSocket, WebSocketException
@@ -51,7 +45,7 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
     async def authenticate(
         self,
         conn: HTTPConnection,
-    ) -> Optional[Tuple[AuthCredentials, BaseUser]]:
+    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
         if header := conn.headers.get("Authorization"):
             scheme, _, token = header.partition(" ")
             if scheme.lower() != "bearer" or not token:
@@ -143,7 +137,7 @@ async def create_access_and_refresh_tokens(
     user: OrmUser,
     access_token_expiry: timedelta,
     refresh_token_expiry: timedelta,
-) -> Tuple[AccessToken, RefreshToken]:
+) -> tuple[AccessToken, RefreshToken]:
     issued_at = datetime.now(timezone.utc)
     user_id = UserId(user.id)
     user_role = UserRole(user.role.name)

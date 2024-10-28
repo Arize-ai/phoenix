@@ -1,7 +1,7 @@
 import ast
 import sys
 from ast import unparse
-from typing import Any, List, Optional
+from typing import Any, Optional
 from unittest.mock import patch
 from uuid import UUID
 
@@ -59,7 +59,7 @@ from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attr
         ("123", None),
     ],
 )
-def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]]) -> None:
+def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]]) -> None:
     actual = _get_attribute_keys_list(
         ast.parse(expression, mode="eval").body,
     )

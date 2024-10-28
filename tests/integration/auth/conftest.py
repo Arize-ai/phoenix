@@ -1,7 +1,8 @@
 import os
 import secrets
+from collections.abc import Iterator
 from contextlib import ExitStack
-from typing import Any, Iterator
+from typing import Any
 from unittest import mock
 
 import pytest

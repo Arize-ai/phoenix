@@ -2,7 +2,8 @@ import asyncio
 import contextlib
 import json
 import logging
-from contextlib import AsyncExitStack
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Sequence
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
@@ -11,18 +12,8 @@ from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncContextManager,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
     NamedTuple,
     Optional,
-    Sequence,
-    Tuple,
-    Type,
     TypedDict,
     Union,
     cast,
@@ -188,10 +179,10 @@ class Static(StaticFiles):
         super().__init__(**kwargs)
 
     @cached_property
-    def _web_manifest(self) -> Dict[str, Any]:
+    def _web_manifest(self) -> dict[str, Any]:
         try:
             with open(self._app_config.web_manifest_path, "r") as f:
-                return cast(Dict[str, Any], json.load(f))
+                return cast(dict[str, Any], json.load(f))
         except FileNotFoundError as e:
             if self._app_config.is_development:
                 return {}
@@ -233,7 +224,7 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, trusted_hostnames: List[str], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, trusted_hostnames: list[str], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
 
@@ -278,7 +269,7 @@ DB_MUTEX: Optional[asyncio.Lock] = None
 
 def _db(
     engine: AsyncEngine, bypass_lock: bool = False
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
@@ -420,7 +411,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -449,7 +440,7 @@ def _lifespan(
                     queue_evaluation=queue_evaluation,
                 )
                 await stack.enter_async_context(scaffolder)
-            if isinstance(token_store, AsyncContextManager):
+            if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
             yield {
                 "event_queue": dml_event_handler,
@@ -607,7 +598,7 @@ def create_engine_and_run_migrations(
         raise PhoenixMigrationError(msg) from e
 
 
-def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
+def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
     instrumentation_cleanups = []
     if server_instrumentation_is_enabled():
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -667,7 +658,7 @@ def create_app(
     dev: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
-    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
@@ -678,7 +669,7 @@ def create_app(
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
-    oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
+    oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
     if model.embedding_dimensions:
@@ -692,10 +683,10 @@ def create_app(
             ) from exc
     logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
-    startup_callbacks_list: List[_Callback] = list(startup_callbacks)
-    shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
+    startup_callbacks_list: list[_Callback] = list(startup_callbacks)
+    shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
-    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
+    initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
         else (
@@ -708,7 +699,7 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
         middlewares.append(Middleware(RequestOriginHostnameValidator, trusted_hostnames))
@@ -742,7 +733,7 @@ def create_app(
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
     tracer_provider = None
-    strawberry_extensions: List[Union[Type[SchemaExtension], SchemaExtension]] = []
+    strawberry_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
     strawberry_extensions.extend(schema.get_extensions())
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()

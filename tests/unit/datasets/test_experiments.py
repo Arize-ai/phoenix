@@ -2,7 +2,7 @@ import asyncio
 import json
 import platform
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import httpx
@@ -63,7 +63,7 @@ async def test_run_experiment(
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
         task_output = {"doesn't matter": "this is the output"}
 
-        def experiment_task(_: Any) -> Dict[str, str]:
+        def experiment_task(_: Any) -> dict[str, str]:
             assert _ == example_input
             assert _ is not example_input
             return task_output
@@ -154,9 +154,9 @@ async def test_run_experiment_with_llm_eval(
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
 
         def experiment_task(
-            input: Dict[str, Any],
+            input: dict[str, Any],
             example: Example,
-            metadata: Dict[str, Any],
+            metadata: dict[str, Any],
         ) -> str:
             assert input == {"input": "fancy input 1"}
             assert metadata == {}

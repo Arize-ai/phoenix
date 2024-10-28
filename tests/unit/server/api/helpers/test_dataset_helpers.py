@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -204,7 +204,7 @@ class MockSpan:
         ),
     ],
 )
-def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[str, Any]) -> None:
+def test_get_dataset_example_input(span: MockSpan, expected_input_value: dict[str, Any]) -> None:
     input_value = get_dataset_example_input(span)
     assert expected_input_value == input_value
 
@@ -338,6 +338,6 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
         ),
     ],
 )
-def test_get_dataset_example_output(span: MockSpan, expected_output_value: Dict[str, Any]) -> None:
+def test_get_dataset_example_output(span: MockSpan, expected_output_value: dict[str, Any]) -> None:
     output_value = get_dataset_example_output(span)
     assert expected_output_value == output_value

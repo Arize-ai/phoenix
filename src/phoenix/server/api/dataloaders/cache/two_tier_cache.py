@@ -9,7 +9,8 @@ subset that we want to invalidate.
 
 from abc import ABC, abstractmethod
 from asyncio import Future
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar
+from collections.abc import Callable
+from typing import Any, Generic, Optional, TypeVar
 
 from cachetools import Cache
 from strawberry.dataloader import AbstractCache
@@ -38,7 +39,7 @@ class TwoTierCache(
         self._sub_cache_factory = sub_cache_factory
 
     @abstractmethod
-    def _cache_key(self, key: _Key) -> Tuple[_Section, _SubKey]: ...
+    def _cache_key(self, key: _Key) -> tuple[_Section, _SubKey]: ...
 
     def invalidate(self, section: _Section) -> None:
         if sub_cache := self._cache.get(section):

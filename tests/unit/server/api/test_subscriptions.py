@@ -2,7 +2,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from openinference.semconv.trace import (
@@ -37,7 +37,7 @@ def remove_all_vcr_request_headers(request: Any) -> Any:
     return request
 
 
-def remove_all_vcr_response_headers(response: Dict[str, Any]) -> Dict[str, Any]:
+def remove_all_vcr_response_headers(response: dict[str, Any]) -> dict[str, Any]:
     """
     Removes all response headers.
 

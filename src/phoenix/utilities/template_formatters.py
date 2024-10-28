@@ -1,12 +1,13 @@
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from string import Formatter
-from typing import Any, Iterable, Set
+from typing import Any
 
 
 class TemplateFormatter(ABC):
     @abstractmethod
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         """
         Parse the template and return a set of variable names.
         """
@@ -37,7 +38,7 @@ class FStringTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
@@ -57,7 +58,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
 
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         return set(match for match in re.findall(self.PATTERN, template))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:

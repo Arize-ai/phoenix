@@ -1,20 +1,10 @@
 import logging
+from collections.abc import Awaitable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from typing import (
-    Any,
-    Awaitable,
-    Dict,
-    FrozenSet,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Any, Optional, Union, cast
 
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,9 +24,9 @@ SpanRowId: TypeAlias = int
 
 @dataclass(frozen=True)
 class ExampleContent:
-    input: Dict[str, Any] = field(default_factory=dict)
-    output: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    input: dict[str, Any] = field(default_factory=dict)
+    output: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 Examples: TypeAlias = Iterable[ExampleContent]
@@ -220,14 +210,14 @@ async def add_dataset_examples(
 
 @dataclass(frozen=True)
 class DatasetKeys:
-    input: FrozenSet[str]
-    output: FrozenSet[str]
-    metadata: FrozenSet[str]
+    input: frozenset[str]
+    output: frozenset[str]
+    metadata: frozenset[str]
 
     def __iter__(self) -> Iterator[str]:
         yield from sorted(set(chain(self.input, self.output, self.metadata)))
 
-    def check_differences(self, column_headers_set: FrozenSet[str]) -> None:
+    def check_differences(self, column_headers_set: frozenset[str]) -> None:
         for category, keys in (
             ("input", self.input),
             ("output", self.output),

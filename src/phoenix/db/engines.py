@@ -1,9 +1,10 @@
 import asyncio
 import json
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any, Callable
+from typing import Any
 
 import aiosqlite
 import numpy as np

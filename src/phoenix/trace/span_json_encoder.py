@@ -2,7 +2,7 @@ import json
 from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, List
+from typing import Any
 from uuid import UUID
 
 import numpy as np
@@ -60,5 +60,5 @@ def span_to_json(span: Span) -> str:
     return json.dumps(span, cls=SpanJSONEncoder)
 
 
-def spans_to_jsonl(spans: List[Span]) -> str:
+def spans_to_jsonl(spans: list[Span]) -> str:
     return "\n".join(span_to_json(span) for span in spans)

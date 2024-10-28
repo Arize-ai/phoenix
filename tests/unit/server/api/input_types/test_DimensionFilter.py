@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 from numpy.testing import assert_almost_equal
@@ -84,9 +84,9 @@ from phoenix.server.api.types.DimensionType import DimensionType
     ],
 )
 def test_dimension_filter(
-    desired: List[bool],
-    types: Optional[List[DimensionType]],
-    shapes: Optional[List[DimensionShape]],
+    desired: list[bool],
+    types: Optional[list[DimensionType]],
+    shapes: Optional[list[DimensionShape]],
 ) -> None:
     """
     Dimensions

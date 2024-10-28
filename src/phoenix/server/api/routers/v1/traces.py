@@ -1,6 +1,6 @@
 import gzip
 import zlib
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
@@ -110,7 +110,7 @@ class TraceAnnotation(V1RoutesBaseModel):
     result: Optional[TraceAnnotationResult] = Field(
         default=None, description="The result of the annotation"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
 
@@ -128,15 +128,15 @@ class TraceAnnotation(V1RoutesBaseModel):
         )
 
 
-class AnnotateTracesRequestBody(RequestBody[List[TraceAnnotation]]):
-    data: List[TraceAnnotation] = Field(description="The trace annotations to be upserted")
+class AnnotateTracesRequestBody(RequestBody[list[TraceAnnotation]]):
+    data: list[TraceAnnotation] = Field(description="The trace annotations to be upserted")
 
 
 class InsertedTraceAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted trace annotation")
 
 
-class AnnotateTracesResponseBody(ResponseBody[List[InsertedTraceAnnotation]]):
+class AnnotateTracesResponseBody(ResponseBody[list[InsertedTraceAnnotation]]):
     pass
 
 

@@ -1,8 +1,4 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-    List,
-)
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -13,7 +9,7 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int
-Result: TypeAlias = List[DocumentEvaluation]
+Result: TypeAlias = list[DocumentEvaluation]
 
 
 class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
@@ -21,8 +17,8 @@ class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        document_evaluations_by_id: DefaultDict[Key, Result] = defaultdict(list)
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        document_evaluations_by_id: defaultdict[Key, Result] = defaultdict(list)
         mda = models.DocumentAnnotation
         async with self._db() as session:
             data = await session.stream_scalars(

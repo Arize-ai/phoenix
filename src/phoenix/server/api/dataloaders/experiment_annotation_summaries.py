@@ -1,10 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import (
-    DefaultDict,
-    List,
-    Optional,
-)
+from typing import Optional
 
 from sqlalchemy import func, select
 from strawberry.dataloader import AbstractCache, DataLoader
@@ -26,7 +22,7 @@ class ExperimentAnnotationSummary:
 
 ExperimentID: TypeAlias = int
 Key: TypeAlias = ExperimentID
-Result: TypeAlias = List[ExperimentAnnotationSummary]
+Result: TypeAlias = list[ExperimentAnnotationSummary]
 
 
 class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
@@ -38,9 +34,9 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
-        summaries: DefaultDict[ExperimentID, Result] = defaultdict(list)
+        summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
         async with self._db() as session:
             async for (
                 experiment_id,

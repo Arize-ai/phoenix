@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 import strawberry
@@ -22,11 +22,11 @@ class AnnotationSummary:
         return cast(int, self.df.record_count.sum())
 
     @strawberry.field
-    def labels(self) -> List[str]:
+    def labels(self) -> list[str]:
         return self.df.label.dropna().tolist()
 
     @strawberry.field
-    def label_fractions(self) -> List[LabelFraction]:
+    def label_fractions(self) -> list[LabelFraction]:
         if not (n := self.df.label_count.sum()):
             return []
         return [

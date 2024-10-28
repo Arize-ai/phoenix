@@ -4,7 +4,6 @@ import json
 import re
 from typing import (
     Any,
-    List,
     Optional,
     Pattern,  # import from re module when we drop support for 3.8
     Union,
@@ -78,7 +77,7 @@ class ContainsAnyKeyword(CodeEvaluator):
     An evaluator that checks if any of the keywords are present in the output of an experiment run.
 
     Args:
-        keywords (List[str]): The keywords to search for in the output.
+        keywords (list[str]): The keywords to search for in the output.
         name (str, optional): An optional name for the evaluator. Defaults to
             "ContainsAny(<keywords>)".
 
@@ -91,7 +90,7 @@ class ContainsAnyKeyword(CodeEvaluator):
             run_experiment(dataset, task, evaluators=[ContainsAnyKeyword(["foo", "bar"])])
     """
 
-    def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
+    def __init__(self, keywords: list[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAny({keywords})"
 
@@ -113,7 +112,7 @@ class ContainsAllKeywords(CodeEvaluator):
     An evaluator that checks if all of the keywords are present in the output of an experiment run.
 
     Args:
-        keywords (List[str]): The keywords to search for in the output.
+        keywords (list[str]): The keywords to search for in the output.
         name (str, optional): An optional name for the evaluator. Defaults to
             "ContainsAll(<keywords>)".
 
@@ -126,7 +125,7 @@ class ContainsAllKeywords(CodeEvaluator):
             run_experiment(dataset, task, evaluators=[ContainsAllKeywords(["foo", "bar"])])
     """
 
-    def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
+    def __init__(self, keywords: list[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAll({keywords})"
 

@@ -2,7 +2,7 @@ import json
 import os
 import re
 from traceback import format_exception
-from typing import List, Optional, Tuple, cast
+from typing import Optional, cast
 from urllib import request
 
 import pandas as pd
@@ -14,16 +14,16 @@ def parse_file_extension(file_path: str) -> str:
 
 def download_json_traces_fixture(
     url: str,
-) -> List[str]:
+) -> list[str]:
     """
     Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
     """
 
     with request.urlopen(url) as f:
-        return cast(List[str], f.readlines())
+        return cast(list[str], f.readlines())
 
 
-def json_lines_to_df(lines: List[str]) -> pd.DataFrame:
+def json_lines_to_df(lines: list[str]) -> pd.DataFrame:
     """
     Convert a list of JSON line strings to a Pandas DataFrame.
     """
@@ -56,9 +56,9 @@ def get_stacktrace(exception: BaseException) -> str:
 _VERSION_TRIPLET_REGEX = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
-def extract_version_triplet(version: str) -> Optional[Tuple[int, int, int]]:
+def extract_version_triplet(version: str) -> Optional[tuple[int, int, int]]:
     return (
-        cast(Tuple[int, int, int], tuple(map(int, match.groups())))
+        cast(tuple[int, int, int], tuple(map(int, match.groups())))
         if (match := _VERSION_TRIPLET_REGEX.search(version))
         else None
     )

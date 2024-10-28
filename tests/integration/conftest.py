@@ -1,8 +1,9 @@
 import os
+from collections.abc import Generator, Iterator
 from contextlib import ExitStack
 from itertools import count, starmap
 from secrets import token_hex
-from typing import Generator, Iterator, List, Optional, Tuple, cast
+from typing import Optional, cast
 from unittest import mock
 
 import pytest
@@ -48,7 +49,7 @@ from ._helpers import (
 
 @pytest.fixture(scope="session")
 def _ports() -> Iterator[int]:
-    def _(used: List[int]) -> Iterator[int]:
+    def _(used: list[int]) -> Iterator[int]:
         while True:
             port = pick_unused_port()
             if port not in used:
@@ -158,7 +159,7 @@ def _profiles(
 def _users(
     _profiles: Iterator[_Profile],
 ) -> _UserGenerator:
-    def _() -> Generator[Optional[_User], Tuple[UserRoleInput, Optional[_Profile]], None]:
+    def _() -> Generator[Optional[_User], tuple[UserRoleInput, Optional[_Profile]], None]:
         role, profile = yield None
         admin = _DEFAULT_ADMIN.log_in()
         while True:
@@ -209,7 +210,7 @@ def _get_user(
 
 
 @pytest.fixture
-def _spans(_fake: Faker) -> Tuple[ReadableSpan, ...]:
+def _spans(_fake: Faker) -> tuple[ReadableSpan, ...]:
     memory = InMemorySpanExporter()
     project_name, span_name = _fake.unique.pystr(), _fake.unique.pystr()
     _start_span(project_name=project_name, span_name=span_name, exporter=memory).end()

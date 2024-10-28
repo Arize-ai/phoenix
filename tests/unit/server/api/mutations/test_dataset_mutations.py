@@ -1,6 +1,6 @@
 import textwrap
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 import pytest
@@ -505,7 +505,7 @@ class TestPatchDatasetExamples:
     )
     async def test_raises_value_error_for_invalid_input(
         self,
-        mutation_input: Dict[str, Any],
+        mutation_input: dict[str, Any],
         expected_error_message: str,
         httpx_client: httpx.AsyncClient,
         dataset_with_revisions: None,

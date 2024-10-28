@@ -1,6 +1,6 @@
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from itertools import accumulate, repeat, takewhile
-from typing import Iterator
 
 import strawberry
 

@@ -18,7 +18,7 @@ from abc import ABC
 from enum import Enum
 from inspect import Signature
 from itertools import chain, islice
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -157,7 +157,7 @@ def _coerce_dtype_if_necessary(
 def _eliminate_missing_values_from_all_series(
     *args: Any,
     **kwargs: Any,
-) -> Tuple[List[Any], Dict[str, Any]]:
+) -> tuple[list[Any], dict[str, Any]]:
     positional_arguments = list(args)
     keyword_arguments = dict(kwargs)
     all_series = [

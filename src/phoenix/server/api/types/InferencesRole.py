@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, Union
+from typing import Union
 
 import strawberry
 
@@ -16,7 +16,7 @@ class AncillaryInferencesRole(Enum):
     corpus = "InferencesRole.CORPUS"
 
 
-STR_TO_INFEREENCES_ROLE: Dict[str, Union[InferencesRole, AncillaryInferencesRole]] = {
+STR_TO_INFEREENCES_ROLE: dict[str, Union[InferencesRole, AncillaryInferencesRole]] = {
     str(InferencesRole.primary.value): InferencesRole.primary,
     str(InferencesRole.reference.value): InferencesRole.reference,
     str(AncillaryInferencesRole.corpus.value): AncillaryInferencesRole.corpus,
