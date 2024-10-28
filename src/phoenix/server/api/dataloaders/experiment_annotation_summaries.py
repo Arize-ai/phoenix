@@ -1,7 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
-    DefaultDict,
     Optional,
 )
 
@@ -39,7 +38,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         experiment_ids = keys
-        summaries: DefaultDict[ExperimentID, Result] = defaultdict(list)
+        summaries: defaultdict[ExperimentID, Result] = defaultdict(list)
         async with self._db() as session:
             async for (
                 experiment_id,

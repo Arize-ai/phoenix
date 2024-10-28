@@ -6,7 +6,6 @@ from functools import partial
 from typing import (
     Any,
     Coroutine,
-    DefaultDict,
     Optional,
     Pattern,  # import from re module when we drop support for 3.8
     Union,
@@ -97,7 +96,7 @@ class ServerRateLimiter:
         self._last_cleanup_time = time.time()
 
     def _reset_rate_limiters(self) -> None:
-        self.cache_partitions: list[DefaultDict[Any, TokenBucket]] = [
+        self.cache_partitions: list[defaultdict[Any, TokenBucket]] = [
             defaultdict(self.bucket_factory) for _ in range(self.num_partitions)
         ]
 

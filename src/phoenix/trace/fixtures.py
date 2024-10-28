@@ -9,7 +9,6 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
-    DefaultDict,
     Iterable,
     Iterator,
     NamedTuple,
@@ -298,7 +297,7 @@ TRACES_FIXTURES: list[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
     fixture.name: fixture for fixture in TRACES_FIXTURES
 }
-PROJ_NAME_TO_TRACES_FIXTURE: DefaultDict[str, list[TracesFixture]] = defaultdict(list)
+PROJ_NAME_TO_TRACES_FIXTURE: defaultdict[str, list[TracesFixture]] = defaultdict(list)
 for fixture in TRACES_FIXTURES:
     if fixture.project_name:
         PROJ_NAME_TO_TRACES_FIXTURE[fixture.project_name].append(fixture)

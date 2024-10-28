@@ -1,7 +1,4 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-)
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -25,7 +22,7 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         run_ids = keys
-        annotations: DefaultDict[Key, Result] = defaultdict(list)
+        annotations: defaultdict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             async for run_id, annotation in await session.stream(
                 select(

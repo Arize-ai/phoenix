@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -369,7 +369,7 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, list[OrmRun]]] = defaultdict(
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
             async for run in await session.stream_scalars(

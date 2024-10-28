@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import (
     Any,
     AsyncIterator,
-    DefaultDict,
     Literal,
     Mapping,
     Optional,
@@ -97,9 +96,9 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         results: list[Result] = [DEFAULT_VALUE] * len(keys)
-        arguments: DefaultDict[
+        arguments: defaultdict[
             Segment,
-            DefaultDict[Param, list[ResultPosition]],
+            defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
@@ -154,7 +153,7 @@ async def _get_results_sqlite(
     latency_column: FloatCol,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    projects_per_prob: DefaultDict[Probability, list[ProjectRowId]] = defaultdict(list)
+    projects_per_prob: defaultdict[Probability, list[ProjectRowId]] = defaultdict(list)
     for project_rowid, probability in params.keys():
         projects_per_prob[probability].append(project_rowid)
     pid = models.Trace.project_rowid
@@ -175,7 +174,7 @@ async def _get_results_postgresql(
     latency_column: FloatCol,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    probs_per_project: DefaultDict[ProjectRowId, list[Probability]] = defaultdict(list)
+    probs_per_project: defaultdict[ProjectRowId, list[Probability]] = defaultdict(list)
     for project_rowid, probability in params.keys():
         probs_per_project[project_rowid].append(probability)
     pp: Values = values(

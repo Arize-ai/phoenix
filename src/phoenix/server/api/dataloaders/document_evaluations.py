@@ -1,7 +1,4 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-)
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -21,7 +18,7 @@ class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        document_evaluations_by_id: DefaultDict[Key, Result] = defaultdict(list)
+        document_evaluations_by_id: defaultdict[Key, Result] = defaultdict(list)
         mda = models.DocumentAnnotation
         async with self._db() as session:
             data = await session.stream_scalars(

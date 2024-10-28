@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
-    DefaultDict,
     Literal,
     Optional,
 )
@@ -78,9 +77,9 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         results: list[Result] = [DEFAULT_VALUE] * len(keys)
-        arguments: DefaultDict[
+        arguments: defaultdict[
             Segment,
-            DefaultDict[Param, list[ResultPosition]],
+            defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)

@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 from typing import (
     Any,
     AsyncContextManager,
-    DefaultDict,
     Generic,
     Iterator,
     Optional,
@@ -124,7 +123,7 @@ class BatchedCaller(DaemonTask, _HasBatch[_AnyT], Generic[_AnyT], ABC):
 
 class LastUpdatedAt:
     def __init__(self) -> None:
-        self._cache: DefaultDict[
+        self._cache: defaultdict[
             type[models.Base],
             LRUCache[int, datetime],
         ] = defaultdict(lambda: LRUCache(maxsize=100))

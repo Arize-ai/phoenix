@@ -9,7 +9,7 @@ from queue import SimpleQueue
 from random import choice, randint, random
 from threading import Thread
 from time import sleep
-from typing import Any, DefaultDict, Iterator, Optional
+from typing import Any, Iterator, Optional
 from urllib.parse import urljoin
 
 import numpy as np
@@ -354,7 +354,7 @@ def _send_eval_pyarrow(
     cls: type[Evaluations],
 ) -> None:
     client = px.Client(endpoint=endpoint)
-    tables: DefaultDict[EvalName, list[dict[str, Any]]] = defaultdict(list)
+    tables: defaultdict[EvalName, list[dict[str, Any]]] = defaultdict(list)
     while (item := queue.get()) is not END_OF_QUEUE:
         name, row = item
         tables[name].append(row)

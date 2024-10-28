@@ -1,6 +1,5 @@
 from collections import defaultdict
 from typing import (
-    DefaultDict,
     Optional,
 )
 
@@ -54,7 +53,7 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
         max_position = max(num_docs for _, _, num_docs in keys)
         stmt = stmt.where(mda.document_position < max_position)
         results: dict[Key, Result] = {key: [] for key in keys}
-        requested_num_docs: DefaultDict[tuple[RowId, EvalName], set[NumDocs]] = defaultdict(set)
+        requested_num_docs: defaultdict[tuple[RowId, EvalName], set[NumDocs]] = defaultdict(set)
         for row_id, eval_name, num_docs in results.keys():
             requested_num_docs[(row_id, eval_name)].add(num_docs)
         async with self._db() as session:

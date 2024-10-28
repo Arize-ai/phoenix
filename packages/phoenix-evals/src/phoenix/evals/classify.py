@@ -6,7 +6,6 @@ from enum import Enum
 from itertools import product
 from typing import (
     Any,
-    DefaultDict,
     Iterable,
     Mapping,
     NamedTuple,
@@ -356,7 +355,7 @@ def run_evals(
         RunEvalsPayload(evaluator=evaluator, record=row)
         for evaluator, (_, row) in product(evaluators, dataframe.iterrows())
     ]
-    eval_results: list[DefaultDict[Index, dict[ColumnName, Union[Label, Explanation]]]] = [
+    eval_results: list[defaultdict[Index, dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
     results, _ = executor.run(payloads)

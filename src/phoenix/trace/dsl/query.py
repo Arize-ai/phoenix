@@ -8,7 +8,6 @@ from random import randint, random
 from types import MappingProxyType
 from typing import (
     Any,
-    DefaultDict,
     Iterable,
     Mapping,
     Optional,
@@ -387,7 +386,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                     return {}
                 if not self.kwargs:
                     return {self.key: self.separator.join(str(obj) for obj in array)}
-                values: DefaultDict[str, list[str]] = defaultdict(list)
+                values: defaultdict[str, list[str]] = defaultdict(list)
                 for i, obj in enumerate(array):
                     if not isinstance(obj, Mapping):
                         continue

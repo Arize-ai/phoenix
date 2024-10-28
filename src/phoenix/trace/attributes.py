@@ -17,9 +17,9 @@ them into a nested list of dictionaries i.e.
 
 import inspect
 import json
+from collections import defaultdict
 from typing import (
     Any,
-    DefaultDict,
     Iterable,
     Iterator,
     Mapping,
@@ -177,7 +177,7 @@ def _partition_with_prefix_exclusion(
     return key.partition(separator)
 
 
-class _Trie(DefaultDict[Union[str, int], "_Trie"]):
+class _Trie(defaultdict[Union[str, int], "_Trie"]):
     """
     Prefix Tree with special handling for indices (i.e. all-digit keys). Indices
     represent the position of an element in a nested list, while branches represent

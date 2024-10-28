@@ -12,7 +12,6 @@ from typing import (
     Annotated,
     Any,
     AsyncIterator,
-    DefaultDict,
     Iterable,
     Iterator,
     Mapping,
@@ -472,7 +471,7 @@ class Subscription:
         end_time: datetime
         response_chunks = []
         text_chunks: list[TextChunk] = []
-        tool_call_chunks: DefaultDict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         try:
             start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
             async for chunk in llm_client.chat_completion_create(
@@ -615,7 +614,7 @@ def _llm_input_messages(
 
 def _llm_output_messages(
     text_chunks: list[TextChunk],
-    tool_call_chunks: DefaultDict[ToolCallID, list[ToolCallChunk]],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
 ) -> Iterator[tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):

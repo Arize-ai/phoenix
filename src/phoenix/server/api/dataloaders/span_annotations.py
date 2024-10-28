@@ -1,7 +1,4 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-)
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -20,7 +17,7 @@ class SpanAnnotationsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        span_annotations_by_id: DefaultDict[Key, Result] = defaultdict(list)
+        span_annotations_by_id: defaultdict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             async for span_annotation in await session.stream_scalars(
                 select(ORMSpanAnnotation).where(ORMSpanAnnotation.span_rowid.in_(keys))

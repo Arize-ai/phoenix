@@ -5,7 +5,6 @@ from functools import partial
 from typing import (
     Any,
     ContextManager,
-    DefaultDict,
     Generic,
     Iterator,
     Literal,
@@ -388,7 +387,7 @@ class TestRefreshToken:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        logged_in_users: DefaultDict[int, dict[int, _LoggedInUser]] = defaultdict(dict)
+        logged_in_users: defaultdict[int, dict[int, _LoggedInUser]] = defaultdict(dict)
 
         # user logs into first browser
         logged_in_users[0][0] = u.log_in()

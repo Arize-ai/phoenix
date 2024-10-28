@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import DefaultDict, Optional
+from typing import Optional
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -22,7 +22,7 @@ class UsersDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         user_ids = list(set(keys))
-        users_by_id: DefaultDict[Key, Result] = defaultdict(None)
+        users_by_id: defaultdict[Key, Result] = defaultdict(None)
         async with self._db() as session:
             data = await session.stream_scalars(
                 select(models.User).where(models.User.id.in_(user_ids))
