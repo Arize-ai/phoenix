@@ -1183,8 +1183,8 @@ type ProjectSession implements Node {
   startTime: DateTime!
   endTime: DateTime!
 
-  """Duration of the session in seconds"""
-  duration: Int!
+  """Duration of the session in milliseconds"""
+  durationMs: Float!
   numTraces: Int!
   firstInput: SpanIOValue
   lastOutput: SpanIOValue

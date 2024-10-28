@@ -29,7 +29,7 @@ class ExperimentRunAnnotation(Node):
     async def trace(self, info: Info) -> Optional[Trace]:
         if not self.trace_id:
             return None
-        dataloader = info.context.data_loaders.trace_row_ids
+        dataloader = info.context.data_loaders.trace_by_trace_ids
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
         return to_gql_trace(trace)
