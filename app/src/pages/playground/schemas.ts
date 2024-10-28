@@ -7,7 +7,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { ChatMessage } from "@phoenix/store";
-import { Mutable, schemaForType } from "@phoenix/typeUtils";
+import { isObject, Mutable, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
@@ -136,8 +136,8 @@ const stringToInvocationParametersSchema = z
   .string()
   .transform((s) => {
     const { json } = safelyParseJSON(s);
-    if (json == null) {
-      return {};
+    if (!isObject(json)) {
+      return null;
     }
     // using the invocationParameterSchema as a base,
     // apply all matching keys from the input string,
@@ -156,9 +156,22 @@ const stringToInvocationParametersSchema = z
           ),
         }))
         // reparse the object to ensure the mapped keys are also validated
-        .transform(invocationParameterSchema.parse)
         .parse(json)
     );
+  })
+  .transform((v, ctx) => {
+    const result = invocationParameterSchema.safeParse(v);
+    if (!result.success) {
+      // bubble errors up to the original schema
+      result.error.issues.forEach((issue) => {
+        ctx.addIssue(issue);
+      });
+      // https://zod.dev/?id=validating-during-transform
+      // ensures that this schema still infers the "success" type
+      // errors will throw instead
+      return z.NEVER;
+    }
+    return result.data;
   })
   .default("{}");
 /**
