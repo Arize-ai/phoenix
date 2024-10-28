@@ -28,7 +28,11 @@ export function SpanPlaygroundPage() {
   return (
     <Flex direction="column" height={"100%"}>
       <SpanPlaygroundBanners span={span} parsingErrors={parsingErrors} />
-      <Playground instances={[playgroundInstance]} />
+      <Playground
+        // remount the playground when the span changes, resetting all local state, closing dialogs, etc.
+        key={span.id}
+        instances={[playgroundInstance]}
+      />
     </Flex>
   );
 }
