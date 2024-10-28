@@ -8,7 +8,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { OpenAIToolCall } from "@phoenix/schemas";
+import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
 
 import {
   GenAIOperationType,

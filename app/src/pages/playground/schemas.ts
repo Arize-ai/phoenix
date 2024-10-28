@@ -7,7 +7,8 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { openAIToolCallSchema, openAIToolSchema } from "@phoenix/schemas";
+import { openAIToolDefinitionSchema } from "@phoenix/schemas";
+import { openAIToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { isObject, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -180,7 +181,7 @@ export const toolJSONSchemaSchema = z
   })
   // TODO(parker / apowell) - adjust this transformation with anthropic tool support https://github.com/Arize-ai/phoenix/issues/5100
   .transform((o, ctx) => {
-    const { data, success } = openAIToolSchema.safeParse(o);
+    const { data, success } = openAIToolDefinitionSchema.safeParse(o);
 
     if (!success) {
       ctx.addIssue({

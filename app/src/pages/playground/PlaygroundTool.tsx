@@ -8,7 +8,10 @@ import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { openAIToolJSONSchema, openAIToolSchema } from "@phoenix/schemas";
+import {
+  openAIToolDefinitionJSONSchema,
+  openAIToolDefinitionSchema,
+} from "@phoenix/schemas";
 import { OpenAITool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -45,7 +48,7 @@ export function PlaygroundTool({
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = openAIToolSchema.safeParse(definition);
+      const { success } = openAIToolDefinitionSchema.safeParse(definition);
       if (!success) {
         return;
       }
@@ -106,7 +109,7 @@ export function PlaygroundTool({
         <JSONEditor
           value={toolDefinition}
           onChange={onChange}
-          jsonSchema={openAIToolJSONSchema as JSONSchema7}
+          jsonSchema={openAIToolDefinitionJSONSchema as JSONSchema7}
         />
       </LazyEditorWrapper>
     </Card>

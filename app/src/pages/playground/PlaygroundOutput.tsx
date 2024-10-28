@@ -15,7 +15,7 @@ import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { OpenAIToolCall } from "@phoenix/schemas";
+import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
