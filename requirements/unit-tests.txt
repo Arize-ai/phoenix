@@ -6,6 +6,7 @@ asgi-lifespan
 asyncpg
 grpc-interceptor[testing]
 httpx # For OpenAI testing
+httpx-ws
 litellm>=1.0.3
 nest-asyncio # for executor testing
 numpy
@@ -23,4 +24,3 @@ tiktoken
 types-pytz
 typing-extensions==4.7.0
 vcrpy
-wsproto
