@@ -36,7 +36,7 @@ from phoenix.server.api.dataloaders import (
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
-    TraceRowIdsDataLoader,
+    TraceByTraceIdsDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -73,7 +73,7 @@ class DataLoaders:
     span_descendants: SpanDescendantsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
-    trace_row_ids: TraceRowIdsDataLoader
+    trace_by_trace_ids: TraceByTraceIdsDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader
     user_roles: UserRolesDataLoader

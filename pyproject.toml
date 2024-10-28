@@ -28,7 +28,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.243.1",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.247.0",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -86,7 +86,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -131,7 +131,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
@@ -227,7 +227,7 @@ dependencies = [
   "py-grpc-prometheus",
   "pypistats",  # this is needed to type-check third-party packages
   "requests",  # this is needed to type-check third-party packages
-  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
   "tenacity",
   "types-cachetools",
   "types-protobuf",
