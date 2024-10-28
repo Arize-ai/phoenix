@@ -28,9 +28,9 @@ class ProjectSession(Node):
     start_time: datetime
     end_time: datetime
 
-    @strawberry.field(description="Duration of the session in milliseconds")  # type: ignore
-    async def duration_ms(self) -> float:
-        return (self.end_time - self.start_time).total_seconds() * 1000
+    @strawberry.field(description="Duration of the session in seconds")  # type: ignore
+    async def duration_s(self) -> float:
+        return (self.end_time - self.start_time).total_seconds()
 
     @strawberry.field
     async def num_traces(

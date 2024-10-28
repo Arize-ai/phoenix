@@ -22,7 +22,6 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
-import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -97,43 +96,42 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: ({ getValue, row }) => {
-        const { id } = row.original;
-        return (
-          <Link to={`sessions/${encodeURIComponent(id)}`}>
-            {getValue() as string}
-          </Link>
-        );
-      },
+      cell: TextCell,
     },
     {
       header: "session user",
       accessorKey: "sessionUser",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "first input",
       accessorKey: "firstInput.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "last output",
       accessorKey: "lastOutput.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "start time",
       accessorKey: "startTime",
+      enableSorting: false,
       cell: TimestampCell,
     },
     {
       header: "end time",
       accessorKey: "endTime",
+      enableSorting: false,
       cell: TimestampCell,
     },
     {
       header: "total tokens",
       accessorKey: "tokenUsage.total",
+      enableSorting: false,
       minSize: 80,
       cell: ({ row, getValue }) => {
         const value = getValue();
@@ -153,6 +151,7 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "total traces",
       accessorKey: "numTraces",
+      enableSorting: false,
       cell: IntCell,
     },
   ];
@@ -280,7 +279,9 @@ export function SessionsTable(props: SessionsTableProps) {
                 return (
                   <tr
                     key={row.id}
-                    onClick={() => navigate(`sessions/${row.id}`)}
+                    onClick={() =>
+                      navigate(`sessions/${encodeURIComponent(row.id)}`)
+                    }
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (
