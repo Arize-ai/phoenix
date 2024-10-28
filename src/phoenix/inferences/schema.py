@@ -1,6 +1,7 @@
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Optional, Union
 
 EmbeddingFeatures = dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str

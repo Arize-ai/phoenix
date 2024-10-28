@@ -3,18 +3,11 @@ import contextlib
 import os
 import tempfile
 from asyncio import AbstractEventLoop
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Iterator,
-    Literal,
-    Optional,
-)
+from typing import Any, Literal, Optional
 from urllib.parse import urljoin
 from uuid import uuid4
 

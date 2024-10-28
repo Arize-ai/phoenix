@@ -1,8 +1,9 @@
 import json
+from collections.abc import Mapping, Sized
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sized, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 import strawberry

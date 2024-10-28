@@ -1,11 +1,11 @@
 import json
 from abc import ABC
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Optional, Union
 from uuid import UUID, uuid4
 
 import pandas as pd

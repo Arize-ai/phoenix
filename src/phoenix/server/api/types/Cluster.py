@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
-from typing import Mapping, Optional
+from collections.abc import Mapping
+from typing import Optional
 
 import strawberry
 from strawberry import ID

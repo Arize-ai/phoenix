@@ -1,9 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    Any,
-    Optional,
-)
+from typing import Any, Optional
 
 import numpy as np
 from aioitertools.itertools import groupby

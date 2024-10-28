@@ -1,15 +1,14 @@
 from collections import defaultdict
+from collections.abc import Iterator, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import (
     Any,
-    ContextManager,
     Generic,
-    Iterator,
     Literal,
     Optional,
-    Sequence,
     TypeVar,
 )
 
@@ -88,7 +87,7 @@ class TestOriginAndReferer:
     def test_csrf_origin_validation(
         self,
         headers: dict[str, str],
-        expectation: ContextManager[Any],
+        expectation: AbstractContextManager[Any],
     ) -> None:
         resp = _httpx_client(headers=headers).get("/healthz")
         with expectation:
@@ -442,7 +441,7 @@ class TestCreateUser:
         self,
         role_or_user: UserRoleInput,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _profiles: Iterator[_Profile],
     ) -> None:
@@ -572,7 +571,7 @@ class TestPatchUser:
         role_or_user: _RoleOrUser,
         role: UserRoleInput,
         new_role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
@@ -597,7 +596,7 @@ class TestPatchUser:
         self,
         role_or_user: UserRoleInput,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _passwords: Iterator[_Password],
     ) -> None:
@@ -637,7 +636,7 @@ class TestPatchUser:
         self,
         role_or_user: _RoleOrUser,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _usernames: Iterator[_Username],
     ) -> None:

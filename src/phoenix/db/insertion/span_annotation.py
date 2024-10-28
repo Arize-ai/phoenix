@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Any, Mapping, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional
 
 from sqlalchemy import Row, Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession

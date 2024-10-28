@@ -5,15 +5,7 @@ from asyncio import gather
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from inspect import getmro
 from itertools import chain
-from typing import (
-    Any,
-    Generic,
-    Optional,
-    TypedDict,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Any, Generic, Optional, TypedDict, TypeVar, Union, cast
 
 from sqlalchemy import Select, select
 from typing_extensions import TypeAlias, Unpack

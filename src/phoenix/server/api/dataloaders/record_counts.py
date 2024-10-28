@@ -1,10 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    Any,
-    Literal,
-    Optional,
-)
+from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, func, select

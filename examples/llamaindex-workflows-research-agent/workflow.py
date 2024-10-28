@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 from compress import get_compressed_context
 from llama_index.core.embeddings import BaseEmbedding
@@ -19,7 +19,7 @@ from tavily import get_docs_from_tavily_search
 
 
 class SubQueriesCreatedEvent(Event):
-    sub_queries: list[str]
+    sub_queries: List[str]
 
 
 class ToProcessSubQueryEvent(Event):
@@ -28,7 +28,7 @@ class ToProcessSubQueryEvent(Event):
 
 class DocsScrapedEvent(Event):
     sub_query: str
-    docs: list[Document]
+    docs: List[Document]
 
 
 class ToCombineContextEvent(Event):

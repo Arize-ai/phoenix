@@ -1,7 +1,5 @@
 from collections import defaultdict
-from typing import (
-    Optional,
-)
+from typing import Optional
 
 import numpy as np
 from aioitertools.itertools import groupby

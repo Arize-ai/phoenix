@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -13,7 +13,7 @@ class Message(BaseModel):
 
 
 class MessagesPayload(BaseModel):
-    messages: list[Message]
+    messages: List[Message]
 
 
 class MessagesResponse(BaseModel):

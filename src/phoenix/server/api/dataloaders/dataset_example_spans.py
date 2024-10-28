@@ -1,6 +1,4 @@
-from typing import (
-    Optional,
-)
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload

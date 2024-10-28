@@ -1,6 +1,7 @@
 import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Callable, Iterator, Optional
+from typing import Optional
 from unittest import mock
 
 import pytest

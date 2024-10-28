@@ -1,6 +1,4 @@
-from typing import (
-    Optional,
-)
+from typing import Optional
 
 from sqlalchemy import distinct, func, select
 from strawberry.dataloader import DataLoader

@@ -5,10 +5,10 @@ Test inferences
 import logging
 import math
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Iterator
 
 import numpy as np
 import pandas as pd

@@ -1,8 +1,9 @@
 import os
+from collections.abc import Generator, Iterator
 from contextlib import ExitStack
 from itertools import count, starmap
 from secrets import token_hex
-from typing import Generator, Iterator, Optional, cast
+from typing import Optional, cast
 from unittest import mock
 
 import pytest

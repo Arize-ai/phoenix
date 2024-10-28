@@ -1,9 +1,10 @@
 import json
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from enum import Enum, auto
 from pathlib import Path
-from typing import Iterator, NamedTuple, Optional
+from typing import NamedTuple, Optional
 from urllib import request
 from urllib.parse import quote, urljoin
 

@@ -1,5 +1,6 @@
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
-from typing import Hashable, Mapping, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 import numpy as np
 import numpy.typing as npt

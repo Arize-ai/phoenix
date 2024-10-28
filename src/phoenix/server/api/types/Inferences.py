@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Optional, Set, Union
+from typing import Optional, Union
 
 import strawberry
 from strawberry import ID, UNSET
@@ -72,7 +72,7 @@ def _get_requested_features_and_tags(
     requested_features_and_tags: list[Dimension] = []
     for id, dim in enumerate(core_dimensions):
         is_requested = (
-            not isinstance(requested_dimension_names, Set)
+            not isinstance(requested_dimension_names, set)
         ) or dim.name in requested_dimension_names
         is_feature_or_tag = dim.role in (FEATURE, TAG)
         if is_requested and is_feature_or_tag:

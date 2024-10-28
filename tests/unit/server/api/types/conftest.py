@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, Optional
+from typing import Optional
 from unittest.mock import Mock
 
 import pytest

@@ -1,10 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    Any,
-    Literal,
-    Optional,
-)
+from typing import Any, Literal, Optional
 
 import pandas as pd
 from aioitertools.itertools import groupby

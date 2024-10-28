@@ -1,8 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import (
-    Optional,
-)
+from typing import Optional
 
 from sqlalchemy import func, select
 from strawberry.dataloader import AbstractCache, DataLoader

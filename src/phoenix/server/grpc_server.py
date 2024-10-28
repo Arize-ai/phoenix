@@ -1,5 +1,5 @@
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Awaitable, Optional
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Optional
 
 import grpc
 from grpc.aio import RpcContext, Server, ServerInterceptor

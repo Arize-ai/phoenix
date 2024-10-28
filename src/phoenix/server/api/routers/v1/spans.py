@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field

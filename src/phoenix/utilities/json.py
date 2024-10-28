@@ -1,8 +1,9 @@
 import dataclasses
 import datetime
+from collections.abc import Mapping, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Sequence, Union, get_args, get_origin
+from typing import Any, Union, get_args, get_origin
 
 import numpy as np
 from strawberry import UNSET

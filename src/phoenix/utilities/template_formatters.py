@@ -1,7 +1,8 @@
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from string import Formatter
-from typing import Any, Iterable
+from typing import Any
 
 
 class TemplateFormatter(ABC):

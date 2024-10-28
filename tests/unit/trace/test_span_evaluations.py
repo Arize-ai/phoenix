@@ -1,8 +1,9 @@
 import json
+from collections.abc import Iterator
 from itertools import chain, combinations
 from pathlib import Path
 from random import random
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 import pandas as pd

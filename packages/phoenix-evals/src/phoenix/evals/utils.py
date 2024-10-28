@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -57,7 +57,7 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
     )
 
 
-def snap_to_rail(raw_string: Optional[str], rails: list[str], verbose: bool = False) -> str:
+def snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be
     snapped to a rail.
@@ -65,7 +65,7 @@ def snap_to_rail(raw_string: Optional[str], rails: list[str], verbose: bool = Fa
     Args:
         raw_string (str): An input to be snapped to a rail.
 
-        rails (list[str]): The target set of strings to snap to.
+        rails (List[str]): The target set of strings to snap to.
 
     Returns:
         str: A string from the rails argument or "UNPARSABLE" if the input
@@ -89,7 +89,7 @@ def snap_to_rail(raw_string: Optional[str], rails: list[str], verbose: bool = Fa
     return rail
 
 
-def parse_openai_function_call(raw_output: str) -> tuple[str, Optional[str]]:
+def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
     """
     Parses the output of an OpenAI function call.
 
@@ -97,7 +97,7 @@ def parse_openai_function_call(raw_output: str) -> tuple[str, Optional[str]]:
         raw_output (str): The raw output of an OpenAI function call.
 
     Returns:
-        tuple[str, Optional[str]]: A tuple of the unrailed label and an optional
+        Tuple[str, Optional[str]]: A tuple of the unrailed label and an optional
             explanation.
     """
     try:
@@ -110,18 +110,18 @@ def parse_openai_function_call(raw_output: str) -> tuple[str, Optional[str]]:
     return unrailed_label, explanation
 
 
-def openai_function_call_kwargs(rails: list[str], provide_explanation: bool) -> dict[str, Any]:
+def openai_function_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict[str, Any]:
     """
     Returns keyword arguments needed to invoke an OpenAI model with function
     calling for classification.
 
     Args:
-        rails (list[str]): The rails to snap the output to.
+        rails (List[str]): The rails to snap the output to.
 
         provide_explanation (bool): Whether to provide an explanation.
 
     Returns:
-        dict[str, Any]: A dictionary containing function call arguments.
+        Dict[str, Any]: A dictionary containing function call arguments.
     """
     openai_function = _default_openai_function(rails, provide_explanation)
     return {
@@ -131,19 +131,19 @@ def openai_function_call_kwargs(rails: list[str], provide_explanation: bool) -> 
 
 
 def _default_openai_function(
-    rails: list[str],
+    rails: List[str],
     with_explanation: bool = False,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Returns a default OpenAI function call for classification.
 
     Args:
-        rails (list[str]): A list of rails to snap the output to.
+        rails (List[str]): A list of rails to snap the output to.
 
         with_explanation (bool, optional): Whether to include an explanation.
 
     Returns:
-        dict[str, Any]: A JSON schema object advertising a function to record
+        Dict[str, Any]: A JSON schema object advertising a function to record
             the result of the LLM's classification.
     """
     properties = {

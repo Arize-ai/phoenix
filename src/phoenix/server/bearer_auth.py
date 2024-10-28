@@ -1,13 +1,8 @@
 from abc import ABC
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
-from typing import (
-    Any,
-    Awaitable,
-    Optional,
-    cast,
-)
+from typing import Any, Optional, cast
 
 import grpc
 from fastapi import HTTPException, Request, WebSocket, WebSocketException

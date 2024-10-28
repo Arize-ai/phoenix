@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
 import numpy as np
 import pytest

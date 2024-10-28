@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterable
 from datetime import datetime
-from typing import AsyncIterable, ClassVar, Optional, cast
+from typing import ClassVar, Optional, cast
 
 import strawberry
 from sqlalchemy import and_, func, select

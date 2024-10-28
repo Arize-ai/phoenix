@@ -1,8 +1,9 @@
 import os
+from collections.abc import Iterator
 from contextlib import ExitStack
 from pathlib import Path
 from secrets import token_hex
-from typing import Any, Iterator
+from typing import Any
 from unittest import mock
 
 import phoenix

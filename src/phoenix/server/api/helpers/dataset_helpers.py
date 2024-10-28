@@ -1,5 +1,6 @@
 import json
-from typing import Any, Literal, Mapping, Optional, Protocol
+from collections.abc import Mapping
+from typing import Any, Literal, Optional, Protocol
 
 from openinference.semconv.trace import (
     MessageAttributes,

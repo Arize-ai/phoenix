@@ -2,10 +2,20 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import product
-from typing import Any, NamedTuple, Optional, Union
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import pandas as pd
 from pandas import DataFrame
@@ -41,7 +51,7 @@ Record: TypeAlias = Mapping[str, Any]
 Index: TypeAlias = int
 
 # snapped_response, explanation, response
-ParsedLLMResponse: TypeAlias = tuple[Optional[str], Optional[str], str, str]
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
 
 
 class ClassificationStatus(Enum):
@@ -56,7 +66,7 @@ def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
-    rails: list[str],
+    rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -88,7 +98,7 @@ def llm_classify(
 
         model (BaseEvalModel): An LLM model class.
 
-        rails (list[str]): A list of strings representing the possible output classes
+        rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
 
         system_instruction (Optional[str], optional): An optional system message.
@@ -182,7 +192,7 @@ def llm_classify(
         except KeyError as exc:
             raise PhoenixTemplateMappingError(f"Missing template variable: {exc}")
 
-    def _process_response(response: str) -> tuple[str, Optional[str]]:
+    def _process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -264,12 +274,12 @@ class RunEvalsPayload(NamedTuple):
 
 def run_evals(
     dataframe: DataFrame,
-    evaluators: list[LLMEvaluator],
+    evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
     use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: Optional[int] = None,
-) -> list[DataFrame]:
+) -> List[DataFrame]:
     """
     Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
     which each dataframe contains the outputs of the corresponding evaluator
@@ -281,7 +291,7 @@ def run_evals(
             column names in the dataframe (extra columns unrelated to the template
             are permitted).
 
-        evaluators (list[LLMEvaluator]): A list of evaluators.
+        evaluators (List[LLMEvaluator]): A list of evaluators.
 
         provide_explanation (bool, optional): If True, provides an explanation
             for each evaluation. A column named "explanation" is added to each
@@ -301,7 +311,7 @@ def run_evals(
             concurrency is set on a per-model basis.
 
     Returns:
-        list[DataFrame]: A list of dataframes, one for each evaluator, all of
+        List[DataFrame]: A list of dataframes, one for each evaluator, all of
             which have the same number of rows as the input dataframe.
     """
     # use the minimum default concurrency of all the models
@@ -317,7 +327,7 @@ def run_evals(
 
     async def _arun_eval(
         payload: RunEvalsPayload,
-    ) -> tuple[Label, Score, Explanation]:
+    ) -> Tuple[Label, Score, Explanation]:
         return await payload.evaluator.aevaluate(
             payload.record,
             provide_explanation=provide_explanation,
@@ -327,7 +337,7 @@ def run_evals(
 
     def _run_eval(
         payload: RunEvalsPayload,
-    ) -> tuple[Label, Score, Explanation]:
+    ) -> Tuple[Label, Score, Explanation]:
         return payload.evaluator.evaluate(
             payload.record,
             provide_explanation=provide_explanation,
@@ -349,7 +359,7 @@ def run_evals(
         RunEvalsPayload(evaluator=evaluator, record=row)
         for evaluator, (_, row) in product(evaluators, dataframe.iterrows())
     ]
-    eval_results: list[defaultdict[Index, dict[ColumnName, Union[Label, Explanation]]]] = [
+    eval_results: List[DefaultDict[Index, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
     results, _ = executor.run(payloads)
@@ -360,7 +370,7 @@ def run_evals(
         eval_results[evaluator_index][row_index]["score"] = score
         if provide_explanation:
             eval_results[evaluator_index][row_index]["explanation"] = explanation
-    eval_dataframes: list[DataFrame] = []
+    eval_dataframes: List[DataFrame] = []
     for eval_result in eval_results:
         eval_data = [eval_result[row_index] for row_index in range(len(eval_result))]
         eval_dataframes.append(DataFrame(eval_data, index=dataframe.index))

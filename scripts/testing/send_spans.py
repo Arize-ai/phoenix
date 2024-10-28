@@ -1,12 +1,13 @@
 import json
 import logging
 import time
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from queue import SimpleQueue
 from random import choice, randint, random
 from threading import Thread
 from time import sleep
-from typing import Any, Iterator
+from typing import Any
 
 import numpy as np
 from faker import Faker

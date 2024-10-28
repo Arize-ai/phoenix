@@ -3,19 +3,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import (
-    Any,
-    Generic,
-    Mapping,
-    Optional,
-    Protocol,
-    Sequence,
-    TypeVar,
-    cast,
-)
+from typing import Any, Generic, Optional, Protocol, TypeVar, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Insert

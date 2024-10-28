@@ -1,7 +1,4 @@
-from typing import (
-    Optional,
-    Union,
-)
+from typing import Optional, Union
 
 from sqlalchemy import and_, case, func, null, or_, select
 from sqlalchemy.sql.expression import literal

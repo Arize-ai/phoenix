@@ -3,19 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import (
-    Any,
-    AsyncContextManager,
-    Generic,
-    Iterator,
-    Optional,
-    Protocol,
-    TypeVar,
-    final,
-)
+from typing import Any, Generic, Optional, Protocol, TypeVar, final
 
 from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,13 +28,13 @@ class CanGetLastUpdatedAt(Protocol):
 class DbSessionFactory:
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
     ):
         self._db = db
         self.dialect = SupportedSQLDialect(dialect)
 
-    def __call__(self) -> AsyncContextManager[AsyncSession]:
+    def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
         return self._db()
 
 

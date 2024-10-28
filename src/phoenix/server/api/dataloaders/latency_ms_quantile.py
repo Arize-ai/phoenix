@@ -1,13 +1,7 @@
 from collections import defaultdict
+from collections.abc import AsyncIterator, Mapping
 from datetime import datetime
-from typing import (
-    Any,
-    AsyncIterator,
-    Literal,
-    Mapping,
-    Optional,
-    cast,
-)
+from typing import Any, Literal, Optional, cast
 
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import (

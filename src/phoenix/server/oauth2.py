@@ -1,4 +1,5 @@
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin

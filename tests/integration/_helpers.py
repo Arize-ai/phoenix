@@ -4,7 +4,8 @@ import os
 import re
 import sys
 from abc import ABC, abstractmethod
-from contextlib import contextmanager, nullcontext
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import AbstractContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -15,20 +16,7 @@ from secrets import token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from typing import (
-    Any,
-    ContextManager,
-    Generic,
-    Iterable,
-    Iterator,
-    Literal,
-    Mapping,
-    Optional,
-    Protocol,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Any, Generic, Literal, Optional, Protocol, TypeVar, Union, cast
 from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
 
@@ -949,7 +937,7 @@ class _Expectation(Protocol):
     def __exit__(self, *args: Any, **kwargs: Any) -> None: ...
 
 
-_OK_OR_DENIED: TypeAlias = ContextManager[Optional[Unauthorized]]
+_OK_OR_DENIED: TypeAlias = AbstractContextManager[Optional[Unauthorized]]
 
 _OK = nullcontext()
 _DENIED = pytest.raises(Unauthorized)
