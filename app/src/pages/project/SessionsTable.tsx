@@ -32,7 +32,7 @@ import { TokenCount } from "../../components/trace/TokenCount";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
-import { ProjectTableEmpty } from "./ProjectTableEmpty";
+import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
 
@@ -128,7 +128,7 @@ export function SessionsTable(props: SessionsTableProps) {
       minSize: 80,
       cell: ({ row, getValue }) => {
         const value = getValue();
-        if (value === null) {
+        if (value == null || typeof value !== "number") {
           return "--";
         }
         const { prompt, completion } = row.original.tokenUsage;
@@ -149,8 +149,6 @@ export function SessionsTable(props: SessionsTableProps) {
     },
   ];
   useEffect(() => {
-    //if the sorting changes, we need to reset the pagination
-    // const sort = sorting[0];
     startTransition(() => {
       refetch(
         {
@@ -165,7 +163,7 @@ export function SessionsTable(props: SessionsTableProps) {
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&
@@ -265,7 +263,7 @@ export function SessionsTable(props: SessionsTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <ProjectTableEmpty projectName={data.name} />
+            <SessionsTableEmpty />
           ) : (
             <tbody>
               {rows.map((row) => {
