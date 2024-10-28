@@ -68,6 +68,12 @@ def test_up_and_down_migrations(
         assert isinstance(column.type, VARCHAR)
         del column
 
+        column = columns.pop("session_user", None)
+        assert column is not None
+        assert column.nullable
+        assert isinstance(column.type, VARCHAR)
+        del column
+
         column = columns.pop("project_id", None)
         assert column is not None
         assert not column.nullable
@@ -96,7 +102,7 @@ def test_up_and_down_migrations(
         assert not index.unique
         del index
 
-        index = indexes.pop("ix_project_sessions_end_time", None)
+        index = indexes.pop("ix_project_sessions_session_user", None)
         assert index is not None
         assert not index.unique
         del index
@@ -159,7 +165,7 @@ def test_up_and_down_migrations(
         assert isinstance(column.type, TIMESTAMP)
         del column
 
-        column = columns.pop("project_session_id", None)
+        column = columns.pop("project_session_rowid", None)
         assert column is not None
         assert column.nullable
         assert isinstance(column.type, INTEGER)
@@ -180,7 +186,7 @@ def test_up_and_down_migrations(
         assert not index.unique
         del index
 
-        index = indexes.pop("ix_traces_project_session_id", None)
+        index = indexes.pop("ix_traces_project_session_rowid", None)
         assert index is not None
         assert not index.unique
         del index
@@ -203,7 +209,7 @@ def test_up_and_down_migrations(
         assert constraint.ondelete == "CASCADE"
         del constraint
 
-        constraint = constraints.pop("fk_traces_project_session_id_project_sessions", None)
+        constraint = constraints.pop("fk_traces_project_session_rowid_project_sessions", None)
         assert isinstance(constraint, ForeignKeyConstraint)
         assert constraint.ondelete == "CASCADE"
         del constraint
