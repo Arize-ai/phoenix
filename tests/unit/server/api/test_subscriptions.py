@@ -3,7 +3,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -260,12 +259,9 @@ class TestChatCompletionSubscription:
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
         self,
-        dialect: str,
         gql_client: Any,
         openai_api_key: str,
     ) -> None:
-        if dialect == "postgresql":
-            pytest.skip("fails on postgres for unknown reason")
         variables = {
             "input": {
                 "messages": [
@@ -314,6 +310,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -327,7 +327,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -383,12 +382,9 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
         self,
-        dialect: str,
         gql_client: Any,
         openai_api_key: str,
     ) -> None:
-        if dialect == "postgresql":
-            pytest.skip("fails on postgres for unknown reason")
         get_current_weather_tool_schema = {
             "type": "function",
             "function": {
@@ -457,6 +453,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -470,7 +470,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -539,12 +538,9 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
         self,
-        dialect: str,
         gql_client: Any,
         openai_api_key: str,
     ) -> None:
-        if dialect == "postgresql":
-            pytest.skip("fails on postgres for unknown reason")
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
         tool_calls = [
             {
@@ -610,6 +606,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -623,7 +623,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
@@ -702,12 +701,9 @@ class TestChatCompletionSubscription:
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
         self,
-        dialect: str,
         gql_client: Any,
         anthropic_api_key: str,
     ) -> None:
-        if dialect == "postgresql":
-            pytest.skip("fails on postgres for unknown reason")
         variables = {
             "input": {
                 "messages": [
@@ -756,6 +752,10 @@ class TestChatCompletionSubscription:
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
         assert span == subscription_span
 
         # check attributes
@@ -769,7 +769,6 @@ class TestChatCompletionSubscription:
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
-        assert (attributes := dict(flatten(json.loads(span.pop("attributes")))))
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
