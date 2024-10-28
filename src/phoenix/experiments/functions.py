@@ -4,21 +4,13 @@ import inspect
 import json
 import traceback
 from binascii import hexlify
+from collections.abc import Awaitable, Mapping, Sequence
 from contextlib import ExitStack
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from itertools import product
-from typing import (
-    Any,
-    Awaitable,
-    Literal,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
-    cast,
-)
+from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx

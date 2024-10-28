@@ -1,18 +1,10 @@
 import logging
+from collections.abc import Awaitable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from typing import (
-    Any,
-    Awaitable,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Union,
-    cast,
-)
+from typing import Any, Optional, Union, cast
 
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
