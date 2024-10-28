@@ -160,6 +160,7 @@ class ProjectSession(Base):
     __tablename__ = "project_sessions"
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    session_user: Mapped[Optional[str]] = mapped_column(index=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -179,12 +180,12 @@ class Trace(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
     )
     trace_id: Mapped[str]
-    project_session_id: Mapped[int] = mapped_column(
+    project_session_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
-        nullable=True,
         index=True,
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
