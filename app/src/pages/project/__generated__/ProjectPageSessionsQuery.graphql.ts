@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<966c6d64c6e0781fbe3aba4b28e73eb8>>
+ * @generated SignedSource<<2ec99b88de5f2bfca5562d9f2bfa9bc2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -176,13 +176,6 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "sessionUser",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
                             "name": "numTraces",
                             "storageKey": null
                           },
@@ -326,12 +319,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a74841edb60ff2f9a13c7ce66cf2e5c0",
+    "cacheID": "84ec25aac21d8b45bb3c4481ed30c6e7",
     "id": null,
     "metadata": {},
     "name": "ProjectPageSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

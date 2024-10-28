@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89ae2ca4c4e7b0f023b2409ae806ac33>>
+ * @generated SignedSource<<eb18f1d8d0fe1de7270e67db2610a241>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -206,13 +206,6 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "sessionUser",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
                             "name": "numTraces",
                             "storageKey": null
                           },
@@ -356,16 +349,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d26a6690087523cbe59d31de8d76c34d",
+    "cacheID": "eae7b869a03863c68f10ff3d78c3f46b",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2HEEH6 on Project {\n  name\n  sessions(first: $first, after: $after, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2HEEH6 on Project {\n  name\n  sessions(first: $first, after: $after, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b6df9e3aea70921b0d43bd6ae8555781";
+(node as any).hash = "ffd50d06a86cb2efbd63be2f7e658dbf";
 
 export default node;

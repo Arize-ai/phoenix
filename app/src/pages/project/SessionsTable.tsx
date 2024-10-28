@@ -65,7 +65,6 @@ export function SessionsTable(props: SessionsTableProps) {
               session: node {
                 id
                 sessionId
-                sessionUser
                 numTraces
                 startTime
                 endTime
@@ -95,12 +94,6 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "session id",
       accessorKey: "sessionId",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    {
-      header: "session user",
-      accessorKey: "sessionUser",
       enableSorting: false,
       cell: TextCell,
     },

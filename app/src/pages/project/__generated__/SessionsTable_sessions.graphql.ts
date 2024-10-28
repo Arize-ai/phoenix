@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e3aee993b47d0a2170e3b3263659e5b>>
+ * @generated SignedSource<<e6f6a0779ba767f9d7788359aa2075fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,6 @@ export type SessionsTable_sessions$data = {
         } | null;
         readonly numTraces: number;
         readonly sessionId: string;
-        readonly sessionUser: string | null;
         readonly startTime: string;
         readonly tokenUsage: {
           readonly completion: number;
@@ -156,13 +155,6 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "sessionId",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "sessionUser",
                   "storageKey": null
                 },
                 {
@@ -304,6 +296,6 @@ return {
 };
 })();
 
-(node as any).hash = "b6df9e3aea70921b0d43bd6ae8555781";
+(node as any).hash = "ffd50d06a86cb2efbd63be2f7e658dbf";
 
 export default node;
