@@ -5,6 +5,12 @@ import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
+import {
+  ConnectedMarkdownBlock,
+  ConnectedMarkdownModeRadioGroup,
+  MarkdownDisplayProvider,
+  useMarkdownMode,
+} from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -35,12 +41,24 @@ interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
   const { role, content, toolCalls } = message;
   const styles = useChatMessageStyles(role);
+  const { mode: markdownMode } = useMarkdownMode();
 
   return (
-    <Card title={role} {...styles} variant="compact">
+    <Card
+      title={role}
+      {...styles}
+      variant="compact"
+      extra={<ConnectedMarkdownModeRadioGroup />}
+    >
       {content != null && (
         <Flex direction="column" alignItems="start">
-          {content}
+          {markdownMode === "text" ? (
+            content
+          ) : (
+            <View overflow="auto" maxWidth="100%">
+              <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
+            </View>
+          )}
         </Flex>
       )}
       {toolCalls && toolCalls.length > 0
@@ -119,7 +137,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       variant="compact"
       bodyStyle={{ padding: 0 }}
     >
-      <View padding="size-200">{OutputEl}</View>
+      <View padding="size-200">
+        <MarkdownDisplayProvider>{OutputEl}</MarkdownDisplayProvider>
+      </View>
       <Suspense>
         {instance.spanId ? (
           <RunMetadataFooter spanId={instance.spanId} />
