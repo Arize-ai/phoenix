@@ -31,7 +31,6 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from httpx import AsyncByteStream, Request, Response
 from httpx_ws import AsyncWebSocketSession, aconnect_ws
-from httpx_ws.transport import ASGIWebSocketTransport
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import URL, make_url
@@ -53,6 +52,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
+from tests.unit.ws_transport import ASGIWebSocketTransport
 
 
 def pytest_terminal_summary(

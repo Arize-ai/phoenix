@@ -438,6 +438,18 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        async with info.context.db() as session:
+            if (
+                playground_project_id := (
+                    await session.scalar(
+                        select(models.Project.id).where(
+                            models.Project.name == PLAYGROUND_PROJECT_NAME
+                        )
+                    )
+                )
+            ) is None:
+                print("Creating playground project")
+        print("Creating playground project")
         # Determine which LLM client to use based on provider_key
         provider_key = input.model.provider_key
         if (llm_client_class := PLAYGROUND_STREAMING_CLIENT_REGISTRY.get(provider_key)) is None:
