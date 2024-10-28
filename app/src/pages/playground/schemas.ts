@@ -7,7 +7,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { ChatMessage } from "@phoenix/store";
-import { Mutable, schemaForType } from "@phoenix/typeUtils";
+import { isObject, Mutable, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
@@ -136,7 +136,7 @@ const stringToInvocationParametersSchema = z
   .string()
   .transform((s) => {
     const { json } = safelyParseJSON(s);
-    if (json == null || typeof json !== "object") {
+    if (!isObject(json)) {
       return null;
     }
     // using the invocationParameterSchema as a base,
