@@ -1182,9 +1182,12 @@ type ProjectSession implements Node {
   sessionUser: String
   startTime: DateTime!
   endTime: DateTime!
+
+  """Duration of the session in seconds"""
+  duration: Int!
   numTraces: Int!
-  firstInputValue: String
-  lastOutputValue: String
+  firstInput: SpanIOValue
+  lastOutput: SpanIOValue
   tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
 }
@@ -1560,11 +1563,13 @@ type Trace implements Node {
   startTime: DateTime!
   endTime: DateTime!
   projectId: GlobalID!
+  projectSessionId: GlobalID!
+  projectSession: ProjectSession
+  rootSpan: Span
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""
   spanAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
-  ioValue: TraceIoValue
 }
 
 type TraceAnnotation implements Node {
@@ -1611,11 +1616,6 @@ type TraceEdge {
 
   """The item at the end of the edge"""
   node: Trace!
-}
-
-type TraceIoValue {
-  inputValue: String
-  outputValue: String
 }
 
 type UMAPPoint {

@@ -70,8 +70,12 @@ export function SessionsTable(props: SessionsTableProps) {
                 numTraces
                 startTime
                 endTime
-                firstInputValue
-                lastOutputValue
+                firstInput {
+                  value
+                }
+                lastOutput {
+                  value
+                }
                 tokenUsage {
                   prompt
                   completion
@@ -109,12 +113,12 @@ export function SessionsTable(props: SessionsTableProps) {
     },
     {
       header: "first input",
-      accessorKey: "firstInputValue",
+      accessorKey: "firstInput.value",
       cell: TextCell,
     },
     {
       header: "last output",
-      accessorKey: "lastOutputValue",
+      accessorKey: "lastOutput.value",
       cell: TextCell,
     },
     {
@@ -147,7 +151,7 @@ export function SessionsTable(props: SessionsTableProps) {
       },
     },
     {
-      header: "num traces",
+      header: "total traces",
       accessorKey: "numTraces",
       cell: IntCell,
     },

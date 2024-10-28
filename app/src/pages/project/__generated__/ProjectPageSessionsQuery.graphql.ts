@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6a7cbd628465dc316a22dda441b8b717>>
+ * @generated SignedSource<<966c6d64c6e0781fbe3aba4b28e73eb8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -72,6 +72,15 @@ v4 = [
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
+  }
+],
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
   }
 ];
 return {
@@ -194,15 +203,21 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "firstInputValue",
+                            "concreteType": "SpanIOValue",
+                            "kind": "LinkedField",
+                            "name": "firstInput",
+                            "plural": false,
+                            "selections": (v5/*: any*/),
                             "storageKey": null
                           },
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "lastOutputValue",
+                            "concreteType": "SpanIOValue",
+                            "kind": "LinkedField",
+                            "name": "lastOutput",
+                            "plural": false,
+                            "selections": (v5/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -311,12 +326,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9e2a600b4cf8be8afccee25a61fdc2ea",
+    "cacheID": "a74841edb60ff2f9a13c7ce66cf2e5c0",
     "id": null,
     "metadata": {},
     "name": "ProjectPageSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInputValue\n        lastOutputValue\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

@@ -21,9 +21,13 @@ export function SessionDetails(props: SessionDetailsProps) {
             traces {
               edges {
                 trace: node {
-                  ioValue {
-                    inputValue
-                    outputValue
+                  rootSpan {
+                    input {
+                      value
+                    }
+                    output {
+                      value
+                    }
                   }
                 }
               }
@@ -64,8 +68,8 @@ export function SessionDetails(props: SessionDetailsProps) {
           {spansList.map((trace, index) => (
             <tr key={index}>
               <td>{index + 1}</td>
-              <td>{trace.ioValue?.inputValue}</td>
-              <td>{trace.ioValue?.outputValue}</td>
+              <td>{trace.rootSpan?.input?.value}</td>
+              <td>{trace.rootSpan?.output?.value}</td>
             </tr>
           ))}
         </tbody>

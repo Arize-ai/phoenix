@@ -183,7 +183,7 @@ class Trace(Base):
         index=True,
     )
     trace_id: Mapped[str]
-    project_session_id: Mapped[int] = mapped_column(
+    project_session_rowid: Mapped[int] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         nullable=True,
         index=True,

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, Annotated, List, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
-from strawberry import UNSET, Private
+from strawberry import UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
@@ -23,18 +23,15 @@ from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
-
-@strawberry.type
-class TraceIoValue:
-    input_value: Optional[str] = None
-    output_value: Optional[str] = None
+if TYPE_CHECKING:
+    from phoenix.server.api.types.ProjectSession import ProjectSession
 
 
 @strawberry.type
 class Trace(Node):
     id_attr: NodeID[int]
     project_rowid: Private[int]
-    project_session_id: Private[int]
+    project_session_rowid: Private[int]
     trace_id: str
     start_time: datetime
     end_time: datetime
@@ -44,6 +41,45 @@ class Trace(Node):
         from phoenix.server.api.types.Project import Project
 
         return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
+
+    @strawberry.field
+    async def project_session_id(self) -> GlobalID:
+        from phoenix.server.api.types.ProjectSession import ProjectSession
+
+        return GlobalID(type_name=ProjectSession.__name__, node_id=str(self.project_session_rowid))
+
+    @strawberry.field
+    async def project_session(
+        self,
+        info: Info[Context, None],
+    ) -> Union[Annotated["ProjectSession", lazy(".ProjectSession")], None]:
+        from phoenix.server.api.types.ProjectSession import to_gql_project_session
+
+        stmt = select(models.ProjectSession).filter_by(id=self.project_session_rowid)
+        async with info.context.db() as session:
+            project_session = await session.scalar(stmt)
+        if project_session is None:
+            return None
+        return to_gql_project_session(project_session)
+
+    @strawberry.field
+    async def root_span(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[Span]:
+        stmt = (
+            select(models.Span)
+            .join(models.Trace)
+            .where(models.Trace.id == self.id_attr)
+            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
+            .where(models.Span.parent_id.is_(None))
+            .limit(1)
+        )
+        async with info.context.db() as session:
+            span = await session.scalar(stmt)
+        if span is None:
+            return None
+        return to_gql_span(span)
 
     @strawberry.field
     async def spans(
@@ -94,33 +130,12 @@ class Trace(Node):
             annotations = await session.scalars(stmt)
         return [to_gql_trace_annotation(annotation) for annotation in annotations]
 
-    @strawberry.field
-    async def io_value(self, info: Info[Context, None]) -> Optional[TraceIoValue]:
-        stmt = (
-            select(
-                models.Span.attributes[INPUT_VALUE].label("input_value"),
-                models.Span.attributes[OUTPUT_VALUE].label("output_value"),
-            )
-            .join(models.Trace)
-            .where(models.Trace.id == self.id_attr)
-            .where(models.Span.parent_id.is_(None))
-            .limit(1)
-        )
-        async with info.context.db() as session:
-            record = (await session.execute(stmt)).first()
-        if record is None:
-            return None
-        return TraceIoValue(
-            input_value=record.input_value,
-            output_value=record.output_value,
-        )
-
 
 def to_gql_trace(trace: models.Trace) -> Trace:
     return Trace(
         id_attr=trace.id,
         project_rowid=trace.project_rowid,
-        project_session_id=trace.project_session_id,
+        project_session_rowid=trace.project_session_rowid,
         trace_id=trace.trace_id,
         start_time=trace.start_time,
         end_time=trace.end_time,

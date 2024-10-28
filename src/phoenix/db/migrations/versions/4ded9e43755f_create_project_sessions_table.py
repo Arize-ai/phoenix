@@ -36,21 +36,21 @@ def upgrade() -> None:
     with op.batch_alter_table("traces") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "project_session_id",
+                "project_session_rowid",
                 sa.Integer,
                 sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
                 nullable=True,
             ),
         )
     op.create_index(
-        "ix_traces_project_session_id",
+        "ix_traces_project_session_rowid",
         "traces",
-        ["project_session_id"],
+        ["project_session_rowid"],
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_traces_project_session_id")
+    op.drop_index("ix_traces_project_session_rowid")
     with op.batch_alter_table("traces") as batch_op:
-        batch_op.drop_column("project_session_id")
+        batch_op.drop_column("project_session_rowid")
     op.drop_table("project_sessions")

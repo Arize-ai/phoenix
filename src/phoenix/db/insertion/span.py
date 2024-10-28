@@ -71,10 +71,12 @@ async def insert_span(
     trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
     if trace:
         if project_session and (
-            trace.project_session_id is None
-            or (trace.end_time < span.end_time and trace.project_session_id != project_session.id)
+            trace.project_session_rowid is None
+            or (
+                trace.end_time < span.end_time and trace.project_session_rowid != project_session.id
+            )
         ):
-            trace.project_session_id = project_session.id
+            trace.project_session_rowid = project_session.id
         if trace.end_time < span.end_time:
             trace.end_time = span.end_time
             trace.project_rowid = project_rowid
@@ -86,7 +88,7 @@ async def insert_span(
             trace_id=span.context.trace_id,
             start_time=span.start_time,
             end_time=span.end_time,
-            project_session_id=project_session.id if project_session else None,
+            project_session_rowid=project_session.id if project_session else None,
         )
         session.add(trace)
     if trace in session.dirty:

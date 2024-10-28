@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e524b0da2ba392462989f0cc605e8f5>>
+ * @generated SignedSource<<09739022ca9b52d61d2eb5646d7e9906>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,9 +17,13 @@ export type SessionDetailsQuery$data = {
     readonly traces?: {
       readonly edges: ReadonlyArray<{
         readonly trace: {
-          readonly ioValue: {
-            readonly inputValue: string | null;
-            readonly outputValue: string | null;
+          readonly rootSpan: {
+            readonly input: {
+              readonly value: string;
+            } | null;
+            readonly output: {
+              readonly value: string;
+            } | null;
           } | null;
         };
       }>;
@@ -46,7 +50,16 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  }
+],
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -76,23 +89,29 @@ v2 = {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "TraceIoValue",
+                  "concreteType": "Span",
                   "kind": "LinkedField",
-                  "name": "ioValue",
+                  "name": "rootSpan",
                   "plural": false,
                   "selections": [
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "inputValue",
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "input",
+                      "plural": false,
+                      "selections": (v2/*: any*/),
                       "storageKey": null
                     },
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "outputValue",
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "output",
+                      "plural": false,
+                      "selections": (v2/*: any*/),
                       "storageKey": null
                     }
                   ],
@@ -126,7 +145,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
@@ -155,7 +174,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -173,16 +192,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a103007a14d0fbec574eb439fbeed0dc",
+    "cacheID": "8b29972b49439ce8942839cc38a0c5be",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      traces {\n        edges {\n          trace: node {\n            ioValue {\n              inputValue\n              outputValue\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              input {\n                value\n              }\n              output {\n                value\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5558a73c1ea20f86d97df8186f852d67";
+(node as any).hash = "e2fd415f62c6b3af00e449a4dc383959";
 
 export default node;

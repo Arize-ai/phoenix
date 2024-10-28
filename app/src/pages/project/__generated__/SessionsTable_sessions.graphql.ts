@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3df0d431396a5071e1d146d9fc102a0>>
+ * @generated SignedSource<<1e3aee993b47d0a2170e3b3263659e5b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,9 +17,13 @@ export type SessionsTable_sessions$data = {
     readonly edges: ReadonlyArray<{
       readonly session: {
         readonly endTime: string;
-        readonly firstInputValue: string | null;
+        readonly firstInput: {
+          readonly value: string;
+        } | null;
         readonly id: string;
-        readonly lastOutputValue: string | null;
+        readonly lastOutput: {
+          readonly value: string;
+        } | null;
         readonly numTraces: number;
         readonly sessionId: string;
         readonly sessionUser: string | null;
@@ -51,7 +55,16 @@ v1 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -176,15 +189,21 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "firstInputValue",
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "firstInput",
+                  "plural": false,
+                  "selections": (v2/*: any*/),
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "lastOutputValue",
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "lastOutput",
+                  "plural": false,
+                  "selections": (v2/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -285,6 +304,6 @@ return {
 };
 })();
 
-(node as any).hash = "45ec709d28372e1374a8339528430239";
+(node as any).hash = "b6df9e3aea70921b0d43bd6ae8555781";
 
 export default node;

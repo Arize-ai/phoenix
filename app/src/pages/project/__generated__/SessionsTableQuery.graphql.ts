@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff00ff8680c4a69abdd52e1ed4a43c0b>>
+ * @generated SignedSource<<89ae2ca4c4e7b0f023b2409ae806ac33>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -89,6 +89,15 @@ v9 = [
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
+  }
+],
+v10 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
   }
 ];
 return {
@@ -224,15 +233,21 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "firstInputValue",
+                            "concreteType": "SpanIOValue",
+                            "kind": "LinkedField",
+                            "name": "firstInput",
+                            "plural": false,
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           },
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "lastOutputValue",
+                            "concreteType": "SpanIOValue",
+                            "kind": "LinkedField",
+                            "name": "lastOutput",
+                            "plural": false,
+                            "selections": (v10/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -341,16 +356,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e3dfb782e01292586cf1636e8d0d1a89",
+    "cacheID": "d26a6690087523cbe59d31de8d76c34d",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2HEEH6 on Project {\n  name\n  sessions(first: $first, after: $after, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInputValue\n        lastOutputValue\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2HEEH6 on Project {\n  name\n  sessions(first: $first, after: $after, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        sessionUser\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "45ec709d28372e1374a8339528430239";
+(node as any).hash = "b6df9e3aea70921b0d43bd6ae8555781";
 
 export default node;

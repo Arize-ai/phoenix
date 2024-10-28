@@ -10,7 +10,9 @@ from strawberry.relay import Connection, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
@@ -26,40 +28,77 @@ class ProjectSession(Node):
     start_time: datetime
     end_time: datetime
 
+    @strawberry.field(description="Duration of the session in seconds")
+    async def duration(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return int((self.end_time - self.start_time).total_seconds())
+
     @strawberry.field
-    async def num_traces(self, info: Info[Context, None]) -> int:
-        stmt = select(func.count(models.Trace.id)).filter_by(project_session_id=self.id_attr)
+    async def num_traces(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(func.count(models.Trace.id)).filter_by(project_session_rowid=self.id_attr)
         async with info.context.db() as session:
             return await session.scalar(stmt) or 0
 
     @strawberry.field
-    async def first_input_value(self, info: Info[Context, None]) -> Optional[str]:
+    async def first_input(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[SpanIOValue]:
         stmt = (
-            select(models.Span.attributes[INPUT_VALUE])
+            select(
+                models.Span.attributes[INPUT_VALUE].label("value"),
+                models.Span.attributes[INPUT_MIME_TYPE].label("mime_type"),
+            )
             .join(models.Trace)
-            .filter_by(project_session_id=self.id_attr)
+            .filter_by(project_session_rowid=self.id_attr)
             .where(models.Span.parent_id.is_(None))
             .order_by(models.Trace.start_time.asc())
             .limit(1)
         )
         async with info.context.db() as session:
-            return await session.scalar(stmt)
+            record = (await session.execute(stmt)).first()
+        if record is None or record.value is None:
+            return None
+        return SpanIOValue(
+            mime_type=MimeType(record.mime_type),
+            value=record.value,
+        )
 
     @strawberry.field
-    async def last_output_value(self, info: Info[Context, None]) -> Optional[str]:
+    async def last_output(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[SpanIOValue]:
         stmt = (
-            select(models.Span.attributes[OUTPUT_VALUE])
+            select(
+                models.Span.attributes[OUTPUT_VALUE].label("value"),
+                models.Span.attributes[OUTPUT_MIME_TYPE].label("mime_type"),
+            )
             .join(models.Trace)
-            .filter_by(project_session_id=self.id_attr)
+            .filter_by(project_session_rowid=self.id_attr)
             .where(models.Span.parent_id.is_(None))
             .order_by(models.Trace.start_time.desc())
             .limit(1)
         )
         async with info.context.db() as session:
-            return await session.scalar(stmt)
+            record = (await session.execute(stmt)).first()
+        if record is None or record.value is None:
+            return None
+        return SpanIOValue(
+            mime_type=MimeType(record.mime_type),
+            value=record.value,
+        )
 
     @strawberry.field
-    async def token_usage(self, info: Info[Context, None]) -> TokenUsage:
+    async def token_usage(
+        self,
+        info: Info[Context, None],
+    ) -> TokenUsage:
         stmt = (
             select(
                 func.sum(coalesce(models.Span.cumulative_llm_token_count_prompt, 0)).label(
@@ -70,7 +109,7 @@ class ProjectSession(Node):
                 ),
             )
             .join(models.Trace)
-            .filter_by(project_session_id=self.id_attr)
+            .filter_by(project_session_rowid=self.id_attr)
             .where(models.Span.parent_id.is_(None))
             .limit(1)
         )
@@ -104,7 +143,7 @@ class ProjectSession(Node):
         )
         stmt = (
             select(models.Trace)
-            .filter_by(project_session_id=self.id_attr)
+            .filter_by(project_session_rowid=self.id_attr)
             .order_by(models.Trace.start_time)
             .limit(first)
         )
@@ -125,4 +164,6 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
