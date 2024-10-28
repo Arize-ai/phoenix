@@ -4,7 +4,7 @@ from _pytest.config.argparsing import Parser
 def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--run-postgres",
-        action="store_false",
+        action="store_true",
         help="Run tests that require Postgres",
     )
     parser.addoption(
