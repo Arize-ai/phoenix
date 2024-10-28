@@ -20,7 +20,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, View } from "@arizeai/components";
+import { Icon, Icons, View } from "@arizeai/components";
 
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -43,7 +43,7 @@ type SessionsTableProps = {
 const PAGE_SIZE = 50;
 
 export function SessionsTable(props: SessionsTableProps) {
-  //we need a reference to the scrolling element for logic down below
+  // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
@@ -207,9 +207,7 @@ export function SessionsTable(props: SessionsTableProps) {
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <SpanFilterConditionField onValidCondition={setFilterCondition} />
-        </Flex>
+        <SpanFilterConditionField onValidCondition={setFilterCondition} />
       </View>
       <div
         css={css`
