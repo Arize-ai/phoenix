@@ -49,7 +49,7 @@ class Trace(Node):
         return GlobalID(type_name=ProjectSession.__name__, node_id=str(self.project_session_rowid))
 
     @strawberry.field
-    async def project_session(
+    async def session(
         self,
         info: Info[Context, None],
     ) -> Union[Annotated["ProjectSession", lazy(".ProjectSession")], None]:

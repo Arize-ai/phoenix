@@ -1564,7 +1564,7 @@ type Trace implements Node {
   endTime: DateTime!
   projectId: GlobalID!
   projectSessionId: GlobalID!
-  projectSession: ProjectSession
+  session: ProjectSession
   rootSpan: Span
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
