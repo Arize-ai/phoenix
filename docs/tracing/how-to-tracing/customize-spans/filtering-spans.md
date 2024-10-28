@@ -4,28 +4,10 @@ Because Phoenix is built on OpenTelemetry, you can run into situations where oth
 
 You have a few options to avoid these cases:
 
-1. Disable instrumentation on the offending package
-2. Filtering spans based on specific criteria
-3. Selectively suppressing instrumentation on specific calls
+1. Filtering spans based on specific criteria
+2. Selectively suppressing instrumentation on specific calls
+3. Disable instrumentation on the offending package
 4. Defining your own FilterProcessor
-
-## Disabling Instrumentation
-
-Certain libraries will automatically enable instrumentation if they detect the presence of the OTEL libraries. For example, `google-cloud-bigquery` displays this behavior.
-
-If you simply want to suppress traces from one of these libraries, most libraries offer an option to suppress their traces.
-
-For example, BigQuery traces can be surpressed with:
-
-```python
-import google.cloud.bigquery.opentelemetry_tracing
-
-google.cloud.bigquery.opentelemetry_tracing.HAS_OPENTELEMETRY = False
-```
-
-### Disabling Phoenix Instrumentation
-
-Phoenix does not automatically instrument any libraries unless you've called one of our [auto-instrumentors](../instrumentation/). To disable tracing of one of those auto-instrumentors, see [#disabling-instrumentation](filtering-spans.md#disabling-instrumentation "mention")
 
 ## Filtering all Spans that meet a criteria
 
@@ -146,6 +128,24 @@ token = attach(set_value(_SUPPRESS_INSTRUMENTATION_KEY, True))
 
 detach(token)
 ```
+
+## Disabling Instrumentation
+
+Certain libraries will automatically enable instrumentation if they detect the presence of the OTEL libraries. For example, `google-cloud-bigquery` displays this behavior.
+
+If you simply want to suppress traces from one of these libraries, most libraries offer an option to suppress their traces.
+
+For example, BigQuery traces can be surpressed with:
+
+```python
+import google.cloud.bigquery.opentelemetry_tracing
+
+google.cloud.bigquery.opentelemetry_tracing.HAS_OPENTELEMETRY = False
+```
+
+### Disabling Phoenix Instrumentation
+
+Phoenix does not automatically instrument any libraries unless you've called one of our [auto-instrumentors](../instrumentation/). To disable tracing of one of those auto-instrumentors, see [#disabling-instrumentation](filtering-spans.md#disabling-instrumentation "mention")
 
 ## Defining your own Filter Processor
 
