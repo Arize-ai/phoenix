@@ -1,10 +1,8 @@
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -53,14 +51,6 @@ def remove_all_vcr_response_headers(response: Dict[str, Any]) -> Dict[str, Any]:
     return response
 
 
-@pytest.mark.skipif(
-    sys.platform
-    in (
-        "win32",
-        "linux",
-    ),  # todo: support windows and linux https://github.com/Arize-ai/phoenix/issues/5126
-    reason="subscriptions are not currently supported on windows or linux",
-)
 class TestChatCompletionSubscription:
     QUERY = """
       subscription ChatCompletionSubscription($input: ChatCompletionInput!) {
