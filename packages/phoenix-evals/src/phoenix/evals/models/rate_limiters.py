@@ -1,9 +1,9 @@
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from functools import wraps
 from math import exp
-from typing import Any, Coroutine, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 

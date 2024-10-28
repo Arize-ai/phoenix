@@ -6,21 +6,11 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
 from datetime import datetime
 from enum import Enum
 from functools import partial
-from typing import (
-    Any,
-    Awaitable,
-    Coroutine,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
-    cast,
-)
+from typing import Any, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa

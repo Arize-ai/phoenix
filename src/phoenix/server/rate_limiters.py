@@ -1,11 +1,10 @@
 import re
 import time
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from functools import partial
 from typing import (
     Any,
-    Coroutine,
     Optional,
     Pattern,  # import from re module when we drop support for 3.8
     Union,

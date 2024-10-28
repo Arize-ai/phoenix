@@ -5,18 +5,10 @@ import logging
 import signal
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine, Generator, Sequence
 from contextlib import contextmanager
 from enum import Enum
-from typing import (
-    Any,
-    Coroutine,
-    Generator,
-    Optional,
-    Protocol,
-    Sequence,
-    Union,
-)
+from typing import Any, Optional, Protocol, Union
 
 from tqdm.auto import tqdm
 

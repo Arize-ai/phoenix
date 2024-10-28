@@ -1,12 +1,12 @@
 import logging
 from abc import ABC, abstractmethod
 from asyncio import create_task, gather, sleep
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from functools import cached_property, singledispatchmethod
-from typing import Any, Coroutine, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 from authlib.jose import jwt
 from authlib.jose.errors import JoseError
