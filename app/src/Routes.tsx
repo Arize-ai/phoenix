@@ -8,6 +8,7 @@ import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { SessionPage } from "./pages/trace/SessionPage";
 import {
   APIsPage,
   AuthenticatedRoot,
@@ -118,6 +119,7 @@ const router = createBrowserRouter(
               <Route index element={<ProjectPage />} />
               <Route element={<ProjectPage />}>
                 <Route path="traces/:traceId" element={<TracePage />} />
+                <Route path="sessions/:sessionId" element={<SessionPage />} />
               </Route>
             </Route>
           </Route>
