@@ -529,7 +529,7 @@ class TestChatCompletionSubscription:
         assert "content" not in output_message
         assert (tool_calls := output_message["tool_calls"])
         assert len(tool_calls) == 1
-        assert (tool_call := tool_calls.popitem()[-1]["tool_call"])
+        assert (tool_call := tool_calls[0]["tool_call"])
         assert (function := tool_call["function"])
         assert function["name"] == "get_current_weather"
         assert json.loads(function["arguments"]) == {"location": "San Francisco"}

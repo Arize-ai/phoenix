@@ -31,6 +31,7 @@ export type PlaygroundInputMode = "manual" | "dataset";
 export type ChatMessage = {
   id: number;
   role: ChatMessageRole;
+  // Tool call messages may not have content
   content?: string;
   toolCalls?: OpenAIToolCall[];
   toolCallId?: string;

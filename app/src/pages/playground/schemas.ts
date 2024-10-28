@@ -4,8 +4,10 @@ import {
   LLMAttributePostfixes,
   MessageAttributePostfixes,
   SemanticAttributePrefixes,
+  ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
+import { openAIToolCallSchema, openAIToolSchema } from "@phoenix/schemas";
 import { ChatMessage } from "@phoenix/store";
 import { isObject, Mutable, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -39,7 +41,7 @@ const toolCallSchema = z
 const messageSchema = z.object({
   [SemanticAttributePrefixes.message]: z.object({
     [MessageAttributePostfixes.role]: z.string(),
-    [MessageAttributePostfixes.content]: z.string(),
+    [MessageAttributePostfixes.content]: z.string().optional(),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
   }),
 });
@@ -91,7 +93,10 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
   z.object({
     id: z.number(),
     role: chatMessageRolesSchema,
-    content: z.string(),
+    // Tool call messages may not have content
+    content: z.string().optional(),
+    toolCallId: z.string().optional(),
+    toolCalls: z.array(openAIToolCallSchema).optional(),
   })
 );
 
@@ -194,6 +199,66 @@ export const modelConfigWithInvocationParametersSchema = z.object({
       stringToInvocationParametersSchema,
   }),
 });
+
+/**
+ *  The zod schema for llm.tools.{i}.tool.json_schema attribute
+ *  This will be a json string parsed into an object
+ */
+export const toolJSONSchemaSchema = z
+  .string()
+  .transform((s, ctx) => {
+    const { json } = safelyParseJSON(s);
+
+    if (json == null || !isObject(json)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The tool JSON schema must be a valid JSON object",
+      });
+      return z.NEVER;
+    }
+    return json;
+  })
+  // TODO(parker / apowell) - adjust this transformation with anthropic tool support https://github.com/Arize-ai/phoenix/issues/5100
+  .transform((o, ctx) => {
+    const { data, success } = openAIToolSchema.safeParse(o);
+
+    if (!success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The tool JSON schema must be a valid OpenAI tool schema",
+      });
+      return z.NEVER;
+    }
+    return data;
+  });
+
+/**
+ * The zod schema for llm.tools
+ * @see {@link  https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ * Note there are other attributes that can be on llm.tools.{i}.tool, namely description, name, and parameters
+ * however, these are encompassed by the json schema in some cases and calls to api's using destructured tools is not supported in the playground yet
+ */
+export const llmToolSchema = z
+  .object({
+    [SemanticAttributePrefixes.llm]: z
+      .object({
+        [LLMAttributePostfixes.tools]: z
+          .array(
+            z
+              .object({
+                [SemanticAttributePrefixes.tool]: z.object({
+                  [ToolAttributePostfixes.json_schema]: toolJSONSchemaSchema,
+                }),
+              })
+              .optional()
+          )
+          .optional(),
+      })
+      .optional(),
+  })
+  .optional();
+
+export type LlmToolSchema = z.infer<typeof llmToolSchema>;
 
 /**
  * Default set of invocation parameters for all providers and models.

@@ -13,6 +13,7 @@ import {
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
+  TOOLS_PARSING_ERROR,
 } from "../constants";
 import {
   extractVariablesFromInstances,
@@ -21,13 +22,18 @@ import {
   getModelProviderFromModelName,
   getOutputFromAttributes,
   getTemplateMessagesFromAttributes,
+  getToolsFromAttributes,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 
 import {
   basePlaygroundSpan,
+  expectedTestToolCall,
   spanAttributesWithInputMessages,
+  testSpanTool,
+  testSpanToolCall,
+  testSpanToolJsonSchema,
 } from "./fixtures";
 
 const baseTestPlaygroundInstance: PlaygroundInstance = {
@@ -200,7 +206,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
-  it("should normalize message roles in input and output messages", () => {
+  it("should normalize message roles, content, and toolCalls in input and output messages", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({
@@ -211,6 +217,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               message: {
                 role: "human",
                 content: "You are a chatbot",
+                tool_calls: [testSpanToolCall],
               },
             },
           ],
@@ -240,10 +247,58 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               id: 2,
               role: "user",
               content: "You are a chatbot",
+              toolCalls: [expectedTestToolCall],
             },
           ],
         },
         output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should correctly parse llm.tools", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        llm: {
+          model_name: "gpt-4o",
+          tools: [testSpanTool],
+          input_messages: [
+            { message: { content: "You are a chatbot", role: "system" } },
+            {
+              message: {
+                role: "human",
+                content: "hello?",
+              },
+            },
+          ],
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: "This is an AI Answer",
+              },
+            },
+          ],
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          provider: "OPENAI",
+          modelName: "gpt-4o",
+        },
+        tools: [
+          {
+            id: expect.any(Number),
+            definition: testSpanToolJsonSchema,
+          },
+        ],
+        output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
       },
       parsingErrors: [],
     });
@@ -453,23 +508,6 @@ describe("getModelProviderFromModelName", () => {
   });
 });
 
-const testSpanToolCall = {
-  tool_call: {
-    id: "1",
-    function: {
-      name: "functionName",
-      arguments: JSON.stringify({ arg1: "value1" }),
-    },
-  },
-};
-
-const expectedTestToolCall = {
-  id: "1",
-  function: {
-    name: "functionName",
-    arguments: JSON.stringify({ arg1: "value1" }),
-  },
-};
 describe("processAttributeToolCalls", () => {
   it("should transform tool calls correctly", () => {
     const toolCalls = [testSpanToolCall];
@@ -706,5 +744,43 @@ describe("extractVariablesFromInstances", () => {
     expect(
       extractVariablesFromInstances({ instances, templateLanguage })
     ).toEqual(["name", "age"]);
+  });
+});
+
+describe("getToolsFromAttributes", () => {
+  it("should return tools and no parsing errors if tools are valid", () => {
+    const parsedAttributes = {
+      llm: {
+        tools: [testSpanTool],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          id: expect.any(Number),
+          definition: testSpanToolJsonSchema,
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
+  it("should return null tools and parsing errors if tools are invalid", () => {
+    const parsedAttributes = { llm: { tools: "invalid" } };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: null,
+      parsingErrors: [TOOLS_PARSING_ERROR],
+    });
+  });
+
+  it("should return null tools and no parsing errors if tools are not present", () => {
+    const parsedAttributes = { llm: {} };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: null,
+      parsingErrors: [],
+    });
   });
 });

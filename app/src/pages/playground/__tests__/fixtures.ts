@@ -44,3 +44,40 @@ export const spanAttributesWithInputMessages = {
   },
   openinference: { span: { kind: "LLM" } },
 } as const;
+
+export const testSpanToolCall = {
+  tool_call: {
+    id: "1",
+    function: {
+      name: "functionName",
+      arguments: JSON.stringify({ arg1: "value1" }),
+    },
+  },
+};
+
+export const expectedTestToolCall = {
+  id: "1",
+  function: {
+    name: "functionName",
+    arguments: JSON.stringify({ arg1: "value1" }),
+  },
+};
+
+export const testSpanToolJsonSchema = {
+  type: "function",
+  function: {
+    name: "get_weather",
+    parameters: {
+      type: "object",
+      properties: {
+        city: { type: "string" },
+      },
+    },
+  },
+};
+
+export const testSpanTool = {
+  tool: {
+    json_schema: JSON.stringify(testSpanToolJsonSchema),
+  },
+};

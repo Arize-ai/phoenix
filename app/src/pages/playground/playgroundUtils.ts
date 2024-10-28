@@ -4,11 +4,14 @@ import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { ModelConfig, PlaygroundInstance } from "@phoenix/store";
 import {
   ChatMessage,
   createPlaygroundInstance,
   generateMessageId,
+  generateToolId,
+  ModelConfig,
+  OpenAITool,
+  PlaygroundInstance,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -22,12 +25,15 @@ import {
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
+  TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
   llmInputMessageSchema,
   llmOutputMessageSchema,
+  LlmToolSchema,
+  llmToolSchema,
   MessageSchema,
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
@@ -230,6 +236,49 @@ export function getModelConfigFromAttributes(parsedAttributes: unknown): {
 }
 
 /**
+ * Processes the tools from the span attributes into OpenAI tools to be used in the playground
+ * @param tools tools from the span attributes
+ * @returns playground OpenAI tools
+ */
+function processAttributeTools(tools: LlmToolSchema): OpenAITool[] {
+  return (tools?.llm?.tools ?? [])
+    .map((tool) => {
+      if (tool?.tool == null) {
+        return null;
+      }
+      return {
+        id: generateToolId(),
+        definition: tool.tool.json_schema,
+      };
+    })
+    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
+}
+
+/**
+ * Attempts to get llm.tools from the span attributes.
+ * @param parsedAttributes the JSON parsed span attributes
+ * @returns the tools from the span attributes
+ *
+ * NB: Only exported for testing
+ */
+export function getToolsFromAttributes(
+  parsedAttributes: unknown
+):
+  | { tools: OpenAITool[]; parsingErrors: never[] }
+  | { tools: null; parsingErrors: string[] } {
+  const { data, success } = llmToolSchema.safeParse(parsedAttributes);
+
+  if (!success) {
+    return { tools: null, parsingErrors: [TOOLS_PARSING_ERROR] };
+  }
+  // If there are no tools or llm attributes, we don't want to return parsing errors, it just means the span didn't have tools
+  if (data?.llm?.tools == null) {
+    return { tools: null, parsingErrors: [] };
+  }
+  return { tools: processAttributeTools(data), parsingErrors: [] };
+}
+
+/**
  * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
  * @returns a {@link PlaygroundInstance} with certain fields pre-populated from the span attributes
@@ -267,7 +316,10 @@ export function transformSpanAttributesToPlaygroundInstance(
   const { modelConfig, parsingErrors: modelConfigParsingErrors } =
     getModelConfigFromAttributes(parsedAttributes);
 
-  // TODO(parker): add support for tools, variables, and input / output variants
+  const { tools, parsingErrors: toolsParsingErrors } =
+    getToolsFromAttributes(parsedAttributes);
+
+  // TODO(parker): add support for prompt template variables
   // https://github.com/Arize-ai/phoenix/issues/4886
   return {
     playgroundInstance: {
@@ -282,11 +334,13 @@ export function transformSpanAttributesToPlaygroundInstance(
           : basePlaygroundInstance.template,
       output,
       spanId: span.id,
+      tools: tools ?? basePlaygroundInstance.tools,
     },
     parsingErrors: [
       ...messageParsingErrors,
       ...outputParsingErrors,
       ...modelConfigParsingErrors,
+      ...toolsParsingErrors,
     ],
   };
 }
