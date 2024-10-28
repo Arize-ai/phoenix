@@ -12,7 +12,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 
-from ._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
 
 _Data: TypeAlias = tuple[
     list[models.ProjectSession],

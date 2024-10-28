@@ -25,7 +25,8 @@ async def _node(
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("errors") is None
-    return cast(dict[str, Any], response_json["data"]["node"][field.split("{")[0]])
+    key = field.split("{")[0].split("(")[0]
+    return cast(dict[str, Any], response_json["data"]["node"][key])
 
 
 _RecordT = TypeVar("_RecordT", bound=models.Base)
