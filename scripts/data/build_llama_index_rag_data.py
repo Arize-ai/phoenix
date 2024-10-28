@@ -5,7 +5,7 @@ Creates RAG dataset for tutorial notebooks and persists to disk.
 import argparse
 import logging
 import sys
-from typing import Optional
+from typing import List, Optional
 
 import llama_index
 import numpy as np
@@ -25,17 +25,17 @@ from phoenix.evals.retrievals import (
 
 
 def create_user_feedback(
-    first_document_relevances: list[Optional[bool]],
-    second_document_relevances: list[Optional[bool]],
-) -> list[Optional[bool]]:
+    first_document_relevances: List[Optional[bool]],
+    second_document_relevances: List[Optional[bool]],
+) -> List[Optional[bool]]:
     """_summary_
 
     Args:
-        first_document_relevances (list[Optional[bool]]): _description_
-        second_document_relevances (list[Optional[bool]]): _description_
+        first_document_relevances (List[Optional[bool]]): _description_
+        second_document_relevances (List[Optional[bool]]): _description_
 
     Returns:
-        list[Optional[bool]]: _description_
+        List[Optional[bool]]: _description_
     """
     if len(first_document_relevances) != len(second_document_relevances):
         raise ValueError()

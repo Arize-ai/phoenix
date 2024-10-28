@@ -1,5 +1,6 @@
 # type:ignore
 import os
+from typing import Dict
 
 import pandas as pd
 from matplotlib import pyplot as plt  # type:ignore
@@ -23,7 +24,7 @@ def remove_all_zeros_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def plot_mrr_graphs(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
     remove_zero: bool = True,
@@ -74,7 +75,7 @@ def plot_mrr_graphs(
 
 
 def plot_ndcg_graphs(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
     remove_zero: bool = True,
@@ -129,7 +130,7 @@ def plot_ndcg_graphs(
 
 
 def plot_latency_graphs(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
 ) -> None:
@@ -188,7 +189,7 @@ def plot_latency_graphs(
 
 
 def plot_mean_average_precision_graphs(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
     remove_zero: bool = True,
@@ -243,7 +244,7 @@ def plot_mean_average_precision_graphs(
 
 
 def plot_mean_precision_graphs(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
     remove_zero: bool = True,
@@ -295,7 +296,7 @@ def plot_mean_precision_graphs(
 
 
 def plot_percentage_incorrect(
-    all_data: dict[int, dict[str, dict[int, pd.DataFrame]]],
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
     save_dir: str = "./",
     show: bool = True,
     remove_zero: bool = True,
