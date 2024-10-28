@@ -1,6 +1,7 @@
+from collections.abc import Iterable
 from itertools import chain
 from random import random
-from typing import Any, Iterable, Union
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd

@@ -1,24 +1,13 @@
 import json
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from traceback import format_exc
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    AsyncIterator,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union, cast
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps

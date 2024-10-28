@@ -4,6 +4,7 @@ import re
 import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
@@ -14,15 +15,9 @@ from random import random
 from typing import (
     Any,
     BinaryIO,
-    Callable,
     Generic,
-    Hashable,
-    Iterable,
-    Iterator,
-    Mapping,
     NamedTuple,
     Optional,
-    Sequence,
     TypeVar,
     Union,
     cast,

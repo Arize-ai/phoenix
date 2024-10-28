@@ -5,21 +5,14 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Iterable,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd

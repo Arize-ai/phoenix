@@ -2,8 +2,8 @@ import asyncio
 import contextlib
 import json
 import logging
-from collections.abc import Callable
-from contextlib import AsyncExitStack
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Sequence
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
@@ -12,13 +12,8 @@ from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncContextManager,
-    AsyncIterator,
-    Awaitable,
-    Iterable,
     NamedTuple,
     Optional,
-    Sequence,
     TypedDict,
     Union,
     cast,
@@ -274,7 +269,7 @@ DB_MUTEX: Optional[asyncio.Lock] = None
 
 def _db(
     engine: AsyncEngine, bypass_lock: bool = False
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
@@ -445,7 +440,7 @@ def _lifespan(
                     queue_evaluation=queue_evaluation,
                 )
                 await stack.enter_async_context(scaffolder)
-            if isinstance(token_store, AsyncContextManager):
+            if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
             yield {
                 "event_queue": dml_event_handler,

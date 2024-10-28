@@ -1,17 +1,9 @@
 import json
 from binascii import hexlify, unhexlify
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from datetime import datetime, timezone
 from types import MappingProxyType
-from typing import (
-    Any,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-    SupportsFloat,
-    cast,
-)
+from typing import Any, Optional, SupportsFloat, cast
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp

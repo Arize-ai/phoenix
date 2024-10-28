@@ -1,6 +1,7 @@
+from collections.abc import Iterable, Sized
 from itertools import chain
 from operator import itemgetter
-from typing import Iterable, Optional, Sized, Union
+from typing import Optional, Union
 
 import pandas as pd
 from pandas.api.types import is_object_dtype

@@ -3,7 +3,13 @@ from __future__ import annotations
 import json
 import textwrap
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+)
 from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
@@ -11,18 +17,7 @@ from enum import Enum
 from functools import cached_property
 from importlib.metadata import version
 from random import getrandbits
-from typing import (
-    Any,
-    Awaitable,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from typing import Any, Optional, TypeVar, Union, cast, overload
 
 import pandas as pd
 from typing_extensions import TypeAlias

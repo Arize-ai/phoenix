@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from asyncio import gather
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from inspect import getmro
 from itertools import chain
 from typing import (
     Any,
-    Callable,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
     Optional,
     TypedDict,
     TypeVar,

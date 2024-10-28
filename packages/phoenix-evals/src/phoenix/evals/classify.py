@@ -2,16 +2,10 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import Iterable, Mapping
 from enum import Enum
 from itertools import product
-from typing import (
-    Any,
-    Iterable,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import Any, NamedTuple, Optional, Union
 
 import pandas as pd
 from pandas import DataFrame

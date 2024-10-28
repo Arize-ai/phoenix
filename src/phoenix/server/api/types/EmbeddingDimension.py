@@ -1,7 +1,8 @@
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from datetime import timedelta
 from itertools import chain, repeat
-from typing import Any, Iterable, Iterator, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt

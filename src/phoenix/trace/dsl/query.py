@@ -1,19 +1,13 @@
 import warnings
 from collections import defaultdict
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import cached_property
 from itertools import chain
 from random import randint, random
 from types import MappingProxyType
-from typing import (
-    Any,
-    Iterable,
-    Mapping,
-    Optional,
-    Sequence,
-    cast,
-)
+from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes

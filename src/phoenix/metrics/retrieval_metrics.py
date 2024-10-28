@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, cast
+from typing import Optional, cast
 
 import numpy as np
 import pandas as pd

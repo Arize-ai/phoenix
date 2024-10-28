@@ -1,7 +1,8 @@
 import json
+from collections.abc import Iterable, Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 from uuid import UUID, uuid4
 from warnings import warn
 

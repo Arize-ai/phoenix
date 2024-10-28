@@ -1,7 +1,8 @@
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import total_ordering
-from typing import Iterable, Optional, Union, cast
+from typing import Optional, Union, cast
 
 import pandas as pd
 import strawberry

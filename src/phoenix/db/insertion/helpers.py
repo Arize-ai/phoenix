@@ -1,15 +1,7 @@
 from abc import ABC
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from enum import Enum, auto
-from typing import (
-    Any,
-    Awaitable,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-)
+from typing import Any, Optional
 
 from sqlalchemy import Insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql

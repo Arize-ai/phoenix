@@ -1,6 +1,6 @@
-from collections.abc import Callable
+from collections.abc import Callable, Hashable, Iterable
 from enum import Enum
-from typing import Any, Hashable, Iterable, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,

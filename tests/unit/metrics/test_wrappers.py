@@ -1,8 +1,8 @@
 import inspect
 import math
 from collections import ChainMap
-from collections.abc import Callable
-from typing import Any, Iterable, Optional, cast
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, cast
 
 import numpy as np
 import pandas as pd

@@ -4,20 +4,11 @@ import logging
 import re
 import weakref
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import (
-    Any,
-    BinaryIO,
-    Iterable,
-    Literal,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
-    cast,
-)
+from typing import Any, BinaryIO, Literal, Optional, Union, cast
 from urllib.parse import quote, urljoin
 
 import httpx

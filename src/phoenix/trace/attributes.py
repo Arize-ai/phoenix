@@ -18,16 +18,8 @@ them into a nested list of dictionaries i.e.
 import inspect
 import json
 from collections import defaultdict
-from typing import (
-    Any,
-    Iterable,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-    Union,
-    cast,
-)
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 from openinference.semconv import trace

@@ -2,6 +2,7 @@ import logging
 import shutil
 from binascii import hexlify
 from collections import defaultdict
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from io import StringIO
@@ -9,11 +10,8 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
-    Iterable,
-    Iterator,
     NamedTuple,
     Optional,
-    Sequence,
     cast,
 )
 from urllib.parse import urljoin

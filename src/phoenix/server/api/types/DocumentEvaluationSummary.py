@@ -1,6 +1,7 @@
 import math
+from collections.abc import Iterable
 from functools import cached_property
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 import pandas as pd
 import strawberry

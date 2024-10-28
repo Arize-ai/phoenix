@@ -1,7 +1,7 @@
 import logging
 import traceback
-from collections.abc import Callable
-from typing import Any, Iterable, Optional, TypeVar, cast
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., Any])
 

@@ -1,7 +1,8 @@
+from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from itertools import accumulate, repeat
-from typing import Callable, Iterable, Iterator, cast
+from typing import cast
 
 import pandas as pd
 from typing_extensions import TypeAlias

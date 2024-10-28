@@ -1,19 +1,12 @@
 import asyncio
 import logging
 from asyncio import Queue, as_completed
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from itertools import islice
 from time import perf_counter
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Iterable,
-    Optional,
-    cast,
-)
+from typing import Any, Optional, cast
 
 from typing_extensions import TypeAlias
 

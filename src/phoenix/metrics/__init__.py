@@ -1,8 +1,9 @@
 import logging
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd

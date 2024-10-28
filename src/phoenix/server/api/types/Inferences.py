@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable, Optional, Set, Union
+from typing import Optional, Set, Union
 
 import strawberry
 from strawberry import ID, UNSET
