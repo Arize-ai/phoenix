@@ -24,7 +24,7 @@ from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
-from .trace_row_ids import TraceRowIdsDataLoader
+from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
@@ -49,7 +49,7 @@ __all__ = [
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
     "TokenCountDataLoader",
-    "TraceRowIdsDataLoader",
+    "TraceByTraceIdsDataLoader",
     "ProjectByNameDataLoader",
     "SpanAnnotationsDataLoader",
     "UsersDataLoader",
