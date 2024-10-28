@@ -20,7 +20,7 @@ class PingManager(PingManagerBase):
         self._pings[ping_id] = event
         return ping_id, event
 
-    def ack(self, ping_id: typing.Union[bytes, bytearray]):
+    def ack(self, ping_id: typing.Union[bytes, bytearray]) -> None:
         event = self._pings.pop(bytes(ping_id))
         event.set()
 
@@ -35,6 +35,6 @@ class AsyncPingManager(PingManagerBase):
         self._pings[ping_id] = event
         return ping_id, event
 
-    def ack(self, ping_id: typing.Union[bytes, bytearray]):
+    def ack(self, ping_id: typing.Union[bytes, bytearray]) -> None:
         event = self._pings.pop(bytes(ping_id))
         event.set()

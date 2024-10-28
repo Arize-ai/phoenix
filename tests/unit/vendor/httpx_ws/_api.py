@@ -118,7 +118,12 @@ class WebSocketSession:
 
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(
+        self,
+        exc_type: typing.Optional[type[BaseException]],
+        exc: typing.Optional[BaseException],
+        tb: typing.Optional[TracebackType],
+    ) -> None:
         self.close()
         self._background_receive_task.join()
         if self._background_keepalive_ping_task is not None:
@@ -416,7 +421,7 @@ class WebSocketSession:
             data = self.receive_bytes(timeout)
         return json.loads(data)
 
-    def close(self, code: int = 1000, reason: typing.Optional[str] = None):
+    def close(self, code: int = 1000, reason: typing.Optional[str] = None) -> None:
         """
         Close the WebSocket session.
 
@@ -522,7 +527,7 @@ class WebSocketSession:
             pass
 
     def _wait_until_closed(
-        self, callable: typing.Callable[..., TaskResult], *args, **kwargs
+        self, callable: typing.Callable[..., TaskResult], *args: typing.Any, **kwargs: typing.Any
     ) -> TaskResult:
         try:
             executor, should_close_task = self._get_executor_should_close_task()
@@ -921,7 +926,7 @@ class AsyncWebSocketSession:
             data = await self.receive_bytes(timeout)
         return json.loads(data)
 
-    async def close(self, code: int = 1000, reason: typing.Optional[str] = None):
+    async def close(self, code: int = 1000, reason: typing.Optional[str] = None) -> None:
         """
         Close the WebSocket session.
 

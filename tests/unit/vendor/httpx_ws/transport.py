@@ -38,7 +38,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         self._send_queue: asyncio.Queue[Message] = asyncio.Queue()
         self.connection = wsproto.WSConnection(wsproto.ConnectionType.SERVER)
         self.connection.initiate_upgrade_connection(scope["headers"], scope["path"])
-        self.tasks: list[asyncio.Task] = []
+        self.tasks: list[asyncio.Task[None]] = []
 
     async def __aenter__(
         self,
@@ -65,7 +65,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
         await self.aclose()
         await self.exit_stack.aclose()
 
-    async def _cancel_tasks(self):
+    async def _cancel_tasks(self) -> None:
         # Cancel all running tasks
         for task in self.tasks:
             task.cancel()
@@ -166,7 +166,7 @@ class ASGIWebSocketAsyncNetworkStream(AsyncNetworkStream):
 
 
 class ASGIWebSocketTransport(ASGITransport):
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, **kwargs)
         self.exit_stack: typing.Optional[contextlib.AsyncExitStack] = None
 
