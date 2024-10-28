@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class Trace(Node):
     id_attr: NodeID[int]
     project_rowid: Private[int]
-    project_session_rowid: Private[int]
+    project_session_rowid: Private[Optional[int]]
     trace_id: str
     start_time: datetime
     end_time: datetime
@@ -43,7 +43,9 @@ class Trace(Node):
         return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
 
     @strawberry.field
-    async def project_session_id(self) -> GlobalID:
+    async def project_session_id(self) -> Optional[GlobalID]:
+        if self.project_session_rowid is None:
+            return None
         from phoenix.server.api.types.ProjectSession import ProjectSession
 
         return GlobalID(type_name=ProjectSession.__name__, node_id=str(self.project_session_rowid))
@@ -53,6 +55,8 @@ class Trace(Node):
         self,
         info: Info[Context, None],
     ) -> Union[Annotated["ProjectSession", lazy(".ProjectSession")], None]:
+        if self.project_session_rowid is None:
+            return None
         from phoenix.server.api.types.ProjectSession import to_gql_project_session
 
         stmt = select(models.ProjectSession).filter_by(id=self.project_session_rowid)
