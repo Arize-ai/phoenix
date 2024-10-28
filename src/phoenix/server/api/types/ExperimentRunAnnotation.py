@@ -8,7 +8,7 @@ from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import Trace, to_gql_trace
 
 
 @strawberry.type
@@ -29,11 +29,10 @@ class ExperimentRunAnnotation(Node):
     async def trace(self, info: Info) -> Optional[Trace]:
         if not self.trace_id:
             return None
-        dataloader = info.context.data_loaders.trace_row_ids
+        dataloader = info.context.data_loaders.trace_by_trace_ids
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
-        trace_row_id, project_row_id = trace
-        return Trace(id_attr=trace_row_id, trace_id=self.trace_id, project_rowid=project_row_id)
+        return to_gql_trace(trace)
 
 
 def to_gql_experiment_run_annotation(

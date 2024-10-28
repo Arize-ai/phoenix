@@ -38,10 +38,20 @@ class ProjectMutationMixin:
         project_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name="Project"
         )
-        delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
+        delete_statement = (
+            delete(models.Trace)
+            .where(models.Trace.project_rowid == project_id)
+            .returning(models.Trace.project_session_rowid)
+        )
         if input.end_time:
             delete_statement = delete_statement.where(models.Trace.start_time < input.end_time)
         async with info.context.db() as session:
-            await session.execute(delete_statement)
+            deleted_trace_project_session_ids = await session.scalars(delete_statement)
+            if deleted_trace_project_session_ids:
+                await session.execute(
+                    delete(models.ProjectSession).where(
+                        models.ProjectSession.id.in_(set(deleted_trace_project_session_ids))
+                    )
+                )
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
