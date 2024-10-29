@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, Optional, Type
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import func, select
-from sqlalchemy.sql.functions import coalesce
+from sqlalchemy import select
 from strawberry import UNSET, Info, lazy
 from strawberry.relay import Connection, Node, NodeID
 
@@ -37,32 +36,18 @@ class ProjectSession(Node):
         self,
         info: Info[Context, None],
     ) -> int:
-        stmt = select(func.count(models.Trace.id)).filter_by(project_session_rowid=self.id_attr)
-        async with info.context.db() as session:
-            return await session.scalar(stmt) or 0
+        return await info.context.data_loaders.session_num_traces.load(self.id_attr)
 
     @strawberry.field
     async def first_input(
         self,
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
-        stmt = (
-            select(
-                models.Span.attributes[INPUT_VALUE].label("value"),
-                models.Span.attributes[INPUT_MIME_TYPE].label("mime_type"),
-            )
-            .join(models.Trace)
-            .filter_by(project_session_rowid=self.id_attr)
-            .where(models.Span.parent_id.is_(None))
-            .order_by(models.Trace.start_time.asc())
-            .limit(1)
-        )
-        async with info.context.db() as session:
-            record = (await session.execute(stmt)).first()
-        if record is None or record.value is None:
+        record = await info.context.data_loaders.session_first_inputs.load(self.id_attr)
+        if record is None:
             return None
         return SpanIOValue(
-            mime_type=MimeType(record.mime_type),
+            mime_type=MimeType(record.mime_type.value),
             value=record.value,
         )
 
@@ -71,23 +56,11 @@ class ProjectSession(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
-        stmt = (
-            select(
-                models.Span.attributes[OUTPUT_VALUE].label("value"),
-                models.Span.attributes[OUTPUT_MIME_TYPE].label("mime_type"),
-            )
-            .join(models.Trace)
-            .filter_by(project_session_rowid=self.id_attr)
-            .where(models.Span.parent_id.is_(None))
-            .order_by(models.Trace.start_time.desc())
-            .limit(1)
-        )
-        async with info.context.db() as session:
-            record = (await session.execute(stmt)).first()
-        if record is None or record.value is None:
+        record = await info.context.data_loaders.session_last_outputs.load(self.id_attr)
+        if record is None:
             return None
         return SpanIOValue(
-            mime_type=MimeType(record.mime_type),
+            mime_type=MimeType(record.mime_type.value),
             value=record.value,
         )
 
@@ -96,29 +69,10 @@ class ProjectSession(Node):
         self,
         info: Info[Context, None],
     ) -> TokenUsage:
-        stmt = (
-            select(
-                func.sum(coalesce(models.Span.cumulative_llm_token_count_prompt, 0)).label(
-                    "prompt"
-                ),
-                func.sum(coalesce(models.Span.cumulative_llm_token_count_completion, 0)).label(
-                    "completion"
-                ),
-            )
-            .join(models.Trace)
-            .filter_by(project_session_rowid=self.id_attr)
-            .where(models.Span.parent_id.is_(None))
-            .limit(1)
-        )
-        async with info.context.db() as session:
-            usage = (await session.execute(stmt)).first()
-        return (
-            TokenUsage(
-                prompt=usage.prompt or 0,
-                completion=usage.completion or 0,
-            )
-            if usage
-            else TokenUsage()
+        usage = await info.context.data_loaders.session_token_usages.load(self.id_attr)
+        return TokenUsage(
+            prompt=usage.prompt,
+            completion=usage.completion,
         )
 
     @strawberry.field
