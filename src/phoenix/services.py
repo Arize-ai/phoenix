@@ -118,6 +118,7 @@ class AppService(Service):
         reference_inferences_name: Optional[str],
         corpus_inferences_name: Optional[str],
         trace_dataset_name: Optional[str],
+        enable_websockets: bool,
     ):
         self.database_url = database_url
         self.export_path = export_path
@@ -129,6 +130,7 @@ class AppService(Service):
         self.__reference_inferences_name = reference_inferences_name
         self.__corpus_inferences_name = corpus_inferences_name
         self.__trace_dataset_name = trace_dataset_name
+        self.enable_websockets = enable_websockets
         super().__init__()
 
     @property
@@ -156,5 +158,7 @@ class AppService(Service):
             command.extend(["--corpus", str(self.__corpus_inferences_name)])
         if self.__trace_dataset_name is not None:
             command.extend(["--trace", str(self.__trace_dataset_name)])
+        if self.enable_websockets:
+            command.append("--enable-websockets")
         logger.info(f"command: {' '.join(command)}")
         return command
