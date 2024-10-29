@@ -24,6 +24,7 @@ from phoenix.config import (
     ENV_PHOENIX_PORT,
     ensure_working_dir,
     get_env_database_connection_str,
+    get_env_enable_websockets,
     get_env_host,
     get_env_port,
     get_exported_files,
@@ -269,6 +270,7 @@ class ProcessSession(Session):
         self,
         database_url: str,
         primary_inferences: Inferences,
+        enable_websockets: bool,
         reference_inferences: Optional[Inferences] = None,
         corpus_inferences: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
@@ -319,6 +321,7 @@ class ProcessSession(Session):
             trace_dataset_name=(
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
+            enable_websockets=enable_websockets,
         )
 
     @property
@@ -335,6 +338,7 @@ class ThreadSession(Session):
         self,
         database_url: str,
         primary_inferences: Inferences,
+        enable_websockets: bool,
         reference_inferences: Optional[Inferences] = None,
         corpus_inferences: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
@@ -375,6 +379,7 @@ class ThreadSession(Session):
             export_path=self.export_path,
             model=self.model,
             authentication_enabled=False,
+            enable_websockets=enable_websockets,
             corpus=self.corpus,
             umap_params=self.umap_parameters,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
@@ -438,6 +443,7 @@ def launch_app(
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
     use_temp_dir: bool = True,
+    enable_websockets: Optional[bool] = None,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -472,7 +478,8 @@ def launch_app(
     use_temp_dir: bool, optional, default=True
         Whether to use a temporary directory to store the data. If set to False, the data will be
         stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
-
+    enable_websockets: bool, optional, default=False
+        Whether to enable websockets.
 
     Returns
     -------
@@ -553,10 +560,16 @@ def launch_app(
     else:
         database_url = get_env_database_connection_str()
 
+    enable_websockets_env = get_env_enable_websockets() or False
+    enable_websockets = (
+        enable_websockets if enable_websockets is not None else enable_websockets_env
+    )
+
     if run_in_thread:
         _session = ThreadSession(
             database_url,
             primary,
+            enable_websockets,
             reference,
             corpus,
             trace,
@@ -570,6 +583,7 @@ def launch_app(
         _session = ProcessSession(
             database_url,
             primary,
+            enable_websockets,
             reference,
             corpus,
             trace,

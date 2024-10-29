@@ -80,6 +80,10 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 """
 Whether or not to log migrations. Defaults to true.
 """
+ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
+"""
+Whether or not to enable websockets. Defaults to None.
+"""
 
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
@@ -369,6 +373,10 @@ def get_env_smtp_port() -> int:
 
 def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
+
+
+def get_env_enable_websockets() -> Optional[bool]:
+    return _bool_val(ENV_PHOENIX_ENABLE_WEBSOCKETS)
 
 
 @dataclass(frozen=True)

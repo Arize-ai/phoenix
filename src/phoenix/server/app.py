@@ -166,6 +166,7 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    websockets_enabled: bool
     oauth2_idps: Sequence[OAuth2Idp]
 
 
@@ -216,6 +217,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "websockets_enabled": self._app_config.websockets_enabled,
                 },
             )
         except Exception as e:
@@ -653,6 +655,7 @@ def create_app(
     model: Model,
     authentication_enabled: bool,
     umap_params: UMAPParameters,
+    enable_websockets: bool,
     corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
@@ -830,6 +833,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    websockets_enabled=enable_websockets,
                 ),
             ),
             name="static",
