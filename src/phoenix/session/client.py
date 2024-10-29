@@ -414,7 +414,7 @@ class Client(TraceDataExtractor):
             pandas DataFrame
         """
         url = urljoin(self._base_url, f"v1/datasets/{dataset_id}/versions")
-        response = httpx.get(url=url, params={"limit": limit})
+        response = self._client.get(url=url, params={"limit": limit})
         response.raise_for_status()
         if not (records := response.json()["data"]):
             return pd.DataFrame()
