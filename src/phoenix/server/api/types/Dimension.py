@@ -13,10 +13,9 @@ from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, ScalarDime
 from phoenix.metrics import binning
 from phoenix.metrics.metrics import Count
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
+from phoenix.server.api.input_types import Granularity, TimeRange
 
 from ..context import Context
-from ..input_types.Granularity import Granularity
-from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DatasetValues import DatasetValues
 from .DimensionDataType import DimensionDataType

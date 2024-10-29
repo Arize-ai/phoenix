@@ -9,11 +9,13 @@ from typing_extensions import Annotated
 from phoenix.config import get_exported_files
 from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types import (
+    DimensionFilter,
+    Granularity,
+    PerformanceMetricInput,
+    TimeRange,
+)
 
-from ..input_types.DimensionFilter import DimensionFilter
-from ..input_types.Granularity import Granularity
-from ..input_types.PerformanceMetricInput import PerformanceMetricInput
-from ..input_types.TimeRange import TimeRange
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile

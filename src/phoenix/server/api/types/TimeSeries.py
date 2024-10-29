@@ -13,7 +13,7 @@ from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types import Granularity, TimeRange
-from phoenix.server.api.input_types.Granularity import to_timestamps
+from phoenix.server.api.input_types.granularity import to_timestamps
 from phoenix.server.api.interceptor import GqlValueMediator
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.InferencesRole import InferencesRole

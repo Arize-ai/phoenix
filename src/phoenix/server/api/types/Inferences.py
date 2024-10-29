@@ -7,8 +7,8 @@ from strawberry import ID, UNSET
 
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
+from phoenix.server.api.input_types import DimensionInput
 
-from ..input_types.DimensionInput import DimensionInput
 from .Dimension import Dimension, to_gql_dimension
 from .Event import Event, create_event, create_event_id, parse_event_ids_by_inferences_role
 from .InferencesRole import AncillaryInferencesRole, InferencesRole

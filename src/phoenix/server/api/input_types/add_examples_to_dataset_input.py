@@ -5,7 +5,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from .DatasetExampleInput import DatasetExampleInput
+from .dataset_example_input import DatasetExampleInput
 
 
 @strawberry.input
