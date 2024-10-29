@@ -153,8 +153,8 @@ export function createOpenAITool(toolNumber: number): OpenAITool {
 
 /**
  * Gets the initial instances for the playground store
- * If the initial props has instances, those will be used
- * If not a single instance will be created and saved model config defaults will be used
+ * If the initial props has instances, those will be used.
+ * If not a default instance will be created and saved model config defaults will be used if present.
  * @returns a list of {@link PlaygroundInstance} instances
  *
  * NB: This function is only exported for testing
