@@ -96,11 +96,6 @@ def test_up_and_down_migrations(
         assert not index.unique
         del index
 
-        index = indexes.pop("ix_project_sessions_session_user", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
         assert not indexes
         del indexes
 
