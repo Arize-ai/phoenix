@@ -70,6 +70,7 @@ type BooleanInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: Boolean
 }
@@ -79,6 +80,7 @@ type BoundedFloatInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: Float
   minValue: Float!
@@ -90,8 +92,8 @@ enum CanonicalParameterName {
   MAX_COMPLETION_TOKENS
   STOP_SEQUENCES
   TOP_P
-  TOP_K
   RANDOM_SEED
+  TOOL_CHOICE
 }
 
 input ChatCompletionInput {
@@ -871,6 +873,7 @@ type FloatInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: Float
 }
@@ -967,6 +970,7 @@ type IntInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: Int
 }
@@ -992,6 +996,7 @@ interface InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
 }
 
 input InvocationParameterInput {
@@ -1016,6 +1021,7 @@ type JSONInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: JSON
 }
@@ -1541,6 +1547,7 @@ type StringInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: String
 }
@@ -1550,6 +1557,7 @@ type StringListInvocationParameter implements InvocationParameterBase {
   canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  hidden: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: [String!]
 }

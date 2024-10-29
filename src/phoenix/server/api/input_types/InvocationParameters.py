@@ -12,8 +12,8 @@ class CanonicalParameterName(str, Enum):
     MAX_COMPLETION_TOKENS = "max_completion_tokens"
     STOP_SEQUENCES = "stop_sequences"
     TOP_P = "top_p"
-    TOP_K = "top_k"
     RANDOM_SEED = "random_seed"
+    TOOL_CHOICE = "tool_choice"
 
 
 @strawberry.enum
@@ -46,6 +46,7 @@ class InvocationParameterBase:
     canonical_name: Optional[CanonicalParameterName] = UNSET
     label: str
     required: bool = False
+    hidden: bool = False
 
 
 @strawberry.type
