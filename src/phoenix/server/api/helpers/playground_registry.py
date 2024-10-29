@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
 
-from phoenix.server.api.types import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
     from phoenix.server.api.subscriptions import PlaygroundStreamingClient

@@ -47,7 +47,6 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import (
     InvocationParameterType,
 )
-from phoenix.server.api.subscriptions import PLAYGROUND_STREAMING_CLIENT_REGISTRY
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -89,6 +88,7 @@ from phoenix.server.api.types.UserRole import UserRole
 @strawberry.input
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
+    model_name: Optional[str]
 
 
 @strawberry.type
@@ -132,10 +132,11 @@ class Query:
         self, input: Optional[ModelsInput] = None
     ) -> list[InvocationParameterType]:
         provider_key = input.provider_key
+        model_name = input.model_name
         if provider_key is not None:
-            return PLAYGROUND_STREAMING_CLIENT_REGISTRY[
-                provider_key
-            ].supported_invocation_parameters()
+            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            invocation_parameters = client.supported_invocation_parameters()
+            return invocation_parameters
         else:
             return []
 

@@ -67,18 +67,31 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type BooleanInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: Boolean
 }
 
 type BoundedFloatInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: Float
   minValue: Float!
   maxValue: Float!
+}
+
+enum CanonicalParameterName {
+  TEMPERATURE
+  MAX_COMPLETION_TOKENS
+  STOP_SEQUENCES
+  TOP_P
+  TOP_K
+  RANDOM_SEED
 }
 
 input ChatCompletionInput {
@@ -855,8 +868,10 @@ type FinishedChatCompletion {
 
 type FloatInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: Float
 }
 
@@ -949,8 +964,10 @@ input InputCoordinate3D {
 
 type IntInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: Int
 }
 
@@ -960,8 +977,19 @@ type IntervalBin {
   range: NumericRange!
 }
 
+enum InvocationInputField {
+  value_int
+  value_float
+  value_bool
+  value_string
+  value_json
+  value_string_list
+  value_boolean
+}
+
 interface InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
 }
@@ -974,6 +1002,7 @@ input InvocationParameterInput {
   valueString: String
   valueJson: JSON
   valueStringList: [String!]
+  valueBoolean: Boolean
 }
 
 """
@@ -983,8 +1012,10 @@ scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads
 
 type JSONInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: JSON
 }
 
@@ -1034,6 +1065,7 @@ type Model {
 
 input ModelsInput {
   providerKey: GenerativeProviderKey
+  modelName: String
 }
 
 type Mutation {
@@ -1505,15 +1537,19 @@ enum SpanStatusCode {
 
 type StringInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: String
 }
 
 type StringListInvocationParameter implements InvocationParameterBase {
   invocationName: String!
+  canonicalName: CanonicalParameterName
   label: String!
   required: Boolean!
+  invocationInputField: InvocationInputField!
   defaultValue: [String!]
 }
 
