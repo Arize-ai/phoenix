@@ -11,15 +11,12 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import TraceAnnotationSort
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
-from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
+from phoenix.server.api.input_types.trace_annotation_sort import TraceAnnotationSort
+
+from .pagination import ConnectionArgs, CursorString, connection_from_list
+from .sort_dir import SortDir
+from .span import Span, to_gql_span
+from .trace_annotation import TraceAnnotation, to_gql_trace_annotation
 
 
 @strawberry.type
@@ -30,7 +27,7 @@ class Trace(Node):
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
-        from phoenix.server.api.types.Project import Project
+        from phoenix.server.api.types import Project
 
         return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
 

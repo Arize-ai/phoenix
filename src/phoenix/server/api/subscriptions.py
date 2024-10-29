@@ -32,9 +32,12 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types import ChatCompletionMessageInput, InvocationParameters
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types import (
+    ChatCompletionMessageRole,
+    GenerativeProviderKey,
+    Span,
+    to_gql_span,
+)
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import (

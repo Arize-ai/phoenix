@@ -8,10 +8,12 @@ from strawberry.types import Info
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import DataQualityMetricInput, PerformanceMetricInput
-from phoenix.server.api.types.DatasetValues import DatasetValues
-from phoenix.server.api.types.Event import unpack_event_id
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.input_types.data_quality_metric_input import DataQualityMetricInput
+from phoenix.server.api.input_types.performance_metric_input import PerformanceMetricInput
+
+from .dataset_values import DatasetValues
+from .event import unpack_event_id
+from .inferences_role import AncillaryInferencesRole, InferencesRole
 
 
 @strawberry.type

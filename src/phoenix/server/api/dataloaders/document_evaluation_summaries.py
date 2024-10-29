@@ -14,7 +14,7 @@ from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types import TimeRange
-from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types import DocumentEvaluationSummary
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 

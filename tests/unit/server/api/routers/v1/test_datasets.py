@@ -15,8 +15,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types import Dataset, DatasetVersion
 from phoenix.server.types import DbSessionFactory
 
 

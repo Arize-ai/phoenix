@@ -5,7 +5,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+from phoenix.server.api.types.annotator_kind import AnnotatorKind
 
 
 @strawberry.input

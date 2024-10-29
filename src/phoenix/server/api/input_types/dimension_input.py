@@ -1,6 +1,6 @@
 import strawberry
 
-from phoenix.server.api.types.DimensionType import DimensionType
+from phoenix.server.api.types.dimension_data_type import DimensionType
 
 
 @strawberry.input

@@ -5,7 +5,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types import DocumentEvaluation
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int

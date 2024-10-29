@@ -4,7 +4,8 @@ from enum import Enum
 import strawberry
 
 from phoenix.db import models
-from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
+
+from .example_revision_interface import ExampleRevision
 
 
 @strawberry.enum

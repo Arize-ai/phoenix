@@ -18,20 +18,22 @@ from strawberry.types import Info
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import SpanSort, SpanSortConfig, TimeRange
-from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
-from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from phoenix.server.api.types.pagination import (
+from phoenix.server.api.input_types.span_sort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.time_range import TimeRange
+from phoenix.trace.dsl import SpanFilter
+
+from .annotation_summary import AnnotationSummary
+from .document_evaluation_summary import DocumentEvaluationSummary
+from .pagination import (
     Cursor,
     CursorSortColumn,
     CursorString,
     connection_from_cursors_and_nodes,
 )
-from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.trace.dsl import SpanFilter
+from .sort_dir import SortDir
+from .span import Span, to_gql_span
+from .trace import Trace
+from .validation_result import ValidationResult
 
 
 @strawberry.type

@@ -11,14 +11,11 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
-from phoenix.server.api.types.Project import Project
+
+from .experiment_annotation_summary import ExperimentAnnotationSummary
+from .experiment_run import ExperimentRun, to_gql_experiment_run
+from .pagination import ConnectionArgs, CursorString, connection_from_list
+from .project import Project
 
 
 @strawberry.type

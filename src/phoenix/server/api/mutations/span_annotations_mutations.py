@@ -14,8 +14,11 @@ from phoenix.server.api.input_types import (
     PatchAnnotationInput,
 )
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types import (
+    SpanAnnotation,
+    to_gql_span_annotation,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
 
 

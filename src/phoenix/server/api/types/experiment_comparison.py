@@ -1,8 +1,8 @@
 import strawberry
 from strawberry.relay import GlobalID
 
-from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from .dataset_example import DatasetExample
+from .experiment_run import ExperimentRun
 
 
 @strawberry.type

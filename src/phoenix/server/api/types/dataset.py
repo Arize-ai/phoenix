@@ -12,18 +12,19 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import DatasetVersionSort
-from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
-from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
+from phoenix.server.api.input_types.dataset_version_sort import DatasetVersionSort
+
+from .dataset_example import DatasetExample
+from .dataset_version import DatasetVersion
+from .experiment import Experiment, to_gql_experiment
+from .experiment_annotation_summary import ExperimentAnnotationSummary
+from .node import from_global_id_with_expected_type
+from .pagination import (
     ConnectionArgs,
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.SortDir import SortDir
+from .sort_dir import SortDir
 
 
 @strawberry.type

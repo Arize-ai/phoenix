@@ -10,10 +10,10 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.types.AuthMethod import AuthMethod
-from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 
-from .UserRole import UserRole, to_gql_user_role
+from .auth_method import AuthMethod
+from .user_api_key import UserApiKey, to_gql_api_key
+from .user_role import UserRole, to_gql_user_role
 
 
 @strawberry.type

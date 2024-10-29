@@ -16,8 +16,7 @@ from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types import Granularity, TimeRange
-from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
-from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
+from phoenix.server.api.types import EmbeddingDimension, VectorDriftMetric
 
 InfoMockFactory: TypeAlias = Callable[[Model], Info[Context, None]]
 

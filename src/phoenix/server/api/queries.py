@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -43,42 +43,46 @@ from phoenix.server.api.input_types import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
-from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.Dimension import to_gql_dimension
-from phoenix.server.api.types.EmbeddingDimension import (
+from phoenix.server.api.types import (
+    AncillaryInferencesRole,
+    Cluster,
+    Dataset,
+    DatasetExample,
+    Experiment,
+    ExperimentComparison,
+    ExperimentRun,
+    Functionality,
+    GenerativeModel,
+    GenerativeProvider,
+    GenerativeProviderKey,
+    InferencesRole,
+    Model,
+    Project,
+    RunComparisonItem,
+    SortDir,
+    Span,
+    SystemApiKey,
+    Trace,
+    User,
+    UserApiKey,
+    UserRole,
+    to_gql_api_key,
+    to_gql_clusters,
+    to_gql_dataset,
+    to_gql_dimension,
+    to_gql_embedding_dimension,
+    to_gql_experiment_run,
+    to_gql_span,
+    to_gql_user,
+)
+from phoenix.server.api.types.embedding_dimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
-    to_gql_embedding_dimension,
 )
-from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment
-from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
-from phoenix.server.api.types.GenerativeProvider import (
-    GenerativeProvider,
-    GenerativeProviderKey,
-)
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.event import create_event_id, unpack_event_id
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
-from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.User import User, to_gql_user
-from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
-from phoenix.server.api.types.UserRole import UserRole
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 
 @strawberry.input
@@ -206,7 +210,7 @@ class Query:
         )
         async with info.context.db() as session:
             api_keys = await session.scalars(stmt)
-        return [to_gql_api_key(api_key) for api_key in api_keys]
+        return [cast(UserApiKey, to_gql_api_key(api_key)) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:

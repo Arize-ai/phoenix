@@ -8,8 +8,8 @@ import strawberry
 from strawberry import UNSET
 from typing_extensions import Annotated
 
-from .DatasetValues import DatasetValues
-from .NumericRange import NumericRange
+from .dataset_values import DatasetValues
+from .numeric_range import NumericRange
 
 
 @strawberry.type

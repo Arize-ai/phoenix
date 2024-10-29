@@ -4,7 +4,7 @@ import strawberry
 from strawberry import UNSET
 from strawberry.scalars import JSON
 
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.chat_completion_message_role import ChatCompletionMessageRole
 
 
 @strawberry.input

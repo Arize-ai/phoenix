@@ -10,10 +10,10 @@ from phoenix.db.models import ApiKey as OrmApiKey
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 
-from .ApiKey import ApiKey
+from .api_key import ApiKey
 
 if TYPE_CHECKING:
-    from .User import User
+    from .user import User
 
 
 @strawberry.type
@@ -26,7 +26,7 @@ class UserApiKey(ApiKey, Node):
         user = await info.context.data_loaders.users.load(self.user_id)
         if user is None:
             raise NotFound(f"User with id {self.user_id} not found")
-        from .User import to_gql_user
+        from .user import to_gql_user
 
         return to_gql_user(user)
 

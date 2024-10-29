@@ -6,7 +6,8 @@ from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+
+from .annotator_kind import AnnotatorKind
 
 
 @strawberry.type
@@ -22,7 +23,7 @@ class TraceAnnotation(Node):
 
     @strawberry.field
     async def trace_id(self) -> GlobalID:
-        from phoenix.server.api.types.Trace import Trace
+        from phoenix.server.api.types import Trace
 
         return GlobalID(type_name=Trace.__name__, node_id=str(self.trace_rowid))
 

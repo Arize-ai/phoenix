@@ -17,11 +17,11 @@ from phoenix.core.model_schema import (
 )
 
 from ..interceptor import GqlValueMediator
-from .Dimension import Dimension
-from .DimensionWithValue import DimensionWithValue
-from .EventMetadata import EventMetadata
-from .InferencesRole import STR_TO_INFEREENCES_ROLE, AncillaryInferencesRole, InferencesRole
-from .PromptResponse import PromptResponse
+from .dimension import Dimension
+from .dimension_with_value import DimensionWithValue
+from .event_metadata import EventMetadata
+from .inferences_role import STR_TO_INFEREENCES_ROLE, AncillaryInferencesRole, InferencesRole
+from .prompt_response import PromptResponse
 
 
 @strawberry.type

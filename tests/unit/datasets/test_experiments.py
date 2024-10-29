@@ -27,7 +27,7 @@ from phoenix.experiments.types import (
     ExperimentRun,
     JSONSerializable,
 )
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 

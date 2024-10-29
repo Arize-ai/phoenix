@@ -7,8 +7,8 @@ from strawberry.scalars import JSON
 
 from phoenix.db import models
 
-from .Annotation import Annotation
-from .AnnotatorKind import AnnotatorKind
+from .annotation import Annotation
+from .annotator_kind import AnnotatorKind
 
 
 @strawberry.type
@@ -20,7 +20,7 @@ class SpanAnnotation(Node, Annotation):
 
     @strawberry.field
     async def span_id(self) -> GlobalID:
-        from phoenix.server.api.types.Span import Span
+        from phoenix.server.api.types import Span
 
         return GlobalID(type_name=Span.__name__, node_id=str(self.span_rowid))
 

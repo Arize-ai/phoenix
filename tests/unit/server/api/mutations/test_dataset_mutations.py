@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types import DatasetExample
 from phoenix.server.types import DbSessionFactory
 
 

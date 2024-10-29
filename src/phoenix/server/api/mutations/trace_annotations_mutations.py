@@ -14,8 +14,11 @@ from phoenix.server.api.input_types import (
     PatchAnnotationInput,
 )
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types import (
+    TraceAnnotation,
+    to_gql_trace_annotation,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotationInsertEvent
 
 

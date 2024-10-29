@@ -4,18 +4,18 @@ from strawberry.relay.types import Connection
 
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE
-from phoenix.server.api.types.Dimension import Dimension
-from phoenix.server.api.types.DimensionDataType import DimensionDataType
-from phoenix.server.api.types.DimensionShape import DimensionShape
-from phoenix.server.api.types.DimensionType import DimensionType
-from phoenix.server.api.types.pagination import (
+from phoenix.server.api.types import (
     ConnectionArgs,
     Cursor,
     CursorSortColumn,
     CursorSortColumnDataType,
+    Dimension,
+    DimensionDataType,
+    DimensionShape,
+    DimensionType,
+    Span,
     connection_from_list,
 )
-from phoenix.server.api.types.Span import Span
 
 
 def test_connection_from_list() -> None:

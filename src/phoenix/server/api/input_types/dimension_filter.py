@@ -5,9 +5,9 @@ from strawberry import UNSET
 
 from phoenix.core.model_schema import Dimension
 from phoenix.server.api.helpers import ensure_list
-from phoenix.server.api.types.DimensionDataType import DimensionDataType
-from phoenix.server.api.types.DimensionShape import DimensionShape
-from phoenix.server.api.types.DimensionType import DimensionType
+from phoenix.server.api.types.dimension_data_type import DimensionDataType
+from phoenix.server.api.types.dimension_shape import DimensionShape
+from phoenix.server.api.types.dimension_type import DimensionType
 
 
 @strawberry.input

@@ -12,9 +12,8 @@ from phoenix.server.api.auth import IsAdmin, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types import SystemApiKey, UserApiKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import ApiKeyAttributes, ApiKeyClaims, ApiKeyId, UserId
 

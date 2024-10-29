@@ -8,7 +8,7 @@ from typing_extensions import Annotated
 from phoenix.core.model_schema import Column
 from phoenix.metrics import Metric
 from phoenix.metrics.mixins import UnaryOperator
-from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
+from phoenix.server.api.types.data_quality_metric import DataQualityMetric
 
 
 @strawberry.input

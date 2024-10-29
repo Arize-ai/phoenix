@@ -12,13 +12,14 @@ from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Di
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
-from phoenix.server.api.input_types import Granularity, TimeRange
-from phoenix.server.api.input_types.granularity import to_timestamps
+from phoenix.server.api.input_types.granularity import Granularity, to_timestamps
+from phoenix.server.api.input_types.time_range import TimeRange
 from phoenix.server.api.interceptor import GqlValueMediator
-from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
-from phoenix.server.api.types.InferencesRole import InferencesRole
-from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
-from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
+
+from .data_quality_metric import DataQualityMetric
+from .inferences_role import InferencesRole
+from .scalar_drift_metric_enum import ScalarDriftMetric
+from .vector_drift_metric_enum import VectorDriftMetric
 
 
 @strawberry.type

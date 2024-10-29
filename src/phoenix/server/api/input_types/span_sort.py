@@ -12,7 +12,7 @@ from typing_extensions import assert_never
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
-from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.sort_dir import SortDir
 from phoenix.trace.schemas import SpanID
 
 

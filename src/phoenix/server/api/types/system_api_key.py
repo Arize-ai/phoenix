@@ -1,7 +1,7 @@
 import strawberry
 from strawberry.relay import Node, NodeID
 
-from .ApiKey import ApiKey
+from .api_key import ApiKey
 
 
 @strawberry.type

@@ -3,7 +3,7 @@ import strawberry
 import phoenix.trace.v1 as pb
 from phoenix.db.models import DocumentAnnotation, TraceAnnotation
 
-from .Annotation import Annotation
+from .annotation import Annotation
 
 
 @strawberry.type

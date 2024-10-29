@@ -14,8 +14,7 @@ from phoenix.core.model_schema import (
     Dimension,
 )
 from phoenix.server.api.input_types import DimensionFilter
-from phoenix.server.api.types.DimensionShape import DimensionShape
-from phoenix.server.api.types.DimensionType import DimensionType
+from phoenix.server.api.types import DimensionShape, DimensionType
 
 
 @pytest.mark.parametrize(

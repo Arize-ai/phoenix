@@ -5,7 +5,8 @@ import strawberry
 from strawberry import Private
 
 from phoenix.db import models
-from phoenix.server.api.types.LabelFraction import LabelFraction
+
+from .label_fraction import LabelFraction
 
 AnnotationType = Union[models.SpanAnnotation, models.TraceAnnotation]
 

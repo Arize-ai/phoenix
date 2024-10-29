@@ -13,22 +13,23 @@ from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, ScalarDime
 from phoenix.metrics import binning
 from phoenix.metrics.metrics import Count
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
-from phoenix.server.api.input_types import Granularity, TimeRange
+from phoenix.server.api.input_types.granularity import Granularity
+from phoenix.server.api.input_types.time_range import TimeRange
 
 from ..context import Context
-from .DataQualityMetric import DataQualityMetric
-from .DatasetValues import DatasetValues
-from .DimensionDataType import DimensionDataType
-from .DimensionShape import DimensionShape
-from .DimensionType import DimensionType
-from .InferencesRole import InferencesRole
-from .ScalarDriftMetricEnum import ScalarDriftMetric
-from .Segments import (
+from .data_quality_metric import DataQualityMetric
+from .dataset_values import DatasetValues
+from .dimension_data_type import DimensionDataType
+from .dimension_shape import DimensionShape
+from .dimension_type import DimensionType
+from .inferences_role import InferencesRole
+from .scalar_drift_metric_enum import ScalarDriftMetric
+from .segments import (
     GqlBinFactory,
     Segment,
     Segments,
 )
-from .TimeSeries import (
+from .time_series import (
     DataQualityTimeSeries,
     DriftTimeSeries,
     ensure_timeseries_parameters,

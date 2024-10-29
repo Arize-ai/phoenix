@@ -31,24 +31,25 @@ from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import Granularity, TimeRange
-from phoenix.server.api.types.Cluster import to_gql_clusters
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
+from phoenix.server.api.input_types.granularity import Granularity
+from phoenix.server.api.input_types.time_range import TimeRange
 
-from .DataQualityMetric import DataQualityMetric
-from .EmbeddingMetadata import EmbeddingMetadata
-from .Event import create_event_id, unpack_event_id
-from .EventMetadata import EventMetadata
-from .Retrieval import Retrieval
-from .TimeSeries import (
+from .cluster import to_gql_clusters
+from .data_quality_metric import DataQualityMetric
+from .embedding_metadata import EmbeddingMetadata
+from .event import create_event_id, unpack_event_id
+from .event_metadata import EventMetadata
+from .inferences_role import AncillaryInferencesRole, InferencesRole
+from .retrieval import Retrieval
+from .time_series import (
     DataQualityTimeSeries,
     DriftTimeSeries,
     ensure_timeseries_parameters,
     get_data_quality_timeseries_data,
     get_drift_timeseries_data,
 )
-from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_coordinates
+from .umap_points import UMAPPoint, UMAPPoints, to_gql_coordinates
+from .vector_drift_metric_enum import VectorDriftMetric
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3

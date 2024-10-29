@@ -29,10 +29,13 @@ from phoenix.server.api.input_types import (
     PatchDatasetExamplesInput,
     PatchDatasetInput,
 )
-from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
-from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types import (
+    Dataset,
+    DatasetExample,
+    Span,
+    to_gql_dataset,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 

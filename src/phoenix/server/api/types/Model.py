@@ -9,20 +9,18 @@ from typing_extensions import Annotated
 from phoenix.config import get_exported_files
 from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types import (
-    DimensionFilter,
-    Granularity,
-    PerformanceMetricInput,
-    TimeRange,
-)
+from phoenix.server.api.input_types.dimension_filter import DimensionFilter
+from phoenix.server.api.input_types.granularity import Granularity
+from phoenix.server.api.input_types.performance_metric_input import PerformanceMetricInput
+from phoenix.server.api.input_types.time_range import TimeRange
 
-from .Dimension import Dimension, to_gql_dimension
-from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
-from .ExportedFile import ExportedFile
-from .Inferences import Inferences
-from .InferencesRole import AncillaryInferencesRole, InferencesRole
+from .dimension import Dimension, to_gql_dimension
+from .embedding_dimension import EmbeddingDimension, to_gql_embedding_dimension
+from .exported_file import ExportedFile
+from .inferences import Inferences
+from .inferences_role import AncillaryInferencesRole, InferencesRole
 from .pagination import ConnectionArgs, CursorString, connection_from_list
-from .TimeSeries import (
+from .time_series import (
     PerformanceTimeSeries,
     ensure_timeseries_parameters,
     get_timeseries_data,

@@ -7,7 +7,7 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 
 

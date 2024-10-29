@@ -41,9 +41,9 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
-from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
-from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
-from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
+from phoenix.server.api.types import Dataset as DatasetNodeType
+from phoenix.server.api.types import DatasetExample as DatasetExampleNodeType
+from phoenix.server.api.types import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetInsertEvent

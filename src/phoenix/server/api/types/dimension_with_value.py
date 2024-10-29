@@ -3,7 +3,7 @@ from typing import Optional
 import strawberry
 
 from ..interceptor import GqlValueMediator
-from .Dimension import Dimension
+from .dimension import Dimension
 
 
 @strawberry.type

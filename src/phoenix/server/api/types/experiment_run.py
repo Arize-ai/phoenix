@@ -9,16 +9,10 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.ExperimentRunAnnotation import (
-    ExperimentRunAnnotation,
-    to_gql_experiment_run_annotation,
-)
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
-from phoenix.server.api.types.Trace import Trace
+
+from .experiment_run_annotation import ExperimentRunAnnotation, to_gql_experiment_run_annotation
+from .pagination import ConnectionArgs, CursorString, connection_from_list
+from .trace import Trace
 
 
 @strawberry.type
@@ -68,7 +62,7 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
     Converts an ORM experiment run to a GraphQL ExperimentRun.
     """
 
-    from phoenix.server.api.types.Experiment import Experiment
+    from phoenix.server.api.types import Experiment
 
     return ExperimentRun(
         id_attr=run.id,

@@ -1,6 +1,6 @@
 import strawberry
 
-from phoenix.server.api.types.Dataset import Dataset
+from .dataset import Dataset
 
 
 @strawberry.type

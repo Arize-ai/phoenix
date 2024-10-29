@@ -7,8 +7,9 @@ from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
-from phoenix.server.api.types.Trace import Trace
+
+from .annotator_kind import ExperimentRunAnnotatorKind
+from .trace import Trace
 
 
 @strawberry.type

@@ -20,22 +20,21 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.input_types import (
+from phoenix.server.api.input_types.span_annotation_sort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
-from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
 
-from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from .Evaluation import DocumentEvaluation
-from .ExampleRevisionInterface import ExampleRevision
-from .MimeType import MimeType
-from .SpanAnnotation import SpanAnnotation
+from .document_retrieval_metrics import DocumentRetrievalMetrics
+from .evaluation import DocumentEvaluation
+from .example_revision_interface import ExampleRevision
+from .mime_type import MimeType
+from .sort_dir import SortDir
+from .span_annotation import SpanAnnotation, to_gql_span_annotation
 
 if TYPE_CHECKING:
-    from phoenix.server.api.types.Project import Project
+    from .project import Project
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -280,7 +279,7 @@ class Span(Node):
     ) -> Annotated[
         "Project", strawberry.lazy("phoenix.server.api.types.Project")
     ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
-        from phoenix.server.api.types.Project import to_gql_project
+        from phoenix.server.api.types import to_gql_project
 
         span_id = self.id_attr
         project = await info.context.data_loaders.span_projects.load(span_id)

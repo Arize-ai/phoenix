@@ -2,7 +2,7 @@ from enum import Enum
 
 import strawberry
 
-from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.sort_dir import SortDir
 
 
 @strawberry.enum

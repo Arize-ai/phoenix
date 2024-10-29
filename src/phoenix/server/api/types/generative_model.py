@@ -1,6 +1,6 @@
 import strawberry
 
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from .generative_provider import GenerativeProviderKey
 
 
 @strawberry.type

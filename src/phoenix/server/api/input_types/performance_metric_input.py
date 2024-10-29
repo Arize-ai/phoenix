@@ -3,7 +3,7 @@ import strawberry
 from phoenix.core.model_schema import ACTUAL_LABEL, PREDICTION_LABEL, Column, Model
 from phoenix.metrics import Metric
 from phoenix.metrics.mixins import EvaluationMetric
-from phoenix.server.api.types.PerformanceMetric import PerformanceMetric
+from phoenix.server.api.types.performance_metric import PerformanceMetric
 
 
 @strawberry.input

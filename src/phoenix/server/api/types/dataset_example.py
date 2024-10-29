@@ -10,16 +10,17 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
+
+from .dataset_example_revision import DatasetExampleRevision
+from .dataset_version import DatasetVersion
+from .experiment_run import ExperimentRun, to_gql_experiment_run
+from .node import from_global_id_with_expected_type
+from .pagination import (
     ConnectionArgs,
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.Span import Span, to_gql_span
+from .span import Span, to_gql_span
 
 
 @strawberry.type

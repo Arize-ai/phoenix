@@ -6,11 +6,10 @@ import strawberry
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import ID
 
-from phoenix.server.api.types.Cluster import Cluster
-
-from .EmbeddingMetadata import EmbeddingMetadata
-from .EventMetadata import EventMetadata
-from .Retrieval import Retrieval
+from .cluster import Cluster
+from .embedding_metadata import EmbeddingMetadata
+from .event_metadata import EventMetadata
+from .retrieval import Retrieval
 
 
 @strawberry.type
