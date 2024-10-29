@@ -186,7 +186,7 @@ class PlaygroundStreamingClient(ABC):
         supported_params = cls.supported_invocation_parameters()
         params = {param.invocation_name: param for param in supported_params}
 
-        invocation_parameters = dict()
+        formatted_invocation_parameters = dict()
 
         for param_input in invocation_parameters:
             invocation_name = param_input.invocation_name
@@ -196,9 +196,9 @@ class PlaygroundStreamingClient(ABC):
             param_def = params[invocation_name]
             value = extract_parameter(param_def, param_input)
             if value is not UNSET:
-                invocation_parameters[invocation_name] = value
-        validate_invocation_parameters(supported_params, invocation_parameters)
-        return invocation_parameters
+                formatted_invocation_parameters[invocation_name] = value
+        validate_invocation_parameters(supported_params, formatted_invocation_parameters)
+        return formatted_invocation_parameters
 
 
 @register_llm_client(
