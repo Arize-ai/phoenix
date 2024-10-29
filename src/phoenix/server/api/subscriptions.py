@@ -51,6 +51,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
     IntInvocationParameter,
     InvocationParameterInput,
     InvocationParameterType,
+    JSONInvocationParameter,
     StringListInvocationParameter,
     extract_parameter,
     validate_invocation_parameters,
@@ -246,7 +247,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 label="Temperature",
                 default_value=0.0,
                 min_value=0.0,
-                max_value=1.0,
+                max_value=2.0,
             ),
             IntInvocationParameter(
                 invocation_name="max_tokens",
@@ -254,11 +255,46 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 label="Max Tokens",
                 default_value=UNSET,
             ),
+            BoundedFloatInvocationParameter(
+                invocation_name="frequency_penalty",
+                label="Frequency Penalty",
+                default_value=UNSET,
+                min_value=-2.0,
+                max_value=2.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="presence_penalty",
+                label="Presence Penalty",
+                default_value=UNSET,
+                min_value=-2.0,
+                max_value=2.0,
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+                default_value=UNSET,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=UNSET,
+                min_value=0.0,
+                max_value=1.0,
+            ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
                 default_value=UNSET,
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+                default_value=UNSET,
+                hidden=True,
             ),
         ]
 
@@ -409,13 +445,127 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 label="Max Completion Tokens",
                 default_value=UNSET,
             ),
+            StringListInvocationParameter(
+                invocation_name="stop",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+                default_value=UNSET,
+            ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
                 default_value=UNSET,
             ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+                default_value=UNSET,
+                hidden=True,
+            ),
         ]
+
+    async def chat_completion_create(
+        self,
+        messages: List[
+            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        ],
+        tools: List[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        from openai import NOT_GIVEN
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+
+        # filter out unsupported messages
+        openai_messages = [message for message in openai_messages if message is not None]
+
+        tool_call_ids: Dict[int, str] = {}
+
+        response = await self.client.chat.completions.create(
+            messages=openai_messages,
+            model=self.model_name,
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        )
+
+        choice = response.choices[0]
+        message = choice.message
+        content = message.content
+
+        text_chunk = TextChunk(content=content)
+        yield text_chunk
+
+        if (tool_calls := message.tool_calls) is not None:
+            for tool_call_index, tool_call in enumerate(tool_calls):
+                tool_call_id = (
+                    tool_call.id
+                    if tool_call.id is not None
+                    else tool_call_ids.get(tool_call_index, f"tool_call_{tool_call_index}")
+                )
+                tool_call_ids[tool_call_index] = tool_call_id
+                if (function := tool_call.function) is not None:
+                    tool_call_chunk = ToolCallChunk(
+                        id=tool_call_id,
+                        function=FunctionCallChunk(
+                            name=function.name or "",
+                            arguments=function.arguments or "",
+                        ),
+                    )
+                    yield tool_call_chunk
+
+        if (usage := response.usage) is not None:
+            self._attributes.update(_llm_token_counts(usage))
+
+    def to_openai_chat_completion_param(
+        self,
+        role: ChatCompletionMessageRole,
+        content: JSONScalarType,
+        tool_call_id: Optional[str] = None,
+        tool_calls: Optional[List[JSONScalarType]] = None,
+    ) -> "ChatCompletionMessageParam":
+        from openai.types.chat import (
+            ChatCompletionAssistantMessageParam,
+            ChatCompletionToolMessageParam,
+            ChatCompletionUserMessageParam,
+        )
+
+        if role is ChatCompletionMessageRole.USER:
+            return ChatCompletionUserMessageParam(
+                {
+                    "content": content,
+                    "role": "user",
+                }
+            )
+        if role is ChatCompletionMessageRole.SYSTEM:
+            return None  # System messages are not supported for o1 models
+        if role is ChatCompletionMessageRole.AI:
+            if tool_calls is None:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                    }
+                )
+            else:
+                return ChatCompletionAssistantMessageParam(
+                    {
+                        "content": content,
+                        "role": "assistant",
+                        "tool_calls": [
+                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
+                        ],
+                    }
+                )
+        if role is ChatCompletionMessageRole.TOOL:
+            if tool_call_id is None:
+                raise ValueError("tool_call_id is required for tool messages")
+        return ChatCompletionToolMessageParam(
+            {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+        )
+        assert_never(role)
 
 
 @register_llm_client(
@@ -485,10 +635,25 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 max_value=1.0,
             ),
             StringListInvocationParameter(
-                invocation_name="stop_sequence",
+                invocation_name="stop_sequences",
                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequence",
+                label="Stop Sequences",
                 default_value=UNSET,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                default_value=UNSET,
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            JSONInvocationParameter(
+                invocation_name="tool_choice",
+                label="Tool Choice",
+                canonical_name=CanonicalParameterName.TOOL_CHOICE,
+                default_value=UNSET,
+                hidden=True,
             ),
         ]
 
@@ -569,7 +734,6 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        # Determine which LLM client to use based on provider_key
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
