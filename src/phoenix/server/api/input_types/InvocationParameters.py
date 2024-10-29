@@ -3,8 +3,8 @@ from typing import Any, Mapping, Optional, Union
 
 import strawberry
 from strawberry import UNSET
-from strawberry.types import UnsetType
 from strawberry.scalars import JSON
+from strawberry.types.unset import UnsetType
 
 
 @strawberry.enum
