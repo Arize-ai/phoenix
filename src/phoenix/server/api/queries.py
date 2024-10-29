@@ -88,7 +88,7 @@ from phoenix.server.api.types.UserRole import UserRole
 @strawberry.input
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
-    model_name: Optional[str]
+    model_name: Optional[str] = None
 
 
 @strawberry.type
