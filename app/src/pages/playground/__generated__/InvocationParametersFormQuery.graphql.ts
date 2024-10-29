@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3339bd6ee84c1fbdaf9d0b157b2857ab>>
+ * @generated SignedSource<<8c57a947be18de415bff122b3fce6cbe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOP_K" | "TOP_P";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
+export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type ModelsInput = {
+  modelName?: string | null;
   providerKey?: GenerativeProviderKey | null;
 };
 export type InvocationParametersFormQuery$variables = {
@@ -19,6 +22,8 @@ export type InvocationParametersFormQuery$variables = {
 export type InvocationParametersFormQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
+    readonly canonicalName?: CanonicalParameterName | null;
+    readonly invocationInputField?: InvocationInputField;
     readonly invocationName?: string;
     readonly label?: string;
     readonly maxValue?: number;
@@ -39,7 +44,17 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "invocationInputField",
+  "storageKey": null
+},
+v2 = [
+  (v1/*: any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": [
@@ -84,6 +99,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "required",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "canonicalName",
+            "storageKey": null
           }
         ],
         "type": "InvocationParameterBase",
@@ -105,9 +127,34 @@ v1 = [
             "kind": "ScalarField",
             "name": "maxValue",
             "storageKey": null
-          }
+          },
+          (v1/*: any*/)
         ],
         "type": "BoundedFloatInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "IntInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "StringInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "StringListInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "BooleanInvocationParameter",
         "abstractKey": null
       }
     ],
@@ -120,7 +167,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "InvocationParametersFormQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -129,19 +176,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "InvocationParametersFormQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "0984047f672995ccc30248cfd83c733a",
+    "cacheID": "74874505b29df3d985f063d70d0560c4",
     "id": null,
     "metadata": {},
     "name": "InvocationParametersFormQuery",
     "operationKind": "query",
-    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n    }\n  }\n}\n"
+    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "600124f44f95afc775efd1bea2caf9f5";
+(node as any).hash = "bd85203434a152b7e12c0a96b6476800";
 
 export default node;

@@ -33,10 +33,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import {
-  HandleInvocationParameterChange,
-  InvocationParametersForm,
-} from "./InvocationParametersForm";
+import { InvocationParametersForm } from "./InvocationParametersForm";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -229,12 +226,19 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
-      query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
+      query ModelConfigButtonDialogQuery(
+        $providerKey: GenerativeProviderKey!
+        $modelName: String
+      ) {
         ...ModelProviderPickerFragment
-        ...ModelPickerFragment @arguments(providerKey: $providerKey)
+        ...ModelPickerFragment
+          @arguments(providerKey: $providerKey, modelName: $modelName)
       }
     `,
-    { providerKey: instance.model.provider }
+    {
+      providerKey: instance.model.provider,
+      modelName: instance.model.modelName,
+    }
   );
 
   const onModelNameChange = useCallback(
@@ -248,30 +252,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         modelConfigByProvider,
       });
     },
-    [
-      instance.model.provider,
-      modelConfigByProvider,
-      playgroundInstanceId,
-      updateModel,
-    ]
+    [instance.model.provider, playgroundInstanceId, updateModel]
   );
-
-  const onInvocationParametersChange: HandleInvocationParameterChange =
-    useCallback(
-      // TODO(apowell): implement
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (parameterDefinition, value) => {
-        updateModel({
-          instanceId: playgroundInstanceId,
-          model: {
-            ...instance.model,
-            invocationParameters: [],
-          },
-          modelConfigByProvider,
-        });
-      },
-      [instance.model, modelConfigByProvider, playgroundInstanceId, updateModel]
-    );
 
   return (
     <View padding="size-200" overflow="auto">

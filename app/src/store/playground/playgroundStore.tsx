@@ -399,11 +399,26 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               model: {
                 ...instance.model,
                 invocationParameters:
-                  instance.model.invocationParameters.filter((ip) =>
-                    modelSupportedInvocationParameters.some(
-                      (mp) => mp.invocationName === ip.invocationName
+                  // Filter out parameters that are not supported by the model
+                  // modelSupportedInvocationParameters is a list of invocation parameters
+                  // that are supported by the model, given by the modelInvocationParameters query.
+                  instance.model.invocationParameters
+                    .filter((ip) =>
+                      modelSupportedInvocationParameters.some(
+                        (mp) =>
+                          mp.invocationName === ip.invocationName ||
+                          mp.canonicalName === ip.canonicalName
+                      )
                     )
-                  ),
+                    .map((ip) => ({
+                      // Transform the invocationName to match the new name from the incoming
+                      // modelSupportedInvocationParameters.
+                      ...ip,
+                      invocationName:
+                        modelSupportedInvocationParameters.find(
+                          (mp) => mp.canonicalName === ip.canonicalName
+                        )?.invocationName ?? ip.invocationName,
+                    })),
               },
             };
           }

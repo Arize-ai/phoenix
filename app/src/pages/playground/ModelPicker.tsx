@@ -21,8 +21,9 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
       fragment ModelPickerFragment on Query
       @argumentDefinitions(
         providerKey: { type: "GenerativeProviderKey!", defaultValue: OPENAI }
+        modelName: { type: "String", defaultValue: null }
       ) {
-        models(input: { providerKey: $providerKey }) {
+        models(input: { providerKey: $providerKey, modelName: $modelName }) {
           name
         }
       }
