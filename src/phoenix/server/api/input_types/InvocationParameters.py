@@ -4,7 +4,6 @@ from typing import Any, Mapping, Optional, Union
 import strawberry
 from strawberry import UNSET
 from strawberry.scalars import JSON
-from strawberry.types.unset import UnsetType
 
 
 @strawberry.enum
@@ -31,7 +30,7 @@ class InvocationInputField(str, Enum):
 @strawberry.input
 class InvocationParameterInput:
     invocation_name: str
-    canonical_name: Optional[CanonicalParameterName] | UnsetType = UNSET
+    canonical_name: Optional[CanonicalParameterName] = None
     value_int: Optional[int] = UNSET
     value_float: Optional[float] = UNSET
     value_bool: Optional[bool] = UNSET
@@ -44,7 +43,7 @@ class InvocationParameterInput:
 @strawberry.interface
 class InvocationParameterBase:
     invocation_name: str
-    canonical_name: Optional[CanonicalParameterName] = UNSET
+    canonical_name: Optional[CanonicalParameterName] = None
     label: str
     required: bool = False
     hidden: bool = False
