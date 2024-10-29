@@ -12,48 +12,192 @@ Troubleshooting an LLM application using the OpenInferenceTraceCallback
 
 For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrumentor aptly named the `LlamaIndexInstrumentor` . This callback is what is used to create spans and send them to the Phoenix collector.
 
+## Launch Phoenix
+
+Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm. This paradigm requires LlamaIndex >= 0.10.43. For legacy support, see below.
+
 {% tabs %}
-{% tab title="Instrumentation (>=0.10.43)" %}
-Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm.
+{% tab title="Phoenix Developer Edition" %}
+**Sign up for Phoenix:**
 
-To get started, make sure you're running Phoenix. The easiest way to do this is to run the following in a separate terminal window:
+Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login) or [https://llamatrace.com](https://llamatrace.com)
 
+{% hint style="info" %}
+Phoenix Developer Edition is another name for LlamaTrace
+{% endhint %}
+
+**Install packages:**
+
+```bash
+pip install arize-phoenix-otel
 ```
+
+**Connect your application to your cloud instance:**
+
+```python
+import os
+from phoenix.otel import register
+
+# Add Phoenix API Key for tracing
+PHOENIX_API_KEY = "ADD YOUR API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="https://app.phoenix.arize.com/v1/traces",
+)
+```
+
+Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
+{% endtab %}
+
+{% tab title="Command Line" %}
+**Launch your local Phoenix instance:**
+
+```bash
 pip install arize-phoenix
 phoenix serve
 ```
 
-See [deployment](../../deployment/ "mention")for other hosting options.
+For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
 
-Then, pip install the following in your project.
+**Install packages:**
 
-{% code overflow="wrap" %}
+```bash
+pip install arize-phoenix-otel
 ```
-pip install "llama-index-core>=0.10.43" "openinference-instrumentation-llama-index>=2" "opentelemetry-proto>=1.12.0" arize-phoenix-otel
-```
-{% endcode %}
 
-Use the following code snippet to activate the instrumentation.
-
-Note that the `endpoint` variable below should the address of the Phoenix receiver.
+**Connect your application to your instance using:**
 
 ```python
-from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 from phoenix.otel import register
 
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="http://localhost:6006/v1/traces",
 )
+```
+
+See [deploying-phoenix.md](../../deployment/deploying-phoenix.md "mention") for more details
+{% endtab %}
+
+{% tab title="Docker" %}
+**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
+
+```bash
+docker pull arizephoenix/phoenix:latest
+```
+
+**Run your containerized instance:**
+
+```bash
+docker run -p 6006:6006 arizephoenix/phoenix:latest
+```
+
+This will expose the Phoenix on `localhost:6006`
+
+**Install packages:**
+
+```bash
+pip install arize-phoenix-otel
+```
+
+**Connect your application to your instance using:**
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  endpoint="http://localhost:6006/v1/traces",
+)
+```
+
+For more info on using Phoenix with Docker, see [#docker](llamaindex.md#docker "mention")
+{% endtab %}
+
+{% tab title="Notebook" %}
+**Install packages:**
+
+```bash
+pip install arize-phoenix
+```
+
+**Launch Phoenix:**
+
+```python
+import phoenix as px
+px.launch_app()
+```
+
+**Connect your notebook to Phoenix:**
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+)
+```
+
+{% hint style="info" %}
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [persistence.md](../../deployment/persistence.md "mention") or use one of the other deployment options to retain traces.
+{% endhint %}
+{% endtab %}
+{% endtabs %}
+
+## Install
+
+```bash
+pip install openinference-instrumentation-llama_index llama-index
+```
+
+## Setup
+
+Initialize the LlamaIndexInstrumentor before your application code.
+
+```python
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
 
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
-{% endtab %}
 
-{% tab title="Legacy One-Click (<0.10.43)" %}
-{% hint style="info" %}
+## Run LlamaIndex
+
+You can now use LlamaIndex as normal, and tracing will be automatically captured and sent to your Phoenix instance.
+
+```python
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+import os
+
+os.environ["OPENAI_API_KEY"] = "YOUR OPENAI API KEY"
+
+documents = SimpleDirectoryReader("data").load_data()
+index = VectorStoreIndex.from_documents(documents)
+query_engine = index.as_query_engine()
+response = query_engine.query("Some question about the data should go here")
+print(response)
+```
+
+## Observe
+
+View your traces in Phoenix:
+
+<figure><img src="../../.gitbook/assets/Screenshot 2024-10-29 at 3.52.49 PM.png" alt=""><figcaption></figcaption></figure>
+
+## Resources
+
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama\_index\_tracing\_tutorial.ipynb)
+* [Instrumentation Package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-llama-index)
+
+<details>
+
+<summary>Legacy Integrations (&#x3C;0.10.43)</summary>
+
+**Legacy One-Click (<0.10.43)**
+
 Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>0.1.3'
-{% endhint %}
 
 llama-index 0.10 introduced modular sub-packages. To use llama-index's one click, you must install the small integration first:
 
@@ -77,9 +221,9 @@ set_global_handler("arize_phoenix")
 # Run all of your LlamaIndex applications as usual and traces
 # will be collected and displayed in Phoenix.
 ```
-{% endtab %}
 
-{% tab title="Legacy (<v0.10)" %}
+**Legacy (<0.10.0)**
+
 If you are using an older version of llamaIndex (pre-0.10), you can still use phoenix. You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
 
 ```python
@@ -97,9 +241,5 @@ llama_index.set_global_handler("arize_phoenix")
 # Run all of your LlamaIndex applications as usual and traces
 # will be collected and displayed in Phoenix.
 ```
-{% endtab %}
-{% endtabs %}
 
-By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix Server.
-
-For a fully working example of tracing with LlamaIndex, checkout our colab notebook above.
+</details>

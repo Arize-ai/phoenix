@@ -49,19 +49,15 @@ If you are abruptly unable to access phoenix, check whether the ssh connection i
 
 Simply run `exit` in the terminal/command prompt where you ran the port forwarding command.
 
-## How can I configure the backend to send the data to the phoenix UI in another container?&#x20;
+## How can I configure the backend to send the data to the phoenix UI in another container?
 
-_If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be launched as another thread._&#x20;
+_If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be launched as another thread._
 
 You can do this by configuring the following the environment variable PHOENIX\_COLLECTOR\_ENDPOINT to point to the server running in a different process or container. https://docs.arize.com/phoenix/environments
-
-
 
 ## Can I use an older version of LlamaIndex?
 
 Yes you can! You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
-
-
 
 ## Running on SageMaker
 
@@ -73,17 +69,10 @@ import os
 os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
 ```
 
-
-
 ## Can I persistdata in the notbook?
 
 You can persist data in the notebook by either setting the `use_temp_dir` flag to false in `px.launch_app` which will persit your data in SQLite on your disk at the **PHOENIX\_WORKING\_DIR**. Alternatively you can deploy a phoenix instance and point to it via **PHOENIX\_COLLECTOR\_ENDPOINT**.
 
-
-
 ## Can I use gRPC for trace collection?
 
-Phoenix does natively support gRPC for trace collection post 4.0 release. See [#how-to-configure-phoenix](../setup/#how-to-configure-phoenix "mention") for details.
-
-
-
+Phoenix does natively support gRPC for trace collection post 4.0 release. See [deployment](../deployment/ "mention") for details.

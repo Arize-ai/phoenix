@@ -1,17 +1,17 @@
-# Hosted Phoenix
+# Phoenix Developer Edition
 
 {% embed url="https://www.youtube.com/watch?embeds_referring_euri=https://cdn.iframe.ly/&feature=emb_title&source_ve_path=MjM4NTE&v=LLKMxeGcZCA" %}
 
-We now offer a hosted version of Phoenix to make it easier for developers to use Phoenix to trace their LLM applications and avoid setting up infrastructure.
+We now offer a cloud-hosted version of Phoenix available on our website to make it easier for developers to use Phoenix to trace their LLM applications and avoid setting up infrastructure.
 
 ### Example Notebooks:
 
 * [Tracing an OpenAI app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_openai\_tutorial.ipynb)
 * [Tracing a LlamaIndex app](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/hosted\_phoenix/hosted\_phoenix\_llamaindex\_tutorial.ipynb)
 
-### The main differences for Hosted Phoenix:
+### The main differences for Phoenix Developer Edition:
 
-Hosted Phoenix runs the latest version of our open source package and gates access to your data behind API keys and user authentication.
+Phoenix Developer Edition runs the latest version of our open source package and gates access to your data behind API keys and user authentication.
 
 1. [You must create an account](hosted-phoenix.md#how-to-create-an-account)
 2. [You need to add an API key as an environment variable during tracing](hosted-phoenix.md#how-to-send-in-your-first-trace)
@@ -23,15 +23,15 @@ We also use 3rd party analytics tools to measure usage of our application to imp
 
 Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer logins via Google, Github, and email. This account will use the same account credentials as your Arize account if you have one.
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 ### Tracing: How to send in your first trace
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
-Get your API keys from your Phoenix application on the left hand side.&#x20;
+Get your API keys from your Phoenix application on the left hand side.
 
-Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Hosted Phoenix works with [all of our automatic tracing options](../tracing/how-to-tracing/instrumentation/) as well.
+Here's the full sample code to trace a LlamaIndex and OpenAI application. Using a different framework? Phoenix Developer Edition works with [all of our automatic tracing options](tracing/how-to-tracing/instrumentation/) as well.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -91,7 +91,7 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_check=
 
 Once you collect trace data from the above configuration, you can access the data using the client SDK. You can also upload datasets for experiments using the client SDK.
 
-You'll need to add the following environment variable to authenticate to hosted Phoenix.
+You'll need to add the following environment variable to authenticate to Phoenix.
 
 ```python
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
@@ -105,9 +105,9 @@ phoenix_df = px_client.get_spans_dataframe()
 
 ## FAQ
 
-### Will hosted Phoenix be on the latest version of Phoenix?
+### Will Phoenix Developer Edition be on the latest version of Phoenix?
 
-We update the Phoenix version used by Hosted Phoenix on a weekly basis.
+We update the Phoenix version used by Phoenix Developer Edition on a weekly basis.
 
 ### Data retention
 
@@ -119,4 +119,9 @@ Currently accounts are setup to be used specifically for one developer. We will 
 
 ### Pricing
 
-Hosted Phoenix is free for all developers. We will add a paid tier in the future which increases your data retention and also give you access to more storage.
+Phoenix Developer Edition is free up to the following limits, then $50/month.
+
+Free tier limits:
+
+* 100K logs (spans)
+* 10gb storage

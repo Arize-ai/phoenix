@@ -16,7 +16,7 @@ Install the **arize-phoenix-otel** python package. This may be already installed
 pip install arize-phoenix-otel
 ```
 
-If you have specified endpoints, headers, and project names as [environment variables](../../../../setup/configuration.md#environment-variables), setting up OTEL can be as simple as:
+If you have specified endpoints, headers, and project names as [environment variables](../../../../deployment/configuration.md#environment-variables), setting up OTEL can be as simple as:
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.otel import register
 </strong>
@@ -31,7 +31,7 @@ And setup is done! You are ready to setup [integrations](../../../integrations-t
 
 ## Setup Endpoints, Projects, etc.
 
-Register by default picks up your configuration from [environment variables](../../../../setup/configuration.md#environment-variables) but you can configure it using arguments as well:
+Register by default picks up your configuration from [environment variables](../../../../deployment/configuration.md#environment-variables) but you can configure it using arguments as well:
 
 ```python
 from phoenix.otel import register
@@ -54,7 +54,7 @@ When using the `endpoint` argument, we must pass in the fully qualified OTel end
 
 ## Log to a specific project
 
-Phoenix uses [projects](../../../concepts-tracing/#projects) to group traces. If left unspecified, all traces are sent to a default project.
+Phoenix uses [projects](broken-reference) to group traces. If left unspecified, all traces are sent to a default project.
 
 {% embed url="https://www.youtube.com/watch?v=GPno92s9WFM" %}
 
