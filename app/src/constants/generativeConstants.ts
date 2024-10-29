@@ -11,6 +11,10 @@ export const ModelProviders: Record<ModelProvider, string> = {
  * The default model provider
  */
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
+/**
+ * The default model name
+ */
+export const DEFAULT_MODEL_NAME = "gpt-4o";
 
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 

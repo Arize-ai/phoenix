@@ -5,6 +5,7 @@ import { TemplateLanguages } from "@phoenix/components/templateEditor/constants"
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
+  DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { OpenAIToolCall } from "@phoenix/schemas";
@@ -96,7 +97,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
-      modelName: "gpt-4o",
+      modelName: DEFAULT_MODEL_NAME,
       invocationParameters: {},
     },
     tools: [],
@@ -150,9 +151,37 @@ export function createOpenAITool(toolNumber: number): OpenAITool {
   };
 }
 
-export const createPlaygroundStore = (
-  initialProps?: InitialPlaygroundState
-) => {
+/**
+ * Gets the initial instances for the playground store
+ * If the initial props has instances, those will be used.
+ * If not a default instance will be created and saved model config defaults will be used if present.
+ * @returns a list of {@link PlaygroundInstance} instances
+ *
+ * NB: This function is only exported for testing
+ */
+export function getInitialInstances(initialProps: InitialPlaygroundState) {
+  if (initialProps.instances != null && initialProps.instances.length > 0) {
+    return initialProps.instances;
+  }
+  const instance = createPlaygroundInstance();
+
+  const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
+  const hasSavedModelConfig = savedModelConfigs.length > 0;
+  if (!hasSavedModelConfig) {
+    return [instance];
+  }
+  const savedDefaultProviderConfig =
+    savedModelConfigs.find(
+      (config) => config.provider === DEFAULT_MODEL_PROVIDER
+    ) ?? savedModelConfigs[0];
+  instance.model = {
+    ...instance.model,
+    ...savedDefaultProviderConfig,
+  };
+  return [instance];
+}
+
+export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
     operationType: "chat",
@@ -165,7 +194,7 @@ export const createPlaygroundStore = (
     },
     templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
-    instances: [createPlaygroundInstance()],
+    instances: getInitialInstances(initialProps),
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
         set({
@@ -203,19 +232,36 @@ export const createPlaygroundStore = (
         ],
       });
     },
-    updateModel: ({ instanceId, model }) => {
+    updateModel: ({ instanceId, model, modelConfigByProvider }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
       if (!instance) {
         return;
       }
       const currentModel = instance.model;
+
+      const savedProviderConfig =
+        model.provider != null
+          ? modelConfigByProvider[model.provider]
+          : undefined;
       if (model.provider !== currentModel.provider) {
-        // Force clear the model name if the provider changes
-        model = {
-          ...model,
-          modelName: undefined,
-        };
+        if (savedProviderConfig != null) {
+          model = {
+            ...savedProviderConfig,
+            provider: model.provider,
+            invocationParameters: {
+              ...instance.model.invocationParameters,
+              // These should never be changing at the same time as the provider but spread here to be safe
+              ...model.invocationParameters,
+            },
+          };
+        } else {
+          // Force clear the model name if the provider changes
+          model = {
+            ...model,
+            modelName: undefined,
+          };
+        }
       }
       set({
         instances: instances.map((instance) => {

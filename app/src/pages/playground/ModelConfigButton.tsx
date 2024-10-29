@@ -18,6 +18,8 @@ import {
   Picker,
   Text,
   TextField,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@arizeai/components";
 
@@ -25,7 +27,9 @@ import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
 } from "@phoenix/constants/generativeConstants";
+import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
@@ -43,6 +47,9 @@ function AzureOpenAiModelConfigFormField({
   instance: PlaygroundInstance;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
 
   const updateModelConfig = useCallback(
     ({
@@ -58,9 +65,10 @@ function AzureOpenAiModelConfigFormField({
           ...instance.model,
           [configKey]: value,
         },
+        modelConfigByProvider,
       });
     },
-    [instance.id, instance.model, updateModel]
+    [instance.id, instance.model, modelConfigByProvider, updateModel]
   );
 
   return (
@@ -128,13 +136,7 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
         size="compact"
         onClick={() => {
           startTransition(() => {
-            setDialog(
-              <Dialog title="Model Configuration" size="M">
-                <Suspense>
-                  <ModelConfigDialogContent {...props} />
-                </Suspense>
-              </Dialog>
-            );
+            setDialog(<ModelConfigDialog {...props} />);
           });
         }}
       >
@@ -156,18 +158,75 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
   );
 }
 
-interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
-function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
-  const { playgroundInstanceId } = props;
-  const updateModel = usePlaygroundContext((state) => state.updateModel);
+interface ModelConfigDialogProps extends ModelConfigButtonProps {}
+function ModelConfigDialog(props: ModelConfigDialogProps) {
   const instance = usePlaygroundContext((state) =>
-    state.instances.find((instance) => instance.id === playgroundInstanceId)
+    state.instances.find(
+      (instance) => instance.id === props.playgroundInstanceId
+    )
   );
+
   if (!instance) {
     throw new Error(
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
+  const setModelConfigForProvider = usePreferencesContext(
+    (state) => state.setModelConfigForProvider
+  );
+
+  const notifySuccess = useNotifySuccess();
+  const onSaveConfig = useCallback(() => {
+    setModelConfigForProvider({
+      provider: instance.model.provider,
+      modelConfig: instance.model,
+    });
+    notifySuccess({
+      title: "Model Configuration Saved",
+      message: `${ModelProviders[instance.model.provider]} model configuration saved`,
+      expireMs: 3000,
+    });
+  }, [instance.model, notifySuccess, setModelConfigForProvider]);
+  return (
+    <Dialog
+      title="Model Configuration"
+      size="M"
+      extra={
+        <TooltipTrigger delay={0} offset={5}>
+          <Button size={"compact"} variant="default" onClick={onSaveConfig}>
+            Save Config
+          </Button>
+          <Tooltip>
+            Remember configuration for{" "}
+            {ModelProviders[instance.model.provider] ?? "this provider"}.
+          </Tooltip>
+        </TooltipTrigger>
+      }
+    >
+      <Suspense>
+        <ModelConfigDialogContent {...props} />
+      </Suspense>
+    </Dialog>
+  );
+}
+
+interface ModelConfigDialogContentProps extends ModelConfigButtonProps {}
+function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
+  const { playgroundInstanceId } = props;
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
+  );
+
+  if (!instance) {
+    throw new Error(
+      `Playground instance ${props.playgroundInstanceId} not found`
+    );
+  }
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
@@ -186,9 +245,15 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           provider: instance.model.provider,
           modelName,
         },
+        modelConfigByProvider,
       });
     },
-    [instance.model.provider, playgroundInstanceId, updateModel]
+    [
+      instance.model.provider,
+      modelConfigByProvider,
+      playgroundInstanceId,
+      updateModel,
+    ]
   );
 
   const onInvocationParametersChange: InvocationParametersChangeHandler =
@@ -203,9 +268,10 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
               [parameter]: value,
             },
           },
+          modelConfigByProvider,
         });
       },
-      [instance.model, playgroundInstanceId, updateModel]
+      [instance.model, modelConfigByProvider, playgroundInstanceId, updateModel]
     );
 
   return (
@@ -221,6 +287,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
                 provider,
                 modelName: null,
               },
+              modelConfigByProvider,
             });
           }}
         />

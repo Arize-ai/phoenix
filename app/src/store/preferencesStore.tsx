@@ -3,7 +3,11 @@ import { devtools, persist } from "zustand/middleware";
 
 import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 
+import { ModelConfig } from "./playground";
+
 export type MarkdownDisplayMode = "text" | "markdown";
+
+export type ModelConfigByProvider = Partial<Record<ModelProvider, ModelConfig>>;
 
 export interface PreferencesProps {
   /**
@@ -34,6 +38,10 @@ export interface PreferencesProps {
    * Whether or not the trace tree shows metrics
    */
   showMetricsInTraceTree: boolean;
+  /**
+   * {@link ModelConfig|ModelConfigs} for llm providers will be used as the default parameters for the provider
+   */
+  modelConfigByProvider: ModelConfigByProvider;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -66,6 +74,16 @@ export interface PreferencesState extends PreferencesProps {
    * @param showMetricsInTraceTree
    */
   setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
+  /**
+   * Setter for the model configs by provider
+   */
+  setModelConfigForProvider: ({
+    provider,
+    modelConfig,
+  }: {
+    provider: ModelProvider;
+    modelConfig: ModelConfig;
+  }) => void;
 }
 
 export const createPreferencesStore = (
@@ -95,6 +113,17 @@ export const createPreferencesStore = (
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
       set({ showMetricsInTraceTree });
+    },
+    modelConfigByProvider: {},
+    setModelConfigForProvider: ({ provider, modelConfig }) => {
+      set((state) => {
+        return {
+          modelConfigByProvider: {
+            ...state.modelConfigByProvider,
+            [provider]: modelConfig,
+          },
+        };
+      });
     },
     ...initialProps,
   });
