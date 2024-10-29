@@ -30,6 +30,7 @@ class InvocationInputField(str, Enum):
 @strawberry.input
 class InvocationParameterInput:
     invocation_name: str
+    canonical_name: Optional[CanonicalParameterName] = UNSET
     value_int: Optional[int] = UNSET
     value_float: Optional[float] = UNSET
     value_bool: Optional[bool] = UNSET
