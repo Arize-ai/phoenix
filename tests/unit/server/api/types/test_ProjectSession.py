@@ -86,14 +86,6 @@ class TestProjectSession:
             project_sessions.append(await _add_project_session(session, project))
         return project_sessions, traces, [project]
 
-    async def test_session_user(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        assert await self._node("sessionUser", _data[0][0], httpx_client) == "xyz"
-        assert await self._node("sessionUser", _data[0][1], httpx_client) is None
-
     async def test_num_traces(
         self,
         _data: _Data,
