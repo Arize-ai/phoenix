@@ -31,7 +31,7 @@ class SessionNumTracesDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         stmt = self._stmt.where(models.Trace.project_session_rowid.in_(keys))
         async with self._db() as session:
-            result = {
+            result: dict[Key, int] = {
                 id_: value async for id_, value in await session.stream(stmt) if id_ is not None
             }
         return [result.get(key, 0) for key in keys]

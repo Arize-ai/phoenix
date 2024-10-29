@@ -40,7 +40,7 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         stmt = self._stmt.where(models.Trace.project_session_rowid.in_(keys))
         async with self._db() as session:
-            result = {
+            result: dict[Key, TokenUsage] = {
                 id_: TokenUsage(prompt=prompt, completion=completion)
                 async for id_, prompt, completion in await session.stream(stmt)
                 if id_ is not None
