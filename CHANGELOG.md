@@ -1,5 +1,35 @@
 # Changelog
 
+## [5.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.2...arize-phoenix-v5.6.0) (2024-10-29)
+
+
+### Features
+
+* Add Annotate button and slide over to run metadata footer ([#5184](https://github.com/Arize-ai/phoenix/issues/5184)) ([106a42f](https://github.com/Arize-ai/phoenix/commit/106a42fd7018d744a3aafb6d8b1bf9a9a03dfc4b))
+* Add LLMRelationalEvaluator to phoenix experiments ([#5170](https://github.com/Arize-ai/phoenix/issues/5170)) ([19021e4](https://github.com/Arize-ai/phoenix/commit/19021e4f4780a5d1bec453a1a7d132bd35f67cec))
+* Add markdown toggle to playground output cards ([#5212](https://github.com/Arize-ai/phoenix/issues/5212)) ([752b654](https://github.com/Arize-ai/phoenix/commit/752b654d5aca1d94142ee80186bd15f9e7ae24ac))
+* **playground:** add token counts for anthropic ([#5161](https://github.com/Arize-ai/phoenix/issues/5161)) ([2eae8c5](https://github.com/Arize-ai/phoenix/commit/2eae8c5df25c4454352d4167b3435675db19ae75))
+* **playground:** add tool role messages to ui ([#5103](https://github.com/Arize-ai/phoenix/issues/5103)) ([083ef42](https://github.com/Arize-ai/phoenix/commit/083ef427c794bbf64f66b8ed7e5d8490250050c6))
+* **playground:** plumb through message tool_calls from span to playground ([#5197](https://github.com/Arize-ai/phoenix/issues/5197)) ([a1886a0](https://github.com/Arize-ai/phoenix/commit/a1886a022056444c79f244e7750bb9f745ced64b))
+* **playground:** plumb through tools on spans to playground ([#5203](https://github.com/Arize-ai/phoenix/issues/5203)) ([be1a103](https://github.com/Arize-ai/phoenix/commit/be1a1030d19eb40b7d4edcab45c3991f6e6c7359))
+* Scaffold model invocation params form ([#5040](https://github.com/Arize-ai/phoenix/issues/5040)) ([#5045](https://github.com/Arize-ai/phoenix/issues/5045)) ([6efc700](https://github.com/Arize-ai/phoenix/commit/6efc70087538265068092b6d72b2dbfd6f927688))
+
+
+### Bug Fixes
+
+* `px.Client().get_dataset_versions` should use `self._client.get` instead of `httpx.get` ([#5220](https://github.com/Arize-ai/phoenix/issues/5220)) ([c810e16](https://github.com/Arize-ai/phoenix/commit/c810e1694914280f024a4f713582dc37179090f0))
+* Bubble errors up from nested invocation parameter schema transforms ([#5202](https://github.com/Arize-ai/phoenix/issues/5202)) ([6ccb0c0](https://github.com/Arize-ai/phoenix/commit/6ccb0c0071fc9c1de07b16c2884183e4be562e56))
+* Do not pin span in url for playground trace details slideover ([#5200](https://github.com/Arize-ai/phoenix/issues/5200)) ([7f41824](https://github.com/Arize-ai/phoenix/commit/7f418248d39e0f2d739143deb451539b073d37bd))
+* **playground:** improve playground error handling ([#5188](https://github.com/Arize-ai/phoenix/issues/5188)) ([b0436d7](https://github.com/Arize-ai/phoenix/commit/b0436d79c64a0db23f46a8fdf3592d1cea965bda))
+* remove `embeddings` from core dependencies ([#5150](https://github.com/Arize-ai/phoenix/issues/5150)) ([fab0ca2](https://github.com/Arize-ai/phoenix/commit/fab0ca282096409afaf728ddee8c3567c9a553ba))
+* **styles:** make prompt section scrollable to the bottom ([#5173](https://github.com/Arize-ai/phoenix/issues/5173)) ([99a3d1c](https://github.com/Arize-ai/phoenix/commit/99a3d1c0d4adc0b9f64c493769c8c87f9f3d136f))
+* update to properly initialize when brought into view ([#5172](https://github.com/Arize-ai/phoenix/issues/5172)) ([26aae5e](https://github.com/Arize-ai/phoenix/commit/26aae5e4c7a8a63cdc66106cb3c30f55ca678d79))
+
+
+### Documentation
+
+* Typo Fix ([#5157](https://github.com/Arize-ai/phoenix/issues/5157)) ([31749b2](https://github.com/Arize-ai/phoenix/commit/31749b246a168f22ca387e046db90562e25937bd))
+
 ## [5.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.1...arize-phoenix-v5.5.2) (2024-10-21)
 
 
