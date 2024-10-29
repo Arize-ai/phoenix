@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09739022ca9b52d61d2eb5646d7e9906>>
+ * @generated SignedSource<<21e2acce75e3bf65e63592e7d732e7d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,21 +9,51 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type AnnotatorKind = "HUMAN" | "LLM";
 export type SessionDetailsQuery$variables = {
   id: string;
 };
 export type SessionDetailsQuery$data = {
   readonly session: {
+    readonly durationS?: number;
+    readonly numTraces?: number;
+    readonly sessionId?: string;
+    readonly tokenUsage?: {
+      readonly completion: number;
+      readonly prompt: number;
+      readonly total: number;
+    };
     readonly traces?: {
       readonly edges: ReadonlyArray<{
         readonly trace: {
           readonly rootSpan: {
+            readonly attributes: string;
+            readonly context: {
+              readonly spanId: string;
+              readonly traceId: string;
+            };
+            readonly cumulativeTokenCountCompletion: number | null;
+            readonly cumulativeTokenCountPrompt: number | null;
+            readonly cumulativeTokenCountTotal: number | null;
+            readonly id: string;
             readonly input: {
               readonly value: string;
             } | null;
+            readonly latencyMs: number | null;
             readonly output: {
               readonly value: string;
             } | null;
+            readonly project: {
+              readonly id: string;
+            };
+            readonly spanAnnotations: ReadonlyArray<{
+              readonly annotatorKind: AnnotatorKind;
+              readonly explanation: string | null;
+              readonly label: string | null;
+              readonly name: string;
+              readonly score: number | null;
+            }>;
+            readonly startTime: string;
           } | null;
         };
       }>;
@@ -50,7 +80,14 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = [
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -59,9 +96,62 @@ v2 = [
     "storageKey": null
   }
 ],
-v3 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "numTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "durationS",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "TokenUsage",
+      "kind": "LinkedField",
+      "name": "tokenUsage",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "total",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "completion",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "prompt",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "sessionId",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -94,6 +184,26 @@ v3 = {
                   "name": "rootSpan",
                   "plural": false,
                   "selections": [
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "attributes",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "Project",
+                      "kind": "LinkedField",
+                      "name": "project",
+                      "plural": false,
+                      "selections": [
+                        (v2/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -101,7 +211,7 @@ v3 = {
                       "kind": "LinkedField",
                       "name": "input",
                       "plural": false,
-                      "selections": (v2/*: any*/),
+                      "selections": (v3/*: any*/),
                       "storageKey": null
                     },
                     {
@@ -111,7 +221,113 @@ v3 = {
                       "kind": "LinkedField",
                       "name": "output",
                       "plural": false,
-                      "selections": (v2/*: any*/),
+                      "selections": (v3/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cumulativeTokenCountTotal",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cumulativeTokenCountCompletion",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cumulativeTokenCountPrompt",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "latencyMs",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "startTime",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanAnnotation",
+                      "kind": "LinkedField",
+                      "name": "spanAnnotations",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "name",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "explanation",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotatorKind",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanContext",
+                      "kind": "LinkedField",
+                      "name": "context",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "traceId",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "spanId",
+                          "storageKey": null
+                        }
+                      ],
                       "storageKey": null
                     }
                   ],
@@ -145,7 +361,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -174,34 +390,28 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
+          (v4/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+          (v2/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "8b29972b49439ce8942839cc38a0c5be",
+    "cacheID": "09ca169a239c3edcc9f8908f4a0201c1",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              input {\n                value\n              }\n              output {\n                value\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      durationS\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n              }\n              output {\n                value\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e2fd415f62c6b3af00e449a4dc383959";
+(node as any).hash = "62f1429817469399e053509dd1dfee4c";
 
 export default node;
