@@ -71,16 +71,7 @@ class Trace(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Span]:
-        stmt = (
-            select(models.Span)
-            .join(models.Trace)
-            .where(models.Trace.id == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
-            .where(models.Span.parent_id.is_(None))
-            .limit(1)
-        )
-        async with info.context.db() as session:
-            span = await session.scalar(stmt)
+        span = await info.context.data_loaders.trace_root_spans.load(self.id_attr)
         if span is None:
             return None
         return to_gql_span(span)

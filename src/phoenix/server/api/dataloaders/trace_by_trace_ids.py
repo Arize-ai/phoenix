@@ -7,10 +7,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-TraceId: TypeAlias = str
-Key: TypeAlias = TraceId
-TraceRowId: TypeAlias = int
-ProjectRowId: TypeAlias = int
+Key: TypeAlias = str
 Result: TypeAlias = Optional[models.Trace]
 
 
@@ -22,5 +19,7 @@ class TraceByTraceIdsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         stmt = select(models.Trace).where(models.Trace.trace_id.in_(keys))
         async with self._db() as session:
-            result = {trace.trace_id: trace for trace in await session.scalars(stmt)}
+            result: dict[Key, models.Trace] = {
+                trace.trace_id: trace async for trace in await session.stream_scalars(stmt)
+            }
         return [result.get(trace_id) for trace_id in keys]
