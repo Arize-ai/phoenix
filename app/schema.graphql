@@ -1179,7 +1179,6 @@ type ProjectSession implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   sessionId: String!
-  sessionUser: String
   startTime: DateTime!
   endTime: DateTime!
 
