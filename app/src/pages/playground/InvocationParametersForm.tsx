@@ -90,26 +90,19 @@ const FormField = ({
   }
 };
 
+const toCamelCase = (str: string) =>
+  str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+
 const getInvocationParameterValue = (
   field: InvocationParameter,
   parameterInput: InvocationParameterInput
 ): string | number | string[] | boolean | null | undefined => {
-  const type = field.__typename;
-  switch (type) {
-    case "FloatInvocationParameter":
-    case "BoundedFloatInvocationParameter":
-      return parameterInput.valueFloat;
-    case "IntInvocationParameter":
-      return parameterInput.valueInt;
-    case "StringInvocationParameter":
-      return parameterInput.valueString;
-    case "StringListInvocationParameter":
-      return parameterInput.valueStringList as string[] | undefined | null;
-    case "BooleanInvocationParameter":
-      return parameterInput.valueBool;
-    default:
-      return null;
+  if (field.invocationInputField === undefined) {
+    throw new Error("Invocation input field is required");
   }
+  return parameterInput[
+    toCamelCase(field.invocationInputField) as keyof InvocationParameterInput
+  ];
 };
 
 const makeInvocationParameterInput = (
@@ -119,37 +112,14 @@ const makeInvocationParameterInput = (
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
   }
-  const type = field.__typename;
-  switch (type) {
-    case "FloatInvocationParameter":
-    case "BoundedFloatInvocationParameter":
-      return {
-        invocationName: field.invocationName,
-        valueFloat: value === undefined ? undefined : Number(value),
-      };
-    case "IntInvocationParameter":
-      return {
-        invocationName: field.invocationName,
-        valueInt: value === undefined ? undefined : Number(value),
-      };
-    case "StringInvocationParameter":
-      return {
-        invocationName: field.invocationName,
-        valueString: value === undefined ? undefined : String(value),
-      };
-    case "StringListInvocationParameter":
-      return {
-        invocationName: field.invocationName,
-        valueStringList: Array.isArray(value) ? value : undefined,
-      };
-    case "BooleanInvocationParameter":
-      return {
-        invocationName: field.invocationName,
-        valueBool: value === undefined ? undefined : Boolean(value),
-      };
-    default:
-      return null;
+  if (field.invocationInputField === undefined) {
+    throw new Error("Invocation input field is required");
   }
+  return {
+    invocationName: field.invocationName,
+    canonicalName: field.canonicalName,
+    [toCamelCase(field.invocationInputField)]: value,
+  };
 };
 
 type InvocationParametersFormProps = {
@@ -176,28 +146,34 @@ export const InvocationParametersForm = ({
               invocationName
               label
               required
+              canonicalName
             }
             ... on BoundedFloatInvocationParameter {
               minValue
               maxValue
+              invocationInputField
               # defaultValueFloat: defaultValue
             }
-            # ... on IntInvocationParameter {
-            #   defaultValueInt: defaultValue
-            # }
-            # ... on StringInvocationParameter {
-            #   defaultValueString: defaultValue
-            # }
-            # ... on StringListInvocationParameter {
-            #   defaultValueStringList: defaultValue
-            # }
-            # ... on BooleanInvocationParameter {
-            #   defaultValueBool: defaultValue
-            # }
+            ... on IntInvocationParameter {
+              invocationInputField
+              # defaultValueInt: defaultValue
+            }
+            ... on StringInvocationParameter {
+              invocationInputField
+              # defaultValueString: defaultValue
+            }
+            ... on StringListInvocationParameter {
+              invocationInputField
+              # defaultValueStringList: defaultValue
+            }
+            ... on BooleanInvocationParameter {
+              invocationInputField
+              # defaultValueBool: defaultValue
+            }
           }
         }
       `,
-      { input: { providerKey: model.provider } }
+      { input: { providerKey: model.provider, modelName: model.modelName } }
     );
 
   useEffect(() => {
