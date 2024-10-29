@@ -111,7 +111,6 @@ async def _add_project_session(
     session: AsyncSession,
     project: models.Project,
     session_id: Optional[str] = None,
-    session_user: Optional[str] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> models.ProjectSession:
@@ -119,7 +118,6 @@ async def _add_project_session(
     end_time = end_time or (start_time + timedelta(seconds=10))
     project_session = models.ProjectSession(
         session_id=session_id or token_hex(4),
-        session_user=session_user,
         project_id=project.id,
         start_time=start_time,
         end_time=end_time,

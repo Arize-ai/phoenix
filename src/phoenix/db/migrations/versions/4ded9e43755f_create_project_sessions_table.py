@@ -23,7 +23,6 @@ def upgrade() -> None:
         "project_sessions",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("session_id", sa.String, unique=True, nullable=False),
-        sa.Column("session_user", sa.String, index=True),
         sa.Column(
             "project_id",
             sa.Integer,

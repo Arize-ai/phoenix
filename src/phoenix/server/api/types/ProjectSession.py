@@ -24,7 +24,6 @@ class ProjectSession(Node):
     _table: ClassVar[Type[models.ProjectSession]] = models.ProjectSession
     id_attr: NodeID[int]
     session_id: str
-    session_user: Optional[str]
     start_time: datetime
     end_time: datetime
 
@@ -154,7 +153,6 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
     return ProjectSession(
         id_attr=project_session.id,
         session_id=project_session.session_id,
-        session_user=project_session.session_user,
         start_time=project_session.start_time,
         end_time=project_session.end_time,
     )

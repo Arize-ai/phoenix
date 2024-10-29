@@ -68,12 +68,6 @@ def test_up_and_down_migrations(
         assert isinstance(column.type, VARCHAR)
         del column
 
-        column = columns.pop("session_user", None)
-        assert column is not None
-        assert column.nullable
-        assert isinstance(column.type, VARCHAR)
-        del column
-
         column = columns.pop("project_id", None)
         assert column is not None
         assert not column.nullable

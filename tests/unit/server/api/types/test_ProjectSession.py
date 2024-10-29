@@ -50,7 +50,6 @@ class TestProjectSession:
                 await _add_project_session(
                     session,
                     project,
-                    session_user="xyz",
                     start_time=start_time,
                 )
             )
