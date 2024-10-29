@@ -1,7 +1,4 @@
-from functools import cached_property
-from typing import Optional
-
-from sqlalchemy import Select, func, select
+from sqlalchemy import func, select
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -19,9 +16,8 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    @cached_property
-    def _stmt(self) -> Select[tuple[Optional[int], int, int]]:
-        return (
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        stmt = (
             select(
                 models.Trace.project_session_rowid.label("id_"),
                 func.sum(coalesce(models.Span.cumulative_llm_token_count_prompt, 0)).label(
@@ -33,12 +29,9 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
             )
             .join_from(models.Span, models.Trace)
             .where(models.Span.parent_id.is_(None))
-            .where(models.Trace.project_session_rowid.isnot(None))
+            .where(models.Trace.project_session_rowid.in_(keys))
             .group_by(models.Trace.project_session_rowid)
         )
-
-    async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        stmt = self._stmt.where(models.Trace.project_session_rowid.in_(keys))
         async with self._db() as session:
             result: dict[Key, TokenUsage] = {
                 id_: TokenUsage(prompt=prompt, completion=completion)

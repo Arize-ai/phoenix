@@ -16,19 +16,18 @@ Result: TypeAlias = Optional[SpanIOValue]
 Kind = Literal["first_input", "last_output"]
 
 
-class SessionFirstInputLastOutputsDataLoader(DataLoader[Key, Result]):
+class SessionIODataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory, kind: Kind) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
         self._kind = kind
 
     @cached_property
-    def _subq(self) -> Select[tuple[int, str, str, int]]:
+    def _subq(self) -> Select[tuple[Optional[int], str, str, int]]:
         stmt = (
             select(models.Trace.project_session_rowid.label("id_"))
             .join_from(models.Span, models.Trace)
             .where(models.Span.parent_id.is_(None))
-            .where(models.Trace.project_session_rowid.isnot(None))
         )
         if self._kind == "first_input":
             stmt = stmt.add_columns(
@@ -37,7 +36,7 @@ class SessionFirstInputLastOutputsDataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    order_by=models.Trace.start_time.asc(),
+                    order_by=[models.Trace.start_time.asc(), models.Trace.id.asc()],
                 )
                 .label("rank"),
             )
@@ -48,13 +47,13 @@ class SessionFirstInputLastOutputsDataLoader(DataLoader[Key, Result]):
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
-                    order_by=models.Trace.start_time.desc(),
+                    order_by=[models.Trace.start_time.desc(), models.Trace.id.desc()],
                 )
                 .label("rank"),
             )
         else:
             assert_never(self._kind)
-        return cast(Select[tuple[int, str, str, int]], stmt)
+        return cast(Select[tuple[Optional[int], str, str, int]], stmt)
 
     def _stmt(self, *keys: Key) -> Select[tuple[int, str, str]]:
         subq = self._subq.where(models.Trace.project_session_rowid.in_(keys)).subquery()
