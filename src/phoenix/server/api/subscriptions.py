@@ -31,8 +31,7 @@ from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameters
+from phoenix.server.api.input_types import ChatCompletionMessageInput, InvocationParameters
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span, to_gql_span

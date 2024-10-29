@@ -31,7 +31,7 @@ from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import TimeRange
 from phoenix.server.api.types.Cluster import to_gql_clusters
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric

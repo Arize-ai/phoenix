@@ -9,7 +9,7 @@ from sqlalchemy import select
 from phoenix.db import models
 from phoenix.server.api.dataloaders import LatencyMsQuantileDataLoader
 from phoenix.server.api.dataloaders.latency_ms_quantile import Key
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import TimeRange
 from phoenix.server.types import DbSessionFactory
 
 

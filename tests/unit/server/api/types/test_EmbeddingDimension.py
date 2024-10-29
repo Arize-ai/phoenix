@@ -15,8 +15,7 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.Granularity import Granularity
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import Granularity, TimeRange
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 

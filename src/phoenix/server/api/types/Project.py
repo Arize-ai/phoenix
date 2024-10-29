@@ -18,8 +18,7 @@ from strawberry.types import Info
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import SpanSort, SpanSortConfig, TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (

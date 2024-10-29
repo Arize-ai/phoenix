@@ -23,7 +23,7 @@ from opentelemetry.sdk.environment_variables import (
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from phoenix.server.api.exceptions import Unauthorized
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.input_types import UserRoleInput
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 

@@ -19,16 +19,16 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
-from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
-from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
-from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
-from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
-from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
+from phoenix.server.api.input_types import (
+    AddExamplesToDatasetInput,
+    AddSpansToDatasetInput,
+    CreateDatasetInput,
     DatasetExamplePatch,
+    DeleteDatasetExamplesInput,
+    DeleteDatasetInput,
     PatchDatasetExamplesInput,
+    PatchDatasetInput,
 )
-from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type

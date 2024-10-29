@@ -37,12 +37,12 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
-from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import (
+from phoenix.server.api.input_types import (
+    ClusterInput,
+    DatasetSort,
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample

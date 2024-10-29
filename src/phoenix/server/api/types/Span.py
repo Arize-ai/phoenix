@@ -20,7 +20,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.input_types.SpanAnnotationSort import (
+from phoenix.server.api.input_types import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )

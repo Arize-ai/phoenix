@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import TimeRange
 
 
 def test_ensure_time_range_utc() -> None:

@@ -19,7 +19,7 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_URL,
     ENV_PHOENIX_WORKING_DIR,
 )
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.input_types import UserRoleInput
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never

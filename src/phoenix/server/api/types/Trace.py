@@ -11,7 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
+from phoenix.server.api.input_types import TraceAnnotationSort
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,

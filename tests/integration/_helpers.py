@@ -52,7 +52,7 @@ from phoenix.config import (
 )
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
-from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.input_types import UserRoleInput
 from psutil import STATUS_ZOMBIE, Popen
 from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import OperationalError

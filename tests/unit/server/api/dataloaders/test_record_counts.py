@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from phoenix.db import models
 from phoenix.server.api.dataloaders import RecordCountDataLoader
 from phoenix.server.api.dataloaders.record_counts import Key
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types import TimeRange
 from phoenix.server.types import DbSessionFactory
 
 

@@ -13,7 +13,7 @@ from phoenix.core.model_schema import (
     TAG,
     Dimension,
 )
-from phoenix.server.api.input_types.DimensionFilter import DimensionFilter
+from phoenix.server.api.input_types import DimensionFilter
 from phoenix.server.api.types.DimensionShape import DimensionShape
 from phoenix.server.api.types.DimensionType import DimensionType
 

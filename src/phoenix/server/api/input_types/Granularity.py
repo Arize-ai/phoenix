@@ -4,7 +4,7 @@ from itertools import accumulate, repeat, takewhile
 
 import strawberry
 
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from .TimeRange import TimeRange
 
 
 @strawberry.input(
