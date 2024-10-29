@@ -471,10 +471,14 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
         from openai import NOT_GIVEN
 
         # Convert standard messages to OpenAI messages
-        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+        unfiltered_openai_messages = [
+            self.to_openai_o1_chat_completion_param(*message) for message in messages
+        ]
 
         # filter out unsupported messages
-        openai_messages = [message for message in openai_messages if message is not None]
+        openai_messages: List[ChatCompletionMessageParam] = [
+            message for message in unfiltered_openai_messages if message is not None
+        ]
 
         tool_call_ids: Dict[int, str] = {}
 
@@ -513,13 +517,13 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
         if (usage := response.usage) is not None:
             self._attributes.update(_llm_token_counts(usage))
 
-    def to_openai_chat_completion_param(
+    def to_openai_o1_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
         content: JSONScalarType,
         tool_call_id: Optional[str] = None,
         tool_calls: Optional[List[JSONScalarType]] = None,
-    ) -> "ChatCompletionMessageParam":
+    ) -> "ChatCompletionMessageParam" | None:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionToolMessageParam,

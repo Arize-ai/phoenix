@@ -120,21 +120,25 @@ class Query:
             ]
             return supported_models
 
-        all_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
-        all_models = [
-            GenerativeModel(name=model_name, provider_key=provider_key)
-            for provider_key, model_name in all_models
-        ]
+        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        all_models: list[GenerativeModel] = []
+        for provider_key, model_name in registered_models:
+            if model_name is not None and provider_key is not None:
+                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
         return all_models
 
     @strawberry.field
     async def model_invocation_parameters(
         self, input: Optional[ModelsInput] = None
     ) -> list[InvocationParameterType]:
+        if input is None:
+            return []
         provider_key = input.provider_key
         model_name = input.model_name
         if provider_key is not None:
             client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            if client is None:
+                return []
             invocation_parameters = client.supported_invocation_parameters()
             return invocation_parameters
         else:

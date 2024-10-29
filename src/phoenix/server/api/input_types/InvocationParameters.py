@@ -139,7 +139,7 @@ def extract_parameter(
 
 
 def validate_invocation_parameters(
-    parameters: list[InvocationParameterBase],
+    parameters: list["InvocationParameterType"],
     input: Mapping[str, Any],
 ) -> None:
     for param_def in parameters:
