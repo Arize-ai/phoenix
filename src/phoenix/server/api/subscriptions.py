@@ -445,12 +445,6 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 label="Max Completion Tokens",
                 default_value=UNSET,
             ),
-            StringListInvocationParameter(
-                invocation_name="stop",
-                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequences",
-                default_value=UNSET,
-            ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
