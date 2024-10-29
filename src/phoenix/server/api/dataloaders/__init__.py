@@ -19,6 +19,9 @@ from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLo
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .session_first_input_last_outputs import SessionFirstInputLastOutputsDataLoader
+from .session_num_traces import SessionNumTracesDataLoader
+from .session_token_usages import SessionTokenUsagesDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
@@ -45,6 +48,9 @@ __all__ = [
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
     "RecordCountDataLoader",
+    "SessionFirstInputLastOutputsDataLoader",
+    "SessionNumTracesDataLoader",
+    "SessionTokenUsagesDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
