@@ -3,7 +3,7 @@ import { useZustand } from "use-zustand";
 
 import {
   createPlaygroundStore,
-  PlaygroundProps,
+  InitialPlaygroundState,
   PlaygroundState,
   PlaygroundStore,
 } from "@phoenix/store";
@@ -13,7 +13,7 @@ export const PlaygroundContext = createContext<PlaygroundStore | null>(null);
 export function PlaygroundProvider({
   children,
   ...props
-}: PropsWithChildren<Partial<PlaygroundProps>>) {
+}: PropsWithChildren<InitialPlaygroundState>) {
   const [store] = useState<PlaygroundStore>(() => createPlaygroundStore(props));
   return (
     <PlaygroundContext.Provider value={store}>

@@ -150,9 +150,29 @@ export function createOpenAITool(toolNumber: number): OpenAITool {
   };
 }
 
-export const createPlaygroundStore = (
-  initialProps?: InitialPlaygroundState
-) => {
+/**
+ * Gets the initial instances for the playground store
+ * If the initial props has instances, those will be used
+ * If not a single instance will be created and saved model config defaults will be used
+ * @returns a list of {@link PlaygroundInstance} instances
+ */
+function getInitialInstances(initialProps: InitialPlaygroundState) {
+  if (initialProps.instances != null && initialProps.instances.length > 0) {
+    return initialProps.instances;
+  }
+  const instance = createPlaygroundInstance();
+  const savedDefaultProviderConfig =
+    initialProps.modelConfigByProvider[instance.model.provider];
+  if (savedDefaultProviderConfig) {
+    instance.model = {
+      ...instance.model,
+      ...savedDefaultProviderConfig,
+    };
+  }
+  return [instance];
+}
+
+export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
     operationType: "chat",
@@ -165,7 +185,7 @@ export const createPlaygroundStore = (
     },
     templateLanguage: TemplateLanguages.Mustache,
     setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
-    instances: [createPlaygroundInstance()],
+    instances: getInitialInstances(initialProps),
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
         set({
@@ -203,19 +223,36 @@ export const createPlaygroundStore = (
         ],
       });
     },
-    updateModel: ({ instanceId, model }) => {
+    updateModel: ({ instanceId, model, modelConfigByProvider }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
       if (!instance) {
         return;
       }
       const currentModel = instance.model;
+
+      const savedProviderConfig =
+        model.provider != null
+          ? modelConfigByProvider[model.provider]
+          : undefined;
       if (model.provider !== currentModel.provider) {
-        // Force clear the model name if the provider changes
-        model = {
-          ...model,
-          modelName: undefined,
-        };
+        if (savedProviderConfig != null) {
+          model = {
+            ...savedProviderConfig,
+            provider: model.provider,
+            invocationParameters: {
+              ...instance.model.invocationParameters,
+              // These should never be changing at the same time as the provider but spread here to be safe
+              ...model.invocationParameters,
+            },
+          };
+        } else {
+          // Force clear the model name if the provider changes
+          model = {
+            ...model,
+            modelName: undefined,
+          };
+        }
       }
       set({
         instances: instances.map((instance) => {

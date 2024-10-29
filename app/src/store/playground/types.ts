@@ -2,6 +2,8 @@ import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameters } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
 
+import { ModelConfigByProvider } from "../preferencesStore";
+
 export type GenAIOperationType = "chat" | "text_completion";
 /**
  * The input mode for the playground
@@ -163,7 +165,9 @@ export interface PlaygroundProps {
   streaming: boolean;
 }
 
-export type InitialPlaygroundState = Partial<PlaygroundProps>;
+export type InitialPlaygroundState = Partial<PlaygroundProps> & {
+  modelConfigByProvider: ModelConfigByProvider;
+};
 
 export interface PlaygroundState extends PlaygroundProps {
   /**
@@ -201,6 +205,10 @@ export interface PlaygroundState extends PlaygroundProps {
   updateModel: (params: {
     instanceId: number;
     model: Partial<ModelConfig>;
+    /**
+     * The saved model configurations for providers will be used as the default parameters for the new provider if the provider is changed
+     */
+    modelConfigByProvider: Partial<Record<ModelProvider, ModelConfig>>;
   }) => void;
   /**
    * Run all the active playground Instances

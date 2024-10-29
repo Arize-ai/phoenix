@@ -20,7 +20,8 @@ import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
-import { InitialPlaygroundState } from "@phoenix/store";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { PlaygroundProps } from "@phoenix/store";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
@@ -39,7 +40,10 @@ const playgroundWrapCSS = css`
   height: 100%;
 `;
 
-export function Playground(props: InitialPlaygroundState) {
+export function Playground(props: Partial<PlaygroundProps>) {
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
   const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
   const [, setSearchParams] = useSearchParams();
 
@@ -56,7 +60,10 @@ export function Playground(props: InitialPlaygroundState) {
   }, [setSearchParams]);
 
   return (
-    <PlaygroundProvider {...props}>
+    <PlaygroundProvider
+      {...props}
+      modelConfigByProvider={modelConfigByProvider}
+    >
       <div css={playgroundWrapCSS}>
         <View
           borderBottomColor="dark"
