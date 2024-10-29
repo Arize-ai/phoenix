@@ -1,7 +1,6 @@
-from functools import cached_property
 from typing import List, Optional
 
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.orm import contains_eager
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -18,17 +17,14 @@ class TraceRootSpansDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    @cached_property
-    def _stmt(self) -> Select[tuple[models.Span]]:
-        return (
+    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+        stmt = (
             select(models.Span)
             .join(models.Trace)
             .where(models.Span.parent_id.is_(None))
+            .where(models.Trace.id.in_(keys))
             .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
         )
-
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        stmt = self._stmt.where(models.Trace.id.in_(keys))
         async with self._db() as session:
             result: dict[Key, models.Span] = {
                 span.trace_rowid: span async for span in await session.stream_scalars(stmt)
