@@ -72,12 +72,12 @@ export function SessionDetails(props: SessionDetailsProps) {
               prompt
             }
             sessionId
-            sessionUser
             traces {
               edges {
                 trace: node {
                   rootSpan {
                     id
+                    attributes
                     project {
                       id
                     }
@@ -136,10 +136,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         traceCount={data.session.numTraces ?? 0}
         tokenUsage={data.session.tokenUsage}
       />
-      <SessionDetailsTraceList
-        traces={data.session.traces}
-        user={data.session.sessionUser}
-      />
+      <SessionDetailsTraceList traces={data.session.traces} />
     </main>
   );
 }

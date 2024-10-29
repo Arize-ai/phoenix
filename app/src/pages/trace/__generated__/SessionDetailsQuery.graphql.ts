@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<275887cc5aefe741b782e520331fc0a3>>
+ * @generated SignedSource<<21e2acce75e3bf65e63592e7d732e7d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,6 @@ export type SessionDetailsQuery$data = {
     readonly durationS?: number;
     readonly numTraces?: number;
     readonly sessionId?: string;
-    readonly sessionUser?: string | null;
     readonly tokenUsage?: {
       readonly completion: number;
       readonly prompt: number;
@@ -28,6 +27,7 @@ export type SessionDetailsQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly trace: {
           readonly rootSpan: {
+            readonly attributes: string;
             readonly context: {
               readonly spanId: string;
               readonly traceId: string;
@@ -155,13 +155,6 @@ v4 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "sessionUser",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
       "concreteType": "TraceConnection",
       "kind": "LinkedField",
       "name": "traces",
@@ -192,6 +185,13 @@ v4 = {
                   "plural": false,
                   "selections": [
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "attributes",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -402,16 +402,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9917255f6649a8bed7c429857e867f71",
+    "cacheID": "09ca169a239c3edcc9f8908f4a0201c1",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      durationS\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      sessionUser\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              project {\n                id\n              }\n              input {\n                value\n              }\n              output {\n                value\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      durationS\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n              }\n              output {\n                value\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4dfc958771c43238d7a1682db95ae23b";
+(node as any).hash = "62f1429817469399e053509dd1dfee4c";
 
 export default node;

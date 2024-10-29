@@ -1,6 +1,11 @@
 import React, { useMemo } from "react";
+import { isNumber, isString } from "lodash";
 
 import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import {
+  SemanticAttributePrefixes,
+  UserAttributePostfixes,
+} from "@arizeai/openinference-semantic-conventions";
 
 import { Link } from "@phoenix/components";
 import {
@@ -9,10 +14,25 @@ import {
 } from "@phoenix/components/annotation";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { isObjectWithStringKeys } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { SessionDetailsQuery$data } from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+
+const getUserFromRootSpanAttributes = (attributes: string) => {
+  const { json: parsedAttributes } = safelyParseJSON(attributes);
+  if (parsedAttributes == null || !isObjectWithStringKeys(parsedAttributes)) {
+    return null;
+  }
+  const userAttributes = parsedAttributes[SemanticAttributePrefixes.user];
+  if (userAttributes == null || !isObjectWithStringKeys(userAttributes)) {
+    return null;
+  }
+  const userId = userAttributes[UserAttributePostfixes.id];
+  return isString(userId) || isNumber(userId) ? userId : null;
+};
 
 function RootSpanMessage({
   role,
@@ -50,13 +70,15 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-function RootSpanDetails({
-  rootSpan,
-  user,
-}: RootSpanProps & { user?: string | null }) {
+function RootSpanDetails({ rootSpan }: RootSpanProps) {
   const startDate = useMemo(() => {
     return new Date(rootSpan.startTime);
   }, [rootSpan.startTime]);
+
+  const user = useMemo(
+    () => getUserFromRootSpanAttributes(rootSpan.attributes),
+    [rootSpan.attributes]
+  );
   return (
     <View height={"100%"}>
       <Flex
@@ -68,7 +90,7 @@ function RootSpanDetails({
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace ID: {rootSpan.context.traceId}</Text>
             <Link
-              to={`/projects/${rootSpan.project.id}/traces/${rootSpan.context.traceId}`}
+              to={`/projects/${rootSpan.project.id}/traces/${rootSpan.context.traceId}?selectedSpanNodeId=${rootSpan.id}`}
             >
               <Flex alignItems={"center"}>
                 View Trace
@@ -140,10 +162,8 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
 
 export function SessionDetailsTraceList({
   traces,
-  user,
 }: {
   traces: SessionDetailsQuery$data["session"]["traces"];
-  user?: string | null;
 }) {
   const sessionRootSpans = useMemo(() => {
     const edges = traces?.edges || [];
@@ -172,7 +192,7 @@ export function SessionDetailsTraceList({
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
             <View width={"33%"} padding={"size-200"}>
-              <RootSpanDetails rootSpan={rootSpan} user={user} />
+              <RootSpanDetails rootSpan={rootSpan} />
             </View>
           </Flex>
         </View>
