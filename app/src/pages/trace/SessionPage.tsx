@@ -3,6 +3,8 @@ import { useLoaderData, useNavigate, useParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
+import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
+
 import { sessionLoaderQuery$data } from "./__generated__/sessionLoaderQuery.graphql";
 import { SessionDetails } from "./SessionDetails";
 
@@ -23,7 +25,9 @@ export function SessionPage() {
         size="fullscreen"
         title={`Session ID: ${loaderData.session?.sessionId ?? "--"}`}
       >
-        <SessionDetails sessionId={sessionId as string} />
+        <ErrorBoundary>
+          <SessionDetails sessionId={sessionId as string} />
+        </ErrorBoundary>
       </Dialog>
     </DialogContainer>
   );

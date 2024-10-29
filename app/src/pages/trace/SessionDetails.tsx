@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
