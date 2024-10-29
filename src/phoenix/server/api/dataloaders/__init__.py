@@ -28,6 +28,7 @@ from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
+from .trace_root_spans import TraceRootSpansDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
@@ -56,6 +57,7 @@ __all__ = [
     "SpanProjectsDataLoader",
     "TokenCountDataLoader",
     "TraceByTraceIdsDataLoader",
+    "TraceRootSpansDataLoader",
     "ProjectByNameDataLoader",
     "SpanAnnotationsDataLoader",
     "UsersDataLoader",

@@ -100,6 +100,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -571,6 +572,7 @@ def create_graphql_router(
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+                trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
                 user_roles=UserRolesDataLoader(db),

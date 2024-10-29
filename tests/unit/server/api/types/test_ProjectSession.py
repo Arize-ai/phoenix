@@ -112,18 +112,18 @@ class TestProjectSession:
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        project_sessions = _data.project_sessions
+        project_session = _data.project_sessions[0]
         field = "numTraces"
-        assert await self._node(field, project_sessions[0], httpx_client) == 2
+        assert await self._node(field, project_session, httpx_client) == 2
 
     async def test_first_input(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        project_sessions = _data.project_sessions
+        project_session = _data.project_sessions[0]
         field = "firstInput{value mimeType}"
-        assert await self._node(field, project_sessions[0], httpx_client) == {
+        assert await self._node(field, project_session, httpx_client) == {
             "value": "123",
             "mimeType": "text",
         }
@@ -133,9 +133,9 @@ class TestProjectSession:
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        project_sessions = _data.project_sessions
+        project_session = _data.project_sessions[0]
         field = "lastOutput{value mimeType}"
-        assert await self._node(field, project_sessions[0], httpx_client) == {
+        assert await self._node(field, project_session, httpx_client) == {
             "value": "4321",
             "mimeType": "text",
         }
@@ -145,9 +145,9 @@ class TestProjectSession:
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        project_sessions = _data.project_sessions
+        project_session = _data.project_sessions[0]
         field = "traces{edges{node{id traceId}}}"
-        traces = await self._node(field, project_sessions[0], httpx_client)
+        traces = await self._node(field, project_session, httpx_client)
         assert traces["edges"]
         assert {(edge["node"]["id"], edge["node"]["traceId"]) for edge in traces["edges"]} == {
             (str(GlobalID(Trace.__name__, str(trace.id))), trace.trace_id) for trace in _data.traces
