@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type
 
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
@@ -11,9 +11,9 @@ PROVIDER_DEFAULT = None
 
 
 class SingletonMeta(type):
-    _instances = dict()
+    _instances: Dict[Any, Any] = dict()
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls not in cls._instances:
             cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
