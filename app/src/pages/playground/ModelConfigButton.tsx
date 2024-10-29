@@ -197,8 +197,8 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
             Save Config
           </Button>
           <Tooltip>
-            Save {ModelProviders[instance.model.provider]} configuration to
-            local storage.
+            Remember configuration for{" "}
+            {ModelProviders[instance.model.provider] ?? "this provider"}.
           </Tooltip>
         </TooltipTrigger>
       }
