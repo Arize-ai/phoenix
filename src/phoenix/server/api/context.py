@@ -31,12 +31,16 @@ from phoenix.server.api.dataloaders import (
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
     RecordCountDataLoader,
+    SessionIODataLoader,
+    SessionNumTracesDataLoader,
+    SessionTokenUsagesDataLoader,
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -68,12 +72,17 @@ class DataLoaders:
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     record_counts: RecordCountDataLoader
+    session_first_inputs: SessionIODataLoader
+    session_last_outputs: SessionIODataLoader
+    session_num_traces: SessionNumTracesDataLoader
+    session_token_usages: SessionTokenUsagesDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_root_spans: TraceRootSpansDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader
     user_roles: UserRolesDataLoader
