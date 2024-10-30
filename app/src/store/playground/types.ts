@@ -213,6 +213,10 @@ export interface PlaygroundState extends PlaygroundProps {
   filterInstanceModelInvocationParameters: (params: {
     instanceId: number;
     modelSupportedInvocationParameters: InvocationParameter[];
+    filter: (
+      invocationParameterInputs: InvocationParameterInput[],
+      definitions: InvocationParameter[]
+    ) => InvocationParameterInput[];
   }) => void;
   /**
    * Update an instance's model configuration

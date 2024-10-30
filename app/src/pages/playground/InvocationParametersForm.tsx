@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Slider, TextField } from "@arizeai/components";
+import { Flex, Slider, Switch, TextField } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundInstance } from "@phoenix/store";
 import { Mutable } from "@phoenix/typeUtils";
 
 import {
@@ -12,6 +11,7 @@ import {
   InvocationParametersFormQuery$data,
 } from "./__generated__/InvocationParametersFormQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { constrainInvocationParameterInputsToDefinition } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   InvocationParametersFormQuery$data["modelInvocationParameters"]
@@ -25,7 +25,7 @@ export type HandleInvocationParameterChange = (
 /**
  * Form field for a single invocation parameter.
  */
-const FormField = ({
+const InvocationParameterFormField = ({
   field,
   value,
   onChange,
@@ -83,8 +83,11 @@ const FormField = ({
         />
       );
     case "BooleanInvocationParameter":
-      // TODO: add checkbox
-      return null;
+      return (
+        <Switch onChange={onChange} defaultSelected={Boolean(value)}>
+          {field.label}
+        </Switch>
+      );
     default:
       return null;
   }
@@ -123,12 +126,18 @@ const makeInvocationParameterInput = (
 };
 
 type InvocationParametersFormProps = {
-  instance: PlaygroundInstance;
+  instanceId: number;
 };
 
 export const InvocationParametersForm = ({
-  instance,
+  instanceId,
 }: InvocationParametersFormProps) => {
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((i) => i.id === instanceId)
+  );
+  if (!instance) {
+    throw new Error("Instance not found");
+  }
   const { model } = instance;
   const updateInstanceModelInvocationParameters = usePlaygroundContext(
     (state) => state.updateInstanceModelInvocationParameters
@@ -185,6 +194,7 @@ export const InvocationParametersForm = ({
           modelInvocationParameters as Mutable<
             typeof modelInvocationParameters
           >,
+        filter: constrainInvocationParameterInputsToDefinition,
       });
     }
   }, [
@@ -236,7 +246,7 @@ export const InvocationParametersForm = ({
       ? getInvocationParameterValue(field, existingParameter)
       : undefined;
     return (
-      <FormField
+      <InvocationParameterFormField
         key={field.invocationName}
         field={field}
         value={value === null ? undefined : value}

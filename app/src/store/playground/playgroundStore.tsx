@@ -238,31 +238,33 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
+      let newModel = model;
       const currentModel = instance.model;
-
       const savedProviderConfig =
         model.provider != null
           ? modelConfigByProvider[model.provider]
           : undefined;
+
       if (model.provider !== currentModel.provider) {
         if (savedProviderConfig != null) {
-          model = {
+          newModel = {
             ...savedProviderConfig,
             provider: model.provider,
-            invocationParameters: {
+            invocationParameters: [
               ...instance.model.invocationParameters,
               // These should never be changing at the same time as the provider but spread here to be safe
-              ...model.invocationParameters,
-            },
+              ...(model.invocationParameters ?? []),
+            ],
           };
         } else {
           // Force clear the model name if the provider changes
-          model = {
-            ...model,
+          newModel = {
+            ...newModel,
             modelName: undefined,
           };
         }
       }
+
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -270,10 +272,10 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               ...instance,
               model: {
                 ...instance.model,
-                ...model,
+                ...newModel,
                 invocationParameters: [
-                  ...(instance.model.invocationParameters || []),
-                  ...(model.invocationParameters || []),
+                  ...(instance.model.invocationParameters ?? []),
+                  ...(model.invocationParameters ?? []),
                 ],
               },
             };
@@ -386,11 +388,8 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     filterInstanceModelInvocationParameters: ({
       instanceId,
       modelSupportedInvocationParameters,
+      filter,
     }) => {
-      const instance = get().instances.find((i) => i.id === instanceId);
-      if (!instance) {
-        return;
-      }
       set({
         instances: get().instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -398,27 +397,10 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               ...instance,
               model: {
                 ...instance.model,
-                invocationParameters:
-                  // Filter out parameters that are not supported by the model
-                  // modelSupportedInvocationParameters is a list of invocation parameters
-                  // that are supported by the model, given by the modelInvocationParameters query.
-                  instance.model.invocationParameters
-                    .filter((ip) =>
-                      modelSupportedInvocationParameters.some(
-                        (mp) =>
-                          mp.invocationName === ip.invocationName ||
-                          mp.canonicalName === ip.canonicalName
-                      )
-                    )
-                    .map((ip) => ({
-                      // Transform the invocationName to match the new name from the incoming
-                      // modelSupportedInvocationParameters.
-                      ...ip,
-                      invocationName:
-                        modelSupportedInvocationParameters.find(
-                          (mp) => mp.canonicalName === ip.canonicalName
-                        )?.invocationName ?? ip.invocationName,
-                    })),
+                invocationParameters: filter(
+                  instance.model.invocationParameters,
+                  modelSupportedInvocationParameters
+                ),
               },
             };
           }

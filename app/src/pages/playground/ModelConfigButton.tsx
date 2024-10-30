@@ -94,7 +94,7 @@ function AzureOpenAiModelConfigFormField({
         label="API Version"
         selectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
-        placeholder="Select an AzureOpenAi API Version"
+        placeholder="Select an AzureOpenAI API Version"
         onSelectionChange={(key) => {
           if (typeof key === "string") {
             updateModelConfig({
@@ -226,18 +226,13 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
-      query ModelConfigButtonDialogQuery(
-        $providerKey: GenerativeProviderKey!
-        $modelName: String
-      ) {
+      query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
         ...ModelProviderPickerFragment
-        ...ModelPickerFragment
-          @arguments(providerKey: $providerKey, modelName: $modelName)
+        ...ModelPickerFragment @arguments(providerKey: $providerKey)
       }
     `,
     {
       providerKey: instance.model.provider,
-      modelName: instance.model.modelName,
     }
   );
 
@@ -271,7 +266,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
               instanceId: playgroundInstanceId,
               model: {
                 provider,
-                modelName: null,
               },
               modelConfigByProvider,
             });
@@ -288,7 +282,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           />
         )}
         {instance.model.modelName ? (
-          <InvocationParametersForm instance={instance} />
+          <InvocationParametersForm instanceId={playgroundInstanceId} />
         ) : (
           <></>
         )}

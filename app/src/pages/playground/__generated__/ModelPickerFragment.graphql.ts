@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a48ab416d29b560ef4704c5a7fe70f92>>
+ * @generated SignedSource<<b2e9cdb73d732f72169cf02e0b5f87d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,11 +24,6 @@ export type ModelPickerFragment$key = {
 const node: ReaderFragment = {
   "argumentDefinitions": [
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "modelName"
-    },
-    {
       "defaultValue": "OPENAI",
       "kind": "LocalArgument",
       "name": "providerKey"
@@ -43,11 +38,6 @@ const node: ReaderFragment = {
       "args": [
         {
           "fields": [
-            {
-              "kind": "Variable",
-              "name": "modelName",
-              "variableName": "modelName"
-            },
             {
               "kind": "Variable",
               "name": "providerKey",
@@ -78,6 +68,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "6e934dba55fab7f5e6f19758b10b624c";
+(node as any).hash = "1e660ad77ce19db1c1bbe8698a661b4f";
 
 export default node;
