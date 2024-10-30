@@ -123,7 +123,7 @@ class ProjectSession(Node):
                 None,
                 None,
                 probability,
-                models.Trace.project_session_rowid == self.project_rowid,
+                models.Trace.project_session_rowid == self.id_attr,
             )
         )
 

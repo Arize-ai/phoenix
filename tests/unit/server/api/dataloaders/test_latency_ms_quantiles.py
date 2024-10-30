@@ -57,6 +57,7 @@ async def test_latency_ms_quantiles_p25_p50_p75(
             TimeRange(start=start_time, end=end_time),
             "'_5_' in name" if kind == "span" else None,
             probability,
+            None,
         )
         for kind in kinds
         for id_ in range(10)
