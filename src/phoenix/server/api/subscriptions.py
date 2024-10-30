@@ -11,7 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Annotated,
     Any,
-    List,
     Optional,
     Union,
     cast,
@@ -437,7 +436,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 )
 class OpenAIO1StreamingClient(OpenAIStreamingClient):
     @classmethod
-    def supported_invocation_parameters(cls) -> List[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
         return [
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",
@@ -462,12 +461,12 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
 
     async def chat_completion_create(
         self,
-        messages: List[
-            Tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[JSONScalarType]]]
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
         ],
-        tools: List[JSONScalarType],
+        tools: list[JSONScalarType],
         **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    ) -> AsyncIterator[ChatCompletionChunk]:
         from openai import NOT_GIVEN
 
         # Convert standard messages to OpenAI messages
@@ -476,11 +475,11 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
         ]
 
         # filter out unsupported messages
-        openai_messages: List[ChatCompletionMessageParam] = [
+        openai_messages: list[ChatCompletionMessageParam] = [
             message for message in unfiltered_openai_messages if message is not None
         ]
 
-        tool_call_ids: Dict[int, str] = {}
+        tool_call_ids: dict[int, str] = {}
 
         response = await self.client.chat.completions.create(
             messages=openai_messages,
@@ -514,16 +513,16 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                     )
                     yield tool_call_chunk
 
-        if (usage := response.usage) is not None:
-            self._attributes.update(_llm_token_counts(usage))
+        if (usage := response.usage) is not None and self._set_span_attributes is not None:
+            self._set_span_attributes(dict(self._llm_token_counts(usage)))
 
     def to_openai_o1_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
         content: JSONScalarType,
         tool_call_id: Optional[str] = None,
-        tool_calls: Optional[List[JSONScalarType]] = None,
-    ) -> "ChatCompletionMessageParam" | None:
+        tool_calls: Optional[list[JSONScalarType]] = None,
+    ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionToolMessageParam,
@@ -564,6 +563,12 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
             {"content": content, "role": "tool", "tool_call_id": tool_call_id}
         )
         assert_never(role)
+
+    @staticmethod
+    def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
+        yield LLM_TOKEN_COUNT_PROMPT, usage.prompt_tokens
+        yield LLM_TOKEN_COUNT_COMPLETION, usage.completion_tokens
+        yield LLM_TOKEN_COUNT_TOTAL, usage.total_tokens
 
 
 @register_llm_client(

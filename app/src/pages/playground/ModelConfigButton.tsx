@@ -252,7 +252,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         modelConfigByProvider,
       });
     },
-    [instance.model.provider, playgroundInstanceId, updateModel]
+    [
+      instance.model.provider,
+      modelConfigByProvider,
+      playgroundInstanceId,
+      updateModel,
+    ]
   );
 
   return (

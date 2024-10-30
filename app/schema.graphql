@@ -1001,7 +1001,7 @@ interface InvocationParameterBase {
 
 input InvocationParameterInput {
   invocationName: String!
-  canonicalName: CanonicalParameterName
+  canonicalName: CanonicalParameterName = null
   valueInt: Int
   valueFloat: Float
   valueBool: Boolean
