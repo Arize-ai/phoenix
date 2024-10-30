@@ -116,15 +116,8 @@ class ProjectSession(Node):
         info: Info[Context, None],
         probability: float,
     ) -> Optional[float]:
-        return await info.context.data_loaders.latency_ms_quantile.load(
-            (
-                "trace",
-                self.project_rowid,
-                None,
-                None,
-                probability,
-                models.Trace.project_session_rowid == self.id_attr,
-            )
+        return await info.context.data_loaders.session_trace_latency_ms_quantile.load(
+            (self.id_attr, probability)
         )
 
 

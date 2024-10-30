@@ -44,6 +44,9 @@ from phoenix.server.api.dataloaders import (
     UserRolesDataLoader,
     UsersDataLoader,
 )
+from phoenix.server.api.dataloaders.session_trace_latency_ms_quantile import (
+    SessionTraceLatencyMsQuantileDataLoader,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import (
@@ -76,6 +79,7 @@ class DataLoaders:
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
+    session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader

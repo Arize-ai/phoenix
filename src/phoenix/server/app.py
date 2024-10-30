@@ -44,6 +44,9 @@ from strawberry.schema import BaseSchema
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
+from phoenix.server.api.dataloaders.session_trace_latency_ms_quantile import (
+    SessionTraceLatencyMsQuantileDataLoader,
+)
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
@@ -556,6 +559,7 @@ def create_graphql_router(
                 session_last_outputs=SessionIODataLoader(db, "last_output"),
                 session_num_traces=SessionNumTracesDataLoader(db),
                 session_token_usages=SessionTokenUsagesDataLoader(db),
+                session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),

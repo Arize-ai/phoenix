@@ -22,6 +22,7 @@ from .record_counts import RecordCountCache, RecordCountDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
 from .session_token_usages import SessionTokenUsagesDataLoader
+from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
@@ -52,6 +53,7 @@ __all__ = [
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",
     "SessionTokenUsagesDataLoader",
+    "SessionTraceLatencyMsQuantileDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
