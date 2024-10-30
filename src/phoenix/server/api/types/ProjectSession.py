@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, Optional, Type
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
-from strawberry import UNSET, Info, lazy
-from strawberry.relay import Connection, Node, NodeID
+from strawberry import UNSET, Info, Private, lazy
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -22,10 +22,17 @@ if TYPE_CHECKING:
 class ProjectSession(Node):
     _table: ClassVar[Type[models.ProjectSession]] = models.ProjectSession
     id_attr: NodeID[int]
+    project_rowid: Private[int]
     session_id: str
     session_user: Optional[str]
     start_time: datetime
     end_time: datetime
+
+    @strawberry.field
+    async def project_id(self) -> GlobalID:
+        from phoenix.server.api.types.Project import Project
+
+        return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
 
     @strawberry.field(description="Duration of the session in seconds")  # type: ignore
     async def duration_s(self) -> float:
@@ -103,6 +110,23 @@ class ProjectSession(Node):
             data = [to_gql_trace(trace) async for trace in traces]
         return connection_from_list(data=data, args=args)
 
+    @strawberry.field
+    async def trace_latency_ms_quantile(
+        self,
+        info: Info[Context, None],
+        probability: float,
+    ) -> Optional[float]:
+        return await info.context.data_loaders.latency_ms_quantile.load(
+            (
+                "trace",
+                self.project_rowid,
+                None,
+                None,
+                probability,
+                models.Trace.project_session_rowid == self.project_rowid,
+            )
+        )
+
 
 def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:
     return ProjectSession(
@@ -111,6 +135,7 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
         session_user=project_session.session_user,
         start_time=project_session.start_time,
         end_time=project_session.end_time,
+        project_rowid=project_session.project_id,
     )
 
 

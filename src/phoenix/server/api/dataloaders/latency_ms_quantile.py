@@ -32,13 +32,16 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
+DbFilter: TypeAlias = Optional[SQLColumnExpression[bool]]
 Probability: TypeAlias = float
 QuantileValue: TypeAlias = float
 
-Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition]
+Segment: TypeAlias = tuple[Kind, TimeInterval, FilterCondition, DbFilter]
 Param: TypeAlias = tuple[ProjectRowId, Probability]
 
-Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability]
+Key: TypeAlias = tuple[
+    Kind, ProjectRowId, Optional[TimeRange], FilterCondition, Probability, DbFilter
+]
 Result: TypeAlias = Optional[QuantileValue]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -47,15 +50,15 @@ FloatCol: TypeAlias = SQLColumnExpression[Float[float]]
 
 
 def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
-    kind, project_rowid, time_range, filter_condition, probability = key
+    kind, project_rowid, time_range, filter_condition, probability, db_filter = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
-    return (kind, interval, filter_condition), (project_rowid, probability)
+    return (kind, interval, filter_condition, db_filter), (project_rowid, probability)
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind, Probability]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, DbFilter, Kind, Probability]
 
 
 class LatencyMsQuantileCache(
@@ -71,8 +74,10 @@ class LatencyMsQuantileCache(
         )
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
-        (kind, interval, filter_condition), (project_rowid, probability) = _cache_key_fn(key)
-        return project_rowid, (interval, filter_condition, kind, probability)
+        (kind, interval, filter_condition, db_filter), (project_rowid, probability) = _cache_key_fn(
+            key
+        )
+        return project_rowid, (interval, filter_condition, db_filter, kind, probability)
 
 
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
@@ -113,7 +118,7 @@ async def _get_results(
     segment: Segment,
     params: Mapping[Param, list[ResultPosition]],
 ) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
-    kind, (start_time, end_time), filter_condition = segment
+    kind, (start_time, end_time), filter_condition, db_filter = segment
     stmt = select(models.Trace.project_rowid)
     if kind == "trace":
         latency_column = cast(FloatCol, models.Trace.latency_ms)
@@ -131,6 +136,8 @@ async def _get_results(
         stmt = stmt.where(start_time <= time_column)
     if end_time:
         stmt = stmt.where(time_column < end_time)
+    if db_filter:
+        stmt = stmt.where(db_filter)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         results = _get_results_postgresql(session, stmt, latency_column, params)
     elif dialect is SupportedSQLDialect.SQLITE:
