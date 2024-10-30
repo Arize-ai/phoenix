@@ -136,7 +136,7 @@ async def _get_results(
         stmt = stmt.where(start_time <= time_column)
     if end_time:
         stmt = stmt.where(time_column < end_time)
-    if db_filter:
+    if db_filter is not None:
         stmt = stmt.where(db_filter)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         results = _get_results_postgresql(session, stmt, latency_column, params)
