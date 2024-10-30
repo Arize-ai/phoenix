@@ -225,6 +225,8 @@ export function getModelConfigFromAttributes(parsedAttributes: unknown): {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
         // TODO(apowell): Parse invocation parameters from span attributes into InvocationParametersInput type
+        // See https://github.com/Arize-ai/phoenix/issues/5234
+        // See https://github.com/Arize-ai/phoenix/issues/5235
         invocationParameters: [],
       },
       parsingErrors,
