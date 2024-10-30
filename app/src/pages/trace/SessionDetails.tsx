@@ -20,7 +20,7 @@ function SessionDetailsHeader({
 }: {
   traceCount: number;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
-  latencyP50?: number;
+  latencyP50?: number | null;
 }) {
   return (
     <View
