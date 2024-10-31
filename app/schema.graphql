@@ -94,6 +94,7 @@ enum CanonicalParameterName {
   TOP_P
   RANDOM_SEED
   TOOL_CHOICE
+  RESPONSE_FORMAT
 }
 
 input ChatCompletionInput {
