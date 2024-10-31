@@ -34,6 +34,7 @@ from phoenix.server.api.dataloaders import (
     SessionIODataLoader,
     SessionNumTracesDataLoader,
     SessionTokenUsagesDataLoader,
+    SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
@@ -76,6 +77,7 @@ class DataLoaders:
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
+    session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
