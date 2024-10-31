@@ -165,3 +165,12 @@ class TestProjectSession:
             "completion": 6,
             "total": 10,
         }
+
+    async def test_trace_latency_ms_quantile(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project_sessions = _data.project_sessions
+        field = "traceLatencyMsQuantile(probability: 0.5)"
+        assert await self._node(field, project_sessions[0], httpx_client) == 10000.0
