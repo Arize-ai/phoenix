@@ -21,6 +21,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
+from .session_num_traces_with_error import SessionNumTracesWithErrorDataLoader
 from .session_token_usages import SessionTokenUsagesDataLoader
 from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
@@ -52,6 +53,7 @@ __all__ = [
     "RecordCountDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",
+    "SessionNumTracesWithErrorDataLoader",
     "SessionTokenUsagesDataLoader",
     "SessionTraceLatencyMsQuantileDataLoader",
     "SpanDatasetExamplesDataLoader",
