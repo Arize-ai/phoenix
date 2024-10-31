@@ -738,7 +738,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         return anthropic_messages, system_prompt
 
 
-class llm_span:
+class streaming_llm_span:
     """
     Creates an LLM span for a streaming chat completion.
     """
@@ -910,7 +910,7 @@ class Subscription:
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
         )
-        async with llm_span(
+        async with streaming_llm_span(
             input=input,
             messages=messages,
             invocation_parameters=invocation_parameters,
