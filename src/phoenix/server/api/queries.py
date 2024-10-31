@@ -45,7 +45,7 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import (
-    InvocationParameterType,
+    InvocationParameter,
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -130,7 +130,7 @@ class Query:
     @strawberry.field
     async def model_invocation_parameters(
         self, input: Optional[ModelsInput] = None
-    ) -> list[InvocationParameterType]:
+    ) -> list[InvocationParameter]:
         if input is None:
             return []
         provider_key = input.provider_key

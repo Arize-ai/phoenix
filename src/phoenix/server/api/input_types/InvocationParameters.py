@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Mapping, Optional, Union
+from typing import Annotated, Any, Mapping, Optional, Union
 
 import strawberry
 from strawberry import UNSET
@@ -139,7 +139,7 @@ def extract_parameter(
 
 
 def validate_invocation_parameters(
-    parameters: list["InvocationParameterType"],
+    parameters: list["InvocationParameter"],
     input: Mapping[str, Any],
 ) -> None:
     for param_def in parameters:
@@ -148,9 +148,8 @@ def validate_invocation_parameters(
 
 
 # Create the union for output types
-InvocationParameter = strawberry.union(
-    "InvocationParameter",
-    (
+InvocationParameter = Annotated[
+    Union[
         IntInvocationParameter,
         FloatInvocationParameter,
         BoundedFloatInvocationParameter,
@@ -158,15 +157,6 @@ InvocationParameter = strawberry.union(
         JSONInvocationParameter,
         StringListInvocationParameter,
         BooleanInvocationParameter,
-    ),
-)
-
-InvocationParameterType = Union[
-    IntInvocationParameter,
-    FloatInvocationParameter,
-    BoundedFloatInvocationParameter,
-    StringInvocationParameter,
-    JSONInvocationParameter,
-    StringListInvocationParameter,
-    BooleanInvocationParameter,
+    ],
+    strawberry.union("InvocationParameter"),
 ]
