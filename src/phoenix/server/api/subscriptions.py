@@ -121,19 +121,15 @@ class ToolCallChunk:
 
 
 @strawberry.type
-class ChatCompletionSubscriptionError:
-    message: str
-
-
-@strawberry.type
 class FinishedChatCompletion:
     span: Span
+    error_message: Optional[str] = None
 
 
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
 ChatCompletionSubscriptionPayload: TypeAlias = Annotated[
-    Union[TextChunk, ToolCallChunk, FinishedChatCompletion, ChatCompletionSubscriptionError],
+    Union[TextChunk, ToolCallChunk, FinishedChatCompletion],
     strawberry.union("ChatCompletionSubscriptionPayload"),
 ]
 
@@ -775,7 +771,6 @@ class llm_span:
         self._response_chunks: list[ChatCompletionChunk] = []
         self._text_chunks: list[TextChunk] = []
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
-        self._chat_completion_subscription_error: Optional[ChatCompletionSubscriptionError] = None
         self._finished_chat_completion: FinishedChatCompletion
         self._project_id: int
 
@@ -803,9 +798,6 @@ class llm_span:
                     exception_escaped=False,
                     exception_stacktrace=format_exc(),
                 )
-            )
-            self._chat_completion_subscription_error = ChatCompletionSubscriptionError(
-                message=status_message
             )
         if self._response_chunks:
             self._attributes.update(
@@ -861,7 +853,10 @@ class llm_span:
             session.add(span)
             await session.flush()
         self._project_id = project_id
-        self._finished_chat_completion = FinishedChatCompletion(span=to_gql_span(span))
+        self._finished_chat_completion = FinishedChatCompletion(
+            span=to_gql_span(span),
+            error_message=status_message if status_code is StatusCode.ERROR else None,
+        )
         return True
 
     def set_attributes(self, attributes: Mapping[str, Any]) -> None:
@@ -875,10 +870,6 @@ class llm_span:
             self._tool_call_chunks[chunk.id].append(chunk)
         else:
             assert_never(chunk)
-
-    @property
-    def chat_completion_subscription_error(self) -> Optional[ChatCompletionSubscriptionError]:
-        return self._chat_completion_subscription_error
 
     @property
     def finished_chat_completion(self) -> FinishedChatCompletion:
@@ -932,8 +923,6 @@ class Subscription:
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
-        if chat_completion_subscription_error := span.chat_completion_subscription_error:
-            yield chat_completion_subscription_error
         yield span.finished_chat_completion
         info.context.event_queue.put(SpanInsertEvent(ids=(span.project_id,)))
 

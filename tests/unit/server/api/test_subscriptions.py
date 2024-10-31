@@ -11,7 +11,6 @@ from openinference.semconv.trace import (
 from vcr import use_cassette
 
 from phoenix.server.api.subscriptions import (
-    ChatCompletionSubscriptionError,
     FinishedChatCompletion,
     TextChunk,
     ToolCallChunk,
@@ -70,9 +69,7 @@ class TestChatCompletionSubscription:
             span {
               ...SpanFragment
             }
-          }
-          ... on ChatCompletionSubscriptionError {
-            message
+            errorMessage
           }
         }
       }
@@ -168,6 +165,7 @@ class TestChatCompletionSubscription:
         )
         response_text = "".join(payload["chatCompletion"]["content"] for payload in payloads)
         assert "france" in response_text.lower()
+        assert last_payload["chatCompletion"]["errorMessage"] is None
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
@@ -291,15 +289,12 @@ class TestChatCompletionSubscription:
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
-        assert len(payloads) == 2
-        assert (error_payload := payloads[0])["chatCompletion"][
-            "__typename"
-        ] == ChatCompletionSubscriptionError.__name__
-        assert "401" in (status_message := error_payload["chatCompletion"]["message"])
-        assert "api key" in status_message.lower()
+        assert len(payloads) == 1
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
         ] == FinishedChatCompletion.__name__
+        assert "401" in (status_message := last_payload["chatCompletion"]["errorMessage"])
+        assert "api key" in status_message.lower()
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
@@ -443,6 +438,7 @@ class TestChatCompletionSubscription:
         json.loads(
             "".join(payload["chatCompletion"]["function"]["arguments"] for payload in payloads)
         ) == {"location": "San Francisco"}
+        assert last_payload["chatCompletion"]["errorMessage"] is None
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
@@ -596,6 +592,7 @@ class TestChatCompletionSubscription:
         )
         response_text = "".join(payload["chatCompletion"]["content"] for payload in payloads)
         assert "sunny" in response_text.lower()
+        assert last_payload["chatCompletion"]["errorMessage"] is None
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
@@ -743,6 +740,7 @@ class TestChatCompletionSubscription:
         )
         response_text = "".join(payload["chatCompletion"]["content"] for payload in payloads)
         assert "france" in response_text.lower()
+        assert last_payload["chatCompletion"]["errorMessage"] is None
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
