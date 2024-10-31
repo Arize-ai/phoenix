@@ -25,7 +25,7 @@ async def test_record_counts(
                 .join_from(models.Trace, models.Span)
                 .group_by(pid)
                 .order_by(pid)
-                .where(models.Span.name.contains("_5_"))
+                .where(models.Span.name.contains("_4_"))
                 .where(start_time <= models.Span.start_time)
                 .where(models.Span.start_time < end_time),
                 s.connection(),
@@ -48,7 +48,7 @@ async def test_record_counts(
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
-            "'_5_' in name" if kind == "span" else None,
+            "'_4_' in name" if kind == "span" else None,
         )
         for kind in kinds
         for id_ in range(10)
