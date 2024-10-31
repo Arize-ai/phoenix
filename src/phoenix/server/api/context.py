@@ -33,6 +33,7 @@ from phoenix.server.api.dataloaders import (
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
+    SessionNumTracesWithErrorDataLoader,
     SessionTokenUsagesDataLoader,
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
@@ -76,6 +77,7 @@ class DataLoaders:
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
     session_num_traces: SessionNumTracesDataLoader
+    session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
