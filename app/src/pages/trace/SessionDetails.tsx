@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
 import {
@@ -15,9 +16,11 @@ import { SessionDetailsTraceList } from "./SessionDetailsTraceList";
 function SessionDetailsHeader({
   traceCount,
   tokenUsage,
+  latencyP50,
 }: {
   traceCount: number;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
+  latencyP50?: number | null;
 }) {
   return (
     <View
@@ -43,6 +46,14 @@ function SessionDetailsHeader({
               tokenCountPrompt={tokenUsage.prompt}
               textSize={"xlarge"}
             />
+          </Flex>
+        ) : null}
+        {latencyP50 != null ? (
+          <Flex direction={"column"}>
+            <Text elementType={"h3"} textSize={"medium"} color={"text-700"}>
+              Latency P50
+            </Text>
+            <LatencyText latencyMs={latencyP50} textSize={"xlarge"} />
           </Flex>
         ) : null}
       </Flex>
@@ -72,6 +83,7 @@ export function SessionDetails(props: SessionDetailsProps) {
               prompt
             }
             sessionId
+            latencyP50: traceLatencyMsQuantile(probability: 0.50)
             traces {
               edges {
                 trace: node {
@@ -135,6 +147,7 @@ export function SessionDetails(props: SessionDetailsProps) {
       <SessionDetailsHeader
         traceCount={data.session.numTraces ?? 0}
         tokenUsage={data.session.tokenUsage}
+        latencyP50={data.session.latencyP50}
       />
       <SessionDetailsTraceList traces={data.session.traces} />
     </main>
