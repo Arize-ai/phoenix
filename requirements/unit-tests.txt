@@ -24,3 +24,4 @@ tiktoken
 types-pytz
 typing-extensions==4.7.0
 vcrpy
+aiohttp>=3.0
