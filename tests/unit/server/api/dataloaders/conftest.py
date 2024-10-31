@@ -30,7 +30,7 @@ async def data_for_testing_dataloaders(
                 session_row_id = await session.scalar(
                     insert(models.ProjectSession)
                     .values(
-                        session_id=f"{i}_{l}",
+                        session_id=f"proj{i}_sess{l}",
                         project_id=project_row_id,
                         start_time=start_time,
                         end_time=end_time,
@@ -44,7 +44,7 @@ async def data_for_testing_dataloaders(
                     trace_row_id = await session.scalar(
                         insert(models.Trace)
                         .values(
-                            trace_id=f"{i}_{j}_{l}",
+                            trace_id=f"proj{i}_sess{l}_trace{j}",
                             project_rowid=project_row_id,
                             start_time=start_time,
                             end_time=end_time,
@@ -73,9 +73,9 @@ async def data_for_testing_dataloaders(
                             insert(models.Span)
                             .values(
                                 trace_rowid=trace_row_id,
-                                span_id=f"{i}_{j}_{k}_{l}",
+                                span_id=f"proj{i}_sess{l}_trace{j}_span{k}",
                                 parent_id=None,
-                                name=f"{i}_{j}_{k}",
+                                name=f"proj{i}_sess{l}_trace{j}_span{k}",
                                 span_kind="UNKNOWN",
                                 start_time=start_time,
                                 end_time=end_time,

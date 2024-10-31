@@ -40,7 +40,7 @@ class SessionTraceLatencyMsQuantileDataLoader(DataLoader[Key, Result]):
                 models.Trace.latency_ms,
             )
             .where(models.Trace.project_session_rowid.in_(session_rowids))
-            .order_by(models.Trace.project_rowid)
+            .order_by(models.Trace.project_session_rowid)
         )
         async with self._db() as session:
             data = await session.stream(stmt)

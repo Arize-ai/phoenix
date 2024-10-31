@@ -31,7 +31,7 @@ async def test_token_counts(
                 .join(models.Span)
                 .group_by(pid)
                 .order_by(pid)
-                .where(models.Span.name.contains("_4_"))
+                .where(models.Span.name.contains("_trace4_"))
                 .where(start_time <= models.Span.start_time)
                 .where(models.Span.start_time < end_time),
                 s.connection(),
@@ -48,7 +48,7 @@ async def test_token_counts(
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
-            "'_4_' in name",
+            "'_trace4_' in name",
         )
         for kind in kinds
         for id_ in range(10)
