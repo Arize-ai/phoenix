@@ -85,7 +85,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const OutputEl = useMemo(() => {
     if (hasRunId) {
       return (
-        <PlaygroundOutputText key={runId} playgroundInstanceId={instanceId} />
+        <StreamingPlaygroundOutputText
+          key={runId}
+          playgroundInstanceId={instanceId}
+        />
       );
     }
     if (isChatMessages(instance.output)) {
@@ -237,7 +240,7 @@ function toGqlChatCompletionRole(
   }
 }
 
-function PlaygroundOutputText(props: PlaygroundInstanceProps) {
+function StreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const credentials = useCredentialsContext((state) => state);
   const instance = instances.find(
