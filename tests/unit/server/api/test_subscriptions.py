@@ -10,7 +10,7 @@ from openinference.semconv.trace import (
 )
 from vcr import use_cassette
 
-from phoenix.server.api.subscriptions import (
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FinishedChatCompletion,
     TextChunk,
     ToolCallChunk,
