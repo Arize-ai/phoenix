@@ -2,7 +2,8 @@ from collections import defaultdict
 from typing import Optional
 
 import numpy as np
-from sqlalchemy import func, select
+from aioitertools.itertools import groupby
+from sqlalchemy import select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -30,23 +31,25 @@ class SessionTraceLatencyMsQuantileDataLoader(DataLoader[Key, Result]):
         argument_position_map: defaultdict[
             SessionId, defaultdict[Probability, list[ResultPosition]]
         ] = defaultdict(lambda: defaultdict(list))
-        session_ids = {session_id for session_id, _ in keys}
-        for position, key in enumerate(keys):
-            session_id, probability = key
+        session_rowids = {session_id for session_id, _ in keys}
+        for position, (session_id, probability) in enumerate(keys):
             argument_position_map[session_id][probability].append(position)
         stmt = (
             select(
                 models.Trace.project_session_rowid,
                 models.Trace.latency_ms,
             )
-            .group_by(models.Trace.project_session_rowid)
-            .where(models.Trace.project_session_rowid.in_(session_ids))
+            .where(models.Trace.project_session_rowid.in_(session_rowids))
+            .order_by(models.Trace.project_rowid)
         )
         async with self._db() as session:
             data = await session.stream(stmt)
-            async for project_session_rowid, latency_ms in data:
+            async for project_session_rowid, group in groupby(
+                data, lambda row: row.project_session_rowid
+            ):
+                session_latencies = [row.latency_ms for row in group]
                 for probability, positions in argument_position_map[project_session_rowid].items():
-                    quantile_value = np.quantile(latency_ms, probability)
+                    quantile_value = np.quantile(session_latencies, probability)
                     for position in positions:
                         results[position] = quantile_value
         return results
