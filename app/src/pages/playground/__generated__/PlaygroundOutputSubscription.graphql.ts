@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba65ab9fe3de490faf7a710506a23cc8>>
+ * @generated SignedSource<<9550b5f49afdc11007a39c70c0fc3ef6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE";
@@ -24,14 +25,16 @@ export type GenerativeModelInput = {
   name: string;
   providerKey: GenerativeProviderKey;
 };
-export type InvocationParameters = {
-  maxCompletionTokens?: number | null;
-  maxTokens?: number | null;
-  seed?: number | null;
-  stop?: ReadonlyArray<string> | null;
-  temperature?: number | null;
-  toolChoice?: any | null;
-  topP?: number | null;
+export type InvocationParameterInput = {
+  canonicalName?: CanonicalParameterName | null;
+  invocationName: string;
+  valueBool?: boolean | null;
+  valueBoolean?: boolean | null;
+  valueFloat?: number | null;
+  valueInt?: number | null;
+  valueJson?: any | null;
+  valueString?: string | null;
+  valueStringList?: ReadonlyArray<string> | null;
 };
 export type TemplateOptions = {
   language: TemplateLanguage;
@@ -39,7 +42,7 @@ export type TemplateOptions = {
 };
 export type PlaygroundOutputSubscription$variables = {
   apiKey?: string | null;
-  invocationParameters: InvocationParameters;
+  invocationParameters: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
   templateOptions?: TemplateOptions | null;
@@ -282,16 +285,16 @@ return {
     "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "96dec42dd14805e9b1adc1c112321064",
+    "cacheID": "4d2dafb66075b972f0779f5cc533c9f7",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $tools: [JSON!]\n  $templateOptions: TemplateOptions\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, tools: $tools, template: $templateOptions, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: [InvocationParameterInput!]!\n  $tools: [JSON!]\n  $templateOptions: TemplateOptions\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, tools: $tools, template: $templateOptions, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c29d5c7acf3f5090b92480ce34101fa6";
+(node as any).hash = "b7424eea67d1740b3c04e4664fa70107";
 
 export default node;

@@ -139,9 +139,9 @@ class TestChatCompletionSubscription:
                     }
                 ],
                 "model": {"name": "gpt-4", "providerKey": "OPENAI"},
-                "invocationParameters": {
-                    "temperature": 0.1,
-                },
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.1},
+                ],
             },
         }
         async with gql_client.subscription(
@@ -271,9 +271,9 @@ class TestChatCompletionSubscription:
                     }
                 ],
                 "model": {"name": "gpt-4", "providerKey": "OPENAI"},
-                "invocationParameters": {
-                    "temperature": 0.1,
-                },
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.1},
+                ],
             },
         }
         async with gql_client.subscription(
@@ -412,9 +412,9 @@ class TestChatCompletionSubscription:
                 ],
                 "model": {"name": "gpt-4", "providerKey": "OPENAI"},
                 "tools": [get_current_weather_tool_schema],
-                "invocationParameters": {
-                    "toolChoice": "auto",
-                },
+                "invocationParameters": [
+                    {"invocationName": "tool_choice", "valueJson": "auto"},
+                ],
             },
         }
         async with gql_client.subscription(
@@ -713,9 +713,10 @@ class TestChatCompletionSubscription:
                     }
                 ],
                 "model": {"name": "claude-3-5-sonnet-20240620", "providerKey": "ANTHROPIC"},
-                "invocationParameters": {
-                    "temperature": 0.1,
-                },
+                "invocationParameters": [
+                    {"invocationName": "temperature", "valueFloat": 0.1},
+                    {"invocationName": "max_tokens", "valueInt": 1024},
+                ],
             },
         }
         async with gql_client.subscription(
@@ -805,7 +806,9 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "claude-3-5-sonnet-20240620"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({"temperature": 0.1})
+        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps(
+            {"temperature": 0.1, "max_tokens": 1024}
+        )
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
         assert attributes.pop(INPUT_VALUE)

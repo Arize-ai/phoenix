@@ -20,7 +20,7 @@ describe("getInitialInstances", () => {
       model: {
         modelName: "test-model",
         provider: "OPENAI" as const,
-        invocationParameters: {},
+        invocationParameters: [],
       },
     };
     const initialProps: InitialPlaygroundState = {
@@ -51,7 +51,7 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model",
           provider: "OPENAI",
-          invocationParameters: {},
+          invocationParameters: [],
         },
       },
     };
@@ -69,12 +69,12 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model-openai",
           provider: "OPENAI",
-          invocationParameters: {},
+          invocationParameters: [],
         },
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
-          invocationParameters: {},
+          invocationParameters: [],
         },
       },
     };
@@ -92,7 +92,7 @@ describe("getInitialInstances", () => {
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
-          invocationParameters: {},
+          invocationParameters: [],
         },
       },
     };

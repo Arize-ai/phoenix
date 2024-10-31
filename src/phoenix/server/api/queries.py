@@ -37,12 +37,16 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.InvocationParameters import (
+    InvocationParameter,
+)
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -84,6 +88,7 @@ from phoenix.server.api.types.UserRole import UserRole
 @strawberry.input
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
+    model_name: Optional[str] = None
 
 
 @strawberry.type
@@ -107,50 +112,37 @@ class Query:
 
     @strawberry.field
     async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
-        openai_models = [
-            "o1-preview",
-            "o1-preview-2024-09-12",
-            "o1-mini",
-            "o1-mini-2024-09-12",
-            "gpt-4o",
-            "gpt-4o-2024-08-06",
-            "gpt-4o-2024-05-13",
-            "chatgpt-4o-latest",
-            "gpt-4o-mini",
-            "gpt-4o-mini-2024-07-18",
-            "gpt-4-turbo",
-            "gpt-4-turbo-2024-04-09",
-            "gpt-4-turbo-preview",
-            "gpt-4-0125-preview",
-            "gpt-4-1106-preview",
-            "gpt-4",
-            "gpt-4-0613",
-            "gpt-3.5-turbo-0125",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-            "gpt-3.5-turbo-instruct",
-        ]
-        anthropic_models = [
-            "claude-3-5-sonnet-20240620",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-        ]
-        openai_generative_models = [
-            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
-            for model_name in openai_models
-        ]
-        anthropic_generative_models = [
-            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
-            for model_name in anthropic_models
-        ]
-
-        all_models = openai_generative_models + anthropic_generative_models
-
         if input is not None and input.provider_key is not None:
-            return [model for model in all_models if model.provider_key == input.provider_key]
+            supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
+            supported_models = [
+                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                for model_name in supported_model_names
+            ]
+            return supported_models
 
+        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        all_models: list[GenerativeModel] = []
+        for provider_key, model_name in registered_models:
+            if model_name is not None and provider_key is not None:
+                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
         return all_models
+
+    @strawberry.field
+    async def model_invocation_parameters(
+        self, input: Optional[ModelsInput] = None
+    ) -> list[InvocationParameter]:
+        if input is None:
+            return []
+        provider_key = input.provider_key
+        model_name = input.model_name
+        if provider_key is not None:
+            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            if client is None:
+                return []
+            invocation_parameters = client.supported_invocation_parameters()
+            return invocation_parameters
+        else:
+            return []
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(

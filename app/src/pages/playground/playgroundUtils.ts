@@ -16,6 +16,7 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
@@ -27,6 +28,7 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import { InvocationParameter } from "./InvocationParametersForm";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
@@ -38,7 +40,6 @@ import {
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
   outputSchema,
-  providerSchemas,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -206,33 +207,58 @@ export function getModelProviderFromModelName(
  *
  * NB: Only exported for testing
  */
-export function getModelConfigFromAttributes(parsedAttributes: unknown): {
+export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
   modelConfig: ModelConfig | null;
   parsingErrors: string[];
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
-    // parse invocation params separately, to avoid throwing away other model config if invocation params are invalid
-    const {
-      success: invocationParametersSuccess,
-      data: invocationParametersData,
-    } = modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
-    const parsingErrors: string[] = [];
-    if (!invocationParametersSuccess) {
-      parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
-    }
     return {
       modelConfig: {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
-        invocationParameters: invocationParametersSuccess
-          ? invocationParametersData.llm.invocation_parameters
-          : {},
+        invocationParameters: [],
       },
-      parsingErrors,
+      parsingErrors: [],
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+/**
+ * Attempts to get llm.invocation_parameters from the span attributes.
+ * Invocation parameters are then massaged into the InvocationParameterInput type.
+ * @param parsedAttributes the JSON parsed span attributes
+ * @param modelSupportedInvocationParameters the model supported invocation parameters
+ * @returns the invocation parameters from the span attributes
+ *
+ * NB: Only exported for testing
+ */
+export function getModelInvocationParametersFromAttributes(
+  parsedAttributes: unknown,
+  modelSupportedInvocationParameters: InvocationParameter[] = []
+): {
+  invocationParameters: InvocationParameterInput[];
+  parsingErrors: string[];
+} {
+  const { success, data } =
+    modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+  const parsingErrors: string[] = [];
+
+  if (!success) {
+    parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
+  }
+
+  const invocationParameters =
+    transformInvocationParametersFromAttributesToInvocationParameterInputs(
+      data?.llm.invocation_parameters ?? {},
+      modelSupportedInvocationParameters
+    );
+
+  return {
+    invocationParameters,
+    parsingErrors,
+  };
 }
 
 /**
@@ -313,8 +339,29 @@ export function transformSpanAttributesToPlaygroundInstance(
     getTemplateMessagesFromAttributes(parsedAttributes);
   const { output, outputParsingErrors } =
     getOutputFromAttributes(parsedAttributes);
-  const { modelConfig, parsingErrors: modelConfigParsingErrors } =
-    getModelConfigFromAttributes(parsedAttributes);
+  const parsedModelConfigResults =
+    getBaseModelConfigFromAttributes(parsedAttributes);
+  let { modelConfig } = parsedModelConfigResults;
+  const { parsingErrors: modelConfigParsingErrors } = parsedModelConfigResults;
+  const {
+    invocationParameters,
+    parsingErrors: invocationParametersParsingErrors,
+  } = getModelInvocationParametersFromAttributes(
+    parsedAttributes,
+    // TODO(apowell): Parse invocation parameters from span attributes into InvocationParametersInput type
+    // See https://github.com/Arize-ai/phoenix/issues/5234
+    // See https://github.com/Arize-ai/phoenix/issues/5235
+    []
+  );
+
+  // Merge invocation parameters into model config, if model config is present
+  modelConfig =
+    modelConfig != null
+      ? {
+          ...modelConfig,
+          invocationParameters,
+        }
+      : null;
 
   const { tools, parsingErrors: toolsParsingErrors } =
     getToolsFromAttributes(parsedAttributes);
@@ -341,6 +388,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       ...outputParsingErrors,
       ...modelConfigParsingErrors,
       ...toolsParsingErrors,
+      ...invocationParametersParsingErrors,
     ],
   };
 }
@@ -401,29 +449,62 @@ export const extractVariablesFromInstances = ({
 };
 
 /**
- * Gets the invocation parameters schema for a given model provider and model name.
- *
- * Falls back to the default schema for provider if the model name is not found.
- *
- * Falls back to the default schema for all providers if provider is not found.
+ * Filter out parameters that are not supported by a model's invocation parameter schema definitions.
  */
-export const getInvocationParametersSchema = ({
-  modelProvider,
-  modelName,
-}: {
-  modelProvider: ModelProvider;
-  modelName: string;
-}) => {
-  const providerSupported = modelProvider in providerSchemas;
-  if (!providerSupported) {
-    return providerSchemas[DEFAULT_MODEL_PROVIDER].default;
-  }
-
-  const byProvider = providerSchemas[modelProvider];
-  const modelSupported = modelName in byProvider;
-  if (!modelSupported) {
-    return byProvider.default;
-  }
-
-  return byProvider[modelName as keyof typeof byProvider];
+export const constrainInvocationParameterInputsToDefinition = (
+  invocationParameterInputs: InvocationParameterInput[],
+  definitions: InvocationParameter[]
+) => {
+  return invocationParameterInputs
+    .filter((ip) =>
+      // An input should be kept if it matches an invocation name in the definitions
+      // or if it has a canonical name that matches a canonical name in the definitions.
+      definitions.some(
+        (mp) =>
+          mp.invocationName === ip.invocationName ||
+          // loosey null comparison to catch undefined and null
+          (mp.canonicalName != null &&
+            ip.canonicalName != null &&
+            mp.canonicalName === ip.canonicalName)
+      )
+    )
+    .map((ip) => ({
+      // Transform the invocationName to match the new name from the incoming
+      // modelSupportedInvocationParameters.
+      ...ip,
+      invocationName:
+        definitions.find((mp) => mp.canonicalName === ip.canonicalName)
+          ?.invocationName ?? ip.invocationName,
+    }));
 };
+
+/**
+ * Transform invocation parameters from span attributes into InvocationParameterInput type.
+ */
+export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
+  (
+    invocationParameters: Record<string, string | number | boolean | string[]>,
+    modelSupportedInvocationParameters: InvocationParameter[]
+  ): InvocationParameterInput[] => {
+    return Object.entries(invocationParameters)
+      .map(([key, value]) => {
+        const invocationParameter = modelSupportedInvocationParameters.find(
+          (mp) =>
+            (mp.canonicalName && mp.canonicalName === key) ||
+            (mp.invocationName && mp.invocationName === key)
+        );
+        if (
+          invocationParameter == null ||
+          invocationParameter.invocationInputField == null ||
+          invocationParameter.invocationName == null
+        ) {
+          return null;
+        }
+        return {
+          canonicalName: invocationParameter.canonicalName,
+          invocationName: invocationParameter.invocationName,
+          [invocationParameter.invocationInputField]: value,
+        };
+      })
+      .filter((ip): ip is NonNullable<typeof ip> => ip != null);
+  };

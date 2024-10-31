@@ -33,10 +33,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import {
-  InvocationParametersChangeHandler,
-  InvocationParametersForm,
-} from "./InvocationParametersForm";
+import { InvocationParametersForm } from "./InvocationParametersForm";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import { PlaygroundInstanceProps } from "./types";
@@ -97,7 +94,7 @@ function AzureOpenAiModelConfigFormField({
         label="API Version"
         selectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
-        placeholder="Select an AzureOpenAi API Version"
+        placeholder="Select an AzureOpenAI API Version"
         onSelectionChange={(key) => {
           if (typeof key === "string") {
             updateModelConfig({
@@ -234,7 +231,9 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         ...ModelPickerFragment @arguments(providerKey: $providerKey)
       }
     `,
-    { providerKey: instance.model.provider }
+    {
+      providerKey: instance.model.provider,
+    }
   );
 
   const onModelNameChange = useCallback(
@@ -256,24 +255,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     ]
   );
 
-  const onInvocationParametersChange: InvocationParametersChangeHandler =
-    useCallback(
-      (parameter, value) => {
-        updateModel({
-          instanceId: playgroundInstanceId,
-          model: {
-            ...instance.model,
-            invocationParameters: {
-              ...instance.model.invocationParameters,
-              [parameter]: value,
-            },
-          },
-          modelConfigByProvider,
-        });
-      },
-      [instance.model, modelConfigByProvider, playgroundInstanceId, updateModel]
-    );
-
   return (
     <View padding="size-200" overflow="auto">
       <Form>
@@ -285,7 +266,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
               instanceId: playgroundInstanceId,
               model: {
                 provider,
-                modelName: null,
               },
               modelConfigByProvider,
             });
@@ -301,10 +281,11 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
             onChange={onModelNameChange}
           />
         )}
-        <InvocationParametersForm
-          model={instance.model}
-          onChange={onInvocationParametersChange}
-        />
+        {instance.model.modelName ? (
+          <InvocationParametersForm instanceId={playgroundInstanceId} />
+        ) : (
+          <></>
+        )}
       </Form>
     </View>
   );

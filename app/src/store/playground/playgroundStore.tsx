@@ -98,7 +98,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
-      invocationParameters: {},
+      invocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -238,31 +238,33 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
+      let newModel = model;
       const currentModel = instance.model;
-
       const savedProviderConfig =
         model.provider != null
           ? modelConfigByProvider[model.provider]
           : undefined;
+
       if (model.provider !== currentModel.provider) {
         if (savedProviderConfig != null) {
-          model = {
+          newModel = {
             ...savedProviderConfig,
             provider: model.provider,
-            invocationParameters: {
+            invocationParameters: [
               ...instance.model.invocationParameters,
               // These should never be changing at the same time as the provider but spread here to be safe
-              ...model.invocationParameters,
-            },
+              ...(model.invocationParameters ?? []),
+            ],
           };
         } else {
           // Force clear the model name if the provider changes
-          model = {
-            ...model,
+          newModel = {
+            ...newModel,
             modelName: undefined,
           };
         }
       }
+
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -270,11 +272,11 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               ...instance,
               model: {
                 ...instance.model,
-                ...model,
-                invocationParameters: {
-                  ...instance.model.invocationParameters,
-                  ...model.invocationParameters,
-                },
+                ...newModel,
+                invocationParameters: [
+                  ...(instance.model.invocationParameters ?? []),
+                  ...(model.invocationParameters ?? []),
+                ],
               },
             };
           }
@@ -382,6 +384,49 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
+    },
+    filterInstanceModelInvocationParameters: ({
+      instanceId,
+      modelSupportedInvocationParameters,
+      filter,
+    }) => {
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters: filter(
+                  instance.model.invocationParameters,
+                  modelSupportedInvocationParameters
+                ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstanceModelInvocationParameters: ({
+      instanceId,
+      invocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: { ...instance.model, invocationParameters },
+            };
+          }
+          return instance;
+        }),
+      });
     },
     ...initialProps,
   });

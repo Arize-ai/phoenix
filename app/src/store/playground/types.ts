@@ -1,5 +1,6 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import { InvocationParameters } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
 import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
 
 import { ModelConfigByProvider } from "../preferencesStore";
@@ -80,7 +81,7 @@ export type ModelConfig = {
   modelName: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;
-  invocationParameters: Partial<Omit<InvocationParameters, "toolChoice">>;
+  invocationParameters: InvocationParameterInput[];
 };
 
 /**
@@ -198,6 +199,24 @@ export interface PlaygroundState extends PlaygroundProps {
   updateInstance: (params: {
     instanceId: number;
     patch: Partial<PlaygroundInstance>;
+  }) => void;
+  /**
+   * Update the invocation parameters for a model
+   */
+  updateInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    invocationParameters: InvocationParameterInput[];
+  }) => void;
+  /**
+   * Filter the invocation parameters for a model based on the model's supported parameters
+   */
+  filterInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    modelSupportedInvocationParameters: InvocationParameter[];
+    filter: (
+      invocationParameterInputs: InvocationParameterInput[],
+      definitions: InvocationParameter[]
+    ) => InvocationParameterInput[];
   }) => void;
   /**
    * Update an instance's model configuration
