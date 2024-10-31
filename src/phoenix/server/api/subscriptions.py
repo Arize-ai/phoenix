@@ -49,7 +49,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
     CanonicalParameterName,
     IntInvocationParameter,
     InvocationParameterInput,
-    InvocationParameterType,
+    InvocationParameter,
     JSONInvocationParameter,
     StringListInvocationParameter,
     extract_parameter,
@@ -164,7 +164,7 @@ class PlaygroundStreamingClient(ABC):
 
     @classmethod
     @abstractmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameterType]: ...
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]: ...
 
     @abstractmethod
     async def chat_completion_create(
@@ -238,7 +238,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         self.model_name = model.name
 
     @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
@@ -436,7 +436,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 )
 class OpenAIO1StreamingClient(OpenAIStreamingClient):
     @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",
@@ -620,7 +620,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self.model_name = model.name
 
     @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameterType]:
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
             IntInvocationParameter(
                 invocation_name="max_tokens",

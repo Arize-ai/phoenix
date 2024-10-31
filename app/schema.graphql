@@ -975,8 +975,6 @@ type IntInvocationParameter implements InvocationParameterBase {
   defaultValue: Int
 }
 
-union IntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
-
 type IntervalBin {
   range: NumericRange!
 }
@@ -990,6 +988,8 @@ enum InvocationInputField {
   value_string_list
   value_boolean
 }
+
+union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
 
 interface InvocationParameterBase {
   invocationName: String!
@@ -1269,7 +1269,7 @@ type PromptResponse {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
-  modelInvocationParameters(input: ModelsInput = null): [IntInvocationParameterFloatInvocationParameterBoundedFloatInvocationParameterStringInvocationParameterJSONInvocationParameterStringListInvocationParameterBooleanInvocationParameter!]!
+  modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
