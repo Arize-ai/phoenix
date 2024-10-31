@@ -9,10 +9,8 @@ import {
 
 import { openAIToolCallSchema, openAIToolSchema } from "@phoenix/schemas";
 import { ChatMessage } from "@phoenix/store";
-import { isObject, Mutable, schemaForType } from "@phoenix/typeUtils";
+import { isObject, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-
-import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -106,22 +104,10 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * Model graphql invocation parameters schema in zod.
- *
- * Includes all keys besides toolChoice
+ * Model generic invocation parameters schema in zod.
  */
-const invocationParameterSchema = schemaForType<
-  Mutable<InvocationParameterInput>
->()(
-  z.object({
-    invocationName: z.string(),
-    valueBool: z.boolean().optional(),
-    valueFloat: z.number().optional(),
-    valueInt: z.number().optional(),
-    valueJson: z.any().optional(),
-    valueString: z.string().optional(),
-    valueStringList: z.array(z.string()).optional(),
-  })
+const invocationParameterSchema = z.record(
+  z.union([z.boolean(), z.number(), z.string(), z.array(z.string())])
 );
 
 /**
@@ -140,44 +126,17 @@ export type InvocationParametersSchema = z.infer<
  */
 const stringToInvocationParametersSchema = z
   .string()
-  .transform((s) => {
+  .transform((s, ctx) => {
     const { json } = safelyParseJSON(s);
     if (!isObject(json)) {
-      return null;
-    }
-    // using the invocationParameterSchema as a base,
-    // apply all matching keys from the input string,
-    // and then map snake cased keys to camel case on top
-    return (
-      invocationParameterSchema
-        .passthrough()
-        .transform((o) => ({
-          ...o,
-          // map snake cased keys to camel case, the first char after each _ is uppercase
-          ...Object.fromEntries(
-            Object.entries(o).map(([k, v]) => [
-              k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
-              v,
-            ])
-          ),
-        }))
-        // reparse the object to ensure the mapped keys are also validated
-        .parse(json)
-    );
-  })
-  .transform((v, ctx) => {
-    const result = invocationParameterSchema.safeParse(v);
-    if (!result.success) {
-      // bubble errors up to the original schema
-      result.error.issues.forEach((issue) => {
-        ctx.addIssue(issue);
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The invocation parameters must be a valid JSON object",
       });
-      // https://zod.dev/?id=validating-during-transform
-      // ensures that this schema still infers the "success" type
-      // errors will throw instead
       return z.NEVER;
     }
-    return result.data;
+
+    return invocationParameterSchema.parse(json);
   })
   .default("{}");
 /**
