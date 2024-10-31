@@ -13,7 +13,6 @@ from typing import (
     Annotated,
     Any,
     Optional,
-    Self,
     Union,
     cast,
 )
@@ -34,7 +33,7 @@ from sqlalchemy import insert, select
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from strawberry.types import Info
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
