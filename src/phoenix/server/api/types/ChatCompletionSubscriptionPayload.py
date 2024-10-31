@@ -1,35 +1,34 @@
-from typing import Optional, Union
+from typing import Optional
 
 import strawberry
-from typing_extensions import Annotated, TypeAlias
+from strawberry.relay import GlobalID
 
 from .Span import Span
 
 
+@strawberry.interface
+class ChatCompletionSubscriptionPayload:
+    dataset_example_id: Optional[GlobalID] = None
+
+
 @strawberry.type
-class TextChunk:
+class TextChunk(ChatCompletionSubscriptionPayload):
     content: str
 
 
 @strawberry.type
-class FunctionCallChunk:
+class FunctionCallChunk(ChatCompletionSubscriptionPayload):
     name: str
     arguments: str
 
 
 @strawberry.type
-class ToolCallChunk:
+class ToolCallChunk(ChatCompletionSubscriptionPayload):
     id: str
     function: FunctionCallChunk
 
 
 @strawberry.type
-class FinishedChatCompletion:
+class FinishedChatCompletion(ChatCompletionSubscriptionPayload):
     span: Span
     error_message: Optional[str] = None
-
-
-ChatCompletionSubscriptionPayload: TypeAlias = Annotated[
-    Union[TextChunk, ToolCallChunk, FinishedChatCompletion],
-    strawberry.union("ChatCompletionSubscriptionPayload"),
-]
