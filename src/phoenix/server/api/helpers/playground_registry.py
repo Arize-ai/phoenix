@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Type, Union
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
-    from phoenix.server.api.llm_clients import PlaygroundStreamingClient
+    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
 
 ModelName = Union[str, None]
 ModelKey = tuple[GenerativeProviderKey, ModelName]

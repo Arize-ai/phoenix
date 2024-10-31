@@ -8,7 +8,7 @@ import strawberry
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-import phoenix.server.api.llm_clients  # noqa F401
+import phoenix.server.api.helpers.playground_clients  # noqa F401
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_registry import (
