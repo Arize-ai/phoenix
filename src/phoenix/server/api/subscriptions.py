@@ -4,7 +4,6 @@ from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import datetime, timezone
-from enum import Enum
 from itertools import chain
 from traceback import format_exc
 from types import TracebackType
@@ -44,7 +43,8 @@ from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
     register_llm_client,
 )
-from phoenix.server.api.input_types.ChatCompletionMessageInput import ChatCompletionMessageInput
+from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
     CanonicalParameterName,
@@ -56,9 +56,11 @@ from phoenix.server.api.input_types.InvocationParameters import (
     extract_parameter,
     validate_invocation_parameters,
 )
+from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import unflatten
@@ -90,18 +92,6 @@ ToolCallID: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 
 
-@strawberry.enum
-class TemplateLanguage(Enum):
-    MUSTACHE = "MUSTACHE"
-    F_STRING = "F_STRING"
-
-
-@strawberry.input
-class TemplateOptions:
-    variables: JSONScalarType
-    language: TemplateLanguage
-
-
 @strawberry.type
 class TextChunk:
     content: str
@@ -131,27 +121,6 @@ ChatCompletionSubscriptionPayload: TypeAlias = Annotated[
     Union[TextChunk, ToolCallChunk, FinishedChatCompletion],
     strawberry.union("ChatCompletionSubscriptionPayload"),
 ]
-
-
-@strawberry.input
-class GenerativeModelInput:
-    provider_key: GenerativeProviderKey
-    name: str
-    """ The name of the model. Or the Deployment Name for Azure OpenAI models. """
-    endpoint: Optional[str] = UNSET
-    """ The endpoint to use for the model. Only required for Azure OpenAI models. """
-    api_version: Optional[str] = UNSET
-    """ The API version to use for the model. """
-
-
-@strawberry.input
-class ChatCompletionInput:
-    messages: list[ChatCompletionMessageInput]
-    model: GenerativeModelInput
-    invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
-    tools: Optional[list[JSONScalarType]] = UNSET
-    template: Optional[TemplateOptions] = UNSET
-    api_key: Optional[str] = strawberry.field(default=None)
 
 
 class PlaygroundStreamingClient(ABC):
