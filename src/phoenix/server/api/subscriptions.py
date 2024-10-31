@@ -295,6 +295,12 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 default_value=UNSET,
                 hidden=True,
             ),
+            JSONInvocationParameter(
+                invocation_name="response_format",
+                label="Response Format",
+                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
+                default_value=UNSET,
+            ),
         ]
 
     async def chat_completion_create(
