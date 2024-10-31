@@ -634,6 +634,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         return anthropic_messages, system_prompt
 
 
+def initialize_playground_clients() -> None:
+    """
+    Ensure that all playground clients are registered at import time.
+    """
+    pass
+
+
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
