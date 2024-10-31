@@ -1,5 +1,6 @@
-import React, { Suspense, useMemo, useState } from "react";
-import { useSubscription } from "react-relay";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useMutation, useSubscription } from "react-relay";
+import { set } from "lodash";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
 
 import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
@@ -18,6 +19,7 @@ import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { PlaygroundOutputMutation } from "./__generated__/PlaygroundOutputMutation.graphql";
 import {
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
@@ -26,6 +28,10 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import {
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
+} from "./constants";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
@@ -72,6 +78,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === instanceId)
   );
+  const streaming = usePlaygroundContext((state) => state.streaming);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
@@ -84,8 +91,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const OutputEl = useMemo(() => {
     if (hasRunId) {
-      return (
+      return streaming ? (
         <StreamingPlaygroundOutputText
+          key={runId}
+          playgroundInstanceId={instanceId}
+        />
+      ) : (
+        <NonStreamingPlaygroundOutputText
           key={runId}
           playgroundInstanceId={instanceId}
         />
@@ -240,6 +252,119 @@ function toGqlChatCompletionRole(
   }
 }
 
+function NonStreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
+  const instances = usePlaygroundContext((state) => state.instances);
+  const credentials = useCredentialsContext((state) => state);
+  const instance = instances.find(
+    (instance) => instance.id === props.playgroundInstanceId
+  );
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
+  const { variablesMap: templateVariables } = useDerivedPlaygroundVariables();
+  const markPlaygroundInstanceComplete = usePlaygroundContext(
+    (state) => state.markPlaygroundInstanceComplete
+  );
+  const notifyError = useNotifyError();
+  if (!instance) {
+    throw new Error("No instance found");
+  }
+  if (typeof instance.activeRunId !== "number") {
+    throw new Error("No message found");
+  }
+
+  const [output, setOutput] = useState<string | undefined>(undefined);
+  const [toolCalls, setToolCalls] = useState<OpenAIToolCall[]>([]);
+
+  const azureModelParams =
+    instance.model.provider === "AZURE_OPENAI"
+      ? {
+          endpoint: instance.model.endpoint,
+          apiVersion: instance.model.apiVersion,
+        }
+      : {};
+
+  const invocationParameters: InvocationParameterInput[] = [
+    ...instance.model.invocationParameters,
+    {
+      invocationName: "toolChoice",
+      valueJson: instance.toolChoice,
+    },
+  ];
+
+  const [commit] = useMutation<PlaygroundOutputMutation>(graphql`
+    mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
+      generateChatCompletion(input: $input)
+    }
+  `);
+  useEffect(() => {
+    if (instance.template.__type !== "chat") {
+      throw new Error("We only support chat templates for now");
+    }
+
+    commit({
+      variables: {
+        input: {
+          messages: instance.template.messages.map(toGqlChatCompletionMessage),
+          model: {
+            providerKey: instance.model.provider,
+            name: instance.model.modelName || "",
+            ...azureModelParams,
+          },
+          invocationParameters,
+          template: {
+            variables: templateVariables,
+            language: templateLanguage,
+          },
+          tools: instance.tools.length
+            ? instance.tools.map((tool) => tool.definition)
+            : undefined,
+          apiKey: credentials[instance.model.provider],
+        },
+      },
+      onCompleted(response, errors) {
+        if (errors) {
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          notifyError({
+            title: "Chat completion failed",
+            message: errors[0].message,
+          });
+        } else {
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          setOutput(response.generateChatCompletion);
+        }
+      },
+    });
+
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instance.activeRunId]);
+
+  if (instance.isRunning) {
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Icon svg={<Icons.LoadingOutline />} />
+        Running...
+      </Flex>
+    );
+  }
+
+  if (output || toolCalls.length) {
+    return (
+      <PlaygroundOutputMessage
+        message={{
+          id: generateMessageId(),
+          content: output,
+          role: "ai",
+          toolCalls: toolCalls,
+        }}
+      />
+    );
+  }
+  return "";
+}
+
 function StreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const credentials = useCredentialsContext((state) => state);
@@ -277,14 +402,15 @@ function StreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
         }
       : {};
 
-  const invocationParameters: InvocationParameterInput[] = [
+  const baseInvocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
-    // TODO(apowell): add toolChoice to invocation parameters
-    // {
-    //   invocationName: "toolChoice",
-    //   valueString: instance.toolChoice, // this doesn't work because toolChoice may be json
-    // },
   ];
+  if (instance.tools.length > 0) {
+    baseInvocationParameters.push({
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+      valueJson: instance.toolChoice,
+    });
+  }
 
   useChatCompletionSubscription({
     params: {
@@ -294,7 +420,7 @@ function StreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
         name: instance.model.modelName || "",
         ...azureModelParams,
       },
-      invocationParameters,
+      invocationParameters: baseInvocationParameters,
       templateOptions: {
         variables: templateVariables,
         language: templateLanguage,
@@ -306,6 +432,7 @@ function StreamingPlaygroundOutputText(props: PlaygroundInstanceProps) {
     },
     runId: instance.activeRunId,
     onNext: (response) => {
+      console.log("test--", response);
       const chatCompletion = response.chatCompletion;
       if (chatCompletion.__typename === "TextChunk") {
         setOutput((acc) => (acc || "") + chatCompletion.content);

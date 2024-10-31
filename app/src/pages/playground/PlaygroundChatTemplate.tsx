@@ -160,6 +160,18 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             size="compact"
             icon={<Icon svg={<Icons.PlusOutline />} />}
             onClick={() => {
+              const patch: Partial<PlaygroundInstance> = {
+                tools: [
+                  ...playgroundInstance.tools,
+                  createToolForProvider({
+                    provider: playgroundInstance.model.provider,
+                    toolNumber: playgroundInstance.tools.length + 1,
+                  }),
+                ],
+              };
+              if (playgroundInstance.tools.length === 0) {
+                patch.toolChoice = "auto";
+              }
               updateInstance({
                 instanceId: id,
                 patch: {

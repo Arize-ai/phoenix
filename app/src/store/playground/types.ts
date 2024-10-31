@@ -162,7 +162,7 @@ export interface PlaygroundProps {
    */
   templateLanguage: TemplateLanguage;
   /**
-   * Whether or not to use streaming or not
+   * Whether or not to use streaming
    * @default true
    */
   streaming: boolean;

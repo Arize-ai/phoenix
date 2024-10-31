@@ -11,6 +11,7 @@ import {
   InvocationParametersFormQuery$data,
 } from "./__generated__/InvocationParametersFormQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import {
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
@@ -34,7 +35,7 @@ const InvocationParameterFormField = ({
   onChange,
 }: {
   field: InvocationParameter;
-  value: string | number | string[] | boolean | undefined;
+  value: string | number | readonly string[] | boolean | undefined;
   onChange: (value: string | number | string[] | boolean | undefined) => void;
 }) => {
   const { __typename } = field;
@@ -99,13 +100,35 @@ const InvocationParameterFormField = ({
 const getInvocationParameterValue = (
   field: InvocationParameter,
   parameterInput: InvocationParameterInput
-): string | number | string[] | boolean | null | undefined => {
+): string | number | readonly string[] | boolean | null | undefined => {
   if (field.invocationInputField === undefined) {
     throw new Error("Invocation input field is required");
   }
-  return parameterInput[
-    toCamelCase(field.invocationInputField) as keyof InvocationParameterInput
-  ];
+  const maybeValue =
+    parameterInput[
+      toCamelCase(field.invocationInputField) as keyof InvocationParameterInput
+    ];
+  if (maybeValue != null) {
+    return maybeValue;
+  }
+  switch (field.__typename) {
+    case "InvocationParameterBase":
+      return null;
+    case "FloatInvocationParameter":
+    case "BoundedFloatInvocationParameter":
+      return field.floatDefaultValue;
+    case "IntInvocationParameter":
+      return field.intDefaultValue;
+    case "StringListInvocationParameter":
+      return field.stringListDefaultValue;
+    case "StringInvocationParameter":
+      return field.stringDefaultValue;
+    case "BooleanInvocationParameter":
+      return field.booleanDefaultValue;
+    default: {
+      return null;
+    }
+  }
 };
 
 const makeInvocationParameterInput = (
@@ -161,23 +184,23 @@ export const InvocationParametersForm = ({
               minValue
               maxValue
               invocationInputField
-              # defaultValueFloat: defaultValue
+              floatDefaultValue: defaultValue
             }
             ... on IntInvocationParameter {
               invocationInputField
-              # defaultValueInt: defaultValue
+              intDefaultValue: defaultValue
             }
             ... on StringInvocationParameter {
               invocationInputField
-              # defaultValueString: defaultValue
+              stringDefaultValue: defaultValue
             }
             ... on StringListInvocationParameter {
               invocationInputField
-              # defaultValueStringList: defaultValue
+              stringListDefaultValue: defaultValue
             }
             ... on BooleanInvocationParameter {
               invocationInputField
-              # defaultValueBool: defaultValue
+              booleanDefaultValue: defaultValue
             }
           }
         }
@@ -238,22 +261,30 @@ export const InvocationParametersForm = ({
     [instance, updateInstanceModelInvocationParameters]
   );
 
-  const fieldsForSchema = modelInvocationParameters.map((field) => {
-    const existingParameter = instance.model.invocationParameters.find(
-      (p) => p.invocationName === field.invocationName
-    );
-    const value = existingParameter
-      ? getInvocationParameterValue(field, existingParameter)
-      : undefined;
-    return (
-      <InvocationParameterFormField
-        key={field.invocationName}
-        field={field}
-        value={value === null ? undefined : value}
-        onChange={(value) => onChange(field, value)}
-      />
-    );
-  });
+  const fieldsForSchema = modelInvocationParameters
+    .filter(
+      (field) =>
+        !(
+          field.canonicalName != null &&
+          paramsToIgnoreInInvocationParametersForm.includes(field.canonicalName)
+        )
+    )
+    .map((field) => {
+      const existingParameter = instance.model.invocationParameters.find(
+        (p) => p.invocationName === field.invocationName
+      );
+      const value = existingParameter
+        ? getInvocationParameterValue(field, existingParameter)
+        : undefined;
+      return (
+        <InvocationParameterFormField
+          key={field.invocationName}
+          field={field}
+          value={value === null ? undefined : value}
+          onChange={(value) => onChange(field, value)}
+        />
+      );
+    });
 
   return (
     <Flex direction="column" gap="size-200">
