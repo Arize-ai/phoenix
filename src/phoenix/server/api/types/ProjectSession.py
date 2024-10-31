@@ -46,6 +46,13 @@ class ProjectSession(Node):
         return await info.context.data_loaders.session_num_traces.load(self.id_attr)
 
     @strawberry.field
+    async def num_traces_with_error(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.session_num_traces_with_error.load(self.id_attr)
+
+    @strawberry.field
     async def first_input(
         self,
         info: Info[Context, None],
