@@ -741,7 +741,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 class llm_span:
     """
-    Creates an LLM span.
+    Creates an LLM span for a streaming chat completion.
     """
 
     def __init__(
