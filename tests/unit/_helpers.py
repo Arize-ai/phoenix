@@ -81,6 +81,7 @@ async def _add_span(
     end_time: Optional[datetime] = None,
     parent_span: Optional[models.Span] = None,
     span_kind: str = "LLM",
+    cumulative_error_count: int = 0,
     cumulative_llm_token_count_prompt: int = 0,
     cumulative_llm_token_count_completion: int = 0,
 ) -> models.Span:
@@ -95,7 +96,7 @@ async def _add_span(
         end_time=end_time,
         status_code="OK",
         status_message="test_status_message",
-        cumulative_error_count=0,
+        cumulative_error_count=cumulative_error_count,
         cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
         cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
         attributes=attributes or {},

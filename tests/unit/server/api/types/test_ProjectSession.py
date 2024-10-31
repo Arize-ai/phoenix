@@ -70,6 +70,7 @@ class TestProjectSession:
                     attributes={"input": {"value": "123"}, "output": {"value": "321"}},
                     cumulative_llm_token_count_prompt=1,
                     cumulative_llm_token_count_completion=2,
+                    cumulative_error_count=2,
                 )
             )
             traces.append(
@@ -115,6 +116,15 @@ class TestProjectSession:
         project_session = _data.project_sessions[0]
         field = "numTraces"
         assert await self._node(field, project_session, httpx_client) == 2
+
+    async def test_num_traces_with_error(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project_session = _data.project_sessions[0]
+        field = "numTracesWithError"
+        assert await self._node(field, project_session, httpx_client) == 1
 
     async def test_first_input(
         self,
