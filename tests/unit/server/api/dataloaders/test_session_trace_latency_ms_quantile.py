@@ -3,8 +3,8 @@ import pandas as pd
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders.latency_ms_quantile import Key
 from phoenix.server.api.dataloaders.session_trace_latency_ms_quantile import (
+    Key,
     SessionTraceLatencyMsQuantileDataLoader,
 )
 from phoenix.server.types import DbSessionFactory
