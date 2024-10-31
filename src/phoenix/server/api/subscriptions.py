@@ -14,7 +14,7 @@ from phoenix.server.api.helpers.playground_clients import initialize_playground_
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
 )
-from phoenix.server.api.helpers.span_context_managers import streaming_llm_span
+from phoenix.server.api.helpers.playground_spans import streaming_llm_span
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
