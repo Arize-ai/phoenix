@@ -1326,6 +1326,7 @@ type ProjectSession implements Node {
   sessionUser: String
   startTime: DateTime!
   endTime: DateTime!
+  projectId: GlobalID!
 
   """Duration of the session in seconds"""
   durationS: Float!
@@ -1334,6 +1335,7 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
   tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
+  traceLatencyMsQuantile(probability: Float!): Float
 }
 
 """A connection to a list of items."""
