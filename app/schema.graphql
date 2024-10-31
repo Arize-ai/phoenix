@@ -99,7 +99,7 @@ enum CanonicalParameterName {
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
-  invocationParameters: [InvocationParameterInput!]!
+  invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   template: TemplateOptions
   apiKey: String = null
