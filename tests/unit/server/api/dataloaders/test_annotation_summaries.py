@@ -31,7 +31,7 @@ async def test_evaluation_summaries(
                 .order_by(pid, models.SpanAnnotation.name)
                 .join_from(models.Trace, models.Span)
                 .join_from(models.Span, models.SpanAnnotation)
-                .where(models.Span.name.contains("_5_"))
+                .where(models.Span.name.contains("_trace4_"))
                 .where(models.SpanAnnotation.name.in_(("A", "C")))
                 .where(start_time <= models.Span.start_time)
                 .where(models.Span.start_time < end_time),
@@ -61,7 +61,7 @@ async def test_evaluation_summaries(
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
-            "'_5_' in name" if kind == "span" else None,
+            "'_trace4_' in name" if kind == "span" else None,
             eval_name,
         )
         for kind in kinds
