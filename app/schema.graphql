@@ -128,11 +128,7 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-type ChatCompletionSubscriptionError {
-  message: String!
-}
-
-union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion | ChatCompletionSubscriptionError
+union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
 
 input ClearProjectInput {
   id: GlobalID!
@@ -867,6 +863,7 @@ type ExportedFile {
 
 type FinishedChatCompletion {
   span: Span!
+  errorMessage: String
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {

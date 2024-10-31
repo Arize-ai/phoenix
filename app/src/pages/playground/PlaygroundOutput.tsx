@@ -197,9 +197,7 @@ function useChatCompletionSubscription({
               span {
                 id
               }
-            }
-            ... on ChatCompletionSubscriptionError {
-              message
+              errorMessage
             }
           }
         }
@@ -361,20 +359,12 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
             spanId: chatCompletion.span.id,
           },
         });
-      } else if (
-        chatCompletion.__typename === "ChatCompletionSubscriptionError"
-      ) {
-        markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        updateInstance({
-          instanceId: props.playgroundInstanceId,
-          patch: {
-            isRunning: false,
-          },
-        });
-        notifyError({
-          title: "Chat completion failed",
-          message: chatCompletion.message,
-        });
+        if (chatCompletion.errorMessage != null) {
+          notifyError({
+            title: "Chat completion failed",
+            message: chatCompletion.errorMessage,
+          });
+        }
       }
     },
     onCompleted: () => {
