@@ -44,9 +44,6 @@ from strawberry.schema import BaseSchema
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
-from phoenix.server.api.dataloaders.session_trace_latency_ms_quantile import (
-    SessionTraceLatencyMsQuantileDataLoader,
-)
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
@@ -97,6 +94,9 @@ from phoenix.server.api.dataloaders import (
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
+)
+from phoenix.server.api.dataloaders.session_trace_latency_ms_quantile import (
+    SessionTraceLatencyMsQuantileDataLoader,
 )
 from phoenix.server.api.routers import (
     auth_router,
