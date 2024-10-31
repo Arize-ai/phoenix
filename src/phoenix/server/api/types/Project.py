@@ -128,7 +128,13 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            ("trace", self.id_attr, time_range, None, probability),
+            (
+                "trace",
+                self.id_attr,
+                time_range,
+                None,
+                probability,
+            ),
         )
 
     @strawberry.field
@@ -140,7 +146,13 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            ("span", self.id_attr, time_range, filter_condition, probability),
+            (
+                "span",
+                self.id_attr,
+                time_range,
+                filter_condition,
+                probability,
+            ),
         )
 
     @strawberry.field
