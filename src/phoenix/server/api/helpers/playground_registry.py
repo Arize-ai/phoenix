@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING, Any, Callable, Optional, Type, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type, Union
 
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
     from phoenix.server.api.subscriptions import PlaygroundStreamingClient
 
-ModelName: TypeAlias = Union[str, None]
+ModelName = Union[str, None]
 ModelKey = tuple[GenerativeProviderKey, ModelName]
 
 PROVIDER_DEFAULT = None
