@@ -32,3 +32,8 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 class FinishedChatCompletion(ChatCompletionSubscriptionPayload):
     span: Span
     error_message: Optional[str] = None
+
+
+@strawberry.type
+class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
+    message: str

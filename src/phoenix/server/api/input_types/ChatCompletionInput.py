@@ -2,6 +2,7 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
+from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
@@ -18,3 +19,9 @@ class ChatCompletionInput:
     tools: Optional[list[JSON]] = UNSET
     template: Optional[TemplateOptions] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
+
+
+@strawberry.input
+class ChatCompletionOverDatasetInput(ChatCompletionInput):
+    dataset_id: GlobalID
+    dataset_version_id: Optional[GlobalID] = None

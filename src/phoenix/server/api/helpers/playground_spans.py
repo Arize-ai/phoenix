@@ -65,7 +65,7 @@ class streaming_llm_span:
         *,
         input: "ChatCompletionInput",
         messages: list[ChatCompletionMessage],
-        invocation_parameters: dict[str, Any],
+        invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
     ) -> None:
         self._input = input
@@ -191,7 +191,9 @@ def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _llm_invocation_parameters(invocation_parameters: dict[str, Any]) -> Iterator[tuple[str, Any]]:
+def _llm_invocation_parameters(
+    invocation_parameters: Mapping[str, Any],
+) -> Iterator[tuple[str, Any]]:
     yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 

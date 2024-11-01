@@ -19,7 +19,9 @@ class TemplateFormatter(ABC):
         """
         template_variable_names = self.parse(template)
         if missing_template_variables := template_variable_names - set(variables.keys()):
-            raise ValueError(f"Missing template variables: {', '.join(missing_template_variables)}")
+            raise TemplateFormatterError(
+                f"Missing template variables: {', '.join(missing_template_variables)}"
+            )
         return self._format(template, template_variable_names, **variables)
 
     @abstractmethod
@@ -69,3 +71,11 @@ class MustacheTemplateFormatter(TemplateFormatter):
                 string=template,
             )
         return template
+
+
+class TemplateFormatterError(Exception):
+    """
+    An error raised when template formatting fails.
+    """
+
+    pass

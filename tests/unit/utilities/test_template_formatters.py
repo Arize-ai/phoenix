@@ -6,6 +6,7 @@ from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
     TemplateFormatter,
+    TemplateFormatterError,
 )
 
 
@@ -128,5 +129,5 @@ def test_template_formatters_raise_expected_error_on_missing_variables(
     formatter_cls: type[TemplateFormatter], template: str
 ) -> None:
     formatter = formatter_cls()
-    with pytest.raises(ValueError, match="Missing template variables"):
+    with pytest.raises(TemplateFormatterError, match="Missing template variables"):
         formatter.format(template)
