@@ -44,8 +44,8 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
             provider_key
             for provider_key, provider_registry in self._registry.items()
             if (
-                provider_registry.get(PROVIDER_DEFAULT) is not None
-                and provider_registry.get(PROVIDER_DEFAULT).dependencies_are_available()
+                (default_client := provider_registry.get(PROVIDER_DEFAULT)) is not None
+                and default_client.dependencies_are_available()
             )
         ]
 
