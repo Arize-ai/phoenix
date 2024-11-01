@@ -104,18 +104,22 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
  */
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
+// https://zod.dev/?id=json-type
+const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+type Literal = z.infer<typeof literalSchema>;
+type Json = Literal | { [key: string]: Json } | Json[];
+const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
+  z.union([
+    literalSchema,
+    z.array(jsonLiteralSchema),
+    z.record(jsonLiteralSchema),
+  ])
+);
+
 /**
  * Model generic invocation parameters schema in zod.
  */
-const invocationParameterSchema = z.record(
-  z.union([
-    z.boolean(),
-    z.number(),
-    z.string(),
-    z.array(z.string()),
-    z.record(z.unknown()),
-  ])
-);
+const invocationParameterSchema = jsonLiteralSchema;
 
 /**
  * The type of the invocation parameters schema
@@ -143,7 +147,15 @@ const stringToInvocationParametersSchema = z
       return z.NEVER;
     }
 
-    return invocationParameterSchema.parse(json);
+    const { success, data } = invocationParameterSchema.safeParse(json);
+    if (!success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The invocation parameters must be a valid JSON object",
+      });
+      return z.NEVER;
+    }
+    return data;
   })
   .default("{}");
 /**
