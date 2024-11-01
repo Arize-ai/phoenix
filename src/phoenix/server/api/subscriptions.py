@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Iterator
 from typing import (
     TYPE_CHECKING,
@@ -7,7 +6,6 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
-    Sequence,
     TypeVar,
 )
 
@@ -148,6 +146,7 @@ class Subscription:
         ]
         messages: dict[DatasetExampleID, list[ChatCompletionMessage]] = {}
         async with info.context.db() as session:
+            # todo: fix this query
             async for example in await session.stream_scalars(
                 select(models.DatasetExample).where(
                     models.DatasetExample.dataset_id
@@ -178,7 +177,7 @@ class Subscription:
             )
             for example_id in messages
         }
-        async for payload in _yield_concurrently(
+        async for payload in _merge(
             [
                 _stream(
                     llm_client=llm_client,
@@ -192,7 +191,6 @@ class Subscription:
             ]
         ):
             yield payload
-            await asyncio.sleep(0.2)  # todo: remove this line
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -207,11 +205,17 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            for span in spans.values():
-                db_span = span.add_to_session(session, playground_project_id)
-                yield FinishedChatCompletion(
-                    span=to_gql_span(db_span), error_message=span.error_message
-                )
+            db_spans = {
+                example_id: span.add_to_session(session, playground_project_id)
+                for example_id, span in spans.items()
+            }
+            await session.flush()
+        for example_id in spans:
+            yield FinishedChatCompletion(
+                span=to_gql_span(db_spans[example_id]),
+                error_message=spans[example_id].error_message,
+                dataset_example_id=example_id,
+            )
 
 
 async def _stream(
@@ -272,24 +276,20 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
 GenericType = TypeVar("GenericType")
 
 
-async def _yield_concurrently(
-    iters: Sequence[AsyncIterator[GenericType]],
+# todo: yield each payload as it is ready
+async def _merge(
+    iters: list[AsyncIterator[GenericType]],
 ) -> AsyncIterator[GenericType]:
     """
-    Yields from multiple async iterables concurrently.
+    Dummy implementation that merges the given async iterators into a single
+    async iterator.
     """
-    tasks: list[asyncio.Task[GenericType]] = [
-        asyncio.create_task(it.__aiter__().__anext__())  # type: ignore[arg-type]
-        for it in iters
-    ]
-
-    while tasks:
-        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in done:
-            try:
-                result = task.result()
-                yield result
-                index = tasks.index(task)
-                tasks[index] = asyncio.create_task(iters[index].__anext__())  # type: ignore[arg-type]
-            except StopAsyncIteration:
-                tasks.remove(task)
+    index = 0
+    while iters:
+        index = index % len(iters)
+        it = iters[index]
+        try:
+            yield await it.__anext__()
+            index += 1
+        except StopAsyncIteration:
+            iters.remove(it)
