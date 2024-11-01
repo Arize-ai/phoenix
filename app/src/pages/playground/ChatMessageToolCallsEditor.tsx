@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { toolCallSchemas } from "@phoenix/schemas";
+import { anthropicToolCallsJSONSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -25,6 +26,13 @@ export function ChatMessageToolCallsEditor({
   messageId: number;
 }) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
+  );
+
+  if (instance == null) {
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
+  }
   const [toolCallsValue, setToolCallsValue] = useState(() =>
     JSON.stringify(toolCalls, null, 2)
   );
@@ -64,10 +72,20 @@ export function ChatMessageToolCallsEditor({
     [messageId, playgroundInstanceId, templateMessages, updateInstance]
   );
 
+  const toolCallsJSONSchema = useMemo((): JSONSchema7 => {
+    switch (instance.model.provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return openAIToolCallsJSONSchema as JSONSchema7;
+      case "ANTHROPIC":
+        return anthropicToolCallsJSONSchema as JSONSchema7;
+    }
+  }, [instance.model.provider]);
+
   return (
     <JSONEditor
       value={toolCallsValue}
-      jsonSchema={openAIToolCallsJSONSchema as JSONSchema7}
+      jsonSchema={toolCallsJSONSchema}
       onChange={onChange}
     />
   );

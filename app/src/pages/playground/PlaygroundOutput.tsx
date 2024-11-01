@@ -1,7 +1,6 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
@@ -60,25 +59,7 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
       )}
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
-            return (
-              <pre
-                key={toolCall.id}
-                css={css`
-                  text-wrap: wrap;
-                  margin: var(--ac-global-dimension-static-size-100) 0;
-                `}
-              >
-                {toolCall.function.name}(
-                {JSON.stringify(
-                  typeof toolCall.function.arguments === "string"
-                    ? JSON.parse(toolCall.function.arguments)
-                    : toolCall.function.arguments,
-                  null,
-                  2
-                )}
-                )
-              </pre>
-            );
+            return <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />;
           })
         : null}
     </Card>

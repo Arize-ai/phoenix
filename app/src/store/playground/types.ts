@@ -1,10 +1,14 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
-import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
-import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
+import {
+  InvocationParameterInput,
+  InvocationParameters,
+} from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import {
+  LlmProviderToolCall,
+  LlmProviderToolDefinition,
+} from "@phoenix/schemas";
 
 import { ModelConfigByProvider } from "../preferencesStore";
-
 export type GenAIOperationType = "chat" | "text_completion";
 /**
  * The input mode for the playground
@@ -36,7 +40,7 @@ export type ChatMessage = {
   role: ChatMessageRole;
   // Tool call messages may not have content
   content?: string;
-  toolCalls?: OpenAIToolCall[];
+  toolCalls?: LlmProviderToolCall[];
   toolCallId?: string;
 };
 
@@ -87,9 +91,9 @@ export type ModelConfig = {
 /**
  * The type of a tool in the playground
  */
-export type OpenAITool = {
+export type Tool = {
   id: number;
-  definition: Partial<OpenAIToolDefinition>;
+  definition: LlmProviderToolDefinition;
 };
 
 /**
@@ -105,7 +109,7 @@ export interface PlaygroundInstance {
    */
   id: number;
   template: PlaygroundTemplate;
-  tools: OpenAITool[];
+  tools: Tool[];
   /**
    * How the LLM should choose the tool to use
    * @default "auto"

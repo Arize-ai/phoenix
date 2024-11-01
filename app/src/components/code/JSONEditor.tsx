@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
 import { EditorView, hoverTooltip } from "@codemirror/view";
@@ -30,12 +30,17 @@ export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
   const { jsonSchema, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
+  const [key, setKey] = React.useState(0);
+  useEffect(() => {
+    setKey((prev) => prev + 1);
+  }, [jsonSchema, props.value]);
   const extensions = useMemo(() => {
     const baseExtensions = [
       json(),
       EditorView.lineWrapping,
       linter(jsonParseLinter()),
     ];
+
     if (jsonSchema) {
       baseExtensions.push(
         linter(jsonSchemaLinter(), { needsRefresh: handleRefresh }),
@@ -51,6 +56,7 @@ export function JSONEditor(props: JSONEditorProps) {
 
   return (
     <CodeMirror
+      key={key}
       value={props.value}
       extensions={extensions}
       editable

@@ -5,13 +5,22 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import {
+  detectToolDefinitionProvider,
+  fromOpenAIToolDefinition,
+  toOpenAIToolDefinition,
+} from "@phoenix/schemas";
+import {
+  fromOpenAIToolCall,
+  toOpenAIToolCall,
+} from "@phoenix/schemas/toolCallSchemas";
+import {
   ChatMessage,
   createPlaygroundInstance,
   generateMessageId,
   generateToolId,
   ModelConfig,
-  OpenAITool,
   PlaygroundInstance,
+  Tool,
 } from "@phoenix/store";
 import { assertUnreachable, Mutable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -516,3 +525,72 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
+export const getToolName = (tool: Tool): string => {
+  const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
+    tool.definition
+  );
+  switch (provider) {
+    case "OPENAI":
+    case "AZURE_OPENAI":
+      return validatedToolDefinition.function.name;
+    case "ANTHROPIC":
+      return validatedToolDefinition.name;
+    default:
+      assertUnreachable(provider);
+  }
+};
+
+export const convertInstanceToolsToProvider = ({
+  instanceTools,
+  provider,
+}: {
+  instanceTools: Tool[];
+  provider: ModelProvider;
+}): Tool[] => {
+  return instanceTools.map((tool) => {
+    switch (provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return {
+          ...tool,
+          definition: toOpenAIToolDefinition(tool.definition),
+        };
+      case "ANTHROPIC":
+        return {
+          ...tool,
+          definition: fromOpenAIToolDefinition({
+            toolDefinition: toOpenAIToolDefinition(tool.definition),
+            targetProvider: provider,
+          }),
+        };
+      default:
+        assertUnreachable(provider);
+    }
+  });
+};
+
+export const convertMessageToolCallsToProvider = ({
+  toolCalls,
+  provider,
+}: {
+  toolCalls: ChatMessage["toolCalls"];
+  provider: ModelProvider;
+}): ChatMessage["toolCalls"] => {
+  if (toolCalls == null) {
+    return;
+  }
+  return toolCalls.map((toolCall) => {
+    switch (provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return toOpenAIToolCall(toolCall);
+      case "ANTHROPIC":
+        return fromOpenAIToolCall({
+          toolCall: toOpenAIToolCall(toolCall),
+          targetProvider: provider,
+        });
+      default:
+        assertUnreachable(provider);
+    }
+  });
+};

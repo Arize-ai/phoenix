@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
@@ -9,12 +9,14 @@ import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
+  anthropicToolDefinitionJSONSchema,
   openAIToolDefinitionJSONSchema,
   openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
-import { OpenAITool } from "@phoenix/store";
+import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -25,13 +27,27 @@ const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
 export function PlaygroundTool({
   playgroundInstanceId,
-  tool,
-  instanceTools,
+  toolId,
 }: PlaygroundInstanceProps & {
-  tool: OpenAITool;
-  instanceTools: OpenAITool[];
+  toolId: Tool["id"];
 }) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
+  );
+
+  if (instance == null) {
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
+  }
+
+  const instanceTools = instance.tools;
+
+  const tool = instanceTools.find((t) => t.id === toolId);
+
+  if (tool == null) {
+    throw new Error(`Tool ${toolId} not found`);
+  }
 
   const [toolDefinition, setToolDefinition] = useState(
     JSON.stringify(tool.definition, null, 2)
@@ -69,6 +85,20 @@ export function PlaygroundTool({
     [instanceTools, playgroundInstanceId, tool.id, updateInstance]
   );
 
+  const toolName = useMemo(() => {
+    return getToolName(tool);
+  }, [tool]);
+
+  const toolDefinitionJSONSchema = useMemo((): JSONSchema7 => {
+    switch (instance.model.provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return openAIToolDefinitionJSONSchema as JSONSchema7;
+      case "ANTHROPIC":
+        return anthropicToolDefinitionJSONSchema as JSONSchema7;
+    }
+  }, [instance.model.provider]);
+
   return (
     <Card
       collapsible
@@ -78,7 +108,7 @@ export function PlaygroundTool({
       title={
         <Flex direction="row" gap="size-100">
           <SpanKindIcon spanKind="tool" />
-          <Text>{tool.definition.function?.name ?? "Tool"}</Text>
+          <Text>{toolName ?? "Tool"}</Text>
         </Flex>
       }
       bodyStyle={{ padding: 0 }}
@@ -109,7 +139,7 @@ export function PlaygroundTool({
         <JSONEditor
           value={toolDefinition}
           onChange={onChange}
-          jsonSchema={openAIToolDefinitionJSONSchema as JSONSchema7}
+          jsonSchema={toolDefinitionJSONSchema}
         />
       </LazyEditorWrapper>
     </Card>

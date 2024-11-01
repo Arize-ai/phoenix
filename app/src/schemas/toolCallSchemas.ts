@@ -153,7 +153,9 @@ type ToolCallWithProvider =
 /**
  * Detect the provider of a tool call object
  */
-export const detectProvider = (toolCall: unknown): ToolCallWithProvider => {
+export const detectToolCallProvider = (
+  toolCall: unknown
+): ToolCallWithProvider => {
   const { success: openaiSuccess, data: openaiData } =
     openAIToolCallSchema.safeParse(toolCall);
   if (openaiSuccess) {
@@ -177,7 +179,7 @@ type ProviderToToolCallMap = {
 export const toOpenAIToolCall = (
   toolCall: LlmProviderToolCall
 ): OpenAIToolCall => {
-  const { provider, validatedToolCall } = detectProvider(toolCall);
+  const { provider, validatedToolCall } = detectToolCallProvider(toolCall);
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":

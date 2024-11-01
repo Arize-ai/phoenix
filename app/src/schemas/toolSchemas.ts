@@ -78,13 +78,13 @@ export const openAIToolDefinitionSchema = z
   .passthrough();
 
 /**
- * The type of a tool definition
+ * The type of an OpenAI tool definition
  * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
  */
 export type OpenAIToolDefinition = z.infer<typeof openAIToolDefinitionSchema>;
 
 /**
- * The JSON schema for a tool definition
+ * The JSON schema for an OpenAI tool definition
  */
 export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
   openAIToolDefinitionSchema,
@@ -94,7 +94,7 @@ export const openAIToolDefinitionJSONSchema = zodToJsonSchema(
 );
 
 /**
- * Anthropic tool format
+ * The zod schema for an anthropic tool definition
  */
 export const anthropicToolDefinitionSchema = z.object({
   name: z.string(),
@@ -102,9 +102,22 @@ export const anthropicToolDefinitionSchema = z.object({
   input_schema: jsonSchemaZodSchema,
 });
 
+/**
+ * The type of an anthropic tool definition
+ */
 export type AnthropicToolDefinition = z.infer<
   typeof anthropicToolDefinitionSchema
 >;
+
+/**
+ * The JSON schema for an anthropic tool definition
+ */
+export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
+  anthropicToolDefinitionSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);
 
 /**
  * --------------------------------
@@ -171,7 +184,7 @@ type ToolDefinitionWithProvider =
 /**
  * Detect the provider of a tool call object
  */
-export const detectProvider = (
+export const detectToolDefinitionProvider = (
   toolDefinition: unknown
 ): ToolDefinitionWithProvider => {
   const { success: openaiSuccess, data: openaiData } =
@@ -205,7 +218,8 @@ type ProviderToToolDefinitionMap = {
 export const toOpenAIToolDefinition = (
   toolDefinition: LlmProviderToolDefinition
 ): OpenAIToolDefinition => {
-  const { provider, validatedToolDefinition } = detectProvider(toolDefinition);
+  const { provider, validatedToolDefinition } =
+    detectToolDefinitionProvider(toolDefinition);
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
