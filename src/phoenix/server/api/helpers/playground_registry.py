@@ -37,6 +37,11 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
             client_class = provider_registry[PROVIDER_DEFAULT]  # Fallback to provider default
         return client_class
 
+    def list_all_providers(
+        self,
+    ) -> list[GenerativeProviderKey]:
+        return [provider_key for provider_key in self._registry]
+
     def list_models(self, provider_key: GenerativeProviderKey) -> list[str]:
         provider_registry = self._registry.get(provider_key, {})
         return [model_name for model_name in provider_registry.keys() if model_name is not None]

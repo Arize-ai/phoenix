@@ -1,3 +1,4 @@
+import importlib.util
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from typing import (
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
         ChatCompletionMessageToolCallParam,
     )
 
+DependencyName: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
@@ -58,6 +60,12 @@ class PlaygroundStreamingClient(ABC):
         set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         self._set_span_attributes = set_span_attributes
+
+    @classmethod
+    @abstractmethod
+    def dependencies(cls) -> list[DependencyName]:
+        # A list of dependency names this client needs to run
+        ...
 
     @classmethod
     @abstractmethod
@@ -97,6 +105,17 @@ class PlaygroundStreamingClient(ABC):
         validate_invocation_parameters(supported_params, formatted_invocation_parameters)
         return formatted_invocation_parameters
 
+    @classmethod
+    def dependencies_are_installed(cls) -> bool:
+        try:
+            for dependency in cls.dependencies():
+                if importlib.util.find_spec(dependency) is None:
+                    return False
+            return True
+        except ValueError:
+            # happens in some cases if the spec is None
+            return False
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
@@ -133,6 +152,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
+
+    @classmethod
+    def dependencies(cls) -> list[DependencyName]:
+        return ["openai"]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -521,6 +544,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
+
+    @classmethod
+    def dependencies(cls) -> list[DependencyName]:
+        return ["anthropic"]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:

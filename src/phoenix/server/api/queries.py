@@ -37,6 +37,7 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
@@ -84,6 +85,8 @@ from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
+initialize_playground_clients()
+
 
 @strawberry.input
 class ModelsInput:
@@ -95,19 +98,13 @@ class ModelsInput:
 class Query:
     @strawberry.field
     async def model_providers(self) -> list[GenerativeProvider]:
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
         return [
             GenerativeProvider(
-                name="OpenAI",
-                key=GenerativeProviderKey.OPENAI,
-            ),
-            GenerativeProvider(
-                name="Azure OpenAI",
-                key=GenerativeProviderKey.AZURE_OPENAI,
-            ),
-            GenerativeProvider(
-                name="Anthropic",
-                key=GenerativeProviderKey.ANTHROPIC,
-            ),
+                name=provider_key.value,
+                key=provider_key,
+            )
+            for provider_key in available_providers
         ]
 
     @strawberry.field
