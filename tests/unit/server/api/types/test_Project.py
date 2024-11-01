@@ -1,7 +1,7 @@
 # ruff: noqa: E501
 
 from datetime import datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 import pytest
@@ -11,7 +11,11 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
+from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.types import DbSessionFactory
+
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -1139,3 +1143,59 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                 },
             ],
         )
+
+
+class _Data(NamedTuple):
+    spans: list[models.Span]
+    traces: list[models.Trace]
+    project_sessions: list[models.ProjectSession]
+    projects: list[models.Project]
+
+
+class TestProject:
+    @staticmethod
+    async def _node(
+        field: str,
+        project: models.Project,
+        httpx_client: httpx.AsyncClient,
+    ) -> Any:
+        return await _node(field, Project.__name__, project.id, httpx_client)
+
+    @pytest.fixture
+    async def _data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        projects = []
+        project_sessions = []
+        traces = []
+        spans = []
+        async with db() as session:
+            projects.append(await _add_project(session))
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "abc"}, "output": {"value": "cba"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "xyz"}, "output": {"value": "zyx"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+        return _Data(
+            spans=spans,
+            traces=traces,
+            project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    async def test_sessions_filter_condition(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        project_session = _data.project_sessions[1]
+        id_ = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+        field = 'sessions(filterCondition:"' + "'y' in input.value" + '"){edges{node{id}}}'
+        assert await self._node(field, project, httpx_client) == {
+            "edges": [{"node": {"id": id_}}],
+        }
