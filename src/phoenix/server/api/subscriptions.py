@@ -123,7 +123,7 @@ class Subscription:
 
     @strawberry.subscription
     async def chat_completion_over_dataset(
-        self, info: Info[Context, None], input: "ChatCompletionOverDatasetInput"
+        self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)

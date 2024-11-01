@@ -7,7 +7,6 @@ from itertools import chain
 from traceback import format_exc
 from types import TracebackType
 from typing import (
-    TYPE_CHECKING,
     Any,
     Iterable,
     Iterator,
@@ -33,6 +32,12 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    TextChunk,
+    ToolCallChunk,
+)
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import (
     SpanEvent,
@@ -40,17 +45,8 @@ from phoenix.trace.schemas import (
 )
 from phoenix.utilities.json import jsonify
 
-if TYPE_CHECKING:
-    from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
-    from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-    from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-        TextChunk,
-        ToolCallChunk,
-    )
-
-
 ChatCompletionMessage: TypeAlias = tuple[
-    "ChatCompletionMessageRole", str, Optional[str], Optional[list[str]]
+    ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
 ]
 ToolCallID: TypeAlias = str
 
@@ -63,7 +59,7 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: "ChatCompletionInput",
+        input: ChatCompletionInput,
         messages: list[ChatCompletionMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
@@ -83,9 +79,9 @@ class streaming_llm_span:
         self._events: list[SpanEvent] = []
         self._start_time: datetime
         self._end_time: datetime
-        self._response_chunks: list[Union["TextChunk", "ToolCallChunk"]] = []
-        self._text_chunks: list["TextChunk"] = []
-        self._tool_call_chunks: defaultdict[ToolCallID, list["ToolCallChunk"]] = defaultdict(list)
+        self._response_chunks: list[Union[TextChunk, ToolCallChunk]] = []
+        self._text_chunks: list[TextChunk] = []
+        self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         self._status_code: StatusCode
         self._status_message: str
 
@@ -164,12 +160,7 @@ class streaming_llm_span:
     def set_attributes(self, attributes: Mapping[str, Any]) -> None:
         self._attributes.update(attributes)
 
-    def add_response_chunk(self, chunk: Union["TextChunk", "ToolCallChunk"]) -> None:
-        from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-            TextChunk,
-            ToolCallChunk,
-        )
-
+    def add_response_chunk(self, chunk: Union[TextChunk, ToolCallChunk]) -> None:
         self._response_chunks.append(chunk)
         if isinstance(chunk, TextChunk):
             self._text_chunks.append(chunk)
@@ -202,7 +193,7 @@ def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: "ChatCompletionInput") -> Iterator[tuple[str, Any]]:
+def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
@@ -218,7 +209,7 @@ def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
 
 def _llm_input_messages(
     messages: Iterable[
-        tuple["ChatCompletionMessageRole", str, Optional[str], Optional[list[JSONScalarType]]]
+        tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
     ],
 ) -> Iterator[tuple[str, Any]]:
     for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
@@ -238,8 +229,8 @@ def _llm_input_messages(
 
 
 def _llm_output_messages(
-    text_chunks: list["TextChunk"],
-    tool_call_chunks: defaultdict[ToolCallID, list["ToolCallChunk"]],
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
 ) -> Iterator[tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if content := "".join(chunk.content for chunk in text_chunks):
