@@ -106,13 +106,14 @@ class PlaygroundStreamingClient(ABC):
         return formatted_invocation_parameters
 
     @classmethod
-    def dependencies_are_available(cls) -> bool:
+    def dependencies_are_installed(cls) -> bool:
         try:
             for dependency in cls.dependencies():
                 if importlib.util.find_spec(dependency) is None:
                     return False
             return True
-        except Exception:
+        except ValueError:
+            # happens in some cases if the spec is None
             return False
 
 

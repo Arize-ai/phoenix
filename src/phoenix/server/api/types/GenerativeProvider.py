@@ -28,7 +28,7 @@ class GenerativeProvider:
         return []
 
     @strawberry.field
-    async def dependencies_are_installed(self) -> bool:
+    async def dependencies_installed(self) -> bool:
         from phoenix.server.api.helpers.playground_registry import (
             PLAYGROUND_CLIENT_REGISTRY,
             PROVIDER_DEFAULT,
@@ -36,5 +36,5 @@ class GenerativeProvider:
 
         default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
         if default_client:
-            return default_client.dependencies_are_available()
+            return default_client.dependencies_are_installed()
         return False
