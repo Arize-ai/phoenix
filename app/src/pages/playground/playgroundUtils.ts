@@ -51,6 +51,7 @@ import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+  MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
@@ -63,6 +64,7 @@ import { InvocationParameter } from "./InvocationParametersForm";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
+  JsonObjectSchema,
   llmInputMessageSchema,
   llmOutputMessageSchema,
   LlmToolSchema,
@@ -70,6 +72,7 @@ import {
   MessageSchema,
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
+  modelConfigWithResponseFormatSchema,
   outputSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
@@ -343,6 +346,21 @@ export function getModelInvocationParametersFromAttributes(
   };
 }
 
+export function getResponseFormatFromAttributes(parsedAttributes: unknown) {
+  const { success, data } =
+    modelConfigWithResponseFormatSchema.safeParse(parsedAttributes);
+  if (!success) {
+    return {
+      responseFormat: undefined,
+      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
+    };
+  }
+  return {
+    responseFormat: data.llm.invocation_parameters.response_format,
+    parsingErrors: [],
+  };
+}
+
 /**
  * Processes the tools from the span attributes into OpenAI tools to be used in the playground
  * @param tools tools from the span attributes
@@ -440,6 +458,8 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
     modelSupportedInvocationParameters
   );
+  const { responseFormat, parsingErrors: responseFormatParsingErrors } =
+    getResponseFormatFromAttributes(parsedAttributes);
 
   // Merge invocation parameters into model config, if model config is present
   modelConfig =
@@ -469,6 +489,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       output,
       spanId: span.id,
       tools: tools ?? basePlaygroundInstance.tools,
+      responseFormat,
     },
     parsingErrors: [
       ...messageParsingErrors,
@@ -476,6 +497,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       ...modelConfigParsingErrors,
       ...toolsParsingErrors,
       ...invocationParametersParsingErrors,
+      ...responseFormatParsingErrors,
     ],
   };
 }
@@ -604,10 +626,7 @@ export const toCamelCase = (str: string) =>
  */
 export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
   (
-    invocationParameters: Record<
-      string,
-      string | number | boolean | string[] | Record<string, unknown>
-    >,
+    invocationParameters: JsonObjectSchema,
     modelSupportedInvocationParameters: InvocationParameter[]
   ): InvocationParameterInput[] => {
     return Object.entries(invocationParameters)

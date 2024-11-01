@@ -116,10 +116,18 @@ const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
   ])
 );
 
+export type JsonLiteralSchema = z.infer<typeof jsonLiteralSchema>;
+
+const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
+  z.record(jsonLiteralSchema)
+);
+
+export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
+
 /**
  * Model generic invocation parameters schema in zod.
  */
-const invocationParameterSchema = jsonLiteralSchema;
+const invocationParameterSchema = jsonObjectSchema;
 
 /**
  * The type of the invocation parameters schema
@@ -176,6 +184,17 @@ export const modelConfigWithInvocationParametersSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.invocation_parameters]:
       stringToInvocationParametersSchema,
+  }),
+});
+
+export const modelConfigWithResponseFormatSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          response_format: jsonObjectSchema.optional(),
+        })
+      ),
   }),
 });
 

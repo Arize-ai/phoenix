@@ -28,6 +28,8 @@ export const MODEL_CONFIG_PARSING_ERROR =
   "Unable to parse model config, expected llm.model_name to be present.";
 export const MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR =
   "Unable to parse model config, expected llm.invocation_parameters json string to be present.";
+export const MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR =
+  "Unable to parse invocation parameters response_format, expected llm.invocation_parameters.response_format to be a well formed json object or undefined.";
 // TODO(parker / apowell) - adjust this error message with anthropic support https://github.com/Arize-ai/phoenix/issues/5100
 export const TOOLS_PARSING_ERROR =
   "Unable to parse tools, expected tools to be an array of valid OpenAI tools.";

@@ -1,6 +1,7 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
+import { JsonObjectSchema } from "@phoenix/pages/playground/schemas";
 import {
   LlmProviderToolCall,
   LlmProviderToolDefinition,
@@ -113,6 +114,7 @@ export interface PlaygroundInstance {
    * @default "auto"
    */
   toolChoice?: ToolChoice;
+  responseFormat?: JsonObjectSchema;
   input: PlaygroundInput;
   model: ModelConfig;
   output?: ChatMessage[] | string;
