@@ -176,6 +176,11 @@ type ProviderToToolCallMap = {
   ANTHROPIC: AnthropicToolCall;
 };
 
+/**
+ * Converts a tool call to the OpenAI format
+ * @param toolCall a tool call from an unknown LlmProvider
+ * @returns the tool call parsed to the OpenAI format
+ */
 export const toOpenAIToolCall = (
   toolCall: LlmProviderToolCall
 ): OpenAIToolCall => {
@@ -191,6 +196,12 @@ export const toOpenAIToolCall = (
   }
 };
 
+/**
+ * Converts a tool call to a target provider format
+ * @param toolCall the tool call to convert
+ * @param targetProvider the provider to convert the tool call to
+ * @returns the tool call in the target provider format
+ */
 export const fromOpenAIToolCall = <T extends ModelProvider>({
   toolCall,
   targetProvider,
@@ -208,3 +219,28 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
       assertUnreachable(targetProvider);
   }
 };
+
+/**
+ * Creates an empty OpenAI tool call with fields but no values filled in
+ */
+export function createOpenAIToolCall(): OpenAIToolCall {
+  return {
+    id: "",
+    function: {
+      name: "",
+      arguments: {},
+    },
+  };
+}
+
+/**
+ * Creates an empty Anthropic tool call with fields but no values filled in
+ */
+export function createAnthropicToolCall(): AnthropicToolCall {
+  return {
+    id: "",
+    type: "tool_use",
+    name: "",
+    input: {},
+  };
+}

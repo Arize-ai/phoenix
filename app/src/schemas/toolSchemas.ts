@@ -253,3 +253,34 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       assertUnreachable(targetProvider);
   }
 };
+
+/**
+ * Creates an OpenAI tool definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
+ * @returns an OpenAI tool definition
+ */
+export function createOpenAIToolDefinition(
+  toolNumber: number
+): OpenAIToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: `new_function_${toolNumber}`,
+      parameters: {
+        type: "object",
+        properties: {
+          new_arg: {
+            type: "string",
+          },
+        },
+        required: [],
+      },
+    },
+  };
+}
+
+/**
+ * Creates an Anthropic tool definition
+ * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
+ * @returns an Anthropic tool definition
+ */
