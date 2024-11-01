@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { JSONEditor } from "@phoenix/components/code";
@@ -33,25 +33,36 @@ export function ChatMessageToolCallsEditor({
   if (instance == null) {
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
-  const [toolCallsValue, setToolCallsValue] = useState(() =>
+  const [editorValue, setEditorValue] = useState(() =>
     JSON.stringify(toolCalls, null, 2)
   );
 
+  const [lastValidToolCalls, setLastValidToolCalls] = useState(toolCalls);
+
+  // Update editor when tool calls changes externally, this can happen when switching between providers
+  useEffect(() => {
+    if (JSON.stringify(toolCalls) !== JSON.stringify(lastValidToolCalls)) {
+      setEditorValue(JSON.stringify(toolCalls, null, 2));
+      setLastValidToolCalls(toolCalls);
+    }
+  }, [lastValidToolCalls, toolCalls]);
+
   const onChange = useCallback(
     (value: string) => {
-      setToolCallsValue(value);
-      const { json: definition } = safelyParseJSON(value);
-      if (definition == null) {
+      setEditorValue(value);
+      const { json: toolCalls } = safelyParseJSON(value);
+      if (toolCalls == null) {
         return;
       }
       // Don't use data here returned by safeParse, as we want to allow for extra keys,
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = openAIToolCallsSchema.safeParse(definition);
+      const { success } = openAIToolCallsSchema.safeParse(toolCalls);
       if (!success) {
         return;
       }
+      setLastValidToolCalls(toolCalls);
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -61,7 +72,7 @@ export function ChatMessageToolCallsEditor({
               messageId === m.id
                 ? {
                     ...m,
-                    toolCalls: definition,
+                    toolCalls,
                   }
                 : m
             ),
@@ -84,7 +95,7 @@ export function ChatMessageToolCallsEditor({
 
   return (
     <JSONEditor
-      value={toolCallsValue}
+      value={editorValue}
       jsonSchema={toolCallsJSONSchema}
       onChange={onChange}
     />

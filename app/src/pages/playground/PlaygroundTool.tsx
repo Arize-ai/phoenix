@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
@@ -49,13 +49,27 @@ export function PlaygroundTool({
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const [toolDefinition, setToolDefinition] = useState(
+  const [editorValue, setEditorValue] = useState(
     JSON.stringify(tool.definition, null, 2)
   );
 
+  const [lastValidDefinition, setLastValidDefinition] = useState(
+    tool.definition
+  );
+
+  // Update editor when tool definition changes externally this can happen when switching between providers
+  useEffect(() => {
+    if (
+      JSON.stringify(tool.definition) !== JSON.stringify(lastValidDefinition)
+    ) {
+      setLastValidDefinition(tool.definition);
+      setEditorValue(JSON.stringify(tool.definition, null, 2));
+    }
+  }, [tool.definition, lastValidDefinition]);
+
   const onChange = useCallback(
     (value: string) => {
-      setToolDefinition(value);
+      setEditorValue(value);
       const { json: definition } = safelyParseJSON(value);
       if (definition == null) {
         return;
@@ -68,6 +82,9 @@ export function PlaygroundTool({
       if (!success) {
         return;
       }
+
+      setLastValidDefinition(definition);
+
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -114,7 +131,7 @@ export function PlaygroundTool({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={toolDefinition} />
+          <CopyToClipboardButton text={editorValue} />
           <Button
             aria-label="Delete tool"
             icon={<Icon svg={<Icons.TrashOutline />} />}
@@ -137,7 +154,7 @@ export function PlaygroundTool({
         preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
       >
         <JSONEditor
-          value={toolDefinition}
+          value={editorValue}
           onChange={onChange}
           jsonSchema={toolDefinitionJSONSchema}
         />
