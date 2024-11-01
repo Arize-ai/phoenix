@@ -28,7 +28,7 @@ class GenerativeProvider:
         return []
 
     @strawberry.field
-    async def supported_models(self) -> bool:
+    async def dependencies_are_installed(self) -> bool:
         from phoenix.server.api.helpers.playground_registry import (
             PLAYGROUND_CLIENT_REGISTRY,
             PROVIDER_DEFAULT,

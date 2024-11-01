@@ -905,7 +905,7 @@ type GenerativeProvider {
   name: String!
   key: GenerativeProviderKey!
   dependencies: [String!]!
-  supportedModels: Boolean!
+  dependenciesAreInstalled: Boolean!
 }
 
 enum GenerativeProviderKey {
