@@ -28,7 +28,7 @@ class AnthropicModel(BaseModel):
         model (str, optional): The model name to use. Defaults to "claude-2.1".
         temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
         max_tokens (int, optional): Maximum number of tokens to generate in the completion.
-            Defaults to 256.
+            Defaults to 1024.
         top_p (float, optional): Total probability mass of tokens to consider at each step.
             Defaults to 1.
         top_k (int, optional): The cutoff where the model no longer selects the words.
@@ -54,7 +54,7 @@ class AnthropicModel(BaseModel):
 
     model: str = "claude-2.1"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     top_k: int = 256
     stop_sequences: List[str] = field(default_factory=list)
