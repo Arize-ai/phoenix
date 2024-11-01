@@ -57,10 +57,15 @@ export function SessionsTable(props: SessionsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
           name
-          sessions(first: $first, after: $after, timeRange: $timeRange)
-            @connection(key: "SessionsTable_sessions") {
+          sessions(
+            first: $first
+            after: $after
+            filterCondition: $filterCondition
+            timeRange: $timeRange
+          ) @connection(key: "SessionsTable_sessions") {
             edges {
               session: node {
                 id
@@ -154,6 +159,7 @@ export function SessionsTable(props: SessionsTableProps) {
         {
           after: null,
           first: PAGE_SIZE,
+          filterCondition: filterCondition,
         },
         { fetchPolicy: "store-and-network" }
       );

@@ -261,6 +261,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
         stmt = select(table).filter_by(project_id=self.id_attr)
@@ -272,6 +273,17 @@ class Project(Node):
         if after:
             cursor = Cursor.from_string(after)
             stmt = stmt.where(table.id < cursor.rowid)
+        if filter_condition:
+            span_filter = SpanFilter(condition=filter_condition)
+            subq = span_filter(
+                (
+                    stmt.with_only_columns(distinct(table.id).label("id"))
+                    .join_from(table, models.Trace)
+                    .join_from(models.Trace, models.Span)
+                    .where(models.Span.parent_id.is_(None))
+                )
+            ).subquery()
+            stmt = stmt.join(subq, table.id == subq.c.id)
         if first:
             stmt = stmt.limit(
                 first + 1  # over-fetch by one to determine whether there's a next page

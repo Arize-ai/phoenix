@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6f6a0779ba767f9d7788359aa2075fd>>
+ * @generated SignedSource<<9136b4549ff709dd0d60a353b0c1f804>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -72,6 +72,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
@@ -122,6 +127,11 @@ return {
     {
       "alias": "sessions",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        },
         {
           "kind": "Variable",
           "name": "timeRange",
@@ -296,6 +306,6 @@ return {
 };
 })();
 
-(node as any).hash = "ffd50d06a86cb2efbd63be2f7e658dbf";
+(node as any).hash = "27bb1448e2935d7844a0a83e28f828c9";
 
 export default node;
