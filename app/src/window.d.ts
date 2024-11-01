@@ -21,6 +21,7 @@ declare global {
       };
       authenticationEnabled: boolean;
       oAuth2Idps: OAuth2Idp[];
+      websocketsEnabled: boolean;
     };
   }
 }
