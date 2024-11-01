@@ -3,10 +3,16 @@ name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
 requires-python = ">=3.9, <3.13"
-license = { text = "Elastic-2.0" }
+license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
-keywords = ["Observability", "Monitoring", "Explainability"]
-authors = [{ name = "Arize AI", email = "phoenix-devs@arize.com" }]
+keywords = [
+  "Observability",
+  "Monitoring",
+  "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
+]
 classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.9",
@@ -16,13 +22,13 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy!=2.0.0",                               # https://github.com/lmcinnes/umap/issues/1138
+  "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.243.1",                # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.243.1",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -33,7 +39,7 @@ dependencies = [
   "tqdm",
   "httpx",
   "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",                # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.12",
@@ -44,11 +50,11 @@ dependencies = [
   "aioitertools",
   "sqlean.py>=3.45.1",
   "cachetools",
-  "python-multipart",                           # see https://www.starlette.io/#dependencies
+  "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
   "arize-phoenix-otel>=0.5.1",
   "fastapi",
-  "pydantic>=1.0,!=2.0.*,<3",                   # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "websockets",
 ]
@@ -70,7 +76,7 @@ dev = [
   "ruff==0.6.9",
   "mypy==1.12.1",
   "pandas>=1.0",
-  "tabulate",                                                # used by DataFrame.to_markdown()
+  "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603",
   "pytest==8.3.3",
@@ -80,7 +86,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.243.1", # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -97,19 +103,22 @@ dev = [
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",       # https://github.com/astral-sh/uv/issues/6281
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
 ]
 evals = []
 experimental = []
 llama-index = [
-  "llama-index==0.11.0",                   # always pin to a version that keeps our notebooks working
+  "llama-index==0.11.0",  # always pin to a version that keeps our notebooks working
   "llama-index-readers-file>=0.1.25",
   "llama-index-llms-openai>=0.1.24",
   "llama-index-embeddings-openai>=0.1.10",
   "llama-index-agent-openai>=0.2.7",
 ]
-pg = ["asyncpg", "psycopg[binary,pool]"]
+pg = [
+  "asyncpg",
+  "psycopg[binary,pool]",
+]
 container = [
   "anthropic",
   "prometheus-client",
@@ -122,13 +131,14 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.243.1", # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
-  "numba>=0.60.0",                              # https://github.com/astral-sh/uv/issues/6281
+  "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
   "umap-learn",
 ]
-test = []
+test = [
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
@@ -144,8 +154,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
-exclude = ["src/phoenix/evals/", "src/phoenix/otel/"]
-artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
+exclude = [
+  "src/phoenix/evals/",
+  "src/phoenix/otel/",
+]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/db/migrations",
+]
 
 [tool.hatch.build]
 only-packages = true
@@ -160,7 +176,10 @@ exclude = [
   "examples/",
   "js/",
 ]
-artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
+artifacts = [
+  "src/phoenix/server/static",
+  "src/phoenix/db/migrations",
+]
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -176,14 +195,14 @@ dependencies = [
   "litellm>=1.0.3",
   "openai>=1.0.0",
   "tenacity",
-  "protobuf==3.20.2",                     # version minimum (for tests)
+  "protobuf==3.20.2",  # version minimum (for tests)
   "grpc-interceptor[testing]",
   "responses",
   "tiktoken",
   "typing-extensions==4.7.0",
-  "httpx",                                # For OpenAI testing
-  "respx",                                # For OpenAI testing
-  "nest-asyncio",                         # for executor testing
+  "httpx", # For OpenAI testing
+  "respx", # For OpenAI testing
+  "nest-asyncio", # for executor testing
   "asgi-lifespan",
   "Faker>=30.1.0",
   "uvloop; platform_system != 'Windows'",
@@ -206,9 +225,9 @@ dependencies = [
   "pandas>=1.0",
   "prometheus_client",
   "py-grpc-prometheus",
-  "pypistats",                                  # this is needed to type-check third-party packages
-  "requests",                                   # this is needed to type-check third-party packages
-  "strawberry-graphql[opentelemetry]==0.243.1", # need to pin version because we're monkey-patching
+  "pypistats",  # this is needed to type-check third-party packages
+  "requests",  # this is needed to type-check third-party packages
+  "strawberry-graphql[opentelemetry]==0.243.1",  # need to pin version because we're monkey-patching
   "tenacity",
   "types-cachetools",
   "types-protobuf",
@@ -224,18 +243,25 @@ python = ["3.9", "3.12"]
 
 [tool.hatch.envs.style]
 detached = true
-dependencies = ["ruff==0.6.9"]
+dependencies = [
+  "ruff==0.6.9",
+]
 
 [[tool.hatch.envs.style.matrix]]
 python = ["3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
-dependencies = ["jupyter"]
+dependencies = [
+  "jupyter",
+]
 
 [tool.hatch.envs.docs]
 detached = true
-dependencies = ["pyment", "interrogate"]
+dependencies = [
+  "pyment",
+  "interrogate",
+]
 
 [tool.hatch.envs.default.scripts]
 tests = "pytest {args} tests/unit"
@@ -245,7 +271,7 @@ python = ["3.9", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope="function"
 addopts = [
   "-rA",
   "--import-mode=importlib",
@@ -253,25 +279,41 @@ addopts = [
   "--new-first",
   "--showlocals",
 ]
-testpaths = ["tests"]
+testpaths = [
+  "tests",
+]
 
 [tool.coverage.run]
 branch = true
 parallel = true
-omit = ["**/__init__.py"]
+omit = [
+  "**/__init__.py",
+]
 
 [tool.coverage.report]
-fail_under = 30
-show_missing = true
-sort = "cover"
-exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+fail_under=30
+show_missing=true
+sort="cover"
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
 
 [tool.hatch.envs.type.scripts]
-check = ["mypy ."]
+check = [
+  "mypy .",
+]
 
 [tool.hatch.envs.style.scripts]
-check = ["ruff format --check --diff .", "ruff check ."]
-fix = ["ruff format .", "ruff check --fix ."]
+check = [
+  "ruff format --check --diff .",
+  "ruff check .",
+]
+fix = [
+  "ruff format .",
+  "ruff check --fix .",
+]
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
@@ -279,17 +321,25 @@ clean = [
 ]
 
 [tool.hatch.envs.publish]
-dependencies = ["check-wheel-contents", "twine"]
+dependencies = [
+  "check-wheel-contents",
+  "twine",
+]
 
 [tool.hatch.envs.publish.scripts]
 testpypi = [
   "check-wheel-contents dist/",
   "twine upload  --verbose --repository testpypi dist/*",
 ]
-pypi = ["check-wheel-contents dist/", "twine upload --verbose dist/*"]
+pypi = [
+  "check-wheel-contents dist/",
+  "twine upload --verbose dist/*",
+]
 
 [tool.hatch.envs.docs.scripts]
-check = ["interrogate -vv src/"]
+check = [
+  "interrogate -vv src/",
+]
 
 [tool.interrogate]
 fail-under = 0
@@ -340,7 +390,7 @@ module = [
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
-  "orjson",               # suppress fastapi internal type errors
+  "orjson",  # suppress fastapi internal type errors
   "pypistats",
   "authlib.*",
   "google.*",
