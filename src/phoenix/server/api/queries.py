@@ -98,7 +98,7 @@ class ModelsInput:
 class Query:
     @strawberry.field
     async def model_providers(self) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_available_providers()
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
         return [
             GenerativeProvider(
                 name=provider_key.value,

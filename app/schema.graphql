@@ -904,6 +904,8 @@ input GenerativeModelInput {
 type GenerativeProvider {
   name: String!
   key: GenerativeProviderKey!
+  dependencies: [String!]!
+  supportedModels: Boolean!
 }
 
 enum GenerativeProviderKey {
