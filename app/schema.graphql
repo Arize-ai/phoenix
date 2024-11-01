@@ -128,7 +128,20 @@ enum ChatCompletionMessageRole {
   AI
 }
 
+type ChatCompletionResult {
+  content: String
+  toolCalls: [ChatCompletionToolCall!]!
+  span: Span!
+  errorMessage: String
+}
+
 union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
+
+type ChatCompletionToolCall {
+  id: String!
+  function: JSON!
+  span: Span!
+}
 
 input ClearProjectInput {
   id: GlobalID!
@@ -1110,7 +1123,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
-  playgroundChatCompletion(input: ChatCompletionInput!): FinishedChatCompletion!
+  playgroundChatCompletion(input: ChatCompletionInput!): ChatCompletionResult!
 }
 
 """An object with a Globally Unique ID"""
