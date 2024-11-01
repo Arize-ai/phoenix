@@ -36,10 +36,9 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
-  createOpenAITool,
-  createOpenAIToolCall,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
+  PlaygroundInstance,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -51,6 +50,10 @@ import {
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
 import { PlaygroundTools } from "./PlaygroundTools";
+import {
+  createToolCallForProvider,
+  createToolForProvider,
+} from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -130,6 +133,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             return (
               <SortableMessageItem
                 playgroundInstanceId={id}
+                instance={playgroundInstance}
                 templateLanguage={templateLanguage}
                 template={template}
                 key={message.id}
@@ -161,7 +165,10 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
                 patch: {
                   tools: [
                     ...playgroundInstance.tools,
-                    createOpenAITool(playgroundInstance.tools.length + 1),
+                    createToolForProvider({
+                      provider: playgroundInstance.model.provider,
+                      toolNumber: playgroundInstance.tools.length + 1,
+                    }),
                   ],
                 },
               });
@@ -310,12 +317,14 @@ function SortableMessageItem({
   templateLanguage,
   template,
   message,
+  instance,
 }: PropsWithChildren<
   PlaygroundInstanceProps & {
     template: PlaygroundChatTemplateType;
     message: ChatMessage;
     templateLanguage: TemplateLanguage;
     index: number;
+    instance: PlaygroundInstance;
   }
 >) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
@@ -413,7 +422,9 @@ function SortableMessageItem({
                       case "toolCalls":
                         updateMessage({
                           content: "",
-                          toolCalls: [createOpenAIToolCall()],
+                          toolCalls: [
+                            createToolCallForProvider(instance.model.provider),
+                          ],
                         });
                         break;
                       default:

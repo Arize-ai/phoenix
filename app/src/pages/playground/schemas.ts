@@ -7,8 +7,8 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { openAIToolDefinitionSchema } from "@phoenix/schemas";
-import { openAIToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
+import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
+import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { isObject, schemaForType } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -95,7 +95,7 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
     // Tool call messages may not have content
     content: z.string().optional(),
     toolCallId: z.string().optional(),
-    toolCalls: z.array(openAIToolCallSchema).optional(),
+    toolCalls: z.array(llmProviderToolCallSchema).optional(),
   })
 );
 
@@ -179,14 +179,13 @@ export const toolJSONSchemaSchema = z
     }
     return json;
   })
-  // TODO(parker / apowell) - adjust this transformation with anthropic tool support https://github.com/Arize-ai/phoenix/issues/5100
   .transform((o, ctx) => {
-    const { data, success } = openAIToolDefinitionSchema.safeParse(o);
+    const { data, success } = llmProviderToolDefinitionSchema.safeParse(o);
 
     if (!success) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "The tool JSON schema must be a valid OpenAI tool schema",
+        message: "The tool JSON schema must be a valid tool schema",
       });
       return z.NEVER;
     }

@@ -1,5 +1,7 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
+import { LlmProviderToolDefinition } from "@phoenix/schemas";
+import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import {
   _resetInstanceId,
   _resetMessageId,
@@ -31,11 +33,16 @@ import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 import {
   basePlaygroundSpan,
-  expectedTestToolCall,
+  expectedAnthropicToolCall,
+  expectedTestOpenAIToolCall,
   spanAttributesWithInputMessages,
-  testSpanTool,
+  SpanTool,
+  SpanToolCall,
+  tesSpanAnthropicTool,
+  testSpanAnthropicToolDefinition,
+  testSpanOpenAITool,
+  testSpanOpenAIToolJsonSchema,
   testSpanToolCall,
-  testSpanToolJsonSchema,
 } from "./fixtures";
 
 const baseTestPlaygroundInstance: PlaygroundInstance = {
@@ -209,7 +216,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
-  it("should normalize message roles, content, and toolCalls in input and output messages", () => {
+  it("should normalize message roles, content, and toolCalls in input and output messages for OPENAI", () => {
     const span = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({
@@ -250,7 +257,58 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               id: 2,
               role: "user",
               content: "You are a chatbot",
-              toolCalls: [expectedTestToolCall],
+              toolCalls: [expectedTestOpenAIToolCall],
+            },
+          ],
+        },
+        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should normalize message roles, content, and toolCalls for Anthropic", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        llm: {
+          model_name: "claude-3-5-sonnet-20240620",
+          input_messages: [
+            {
+              message: {
+                role: "human",
+                content: "You are a chatbot",
+                tool_calls: [testSpanToolCall],
+              },
+            },
+          ],
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: "This is an AI Answer",
+              },
+            },
+          ],
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          provider: "ANTHROPIC",
+          modelName: "claude-3-5-sonnet-20240620",
+        },
+        template: {
+          __type: "chat",
+          messages: [
+            {
+              id: 2,
+              role: "user",
+              content: "You are a chatbot",
+              toolCalls: [expectedAnthropicToolCall],
             },
           ],
         },
@@ -266,7 +324,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       attributes: JSON.stringify({
         llm: {
           model_name: "gpt-4o",
-          tools: [testSpanTool],
+          tools: [testSpanOpenAITool],
           input_messages: [
             { message: { content: "You are a chatbot", role: "system" } },
             {
@@ -298,7 +356,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         tools: [
           {
             id: expect.any(Number),
-            definition: testSpanToolJsonSchema,
+            definition: testSpanOpenAIToolJsonSchema,
           },
         ],
         output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
@@ -581,25 +639,53 @@ describe("getModelProviderFromModelName", () => {
 });
 
 describe("processAttributeToolCalls", () => {
-  it("should transform tool calls correctly", () => {
-    const toolCalls = [testSpanToolCall];
-    expect(processAttributeToolCalls(toolCalls)).toEqual([
-      expectedTestToolCall,
-    ]);
-  });
+  type ProviderToolCallTuple<T extends ModelProvider> = [
+    T,
+    SpanToolCall,
+    LlmProviderToolCall,
+  ];
+
+  type ProviderToolCallTestMap = {
+    [P in ModelProvider]: ProviderToolCallTuple<P>;
+  };
+
+  const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
+    ANTHROPIC: ["ANTHROPIC", testSpanToolCall, expectedAnthropicToolCall],
+    OPENAI: ["OPENAI", testSpanToolCall, expectedTestOpenAIToolCall],
+    AZURE_OPENAI: [
+      "AZURE_OPENAI",
+      testSpanToolCall,
+      expectedTestOpenAIToolCall,
+    ],
+  };
+  test.for(Object.values(ProviderToToolCallTestMap))(
+    "should return %s tools, if they are valid",
+    ([provider, spanToolCall, processedToolCall]) => {
+      const result = processAttributeToolCalls({
+        provider,
+        toolCalls: [spanToolCall],
+      });
+      expect(result).toEqual([processedToolCall]);
+    }
+  );
 
   it("should filter out nullish tool calls", () => {
     const toolCalls = [{}, testSpanToolCall];
-    expect(processAttributeToolCalls(toolCalls)).toEqual([
-      expectedTestToolCall,
-    ]);
+    expect(
+      processAttributeToolCalls({ provider: "OPENAI", toolCalls })
+    ).toEqual([expectedTestOpenAIToolCall]);
   });
 });
 
 describe("getTemplateMessagesFromAttributes", () => {
   it("should return parsing errors if input messages are invalid", () => {
     const parsedAttributes = { llm: { input_messages: "invalid" } };
-    expect(getTemplateMessagesFromAttributes(parsedAttributes)).toEqual({
+    expect(
+      getTemplateMessagesFromAttributes({
+        provider: DEFAULT_MODEL_PROVIDER,
+        parsedAttributes,
+      })
+    ).toEqual({
       messageParsingErrors: [INPUT_MESSAGES_PARSING_ERROR],
       messages: null,
     });
@@ -619,14 +705,19 @@ describe("getTemplateMessagesFromAttributes", () => {
         ],
       },
     };
-    expect(getTemplateMessagesFromAttributes(parsedAttributes)).toEqual({
+    expect(
+      getTemplateMessagesFromAttributes({
+        provider: "OPENAI",
+        parsedAttributes,
+      })
+    ).toEqual({
       messageParsingErrors: [],
       messages: [
         {
           id: expect.any(Number),
           role: "user",
           content: "Hello",
-          toolCalls: [expectedTestToolCall],
+          toolCalls: [expectedTestOpenAIToolCall],
         },
       ],
     });
@@ -636,7 +727,12 @@ describe("getTemplateMessagesFromAttributes", () => {
 describe("getOutputFromAttributes", () => {
   it("should return parsing errors if output messages are invalid", () => {
     const parsedAttributes = { llm: { output_messages: "invalid" } };
-    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+    expect(
+      getOutputFromAttributes({
+        provider: DEFAULT_MODEL_PROVIDER,
+        parsedAttributes,
+      })
+    ).toEqual({
       output: undefined,
       outputParsingErrors: [
         OUTPUT_MESSAGES_PARSING_ERROR,
@@ -658,7 +754,12 @@ describe("getOutputFromAttributes", () => {
         ],
       },
     };
-    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+    expect(
+      getOutputFromAttributes({
+        provider: DEFAULT_MODEL_PROVIDER,
+        parsedAttributes,
+      })
+    ).toEqual({
       output: [
         {
           id: expect.any(Number),
@@ -676,7 +777,12 @@ describe("getOutputFromAttributes", () => {
         value: "This is an AI Answer",
       },
     };
-    expect(getOutputFromAttributes(parsedAttributes)).toEqual({
+    expect(
+      getOutputFromAttributes({
+        provider: DEFAULT_MODEL_PROVIDER,
+        parsedAttributes,
+      })
+    ).toEqual({
       output: "This is an AI Answer",
       outputParsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
     });
@@ -830,24 +936,51 @@ describe("extractVariablesFromInstances", () => {
   });
 });
 
+type ProviderToolTestTuple<T extends ModelProvider> = [
+  T,
+  SpanTool,
+  LlmProviderToolDefinition,
+];
+
+type ProviderToolTestMap = {
+  [P in ModelProvider]: ProviderToolTestTuple<P>;
+};
+
 describe("getToolsFromAttributes", () => {
-  it("should return tools and no parsing errors if tools are valid", () => {
-    const parsedAttributes = {
-      llm: {
-        tools: [testSpanTool],
-      },
-    };
-    const result = getToolsFromAttributes(parsedAttributes);
-    expect(result).toEqual({
-      tools: [
-        {
-          id: expect.any(Number),
-          definition: testSpanToolJsonSchema,
+  const ProviderToToolTestMap: ProviderToolTestMap = {
+    ANTHROPIC: [
+      "ANTHROPIC",
+      tesSpanAnthropicTool,
+      testSpanAnthropicToolDefinition,
+    ],
+    OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    AZURE_OPENAI: [
+      "AZURE_OPENAI",
+      testSpanOpenAITool,
+      testSpanOpenAIToolJsonSchema,
+    ],
+  };
+
+  test.for(Object.values(ProviderToToolTestMap))(
+    "should return %s tools, if they are valid",
+    ([_provider, spanTool, toolDefinition]) => {
+      const parsedAttributes = {
+        llm: {
+          tools: [spanTool],
         },
-      ],
-      parsingErrors: [],
-    });
-  });
+      };
+      const result = getToolsFromAttributes(parsedAttributes);
+      expect(result).toEqual({
+        tools: [
+          {
+            id: expect.any(Number),
+            definition: toolDefinition,
+          },
+        ],
+        parsingErrors: [],
+      });
+    }
+  );
 
   it("should return null tools and parsing errors if tools are invalid", () => {
     const parsedAttributes = { llm: { tools: "invalid" } };

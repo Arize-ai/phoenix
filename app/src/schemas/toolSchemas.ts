@@ -284,3 +284,20 @@ export function createOpenAIToolDefinition(
  * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1 to be used to fill in the name
  * @returns an Anthropic tool definition
  */
+export function createAnthropicToolDefinition(
+  toolNumber: number
+): AnthropicToolDefinition {
+  return {
+    name: `new_function_${toolNumber}`,
+    description: `new_function_${toolNumber}`,
+    input_schema: {
+      type: "object",
+      properties: {
+        new_arg: {
+          type: "string",
+        },
+      },
+      required: [],
+    },
+  };
+}

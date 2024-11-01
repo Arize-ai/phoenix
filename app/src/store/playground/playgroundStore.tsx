@@ -8,13 +8,11 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
 
 import {
   GenAIOperationType,
   InitialPlaygroundState,
   isManualInput,
-  OpenAITool,
   PlaygroundChatTemplate,
   PlaygroundInputMode,
   PlaygroundInstance,
@@ -109,45 +107,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     spanId: null,
     activeRunId: null,
     isRunning: false,
-  };
-}
-
-/**
- * Creates an empty OpenAI tool call with fields but no values filled in
- */
-export function createOpenAIToolCall(): OpenAIToolCall {
-  return {
-    id: "",
-    function: {
-      name: "",
-      arguments: {},
-    },
-  };
-}
-
-/**
- * Creates a default tool with a unique ID and a function definition
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1
- * @returns a {@link Tool} with a unique ID and a function definition
- */
-export function createOpenAITool(toolNumber: number): OpenAITool {
-  return {
-    id: generateToolId(),
-    definition: {
-      type: "function",
-      function: {
-        name: `new_function_${toolNumber}`,
-        parameters: {
-          type: "object",
-          properties: {
-            new_arg: {
-              type: "string",
-            },
-          },
-          required: [],
-        },
-      },
-    },
   };
 }
 
