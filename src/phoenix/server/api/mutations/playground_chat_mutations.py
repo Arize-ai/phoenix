@@ -36,7 +36,7 @@ ChatCompletionMessage: TypeAlias = tuple[
 @strawberry.type
 class PlaygroundChatCompletionMutationMixin:
     @strawberry.mutation
-    async def chat_completion(
+    async def playground_chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> FinishedChatCompletion:
         provider_key = input.model.provider_key

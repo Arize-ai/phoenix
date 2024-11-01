@@ -1110,7 +1110,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
-  chatCompletion(input: ChatCompletionInput!): FinishedChatCompletion!
+  playgroundChatCompletion(input: ChatCompletionInput!): FinishedChatCompletion!
 }
 
 """An object with a Globally Unique ID"""
