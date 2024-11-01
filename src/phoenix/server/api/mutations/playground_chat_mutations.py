@@ -3,7 +3,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from itertools import chain
 from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional
+from typing import Annotated, Any, Iterable, Iterator, List, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import (
@@ -23,7 +23,6 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
@@ -53,7 +52,6 @@ ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Opt
 class ChatCompletionToolCall:
     id: str
     function: strawberry.scalars.JSON
-    span: Optional[Span]
 
 
 @strawberry.type
@@ -65,15 +63,28 @@ class ChatCompletionResult:
 
 
 @strawberry.type
+class ChatCompletionError:
+    message: str
+
+
+ChatCompletionMutationPayload = Annotated[
+    Union[ChatCompletionResult, ChatCompletionError],
+    strawberry.union("ChatCompletionMutationPayload"),
+]
+
+
+@strawberry.type
 class PlaygroundChatCompletionMutationMixin:
     @strawberry.mutation
     async def playground_chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
-    ) -> ChatCompletionResult:
+    ) -> ChatCompletionMutationPayload:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
-            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+            return ChatCompletionError(
+                message=f"No LLM client registered for provider '{provider_key}'"
+            )
 
         attributes: dict[str, Any] = {}
         llm_client = llm_client_class(
@@ -127,7 +138,6 @@ class PlaygroundChatCompletionMutationMixin:
                     tool_call = ChatCompletionToolCall(
                         id=chunk.id,
                         function=chunk.function,
-                        span=None,  # We will set the span later
                     )
                     tool_calls.append(tool_call)
                 else:
@@ -206,9 +216,6 @@ class PlaygroundChatCompletionMutationMixin:
             await session.flush()
 
         gql_span = to_gql_span(span)
-
-        for tool_call in tool_calls:
-            tool_call.span = gql_span
 
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
