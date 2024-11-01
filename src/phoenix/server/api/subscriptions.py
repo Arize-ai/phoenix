@@ -5,9 +5,11 @@ from typing import (
 )
 
 import strawberry
+from sqlalchemy import insert, select
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
@@ -20,7 +22,9 @@ from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
+    FinishedChatCompletion,
 )
+from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.utilities.template_formatters import (
@@ -34,6 +38,7 @@ initialize_playground_clients()
 ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
 ]
+PLAYGROUND_PROJECT_NAME = "playground"
 
 
 @strawberry.type
@@ -71,7 +76,6 @@ class Subscription:
             input=input,
             messages=messages,
             invocation_parameters=invocation_parameters,
-            db=info.context.db,
             attributes=attributes,
         ) as span:
             async for chunk in llm_client.chat_completion_create(
@@ -79,8 +83,26 @@ class Subscription:
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
-        yield span.finished_chat_completion
-        info.context.event_queue.put(SpanInsertEvent(ids=(span.project_id,)))
+        async with info.context.db() as session:
+            if (
+                playground_project_id := await session.scalar(
+                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                )
+            ) is None:
+                playground_project_id = await session.scalar(
+                    insert(models.Project)
+                    .returning(models.Project.id)
+                    .values(
+                        name=PLAYGROUND_PROJECT_NAME,
+                        description="Traces from prompt playground",
+                    )
+                )
+            db_span = span.add_to_session(session, playground_project_id)
+            await session.flush()
+            yield FinishedChatCompletion(
+                span=to_gql_span(db_span), error_message=span.error_message
+            )
+        info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
 
 
 def _formatted_messages(
