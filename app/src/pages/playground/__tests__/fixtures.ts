@@ -12,6 +12,7 @@ export const basePlaygroundSpan: PlaygroundSpan = {
     name: "test",
   },
   attributes: "",
+  invocationParameters: [],
 };
 export const spanAttributesWithInputMessages = {
   llm: {
