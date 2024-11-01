@@ -11,7 +11,10 @@ import {
   InvocationParametersFormQuery$data,
 } from "./__generated__/InvocationParametersFormQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import { constrainInvocationParameterInputsToDefinition } from "./playgroundUtils";
+import {
+  constrainInvocationParameterInputsToDefinition,
+  toCamelCase,
+} from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   InvocationParametersFormQuery$data["modelInvocationParameters"]
@@ -92,9 +95,6 @@ const InvocationParameterFormField = ({
       return null;
   }
 };
-
-const toCamelCase = (str: string) =>
-  str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
 
 const getInvocationParameterValue = (
   field: InvocationParameter,
