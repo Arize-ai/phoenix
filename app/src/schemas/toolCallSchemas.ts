@@ -118,7 +118,7 @@ export const openAIToAnthropic = openAIToolCallSchema.transform(
     input:
       typeof openai.function.arguments === "string"
         ? { [openai.function.arguments]: openai.function.arguments }
-        : openai.function.arguments ?? {},
+        : (openai.function.arguments ?? {}),
   })
 );
 
@@ -133,39 +133,55 @@ export const openAIToAnthropic = openAIToolCallSchema.transform(
  *
  * This is useful for functions that need to accept any tool call format
  */
-export const anyToolCallSchema = z.union([
+export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
 ]);
 
-export type AnyToolCall = z.infer<typeof anyToolCallSchema>;
+export type LlmProviderToolCall = z.infer<typeof llmProviderToolCallSchema>;
+
+type ToolCallWithProvider =
+  | {
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      validatedToolCall: OpenAIToolCall;
+    }
+  | {
+      provider: Extract<ModelProvider, "ANTHROPIC">;
+      validatedToolCall: AnthropicToolCall;
+    };
 
 /**
  * Detect the provider of a tool call object
  */
-export const detectProvider = (
-  toolCall: unknown
-): { provider: ModelProvider; validatedToolCall: AnyToolCall } => {
-  let parsedToolCall: z.SafeParseReturnType<unknown, AnyToolCall>;
-
-  parsedToolCall = openAIToolCallSchema.safeParse(toolCall);
-  if (parsedToolCall.success) {
+export const detectProvider = (toolCall: unknown): ToolCallWithProvider => {
+  const { success: openaiSuccess, data: openaiData } =
+    openAIToolCallSchema.safeParse(toolCall);
+  if (openaiSuccess) {
     // we cannot disambiguate between azure openai and openai here
-    return { provider: "OPENAI", validatedToolCall: parsedToolCall.data };
+    return { provider: "OPENAI", validatedToolCall: openaiData };
   }
-  parsedToolCall = anthropicToolCallSchema.safeParse(toolCall);
-  if (parsedToolCall.success) {
-    return { provider: "ANTHROPIC", validatedToolCall: parsedToolCall.data };
+  const { success: anthropicSuccess, data: anthropicData } =
+    anthropicToolCallSchema.safeParse(toolCall);
+  if (anthropicSuccess) {
+    return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
   throw new Error("Unknown tool call format");
 };
 
-export const toOpenAIFormat = (toolCall: AnyToolCall): OpenAIToolCall => {
+type ProviderToToolCallMap = {
+  OPENAI: OpenAIToolCall;
+  AZURE_OPENAI: OpenAIToolCall;
+  ANTHROPIC: AnthropicToolCall;
+};
+
+export const toOpenAIToolCall = (
+  toolCall: LlmProviderToolCall
+): OpenAIToolCall => {
   const { provider, validatedToolCall } = detectProvider(toolCall);
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return validatedToolCall as OpenAIToolCall;
+      return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToOpenAI.parse(validatedToolCall);
     default:
@@ -173,16 +189,19 @@ export const toOpenAIFormat = (toolCall: AnyToolCall): OpenAIToolCall => {
   }
 };
 
-export const fromOpenAIFormat = (
-  toolCall: OpenAIToolCall,
-  targetProvider: ModelProvider
-): AnyToolCall => {
+export const fromOpenAIToolCall = <T extends ModelProvider>({
+  toolCall,
+  targetProvider,
+}: {
+  toolCall: OpenAIToolCall;
+  targetProvider: T;
+}): ProviderToToolCallMap[T] => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return toolCall;
+      return toolCall as ProviderToToolCallMap[T];
     case "ANTHROPIC":
-      return openAIToAnthropic.parse(toolCall);
+      return openAIToAnthropic.parse(toolCall) as ProviderToToolCallMap[T];
     default:
       assertUnreachable(targetProvider);
   }

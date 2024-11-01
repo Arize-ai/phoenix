@@ -149,50 +149,67 @@ export const openAIToAnthropic = openAIToolDefinitionSchema.transform(
  *
  * This is useful for functions that need to accept any tool definition format
  */
-export const anyToolDefinitionSchema = z.union([
+export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
 ]);
 
-export type AnyToolDefinition = z.infer<typeof anyToolDefinitionSchema>;
+export type LlmProviderToolDefinition = z.infer<
+  typeof llmProviderToolDefinitionSchema
+>;
+
+type ToolDefinitionWithProvider =
+  | {
+      provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      validatedToolDefinition: OpenAIToolDefinition;
+    }
+  | {
+      provider: Extract<ModelProvider, "ANTHROPIC">;
+      validatedToolDefinition: AnthropicToolDefinition;
+    };
 
 /**
  * Detect the provider of a tool call object
  */
 export const detectProvider = (
   toolDefinition: unknown
-): { provider: ModelProvider; validatedToolDefinition: AnyToolDefinition } => {
-  let parsedToolDefinition: z.SafeParseReturnType<unknown, AnyToolDefinition>;
-
-  parsedToolDefinition = openAIToolDefinitionSchema.safeParse(toolDefinition);
-  if (parsedToolDefinition.success) {
+): ToolDefinitionWithProvider => {
+  const { success: openaiSuccess, data: openaiData } =
+    openAIToolDefinitionSchema.safeParse(toolDefinition);
+  if (openaiSuccess) {
     return {
       provider: "OPENAI",
-      validatedToolDefinition: parsedToolDefinition.data,
+      validatedToolDefinition: openaiData,
     };
   }
-  parsedToolDefinition =
+  const { success: anthropicSuccess, data: anthropicData } =
     anthropicToolDefinitionSchema.safeParse(toolDefinition);
-  if (parsedToolDefinition.success) {
+  if (anthropicSuccess) {
     return {
       provider: "ANTHROPIC",
-      validatedToolDefinition: parsedToolDefinition.data,
+      validatedToolDefinition: anthropicData,
     };
   }
   throw new Error("Unknown tool call format");
 };
 
+type ProviderToToolDefinitionMap = {
+  OPENAI: OpenAIToolDefinition;
+  AZURE_OPENAI: OpenAIToolDefinition;
+  ANTHROPIC: AnthropicToolDefinition;
+};
+
 /**
  * Convert from any tool call format to OpenAI format
  */
-export const toOpenAIFormat = (
-  toolDefinition: AnyToolDefinition
+export const toOpenAIToolDefinition = (
+  toolDefinition: LlmProviderToolDefinition
 ): OpenAIToolDefinition => {
   const { provider, validatedToolDefinition } = detectProvider(toolDefinition);
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return validatedToolDefinition as OpenAIToolDefinition;
+      return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToOpenAI.parse(validatedToolDefinition);
     default:
@@ -203,16 +220,21 @@ export const toOpenAIFormat = (
 /**
  * Convert from OpenAI tool call format to any other format
  */
-export const fromOpenAIFormat = (
-  toolDefinition: OpenAIToolDefinition,
-  targetProvider: ModelProvider
-): AnyToolDefinition => {
+export const fromOpenAIToolDefinition = <T extends ModelProvider>({
+  toolDefinition,
+  targetProvider,
+}: {
+  toolDefinition: OpenAIToolDefinition;
+  targetProvider: T;
+}): ProviderToToolDefinitionMap[T] => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return toolDefinition;
+      return toolDefinition as ProviderToToolDefinitionMap[T];
     case "ANTHROPIC":
-      return openAIToAnthropic.parse(toolDefinition);
+      return openAIToAnthropic.parse(
+        toolDefinition
+      ) as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);
   }
