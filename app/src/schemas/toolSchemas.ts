@@ -130,7 +130,6 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
  */
 export const anthropicToOpenAI = anthropicToolDefinitionSchema.transform(
   (anthropic): OpenAIToolDefinition => ({
-    id: "",
     type: "function",
     function: {
       name: anthropic.name,

@@ -10,8 +10,8 @@ import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolDefinitionJSONSchema,
+  llmProviderToolDefinitionSchema,
   openAIToolDefinitionJSONSchema,
-  openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
 import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -78,7 +78,7 @@ export function PlaygroundTool({
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = openAIToolDefinitionSchema.safeParse(definition);
+      const { success } = llmProviderToolDefinitionSchema.safeParse(definition);
       if (!success) {
         return;
       }

@@ -140,6 +140,15 @@ export const llmProviderToolCallSchema = z.union([
 
 export type LlmProviderToolCall = z.infer<typeof llmProviderToolCallSchema>;
 
+/**
+ * A union of all the lists of tool call formats
+ *
+ * This is useful for parsing all of the tool calls in a message
+ */
+export const llmProviderToolCallsSchema = z.array(llmProviderToolCallSchema);
+
+export type LlmProviderToolCalls = z.infer<typeof llmProviderToolCallsSchema>;
+
 type ToolCallWithProvider =
   | {
       provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;

@@ -4,13 +4,17 @@ import { JSONSchema7 } from "json-schema";
 import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { toolCallSchemas } from "@phoenix/schemas";
-import { anthropicToolCallsJSONSchema } from "@phoenix/schemas/toolCallSchemas";
+import {
+  anthropicToolCallsJSONSchema,
+  llmProviderToolCallSchema,
+  llmProviderToolCallsSchema,
+} from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PlaygroundInstanceProps } from "./types";
 
-const { openAIToolCallsSchema, openAIToolCallsJSONSchema } = toolCallSchemas;
+const { openAIToolCallsJSONSchema } = toolCallSchemas;
 
 /**
  * Editor for message tool calls
@@ -58,7 +62,7 @@ export function ChatMessageToolCallsEditor({
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = openAIToolCallsSchema.safeParse(toolCalls);
+      const { success } = llmProviderToolCallsSchema.safeParse(toolCalls);
       if (!success) {
         return;
       }
