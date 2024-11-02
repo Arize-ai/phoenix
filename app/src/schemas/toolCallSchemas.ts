@@ -95,7 +95,7 @@ export const anthropicToolCallsJSONSchema = zodToJsonSchema(
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
  */
-export const anthropicToOpenAI = anthropicToolCallSchema.transform(
+export const anthropicToolCallToOpenAI = anthropicToolCallSchema.transform(
   (anthropic): OpenAIToolCall => ({
     id: anthropic.id,
     function: {
@@ -108,7 +108,7 @@ export const anthropicToOpenAI = anthropicToolCallSchema.transform(
 /**
  * Parse incoming object as an OpenAI tool call and immediately convert to Anthropic format
  */
-export const openAIToAnthropic = openAIToolCallSchema.transform(
+export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
   (openai): AnthropicToolCall => ({
     id: openai.id,
     type: "tool_use",
@@ -199,7 +199,7 @@ export const toOpenAIToolCall = (
     case "OPENAI":
       return validatedToolCall;
     case "ANTHROPIC":
-      return anthropicToOpenAI.parse(validatedToolCall);
+      return anthropicToolCallToOpenAI.parse(validatedToolCall);
     default:
       assertUnreachable(provider);
   }
@@ -223,7 +223,9 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "OPENAI":
       return toolCall as ProviderToToolCallMap[T];
     case "ANTHROPIC":
-      return openAIToAnthropic.parse(toolCall) as ProviderToToolCallMap[T];
+      return openAIToolCallToAnthropic.parse(
+        toolCall
+      ) as ProviderToToolCallMap[T];
     default:
       assertUnreachable(targetProvider);
   }

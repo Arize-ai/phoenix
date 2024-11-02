@@ -26,6 +26,7 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";

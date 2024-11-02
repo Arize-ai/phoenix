@@ -1,8 +1,6 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import {
-  InvocationParameterInput,
-  InvocationParameters,
-} from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
 import {
   LlmProviderToolCall,
   LlmProviderToolDefinition,
