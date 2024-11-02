@@ -47,7 +47,7 @@ export function JSONEditor(props: JSONEditorProps) {
       baseExtensions.push(
         linter(jsonSchemaLinter(), { needsRefresh: handleRefresh }),
         jsonLanguage.data.of({
-          autocomplete: jsonCompletion({}),
+          autocomplete: jsonCompletion(),
         }),
         hoverTooltip(jsonSchemaHover()),
         stateExtensions(jsonSchema)

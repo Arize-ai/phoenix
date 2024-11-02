@@ -3,18 +3,15 @@ import { JSONSchema7 } from "json-schema";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { toolCallSchemas } from "@phoenix/schemas";
 import {
   anthropicToolCallsJSONSchema,
-  llmProviderToolCallSchema,
   llmProviderToolCallsSchema,
+  openAIToolCallsJSONSchema,
 } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PlaygroundInstanceProps } from "./types";
-
-const { openAIToolCallsJSONSchema } = toolCallSchemas;
 
 /**
  * Editor for message tool calls

@@ -226,6 +226,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
@@ -258,23 +260,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       updateModel,
     ]
   );
-
-  const onInvocationParametersChange: InvocationParametersChangeHandler =
-    useCallback(
-      (parameter, value) => {
-        updateModel({
-          instanceId: playgroundInstanceId,
-          model: {
-            ...instance.model,
-            invocationParameters: {
-              ...instance.model.invocationParameters,
-              [parameter]: value,
-            },
-          },
-        });
-      },
-      [instance.model, playgroundInstanceId, updateModel]
-    );
 
   const updateProvider = useCallback(
     (provider: ModelProvider) => {

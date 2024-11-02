@@ -92,6 +92,7 @@ export function getChatRole(role: string): ChatMessageRole {
 /**
  * Takes tool calls on a message from span attributes and a provider and transforms them into the corresponding providers tool calls for a message in the playground
  * @param toolCalls Tool calls from a spans message to transform into tool calls from a chat message in the playground
+ * @param provider the provider of the model
  * @returns Tool calls for a message in the playground
  *
  * NB: Only exported for testing
