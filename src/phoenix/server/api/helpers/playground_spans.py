@@ -32,7 +32,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.ChatCompletionInput import BaseChatCompletionInput
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
@@ -59,7 +59,7 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: ChatCompletionInput,
+        input: BaseChatCompletionInput,
         messages: list[ChatCompletionMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
@@ -193,7 +193,7 @@ def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
+def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}

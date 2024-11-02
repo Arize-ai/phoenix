@@ -107,8 +107,8 @@ input ChatCompletionInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  template: TemplateOptions
   apiKey: String = null
+  template: TemplateOptions
 }
 
 input ChatCompletionMessageInput {
@@ -145,10 +145,10 @@ input ChatCompletionOverDatasetInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  template: TemplateOptions
   apiKey: String = null
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
+  templateLanguage: TemplateLanguage!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {

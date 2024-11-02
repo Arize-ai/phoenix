@@ -10,7 +10,8 @@ from typing import (
 )
 
 import strawberry
-from sqlalchemy import insert, select
+from sqlalchemy import and_, func, insert, select
+from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
@@ -27,7 +28,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
@@ -35,6 +35,8 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FinishedChatCompletion,
 )
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
@@ -85,7 +87,13 @@ class Subscription:
             for message in input.messages
         ]
         if template_options := input.template:
-            messages = list(_formatted_messages(messages, template_options))
+            messages = list(
+                _formatted_messages(
+                    messages=messages,
+                    template_language=template_options.language,
+                    template_variables=template_options.variables,
+                )
+            )
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
         )
@@ -145,26 +153,62 @@ class Subscription:
             for message in input.messages
         ]
         messages: dict[DatasetExampleID, list[ChatCompletionMessage]] = {}
-        async with info.context.db() as session:
-            # todo: fix this query
-            async for example in await session.stream_scalars(
-                select(models.DatasetExample).where(
-                    models.DatasetExample.dataset_id
-                    == from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if input.dataset_version_id
+            else None
+        )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_id)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
+            )
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+            )
+        query = (
+            select(models.DatasetExampleRevision)
+            .where(
+                and_(
+                    models.DatasetExampleRevision.id.in_(revision_ids),
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
-            ):
-                example_node_id = GlobalID(Dataset.__name__, str(example.id))
-                if template_options := input.template:
-                    try:
-                        messages[example_node_id] = list(
-                            _formatted_messages(unformatted_messages, template_options)
+            )
+            .options(
+                load_only(
+                    models.DatasetExampleRevision.dataset_example_id,
+                    models.DatasetExampleRevision.input,
+                )
+            )
+        )
+        async with info.context.db() as session:
+            async for revision in await session.stream_scalars(query):
+                example_node_id = GlobalID(
+                    DatasetExample.__name__, str(revision.dataset_example_id)
+                )
+                try:
+                    messages[example_node_id] = list(
+                        _formatted_messages(
+                            messages=unformatted_messages,
+                            template_language=input.template_language,
+                            template_variables=revision.input,
                         )
-                    except TemplateFormatterError as error:
-                        yield ChatCompletionSubscriptionError(
-                            message=str(error), dataset_example_id=example_node_id
-                        )
-                else:
-                    messages[example_node_id] = unformatted_messages
+                    )
+                except TemplateFormatterError as error:
+                    yield ChatCompletionSubscriptionError(
+                        message=str(error), dataset_example_id=example_node_id
+                    )
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
         )
@@ -241,13 +285,15 @@ async def _stream(
 
 
 def _formatted_messages(
+    *,
     messages: Iterable[ChatCompletionMessage],
-    template_options: TemplateOptions,
+    template_language: TemplateLanguage,
+    template_variables: Mapping[str, Any],
 ) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_options.language)
+    template_formatter = _template_formatter(template_language=template_language)
     (
         roles,
         templates,
@@ -255,7 +301,7 @@ def _formatted_messages(
         tool_calls,
     ) = zip(*messages)
     formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
+        lambda template: template_formatter.format(template, **template_variables),
         templates,
     )
     formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
