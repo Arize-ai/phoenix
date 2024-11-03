@@ -294,7 +294,7 @@ async def _merge_iterators(
     iterators: Collection[AsyncIterator[GenericType]],
     /,
     *,
-    handle_error: Optional[Callable[[Exception], Any]] = None,
+    handle_error: Optional[Callable[[Exception], Iterator[GenericType]]] = None,
 ) -> AsyncIterator[GenericType]:
     tasks: dict[AsyncIterator[GenericType], Task[GenericType]] = {
         iterable: _as_task(iterable) for iterable in iterators
