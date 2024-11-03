@@ -146,9 +146,9 @@ input ChatCompletionOverDatasetInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
+  templateLanguage: TemplateLanguage!
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
-  templateLanguage: TemplateLanguage!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -899,7 +899,6 @@ type ExportedFile {
 type FinishedChatCompletion implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   span: Span!
-  errorMessage: String
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
