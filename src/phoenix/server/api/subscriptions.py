@@ -2,8 +2,8 @@ import logging
 from asyncio import FIRST_COMPLETED, Task, create_task, wait
 from collections.abc import Iterator
 from typing import (
-    TYPE_CHECKING,
     Any,
+    AsyncIterable,
     AsyncIterator,
     Collection,
     Iterable,
@@ -22,7 +22,10 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_clients import (
+    ChatCompletionChunk,
+    initialize_playground_clients,
+)
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
 )
@@ -50,10 +53,6 @@ from phoenix.utilities.template_formatters import (
     TemplateFormatter,
     TemplateFormatterError,
 )
-
-if TYPE_CHECKING:
-    from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
-
 
 GenericType = TypeVar("GenericType")
 
@@ -229,14 +228,17 @@ class Subscription:
             )
             for example_id in messages
         }
+        chat_completion_streams = {
+            example_id: llm_client.chat_completion_create(
+                messages=msgs, tools=input.tools or [], **invocation_parameters
+            )
+            for example_id, msgs in messages.items()
+        }
         async for payload in _merge_iterators(
             [
-                _stream_chat_completion_over_dataset_example(
-                    llm_client=llm_client,
-                    input=input,
+                _stream_with_span(
+                    chat_completion_stream=chat_completion_streams[example_id],
                     span=spans[example_id],
-                    invocation_parameters=invocation_parameters,
-                    messages=messages[example_id],
                     example_id=example_id,
                 )
                 for example_id in messages
@@ -269,19 +271,14 @@ class Subscription:
             )
 
 
-async def _stream_chat_completion_over_dataset_example(
+async def _stream_with_span(
     *,
-    llm_client: "PlaygroundStreamingClient",
-    input: ChatCompletionOverDatasetInput,
-    messages: list[ChatCompletionMessage],
-    invocation_parameters: Mapping[str, Any],
+    chat_completion_stream: AsyncIterable[ChatCompletionChunk],
     span: streaming_llm_span,
     example_id: DatasetExampleID,
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
     async with span:
-        async for chunk in llm_client.chat_completion_create(
-            messages=messages, tools=input.tools or [], **invocation_parameters
-        ):
+        async for chunk in chat_completion_stream:
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
             yield chunk
