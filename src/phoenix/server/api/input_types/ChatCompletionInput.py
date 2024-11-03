@@ -29,6 +29,6 @@ class ChatCompletionInput(BaseChatCompletionInput):
 
 @strawberry.input
 class ChatCompletionOverDatasetInput(BaseChatCompletionInput):
+    template_language: TemplateLanguage
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
-    template_language: TemplateLanguage

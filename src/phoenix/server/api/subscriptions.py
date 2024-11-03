@@ -108,6 +108,8 @@ class Subscription:
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
+        if span.error_message is not None:
+            yield ChatCompletionSubscriptionError(message=span.error_message)
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -124,9 +126,7 @@ class Subscription:
                 )
             db_span = span.add_to_session(session, playground_project_id)
             await session.flush()
-            yield FinishedChatCompletion(
-                span=to_gql_span(db_span), error_message=span.error_message
-            )
+            yield FinishedChatCompletion(span=to_gql_span(db_span))
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
 
     @strawberry.subscription
@@ -257,7 +257,6 @@ class Subscription:
         for example_id in spans:
             yield FinishedChatCompletion(
                 span=to_gql_span(db_spans[example_id]),
-                error_message=spans[example_id].error_message,
                 dataset_example_id=example_id,
             )
 
