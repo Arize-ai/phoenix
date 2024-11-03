@@ -229,7 +229,7 @@ class Subscription:
         }
         async for payload in _merge_iterators(
             [
-                _stream(
+                _stream_chat_completion_over_dataset_example(
                     llm_client=llm_client,
                     input=input,
                     span=spans[example_id],
@@ -268,7 +268,7 @@ class Subscription:
             )
 
 
-async def _stream(
+async def _stream_chat_completion_over_dataset_example(
     *,
     llm_client: "PlaygroundStreamingClient",
     input: ChatCompletionOverDatasetInput,
