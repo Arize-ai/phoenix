@@ -1,8 +1,11 @@
+from asyncio import FIRST_COMPLETED, Task, create_task, wait
 from collections.abc import Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterator,
+    Callable,
+    Collection,
     Iterable,
     Mapping,
     Optional,
@@ -50,6 +53,9 @@ from phoenix.utilities.template_formatters import (
 
 if TYPE_CHECKING:
     from phoenix.server.api.helpers.playground_clients import PlaygroundStreamingClient
+
+
+GenericType = TypeVar("GenericType")
 
 initialize_playground_clients()
 
@@ -221,7 +227,7 @@ class Subscription:
             )
             for example_id in messages
         }
-        async for payload in _merge(
+        async for payload in _merge_iterators(
             [
                 _stream(
                     llm_client=llm_client,
@@ -232,7 +238,8 @@ class Subscription:
                     example_id=example_id,
                 )
                 for example_id in messages
-            ]
+            ],
+            handle_error=_handle_unexpected_error,
         ):
             yield payload
         async with info.context.db() as session:
@@ -283,6 +290,43 @@ async def _stream(
         )
 
 
+async def _merge_iterators(
+    iterators: Collection[AsyncIterator[GenericType]],
+    /,
+    *,
+    handle_error: Optional[Callable[[Exception], Any]] = None,
+) -> AsyncIterator[GenericType]:
+    tasks: dict[AsyncIterator[GenericType], Task[GenericType]] = {
+        iterable: _as_task(iterable) for iterable in iterators
+    }
+    while tasks:
+        completed_tasks, _ = await wait(tasks.values(), return_when=FIRST_COMPLETED)
+        for task in completed_tasks:
+            iterator = next(it for it, t in tasks.items() if t == task)
+            try:
+                yield task.result()
+            except StopAsyncIteration:
+                del tasks[iterator]
+            except Exception as error:
+                del tasks[iterator]
+                if handle_error:
+                    handle_error(error)
+            else:
+                tasks[iterator] = _as_task(iterator)
+
+
+def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
+    return create_task(_as_coroutine(iterable))
+
+
+async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
+    return await iterable.__anext__()
+
+
+def _handle_unexpected_error(error: Exception) -> Iterator[ChatCompletionSubscriptionError]:
+    yield ChatCompletionSubscriptionError(message="An unexpected error occurred")
+
+
 def _formatted_messages(
     *,
     messages: Iterable[ChatCompletionMessage],
@@ -316,25 +360,3 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
     assert_never(template_language)
-
-
-GenericType = TypeVar("GenericType")
-
-
-# todo: yield each payload as it is ready
-async def _merge(
-    iters: list[AsyncIterator[GenericType]],
-) -> AsyncIterator[GenericType]:
-    """
-    Dummy implementation that merges the given async iterators into a single
-    async iterator.
-    """
-    index = 0
-    while iters:
-        index = index % len(iters)
-        it = iters[index]
-        try:
-            yield await it.__anext__()
-            index += 1
-        except StopAsyncIteration:
-            iters.remove(it)
