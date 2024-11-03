@@ -1,10 +1,10 @@
+import logging
 from asyncio import FIRST_COMPLETED, Task, create_task, wait
 from collections.abc import Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterator,
-    Callable,
     Collection,
     Iterable,
     Mapping,
@@ -56,6 +56,8 @@ if TYPE_CHECKING:
 
 
 GenericType = TypeVar("GenericType")
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -238,8 +240,7 @@ class Subscription:
                     example_id=example_id,
                 )
                 for example_id in messages
-            ],
-            handle_error=_handle_unexpected_chat_completion_subscription_error,
+            ]
         ):
             yield payload
         async with info.context.db() as session:
@@ -292,9 +293,6 @@ async def _stream_chat_completion_over_dataset_example(
 
 async def _merge_iterators(
     iterators: Collection[AsyncIterator[GenericType]],
-    /,
-    *,
-    handle_error: Optional[Callable[[Exception], Iterator[GenericType]]] = None,
 ) -> AsyncIterator[GenericType]:
     tasks: dict[AsyncIterator[GenericType], Task[GenericType]] = {
         iterable: _as_task(iterable) for iterable in iterators
@@ -307,10 +305,6 @@ async def _merge_iterators(
                 yield task.result()
             except StopAsyncIteration:
                 del tasks[iterator]
-            except Exception as error:
-                del tasks[iterator]
-                if handle_error:
-                    handle_error(error)
             else:
                 tasks[iterator] = _as_task(iterator)
 
@@ -321,12 +315,6 @@ def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
 
 async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
     return await iterable.__anext__()
-
-
-def _handle_unexpected_chat_completion_subscription_error(
-    error: Exception,
-) -> Iterator[ChatCompletionSubscriptionError]:
-    yield ChatCompletionSubscriptionError(message="An unexpected error occurred")
 
 
 def _formatted_messages(
