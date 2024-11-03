@@ -1,4 +1,4 @@
-from typing import Optional, Protocol
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -14,7 +14,7 @@ from .TemplateOptions import TemplateOptions
 
 
 @strawberry.type
-class BaseChatCompletionInput(Protocol):
+class BaseChatCompletionInput:
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
