@@ -239,7 +239,7 @@ class Subscription:
                 )
                 for example_id in messages
             ],
-            handle_error=_handle_unexpected_error,
+            handle_error=_handle_unexpected_chat_completion_subscription_error,
         ):
             yield payload
         async with info.context.db() as session:
@@ -323,7 +323,9 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
     return await iterable.__anext__()
 
 
-def _handle_unexpected_error(error: Exception) -> Iterator[ChatCompletionSubscriptionError]:
+def _handle_unexpected_chat_completion_subscription_error(
+    error: Exception,
+) -> Iterator[ChatCompletionSubscriptionError]:
     yield ChatCompletionSubscriptionError(message="An unexpected error occurred")
 
 
