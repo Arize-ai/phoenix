@@ -13,6 +13,7 @@ import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+  MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -77,6 +78,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: "fake-id",
+  responseFormat: undefined,
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
@@ -115,9 +117,14 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       ...basePlaygroundSpan,
       attributes: "invalid json",
     };
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      responseFormat: _,
+      ...expected
+    } = expectedPlaygroundInstanceWithIO;
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       playgroundInstance: {
-        ...expectedPlaygroundInstanceWithIO,
+        ...expected,
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
@@ -144,7 +151,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           modelName: "gpt-4o",
         },
         template: defaultTemplate,
-
         output: undefined,
       },
       parsingErrors: [
@@ -153,6 +159,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         OUTPUT_VALUE_PARSING_ERROR,
         MODEL_CONFIG_PARSING_ERROR,
         MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
       ],
     });
   });
