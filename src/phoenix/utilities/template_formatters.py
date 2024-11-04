@@ -20,7 +20,7 @@ class TemplateFormatter(ABC):
         template_variable_names = self.parse(template)
         if missing_template_variables := template_variable_names - set(variables.keys()):
             raise TemplateFormatterError(
-                f"Missing template variables: {', '.join(missing_template_variables)}"
+                f"Missing template variable(s): {', '.join(missing_template_variables)}"
             )
         return self._format(template, template_variable_names, **variables)
 

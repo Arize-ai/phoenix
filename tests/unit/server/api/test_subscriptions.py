@@ -3,19 +3,27 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import pytest
+import pytz
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
+from strawberry.relay.types import GlobalID
 from vcr import use_cassette
 
+from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     FinishedChatCompletion,
     TextChunk,
     ToolCallChunk,
 )
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 
 
@@ -832,6 +840,408 @@ class TestChatCompletionSubscription:
             }
         ]
         assert not attributes
+
+
+class TestChatCompletionOverDatasetSubscription:
+    QUERY = """
+      subscription ChatCompletionOverDatasetSubscription($input: ChatCompletionOverDatasetInput!) {
+        chatCompletionOverDataset(input: $input) {
+          __typename
+          datasetExampleId
+          ... on TextChunk {
+            content
+          }
+          ... on FinishedChatCompletion {
+            span {
+              ...SpanFragment
+            }
+          }
+          ... on ChatCompletionSubscriptionError {
+            message
+          }
+        }
+      }
+
+      query SpanQuery($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            ...SpanFragment
+          }
+        }
+      }
+
+      fragment SpanFragment on Span {
+        id
+        name
+        statusCode
+        statusMessage
+        startTime
+        endTime
+        latencyMs
+        parentId
+        spanKind
+        context {
+          spanId
+          traceId
+        }
+        attributes
+        metadata
+        numDocuments
+        tokenCountTotal
+        tokenCountPrompt
+        tokenCountCompletion
+        input {
+          mimeType
+          value
+        }
+        output {
+          mimeType
+          value
+        }
+        events {
+          name
+          message
+          timestamp
+        }
+        cumulativeTokenCountTotal
+        cumulativeTokenCountPrompt
+        cumulativeTokenCountCompletion
+        propagatedStatusCode
+      }
+    """
+
+    async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
+        self,
+        gql_client: Any,
+        # openai_api_key: str,
+        playground_dataset_with_patch_revision: None,
+    ) -> None:
+        variables = {
+            "input": {
+                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "datasetId": str(GlobalID(type_name=Dataset.__name__, node_id=str(1))),
+                "datasetVersionId": str(
+                    GlobalID(type_name=DatasetVersion.__name__, node_id=str(1))
+                ),
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": "What country is {city} in? Answer in one word, no punctuation.",
+                    }
+                ],
+                "templateLanguage": "F_STRING",
+            }
+        }
+        payloads: dict[str, list[Any]] = {}
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            # with use_cassette(
+            #     Path(__file__).parent / "cassettes/test_subscriptions/"
+            #     "ChatCompletionOverDatasetSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
+            #     decode_compressed_response=True,
+            #     before_record_request=remove_all_vcr_request_headers,
+            #     before_record_response=remove_all_vcr_response_headers,
+            # ):
+            async for payload in subscription.stream():
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
+
+        # check subscription payloads
+        assert len(payloads) == 3
+        example_id_1, example_id_2, example_id_3 = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(index)))
+            for index in range(1, 4)
+        ]
+        assert set(payloads.keys()) == {example_id_1, example_id_2, example_id_3}
+
+        # check example 1 payloads
+        assert (last_example_1_payload := payloads[example_id_1].pop())[
+            "chatCompletionOverDataset"
+        ]["__typename"] == FinishedChatCompletion.__name__
+        assert all(
+            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            for payload in payloads[example_id_1]
+        )
+        example_1_response_text = "".join(
+            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_1]
+        )
+        assert "france" in example_1_response_text.lower()
+        example_1_subscription_span = last_example_1_payload["chatCompletionOverDataset"]["span"]
+        example_1_span_id = example_1_subscription_span["id"]
+
+        # check example 2 payloads
+        assert (last_example_2_payload := payloads[example_id_2].pop())[
+            "chatCompletionOverDataset"
+        ]["__typename"] == FinishedChatCompletion.__name__
+        assert all(
+            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            for payload in payloads[example_id_2]
+        )
+        example_2_response_text = "".join(
+            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_2]
+        )
+        assert "japan" in example_2_response_text.lower()
+        example_2_subscription_span = last_example_2_payload["chatCompletionOverDataset"]["span"]
+        example_2_span_id = example_2_subscription_span["id"]
+
+        # check example 3 payloads
+        assert len(payloads[example_id_3]) == 1
+        assert (error_payload := payloads[example_id_3].pop()["chatCompletionOverDataset"])[
+            "__typename"
+        ] == ChatCompletionSubscriptionError.__name__
+        assert error_payload["message"] == "Missing template variable(s): city"
+
+        # query for the span via the node interface to ensure that the span
+        # recorded in the db contains identical information as the span emitted
+        # by the subscription
+
+        # check example 1 span
+        data = await gql_client.execute(
+            query=self.QUERY, variables={"spanId": example_1_span_id}, operation_name="SpanQuery"
+        )
+        span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            example_1_subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
+        assert span == example_1_subscription_span
+
+        # check example 1 span attributes
+        assert span.pop("id") == example_1_span_id
+        assert span.pop("name") == "ChatCompletion"
+        assert span.pop("statusCode") == "OK"
+        assert not span.pop("statusMessage")
+        assert span.pop("startTime")
+        assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
+        assert span.pop("parentId") is None
+        assert span.pop("spanKind") == "llm"
+        assert (context := span.pop("context")).pop("spanId")
+        assert context.pop("traceId")
+        assert not context
+        assert span.pop("metadata") is None
+        assert span.pop("numDocuments") is None
+        assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
+        assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
+        assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
+        assert token_count_prompt > 0
+        assert token_count_completion > 0
+        assert token_count_total == token_count_prompt + token_count_completion
+        assert (input := span.pop("input")).pop("mimeType") == "json"
+        assert (input_value := input.pop("value"))
+        assert not input
+        assert "api_key" not in input_value
+        assert "apiKey" not in input_value
+        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert output.pop("value")
+        assert not output
+        assert not span.pop("events")
+        assert isinstance(
+            cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), int
+        )
+        assert isinstance(
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+        )
+        assert isinstance(
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+        )
+        assert cumulative_token_count_total == token_count_total
+        assert cumulative_token_count_prompt == token_count_prompt
+        assert cumulative_token_count_completion == token_count_completion
+        assert span.pop("propagatedStatusCode") == "OK"
+        assert not span
+
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(INPUT_VALUE)
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_VALUE)
+        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(LLM_INPUT_MESSAGES) == [
+            {
+                "message": {
+                    "role": "user",
+                    "content": "What country is Paris in? Answer in one word, no punctuation.",
+                }
+            }
+        ]
+        assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
+            {"message": {"role": "assistant", "content": "France"}}
+        ]
+        assert not attributes
+
+        # check example 2 span
+        data = await gql_client.execute(
+            query=self.QUERY, variables={"spanId": example_2_span_id}, operation_name="SpanQuery"
+        )
+        span = data["span"]
+        assert json.loads(attributes := span.pop("attributes")) == json.loads(
+            example_2_subscription_span.pop("attributes")
+        )
+        attributes = dict(flatten(json.loads(attributes)))
+        assert span == example_2_subscription_span
+
+        # check example 2 span attributes
+        assert span.pop("id") == example_2_span_id
+        assert span.pop("name") == "ChatCompletion"
+        assert span.pop("statusCode") == "OK"
+        assert not span.pop("statusMessage")
+        assert span.pop("startTime")
+        assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
+        assert span.pop("parentId") is None
+        assert span.pop("spanKind") == "llm"
+        assert (context := span.pop("context")).pop("spanId")
+        assert context.pop("traceId")
+        assert not context
+        assert span.pop("metadata") is None
+        assert span.pop("numDocuments") is None
+        assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
+        assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
+        assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
+        assert token_count_prompt > 0
+        assert token_count_completion > 0
+        assert token_count_total == token_count_prompt + token_count_completion
+        assert (input := span.pop("input")).pop("mimeType") == "json"
+        assert (input_value := input.pop("value"))
+        assert not input
+        assert "api_key" not in input_value
+        assert "apiKey" not in input_value
+        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert output.pop("value")
+        assert not output
+        assert not span.pop("events")
+        assert isinstance(
+            cumulative_token_count_total := span.pop("cumulativeTokenCountTotal"), int
+        )
+        assert isinstance(
+            cumulative_token_count_prompt := span.pop("cumulativeTokenCountPrompt"), int
+        )
+        assert isinstance(
+            cumulative_token_count_completion := span.pop("cumulativeTokenCountCompletion"), int
+        )
+        assert cumulative_token_count_total == token_count_total
+        assert cumulative_token_count_prompt == token_count_prompt
+        assert cumulative_token_count_completion == token_count_completion
+        assert span.pop("propagatedStatusCode") == "OK"
+        assert not span
+
+        assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
+        assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
+        assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
+        assert attributes.pop(INPUT_VALUE)
+        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_VALUE)
+        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(LLM_INPUT_MESSAGES) == [
+            {
+                "message": {
+                    "role": "user",
+                    "content": "What country is Tokyo in? Answer in one word, no punctuation.",
+                }
+            }
+        ]
+        assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
+            {"message": {"role": "assistant", "content": "Japan"}}
+        ]
+        assert not attributes
+
+
+@pytest.fixture
+async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
+    """
+    A dataset with a single example and two versions. In the first version, the
+    dataset example is created. In the second version, the dataset example is
+    patched.
+    """
+    dataset = models.Dataset(
+        id=1,
+        name="dataset-name",
+        metadata_={},
+    )
+    versions = [
+        models.DatasetVersion(
+            id=1,
+            dataset_id=dataset.id,
+            metadata_={},
+        ),
+        models.DatasetVersion(
+            id=2,
+            dataset_id=dataset.id,
+            metadata_={},
+        ),
+    ]
+    examples = [
+        models.DatasetExample(
+            id=1,
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        ),
+        models.DatasetExample(
+            id=2,
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=2, day=2, hour=0, minute=0, tzinfo=pytz.utc),
+        ),
+        models.DatasetExample(
+            id=3,
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=2, day=3, hour=0, minute=0, tzinfo=pytz.utc),
+        ),
+    ]
+    revisions = [
+        models.DatasetExampleRevision(
+            dataset_example_id=examples[0].id,
+            dataset_version_id=versions[0].id,
+            input={"city": "Paris"},
+            output={},
+            metadata_={},
+            revision_kind="CREATE",
+        ),
+        models.DatasetExampleRevision(
+            dataset_example_id=examples[1].id,
+            dataset_version_id=versions[0].id,
+            input={"city": "Tokyo"},
+            output={},
+            metadata_={},
+            revision_kind="CREATE",
+        ),
+        models.DatasetExampleRevision(
+            dataset_example_id=examples[0].id,
+            dataset_version_id=versions[1].id,
+            input={"city": "Cairo"},
+            output={},
+            metadata_={},
+            revision_kind="CREATE",
+        ),
+        models.DatasetExampleRevision(
+            dataset_example_id=examples[2].id,
+            dataset_version_id=versions[0].id,
+            input={"cities": "Madrid"},
+            output={},
+            metadata_={},
+            revision_kind="PATCH",
+        ),
+    ]
+    async with db() as session:
+        session.add(dataset)
+        await session.flush()
+        session.add_all(versions)
+        await session.flush()
+        session.add_all(examples)
+        await session.flush()
+        session.add_all(revisions)
+        await session.flush()
 
 
 LLM = OpenInferenceSpanKindValues.LLM.value

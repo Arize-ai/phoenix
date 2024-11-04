@@ -185,7 +185,8 @@ def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
 def _llm_invocation_parameters(
     invocation_parameters: Mapping[str, Any],
 ) -> Iterator[tuple[str, Any]]:
-    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
+    if invocation_parameters:
+        yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
 def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
