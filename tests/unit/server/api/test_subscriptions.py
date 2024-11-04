@@ -909,10 +909,10 @@ class TestChatCompletionOverDatasetSubscription:
       }
     """
 
-    async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
+    async def test_openai_text_response_emits_expected_payloads_and_records_expected_spans(
         self,
         gql_client: Any,
-        # openai_api_key: str,
+        openai_api_key: str,
         playground_dataset_with_patch_revision: None,
     ) -> None:
         variables = {
@@ -937,19 +937,21 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            # with use_cassette(
-            #     Path(__file__).parent / "cassettes/test_subscriptions/"
-            #     "ChatCompletionOverDatasetSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
-            #     decode_compressed_response=True,
-            #     before_record_request=remove_all_vcr_request_headers,
-            #     before_record_response=remove_all_vcr_response_headers,
-            # ):
-            async for payload in subscription.stream():
-                if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
-                ) not in payloads:
-                    payloads[dataset_example_id] = []
-                payloads[dataset_example_id].append(payload)
+            with use_cassette(
+                Path(__file__).parent / "cassettes/test_subscriptions/"
+                "TestChatCompletionOverDatasetSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_spans[sqlite].yaml",
+                decode_compressed_response=True,
+                before_record_request=remove_all_vcr_request_headers,
+                before_record_response=remove_all_vcr_response_headers,
+            ):
+                async for payload in subscription.stream():
+                    if (
+                        dataset_example_id := payload["chatCompletionOverDataset"][
+                            "datasetExampleId"
+                        ]
+                    ) not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
 
         # check subscription payloads
         assert len(payloads) == 3
