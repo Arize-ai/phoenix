@@ -555,7 +555,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
       },
-      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+      parsingErrors: [
+        MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
+      ],
     });
   });
 
@@ -575,7 +578,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
       },
-      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+      parsingErrors: [
+        MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
+      ],
     });
   });
 
