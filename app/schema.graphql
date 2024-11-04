@@ -1417,6 +1417,9 @@ type Span implements Node {
 
   """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
+
+  """Invocation parameters for the span"""
+  invocationParameters: [InvocationParameter!]!
 }
 
 type SpanAnnotation implements Node & Annotation {

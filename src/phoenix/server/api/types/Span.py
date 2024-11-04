@@ -20,10 +20,12 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
@@ -290,6 +292,41 @@ class Span(Node):
     async def contained_in_dataset(self, info: Info[Context, None]) -> bool:
         examples = await info.context.data_loaders.span_dataset_examples.load(self.id_attr)
         return bool(examples)
+
+    @strawberry.field(description="Invocation parameters for the span")  # type: ignore
+    async def invocation_parameters(self, info: Info[Context, None]) -> list[InvocationParameter]:
+        from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
+        from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+
+        db_span = self.db_span
+        attributes = db_span.attributes
+        llm_provider: GenerativeProviderKey = (
+            get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER)
+            or GenerativeProviderKey.OPENAI
+        )
+        llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
+        invocation_parameters = get_attribute_value(
+            attributes, SpanAttributes.LLM_INVOCATION_PARAMETERS
+        )
+        if invocation_parameters is None:
+            return []
+        invocation_parameters = json.loads(invocation_parameters)
+        # find the client class for the provider, if there is no client class or provider,
+        # return openai as default
+        client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(llm_provider, llm_model)
+        if not client_class:
+            client_class = OpenAIStreamingClient
+        supported_invocation_parameters = client_class.supported_invocation_parameters()
+        # filter supported invocation parameters down to those whose canonical_name is in the
+        # invocation_parameters keys
+        return [
+            ip
+            for ip in supported_invocation_parameters
+            if (
+                ip.canonical_name in invocation_parameters
+                or ip.invocation_name in invocation_parameters
+            )
+        ]
 
 
 def to_gql_span(span: models.Span) -> Span:

@@ -12,6 +12,33 @@ export const basePlaygroundSpan: PlaygroundSpan = {
     name: "test",
   },
   attributes: "",
+  // Implement a few default openai invocation parameters
+  invocationParameters: [
+    {
+      __typename: "BoundedFloatInvocationParameter",
+      canonicalName: "TOP_P",
+      invocationInputField: "value_float",
+      invocationName: "top_p",
+    },
+    {
+      __typename: "IntInvocationParameter",
+      canonicalName: "MAX_COMPLETION_TOKENS",
+      invocationInputField: "value_int",
+      invocationName: "max_tokens",
+    },
+    {
+      __typename: "StringListInvocationParameter",
+      canonicalName: "STOP_SEQUENCES",
+      invocationInputField: "value_string_list",
+      invocationName: "stop",
+    },
+    {
+      __typename: "IntInvocationParameter",
+      canonicalName: "RANDOM_SEED",
+      invocationInputField: "value_int",
+      invocationName: "seed",
+    },
+  ],
 };
 export const spanAttributesWithInputMessages = {
   llm: {

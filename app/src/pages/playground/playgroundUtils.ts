@@ -13,7 +13,7 @@ import {
   OpenAITool,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, Mutable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
@@ -335,6 +335,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     };
   }
 
+  const modelSupportedInvocationParameters =
+    span.invocationParameters as Mutable<InvocationParameter[]>;
+
   const { messages, messageParsingErrors } =
     getTemplateMessagesFromAttributes(parsedAttributes);
   const { output, outputParsingErrors } =
@@ -348,10 +351,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsingErrors: invocationParametersParsingErrors,
   } = getModelInvocationParametersFromAttributes(
     parsedAttributes,
-    // TODO(apowell): Parse invocation parameters from span attributes into InvocationParametersInput type
-    // See https://github.com/Arize-ai/phoenix/issues/5234
-    // See https://github.com/Arize-ai/phoenix/issues/5235
-    []
+    modelSupportedInvocationParameters
   );
 
   // Merge invocation parameters into model config, if model config is present
@@ -479,6 +479,12 @@ export const constrainInvocationParameterInputsToDefinition = (
 };
 
 /**
+ * Converts a string from snake_case to camelCase.
+ */
+export const toCamelCase = (str: string) =>
+  str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+
+/**
  * Transform invocation parameters from span attributes into InvocationParameterInput type.
  */
 export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
@@ -490,8 +496,10 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       .map(([key, value]) => {
         const invocationParameter = modelSupportedInvocationParameters.find(
           (mp) =>
-            (mp.canonicalName && mp.canonicalName === key) ||
-            (mp.invocationName && mp.invocationName === key)
+            (mp.canonicalName &&
+              mp.canonicalName.toLowerCase() === key.toLowerCase()) ||
+            (mp.invocationName &&
+              mp.invocationName.toLowerCase() === key.toLowerCase())
         );
         if (
           invocationParameter == null ||
@@ -503,7 +511,7 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
         return {
           canonicalName: invocationParameter.canonicalName,
           invocationName: invocationParameter.invocationName,
-          [invocationParameter.invocationInputField]: value,
+          [toCamelCase(invocationParameter.invocationInputField)]: value,
         };
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);

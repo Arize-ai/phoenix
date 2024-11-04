@@ -27,6 +27,7 @@ import {
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
+import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 import {
   basePlaygroundSpan,
@@ -387,14 +388,14 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
-  // TODO(apowell): Re-enable when invocation parameters are parseable from span
-  it.skip("should correctly parse the invocation parameters", () => {
-    const span = {
+  it("should correctly parse the invocation parameters", () => {
+    const span: PlaygroundSpan = {
       ...basePlaygroundSpan,
       attributes: JSON.stringify({
         ...spanAttributesWithInputMessages,
         llm: {
           ...spanAttributesWithInputMessages.llm,
+          // only parameters defined on the span InvocationParameter[] field are parsed
           // note that snake case keys are automatically converted to camel case
           invocation_parameters:
             '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
@@ -406,14 +407,70 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         ...expectedPlaygroundInstanceWithIO,
         model: {
           ...expectedPlaygroundInstanceWithIO.model,
-          invocationParameters: {
-            topP: 0.5,
-            maxTokens: 100,
-            seed: 12345,
-            stop: ["stop", "me"],
-          },
+          invocationParameters: [
+            {
+              canonicalName: "TOP_P",
+              invocationName: "top_p",
+              valueFloat: 0.5,
+            },
+            {
+              canonicalName: "MAX_COMPLETION_TOKENS",
+              invocationName: "max_tokens",
+              valueInt: 100,
+            },
+            {
+              canonicalName: "RANDOM_SEED",
+              invocationName: "seed",
+              valueInt: 12345,
+            },
+            {
+              canonicalName: "STOP_SEQUENCES",
+              invocationName: "stop",
+              valueStringList: ["stop", "me"],
+            },
+          ],
         },
-      },
+      } satisfies PlaygroundInstance,
+      parsingErrors: [],
+    });
+  });
+
+  it("should ignore invocation parameters that are not defined on the span", () => {
+    const span: PlaygroundSpan = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          // only parameters defined on the span InvocationParameter[] field are parsed
+          // note that snake case keys are automatically converted to camel case
+          invocation_parameters:
+            '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
+        },
+      }),
+      invocationParameters: [
+        {
+          __typename: "IntInvocationParameter",
+          canonicalName: "MAX_COMPLETION_TOKENS",
+          invocationInputField: "value_int",
+          invocationName: "max_tokens",
+        },
+      ],
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          invocationParameters: [
+            {
+              canonicalName: "MAX_COMPLETION_TOKENS",
+              invocationName: "max_tokens",
+              valueInt: 100,
+            },
+          ],
+        },
+      } satisfies PlaygroundInstance,
       parsingErrors: [],
     });
   });
@@ -636,7 +693,7 @@ describe("getModelConfigFromAttributes", () => {
   });
 
   // TODO(apowell): Re-enable when invocation parameters are parseable from span
-  it.skip("should return parsed model config if valid with the provider inferred", () => {
+  it("should return parsed model config if valid with the provider inferred", () => {
     const parsedAttributes = {
       llm: {
         model_name: "gpt-3.5-turbo",
@@ -647,10 +704,8 @@ describe("getModelConfigFromAttributes", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: {
-          topP: 0.5,
-          maxTokens: 100,
-        },
+        // getBaseModelConfigFromAttributes does not parse invocation parameters
+        invocationParameters: [],
       },
       parsingErrors: [],
     });
