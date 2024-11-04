@@ -192,6 +192,7 @@ class Subscription:
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
+            .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
             .options(
                 load_only(
                     models.DatasetExampleRevision.dataset_example_id,
@@ -302,6 +303,9 @@ async def _merge_iterators(
                 yield task.result()
             except StopAsyncIteration:
                 del tasks[iterator]
+            except Exception as error:
+                del tasks[iterator]
+                logger.exception(error)
             else:
                 tasks[iterator] = _as_task(iterator)
 

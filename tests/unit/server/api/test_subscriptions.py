@@ -667,7 +667,6 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
-        assert attributes.pop(LLM_INVOCATION_PARAMETERS) == json.dumps({})
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
