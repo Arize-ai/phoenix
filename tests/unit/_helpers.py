@@ -75,11 +75,11 @@ async def _add_trace(
 
 async def _add_span(
     session: AsyncSession,
-    trace: models.Trace,
+    trace: Optional[models.Trace] = None,
+    parent_span: Optional[models.Span] = None,
     attributes: Optional[Dict[str, Any]] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-    parent_span: Optional[models.Span] = None,
     span_kind: str = "LLM",
     cumulative_error_count: int = 0,
     cumulative_llm_token_count_prompt: int = 0,
@@ -87,6 +87,15 @@ async def _add_span(
 ) -> models.Span:
     start_time = start_time or datetime.now(timezone.utc)
     end_time = end_time or (start_time + timedelta(seconds=10))
+    if trace is None and parent_span is None:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+    if parent_span is not None:
+        trace_rowid = parent_span.trace_rowid
+    elif trace is not None:
+        trace_rowid = trace.id
+    else:
+        raise ValueError("Either `trace` or `parent_span` must be provided")
     span = models.Span(
         name=token_hex(4),
         span_id=token_hex(8),
@@ -100,7 +109,7 @@ async def _add_span(
         cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
         cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
         attributes=attributes or {},
-        trace_rowid=trace.id,
+        trace_rowid=trace_rowid,
     )
     session.add(span)
     await session.flush()
