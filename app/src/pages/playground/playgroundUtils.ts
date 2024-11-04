@@ -5,15 +5,33 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import {
+  createAnthropicToolDefinition,
+  createOpenAIToolDefinition,
+  detectToolDefinitionProvider,
+  fromOpenAIToolDefinition,
+  toOpenAIToolDefinition,
+} from "@phoenix/schemas";
+import {
+  createAnthropicToolCall,
+  createOpenAIToolCall,
+  fromOpenAIToolCall,
+  LlmProviderToolCall,
+  toOpenAIToolCall,
+} from "@phoenix/schemas/toolCallSchemas";
+import {
   ChatMessage,
   createPlaygroundInstance,
   generateMessageId,
   generateToolId,
   ModelConfig,
-  OpenAITool,
   PlaygroundInstance,
+  Tool,
 } from "@phoenix/store";
-import { assertUnreachable, Mutable } from "@phoenix/typeUtils";
+import {
+  assertUnreachable,
+  isStringKeyedObject,
+  Mutable,
+} from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
@@ -72,15 +90,20 @@ export function getChatRole(role: string): ChatMessageRole {
 }
 
 /**
- * Takes tool calls on a message from span attributes and transforms them into tool calls for a message in the playground
- * @param toolCalls Tool calls from a spans message to tool calls from a chat message in the playground
+ * Takes tool calls on a message from span attributes and a provider and transforms them into the corresponding providers tool calls for a message in the playground
+ * @param toolCalls Tool calls from a spans message to transform into tool calls from a chat message in the playground
+ * @param provider the provider of the model
  * @returns Tool calls for a message in the playground
  *
  * NB: Only exported for testing
  */
-export function processAttributeToolCalls(
-  toolCalls?: MessageSchema["message"]["tool_calls"]
-): ChatMessage["toolCalls"] {
+export function processAttributeToolCalls({
+  toolCalls,
+  provider,
+}: {
+  toolCalls?: MessageSchema["message"]["tool_calls"];
+  provider: ModelProvider;
+}): ChatMessage["toolCalls"] {
   if (toolCalls == null) {
     return;
   }
@@ -89,13 +112,38 @@ export function processAttributeToolCalls(
       if (tool_call == null) {
         return null;
       }
-      return {
-        id: tool_call.id ?? "",
-        function: {
-          name: tool_call.function?.name ?? "",
-          arguments: tool_call.function?.arguments ?? {},
-        },
-      };
+
+      let toolCallArgs: Record<string, unknown> = {};
+      if (tool_call.function?.arguments != null) {
+        const { json: parsedArguments } = safelyParseJSON(
+          tool_call.function.arguments
+        );
+        if (isStringKeyedObject(parsedArguments)) {
+          toolCallArgs = parsedArguments;
+        }
+      }
+
+      switch (provider) {
+        case "OPENAI":
+        case "AZURE_OPENAI":
+          return {
+            id: tool_call.id ?? "",
+            function: {
+              name: tool_call.function?.name ?? "",
+              arguments: toolCallArgs,
+            },
+          };
+        case "ANTHROPIC": {
+          return {
+            id: tool_call.id ?? "",
+            type: "tool_use" as const,
+            name: tool_call.function?.name ?? "",
+            input: toolCallArgs,
+          };
+        }
+        default:
+          assertUnreachable(provider);
+      }
     })
     .filter((toolCall): toolCall is NonNullable<typeof toolCall> => {
       return toolCall != null;
@@ -103,19 +151,26 @@ export function processAttributeToolCalls(
 }
 
 /**
- * Takes a list of messages from span attributes and transforms them into a list of {@link ChatMessage|ChatMessages}
+ * Takes a list of messages from span attributes and transforms them into a list of {@link ChatMessage|ChatMessages} and the model provider of the message
  * @param messages messages from attributes either input or output @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}}
  * returns a list of {@link ChatMessage|ChatMessages}
  */
-function processAttributeMessagesToChatMessage(
-  messages: MessageSchema[]
-): ChatMessage[] {
+function processAttributeMessagesToChatMessage({
+  messages,
+  provider,
+}: {
+  messages: MessageSchema[];
+  provider: ModelProvider;
+}): ChatMessage[] {
   return messages.map(({ message }) => {
     return {
       id: generateMessageId(),
       role: getChatRole(message.role),
       content: message.content,
-      toolCalls: processAttributeToolCalls(message.tool_calls),
+      toolCalls: processAttributeToolCalls({
+        provider,
+        toolCalls: message.tool_calls,
+      }),
     };
   });
 }
@@ -127,7 +182,13 @@ function processAttributeMessagesToChatMessage(
  *
  * NB: Only exported for testing
  */
-export function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
+export function getTemplateMessagesFromAttributes({
+  provider,
+  parsedAttributes,
+}: {
+  provider: ModelProvider;
+  parsedAttributes: unknown;
+}) {
   const inputMessages = llmInputMessageSchema.safeParse(parsedAttributes);
   if (!inputMessages.success) {
     return {
@@ -138,9 +199,10 @@ export function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
 
   return {
     messageParsingErrors: [],
-    messages: processAttributeMessagesToChatMessage(
-      inputMessages.data.llm.input_messages
-    ),
+    messages: processAttributeMessagesToChatMessage({
+      provider,
+      messages: inputMessages.data.llm.input_messages,
+    }),
   };
 }
 
@@ -151,14 +213,21 @@ export function getTemplateMessagesFromAttributes(parsedAttributes: unknown) {
  *
  * NB: Only exported for testing
  */
-export function getOutputFromAttributes(parsedAttributes: unknown) {
+export function getOutputFromAttributes({
+  provider,
+  parsedAttributes,
+}: {
+  provider: ModelProvider;
+  parsedAttributes: unknown;
+}) {
   const outputParsingErrors: string[] = [];
   const outputMessages = llmOutputMessageSchema.safeParse(parsedAttributes);
   if (outputMessages.success) {
     return {
-      output: processAttributeMessagesToChatMessage(
-        outputMessages.data.llm.output_messages
-      ),
+      output: processAttributeMessagesToChatMessage({
+        provider,
+        messages: outputMessages.data.llm.output_messages,
+      }),
       outputParsingErrors,
     };
   }
@@ -266,7 +335,7 @@ export function getModelInvocationParametersFromAttributes(
  * @param tools tools from the span attributes
  * @returns playground OpenAI tools
  */
-function processAttributeTools(tools: LlmToolSchema): OpenAITool[] {
+function processAttributeTools(tools: LlmToolSchema): Tool[] {
   return (tools?.llm?.tools ?? [])
     .map((tool) => {
       if (tool?.tool == null) {
@@ -290,7 +359,7 @@ function processAttributeTools(tools: LlmToolSchema): OpenAITool[] {
 export function getToolsFromAttributes(
   parsedAttributes: unknown
 ):
-  | { tools: OpenAITool[]; parsingErrors: never[] }
+  | { tools: Tool[]; parsingErrors: never[] }
   | { tools: null; parsingErrors: string[] } {
   const { data, success } = llmToolSchema.safeParse(parsedAttributes);
 
@@ -338,14 +407,19 @@ export function transformSpanAttributesToPlaygroundInstance(
   const modelSupportedInvocationParameters =
     span.invocationParameters as Mutable<InvocationParameter[]>;
 
-  const { messages, messageParsingErrors } =
-    getTemplateMessagesFromAttributes(parsedAttributes);
-  const { output, outputParsingErrors } =
-    getOutputFromAttributes(parsedAttributes);
-  const parsedModelConfigResults =
+  const baseModelConfigResult =
     getBaseModelConfigFromAttributes(parsedAttributes);
-  let { modelConfig } = parsedModelConfigResults;
-  const { parsingErrors: modelConfigParsingErrors } = parsedModelConfigResults;
+  let { modelConfig } = baseModelConfigResult;
+  const { parsingErrors: modelConfigParsingErrors } = baseModelConfigResult;
+  const { messages, messageParsingErrors } = getTemplateMessagesFromAttributes({
+    provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
+    parsedAttributes,
+  });
+  const { output, outputParsingErrors } = getOutputFromAttributes({
+    provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
+    parsedAttributes,
+  });
+
   const {
     invocationParameters,
     parsingErrors: invocationParametersParsingErrors,
@@ -516,3 +590,121 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
+export const getToolName = (tool: Tool): string => {
+  const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
+    tool.definition
+  );
+  switch (provider) {
+    case "OPENAI":
+    case "AZURE_OPENAI":
+      return validatedToolDefinition.function.name;
+    case "ANTHROPIC":
+      return validatedToolDefinition.name;
+    default:
+      assertUnreachable(provider);
+  }
+};
+
+export const convertInstanceToolsToProvider = ({
+  instanceTools,
+  provider,
+}: {
+  instanceTools: Tool[];
+  provider: ModelProvider;
+}): Tool[] => {
+  return instanceTools.map((tool) => {
+    switch (provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return {
+          ...tool,
+          definition: toOpenAIToolDefinition(tool.definition),
+        };
+      case "ANTHROPIC":
+        return {
+          ...tool,
+          definition: fromOpenAIToolDefinition({
+            toolDefinition: toOpenAIToolDefinition(tool.definition),
+            targetProvider: provider,
+          }),
+        };
+      default:
+        assertUnreachable(provider);
+    }
+  });
+};
+
+export const convertMessageToolCallsToProvider = ({
+  toolCalls,
+  provider,
+}: {
+  toolCalls: ChatMessage["toolCalls"];
+  provider: ModelProvider;
+}): ChatMessage["toolCalls"] => {
+  if (toolCalls == null) {
+    return;
+  }
+  return toolCalls.map((toolCall) => {
+    switch (provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return toOpenAIToolCall(toolCall);
+      case "ANTHROPIC":
+        return fromOpenAIToolCall({
+          toolCall: toOpenAIToolCall(toolCall),
+          targetProvider: provider,
+        });
+      default:
+        assertUnreachable(provider);
+    }
+  });
+};
+
+/**
+ * Creates a tool definition for the given provider
+ * @param provider the provider to create the tool for
+ * @param toolNumber the tool number to create - used for naming the tool
+ * returns a tool definition for the given provider
+ */
+export const createToolForProvider = ({
+  provider,
+  toolNumber,
+}: {
+  provider: ModelProvider;
+  toolNumber: number;
+}): Tool => {
+  switch (provider) {
+    case "OPENAI":
+    case "AZURE_OPENAI":
+      return {
+        id: generateToolId(),
+        definition: createOpenAIToolDefinition(toolNumber),
+      };
+    case "ANTHROPIC":
+      return {
+        id: generateToolId(),
+        definition: createAnthropicToolDefinition(toolNumber),
+      };
+    default:
+      assertUnreachable(provider);
+  }
+};
+
+/**
+ * Creates a toolCall for the given provider
+ * @param provider the provider to create the toolCall for
+ * returns a toolCall for the given provider
+ */
+export const createToolCallForProvider = (
+  provider: ModelProvider
+): LlmProviderToolCall => {
+  switch (provider) {
+    case "OPENAI":
+    case "AZURE_OPENAI":
+      return createOpenAIToolCall();
+    case "ANTHROPIC":
+      return createAnthropicToolCall();
+    default:
+      assertUnreachable(provider);
+  }
+};

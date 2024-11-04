@@ -13,6 +13,7 @@ import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
+import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
@@ -36,7 +37,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   const toolNames = useMemo(
     () =>
       tools
-        .map((tool) => tool.definition.function?.name)
+        .map((tool) => getToolName(tool))
         .filter((name): name is NonNullable<typeof name> => name != null),
     [tools]
   );
@@ -70,8 +71,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
                   <PlaygroundTool
                     key={tool.id}
                     playgroundInstanceId={instanceId}
-                    tool={tool}
-                    instanceTools={instance.tools}
+                    toolId={tool.id}
                   />
                 );
               })}

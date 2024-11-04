@@ -36,6 +36,10 @@ import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonD
 import { InvocationParametersForm } from "./InvocationParametersForm";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
+import {
+  convertInstanceToolsToProvider,
+  convertMessageToolCallsToProvider,
+} from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 function AzureOpenAiModelConfigFormField({
@@ -222,6 +226,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
@@ -255,21 +261,54 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     ]
   );
 
+  const updateProvider = useCallback(
+    (provider: ModelProvider) => {
+      const patch: Partial<PlaygroundInstance> = {
+        model: {
+          ...instance.model,
+          provider,
+          modelName: null,
+        },
+        tools: convertInstanceToolsToProvider({
+          instanceTools: instance.tools,
+          provider,
+        }),
+      };
+      if (instance.template.__type === "chat") {
+        patch.template = {
+          __type: "chat",
+          messages: instance.template.messages.map((message) => {
+            return {
+              ...message,
+              toolCalls: convertMessageToolCallsToProvider({
+                toolCalls: message.toolCalls,
+                provider,
+              }),
+            };
+          }),
+        };
+      }
+      updateInstance({
+        instanceId: playgroundInstanceId,
+        patch,
+      });
+    },
+    [
+      instance.model,
+      instance.template,
+      instance.tools,
+      playgroundInstanceId,
+      updateInstance,
+    ]
+  );
+
   return (
     <View padding="size-200" overflow="auto">
       <Form>
         <ModelProviderPicker
           provider={instance.model.provider}
           query={query}
-          onChange={(provider) => {
-            updateModel({
-              instanceId: playgroundInstanceId,
-              model: {
-                provider,
-              },
-              modelConfigByProvider,
-            });
-          }}
+          onChange={updateProvider}
         />
         {instance.model.provider === "AZURE_OPENAI" ? (
           <AzureOpenAiModelConfigFormField instance={instance} />

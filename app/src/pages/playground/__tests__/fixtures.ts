@@ -1,3 +1,12 @@
+import {
+  AnthropicToolDefinition,
+  OpenAIToolDefinition,
+} from "@phoenix/schemas";
+import {
+  AnthropicToolCall,
+  OpenAIToolCall,
+} from "@phoenix/schemas/toolCallSchemas";
+
 import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 export const basePlaygroundSpan: PlaygroundSpan = {
@@ -72,7 +81,17 @@ export const spanAttributesWithInputMessages = {
   openinference: { span: { kind: "LLM" } },
 } as const;
 
-export const testSpanToolCall = {
+export type SpanToolCall = {
+  tool_call: {
+    id: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  };
+};
+
+export const testSpanToolCall: SpanToolCall = {
   tool_call: {
     id: "1",
     function: {
@@ -82,15 +101,28 @@ export const testSpanToolCall = {
   },
 };
 
-export const expectedTestToolCall = {
+export const expectedTestOpenAIToolCall: OpenAIToolCall = {
   id: "1",
   function: {
     name: "functionName",
-    arguments: JSON.stringify({ arg1: "value1" }),
+    arguments: { arg1: "value1" },
   },
 };
 
-export const testSpanToolJsonSchema = {
+export const expectedAnthropicToolCall: AnthropicToolCall = {
+  id: "1",
+  type: "tool_use",
+  name: "functionName",
+  input: { arg1: "value1" },
+};
+
+export type SpanTool = {
+  tool: {
+    json_schema: string;
+  };
+};
+
+export const testSpanOpenAIToolJsonSchema: OpenAIToolDefinition = {
   type: "function",
   function: {
     name: "get_weather",
@@ -103,8 +135,27 @@ export const testSpanToolJsonSchema = {
   },
 };
 
-export const testSpanTool = {
+export const testSpanOpenAITool: SpanTool = {
   tool: {
-    json_schema: JSON.stringify(testSpanToolJsonSchema),
+    json_schema: JSON.stringify(testSpanOpenAIToolJsonSchema),
+  },
+};
+
+export const testSpanAnthropicToolDefinition: AnthropicToolDefinition = {
+  name: "get_weather",
+  description: "This is a test tool",
+  input_schema: {
+    type: "object",
+    properties: {
+      city: {
+        type: "string",
+      },
+    },
+  },
+};
+
+export const tesSpanAnthropicTool: SpanTool = {
+  tool: {
+    json_schema: JSON.stringify(testSpanAnthropicToolDefinition),
   },
 };

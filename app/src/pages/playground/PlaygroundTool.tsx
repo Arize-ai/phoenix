@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
@@ -8,10 +8,15 @@ import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { openAIToolJSONSchema, openAIToolSchema } from "@phoenix/schemas";
-import { OpenAITool } from "@phoenix/store";
+import {
+  anthropicToolDefinitionJSONSchema,
+  llmProviderToolDefinitionSchema,
+  openAIToolDefinitionJSONSchema,
+} from "@phoenix/schemas";
+import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -22,21 +27,49 @@ const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
 export function PlaygroundTool({
   playgroundInstanceId,
-  tool,
-  instanceTools,
+  toolId,
 }: PlaygroundInstanceProps & {
-  tool: OpenAITool;
-  instanceTools: OpenAITool[];
+  toolId: Tool["id"];
 }) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
 
-  const [toolDefinition, setToolDefinition] = useState(
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === playgroundInstanceId)
+  );
+
+  if (instance == null) {
+    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
+  }
+
+  const instanceTools = instance.tools;
+
+  const tool = instanceTools.find((t) => t.id === toolId);
+
+  if (tool == null) {
+    throw new Error(`Tool ${toolId} not found`);
+  }
+
+  const [editorValue, setEditorValue] = useState(
     JSON.stringify(tool.definition, null, 2)
   );
 
+  const [lastValidDefinition, setLastValidDefinition] = useState(
+    tool.definition
+  );
+
+  // Update editor when tool definition changes externally this can happen when switching between providers
+  useEffect(() => {
+    if (
+      JSON.stringify(tool.definition) !== JSON.stringify(lastValidDefinition)
+    ) {
+      setLastValidDefinition(tool.definition);
+      setEditorValue(JSON.stringify(tool.definition, null, 2));
+    }
+  }, [tool.definition, lastValidDefinition]);
+
   const onChange = useCallback(
     (value: string) => {
-      setToolDefinition(value);
+      setEditorValue(value);
       const { json: definition } = safelyParseJSON(value);
       if (definition == null) {
         return;
@@ -45,10 +78,13 @@ export function PlaygroundTool({
       // there is no "deepPassthrough" to allow for extra keys
       // at all levels of the schema, so we just use the json parsed value here,
       // knowing that it is valid with potentially extra keys
-      const { success } = openAIToolSchema.safeParse(definition);
+      const { success } = llmProviderToolDefinitionSchema.safeParse(definition);
       if (!success) {
         return;
       }
+
+      setLastValidDefinition(definition);
+
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -66,6 +102,20 @@ export function PlaygroundTool({
     [instanceTools, playgroundInstanceId, tool.id, updateInstance]
   );
 
+  const toolName = useMemo(() => {
+    return getToolName(tool);
+  }, [tool]);
+
+  const toolDefinitionJSONSchema = useMemo((): JSONSchema7 => {
+    switch (instance.model.provider) {
+      case "OPENAI":
+      case "AZURE_OPENAI":
+        return openAIToolDefinitionJSONSchema as JSONSchema7;
+      case "ANTHROPIC":
+        return anthropicToolDefinitionJSONSchema as JSONSchema7;
+    }
+  }, [instance.model.provider]);
+
   return (
     <Card
       collapsible
@@ -75,13 +125,13 @@ export function PlaygroundTool({
       title={
         <Flex direction="row" gap="size-100">
           <SpanKindIcon spanKind="tool" />
-          <Text>{tool.definition.function?.name ?? "Tool"}</Text>
+          <Text>{toolName ?? "Tool"}</Text>
         </Flex>
       }
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={toolDefinition} />
+          <CopyToClipboardButton text={editorValue} />
           <Button
             aria-label="Delete tool"
             icon={<Icon svg={<Icons.TrashOutline />} />}
@@ -104,9 +154,9 @@ export function PlaygroundTool({
         preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
       >
         <JSONEditor
-          value={toolDefinition}
+          value={editorValue}
           onChange={onChange}
-          jsonSchema={openAIToolJSONSchema as JSONSchema7}
+          jsonSchema={toolDefinitionJSONSchema}
         />
       </LazyEditorWrapper>
     </Card>

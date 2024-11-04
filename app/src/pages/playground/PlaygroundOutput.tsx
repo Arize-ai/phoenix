@@ -1,7 +1,6 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { useSubscription } from "react-relay";
 import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
-import { css } from "@emotion/react";
 
 import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
 
@@ -15,7 +14,7 @@ import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { OpenAIToolCall } from "@phoenix/schemas";
+import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage, generateMessageId } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -27,6 +26,7 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
@@ -60,25 +60,7 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
       )}
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
-            return (
-              <pre
-                key={toolCall.id}
-                css={css`
-                  text-wrap: wrap;
-                  margin: var(--ac-global-dimension-static-size-100) 0;
-                `}
-              >
-                {toolCall.function.name}(
-                {JSON.stringify(
-                  typeof toolCall.function.arguments === "string"
-                    ? JSON.parse(toolCall.function.arguments)
-                    : toolCall.function.arguments,
-                  null,
-                  2
-                )}
-                )
-              </pre>
-            );
+            return <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />;
           })
         : null}
     </Card>
