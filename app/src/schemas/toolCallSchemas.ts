@@ -15,6 +15,7 @@ export const openAIToolCallSchema = z.object({
   function: z
     .object({
       name: z.string().describe("The name of the function"),
+      // TODO(Parker): The arguments here should not actually be a string, however this is a relic from the current way we stream tool calls where the chunks will come in as strings of partial json objects fix this here:
       arguments: z
         .union([z.record(z.unknown()).optional(), z.string()])
         .describe("The arguments for the function"),
@@ -32,7 +33,7 @@ export const openAIToolCallSchema = z.object({
  *   id: "1",
  *   function: {
  *     name: "getCurrentWeather",
- *     arguments: "{ \"city\": \"San Francisco\" }"
+ *     arguments: { "city": "San Francisco" }
  *   }
  * }
  * ```
@@ -113,8 +114,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
     id: openai.id,
     type: "tool_use",
     name: openai.function.name,
-    // REVIEW: anthropic wants a record always, openai wants string, record, or undefined
-    // whats the best way to handle this?
+    // TODO(parker): see comment in openai schema above, fix this here
     input:
       typeof openai.function.arguments === "string"
         ? { [openai.function.arguments]: openai.function.arguments }

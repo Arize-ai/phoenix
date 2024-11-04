@@ -265,6 +265,7 @@ export function createOpenAIToolDefinition(
     type: "function",
     function: {
       name: `new_function_${toolNumber}`,
+      description: "",
       parameters: {
         type: "object",
         properties: {
@@ -288,7 +289,7 @@ export function createAnthropicToolDefinition(
 ): AnthropicToolDefinition {
   return {
     name: `new_function_${toolNumber}`,
-    description: `new_function_${toolNumber}`,
+    description: "",
     input_schema: {
       type: "object",
       properties: {
