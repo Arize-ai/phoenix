@@ -972,7 +972,7 @@ class TestChatCompletionOverDatasetSubscription:
         example_1_response_text = "".join(
             payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_1]
         )
-        assert "france" in example_1_response_text.lower()
+        assert example_1_response_text == "France"
         example_1_subscription_span = last_example_1_payload["chatCompletionOverDataset"]["span"]
         example_1_span_id = example_1_subscription_span["id"]
 
@@ -987,7 +987,7 @@ class TestChatCompletionOverDatasetSubscription:
         example_2_response_text = "".join(
             payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_2]
         )
-        assert "japan" in example_2_response_text.lower()
+        assert example_2_response_text == "Japan"
         example_2_subscription_span = last_example_2_payload["chatCompletionOverDataset"]["span"]
         example_2_span_id = example_2_subscription_span["id"]
 
