@@ -7,16 +7,16 @@ import React, {
   useState,
 } from "react";
 
-export type SessionSubstringContextType = {
+export type SessionSearchContextType = {
   substring: string;
   setSubstring: (condition: string) => void;
 };
 
-export const SessionSubstringContext =
-  createContext<SessionSubstringContextType | null>(null);
+export const SessionSearchContext =
+  createContext<SessionSearchContextType | null>(null);
 
-export function useSessionSubstring() {
-  const context = useContext(SessionSubstringContext);
+export function useSessionSearchContext() {
+  const context = useContext(SessionSearchContext);
   if (context === null) {
     throw new Error(
       "useSessionSubstring must be used within a SessionSubstringProvider"
@@ -33,8 +33,8 @@ export function SessionSubstringProvider(props: PropsWithChildren) {
     });
   }, []);
   return (
-    <SessionSubstringContext.Provider value={{ substring, setSubstring }}>
+    <SessionSearchContext.Provider value={{ substring, setSubstring }}>
       {props.children}
-    </SessionSubstringContext.Provider>
+    </SessionSearchContext.Provider>
   );
 }

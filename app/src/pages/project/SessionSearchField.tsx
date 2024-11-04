@@ -7,7 +7,7 @@ import { AddonBefore, Flex, Icon, Icons } from "@arizeai/components";
 
 import { useTheme } from "../../contexts";
 
-import { useSessionSubstring } from "./SessionSubstringContext";
+import { useSessionSearchContext } from "./SessionSearchContext";
 
 const codeMirrorCSS = css`
   flex: 1 1 auto;
@@ -47,10 +47,10 @@ const fieldCSS = css`
 type SessionsSubstringFieldProps = {
   placeholder?: string;
 };
-export function SessionSubstringField(props: SessionsSubstringFieldProps) {
+export function SessionSearchField(props: SessionsSubstringFieldProps) {
   const { placeholder = "search for substring" } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const { substring, setSubstring } = useSessionSubstring();
+  const { substring, setSubstring } = useSessionSearchContext();
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "dark" ? nord : undefined;
 

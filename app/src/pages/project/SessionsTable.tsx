@@ -32,9 +32,9 @@ import { TokenCount } from "../../components/trace/TokenCount";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import { useSessionSearchContext } from "./SessionSearchContext";
+import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
-import { useSessionSubstring } from "./SessionSubstringContext";
-import { SessionSubstringField } from "./SessionSubstringField";
 import { spansTableCSS } from "./styles";
 
 type SessionsTableProps = {
@@ -47,7 +47,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { substring } = useSessionSubstring();
+  const { substring } = useSessionSearchContext();
   const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -214,7 +214,7 @@ export function SessionsTable(props: SessionsTableProps) {
         borderBottomWidth="thin"
         flex="none"
       >
-        <SessionSubstringField />
+        <SessionSearchField />
       </View>
       <div
         css={css`
