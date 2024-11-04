@@ -234,6 +234,7 @@ async def _stream_chat_completion_over_dataset(
     revision: models.DatasetExampleRevision,
     spans: dict[DatasetExampleID, streaming_llm_span],
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    print(f"{revision.dataset_example_id}:{revision.input=}")
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     attributes: dict[str, Any] = {}
     llm_client = llm_client_class(
@@ -262,6 +263,7 @@ async def _stream_chat_completion_over_dataset(
     except TemplateFormatterError as error:
         yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
         return
+    print(f"{revision.dataset_example_id}:{messages=}")
     span = streaming_llm_span(
         input=input,
         messages=messages,
@@ -275,6 +277,7 @@ async def _stream_chat_completion_over_dataset(
         ):
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
+            print(f"{revision.dataset_example_id}:{chunk=}")
             yield chunk
     if span.error_message is not None:
         yield ChatCompletionSubscriptionError(

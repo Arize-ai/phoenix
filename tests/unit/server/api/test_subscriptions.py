@@ -1,17 +1,18 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 import pytz
+import vcr
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
 from strawberry.relay.types import GlobalID
-from vcr import use_cassette
 
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
@@ -157,7 +158,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with use_cassette(
+            with vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
                 decode_compressed_response=True,
@@ -289,7 +290,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with use_cassette(
+            with vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionSubscription.test_openai_emits_expected_payloads_and_records_expected_span_on_error[sqlite].yaml",
                 decode_compressed_response=True,
@@ -430,7 +431,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with use_cassette(
+            with vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionSubscription.test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
                 decode_compressed_response=True,
@@ -585,7 +586,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with use_cassette(
+            with vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionSubscription.test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
                 decode_compressed_response=True,
@@ -731,7 +732,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with use_cassette(
+            with vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionSubscription.test_anthropic_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
                 decode_compressed_response=True,
@@ -937,12 +938,17 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            with use_cassette(
+            custom_vcr = vcr.VCR()
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )  # a custom request matcher is needed since the requests are concurrent
+            with custom_vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
                 "TestChatCompletionOverDatasetSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_spans[sqlite].yaml",
                 decode_compressed_response=True,
                 before_record_request=remove_all_vcr_request_headers,
                 before_record_response=remove_all_vcr_response_headers,
+                match_on=[_request_bodies_contain_same_city.__name__],
             ):
                 async for payload in subscription.stream():
                     if (
@@ -1157,6 +1163,18 @@ class TestChatCompletionOverDatasetSubscription:
             {"message": {"role": "assistant", "content": "Japan"}}
         ]
         assert not attributes
+
+
+def _request_bodies_contain_same_city(
+    request1: vcr.request.Request, request2: vcr.request.Request
+) -> None:
+    assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
+
+
+def _extract_city(body: str) -> str:
+    if match := re.search(r"What country is (\w+) in\?", body):
+        return match.group(1)
+    raise ValueError(f"Could not extract city from body: {body}")
 
 
 @pytest.fixture
