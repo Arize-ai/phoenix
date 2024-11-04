@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb18f1d8d0fe1de7270e67db2610a241>>
+ * @generated SignedSource<<178451515ca7af64a4e6fbc1966e3b42>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type TimeRange = {
 };
 export type SessionsTableQuery$variables = {
   after?: string | null;
+  filterIoSubstring?: string | null;
   first?: number | null;
   id: string;
   timeRange?: TimeRange | null;
@@ -37,61 +38,72 @@ var v0 = {
   "name": "after"
 },
 v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filterIoSubstring"
+},
+v2 = {
   "defaultValue": 50,
   "kind": "LocalArgument",
   "name": "first"
 },
-v2 = {
+v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "id"
 },
-v3 = {
+v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v5 = {
+v6 = {
   "kind": "Variable",
   "name": "after",
   "variableName": "after"
 },
-v6 = {
+v7 = {
+  "kind": "Variable",
+  "name": "filterIoSubstring",
+  "variableName": "filterIoSubstring"
+},
+v8 = {
   "kind": "Variable",
   "name": "first",
   "variableName": "first"
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v8 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v9 = [
-  (v5/*: any*/),
+v11 = [
   (v6/*: any*/),
+  (v7/*: any*/),
+  (v8/*: any*/),
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v10 = [
+v12 = [
   {
     "alias": null,
     "args": null,
@@ -106,7 +118,8 @@ return {
       (v0/*: any*/),
       (v1/*: any*/),
       (v2/*: any*/),
-      (v3/*: any*/)
+      (v3/*: any*/),
+      (v4/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -114,7 +127,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -122,8 +135,9 @@ return {
         "selections": [
           {
             "args": [
-              (v5/*: any*/),
-              (v6/*: any*/)
+              (v6/*: any*/),
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "kind": "FragmentSpread",
             "name": "SessionsTable_sessions"
@@ -140,26 +154,27 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v3/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v4/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/),
+          (v9/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v8/*: any*/),
+          (v10/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -172,7 +187,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v9/*: any*/),
+                "args": (v11/*: any*/),
                 "concreteType": "ProjectSessionConnection",
                 "kind": "LinkedField",
                 "name": "sessions",
@@ -194,7 +209,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v8/*: any*/),
+                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -230,7 +245,7 @@ return {
                             "kind": "LinkedField",
                             "name": "firstInput",
                             "plural": false,
-                            "selections": (v10/*: any*/),
+                            "selections": (v12/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -240,7 +255,7 @@ return {
                             "kind": "LinkedField",
                             "name": "lastOutput",
                             "plural": false,
-                            "selections": (v10/*: any*/),
+                            "selections": (v12/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -293,7 +308,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v7/*: any*/)
+                          (v9/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -330,8 +345,9 @@ return {
               },
               {
                 "alias": null,
-                "args": (v9/*: any*/),
+                "args": (v11/*: any*/),
                 "filters": [
+                  "filterIoSubstring",
                   "timeRange"
                 ],
                 "handle": "connection",
@@ -349,16 +365,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eae7b869a03863c68f10ff3d78c3f46b",
+    "cacheID": "4e6b96fbbfa7034e3501289566bc20d9",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2HEEH6 on Project {\n  name\n  sessions(first: $first, after: $after, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_zrmri\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_zrmri on Project {\n  name\n  sessions(first: $first, after: $after, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ffd50d06a86cb2efbd63be2f7e658dbf";
+(node as any).hash = "e846bbacd897b12db7c1b5410055f394";
 
 export default node;

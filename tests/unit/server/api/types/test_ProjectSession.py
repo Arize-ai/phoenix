@@ -3,7 +3,6 @@ from typing import Any, NamedTuple
 
 import httpx
 import pytest
-from faker import Faker
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -39,7 +38,6 @@ class TestProjectSession:
     async def _data(
         self,
         db: DbSessionFactory,
-        fake: Faker,
     ) -> _Data:
         project_sessions = []
         traces = []
