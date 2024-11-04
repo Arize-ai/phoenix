@@ -8,8 +8,8 @@ import React, {
 } from "react";
 
 export type SessionSearchContextType = {
-  substring: string;
-  setSubstring: (condition: string) => void;
+  filterSubstring: string;
+  setFilterSubstring: (condition: string) => void;
 };
 
 export const SessionSearchContext =
@@ -33,7 +33,9 @@ export function SessionSubstringProvider(props: PropsWithChildren) {
     });
   }, []);
   return (
-    <SessionSearchContext.Provider value={{ substring, setSubstring }}>
+    <SessionSearchContext.Provider
+      value={{ filterSubstring: substring, setFilterSubstring: setSubstring }}
+    >
       {props.children}
     </SessionSearchContext.Provider>
   );

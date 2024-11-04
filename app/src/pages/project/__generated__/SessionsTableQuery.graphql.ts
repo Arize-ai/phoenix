@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c081e7d68db7b4386c94ae5ea96963c4>>
+ * @generated SignedSource<<25ce553ce71e60c53a2bce7b45c3c7aa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,9 +16,9 @@ export type TimeRange = {
 };
 export type SessionsTableQuery$variables = {
   after?: string | null;
+  filterSubstring?: string | null;
   first?: number | null;
   id: string;
-  substring?: string | null;
   timeRange?: TimeRange | null;
 };
 export type SessionsTableQuery$data = {
@@ -38,19 +38,19 @@ var v0 = {
   "name": "after"
 },
 v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filterSubstring"
+},
+v2 = {
   "defaultValue": 50,
   "kind": "LocalArgument",
   "name": "first"
 },
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "id"
-},
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "substring"
+  "name": "id"
 },
 v4 = {
   "defaultValue": null,
@@ -71,13 +71,13 @@ v6 = {
 },
 v7 = {
   "kind": "Variable",
-  "name": "first",
-  "variableName": "first"
+  "name": "filterSubstring",
+  "variableName": "filterSubstring"
 },
 v8 = {
   "kind": "Variable",
-  "name": "substring",
-  "variableName": "substring"
+  "name": "first",
+  "variableName": "first"
 },
 v9 = {
   "alias": null,
@@ -154,9 +154,9 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v3/*: any*/),
+      (v2/*: any*/),
       (v4/*: any*/),
-      (v2/*: any*/)
+      (v3/*: any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableQuery",
@@ -347,7 +347,7 @@ return {
                 "alias": null,
                 "args": (v11/*: any*/),
                 "filters": [
-                  "substring",
+                  "filterSubstring",
                   "timeRange"
                 ],
                 "handle": "connection",
@@ -365,16 +365,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f0722a2fa5eef04b63512aff4913a115",
+    "cacheID": "52d61eee3ba1f879459e74cca7937847",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $first: Int = 50\n  $substring: String = null\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2VwEYG\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2VwEYG on Project {\n  name\n  sessions(first: $first, after: $after, substring: $substring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterSubstring: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_1Cj2jo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_1Cj2jo on Project {\n  name\n  sessions(first: $first, after: $after, filterSubstring: $filterSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e48d793bebd23a60a4164fcba2332371";
+(node as any).hash = "705198922586184108088980f9d9e9f1";
 
 export default node;
