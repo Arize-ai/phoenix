@@ -1186,6 +1186,7 @@ class TestProject:
             traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
             attributes = {"input": {"value": "g\"'h"}, "output": {"value": "e\"'f"}}
             spans.append(await _add_span(session, traces[-1], attributes=attributes))
+            spans.append(await _add_span(session, traces[-1]))
         return _Data(
             spans=spans,
             traces=traces,
@@ -1199,7 +1200,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(substring:"\\"\'f"){edges{node{id}}}'
+        field = 'sessions(filterSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert sorted(e["node"]["id"] for e in res["edges"]) == sorted(
             [
@@ -1214,6 +1215,6 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(substring:"\\"\'j"){edges{node{id}}}'
+        field = 'sessions(filterSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
