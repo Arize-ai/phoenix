@@ -34,7 +34,6 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 # python environments
 .conda
 .venv
-uv.lock
 
 # Symbolic links
 # Note that this can affect hatch build for those packages. That's why

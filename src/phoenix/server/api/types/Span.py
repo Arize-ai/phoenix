@@ -296,7 +296,7 @@ class Span(Node):
     @strawberry.field(description="Invocation parameters for the span")  # type: ignore
     async def invocation_parameters(self, info: Info[Context, None]) -> list[InvocationParameter]:
         from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
-        from phoenix.server.api.helpers.playground_registry import PlaygroundClientRegistry
+        from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 
         db_span = self.db_span
         attributes = db_span.attributes
@@ -313,8 +313,7 @@ class Span(Node):
         invocation_parameters = json.loads(invocation_parameters)
         # find the client class for the provider, if there is no client class or provider,
         # return openai as default
-        reg = PlaygroundClientRegistry()
-        client_class = reg.get_client(llm_provider, llm_model)
+        client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(llm_provider, llm_model)
         if not client_class:
             client_class = OpenAIStreamingClient
         supported_invocation_parameters = client_class.supported_invocation_parameters()
