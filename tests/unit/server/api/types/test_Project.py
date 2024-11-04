@@ -1166,19 +1166,25 @@ class TestProject:
         self,
         db: DbSessionFactory,
     ) -> _Data:
-        projects = []
-        project_sessions = []
-        traces = []
-        spans = []
+        projects, project_sessions, traces, spans = [], [], [], []
         async with db() as session:
             projects.append(await _add_project(session))
+
             project_sessions.append(await _add_project_session(session, projects[-1]))
             traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
-            attributes = {"input": {"value": "abc"}, "output": {"value": "cba"}}
+            attributes = {"input": {"value": "a\"'b"}, "output": {"value": "c\"'d"}}
             spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
             project_sessions.append(await _add_project_session(session, projects[-1]))
             traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
-            attributes = {"input": {"value": "xyz"}, "output": {"value": "zyx"}}
+            attributes = {"input": {"value": "e\"'f"}, "output": {"value": "g\"'h"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+            attributes = {"input": {"value": "i\"'j"}, "output": {"value": "k\"'l"}}
+            spans.append(await _add_span(session, parent_span=spans[-1], attributes=attributes))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "g\"'h"}, "output": {"value": "e\"'f"}}
             spans.append(await _add_span(session, traces[-1], attributes=attributes))
         return _Data(
             spans=spans,
@@ -1187,15 +1193,27 @@ class TestProject:
             projects=projects,
         )
 
-    async def test_sessions_filter_condition(
+    async def test_sessions_substring_search_looks_at_both_input_and_output(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        project_session = _data.project_sessions[1]
-        id_ = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
-        field = 'sessions(filterCondition:"' + "'y' in input.value" + '"){edges{node{id}}}'
-        assert await self._node(field, project, httpx_client) == {
-            "edges": [{"node": {"id": id_}}],
-        }
+        field = 'sessions(substring:"\\"\'f"){edges{node{id}}}'
+        res = await self._node(field, project, httpx_client)
+        assert sorted(e["node"]["id"] for e in res["edges"]) == sorted(
+            [
+                str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
+                str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
+            ]
+        )
+
+    async def test_sessions_substring_search_looks_at_only_root_spans(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        field = 'sessions(substring:"\\"\'j"){edges{node{id}}}'
+        res = await self._node(field, project, httpx_client)
+        assert {e["node"]["id"] for e in res["edges"]} == set()

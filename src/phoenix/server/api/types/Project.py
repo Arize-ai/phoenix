@@ -1,14 +1,11 @@
 import operator
 from datetime import datetime
-from typing import (
-    Any,
-    ClassVar,
-    Optional,
-)
+from typing import Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
-from sqlalchemy import and_, desc, distinct, select
+from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import and_, desc, distinct, or_, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
@@ -261,7 +258,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
-        filter_condition: Optional[str] = UNSET,
+        substring: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
         stmt = select(table).filter_by(project_id=self.id_attr)
@@ -273,14 +270,23 @@ class Project(Node):
         if after:
             cursor = Cursor.from_string(after)
             stmt = stmt.where(table.id < cursor.rowid)
-        if filter_condition:
-            span_filter = SpanFilter(condition=filter_condition)
-            subq = span_filter(
-                (
-                    stmt.with_only_columns(distinct(table.id).label("id"))
-                    .join_from(table, models.Trace)
-                    .join_from(models.Trace, models.Span)
-                    .where(models.Span.parent_id.is_(None))
+        if substring:
+            subq = (
+                stmt.with_only_columns(distinct(table.id).label("id"))
+                .join_from(table, models.Trace)
+                .join_from(models.Trace, models.Span)
+                .where(models.Span.parent_id.is_(None))
+                .where(
+                    or_(
+                        models.TextContains(
+                            models.Span.attributes[INPUT_VALUE].as_string(),
+                            substring,
+                        ),
+                        models.TextContains(
+                            models.Span.attributes[OUTPUT_VALUE].as_string(),
+                            substring,
+                        ),
+                    )
                 )
             ).subquery()
             stmt = stmt.join(subq, table.id == subq.c.id)
@@ -428,3 +434,7 @@ def to_gql_project(project: models.Project) -> Project:
         gradient_start_color=project.gradient_start_color,
         gradient_end_color=project.gradient_end_color,
     )
+
+
+INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")

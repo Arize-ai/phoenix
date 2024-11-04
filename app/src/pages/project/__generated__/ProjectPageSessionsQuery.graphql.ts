@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1e9c131a65261f7d21227f81ba3ae99>>
+ * @generated SignedSource<<440f68eab401f0ac7aee511a5502478d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -302,7 +302,7 @@ return {
                 "alias": null,
                 "args": (v4/*: any*/),
                 "filters": [
-                  "filterCondition",
+                  "substring",
                   "timeRange"
                 ],
                 "handle": "connection",

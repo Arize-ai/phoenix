@@ -1,0 +1,103 @@
+import React, { useState } from "react";
+import { nord } from "@uiw/codemirror-theme-nord";
+import CodeMirror from "@uiw/react-codemirror";
+import { css } from "@emotion/react";
+
+import { AddonBefore, Flex, Icon, Icons } from "@arizeai/components";
+
+import { useTheme } from "../../contexts";
+
+import { useSessionSubstring } from "./SessionSubstringContext";
+
+const codeMirrorCSS = css`
+  flex: 1 1 auto;
+  .cm-content {
+    padding: var(--ac-global-dimension-static-size-100) 0;
+  }
+  .cm-editor {
+    background-color: transparent;
+  }
+  .cm-focused {
+    outline: none;
+  }
+  .cm-selectionLayer .cm-selectionBackground {
+    background: var(--ac-global-color-cyan-400) !important;
+  }
+`;
+
+const fieldCSS = css`
+  border-width: var(--ac-global-border-size-thin);
+  border-style: solid;
+  border-color: var(--ac-global-input-field-border-color);
+  border-radius: var(--ac-global-rounding-small);
+  background-color: var(--ac-global-input-field-background-color);
+  transition: all 0.2s ease-in-out;
+  overflow-x: hidden;
+  &:hover,
+  &[data-is-focused="true"] {
+    border-color: var(--ac-global-input-field-border-color-active);
+    background-color: var(--ac-global-input-field-background-color-active);
+  }
+  &[data-is-invalid="true"] {
+    border-color: var(--ac-global-color-danger);
+  }
+  box-sizing: border-box;
+`;
+
+type SessionsSubstringFieldProps = {
+  placeholder?: string;
+};
+export function SessionSubstringField(props: SessionsSubstringFieldProps) {
+  const { placeholder = "search for substring" } = props;
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  const { substring, setSubstring } = useSessionSubstring();
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "dark" ? nord : undefined;
+
+  const hasSubstring = substring !== "";
+  return (
+    <div
+      data-is-focused={isFocused}
+      className="sessions-substring-field"
+      css={fieldCSS}
+    >
+      <Flex direction="row">
+        <AddonBefore>
+          <Icon svg={<Icons.Search />} />
+        </AddonBefore>
+        <CodeMirror
+          css={codeMirrorCSS}
+          indentWithTab={false}
+          basicSetup={{
+            lineNumbers: false,
+            foldGutter: false,
+            bracketMatching: false,
+            syntaxHighlighting: false,
+            highlightActiveLine: false,
+            highlightActiveLineGutter: false,
+            defaultKeymap: false,
+          }}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          value={substring}
+          onChange={setSubstring}
+          height="36px"
+          width="100%"
+          theme={codeMirrorTheme}
+          placeholder={placeholder}
+        />
+        <button
+          css={css`
+            margin-right: var(--ac-global-dimension-static-size-100);
+            color: var(--ac-global-text-color-700);
+            visibility: ${hasSubstring ? "visible" : "hidden"};
+          `}
+          onClick={() => setSubstring("")}
+          className="button--reset"
+        >
+          <Icon svg={<Icons.CloseCircleOutline />} />
+        </button>
+      </Flex>
+    </div>
+  );
+}

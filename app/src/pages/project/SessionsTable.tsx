@@ -33,7 +33,8 @@ import { TokenCount } from "../../components/trace/TokenCount";
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
-import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { useSessionSubstring } from "./SessionSubstringContext";
+import { SessionSubstringField } from "./SessionSubstringField";
 import { spansTableCSS } from "./styles";
 
 type SessionsTableProps = {
@@ -46,7 +47,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
+  const { substring } = useSessionSubstring();
   const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -57,13 +58,13 @@ export function SessionsTable(props: SessionsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
-          filterCondition: { type: "String", defaultValue: null }
+          substring: { type: "String", defaultValue: null }
         ) {
           name
           sessions(
             first: $first
             after: $after
-            filterCondition: $filterCondition
+            substring: $substring
             timeRange: $timeRange
           ) @connection(key: "SessionsTable_sessions") {
             edges {
@@ -159,12 +160,12 @@ export function SessionsTable(props: SessionsTableProps) {
         {
           after: null,
           first: PAGE_SIZE,
-          filterCondition: filterCondition,
+          substring: substring,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterCondition, fetchKey]);
+  }, [sorting, refetch, substring, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -213,7 +214,7 @@ export function SessionsTable(props: SessionsTableProps) {
         borderBottomWidth="thin"
         flex="none"
       >
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+        <SessionSubstringField />
       </View>
       <div
         css={css`
