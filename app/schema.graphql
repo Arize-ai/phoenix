@@ -97,8 +97,9 @@ enum CanonicalParameterName {
   RESPONSE_FORMAT
 }
 
-type ChatCompletionError {
-  message: String!
+type ChatCompletionFunctionCall {
+  name: String!
+  arguments: String!
 }
 
 input ChatCompletionInput {
@@ -132,9 +133,7 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-union ChatCompletionMutationPayload = ChatCompletionResult | ChatCompletionError
-
-type ChatCompletionResult {
+type ChatCompletionMutationPayload {
   content: String
   toolCalls: [ChatCompletionToolCall!]!
   span: Span!
@@ -145,7 +144,7 @@ union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedCh
 
 type ChatCompletionToolCall {
   id: String!
-  function: JSON!
+  function: ChatCompletionFunctionCall!
 }
 
 input ClearProjectInput {
@@ -1128,7 +1127,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
-  playgroundChatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
