@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6f6a0779ba767f9d7788359aa2075fd>>
+ * @generated SignedSource<<46b70007fe439a545d01c7977762e568>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -72,6 +72,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterIoSubstring"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
@@ -122,6 +127,11 @@ return {
     {
       "alias": "sessions",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filterIoSubstring",
+          "variableName": "filterIoSubstring"
+        },
         {
           "kind": "Variable",
           "name": "timeRange",
@@ -296,6 +306,6 @@ return {
 };
 })();
 
-(node as any).hash = "ffd50d06a86cb2efbd63be2f7e658dbf";
+(node as any).hash = "e846bbacd897b12db7c1b5410055f394";
 
 export default node;
