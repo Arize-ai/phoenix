@@ -3,7 +3,6 @@ from asyncio import FIRST_COMPLETED, Task, create_task, wait
 from collections.abc import Iterator
 from typing import (
     Any,
-    AsyncIterable,
     AsyncIterator,
     Collection,
     Iterable,
@@ -23,7 +22,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import (
-    ChatCompletionChunk,
+    PlaygroundStreamingClient,
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import (
@@ -144,22 +143,7 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        attributes: dict[str, Any] = {}
-        llm_client = llm_client_class(
-            model=input.model,
-            api_key=input.api_key,
-            set_span_attributes=lambda attrs: attributes.update(attrs),
-        )
-        unformatted_messages = [
-            (
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
-        messages: dict[DatasetExampleID, list[ChatCompletionMessage]] = {}
+
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(
@@ -201,51 +185,22 @@ class Subscription:
             )
         )
         async with info.context.db() as session:
-            async for revision in await session.stream_scalars(query):
-                example_node_id = GlobalID(
-                    DatasetExample.__name__, str(revision.dataset_example_id)
-                )
-                try:
-                    messages[example_node_id] = list(
-                        _formatted_messages(
-                            messages=unformatted_messages,
-                            template_language=input.template_language,
-                            template_variables=revision.input,
-                        )
-                    )
-                except TemplateFormatterError as error:
-                    yield ChatCompletionSubscriptionError(
-                        message=str(error), dataset_example_id=example_node_id
-                    )
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
-        )
-        spans = {
-            example_id: streaming_llm_span(
-                input=input,
-                messages=messages[example_id],
-                invocation_parameters=invocation_parameters,
-                attributes=attributes,
-            )
-            for example_id in messages
-        }
-        chat_completion_streams = {
-            example_id: llm_client.chat_completion_create(
-                messages=msgs, tools=input.tools or [], **invocation_parameters
-            )
-            for example_id, msgs in messages.items()
-        }
+            revisions = [revision async for revision in await session.stream_scalars(query)]
+
+        spans: dict[DatasetExampleID, streaming_llm_span] = {}
         async for payload in _merge_iterators(
             [
-                _stream_with_span(
-                    chat_completion_stream=chat_completion_streams[example_id],
-                    span=spans[example_id],
-                    example_id=example_id,
+                _stream_chat_completion_over_dataset(
+                    input=input,
+                    llm_client_class=llm_client_class,
+                    revision=revision,
+                    spans=spans,
                 )
-                for example_id in messages
+                for revision in revisions
             ]
         ):
             yield payload
+
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -272,14 +227,52 @@ class Subscription:
             )
 
 
-async def _stream_with_span(
+async def _stream_chat_completion_over_dataset(
     *,
-    chat_completion_stream: AsyncIterable[ChatCompletionChunk],
-    span: streaming_llm_span,
-    example_id: DatasetExampleID,
+    input: ChatCompletionOverDatasetInput,
+    llm_client_class: type["PlaygroundStreamingClient"],
+    revision: models.DatasetExampleRevision,
+    spans: dict[DatasetExampleID, streaming_llm_span],
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
+    attributes: dict[str, Any] = {}
+    llm_client = llm_client_class(
+        model=input.model,
+        api_key=input.api_key,
+        set_span_attributes=lambda attrs: attributes.update(attrs),
+    )
+    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    messages = [
+        (
+            message.role,
+            message.content,
+            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
+            message.tool_calls if isinstance(message.tool_calls, list) else None,
+        )
+        for message in input.messages
+    ]
+    try:
+        messages = list(
+            _formatted_messages(
+                messages=messages,
+                template_language=input.template_language,
+                template_variables=revision.input,
+            )
+        )
+    except TemplateFormatterError as error:
+        yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
+        return
+    span = streaming_llm_span(
+        input=input,
+        messages=messages,
+        invocation_parameters=invocation_parameters,
+        attributes=attributes,
+    )
+    spans[example_id] = span
     async with span:
-        async for chunk in chat_completion_stream:
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages, tools=input.tools or [], **invocation_parameters
+        ):
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
             yield chunk
