@@ -258,7 +258,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
-        filter_substring: Optional[str] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
         stmt = select(table).filter_by(project_id=self.id_attr)
@@ -270,7 +270,7 @@ class Project(Node):
         if after:
             cursor = Cursor.from_string(after)
             stmt = stmt.where(table.id < cursor.rowid)
-        if filter_substring:
+        if filter_io_substring:
             subq = (
                 stmt.with_only_columns(distinct(table.id).label("id"))
                 .join_from(table, models.Trace)
@@ -280,11 +280,11 @@ class Project(Node):
                     or_(
                         models.TextContains(
                             models.Span.attributes[INPUT_VALUE].as_string(),
-                            filter_substring,
+                            filter_io_substring,
                         ),
                         models.TextContains(
                             models.Span.attributes[OUTPUT_VALUE].as_string(),
-                            filter_substring,
+                            filter_io_substring,
                         ),
                     )
                 )

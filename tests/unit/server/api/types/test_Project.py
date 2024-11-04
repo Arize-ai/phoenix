@@ -1200,7 +1200,7 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterSubstring:"\\"\'f"){edges{node{id}}}'
+        field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert sorted(e["node"]["id"] for e in res["edges"]) == sorted(
             [
@@ -1215,6 +1215,6 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project = _data.projects[0]
-        field = 'sessions(filterSubstring:"\\"\'j"){edges{node{id}}}'
+        field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()

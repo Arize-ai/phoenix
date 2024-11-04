@@ -50,11 +50,11 @@ type SessionsSubstringFieldProps = {
 export function SessionSearchField(props: SessionsSubstringFieldProps) {
   const { placeholder = "Search messages" } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const { filterSubstring, setFilterSubstring } = useSessionSearchContext();
+  const { filterIoSubstring, setFilterIoSubstring } = useSessionSearchContext();
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "dark" ? nord : undefined;
 
-  const hasSubstring = filterSubstring !== "";
+  const hasSubstring = filterIoSubstring !== "";
   return (
     <div
       data-is-focused={isFocused}
@@ -79,8 +79,8 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          value={filterSubstring}
-          onChange={setFilterSubstring}
+          value={filterIoSubstring}
+          onChange={setFilterIoSubstring}
           height="36px"
           width="100%"
           theme={codeMirrorTheme}
@@ -92,7 +92,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
             color: var(--ac-global-text-color-700);
             visibility: ${hasSubstring ? "visible" : "hidden"};
           `}
-          onClick={() => setFilterSubstring("")}
+          onClick={() => setFilterIoSubstring("")}
           className="button--reset"
         >
           <Icon svg={<Icons.CloseCircleOutline />} />

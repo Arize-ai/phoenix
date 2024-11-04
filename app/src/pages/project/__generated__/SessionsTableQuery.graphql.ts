@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25ce553ce71e60c53a2bce7b45c3c7aa>>
+ * @generated SignedSource<<178451515ca7af64a4e6fbc1966e3b42>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type TimeRange = {
 };
 export type SessionsTableQuery$variables = {
   after?: string | null;
-  filterSubstring?: string | null;
+  filterIoSubstring?: string | null;
   first?: number | null;
   id: string;
   timeRange?: TimeRange | null;
@@ -40,7 +40,7 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "filterSubstring"
+  "name": "filterIoSubstring"
 },
 v2 = {
   "defaultValue": 50,
@@ -71,8 +71,8 @@ v6 = {
 },
 v7 = {
   "kind": "Variable",
-  "name": "filterSubstring",
-  "variableName": "filterSubstring"
+  "name": "filterIoSubstring",
+  "variableName": "filterIoSubstring"
 },
 v8 = {
   "kind": "Variable",
@@ -347,7 +347,7 @@ return {
                 "alias": null,
                 "args": (v11/*: any*/),
                 "filters": [
-                  "filterSubstring",
+                  "filterIoSubstring",
                   "timeRange"
                 ],
                 "handle": "connection",
@@ -365,16 +365,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "52d61eee3ba1f879459e74cca7937847",
+    "cacheID": "4e6b96fbbfa7034e3501289566bc20d9",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterSubstring: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_1Cj2jo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_1Cj2jo on Project {\n  name\n  sessions(first: $first, after: $after, filterSubstring: $filterSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_zrmri\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_zrmri on Project {\n  name\n  sessions(first: $first, after: $after, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "705198922586184108088980f9d9e9f1";
+(node as any).hash = "e846bbacd897b12db7c1b5410055f394";
 
 export default node;

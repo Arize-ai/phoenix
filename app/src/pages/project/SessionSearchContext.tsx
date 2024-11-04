@@ -8,8 +8,8 @@ import React, {
 } from "react";
 
 export type SessionSearchContextType = {
-  filterSubstring: string;
-  setFilterSubstring: (condition: string) => void;
+  filterIoSubstring: string;
+  setFilterIoSubstring: (condition: string) => void;
 };
 
 export const SessionSearchContext =
@@ -25,7 +25,7 @@ export function useSessionSearchContext() {
   return context;
 }
 
-export function SessionSubstringProvider(props: PropsWithChildren) {
+export function SessionSearchProvider(props: PropsWithChildren) {
   const [substring, _setSubstring] = useState<string>("");
   const setSubstring = useCallback((condition: string) => {
     startTransition(() => {
@@ -34,7 +34,10 @@ export function SessionSubstringProvider(props: PropsWithChildren) {
   }, []);
   return (
     <SessionSearchContext.Provider
-      value={{ filterSubstring: substring, setFilterSubstring: setSubstring }}
+      value={{
+        filterIoSubstring: substring,
+        setFilterIoSubstring: setSubstring,
+      }}
     >
       {props.children}
     </SessionSearchContext.Provider>

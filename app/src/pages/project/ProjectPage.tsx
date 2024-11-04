@@ -22,7 +22,7 @@ import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageSessionsQuery.graphql";
 import { ProjectPageSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageSpansQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
-import { SessionSubstringProvider } from "./SessionSearchContext";
+import { SessionSearchProvider } from "./SessionSearchContext";
 import { SessionsTable } from "./SessionsTable";
 import { SpanFilterConditionProvider } from "./SpanFilterConditionContext";
 import { SpansTable } from "./SpansTable";
@@ -194,13 +194,13 @@ export function ProjectPageContent({
             return (
               isSelected &&
               sessionsQueryReference && (
-                <SessionSubstringProvider>
+                <SessionSearchProvider>
                   <Suspense>
                     <SessionsTabContent
                       queryReference={sessionsQueryReference}
                     />
                   </Suspense>
-                </SessionSubstringProvider>
+                </SessionSearchProvider>
               )
             );
           }}

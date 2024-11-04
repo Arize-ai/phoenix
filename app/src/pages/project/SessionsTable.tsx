@@ -47,7 +47,7 @@ export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const { filterSubstring } = useSessionSearchContext();
+  const { filterIoSubstring } = useSessionSearchContext();
   const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -58,13 +58,13 @@ export function SessionsTable(props: SessionsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
-          filterSubstring: { type: "String", defaultValue: null }
+          filterIoSubstring: { type: "String", defaultValue: null }
         ) {
           name
           sessions(
             first: $first
             after: $after
-            filterSubstring: $filterSubstring
+            filterIoSubstring: $filterIoSubstring
             timeRange: $timeRange
           ) @connection(key: "SessionsTable_sessions") {
             edges {
@@ -160,12 +160,12 @@ export function SessionsTable(props: SessionsTableProps) {
         {
           after: null,
           first: PAGE_SIZE,
-          filterSubstring: filterSubstring,
+          filterIoSubstring: filterIoSubstring,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [sorting, refetch, filterSubstring, fetchKey]);
+  }, [sorting, refetch, filterIoSubstring, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
