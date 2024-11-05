@@ -48,7 +48,6 @@ import {
 const baseTestPlaygroundInstance: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  isRunning: false,
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -67,7 +66,6 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
 const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  isRunning: false,
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
