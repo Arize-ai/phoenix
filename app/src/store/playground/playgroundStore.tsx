@@ -309,6 +309,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
+              activeRunId: null,
               isRunning: false,
             };
           }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1625448b564cdc9686e2e476083862e0>>
+ * @generated SignedSource<<5d6eab8386cb44a3cc9ca53420a68b94>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,7 +52,21 @@ export type PlaygroundOutputMutation$variables = {
   input: ChatCompletionInput;
 };
 export type PlaygroundOutputMutation$data = {
-  readonly generateChatCompletion: string;
+  readonly chatCompletion: {
+    readonly __typename: "ChatCompletionMutationPayload";
+    readonly content: string | null;
+    readonly errorMessage: string | null;
+    readonly span: {
+      readonly id: string;
+    };
+    readonly toolCalls: ReadonlyArray<{
+      readonly function: {
+        readonly arguments: string;
+        readonly name: string;
+      };
+      readonly id: string;
+    }>;
+  };
 };
 export type PlaygroundOutputMutation = {
   response: PlaygroundOutputMutation$data;
@@ -67,7 +81,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -77,8 +98,82 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "kind": "ScalarField",
-    "name": "generateChatCompletion",
+    "concreteType": "ChatCompletionMutationPayload",
+    "kind": "LinkedField",
+    "name": "chatCompletion",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "__typename",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "content",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "errorMessage",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Span",
+        "kind": "LinkedField",
+        "name": "span",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/)
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "ChatCompletionToolCall",
+        "kind": "LinkedField",
+        "name": "toolCalls",
+        "plural": true,
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ChatCompletionFunctionCall",
+            "kind": "LinkedField",
+            "name": "function",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "arguments",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "storageKey": null
   }
 ];
@@ -88,7 +183,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputMutation",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -97,19 +192,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputMutation",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "85df146ab8ab4b4922db2a52044c1402",
+    "cacheID": "9dc63d3e40081b276c1cbd5f21405c6f",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundOutputMutation(\n  $input: ChatCompletionInput!\n) {\n  generateChatCompletion(input: $input)\n}\n"
+    "text": "mutation PlaygroundOutputMutation(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    content\n    errorMessage\n    span {\n      id\n    }\n    toolCalls {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "716e5bbd57b0c0f64c60d10e26dde769";
+(node as any).hash = "085e7cb2bebd2c6c6e44b511364c6dd9";
 
 export default node;

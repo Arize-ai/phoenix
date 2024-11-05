@@ -17,7 +17,7 @@ export const openAIToolCallSchema = z.object({
       name: z.string().describe("The name of the function"),
       // TODO(Parker): The arguments here should not actually be a string, however this is a relic from the current way we stream tool calls where the chunks will come in as strings of partial json objects fix this here: https://github.com/Arize-ai/phoenix/issues/5269
       arguments: z
-        .union([z.record(z.unknown()).optional(), z.string()])
+        .record(z.unknown())
         .describe("The arguments for the function"),
     })
     .describe("The function that is being called")
@@ -157,7 +157,8 @@ type ToolCallWithProvider =
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
-    };
+    }
+  | { provider: null; validatedToolCall: null };
 
 /**
  * Detect the provider of a tool call object
@@ -176,7 +177,7 @@ export const detectToolCallProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
-  throw new Error("Unknown tool call format");
+  return { provider: null, validatedToolCall: null };
 };
 
 type ProviderToToolCallMap = {
@@ -194,6 +195,9 @@ export const toOpenAIToolCall = (
   toolCall: LlmProviderToolCall
 ): OpenAIToolCall => {
   const { provider, validatedToolCall } = detectToolCallProvider(toolCall);
+  if (provider == null || validatedToolCall == null) {
+    throw new Error("Could not detect provider of tool call");
+  }
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":

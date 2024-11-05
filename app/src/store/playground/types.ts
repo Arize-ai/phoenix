@@ -99,7 +99,7 @@ export type Tool = {
  * - a template
  * - tools
  * - input (dataset or manual)
- * - output (experiment or spans)
+ * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
   /**
