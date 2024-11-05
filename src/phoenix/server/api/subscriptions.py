@@ -196,7 +196,7 @@ class Subscription:
         spans: dict[DatasetExampleID, streaming_llm_span] = {}
         async for payload in _merge_iterators(
             [
-                _stream_chat_completion_over_dataset(
+                _stream_chat_completion_over_dataset_example(
                     input=input,
                     llm_client_class=llm_client_class,
                     revision=revision,
@@ -298,7 +298,7 @@ class Subscription:
         yield ChatCompletionOverDatasetSubscriptionResult(experiment=to_gql_experiment(experiment))
 
 
-async def _stream_chat_completion_over_dataset(
+async def _stream_chat_completion_over_dataset_example(
     *,
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],

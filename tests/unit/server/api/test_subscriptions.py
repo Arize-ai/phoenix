@@ -2,7 +2,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 import pytz
@@ -972,7 +972,7 @@ class TestChatCompletionOverDatasetSubscription:
                 "templateLanguage": "F_STRING",
             }
         }
-        payloads: dict[str, list[Any]] = {}
+        payloads: dict[Optional[str], list[Any]] = {}
         async with gql_client.subscription(
             query=self.QUERY,
             variables=variables,
