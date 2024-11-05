@@ -83,7 +83,6 @@ class ChatCompletionMutationMixin:
         llm_client = llm_client_class(
             model=input.model,
             api_key=input.api_key,
-            set_span_attributes=lambda attrs: attributes.update(attrs),
         )
 
         messages = [
@@ -114,6 +113,7 @@ class ChatCompletionMutationMixin:
                 _llm_input_messages(messages),
                 _llm_invocation_parameters(invocation_parameters),
                 _input_value_and_mime_type(input),
+                **llm_client.attributes,
             )
         )
 

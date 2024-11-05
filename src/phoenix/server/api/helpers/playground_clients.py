@@ -57,9 +57,8 @@ class PlaygroundStreamingClient(ABC):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
-        self._set_span_attributes = set_span_attributes
+        self._attributes: dict[str, Any] = dict()
 
     @classmethod
     @abstractmethod
@@ -116,6 +115,10 @@ class PlaygroundStreamingClient(ABC):
             # happens in some cases if the spec is None
             return False
 
+    @property
+    def attributes(self) -> dict[str, Any]:
+        return self._attributes
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
@@ -145,11 +148,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
-        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        super().__init__(model=model, api_key=api_key)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
 
@@ -272,8 +274,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                                 ),
                             )
                             yield tool_call_chunk
-        if token_usage is not None and self._set_span_attributes:
-            self._set_span_attributes(dict(self._llm_token_counts(token_usage)))
+        if token_usage is not None:
+            self._attributes.update(dict(self._llm_token_counts(token_usage)))
 
     def to_openai_chat_completion_param(
         self,
@@ -439,8 +441,8 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                     )
                     yield tool_call_chunk
 
-        if (usage := response.usage) is not None and self._set_span_attributes is not None:
-            self._set_span_attributes(dict(self._llm_token_counts(usage)))
+        if (usage := response.usage) is not None:
+            self._attributes.update(dict(self._llm_token_counts(usage)))
 
     def to_openai_o1_chat_completion_param(
         self,
@@ -508,11 +510,10 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ):
         from openai import AsyncAzureOpenAI
 
-        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        super().__init__(model=model, api_key=api_key)
         if model.endpoint is None or model.api_version is None:
             raise ValueError("endpoint and api_version are required for Azure OpenAI models")
         self.client = AsyncAzureOpenAI(
@@ -537,11 +538,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
-        set_span_attributes: Optional[SetSpanAttributesFn] = None,
     ) -> None:
         import anthropic
 
-        super().__init__(model=model, api_key=api_key, set_span_attributes=set_span_attributes)
+        super().__init__(model=model, api_key=api_key)
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
 
@@ -613,17 +613,15 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         async with self.client.messages.stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
-                    if self._set_span_attributes:
-                        self._set_span_attributes(
-                            {LLM_TOKEN_COUNT_PROMPT: event.message.usage.input_tokens}
-                        )
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_PROMPT: event.message.usage.input_tokens}
+                    )
                 elif isinstance(event, anthropic_streaming.TextEvent):
                     yield TextChunk(content=event.text)
                 elif isinstance(event, anthropic_streaming.MessageStopEvent):
-                    if self._set_span_attributes:
-                        self._set_span_attributes(
-                            {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
-                        )
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
+                    )
                 elif isinstance(
                     event,
                     (

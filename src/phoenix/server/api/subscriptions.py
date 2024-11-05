@@ -80,11 +80,9 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        attributes: dict[str, Any] = {}
         llm_client = llm_client_class(
             model=input.model,
             api_key=input.api_key,
-            set_span_attributes=lambda attrs: attributes.update(attrs),
         )
 
         messages = [
@@ -111,13 +109,13 @@ class Subscription:
             input=input,
             messages=messages,
             invocation_parameters=invocation_parameters,
-            attributes=attributes,
         ) as span:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages, tools=input.tools or [], **invocation_parameters
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
+            span.set_attributes(llm_client.attributes)
         if span.error_message is not None:
             yield ChatCompletionSubscriptionError(message=span.error_message)
         async with info.context.db() as session:
@@ -306,11 +304,9 @@ async def _stream_chat_completion_over_dataset_example(
     spans: dict[DatasetExampleID, streaming_llm_span],
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    attributes: dict[str, Any] = {}
     llm_client = llm_client_class(
         model=input.model,
         api_key=input.api_key,
-        set_span_attributes=lambda attrs: attributes.update(attrs),
     )
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
     messages = [
@@ -337,7 +333,6 @@ async def _stream_chat_completion_over_dataset_example(
         input=input,
         messages=messages,
         invocation_parameters=invocation_parameters,
-        attributes=attributes,
     )
     spans[example_id] = span
     async with span:
@@ -347,6 +342,7 @@ async def _stream_chat_completion_over_dataset_example(
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
             yield chunk
+        span.set_attributes(llm_client.attributes)
     if span.error_message is not None:
         yield ChatCompletionSubscriptionError(
             message=span.error_message, dataset_example_id=example_id

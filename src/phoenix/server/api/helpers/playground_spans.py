@@ -121,6 +121,9 @@ class streaming_llm_span:
             )
         return True
 
+    def set_attributes(self, attributes: Mapping[str, Any]) -> None:
+        self._attributes.update(attributes)
+
     def add_to_session(
         self,
         session: AsyncSession,
