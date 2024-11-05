@@ -1,10 +1,14 @@
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
+import { Text } from "@arizeai/components";
+
 import {
   detectToolCallProvider,
   LlmProviderToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * A partial tool call, the result of streaming a tool call back to the client
@@ -18,15 +22,23 @@ export type PartialOutputToolCall = {
   };
 };
 
+const isPartialOutputToolCall = (
+  toolCall: LlmProviderToolCall | PartialOutputToolCall
+): toolCall is PartialOutputToolCall => {
+  return (
+    typeof (toolCall as PartialOutputToolCall).function.arguments === "string"
+  );
+};
+
 export function PlaygroundToolCall({
   toolCall,
 }: {
   toolCall: LlmProviderToolCall | PartialOutputToolCall;
 }) {
-  const { name, input } = useMemo((): {
+  const functionDisplay = useMemo((): {
     name: string;
     input: Record<string, unknown> | string;
-  } => {
+  } | null => {
     const { provider, validatedToolCall } = detectToolCallProvider(toolCall);
     switch (provider) {
       case "OPENAI":
@@ -42,29 +54,37 @@ export function PlaygroundToolCall({
           input: validatedToolCall.input,
         };
       case null: {
-        const partialToolCall = toolCall as PartialOutputToolCall;
+        // This should never be the case, happen but we should handle it in case the server returns an invalid tool call
+        if (!isPartialOutputToolCall(toolCall)) {
+          return null;
+        }
+        const { json } = safelyParseJSON(toolCall.function.arguments);
+
         return {
-          name: partialToolCall.function.name ?? "",
-          input: partialToolCall.function.arguments,
+          name: toolCall.function.name ?? "",
+          // Parse valid input here so we can format it nicely below, this happens when the toolCall is completely returned
+          input: isStringKeyedObject(json) ? json : toolCall.function.arguments,
         };
       }
       default:
-        return {
-          name: "",
-          input: {},
-        };
+        return assertUnreachable(provider);
     }
   }, [toolCall]);
 
-  return (
+  return functionDisplay == null ? (
+    <Text>Invalid tool call format: {JSON.stringify(toolCall)}</Text>
+  ) : (
     <pre
       css={css`
         text-wrap: wrap;
         margin: var(--ac-global-dimension-static-size-100) 0;
       `}
     >
-      {name}(
-      {typeof input === "string" ? input : JSON.stringify(input, null, 2)})
+      {functionDisplay.name}(
+      {typeof functionDisplay.input === "string"
+        ? functionDisplay.input
+        : JSON.stringify(functionDisplay.input, null, 2)}
+      )
     </pre>
   );
 }

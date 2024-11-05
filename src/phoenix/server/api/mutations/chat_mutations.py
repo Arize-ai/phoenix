@@ -6,6 +6,7 @@ from traceback import format_exc
 from typing import Any, Iterable, Iterator, List, Optional
 
 import strawberry
+from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -38,6 +39,7 @@ from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
+from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -94,7 +96,6 @@ class ChatCompletionMutationMixin:
             )
             for message in input.messages
         ]
-
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
 
@@ -103,7 +104,7 @@ class ChatCompletionMutationMixin:
         )
 
         text_content = ""
-        tool_calls = []
+        tool_calls: list[ChatCompletionToolCall] = []
         events = []
         attributes.update(
             chain(
@@ -128,14 +129,38 @@ class ChatCompletionMutationMixin:
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
                 elif isinstance(chunk, ToolCallChunk):
-                    tool_call = ChatCompletionToolCall(
-                        id=chunk.id,
-                        function=ChatCompletionFunctionCall(
-                            name=chunk.function.name,
-                            arguments=chunk.function.arguments,
-                        ),
-                    )
-                    tool_calls.append(tool_call)
+                    if len(tool_calls) == 0:
+                        tool_call = ChatCompletionToolCall(
+                            id=chunk.id,
+                            function=ChatCompletionFunctionCall(
+                                name=chunk.function.name,
+                                arguments=chunk.function.arguments,
+                            ),
+                        )
+                        tool_calls.append(tool_call)
+                    else:
+                        tool_exists = False
+                        for i, tool_call in enumerate(tool_calls):
+                            if tool_call.id == chunk.id:
+                                tool_calls[i] = ChatCompletionToolCall(
+                                    id=tool_call.id,
+                                    function=ChatCompletionFunctionCall(
+                                        name=tool_call.function.name,
+                                        arguments=tool_call.function.arguments
+                                        + chunk.function.arguments,
+                                    ),
+                                )
+                                tool_exists = True
+                                break
+                        if not tool_exists:
+                            tool_call = ChatCompletionToolCall(
+                                id=chunk.id,
+                                function=ChatCompletionFunctionCall(
+                                    name=chunk.function.name,
+                                    arguments=chunk.function.arguments,
+                                ),
+                            )
+                            tool_calls.append(tool_call)
                 else:
                     assert_never(chunk)
         except Exception as e:
@@ -282,15 +307,17 @@ def _llm_tools(tools: List[Any]) -> Iterator[tuple[str, Any]]:
 
 
 def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
-    input_data = input.__dict__.copy()
-    input_data.pop("api_key", None)
+    assert (api_key := "api_key") in (input_data := jsonify(input))
+    disallowed_keys = {"api_key", "invocation_parameters"}
+    input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
+    assert api_key not in input_data
     yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, json.dumps(input_data)
+    yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
 def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
     yield OUTPUT_MIME_TYPE, JSON
-    yield OUTPUT_VALUE, json.dumps(output)
+    yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
 
 
 def _llm_input_messages(

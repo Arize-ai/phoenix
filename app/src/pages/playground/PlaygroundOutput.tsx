@@ -113,7 +113,7 @@ function PlaygroundOutputContent({
       return <PlaygroundOutputMessage key={index} message={message} />;
     });
   }
-  if (typeof content === "string") {
+  if (typeof content === "string" || partialToolCalls.length > 0) {
     return (
       <PlaygroundOutputMessage
         message={{
@@ -128,7 +128,7 @@ function PlaygroundOutputContent({
   return "click run to see output";
 }
 
-type OutputContent = PlaygroundInstance["output"] | null;
+type OutputContent = PlaygroundInstance["output"];
 
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
@@ -208,7 +208,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         ...azureModelParams,
       },
       invocationParameters: invocationParameters,
-      templateOptions: {
+      template: {
         variables: templateVariables,
         language: templateLanguage,
       },
@@ -356,7 +356,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      setOutputContent(response.chatCompletion.content);
+      setOutputContent(response.chatCompletion.content ?? undefined);
       setToolCalls(response.chatCompletion.toolCalls);
     },
     [
@@ -373,6 +373,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       return;
     }
     setOutputContent(undefined);
+    setToolCalls([]);
 
     if (streaming) {
       startStreaming();
@@ -465,7 +466,7 @@ function useChatCompletionSubscription({
           $model: GenerativeModelInput!
           $invocationParameters: [InvocationParameterInput!]!
           $tools: [JSON!]
-          $templateOptions: TemplateOptions
+          $template: TemplateOptions
           $apiKey: String
         ) {
           chatCompletion(
@@ -474,7 +475,7 @@ function useChatCompletionSubscription({
               model: $model
               invocationParameters: $invocationParameters
               tools: $tools
-              template: $templateOptions
+              template: $template
               apiKey: $apiKey
             }
           ) {

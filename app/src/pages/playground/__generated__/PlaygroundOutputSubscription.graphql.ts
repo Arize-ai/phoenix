@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bfe0e0ac970befb9fb256e298fc0bfce>>
+ * @generated SignedSource<<c65b963abe2351933af78b95141000db>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,7 +45,7 @@ export type PlaygroundOutputSubscription$variables = {
   invocationParameters: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
-  templateOptions?: TemplateOptions | null;
+  template?: TemplateOptions | null;
   tools?: ReadonlyArray<any> | null;
 };
 export type PlaygroundOutputSubscription$data = {
@@ -102,7 +102,7 @@ v3 = {
 v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "templateOptions"
+  "name": "template"
 },
 v5 = {
   "defaultValue": null,
@@ -145,7 +145,7 @@ v7 = [
           {
             "kind": "Variable",
             "name": "template",
-            "variableName": "templateOptions"
+            "variableName": "template"
           },
           {
             "kind": "Variable",
@@ -285,16 +285,16 @@ return {
     "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "4d2dafb66075b972f0779f5cc533c9f7",
+    "cacheID": "2d95daace44bdb7fdc007d3ecac9be14",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: [InvocationParameterInput!]!\n  $tools: [JSON!]\n  $templateOptions: TemplateOptions\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, tools: $tools, template: $templateOptions, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: [InvocationParameterInput!]!\n  $tools: [JSON!]\n  $template: TemplateOptions\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, tools: $tools, template: $template, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b7424eea67d1740b3c04e4664fa70107";
+(node as any).hash = "4388f477c581a74c99b8e0f7ec455b23";
 
 export default node;
