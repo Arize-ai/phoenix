@@ -111,7 +111,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
-    isRunning: false,
   };
 }
 
@@ -190,7 +189,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
-            isRunning: false,
             spanId: null,
           },
         ],
@@ -297,7 +295,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         instances: instances.map((instance) => ({
           ...instance,
           activeRunId: generateRunId(),
-          isRunning: true,
           spanId: null, // Clear out the span when (re)running
         })),
       });
@@ -310,7 +307,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             return {
               ...instance,
               activeRunId: null,
-              isRunning: false,
             };
           }
           return instance;
