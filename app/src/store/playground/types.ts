@@ -118,10 +118,6 @@ export interface PlaygroundInstance {
   output?: ChatMessage[] | string;
   spanId: string | null;
   activeRunId: number | null;
-  /**
-   * Whether or not the playground instance is actively running or not
-   **/
-  isRunning: boolean;
 }
 
 /**
