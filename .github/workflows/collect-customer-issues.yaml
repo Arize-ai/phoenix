@@ -105,7 +105,9 @@ jobs:
               core.setOutput("has_issues", "false");
             } else {
               core.setOutput("has_issues", "true");
-              let message = `*🛠️ Phoenix Customer Issues Opened in the Last ${days} Day(s) Pending Triage*\n\n`;
+              let message = `*🛠️ Phoenix Customer Issues Opened in the Last ${days} Day(s)`;
+              message += ` <https://github.com/Arize-ai/phoenix/issues?q=is%3Aissue+is%3Aopen+label%3Atriage|Pending Triage>`;
+              message += `*\n\n`;
               // Separate issues into two lists: those with the "bug" label and those without
               const bugIssues = filteredIssues.filter(issue =>
                 issue.labels.some(label => label.name === 'bug')
