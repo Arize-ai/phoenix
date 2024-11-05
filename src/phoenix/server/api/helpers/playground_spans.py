@@ -26,29 +26,27 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
-from sqlalchemy import insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.ChatCompletionInput import (
+    ChatCompletionInput,
+    ChatCompletionOverDatasetInput,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    FinishedChatCompletion,
     TextChunk,
     ToolCallChunk,
 )
-from phoenix.server.api.types.Span import to_gql_span
-from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import (
     SpanEvent,
     SpanException,
 )
 from phoenix.utilities.json import jsonify
-
-PLAYGROUND_PROJECT_NAME = "playground"
 
 ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
@@ -64,10 +62,9 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: ChatCompletionInput,
+        input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
         messages: list[ChatCompletionMessage],
-        invocation_parameters: dict[str, Any],
-        db: DbSessionFactory,
+        invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
     ) -> None:
         self._input = input
@@ -82,14 +79,16 @@ class streaming_llm_span:
                 _input_value_and_mime_type(input),
             )
         )
-        self._db = db
         self._events: list[SpanEvent] = []
         self._start_time: datetime
+        self._end_time: datetime
         self._response_chunks: list[Union[TextChunk, ToolCallChunk]] = []
         self._text_chunks: list[TextChunk] = []
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
-        self._finished_chat_completion: FinishedChatCompletion
-        self._project_id: int
+        self._status_code: StatusCode
+        self._status_message: str
+        self._db_span: models.Span
+        self._db_trace: models.Trace
 
     async def __aenter__(self) -> Self:
         self._start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
@@ -101,16 +100,16 @@ class streaming_llm_span:
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> bool:
-        end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        status_code = StatusCode.OK
-        status_message = ""
+        self._end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
+        self._status_code = StatusCode.OK
+        self._status_message = ""
         if exc_type is not None:
-            status_code = StatusCode.ERROR
-            status_message = str(exc_value)
+            self._status_code = StatusCode.ERROR
+            self._status_message = str(exc_value)
             self._events.append(
                 SpanException(
-                    timestamp=end_time,
-                    message=status_message,
+                    timestamp=self._end_time,
+                    message=self._status_message,
                     exception_type=type(exc_value).__name__,
                     exception_escaped=False,
                     exception_stacktrace=format_exc(),
@@ -123,61 +122,48 @@ class streaming_llm_span:
                     _llm_output_messages(self._text_chunks, self._tool_call_chunks),
                 )
             )
-        prompt_tokens = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
-        completion_tokens = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
-        trace_id = _generate_trace_id()
-        span_id = _generate_span_id()
-        async with self._db() as session:
-            if (
-                project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
-                )
-            ) is None:
-                project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
-                )
-            trace = models.Trace(
-                project_rowid=project_id,
-                trace_id=trace_id,
-                start_time=self._start_time,
-                end_time=end_time,
-            )
-            span = models.Span(
-                trace_rowid=trace.id,
-                span_id=span_id,
-                parent_id=None,
-                name="ChatCompletion",
-                span_kind=LLM,
-                start_time=self._start_time,
-                end_time=end_time,
-                attributes=unflatten(self._attributes.items()),
-                events=[_serialize_event(event) for event in self._events],
-                status_code=status_code.name,
-                status_message=status_message,
-                cumulative_error_count=int(status_code is StatusCode.ERROR),
-                cumulative_llm_token_count_prompt=prompt_tokens,
-                cumulative_llm_token_count_completion=completion_tokens,
-                llm_token_count_prompt=prompt_tokens,
-                llm_token_count_completion=completion_tokens,
-                trace=trace,
-            )
-            session.add(trace)
-            session.add(span)
-            await session.flush()
-        self._project_id = project_id
-        self._finished_chat_completion = FinishedChatCompletion(
-            span=to_gql_span(span),
-            error_message=status_message if status_code is StatusCode.ERROR else None,
-        )
         return True
 
     def set_attributes(self, attributes: Mapping[str, Any]) -> None:
         self._attributes.update(attributes)
+
+    def add_to_session(
+        self,
+        session: AsyncSession,
+        project_id: int,
+    ) -> models.Span:
+        prompt_tokens = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
+        completion_tokens = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
+        trace_id = _generate_trace_id()
+        span_id = _generate_span_id()
+        self._db_trace = models.Trace(
+            project_rowid=project_id,
+            trace_id=trace_id,
+            start_time=self._start_time,
+            end_time=self._end_time,
+        )
+        self._db_span = models.Span(
+            trace_rowid=self._db_trace.id,
+            span_id=span_id,
+            parent_id=None,
+            name="ChatCompletion",
+            span_kind=LLM,
+            start_time=self._start_time,
+            end_time=self._end_time,
+            attributes=unflatten(self._attributes.items()),
+            events=[_serialize_event(event) for event in self._events],
+            status_code=self._status_code.name,
+            status_message=self._status_message,
+            cumulative_error_count=int(self._status_code is StatusCode.ERROR),
+            cumulative_llm_token_count_prompt=prompt_tokens,
+            cumulative_llm_token_count_completion=completion_tokens,
+            llm_token_count_prompt=prompt_tokens,
+            llm_token_count_completion=completion_tokens,
+            trace=self._db_trace,
+        )
+        session.add(self._db_trace)
+        session.add(self._db_span)
+        return self._db_span
 
     def add_response_chunk(self, chunk: Union[TextChunk, ToolCallChunk]) -> None:
         self._response_chunks.append(chunk)
@@ -189,12 +175,24 @@ class streaming_llm_span:
             assert_never(chunk)
 
     @property
-    def finished_chat_completion(self) -> FinishedChatCompletion:
-        return self._finished_chat_completion
+    def start_time(self) -> datetime:
+        return self._db_span.start_time
 
     @property
-    def project_id(self) -> int:
-        return self._project_id
+    def end_time(self) -> datetime:
+        return self._db_span.end_time
+
+    @property
+    def error_message(self) -> Optional[str]:
+        return self._status_message if self._status_code is StatusCode.ERROR else None
+
+    @property
+    def trace_id(self) -> str:
+        return self._db_trace.trace_id
+
+    @property
+    def attributes(self) -> dict[str, Any]:
+        return self._db_span.attributes
 
 
 def _llm_span_kind() -> Iterator[tuple[str, Any]]:
@@ -205,8 +203,11 @@ def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _llm_invocation_parameters(invocation_parameters: dict[str, Any]) -> Iterator[tuple[str, Any]]:
-    yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
+def _llm_invocation_parameters(
+    invocation_parameters: Mapping[str, Any],
+) -> Iterator[tuple[str, Any]]:
+    if invocation_parameters:
+        yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
 def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
@@ -214,7 +215,7 @@ def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
+def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}

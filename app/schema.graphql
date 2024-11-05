@@ -107,8 +107,8 @@ input ChatCompletionInput {
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  template: TemplateOptions
   apiKey: String = null
+  template: TemplateOptions
 }
 
 input ChatCompletionMessageInput {
@@ -140,7 +140,33 @@ type ChatCompletionMutationPayload {
   errorMessage: String
 }
 
-union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
+input ChatCompletionOverDatasetInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: [InvocationParameterInput!]! = []
+  tools: [JSON!]
+  apiKey: String = null
+  templateLanguage: TemplateLanguage!
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = {}
+}
+
+type ChatCompletionOverDatasetSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  experiment: Experiment!
+}
+
+type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  message: String!
+}
+
+interface ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+}
 
 type ChatCompletionToolCall {
   id: String!
@@ -878,9 +904,9 @@ type ExportedFile {
   fileName: String!
 }
 
-type FinishedChatCompletion {
+type FinishedChatCompletion implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   span: Span!
-  errorMessage: String
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
@@ -893,7 +919,8 @@ type FloatInvocationParameter implements InvocationParameterBase {
   defaultValue: Float
 }
 
-type FunctionCallChunk {
+type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   name: String!
   arguments: String!
 }
@@ -1585,6 +1612,7 @@ type StringListInvocationParameter implements InvocationParameterBase {
 
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -1614,7 +1642,8 @@ input TemplateOptions {
   language: TemplateLanguage!
 }
 
-type TextChunk {
+type TextChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   content: String!
 }
 
@@ -1635,7 +1664,8 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type ToolCallChunk {
+type ToolCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!
 }

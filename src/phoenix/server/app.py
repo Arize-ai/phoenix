@@ -40,7 +40,6 @@ from starlette.types import Scope, StatefulLifespan
 from starlette.websockets import WebSocket
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
-from strawberry.schema import BaseSchema
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
@@ -98,7 +97,7 @@ from phoenix.server.api.routers import (
     oauth2_router,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
-from phoenix.server.api.schema import schema
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
@@ -465,7 +464,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 def create_graphql_router(
     *,
-    schema: BaseSchema,
+    graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
     model: Model,
     export_path: Path,
@@ -569,7 +568,7 @@ def create_graphql_router(
         )
 
     return GraphQLRouter(
-        schema,
+        graphql_schema,
         graphql_ide="graphiql",
         context_getter=get_context,
         include_in_schema=False,
@@ -736,8 +735,7 @@ def create_app(
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
     tracer_provider = None
-    strawberry_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
-    strawberry_extensions.extend(schema.get_extensions())
+    graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
@@ -755,16 +753,11 @@ def create_app(
                 # used by OpenInference.
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
-        strawberry_extensions.append(_OpenTelemetryExtension)
+        graphql_schema_extensions.append(_OpenTelemetryExtension)
 
     graphql_router = create_graphql_router(
         db=db,
-        schema=strawberry.Schema(
-            query=schema.query,
-            mutation=schema.mutation,
-            subscription=schema.subscription,
-            extensions=strawberry_extensions,
-        ),
+        graphql_schema=build_graphql_schema(graphql_schema_extensions),
         model=model,
         corpus=corpus,
         authentication_enabled=authentication_enabled,
