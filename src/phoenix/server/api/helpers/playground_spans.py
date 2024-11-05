@@ -32,7 +32,10 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.input_types.ChatCompletionInput import BaseChatCompletionInput
+from phoenix.server.api.input_types.ChatCompletionInput import (
+    ChatCompletionInput,
+    ChatCompletionOverDatasetInput,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
@@ -59,7 +62,7 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: BaseChatCompletionInput,
+        input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
         messages: list[ChatCompletionMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
