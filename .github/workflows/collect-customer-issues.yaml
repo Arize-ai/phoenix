@@ -135,7 +135,7 @@ jobs:
                     }
                     if (issue.assignees.length > 0) {
                       message += `; assigned to: `
-                      message += issue.assignees.map(assignee => `<https://github.com/${assignee}|${assignee}>`).join(", ");
+                      message += issue.assignees.map(assignee => `<https://github.com/${assignee.login}|${assignee.login}>`).join(", ");
                     }
                     message += `)\n`;
                   }
