@@ -149,6 +149,14 @@ input ChatCompletionOverDatasetInput {
   templateLanguage: TemplateLanguage!
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = {}
+}
+
+type ChatCompletionOverDatasetSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  experiment: Experiment!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {

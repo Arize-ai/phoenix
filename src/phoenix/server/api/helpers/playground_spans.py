@@ -84,6 +84,8 @@ class streaming_llm_span:
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         self._status_code: StatusCode
         self._status_message: str
+        self._db_span: models.Span
+        self._db_trace: models.Trace
 
     async def __aenter__(self) -> Self:
         self._start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
@@ -128,14 +130,14 @@ class streaming_llm_span:
         completion_tokens = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
         trace_id = _generate_trace_id()
         span_id = _generate_span_id()
-        trace = models.Trace(
+        self._db_trace = models.Trace(
             project_rowid=project_id,
             trace_id=trace_id,
             start_time=self._start_time,
             end_time=self._end_time,
         )
-        span = models.Span(
-            trace_rowid=trace.id,
+        self._db_span = models.Span(
+            trace_rowid=self._db_trace.id,
             span_id=span_id,
             parent_id=None,
             name="ChatCompletion",
@@ -151,14 +153,11 @@ class streaming_llm_span:
             cumulative_llm_token_count_completion=completion_tokens,
             llm_token_count_prompt=prompt_tokens,
             llm_token_count_completion=completion_tokens,
-            trace=trace,
+            trace=self._db_trace,
         )
-        session.add(trace)
-        session.add(span)
-        return span
-
-    def set_attributes(self, attributes: Mapping[str, Any]) -> None:
-        self._attributes.update(attributes)
+        session.add(self._db_trace)
+        session.add(self._db_span)
+        return self._db_span
 
     def add_response_chunk(self, chunk: Union[TextChunk, ToolCallChunk]) -> None:
         self._response_chunks.append(chunk)
@@ -170,8 +169,24 @@ class streaming_llm_span:
             assert_never(chunk)
 
     @property
+    def start_time(self) -> datetime:
+        return self._db_span.start_time
+
+    @property
+    def end_time(self) -> datetime:
+        return self._db_span.end_time
+
+    @property
     def error_message(self) -> Optional[str]:
         return self._status_message if self._status_code is StatusCode.ERROR else None
+
+    @property
+    def trace_id(self) -> str:
+        return self._db_trace.trace_id
+
+    @property
+    def attributes(self) -> dict[str, Any]:
+        return self._db_span.attributes
 
 
 def _llm_span_kind() -> Iterator[tuple[str, Any]]:

@@ -3,6 +3,7 @@ from typing import Optional
 import strawberry
 from strawberry.relay import GlobalID
 
+from .Experiment import Experiment
 from .Span import Span
 
 
@@ -36,3 +37,8 @@ class FinishedChatCompletion(ChatCompletionSubscriptionPayload):
 @strawberry.type
 class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
     message: str
+
+
+@strawberry.type
+class ChatCompletionOverDatasetSubscriptionResult(ChatCompletionSubscriptionPayload):
+    experiment: Experiment

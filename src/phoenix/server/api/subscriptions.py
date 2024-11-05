@@ -12,6 +12,7 @@ from typing import (
 )
 
 import strawberry
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, func, insert, select
 from sqlalchemy.orm import load_only
 from strawberry.relay.types import GlobalID
@@ -35,6 +36,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    ChatCompletionOverDatasetSubscriptionResult,
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionPayload,
     FinishedChatCompletion,
@@ -42,10 +44,12 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -186,6 +190,8 @@ class Subscription:
         )
         async with info.context.db() as session:
             revisions = [revision async for revision in await session.stream_scalars(query)]
+        if not revisions:
+            raise BadRequest("No examples found for the given dataset and version")
 
         spans: dict[DatasetExampleID, streaming_llm_span] = {}
         async for payload in _merge_iterators(
@@ -219,12 +225,77 @@ class Subscription:
                 example_id: span.add_to_session(session, playground_project_id)
                 for example_id, span in spans.items()
             }
+            assert (
+                dataset_name := await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+                )
+            ) is not None
+            if version_id is None:
+                resolved_version_id = await session.scalar(
+                    select(models.DatasetVersion.id)
+                    .where(models.DatasetVersion.dataset_id == dataset_id)
+                    .order_by(models.DatasetVersion.id.desc())
+                    .limit(1)
+                )
+            else:
+                resolved_version_id = await session.scalar(
+                    select(models.DatasetVersion.id).where(
+                        and_(
+                            models.DatasetVersion.dataset_id == dataset_id,
+                            models.DatasetVersion.id == version_id,
+                        )
+                    )
+                )
+            assert resolved_version_id is not None
+            resolved_version_node_id = GlobalID(DatasetVersion.__name__, str(resolved_version_id))
+            experiment = models.Experiment(
+                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
+                dataset_version_id=resolved_version_id,
+                name=input.experiment_name or _DEFAULT_PLAYGROUND_EXPERIMENT_NAME,
+                description=input.experiment_description
+                or _default_playground_experiment_description(dataset_name=dataset_name),
+                repetitions=1,
+                metadata_=input.experiment_metadata
+                or _default_playground_experiment_metadata(
+                    dataset_name=dataset_name,
+                    dataset_id=input.dataset_id,
+                    version_id=resolved_version_node_id,
+                ),
+                project_name=PLAYGROUND_PROJECT_NAME,
+            )
+            session.add(experiment)
+            await session.flush()
+            runs = [
+                models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=from_global_id_with_expected_type(
+                        example_id, DatasetExample.__name__
+                    ),
+                    trace_id=span.trace_id,
+                    output=models.ExperimentRunOutput(
+                        task_output=_get_playground_experiment_task_output(span)
+                    ),
+                    repetition_number=1,
+                    start_time=span.start_time,
+                    end_time=span.end_time,
+                    error=error_message
+                    if (error_message := span.error_message) is not None
+                    else None,
+                    prompt_token_count=get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
+                    completion_token_count=get_attribute_value(
+                        span.attributes, LLM_TOKEN_COUNT_COMPLETION
+                    ),
+                )
+                for example_id, span in spans.items()
+            ]
+            session.add_all(runs)
             await session.flush()
         for example_id in spans:
             yield FinishedChatCompletion(
                 span=to_gql_span(db_spans[example_id]),
                 dataset_example_id=example_id,
             )
+        yield ChatCompletionOverDatasetSubscriptionResult(experiment=to_gql_experiment(experiment))
 
 
 async def _stream_chat_completion_over_dataset(
@@ -344,3 +415,31 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
     assert_never(template_language)
+
+
+def _get_playground_experiment_task_output(
+    span: streaming_llm_span,
+) -> Any:
+    return get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)
+
+
+_DEFAULT_PLAYGROUND_EXPERIMENT_NAME = "playground-experiment"
+
+
+def _default_playground_experiment_description(dataset_name: str) -> str:
+    return f'Playground experiment for dataset "{dataset_name}"'
+
+
+def _default_playground_experiment_metadata(
+    dataset_name: str, dataset_id: GlobalID, version_id: GlobalID
+) -> dict[str, Any]:
+    return {
+        "dataset_name": dataset_name,
+        "dataset_id": str(dataset_id),
+        "dataset_version_id": str(version_id),
+    }
+
+
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

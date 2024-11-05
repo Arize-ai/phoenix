@@ -16,6 +16,7 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    ChatCompletionOverDatasetSubscriptionResult,
     ChatCompletionSubscriptionError,
     FinishedChatCompletion,
     TextChunk,
@@ -24,6 +25,8 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.node import from_global_id
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 
@@ -82,6 +85,11 @@ class TestChatCompletionSubscription:
           }
           ... on ChatCompletionSubscriptionError {
             message
+          }
+          ... on ChatCompletionOverDatasetSubscriptionResult {
+            experiment {
+              id
+            }
           }
         }
       }
@@ -859,6 +867,11 @@ class TestChatCompletionOverDatasetSubscription:
           ... on ChatCompletionSubscriptionError {
             message
           }
+          ... on ChatCompletionOverDatasetSubscriptionResult {
+            experiment {
+              ...ExperimentFragment
+            }
+          }
         }
       }
 
@@ -866,6 +879,33 @@ class TestChatCompletionOverDatasetSubscription:
         span: node(id: $spanId) {
           ... on Span {
             ...SpanFragment
+          }
+        }
+      }
+
+      fragment ExperimentFragment on Experiment {
+        id
+        name
+        metadata
+        projectName
+        createdAt
+        updatedAt
+        description
+        runs {
+          edges {
+            run: node {
+              id
+              experimentId
+              startTime
+              endTime
+              output
+              error
+              traceId
+              trace {
+                id
+                traceId
+              }
+            }
           }
         }
       }
@@ -910,19 +950,19 @@ class TestChatCompletionOverDatasetSubscription:
       }
     """
 
-    async def test_openai_text_response_emits_expected_payloads_and_records_expected_spans(
+    async def test_emits_expected_payloads_and_records_expected_spans_and_experiment(
         self,
         gql_client: Any,
         openai_api_key: str,
         playground_dataset_with_patch_revision: None,
     ) -> None:
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         variables = {
             "input": {
                 "model": {"providerKey": "OPENAI", "name": "gpt-4"},
-                "datasetId": str(GlobalID(type_name=Dataset.__name__, node_id=str(1))),
-                "datasetVersionId": str(
-                    GlobalID(type_name=DatasetVersion.__name__, node_id=str(1))
-                ),
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
                 "messages": [
                     {
                         "role": "USER",
@@ -944,7 +984,7 @@ class TestChatCompletionOverDatasetSubscription:
             )  # a custom request matcher is needed since the requests are concurrent
             with custom_vcr.use_cassette(
                 Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionOverDatasetSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_spans[sqlite].yaml",
+                "TestChatCompletionOverDatasetSubscription.test_emits_expected_payloads_and_records_expected_spans_and_experiment[sqlite].yaml",
                 decode_compressed_response=True,
                 before_record_request=remove_all_vcr_request_headers,
                 before_record_response=remove_all_vcr_response_headers,
@@ -960,12 +1000,12 @@ class TestChatCompletionOverDatasetSubscription:
                     payloads[dataset_example_id].append(payload)
 
         # check subscription payloads
-        assert len(payloads) == 3
+        assert len(payloads) == 4
         example_id_1, example_id_2, example_id_3 = [
             str(GlobalID(type_name=DatasetExample.__name__, node_id=str(index)))
             for index in range(1, 4)
         ]
-        assert set(payloads.keys()) == {example_id_1, example_id_2, example_id_3}
+        assert set(payloads.keys()) == {example_id_1, example_id_2, example_id_3, None}
 
         # check example 1 payloads
         assert (last_example_1_payload := payloads[example_id_1].pop())[
@@ -1003,6 +1043,13 @@ class TestChatCompletionOverDatasetSubscription:
             "__typename"
         ] == ChatCompletionSubscriptionError.__name__
         assert error_payload["message"] == "Missing template variable(s): city"
+
+        # check result payload
+        assert len(payloads[None]) == 1
+        assert (result_payload := payloads[None].pop()["chatCompletionOverDataset"])[
+            "__typename"
+        ] == ChatCompletionOverDatasetSubscriptionResult.__name__
+        experiment = result_payload["experiment"]
 
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
@@ -1163,6 +1210,73 @@ class TestChatCompletionOverDatasetSubscription:
             {"message": {"role": "assistant", "content": "Japan"}}
         ]
         assert not attributes
+
+        # check experiment
+        assert isinstance(experiment_id := experiment.pop("id"), str)
+        type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
+        assert type_name == Experiment.__name__
+        assert experiment.pop("name") == "playground-experiment"
+        assert isinstance(experiment_description := experiment.pop("description"), str)
+        assert "dataset-name" in experiment_description
+        assert experiment.pop("metadata") == {
+            "dataset_name": "dataset-name",
+            "dataset_id": str(dataset_id),
+            "dataset_version_id": str(version_id),
+        }
+        assert experiment.pop("projectName") == "playground"
+        assert isinstance(created_at := experiment.pop("createdAt"), str)
+        assert isinstance(updated_at := experiment.pop("updatedAt"), str)
+        assert created_at == updated_at
+        runs = [run["run"] for run in experiment.pop("runs")["edges"]]
+        assert len(runs) == 2
+
+        # check run 1
+        run = runs.pop(0)
+        assert run.pop("id")
+        assert isinstance(experiment_id := run.pop("experimentId"), str)
+        type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
+        assert type_name == Experiment.__name__
+        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+            run.pop("endTime")
+        )
+        assert run.pop("error") is None
+        assert isinstance(run_1_output := run.pop("output"), list)
+        assert len(run_1_output) == 1
+        assert (trace_id := run.pop("traceId")) is not None
+        trace = run.pop("trace")
+        assert trace.pop("id")
+        assert trace.pop("traceId") == trace_id
+        assert not trace
+        assert not run
+
+        # check run 2
+        run = runs.pop()
+        assert run.pop("id")
+        assert isinstance(experiment_id := run.pop("experimentId"), str)
+        type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
+        assert type_name == Experiment.__name__
+        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+            run.pop("endTime")
+        )
+        assert run.pop("error") is None
+        assert isinstance(run_2_output := run.pop("output"), list)
+        assert len(run_2_output) == 1
+        assert (trace_id := run.pop("traceId")) is not None
+        trace = run.pop("trace")
+        assert trace.pop("id")
+        assert trace.pop("traceId") == trace_id
+        assert not trace
+        assert not run
+        assert not runs
+        assert not experiment
+
+        # check run outputs
+        assert (run_1_output_message := run_1_output[0]["message"])["role"] == "assistant"
+        assert (run_2_output_message := run_2_output[0]["message"])["role"] == "assistant"
+        assert {run_1_output_message["content"], run_2_output_message["content"]} == {
+            "France",
+            "Japan",
+        }
 
 
 def _request_bodies_contain_same_city(
