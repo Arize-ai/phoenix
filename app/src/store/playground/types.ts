@@ -112,7 +112,7 @@ export interface PlaygroundInstance {
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice: ToolChoice;
+  toolChoice?: ToolChoice;
   input: PlaygroundInput;
   model: ModelConfig;
   output?: ChatMessage[] | string;

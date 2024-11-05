@@ -45,7 +45,10 @@ import {
   PlaygroundOutputSubscription$data,
   PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import { TOOL_CHOICE_PARAM_NAME } from "./constants";
+import {
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
+} from "./constants";
 import {
   PartialOutputToolCall,
   PlaygroundToolCall,
@@ -183,7 +186,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (instance.template.__type !== "chat") {
       throw new Error("We only support chat templates for now");
     }
-    const invocationParameters: InvocationParameterInput[] = [
+    let invocationParameters: InvocationParameterInput[] = [
       ...instance.model.invocationParameters,
     ];
     if (instance.tools.length > 0) {
@@ -191,6 +194,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         invocationName: TOOL_CHOICE_PARAM_NAME,
         valueJson: instance.toolChoice,
       });
+    } else {
+      invocationParameters = invocationParameters.filter(
+        (param) =>
+          param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
+          param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
+      );
     }
     const azureModelParams =
       instance.model.provider === "AZURE_OPENAI"

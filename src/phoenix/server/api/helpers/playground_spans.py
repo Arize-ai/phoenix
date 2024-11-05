@@ -82,7 +82,6 @@ class streaming_llm_span:
         self._events: list[SpanEvent] = []
         self._start_time: datetime
         self._end_time: datetime
-        self._response_chunks: list[Union[TextChunk, ToolCallChunk]] = []
         self._text_chunks: list[TextChunk] = []
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         self._status_code: StatusCode
@@ -115,10 +114,10 @@ class streaming_llm_span:
                     exception_stacktrace=format_exc(),
                 )
             )
-        if self._response_chunks:
+        if self._text_chunks or self._tool_call_chunks:
             self._attributes.update(
                 chain(
-                    _output_value_and_mime_type(self._response_chunks),
+                    _output_value_and_mime_type(self._text_chunks, self._tool_call_chunks),
                     _llm_output_messages(self._text_chunks, self._tool_call_chunks),
                 )
             )
@@ -166,7 +165,6 @@ class streaming_llm_span:
         return self._db_span
 
     def add_response_chunk(self, chunk: Union[TextChunk, ToolCallChunk]) -> None:
-        self._response_chunks.append(chunk)
         if isinstance(chunk, TextChunk):
             self._text_chunks.append(chunk)
         elif isinstance(chunk, ToolCallChunk):
@@ -224,9 +222,46 @@ def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
-    yield OUTPUT_MIME_TYPE, JSON
-    yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
+def _merge_tool_call_chunks(
+    chunks_by_id: defaultdict[str, list[ToolCallChunk]],
+) -> list[dict[str, Any]] | dict[str, Any]:
+    merged_tool_calls = []
+
+    for tool_id, chunks in chunks_by_id.items():
+        # Get the name from the first chunk since it should be the same for all chunks
+        first_chunk = chunks[0]
+
+        # Combine all argument chunks
+        merged_arguments = "".join(chunk.function.arguments for chunk in chunks)
+
+        merged_tool_calls.append(
+            {
+                "id": tool_id,
+                "function": {"name": first_chunk.function.name, "arguments": merged_arguments},
+            }
+        )
+
+    return merged_tool_calls[0] if len(merged_tool_calls) == 1 else merged_tool_calls
+
+
+def _output_value_and_mime_type(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
+    content = "".join(chunk.content for chunk in text_chunks)
+    merged_tool_calls = _merge_tool_call_chunks(tool_call_chunks)
+    if len(merged_tool_calls) == 0:
+        yield OUTPUT_MIME_TYPE, TEXT
+        yield OUTPUT_VALUE, content
+    elif len(content) == 0:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(merged_tool_calls))
+    else:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield (
+            OUTPUT_VALUE,
+            safe_json_dumps({"content": content, "tool_calls": jsonify(merged_tool_calls)}),
+        )
 
 
 def _llm_input_messages(
@@ -299,6 +334,7 @@ def _serialize_event(event: SpanEvent) -> dict[str, Any]:
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
 
 LLM = OpenInferenceSpanKindValues.LLM.value
 

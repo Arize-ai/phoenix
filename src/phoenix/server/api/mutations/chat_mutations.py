@@ -184,7 +184,7 @@ class ChatCompletionMutationMixin:
         if text_content or tool_calls:
             attributes.update(
                 chain(
-                    _output_value_and_mime_type({"text": text_content, "tool_calls": tool_calls}),
+                    _output_value_and_mime_type(text_content, tool_calls),
                     _llm_output_messages(text_content, tool_calls),
                 )
             )
@@ -315,9 +315,22 @@ def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
-    yield OUTPUT_MIME_TYPE, JSON
-    yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
+def _output_value_and_mime_type(
+    text: str, tool_calls: list[ChatCompletionToolCall]
+) -> Iterator[tuple[str, Any]]:
+    formatted_tool_calls = tool_calls[0] if len(tool_calls) == 1 else tool_calls
+    if len(tool_calls) == 0:
+        yield OUTPUT_MIME_TYPE, TEXT
+        yield OUTPUT_VALUE, text
+    if len(text) == 0:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(formatted_tool_calls))
+    if len(text) > 0 and len(tool_calls) > 0:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield (
+            OUTPUT_VALUE,
+            safe_json_dumps({"content": text, "tool_calls": jsonify(formatted_tool_calls)}),
+        )
 
 
 def _llm_input_messages(
@@ -374,6 +387,7 @@ def _serialize_event(event: SpanException) -> dict[str, Any]:
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
 LLM = OpenInferenceSpanKindValues.LLM.value
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND

@@ -138,11 +138,22 @@ export function PlaygroundTool({
             variant="default"
             size="compact"
             onClick={() => {
+              const newTools = instanceTools.filter((t) => t.id !== tool.id);
+              const deletingToolChoice =
+                typeof instance.toolChoice === "object" &&
+                instance.toolChoice.function.name === getToolName(tool);
+
+              let toolChoice = instance.toolChoice;
+              if (newTools.length === 0) {
+                toolChoice = undefined;
+              } else if (deletingToolChoice) {
+                toolChoice = "auto";
+              }
               updateInstance({
                 instanceId: playgroundInstanceId,
                 patch: {
-                  tools: instanceTools.filter((t) => t.id !== tool.id),
-                  toolChoice: undefined,
+                  tools: newTools,
+                  toolChoice,
                 },
               });
             }}
