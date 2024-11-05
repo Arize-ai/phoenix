@@ -71,12 +71,12 @@ class streaming_llm_span:
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
         self._attributes.update(
             chain(
-                _llm_span_kind(),
-                _llm_model_name(input.model.name),
-                _llm_tools(input.tools or []),
-                _llm_input_messages(messages),
-                _llm_invocation_parameters(invocation_parameters),
-                _input_value_and_mime_type(input),
+                llm_span_kind(),
+                llm_model_name(input.model.name),
+                llm_tools(input.tools or []),
+                llm_input_messages(messages),
+                llm_invocation_parameters(invocation_parameters),
+                input_value_and_mime_type(input),
             )
         )
         self._events: list[SpanEvent] = []
@@ -193,27 +193,27 @@ class streaming_llm_span:
         return self._db_span.attributes
 
 
-def _llm_span_kind() -> Iterator[tuple[str, Any]]:
+def llm_span_kind() -> Iterator[tuple[str, Any]]:
     yield OPENINFERENCE_SPAN_KIND, LLM
 
 
-def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
+def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _llm_invocation_parameters(
+def llm_invocation_parameters(
     invocation_parameters: Mapping[str, Any],
 ) -> Iterator[tuple[str, Any]]:
     if invocation_parameters:
         yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
-def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
+def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
+def input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
@@ -264,7 +264,7 @@ def _output_value_and_mime_type(
         )
 
 
-def _llm_input_messages(
+def llm_input_messages(
     messages: Iterable[
         tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
     ],

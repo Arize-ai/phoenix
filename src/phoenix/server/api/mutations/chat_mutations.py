@@ -27,6 +27,14 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.playground_spans import (
+    input_value_and_mime_type,
+    llm_input_messages,
+    llm_invocation_parameters,
+    llm_model_name,
+    llm_span_kind,
+    llm_tools,
+)
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -108,12 +116,12 @@ class ChatCompletionMutationMixin:
         events = []
         attributes.update(
             chain(
-                _llm_span_kind(),
-                _llm_model_name(input.model.name),
-                _llm_tools(input.tools or []),
-                _llm_input_messages(messages),
-                _llm_invocation_parameters(invocation_parameters),
-                _input_value_and_mime_type(input),
+                llm_span_kind(),
+                llm_model_name(input.model.name),
+                llm_tools(input.tools or []),
+                llm_input_messages(messages),
+                llm_invocation_parameters(invocation_parameters),
+                input_value_and_mime_type(input),
                 **llm_client.attributes,
             )
         )
@@ -289,32 +297,6 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     assert_never(template_language)
 
 
-def _llm_span_kind() -> Iterator[tuple[str, Any]]:
-    yield OPENINFERENCE_SPAN_KIND, LLM
-
-
-def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
-    yield LLM_MODEL_NAME, model_name
-
-
-def _llm_invocation_parameters(invocation_parameters: dict[str, Any]) -> Iterator[tuple[str, Any]]:
-    yield LLM_INVOCATION_PARAMETERS, json.dumps(invocation_parameters)
-
-
-def _llm_tools(tools: List[Any]) -> Iterator[tuple[str, Any]]:
-    for tool_index, tool in enumerate(tools):
-        yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
-
-
-def _input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
-    assert (api_key := "api_key") in (input_data := jsonify(input))
-    disallowed_keys = {"api_key", "invocation_parameters"}
-    input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
-    assert api_key not in input_data
-    yield INPUT_MIME_TYPE, JSON
-    yield INPUT_VALUE, safe_json_dumps(input_data)
-
-
 def _output_value_and_mime_type(
     text: str, tool_calls: list[ChatCompletionToolCall]
 ) -> Iterator[tuple[str, Any]]:
@@ -331,25 +313,6 @@ def _output_value_and_mime_type(
             OUTPUT_VALUE,
             safe_json_dumps({"content": text, "tool_calls": jsonify(formatted_tool_calls)}),
         )
-
-
-def _llm_input_messages(
-    messages: Iterable[ChatCompletionMessage],
-) -> Iterator[tuple[str, Any]]:
-    for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
-        yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
-        if tool_calls:
-            for tool_call_index, tool_call in enumerate(tool_calls):
-                yield (
-                    f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-                    tool_call["function"]["name"],
-                )
-                if arguments := tool_call["function"]["arguments"]:
-                    yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                        json.dumps(arguments),
-                    )
 
 
 def _llm_output_messages(

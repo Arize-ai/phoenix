@@ -385,8 +385,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setToolCalls([]);
 
     if (streaming) {
-      startStreaming();
-      return;
+      const dispose = startStreaming();
+      return dispose();
     }
     generateChatCompletion({
       variables: {

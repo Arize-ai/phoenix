@@ -25,9 +25,11 @@ export type PartialOutputToolCall = {
 const isPartialOutputToolCall = (
   toolCall: LlmProviderToolCall | PartialOutputToolCall
 ): toolCall is PartialOutputToolCall => {
-  return (
-    typeof (toolCall as PartialOutputToolCall).function.arguments === "string"
-  );
+  const partialOutputToolCall = toolCall as PartialOutputToolCall;
+  if (!isStringKeyedObject(partialOutputToolCall.function)) {
+    return false;
+  }
+  return typeof partialOutputToolCall.function.arguments === "string";
 };
 
 export function PlaygroundToolCall({
