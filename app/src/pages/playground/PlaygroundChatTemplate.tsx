@@ -36,6 +36,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
+  createOpenAIResponseFormat,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
   PlaygroundInstance,
@@ -49,6 +50,7 @@ import {
   MessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
+import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
   createToolCallForProvider,
@@ -79,6 +81,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     throw new Error(`Playground instance ${id} not found`);
   }
   const hasTools = playgroundInstance.tools.length > 0;
+  const hasResponseFormat = playgroundInstance.responseFormat != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -151,9 +154,24 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         paddingBottom="size-100"
         borderColor="dark"
         borderTopWidth="thin"
-        borderBottomWidth={hasTools ? "thin" : undefined}
+        borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
+          <Button
+            variant="default"
+            size="compact"
+            aria-label="output schema"
+            icon={<Icon svg={<Icons.Code />} />}
+            disabled={playgroundInstance.responseFormat != null}
+            onClick={() => {
+              updateInstance({
+                instanceId: id,
+                patch: { responseFormat: createOpenAIResponseFormat() },
+              });
+            }}
+          >
+            Output Schema
+          </Button>
           <Button
             variant="default"
             aria-label="add tool"
@@ -217,6 +235,12 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         </Flex>
       </View>
       {hasTools ? <PlaygroundTools {...props} /> : null}
+      {playgroundInstance.responseFormat ? (
+        <PlaygroundResponseFormat
+          {...props}
+          responseFormat={playgroundInstance.responseFormat}
+        />
+      ) : null}
     </DndContext>
   );
 }

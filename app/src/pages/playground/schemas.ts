@@ -1,4 +1,5 @@
 import { z } from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   LLMAttributePostfixes,
@@ -108,7 +109,7 @@ export const chatMessagesSchema = z.array(chatMessageSchema);
 const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 type Literal = z.infer<typeof literalSchema>;
 type Json = Literal | { [key: string]: Json } | Json[];
-const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
+export const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
   z.union([
     literalSchema,
     z.array(jsonLiteralSchema),
@@ -118,7 +119,7 @@ const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
 
 export type JsonLiteralSchema = z.infer<typeof jsonLiteralSchema>;
 
-const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
+export const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
   z.record(jsonLiteralSchema)
 );
 
@@ -256,3 +257,23 @@ export const llmToolSchema = z
   .optional();
 
 export type LlmToolSchema = z.infer<typeof llmToolSchema>;
+
+export const openAIResponseFormatSchema = z.lazy(() =>
+  z.object({
+    type: z.literal("json_schema"),
+    json_schema: z.object({
+      name: z.string().describe("The name of the schema"),
+      schema: jsonLiteralSchema,
+      strict: z.literal(true).describe("The schema must be strict"),
+    }),
+  })
+);
+
+export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
+
+export const openAIResponseFormatJSONSchema = zodToJsonSchema(
+  openAIResponseFormatSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);

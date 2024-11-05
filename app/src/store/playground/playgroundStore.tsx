@@ -8,6 +8,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
   GenAIOperationType,
@@ -111,6 +112,22 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
+  };
+}
+
+export function createOpenAIResponseFormat(): OpenAIResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "response",
+      schema: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+      strict: true,
+    },
   };
 }
 

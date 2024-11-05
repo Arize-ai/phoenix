@@ -466,6 +466,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     modelConfig != null
       ? {
           ...modelConfig,
+          // TODO(apowell): Remove response_format and tool related parameters from invocation parameters
           invocationParameters,
         }
       : null;
