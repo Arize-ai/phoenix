@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.6.0...arize-phoenix-v5.7.0) (2024-11-06)
+
+
+### Features
+
+* Add chat completion mutation ([#5255](https://github.com/Arize-ai/phoenix/issues/5255)) ([348fd4c](https://github.com/Arize-ai/phoenix/commit/348fd4c17a65401f0c475c2c401e354a33a26102))
+* Add environment configuration for fastapi + gql extensions ([#5275](https://github.com/Arize-ai/phoenix/issues/5275)) ([c0700a3](https://github.com/Arize-ai/phoenix/commit/c0700a3bfd8ed56e7ef763da2d56de948f5ed25a))
+* convert tool call schemas between providers ([#5206](https://github.com/Arize-ai/phoenix/issues/5206)) ([16ae9d0](https://github.com/Arize-ai/phoenix/commit/16ae9d0854551a8314756695115fb4f482eca76a))
+* Detect websocket availability and pass to client ([#5224](https://github.com/Arize-ai/phoenix/issues/5224)) ([661ec17](https://github.com/Arize-ai/phoenix/commit/661ec1743bda024dc154689d0e64ab40cb87015f))
+* Only show providers if dependencies are installed ([#5251](https://github.com/Arize-ai/phoenix/issues/5251)) ([2fd2948](https://github.com/Arize-ai/phoenix/commit/2fd29480409206fe2483ac2ba7dd41949e68fd2e))
+* Overhaul invocation parameter specification ([#5228](https://github.com/Arize-ai/phoenix/issues/5228)) ([2e7e670](https://github.com/Arize-ai/phoenix/commit/2e7e670d15078d570bcc3fe3a670a9ffccc695cd))
+* **playground:** add `response_format` to invocation parameters ([#5239](https://github.com/Arize-ai/phoenix/issues/5239)) ([2ea4100](https://github.com/Arize-ai/phoenix/commit/2ea4100d62c2f37a6fb80d404fdcfbcf422b89f7))
+* **playground:** save model config by provider in preferences ([#5216](https://github.com/Arize-ai/phoenix/issues/5216)) ([d9cb1f1](https://github.com/Arize-ai/phoenix/commit/d9cb1f142af910ea20f1b0085e85b7746dadab17))
+* **playground:** streaming chat completion over a dataset ([#5237](https://github.com/Arize-ai/phoenix/issues/5237)) ([cc13eda](https://github.com/Arize-ai/phoenix/commit/cc13eda8f2a4b79c82d575d22ff420fdbaad24ef))
+* Provide and then parse invocation params from Span into Playground page store ([#5256](https://github.com/Arize-ai/phoenix/issues/5256)) ([c26e050](https://github.com/Arize-ai/phoenix/commit/c26e050f8d0dec4fc87a9d612116d3130450552e))
+
+
+### Bug Fixes
+
+* use truncatedValue for descendant span input output values ([#5270](https://github.com/Arize-ai/phoenix/issues/5270)) ([49c0466](https://github.com/Arize-ai/phoenix/commit/49c0466e586cdd083caf490cb1ea94a6c957fcd3))
+
 ## [5.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.2...arize-phoenix-v5.6.0) (2024-10-29)
 
 
