@@ -45,7 +45,7 @@ class BaseModel(ABC):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "BaseModel":
         assert not args, (
-            "Model instantiation via positional arguments is not allowed. "
+            f"{cls.__name__} instantiation via positional arguments is not allowed. "
             "Please use keyword arguments only."
         )
         return super().__new__(cls)
