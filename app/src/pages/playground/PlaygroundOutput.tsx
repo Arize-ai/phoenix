@@ -165,7 +165,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const onNext = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
-      // markPlaygroundInstanceComplete(props.playgroundInstanceId);
       setLoading(false);
       if (chatCompletion.__typename === "TextChunk") {
         const content = chatCompletion.content;
@@ -213,16 +212,26 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             spanId: chatCompletion.span.id,
           },
         });
-        if (chatCompletion.errorMessage != null) {
+        return;
+      }
+      if (chatCompletion.__typename === "ChatCompletionSubscriptionError") {
+        markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        if (chatCompletion.message != null) {
           notifyError({
             title: "Chat completion failed",
-            message: chatCompletion.errorMessage,
+            message: chatCompletion.message,
             expireMs: 10000,
           });
         }
       }
     },
-    [instanceId, notifyError, updateInstance]
+    [
+      instanceId,
+      markPlaygroundInstanceComplete,
+      notifyError,
+      props.playgroundInstanceId,
+      updateInstance,
+    ]
   );
 
   const onCompleted = useCallback(
@@ -390,9 +399,9 @@ graphql`
         span {
           id
         }
-        ... on ChatCompletionubscriptionError {
-          message
-        }
+      }
+      ... on ChatCompletionSubscriptionError {
+        message
       }
     }
   }
