@@ -657,7 +657,7 @@ def get_env_db_logging_level() -> int:
 
 
 def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv("PHOENIX_FASTAPI_MIDDLEWARE_PATHS", "")
+    env_value = os.getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
@@ -672,7 +672,7 @@ def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
 
 
 def get_env_gql_extension_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv("PHOENIX_GQL_EXTENSION_PATHS", "")
+    env_value = os.getenv(ENV_PHOENIX_GQL_EXTENSION_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
@@ -687,7 +687,7 @@ def get_env_gql_extension_paths() -> list[tuple[str, str]]:
 
 
 def get_env_grpc_interceptor_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv("PHOENIX_GRPC_INTERCEPTOR_PATHS", "")
+    env_value = os.getenv(ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
