@@ -1092,7 +1092,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -1119,7 +1119,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -1170,7 +1170,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -1197,7 +1197,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
