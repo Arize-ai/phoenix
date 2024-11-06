@@ -213,7 +213,9 @@ def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def input_value_and_mime_type(input: ChatCompletionInput) -> Iterator[tuple[str, Any]]:
+def input_value_and_mime_type(
+    input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
+) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
