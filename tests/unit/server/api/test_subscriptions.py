@@ -16,7 +16,7 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    ChatCompletionOverDatasetSubscriptionResult,
+    ChatCompletionOverDatasetSubscriptionExperiment,
     ChatCompletionSubscriptionError,
     FinishedChatCompletion,
     TextChunk,
@@ -85,11 +85,6 @@ class TestChatCompletionSubscription:
           }
           ... on ChatCompletionSubscriptionError {
             message
-          }
-          ... on ChatCompletionOverDatasetSubscriptionResult {
-            experiment {
-              id
-            }
           }
         }
       }
@@ -867,9 +862,9 @@ class TestChatCompletionOverDatasetSubscription:
           ... on ChatCompletionSubscriptionError {
             message
           }
-          ... on ChatCompletionOverDatasetSubscriptionResult {
+          ... on ChatCompletionOverDatasetSubscriptionExperiment {
             experiment {
-              ...ExperimentFragment
+              id
             }
           }
         }
@@ -883,27 +878,31 @@ class TestChatCompletionOverDatasetSubscription:
         }
       }
 
-      fragment ExperimentFragment on Experiment {
-        id
-        name
-        metadata
-        projectName
-        createdAt
-        updatedAt
-        description
-        runs {
-          edges {
-            run: node {
-              id
-              experimentId
-              startTime
-              endTime
-              output
-              error
-              traceId
-              trace {
-                id
-                traceId
+      query ExperimentQuery($experimentId: GlobalID!) {
+        experiment: node(id: $experimentId) {
+          ... on Experiment {
+            id
+            name
+            metadata
+            projectName
+            createdAt
+            updatedAt
+            description
+            runs {
+              edges {
+                run: node {
+                  id
+                  experimentId
+                  startTime
+                  endTime
+                  output
+                  error
+                  traceId
+                  trace {
+                    id
+                    traceId
+                  }
+                }
               }
             }
           }
@@ -1048,8 +1047,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert len(payloads[None]) == 1
         assert (result_payload := payloads[None].pop()["chatCompletionOverDataset"])[
             "__typename"
-        ] == ChatCompletionOverDatasetSubscriptionResult.__name__
+        ] == ChatCompletionOverDatasetSubscriptionExperiment.__name__
         experiment = result_payload["experiment"]
+        assert (experiment_id := experiment.pop("id"))
 
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
@@ -1212,7 +1212,13 @@ class TestChatCompletionOverDatasetSubscription:
         assert not attributes
 
         # check experiment
-        assert isinstance(experiment_id := experiment.pop("id"), str)
+        data = await gql_client.execute(
+            query=self.QUERY,
+            variables={"experimentId": experiment_id},
+            operation_name="ExperimentQuery",
+        )
+        experiment = data["experiment"]
+        assert experiment.pop("id") == experiment_id
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
         assert experiment.pop("name") == "playground-experiment"

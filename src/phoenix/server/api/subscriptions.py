@@ -21,7 +21,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     initialize_playground_clients,
@@ -36,7 +36,7 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    ChatCompletionOverDatasetSubscriptionResult,
+    ChatCompletionOverDatasetSubscriptionExperiment,
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionPayload,
     FinishedChatCompletion,
@@ -154,42 +154,101 @@ class Subscription:
             if input.dataset_version_id
             else None
         )
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == dataset_id)
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
-        )
-        if version_id:
-            version_id_subquery = (
-                select(models.DatasetVersion.id)
-                .where(models.DatasetVersion.dataset_id == dataset_id)
-                .where(models.DatasetVersion.id == version_id)
-                .scalar_subquery()
-            )
-            revision_ids = revision_ids.where(
-                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
-            )
-        query = (
-            select(models.DatasetExampleRevision)
-            .where(
-                and_(
-                    models.DatasetExampleRevision.id.in_(revision_ids),
-                    models.DatasetExampleRevision.revision_kind != "DELETE",
-                )
-            )
-            .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
-            .options(
-                load_only(
-                    models.DatasetExampleRevision.dataset_example_id,
-                    models.DatasetExampleRevision.input,
-                )
-            )
-        )
         async with info.context.db() as session:
-            revisions = [revision async for revision in await session.stream_scalars(query)]
-        if not revisions:
-            raise BadRequest("No examples found for the given dataset and version")
+            if (
+                dataset := await session.scalar(
+                    select(models.Dataset).where(models.Dataset.id == dataset_id)
+                )
+            ) is None:
+                raise NotFound(f"Could not find dataset with ID {dataset_id}")
+            if version_id is None:
+                if (
+                    resolved_version_id := await session.scalar(
+                        select(models.DatasetVersion.id)
+                        .where(models.DatasetVersion.dataset_id == dataset_id)
+                        .order_by(models.DatasetVersion.id.desc())
+                        .limit(1)
+                    )
+                ) is None:
+                    raise NotFound(f"No versions found for dataset with ID {dataset_id}")
+            else:
+                if (
+                    resolved_version_id := await session.scalar(
+                        select(models.DatasetVersion.id).where(
+                            and_(
+                                models.DatasetVersion.dataset_id == dataset_id,
+                                models.DatasetVersion.id == version_id,
+                            )
+                        )
+                    )
+                ) is None:
+                    raise NotFound(f"Could not find dataset version with ID {version_id}")
+            revision_ids = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .join(models.DatasetExample)
+                .where(
+                    and_(
+                        models.DatasetExample.dataset_id == dataset_id,
+                        models.DatasetExampleRevision.dataset_version_id <= resolved_version_id,
+                    )
+                )
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
+            )
+            if not (
+                revisions := [
+                    rev
+                    async for rev in await session.stream_scalars(
+                        select(models.DatasetExampleRevision)
+                        .where(
+                            and_(
+                                models.DatasetExampleRevision.id.in_(revision_ids),
+                                models.DatasetExampleRevision.revision_kind != "DELETE",
+                            )
+                        )
+                        .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
+                        .options(
+                            load_only(
+                                models.DatasetExampleRevision.dataset_example_id,
+                                models.DatasetExampleRevision.input,
+                            )
+                        )
+                    )
+                ]
+            ):
+                raise NotFound("No examples found for the given dataset and version")
+            if (
+                playground_project_id := await session.scalar(
+                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                )
+            ) is None:
+                playground_project_id = await session.scalar(
+                    insert(models.Project)
+                    .returning(models.Project.id)
+                    .values(
+                        name=PLAYGROUND_PROJECT_NAME,
+                        description="Traces from prompt playground",
+                    )
+                )
+            experiment = models.Experiment(
+                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
+                dataset_version_id=resolved_version_id,
+                name=input.experiment_name or _DEFAULT_PLAYGROUND_EXPERIMENT_NAME,
+                description=input.experiment_description
+                or _default_playground_experiment_description(dataset_name=dataset.name),
+                repetitions=1,
+                metadata_=input.experiment_metadata
+                or _default_playground_experiment_metadata(
+                    dataset_name=dataset.name,
+                    dataset_id=input.dataset_id,
+                    version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
+                ),
+                project_name=PLAYGROUND_PROJECT_NAME,
+            )
+            session.add(experiment)
+            await session.flush()
+        yield ChatCompletionOverDatasetSubscriptionExperiment(
+            experiment=to_gql_experiment(experiment)
+        )
 
         spans: dict[DatasetExampleID, streaming_llm_span] = {}
         async for payload in _merge_iterators(
@@ -206,63 +265,10 @@ class Subscription:
             yield payload
 
         async with info.context.db() as session:
-            if (
-                playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
-                )
-            ) is None:
-                playground_project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
-                )
             db_spans = {
                 example_id: span.add_to_session(session, playground_project_id)
                 for example_id, span in spans.items()
             }
-            assert (
-                dataset_name := await session.scalar(
-                    select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-                )
-            ) is not None
-            if version_id is None:
-                resolved_version_id = await session.scalar(
-                    select(models.DatasetVersion.id)
-                    .where(models.DatasetVersion.dataset_id == dataset_id)
-                    .order_by(models.DatasetVersion.id.desc())
-                    .limit(1)
-                )
-            else:
-                resolved_version_id = await session.scalar(
-                    select(models.DatasetVersion.id).where(
-                        and_(
-                            models.DatasetVersion.dataset_id == dataset_id,
-                            models.DatasetVersion.id == version_id,
-                        )
-                    )
-                )
-            assert resolved_version_id is not None
-            resolved_version_node_id = GlobalID(DatasetVersion.__name__, str(resolved_version_id))
-            experiment = models.Experiment(
-                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
-                dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _DEFAULT_PLAYGROUND_EXPERIMENT_NAME,
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset_name),
-                repetitions=1,
-                metadata_=input.experiment_metadata
-                or _default_playground_experiment_metadata(
-                    dataset_name=dataset_name,
-                    dataset_id=input.dataset_id,
-                    version_id=resolved_version_node_id,
-                ),
-                project_name=PLAYGROUND_PROJECT_NAME,
-            )
-            session.add(experiment)
-            await session.flush()
             runs = [
                 models.ExperimentRun(
                     experiment_id=experiment.id,
@@ -293,7 +299,6 @@ class Subscription:
                 span=to_gql_span(db_spans[example_id]),
                 dataset_example_id=example_id,
             )
-        yield ChatCompletionOverDatasetSubscriptionResult(experiment=to_gql_experiment(experiment))
 
 
 async def _stream_chat_completion_over_dataset_example(

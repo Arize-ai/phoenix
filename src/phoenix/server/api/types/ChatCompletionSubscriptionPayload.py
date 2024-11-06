@@ -40,5 +40,5 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class ChatCompletionOverDatasetSubscriptionResult(ChatCompletionSubscriptionPayload):
+class ChatCompletionOverDatasetSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     experiment: Experiment
