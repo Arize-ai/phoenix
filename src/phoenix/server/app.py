@@ -1,7 +1,9 @@
 import asyncio
 import contextlib
+import importlib
 import json
 import logging
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
@@ -50,6 +52,8 @@ from phoenix.config import (
     SERVER_DIR,
     OAuth2ClientConfig,
     get_env_csrf_trusted_origins,
+    get_env_fastapi_middleware_paths,
+    get_env_gql_extension_paths,
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
@@ -147,6 +151,28 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
+
+
+def import_object_from_file(file_path: str, object_name: str) -> Any:
+    """Import an object (class or function) from a Python file."""
+    try:
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"File '{file_path}' does not exist.")
+        module_name = f"custom_module_{hash(file_path)}"
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None:
+            raise ImportError(f"Could not load spec for '{file_path}'")
+        module = importlib.util.module_from_spec(spec)
+        loader = spec.loader
+        if loader is None:
+            raise ImportError(f"No loader found for '{file_path}'")
+        loader.exec_module(module)
+        try:
+            return getattr(module, object_name)
+        except AttributeError:
+            raise ImportError(f"Module '{file_path}' does not have an object '{object_name}'.")
+    except Exception as e:
+        raise ImportError(f"Could not import '{object_name}' from '{file_path}': {e}")
 
 
 class OAuth2Idp(TypedDict):
@@ -255,6 +281,28 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
         return response
+
+
+def user_fastapi_middlewares() -> list[Middleware]:
+    paths = get_env_fastapi_middleware_paths()
+    middlewares = []
+    for file_path, object_name in paths:
+        middleware_class = import_object_from_file(file_path, object_name)
+        if not issubclass(middleware_class, BaseHTTPMiddleware):
+            raise TypeError(f"{middleware_class} is not a subclass of BaseHTTPMiddleware")
+        middlewares.append(Middleware(middleware_class))
+    return middlewares
+
+
+def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]:
+    paths = get_env_gql_extension_paths()
+    extensions = []
+    for file_path, object_name in paths:
+        extension_class = import_object_from_file(file_path, object_name)
+        if not issubclass(extension_class, SchemaExtension):
+            raise TypeError(f"{extension_class} is not a subclass of SchemaExtension")
+        extensions.append(extension_class)
+    return extensions
 
 
 ProjectRowId: TypeAlias = int
@@ -702,6 +750,7 @@ def create_app(
     )
     last_updated_at = LastUpdatedAt()
     middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
         middlewares.append(Middleware(RequestOriginHostnameValidator, trusted_hostnames))
@@ -736,6 +785,8 @@ def create_app(
     )
     tracer_provider = None
     graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
+    graphql_schema_extensions.extend(user_gql_extensions())
+
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider

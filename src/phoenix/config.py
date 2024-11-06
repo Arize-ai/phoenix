@@ -146,6 +146,10 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 Whether to validate SMTP server certificates. Defaults to true.
 """
 
+# FastAPI and GQL extension settings
+ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FAST_EXTENSIONS"
+ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSIONS"
+
 
 def server_instrumentation_is_enabled() -> bool:
     return bool(
@@ -649,6 +653,32 @@ def get_env_db_logging_level() -> int:
         env_var=ENV_DB_LOGGING_LEVEL,
         default_level=logging.WARNING,
     )
+
+
+def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv('PHOENIX_FASTAPI_MIDDLEWARE_PATHS', '')
+    paths = []
+    for entry in env_value.split(','):
+        entry = entry.strip()
+        if entry:
+            if ':' not in entry:
+                raise ValueError(f"Invalid middleware entry '{entry}'. Expected format 'file_path:ClassName'.")
+            file_path, object_name = entry.split(':', 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
+def get_env_gql_extension_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv('PHOENIX_GQL_EXTENSION_PATHS', '')
+    paths = []
+    for entry in env_value.split(','):
+        entry = entry.strip()
+        if entry:
+            if ':' not in entry:
+                raise ValueError(f"Invalid extension entry '{entry}'. Expected format 'file_path:ClassName'.")
+            file_path, object_name = entry.split(':', 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
 
 
 def _get_logging_level(env_var: str, default_level: int) -> int:
