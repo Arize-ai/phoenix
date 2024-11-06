@@ -806,7 +806,7 @@ export const getChatCompletionVariables = ({
   const templateLanguage = playgroundStore.getState().templateLanguage;
 
   const input = playgroundStore.getState().input;
-  const templateVariables = getVariablesMapFromInstances({
+  const { variablesMap } = getVariablesMapFromInstances({
     instances,
     input,
     templateLanguage,
@@ -845,7 +845,7 @@ export const getChatCompletionVariables = ({
       },
       invocationParameters: invocationParameters,
       template: {
-        variables: templateVariables,
+        variables: variablesMap,
         language: templateLanguage,
       },
       tools: instance.tools.length
