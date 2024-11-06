@@ -226,7 +226,7 @@ def input_value_and_mime_type(
 
 def _merge_tool_call_chunks(
     chunks_by_id: defaultdict[str, list[ToolCallChunk]],
-) -> list[dict[str, Any]] | dict[str, Any]:
+) -> Union[list[dict[str, Any]], dict[str, Any]]:
     merged_tool_calls = []
 
     for tool_id, chunks in chunks_by_id.items():
