@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.2...arize-phoenix-evals-v0.17.3) (2024-11-06)
+
+
+### Bug Fixes
+
+* **evals:** only allow keyword arguments for model instantiation ([#5287](https://github.com/Arize-ai/phoenix/issues/5287)) ([aa95902](https://github.com/Arize-ai/phoenix/commit/aa95902e82b9207d6108e2a19b8531a817273e06))
+
 ## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.1...arize-phoenix-evals-v0.17.2) (2024-10-18)
 
 
