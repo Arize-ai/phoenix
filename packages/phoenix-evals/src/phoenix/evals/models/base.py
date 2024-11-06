@@ -43,6 +43,13 @@ class BaseModel(ABC):
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
+    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseModel":
+        assert not args, (
+            f"{cls.__name__} instantiation via positional arguments is not allowed. "
+            "Please use keyword arguments only."
+        )
+        return super().__new__(cls)
+
     @property
     @abstractmethod
     def _model_name(self) -> str:
