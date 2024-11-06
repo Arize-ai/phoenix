@@ -76,7 +76,7 @@ type ManualInput = {
   variablesValueCache: Record<string, string | undefined>;
 };
 
-type PlaygroundInput = DatasetInput | ManualInput;
+export type PlaygroundInput = DatasetInput | ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;

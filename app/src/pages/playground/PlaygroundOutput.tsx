@@ -1,10 +1,4 @@
-import React, {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
 import {
   graphql,
@@ -24,40 +18,34 @@ import {
 } from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
   generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
-import {
-  PlaygroundOutputMutation,
+import PlaygroundOutputMutation, {
+  PlaygroundOutputMutation as PlaygroundOutputMutationType,
   PlaygroundOutputMutation$data,
 } from "./__generated__/PlaygroundOutputMutation.graphql";
 import {
-  ChatCompletionMessageInput,
-  ChatCompletionMessageRole,
-  InvocationParameterInput,
-  PlaygroundOutputSubscription,
+  PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
-  PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import {
-  TOOL_CHOICE_PARAM_CANONICAL_NAME,
-  TOOL_CHOICE_PARAM_NAME,
-} from "./constants";
+import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
   PartialOutputToolCall,
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
-import { isChatMessages } from "./playgroundUtils";
+import { getChatCompletionVariables, isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
-import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
@@ -143,13 +131,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
   const instance = instances.find((instance) => instance.id === instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
-  const { variablesMap: templateVariables } = useDerivedPlaygroundVariables();
+
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
+  const environment = useRelayEnvironment();
+
+  const playgroundStore = usePlaygroundStore();
+
   if (!instance) {
     throw new Error(`No instance found for id ${instanceId}`);
   }
@@ -158,88 +147,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     throw new Error("We only support chat templates for now");
   }
 
-  const [generateChatCompletion] = useMutation<PlaygroundOutputMutation>(
-    graphql`
-      mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
-        chatCompletion(input: $input) {
-          __typename
-          content
-          errorMessage
-          span {
-            id
-          }
-          toolCalls {
-            id
-            function {
-              name
-              arguments
-            }
-          }
-        }
-      }
-    `
+  const [loading, setLoading] = useState(false);
+
+  const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
+    PlaygroundOutputMutation
   );
 
   const hasRunId = instance?.activeRunId != null;
   const notifyError = useNotifyError();
-  const chatCompletionParams = useMemo(() => {
-    if (instance.template.__type !== "chat") {
-      throw new Error("We only support chat templates for now");
-    }
-    let invocationParameters: InvocationParameterInput[] = [
-      ...instance.model.invocationParameters,
-    ];
-    if (instance.tools.length > 0) {
-      invocationParameters.push({
-        invocationName: TOOL_CHOICE_PARAM_NAME,
-        valueJson: instance.toolChoice,
-      });
-    } else {
-      invocationParameters = invocationParameters.filter(
-        (param) =>
-          param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
-          param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
-      );
-    }
-    const azureModelParams =
-      instance.model.provider === "AZURE_OPENAI"
-        ? {
-            endpoint: instance.model.endpoint,
-            apiVersion: instance.model.apiVersion,
-          }
-        : {};
-
-    return {
-      messages: instance.template.messages.map(toGqlChatCompletionMessage),
-      model: {
-        providerKey: instance.model.provider,
-        name: instance.model.modelName || "",
-        ...azureModelParams,
-      },
-      invocationParameters: invocationParameters,
-      template: {
-        variables: templateVariables,
-        language: templateLanguage,
-      },
-      tools: instance.tools.length
-        ? instance.tools.map((tool) => tool.definition)
-        : undefined,
-      apiKey: credentials[instance.model.provider],
-    };
-  }, [
-    credentials,
-    instance.model.apiVersion,
-    instance.model.endpoint,
-    instance.model.invocationParameters,
-    instance.model.modelName,
-    instance.model.provider,
-    instance.template.__type,
-    instance.template.messages,
-    instance.toolChoice,
-    instance.tools,
-    templateLanguage,
-    templateVariables,
-  ]);
 
   const [outputContent, setOutputContent] = useState<OutputContent>(
     instance.output
@@ -250,7 +165,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   const onNext = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      // markPlaygroundInstanceComplete(props.playgroundInstanceId);
+      setLoading(false);
       if (chatCompletion.__typename === "TextChunk") {
         const content = chatCompletion.content;
         setOutputContent((prev) => {
@@ -306,44 +222,15 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         }
       }
     },
-    [
-      instanceId,
-      markPlaygroundInstanceComplete,
-      notifyError,
-      props.playgroundInstanceId,
-      updateInstance,
-    ]
+    [instanceId, notifyError, updateInstance]
   );
-
-  const startStreaming = useChatCompletionSubscription({
-    params: chatCompletionParams,
-    onNext,
-    onCompleted: () => {
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
-    },
-    onFailed: (error) => {
-      // TODO(apowell): We should display this error to the user after formatting it nicely.
-      // eslint-disable-next-line no-console
-      console.error(error);
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
-      updateInstance({
-        instanceId: props.playgroundInstanceId,
-        patch: {
-          activeRunId: null,
-        },
-      });
-      notifyError({
-        title: "Failed to get output",
-        message: "Please try again.",
-      });
-    },
-  });
 
   const onCompleted = useCallback(
     (
       response: PlaygroundOutputMutation$data,
       errors: PayloadError[] | null
     ) => {
+      setLoading(false);
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
       updateInstance({
         instanceId,
@@ -381,19 +268,55 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!hasRunId) {
       return;
     }
+    setLoading(true);
     setOutputContent(undefined);
     setToolCalls([]);
+    const variables = getChatCompletionVariables({
+      playgroundStore,
+      instanceId,
+      credentials,
+    });
 
     if (streaming) {
-      const dispose = startStreaming();
-      return dispose();
+      const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
+        {
+          subscription: PlaygroundOutputSubscription,
+          variables,
+          onNext: (response) => {
+            if (response) {
+              onNext(response);
+            }
+          },
+          onCompleted: () => {
+            setLoading(false);
+            markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          },
+          onError: (error) => {
+            setLoading(false);
+            // TODO(apowell): We should display this error to the user after formatting it nicely.
+            // eslint-disable-next-line no-console
+            console.error(error);
+            markPlaygroundInstanceComplete(props.playgroundInstanceId);
+            updateInstance({
+              instanceId: props.playgroundInstanceId,
+              patch: {
+                activeRunId: null,
+              },
+            });
+            notifyError({
+              title: "Failed to get output",
+              message: "Please try again.",
+            });
+          },
+        };
+      const subscription = requestSubscription(environment, config);
+      return subscription.dispose;
     }
     generateChatCompletion({
-      variables: {
-        input: chatCompletionParams,
-      },
+      variables,
       onCompleted,
       onError(error) {
+        setLoading(false);
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
         notifyError({
           title: "Failed to get output",
@@ -401,23 +324,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
       },
     });
-    // Remove startSubscription from dependencies as its reference is not stable and we don't want to restart the subscription when it changes
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    chatCompletionParams,
     credentials,
+    environment,
     generateChatCompletion,
     hasRunId,
-    instance,
     instanceId,
     markPlaygroundInstanceComplete,
     notifyError,
     onCompleted,
+    onNext,
+    playgroundStore,
     props.playgroundInstanceId,
     streaming,
-    templateLanguage,
-    templateVariables,
     updateInstance,
   ]);
 
@@ -428,7 +347,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       variant="compact"
       bodyStyle={{ padding: 0 }}
     >
-      {hasRunId ? (
+      {loading ? (
         <View padding="size-200">
           <Loading message="Running..." />
         </View>
@@ -453,113 +372,48 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 }
 
-function useChatCompletionSubscription({
-  params,
-  onNext,
-  onCompleted,
-  onFailed,
-}: {
-  params: PlaygroundOutputSubscription$variables;
-  onNext: (response: PlaygroundOutputSubscription$data) => void;
-  onCompleted: () => void;
-  onFailed: (error: Error) => void;
-}) {
-  const environment = useRelayEnvironment();
-  const config = useMemo<
-    GraphQLSubscriptionConfig<PlaygroundOutputSubscription>
-  >(
-    () => ({
-      subscription: graphql`
-        subscription PlaygroundOutputSubscription(
-          $messages: [ChatCompletionMessageInput!]!
-          $model: GenerativeModelInput!
-          $invocationParameters: [InvocationParameterInput!]!
-          $tools: [JSON!]
-          $template: TemplateOptions
-          $apiKey: String
-        ) {
-          chatCompletion(
-            input: {
-              messages: $messages
-              model: $model
-              invocationParameters: $invocationParameters
-              tools: $tools
-              template: $template
-              apiKey: $apiKey
-            }
-          ) {
-            __typename
-            ... on TextChunk {
-              content
-            }
-            ... on ToolCallChunk {
-              id
-              function {
-                name
-                arguments
-              }
-            }
-            ... on FinishedChatCompletion {
-              span {
-                id
-              }
-            }
-            ... on ChatCompletionSubscriptionError {
-              message
-            }
-          }
+graphql`
+  subscription PlaygroundOutputSubscription($input: ChatCompletionInput!) {
+    chatCompletion(input: $input) {
+      __typename
+      ... on TextChunk {
+        content
+      }
+      ... on ToolCallChunk {
+        id
+        function {
+          name
+          arguments
         }
-      `,
-      variables: params,
-      onNext: (response) => {
-        if (response) {
-          onNext(response);
+      }
+      ... on FinishedChatCompletion {
+        span {
+          id
         }
-      },
-      onCompleted: () => {
-        onCompleted();
-      },
-      onError: (error) => {
-        onFailed(error);
-      },
-    }),
-    [onCompleted, onFailed, onNext, params]
-  );
-  const startStreaming = useCallback(() => {
-    const subscription = requestSubscription(environment, config);
-    return () => subscription.dispose();
-  }, [config, environment]);
-
-  return startStreaming;
-}
-
-/**
- * A utility function to convert playground messages content to GQL chat completion message input
- */
-function toGqlChatCompletionMessage(
-  message: ChatMessage
-): ChatCompletionMessageInput {
-  return {
-    content: message.content,
-    role: toGqlChatCompletionRole(message.role),
-    toolCalls: message.toolCalls,
-    toolCallId: message.toolCallId,
-  };
-}
-
-function toGqlChatCompletionRole(
-  role: ChatMessageRole
-): ChatCompletionMessageRole {
-  switch (role) {
-    case "system":
-      return "SYSTEM";
-    case "user":
-      return "USER";
-    case "tool":
-      return "TOOL";
-    case "ai":
-      return "AI";
-    default:
-      assertUnreachable(role);
+        ... on ChatCompletionubscriptionError {
+          message
+        }
+      }
+    }
   }
-}
+`;
+
+graphql`
+  mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
+    chatCompletion(input: $input) {
+      __typename
+      content
+      errorMessage
+      span {
+        id
+      }
+      toolCalls {
+        id
+        function {
+          name
+          arguments
+        }
+      }
+    }
+  }
+`;

@@ -13,6 +13,14 @@ export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE";
+export type ChatCompletionInput = {
+  apiKey?: string | null;
+  invocationParameters?: ReadonlyArray<InvocationParameterInput>;
+  messages: ReadonlyArray<ChatCompletionMessageInput>;
+  model: GenerativeModelInput;
+  template?: TemplateOptions | null;
+  tools?: ReadonlyArray<any> | null;
+};
 export type ChatCompletionMessageInput = {
   content?: any;
   role: ChatCompletionMessageRole;
@@ -41,12 +49,7 @@ export type TemplateOptions = {
   variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {
-  apiKey?: string | null;
-  invocationParameters: ReadonlyArray<InvocationParameterInput>;
-  messages: ReadonlyArray<ChatCompletionMessageInput>;
-  model: GenerativeModelInput;
-  template?: TemplateOptions | null;
-  tools?: ReadonlyArray<any> | null;
+  input: ChatCompletionInput;
 };
 export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: {
@@ -79,82 +82,28 @@ export type PlaygroundOutputSubscription = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "apiKey"
-},
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
 v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "invocationParameters"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "messages"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "model"
-},
-v4 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "template"
-},
-v5 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "tools"
-},
-v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = [
+v2 = [
   {
     "alias": null,
     "args": [
       {
-        "fields": [
-          {
-            "kind": "Variable",
-            "name": "apiKey",
-            "variableName": "apiKey"
-          },
-          {
-            "kind": "Variable",
-            "name": "invocationParameters",
-            "variableName": "invocationParameters"
-          },
-          {
-            "kind": "Variable",
-            "name": "messages",
-            "variableName": "messages"
-          },
-          {
-            "kind": "Variable",
-            "name": "model",
-            "variableName": "model"
-          },
-          {
-            "kind": "Variable",
-            "name": "template",
-            "variableName": "template"
-          },
-          {
-            "kind": "Variable",
-            "name": "tools",
-            "variableName": "tools"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
       }
     ],
     "concreteType": null,
@@ -186,7 +135,7 @@ v7 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v6/*: any*/),
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -227,7 +176,7 @@ v7 = [
             "name": "span",
             "plural": false,
             "selections": [
-              (v6/*: any*/)
+              (v1/*: any*/)
             ],
             "storageKey": null
           }
@@ -255,34 +204,20 @@ v7 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
-    "selections": (v7/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Subscription",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v1/*: any*/),
-      (v5/*: any*/),
-      (v4/*: any*/),
-      (v0/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
-    "selections": (v7/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
     "cacheID": "2d95daace44bdb7fdc007d3ecac9be14",

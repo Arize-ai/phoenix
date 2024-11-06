@@ -21,10 +21,14 @@ import {
 import {
   ChatMessage,
   createPlaygroundInstance,
+  CredentialsState,
   generateMessageId,
   generateToolId,
+  isManualInput,
   ModelConfig,
+  PlaygroundInput,
   PlaygroundInstance,
+  PlaygroundStore,
   Tool,
 } from "@phoenix/store";
 import {
@@ -34,7 +38,13 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PlaygroundOutputMutation$variables } from "./__generated__/PlaygroundOutputMutation.graphql";
+import {
+  ChatCompletionMessageInput,
+  ChatCompletionMessageRole,
+  InvocationParameterInput,
+  PlaygroundOutputSubscription$variables,
+} from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
@@ -44,6 +54,8 @@ import {
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import { InvocationParameter } from "./InvocationParametersForm";
@@ -522,6 +534,34 @@ export const extractVariablesFromInstances = ({
   return Array.from(variables);
 };
 
+export const getVariablesMapFromInstances = ({
+  instances,
+  templateLanguage,
+  input,
+}: {
+  instances: PlaygroundInstance[];
+  templateLanguage: TemplateLanguage;
+  input: PlaygroundInput;
+}) => {
+  const variableKeys = extractVariablesFromInstances({
+    instances,
+    templateLanguage,
+  });
+
+  const variableValueCache = isManualInput(input)
+    ? input.variablesValueCache
+    : {};
+
+  const variablesMap = variableKeys.reduce(
+    (acc, key) => {
+      acc[key] = variableValueCache[key] || "";
+      return acc;
+    },
+    {} as Record<string, string>
+  );
+  return { variablesMap, variableKeys };
+};
+
 /**
  * Filter out parameters that are not supported by a model's invocation parameter schema definitions.
  */
@@ -707,4 +747,111 @@ export const createToolCallForProvider = (
     default:
       assertUnreachable(provider);
   }
+};
+
+/**
+ * A utility function to convert playground messages content to GQL chat completion message input
+ */
+function toGqlChatCompletionMessage(
+  message: ChatMessage
+): ChatCompletionMessageInput {
+  return {
+    content: message.content,
+    role: toGqlChatCompletionRole(message.role),
+    toolCalls: message.toolCalls,
+    toolCallId: message.toolCallId,
+  };
+}
+
+function toGqlChatCompletionRole(
+  role: ChatMessageRole
+): ChatCompletionMessageRole {
+  switch (role) {
+    case "system":
+      return "SYSTEM";
+    case "user":
+      return "USER";
+    case "tool":
+      return "TOOL";
+    case "ai":
+      return "AI";
+    default:
+      assertUnreachable(role);
+  }
+}
+
+export const getChatCompletionVariables = ({
+  playgroundStore,
+  instanceId,
+  credentials,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+  credentials: CredentialsState;
+}):
+  | PlaygroundOutputMutation$variables
+  | PlaygroundOutputSubscription$variables => {
+  // We pull directly from the store in this function so that it always has up to date values at the time of calling
+  const instances = playgroundStore.getState().instances;
+  const instance = instances.find((instance) => {
+    return instance.id === instanceId;
+  });
+
+  if (!instance) {
+    throw new Error(`No instance found for id ${instanceId}`);
+  }
+  if (instance.template.__type !== "chat") {
+    throw new Error("We only support chat templates for now");
+  }
+  const templateLanguage = playgroundStore.getState().templateLanguage;
+
+  const input = playgroundStore.getState().input;
+  const templateVariables = getVariablesMapFromInstances({
+    instances,
+    input,
+    templateLanguage,
+  });
+
+  let invocationParameters: InvocationParameterInput[] = [
+    ...instance.model.invocationParameters,
+  ];
+  if (instance.tools.length > 0) {
+    invocationParameters.push({
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+      valueJson: instance.toolChoice,
+    });
+  } else {
+    invocationParameters = invocationParameters.filter(
+      (param) =>
+        param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
+        param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
+    );
+  }
+  const azureModelParams =
+    instance.model.provider === "AZURE_OPENAI"
+      ? {
+          endpoint: instance.model.endpoint,
+          apiVersion: instance.model.apiVersion,
+        }
+      : {};
+
+  return {
+    input: {
+      messages: instance.template.messages.map(toGqlChatCompletionMessage),
+      model: {
+        providerKey: instance.model.provider,
+        name: instance.model.modelName || "",
+        ...azureModelParams,
+      },
+      invocationParameters: invocationParameters,
+      template: {
+        variables: templateVariables,
+        language: templateLanguage,
+      },
+      tools: instance.tools.length
+        ? instance.tools.map((tool) => tool.definition)
+        : undefined,
+      apiKey: credentials[instance.model.provider],
+    },
+  };
 };

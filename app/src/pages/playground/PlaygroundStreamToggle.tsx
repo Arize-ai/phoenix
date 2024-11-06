@@ -8,6 +8,10 @@ export function PlaygroundStreamToggle() {
   const streaming = usePlaygroundContext((state) => state.streaming);
   const setStreaming = usePlaygroundContext((state) => state.setStreaming);
 
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
+  );
+
   return (
     <Switch
       labelPlacement="start"
@@ -15,6 +19,7 @@ export function PlaygroundStreamToggle() {
       onChange={() => {
         setStreaming(!streaming);
       }}
+      isDisabled={isRunning}
     >
       Stream
     </Switch>
