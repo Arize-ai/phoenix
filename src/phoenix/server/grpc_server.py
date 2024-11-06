@@ -56,6 +56,7 @@ class GrpcServer:
         enable_prometheus: bool = False,
         disabled: bool = False,
         token_store: Optional[CanReadToken] = None,
+        interceptors: list[ServerInterceptor] = [],
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
@@ -63,11 +64,12 @@ class GrpcServer:
         self._enable_prometheus = enable_prometheus
         self._disabled = disabled
         self._token_store = token_store
+        self._interceptors = interceptors
 
     async def __aenter__(self) -> None:
+        interceptors = self._interceptors
         if self._disabled:
             return
-        interceptors: list[ServerInterceptor] = []
         if self._token_store:
             interceptors.append(ApiKeyInterceptor(self._token_store))
         if self._enable_prometheus:
