@@ -26,6 +26,7 @@ import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
+from grpc.aio import ServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
@@ -54,6 +55,7 @@ from phoenix.config import (
     get_env_csrf_trusted_origins,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
+    get_env_grpc_interceptor_paths,
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
@@ -305,6 +307,17 @@ def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]
     return extensions
 
 
+def user_grpc_interceptors() -> list[ServerInterceptor]:
+    paths = get_env_grpc_interceptor_paths()
+    interceptors = []
+    for file_path, object_name in paths:
+        interceptor_class = import_object_from_file(file_path, object_name)
+        if not issubclass(interceptor_class, ServerInterceptor):
+            raise TypeError(f"{interceptor_class} is not a subclass of ServerInterceptor")
+        interceptors.append(interceptor_class)
+    return interceptors
+
+
 ProjectRowId: TypeAlias = int
 
 
@@ -479,6 +492,7 @@ def _lifespan(
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
                 token_store=token_store,
+                interceptors=user_grpc_interceptors(),
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
