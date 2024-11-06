@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
+    Hashable,
     Mapping,
     Optional,
     Union,
@@ -15,6 +16,7 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
     register_llm_client,
@@ -50,6 +52,36 @@ if TYPE_CHECKING:
 DependencyName: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+
+
+class KeyedSingleton:
+    _instances: dict[tuple[type, Hashable], Any] = {}
+
+    def __new__(cls, singleton_key: Hashable) -> Any:
+        instance_key = (cls, singleton_key)
+        if instance_key not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[instance_key] = instance
+        return cls._instances[instance_key]
+
+
+class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
+    """
+    A rate rate limiter class that will be instantiated once per `singleton_key`.
+    """
+
+    def __init__(self, singleton_key: Hashable, rate_limit_error: Optional[type[BaseException]]):
+        super().__init__(
+            rate_limit_error=rate_limit_error,
+            max_rate_limit_retries=3,
+            initial_per_second_request_rate=2.0,
+            maximum_per_second_request_rate=10.0,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.5,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+            verbose=False,
+        )
 
 
 class PlaygroundStreamingClient(ABC):
@@ -149,11 +181,17 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        from openai import AsyncOpenAI
+        from openai import (
+            AsyncOpenAI,
+        )
+        from openai import (
+            RateLimitError as OpenAIRateLimitError,
+        )
 
         super().__init__(model=model, api_key=api_key)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
+        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[DependencyName]:
@@ -240,7 +278,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-        async for chunk in await self.client.chat.completions.create(
+        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             stream=True,
@@ -409,7 +448,8 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
 
         tool_call_ids: dict[int, str] = {}
 
-        response = await self.client.chat.completions.create(
+        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        response = await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             tools=tools or NOT_GIVEN,
@@ -544,6 +584,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
+        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[DependencyName]:
@@ -610,7 +651,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "max_tokens": 1024,
             **invocation_parameters,
         }
-        async with self.client.messages.stream(**anthropic_params) as stream:
+        throttled_stream = self.rate_limiter.limit(self.client.messages.stream)
+        async with throttled_stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
                     self._attributes.update(
