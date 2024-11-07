@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 import base64
 from datetime import datetime
+from functools import singledispatchmethod
 from typing import Any, NamedTuple
 
 import httpx
@@ -1153,6 +1154,14 @@ class _Data(NamedTuple):
 
 
 class TestProject:
+    @singledispatchmethod
+    def _gid(self, obj: models.Project) -> str:
+        return str(GlobalID(Project.__name__, str(obj.id)))
+
+    @_gid.register
+    def _(self, obj: models.ProjectSession) -> str:
+        return str(GlobalID(ProjectSession.__name__, str(obj.id)))
+
     @staticmethod
     async def _node(
         field: str,
@@ -1191,6 +1200,18 @@ class TestProject:
 
             project_sessions.append(await _add_project_session(session, projects[-1]))
             traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            spans.append(
+                await _add_span(
+                    session,
+                    traces[-1],
+                    cumulative_llm_token_count_completion=2,
+                )
+            )
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            spans.append(await _add_span(session, traces[-1]))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
             attributes = {"input": {"value": "g\"'h"}, "output": {"value": "e\"'f"}}
             spans.append(
                 await _add_span(
@@ -1202,17 +1223,6 @@ class TestProject:
             )
             spans.append(await _add_span(session, traces[-1]))
 
-            project_sessions.append(await _add_project_session(session, projects[-1]))
-            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
-            spans.append(
-                await _add_span(
-                    session,
-                    traces[-1],
-                    cumulative_llm_token_count_completion=2,
-                )
-            )
-            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
-            spans.append(await _add_span(session, traces[-1]))
         return _Data(
             spans=spans,
             traces=traces,
@@ -1227,11 +1237,11 @@ class TestProject:
     ) -> None:
         column = "tokenCountTotal"
         project = _data.projects[0]
-        result = [
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[3].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[0].id))),
+        result: list[str] = [
+            self._gid(_data.project_sessions[2]),
+            self._gid(_data.project_sessions[3]),
+            self._gid(_data.project_sessions[1]),
+            self._gid(_data.project_sessions[0]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1240,23 +1250,22 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
         # Test pagination
-        for direction, values in {
-            "desc": zip(
-                [b"", b"4:INT:2", b"3:INT:1", b"2:INT:1", b"1:INT:0"],
-                [[result[0]], [result[1]], [result[2]], [result[3]], []],
-            ),
-            "asc": zip(
-                [b"", b"1:INT:0", b"2:INT:1", b"3:INT:1", b"4:INT:2"],
-                [[result[3]], [result[2]], [result[1]], [result[0]], []],
-            ),
+        first = 2
+        cursors = [b"3:INT:2", b"4:INT:1", b"2:INT:1", b"1:INT:0"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
         }.items():
-            for after, expected in values:
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
                 field = (
                     "sessions(sort:{col:"
                     + column
                     + ",dir:"
                     + direction
-                    + '},first:1,after:"'
+                    + "},first:"
+                    + str(first)
+                    + ',after:"'
                     + base64.b64encode(after).decode()
                     + '"){edges{node{id}}}'
                 )
@@ -1270,9 +1279,9 @@ class TestProject:
     ) -> None:
         column = "tokenCountTotal"
         project = _data.projects[0]
-        result = [
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
+        result: list[str] = [
+            self._gid(_data.project_sessions[3]),
+            self._gid(_data.project_sessions[1]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1287,23 +1296,22 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
         # Test pagination
-        for direction, values in {
-            "desc": zip(
-                [b"", b"3:INT:1", b"2:INT:1"],
-                [[result[0]], [result[1]], []],
-            ),
-            "asc": zip(
-                [b"", b"2:INT:1", b"3:INT:1"],
-                [[result[1]], [result[0]], []],
-            ),
+        first = 2
+        cursors = [b"4:INT:1", b"2:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
         }.items():
-            for after, expected in values:
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
                 field = (
                     "sessions(sort:{col:"
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:1,after:"'
+                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + str(first)
+                    + ',after:"'
                     + base64.b64encode(after).decode()
                     + '"){edges{node{id}}}'
                 )
@@ -1317,11 +1325,11 @@ class TestProject:
     ) -> None:
         column = "numTraces"
         project = _data.projects[0]
-        result = [
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[3].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[0].id))),
+        result: list[str] = [
+            self._gid(_data.project_sessions[2]),
+            self._gid(_data.project_sessions[3]),
+            self._gid(_data.project_sessions[1]),
+            self._gid(_data.project_sessions[0]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1330,23 +1338,22 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
         # Test pagination
-        for direction, values in {
-            "desc": zip(
-                [b"", b"4:INT:2", b"3:INT:1", b"2:INT:1", b"1:INT:1"],
-                [[result[0]], [result[1]], [result[2]], [result[3]], []],
-            ),
-            "asc": zip(
-                [b"", b"1:INT:1", b"2:INT:1", b"3:INT:1", b"4:INT:2"],
-                [[result[3]], [result[2]], [result[1]], [result[0]], []],
-            ),
+        first = 2
+        cursors = [b"3:INT:2", b"4:INT:1", b"2:INT:1", b"1:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
         }.items():
-            for after, expected in values:
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
                 field = (
                     "sessions(sort:{col:"
                     + column
                     + ",dir:"
                     + direction
-                    + '},first:1,after:"'
+                    + "},first:"
+                    + str(first)
+                    + ',after:"'
                     + base64.b64encode(after).decode()
                     + '"){edges{node{id}}}'
                 )
@@ -1360,9 +1367,9 @@ class TestProject:
     ) -> None:
         column = "numTraces"
         project = _data.projects[0]
-        result = [
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
-            str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
+        result: list[str] = [
+            self._gid(_data.project_sessions[3]),
+            self._gid(_data.project_sessions[1]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1377,23 +1384,22 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
         # Test pagination
-        for direction, values in {
-            "desc": zip(
-                [b"", b"3:INT:1", b"2:INT:1"],
-                [[result[0]], [result[1]], []],
-            ),
-            "asc": zip(
-                [b"", b"2:INT:1", b"3:INT:1"],
-                [[result[1]], [result[0]], []],
-            ),
+        first = 2
+        cursors = [b"4:INT:1", b"2:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
         }.items():
-            for after, expected in values:
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
                 field = (
                     "sessions(sort:{col:"
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:1,after:"'
+                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + str(first)
+                    + ',after:"'
                     + base64.b64encode(after).decode()
                     + '"){edges{node{id}}}'
                 )
@@ -1410,8 +1416,8 @@ class TestProject:
         res = await self._node(field, project, httpx_client)
         assert sorted(e["node"]["id"] for e in res["edges"]) == sorted(
             [
-                str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[1].id))),
-                str(GlobalID(ProjectSession.__name__, str(_data.project_sessions[2].id))),
+                self._gid(_data.project_sessions[1]),
+                self._gid(_data.project_sessions[3]),
             ]
         )
 
