@@ -1414,12 +1414,10 @@ class TestProject:
         project = _data.projects[0]
         field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
-        assert sorted(e["node"]["id"] for e in res["edges"]) == sorted(
-            [
-                self._gid(_data.project_sessions[1]),
-                self._gid(_data.project_sessions[3]),
-            ]
-        )
+        assert {e["node"]["id"] for e in res["edges"]} == {
+            self._gid(_data.project_sessions[1]),
+            self._gid(_data.project_sessions[3]),
+        }
 
     async def test_sessions_substring_search_looks_at_only_root_spans(
         self,
