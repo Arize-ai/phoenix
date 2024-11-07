@@ -108,7 +108,13 @@ export const chatMessagesSchema = z.array(chatMessageSchema);
  * Model generic invocation parameters schema in zod.
  */
 const invocationParameterSchema = z.record(
-  z.union([z.boolean(), z.number(), z.string(), z.array(z.string())])
+  z.union([
+    z.boolean(),
+    z.number(),
+    z.string(),
+    z.array(z.string()),
+    z.record(z.unknown()),
+  ])
 );
 
 /**

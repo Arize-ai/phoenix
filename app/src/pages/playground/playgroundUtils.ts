@@ -18,6 +18,7 @@ import {
   LlmProviderToolCall,
   toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   ChatMessage,
   createPlaygroundInstance,
@@ -603,7 +604,10 @@ export const toCamelCase = (str: string) =>
  */
 export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
   (
-    invocationParameters: Record<string, string | number | boolean | string[]>,
+    invocationParameters: Record<
+      string,
+      string | number | boolean | string[] | Record<string, unknown>
+    >,
     modelSupportedInvocationParameters: InvocationParameter[]
   ): InvocationParameterInput[] => {
     return Object.entries(invocationParameters)
@@ -815,11 +819,16 @@ export const getChatCompletionVariables = ({
   let invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
   ];
+  const convertedToolChoice = safelyConvertToolChoiceToProvider({
+    toolChoice: instance.toolChoice,
+    targetProvider: instance.model.provider,
+  });
   if (instance.tools.length > 0) {
-    invocationParameters.push({
-      invocationName: TOOL_CHOICE_PARAM_NAME,
-      valueJson: instance.toolChoice,
-    });
+    invocationParameters = invocationParameters.map((param) =>
+      param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
+        ? { ...param, valueJson: convertedToolChoice }
+        : param
+    );
   } else {
     invocationParameters = invocationParameters.filter(
       (param) =>
