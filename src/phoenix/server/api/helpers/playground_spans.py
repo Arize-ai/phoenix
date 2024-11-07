@@ -79,8 +79,8 @@ class streaming_llm_span:
             )
         )
         self._events: list[SpanEvent] = []
-        self._start_time: Optional[datetime] = None
-        self._end_time: Optional[datetime] = None
+        self._start_time: datetime
+        self._end_time: datetime
         self._text_chunks: list[TextChunk] = []
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         self._status_code: StatusCode = StatusCode.UNSET
@@ -138,6 +138,8 @@ class streaming_llm_span:
         self,
         project_id: int,
     ) -> models.Span:
+        if self._db_span is not None:
+            return self._db_span
         prompt_tokens = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
         completion_tokens = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
         self._db_trace = models.Trace(
@@ -168,26 +170,10 @@ class streaming_llm_span:
         return self._db_span
 
     @property
-    def start_time(self) -> datetime:
-        if self._start_time is None:
-            raise ValueError("Cannot access start time before the context manager is entered")
-        return self._start_time
-
-    @property
-    def end_time(self) -> datetime:
-        if self._end_time is None:
-            raise ValueError("Cannot access end time before the context manager is exited")
-        return self._end_time
-
-    @property
     def error_message(self) -> Optional[str]:
         if self._status_code is StatusCode.UNSET:
             raise ValueError("Cannot access error message before the context manager is exited")
         return self._status_message
-
-    @property
-    def trace_id(self) -> str:
-        return self._trace_id
 
 
 def llm_span_kind() -> Iterator[tuple[str, Any]]:

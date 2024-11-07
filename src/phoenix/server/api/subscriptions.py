@@ -340,13 +340,13 @@ async def _stream_chat_completion_over_dataset_example(
                 dataset_example_id=from_global_id_with_expected_type(
                     example_id, DatasetExample.__name__
                 ),
-                trace_id=span.trace_id,
+                trace_id=db_span.trace.trace_id,
                 output=models.ExperimentRunOutput(
                     task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
                 ),
                 repetition_number=1,
-                start_time=span.start_time,
-                end_time=span.end_time,
+                start_time=db_span.start_time,
+                end_time=db_span.end_time,
                 error=error_message if (error_message := span.error_message) is not None else None,
                 prompt_token_count=get_attribute_value(db_span.attributes, LLM_TOKEN_COUNT_PROMPT),
                 completion_token_count=get_attribute_value(
