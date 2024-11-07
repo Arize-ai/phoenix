@@ -353,7 +353,7 @@ class Project(Node):
             )
         cursors_and_nodes = []
         async with info.context.db() as session:
-            records = await session.execute(stmt)
+            records = await session.stream(stmt)
             async for record in islice(records, first):
                 project_session = record[0]
                 cursor = Cursor(rowid=project_session.id)
@@ -366,8 +366,8 @@ class Project(Node):
                 cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
             has_next_page = True
             try:
-                next(records)
-            except StopIteration:
+                await records.__anext__()
+            except StopAsyncIteration:
                 has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
