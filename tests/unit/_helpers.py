@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.types.ProjectSession import ProjectSession
 
 
 @singledispatch
@@ -18,7 +19,7 @@ def _gid(_: models.Base) -> str:
 
 @_gid.register
 def _(obj: models.ProjectSession) -> str:
-    return str(GlobalID(obj.__class__.__name__, str(obj.id)))
+    return str(GlobalID(ProjectSession.__name__, str(obj.id)))
 
 
 async def _node(
