@@ -1,9 +1,14 @@
+import asyncio
 import importlib.util
+import inspect
+import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
+from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
+    Hashable,
     Mapping,
     Optional,
     Union,
@@ -15,6 +20,13 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.evals.models.rate_limiters import (
+    AsyncCallable,
+    GenericType,
+    ParameterSpec,
+    RateLimiter,
+    RateLimitError,
+)
 from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
     register_llm_client,
@@ -50,6 +62,92 @@ if TYPE_CHECKING:
 DependencyName: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+
+
+class KeyedSingleton:
+    _instances: dict[Hashable, "KeyedSingleton"] = {}
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "KeyedSingleton":
+        if "singleton_key" in kwargs:
+            singleton_key = kwargs.pop("singleton_key")
+        elif args:
+            singleton_key = args[0]
+            args = args[1:]
+        else:
+            raise ValueError("singleton_key must be provided")
+
+        instance_key = (cls, singleton_key)
+        if instance_key not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[instance_key] = instance
+        return cls._instances[instance_key]
+
+
+class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
+    """
+    A rate rate limiter class that will be instantiated once per `singleton_key`.
+    """
+
+    def __init__(self, singleton_key: Hashable, rate_limit_error: Optional[type[BaseException]]):
+        super().__init__(
+            rate_limit_error=rate_limit_error,
+            max_rate_limit_retries=3,
+            initial_per_second_request_rate=2.0,
+            maximum_per_second_request_rate=10.0,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.5,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+            verbose=False,
+        )
+
+    # TODO: update the rate limiter class in phoenix.evals to support decorated sync functions
+    def _alimit(
+        self, fn: Callable[ParameterSpec, GenericType]
+    ) -> AsyncCallable[ParameterSpec, GenericType]:
+        @wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            self._initialize_async_primitives()
+            assert self._rate_limit_handling_lock is not None and isinstance(
+                self._rate_limit_handling_lock, asyncio.Lock
+            )
+            assert self._rate_limit_handling is not None and isinstance(
+                self._rate_limit_handling, asyncio.Event
+            )
+            try:
+                try:
+                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
+                except asyncio.TimeoutError:
+                    self._rate_limit_handling.set()  # Set the event as a failsafe
+                await self._throttler.async_wait_until_ready()
+                request_start_time = time.time()
+                if inspect.iscoroutinefunction(fn):
+                    return await fn(*args, **kwargs)  # type: ignore
+                else:
+                    return fn(*args, **kwargs)
+            except self._rate_limit_error:
+                async with self._rate_limit_handling_lock:
+                    self._rate_limit_handling.clear()  # prevent new requests from starting
+                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
+                    try:
+                        for _attempt in range(self._max_rate_limit_retries):
+                            try:
+                                request_start_time = time.time()
+                                await self._throttler.async_wait_until_ready()
+                                if inspect.iscoroutinefunction(fn):
+                                    return await fn(*args, **kwargs)  # type: ignore
+                                else:
+                                    return fn(*args, **kwargs)
+                            except self._rate_limit_error:
+                                self._throttler.on_rate_limit_error(
+                                    request_start_time, verbose=self._verbose
+                                )
+                                continue
+                    finally:
+                        self._rate_limit_handling.set()  # allow new requests to start
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+
+        return wrapper
 
 
 class PlaygroundStreamingClient(ABC):
@@ -149,11 +247,17 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        from openai import AsyncOpenAI
+        from openai import (
+            AsyncOpenAI,
+        )
+        from openai import (
+            RateLimitError as OpenAIRateLimitError,
+        )
 
         super().__init__(model=model, api_key=api_key)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
+        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[DependencyName]:
@@ -231,7 +335,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-        async for chunk in await self.client.chat.completions.create(
+        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             stream=True,
@@ -396,7 +501,8 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
 
         tool_call_ids: dict[int, str] = {}
 
-        response = await self.client.chat.completions.create(
+        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        response = await throttled_create(
             messages=openai_messages,
             model=self.model_name,
             tools=tools or NOT_GIVEN,
@@ -531,6 +637,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
+        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[DependencyName]:
@@ -591,7 +698,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "max_tokens": 1024,
             **invocation_parameters,
         }
-        async with self.client.messages.stream(**anthropic_params) as stream:
+        throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
+        async with await throttled_stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
                     self._attributes.update(
