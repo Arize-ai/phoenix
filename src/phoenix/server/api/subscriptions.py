@@ -1,10 +1,8 @@
 import logging
-from asyncio import FIRST_COMPLETED, Queue, Task, create_task, wait
-from collections.abc import Iterator
+from asyncio import FIRST_COMPLETED, Queue, QueueEmpty, Task, create_task, wait
+from collections.abc import AsyncIterator, Iterator
 from typing import (
     Any,
-    AsyncIterator,
-    Collection,
     Iterable,
     Mapping,
     Optional,
@@ -49,6 +47,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
@@ -251,38 +250,53 @@ class Subscription:
 
         spans: Queue[tuple[DatasetExampleID, models.Span]] = Queue()
         runs: Queue[tuple[DatasetExampleID, models.ExperimentRun]] = Queue()
-        async for payload in _merge_iterators(
-            [
-                _stream_chat_completion_over_dataset_example(
-                    input=input,
-                    llm_client_class=llm_client_class,
-                    revision=revision,
-                    spans=spans,
-                    runs=runs,
-                    experiment_id=experiment.id,
-                    project_id=playground_project_id,
+        chat_completion_iterators = [
+            _chat_completion_payloads(
+                input=input,
+                llm_client_class=llm_client_class,
+                revision=revision,
+                spans=spans,
+                runs=runs,
+                experiment_id=experiment.id,
+                project_id=playground_project_id,
+            )
+            for revision in revisions
+        ]
+        tasks: dict[
+            AsyncIterator[ChatCompletionSubscriptionPayload],
+            Task[ChatCompletionSubscriptionPayload],
+        ] = {iterator: _as_task(iterator) for iterator in chat_completion_iterators}
+        batch_size = 10
+        while tasks:
+            completed_tasks, _ = await wait(tasks.values(), return_when=FIRST_COMPLETED)
+            for task in completed_tasks:
+                iterator = next(it for it, t in tasks.items() if t == task)
+                try:
+                    yield task.result()
+                except StopAsyncIteration:
+                    del tasks[iterator]
+                except Exception as error:
+                    del tasks[iterator]
+                    logger.exception(error)
+                else:
+                    tasks[iterator] = _as_task(iterator)
+                if spans.qsize() >= batch_size or runs.qsize() >= batch_size:
+                    result_iterator = _chat_completion_result_payloads(
+                        db=info.context.db, spans=_drain(spans), runs=_drain(runs)
+                    )
+                    tasks[result_iterator] = _as_task(result_iterator)
+        if not spans.empty() or not runs.empty():
+            remaining_results = [
+                result
+                async for result in _chat_completion_result_payloads(
+                    db=info.context.db, spans=_drain(spans), runs=_drain(runs)
                 )
-                for revision in revisions
             ]
-        ):
-            yield payload
-
-        async with info.context.db() as session:
-            while not spans.empty():
-                example_id, span = await spans.get()
-                session.add(span)
-                await session.flush()
-                yield ChatCompletionSubscriptionSpan(
-                    span=to_gql_span(span),
-                    dataset_example_id=example_id,
-                )
-            while not runs.empty():
-                _, run = await runs.get()
-                session.add(run)
-            await session.flush()
+            for result in remaining_results:
+                yield result
 
 
-async def _stream_chat_completion_over_dataset_example(
+async def _chat_completion_payloads(
     *,
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],
@@ -361,29 +375,35 @@ async def _stream_chat_completion_over_dataset_example(
         )
 
 
-async def _merge_iterators(
-    iterators: Collection[AsyncIterator[GenericType]],
-) -> AsyncIterator[GenericType]:
-    tasks: dict[AsyncIterator[GenericType], Task[GenericType]] = {
-        iterable: _as_task(iterable) for iterable in iterators
-    }
-    while tasks:
-        completed_tasks, _ = await wait(tasks.values(), return_when=FIRST_COMPLETED)
-        for task in completed_tasks:
-            iterator = next(it for it, t in tasks.items() if t == task)
-            try:
-                yield task.result()
-            except StopAsyncIteration:
-                del tasks[iterator]
-            except Exception as error:
-                del tasks[iterator]
-                logger.exception(error)
-            else:
-                tasks[iterator] = _as_task(iterator)
+async def _chat_completion_result_payloads(
+    *,
+    db: DbSessionFactory,
+    spans: Iterable[tuple[DatasetExampleID, models.Span]],
+    runs: Iterable[tuple[DatasetExampleID, models.ExperimentRun]],
+) -> AsyncIterator[ChatCompletionSubscriptionSpan]:
+    async with db() as session:
+        session.add_all(span for _, span in spans)
+        session.add_all(run for _, run in runs)
+        await session.flush()
+    for example_id, span in spans:
+        yield ChatCompletionSubscriptionSpan(
+            span=to_gql_span(span),
+            dataset_example_id=example_id,
+        )
 
 
 def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
     return create_task(_as_coroutine(iterable))
+
+
+def _drain(queue: Queue[GenericType]) -> list[GenericType]:
+    values: list[GenericType] = []
+    while True:
+        try:
+            values.append(queue.get_nowait())
+        except QueueEmpty:
+            break
+    return values
 
 
 async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
