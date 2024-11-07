@@ -1,19 +1,159 @@
-module.exports = async ({ github, context, core }) => {
-  // List of labels to filter by
-  const requiredLabels = ["triage"];
+// Utility function to create a hyperlink to a GitHub user
+function createGithubLink(username) {
+  return `<https://github.com/${username}|${username}>`;
+}
 
-  // Access the DAYS environment variable
-  const days = parseInt(process.env.LOOKBACK_DAYS || "120", 10);
-  const staleThreshold = parseInt(
+// Helper function to check if an issue has any of the required labels
+function hasLabel(issueLabels, requiredLabels) {
+  return issueLabels.some((label) => requiredLabels.includes(label.name));
+}
+
+// Helper function to calculate the difference in days and format as "Today," "Yesterday," or "X days ago"
+function formatDateDifference(date) {
+  const now = new Date();
+  const millisecondsInADay = 1000 * 60 * 60 * 24;
+  const daysDifference = Math.floor(
+    (now - new Date(date)) / millisecondsInADay,
+  );
+
+  if (daysDifference === 0) return "Today";
+  if (daysDifference === 1) return "Yesterday";
+  return `${daysDifference} days ago`;
+}
+
+// Helper function to get a sorted list of unique participants from comments on an issue, excluding the author
+async function getParticipants(github, context, issueNumber, author) {
+  try {
+    const comments = await github.paginate(github.rest.issues.listComments, {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+
+    const participants = new Set(
+      comments
+        .map((comment) => comment.user.login)
+        .filter((username) => username !== author), // Exclude the author
+    );
+    return Array.from(participants).sort();
+  } catch (error) {
+    console.error(`Error fetching comments for issue #${issueNumber}:`, error);
+    return [];
+  }
+}
+
+// Helper function to filter issues based on required labels and a cutoff date
+function filterIssues(issues, requiredLabels, cutoffDate) {
+  return issues
+    .filter((issue) => {
+      const hasLabels = hasLabel(issue.labels, requiredLabels);
+      const isRecent = new Date(issue.created_at) > cutoffDate;
+      const isNotPR = !issue.pull_request;
+      return hasLabels && isRecent && isNotPR;
+    })
+    .sort((a, b) => b.number - a.number); // Sort by issue number, newest first
+}
+
+// Helper function to separate issues into "stale" and "fresh" based on staleness threshold
+function splitIssuesByStaleness(issues, stalenessThreshold) {
+  const staleIssues = [];
+  const freshIssues = [];
+  const now = new Date();
+
+  issues.forEach((issue) => {
+    const daysOld = Math.floor(
+      (now - new Date(issue.created_at)) / (1000 * 60 * 60 * 24),
+    );
+    if (daysOld > stalenessThreshold) {
+      staleIssues.push(issue);
+    } else {
+      freshIssues.push(issue);
+    }
+  });
+
+  return { staleIssues, freshIssues };
+}
+
+// Helper function to categorize fresh issues as either "bug" or "enhancement/inquiry"
+function categorizeIssues(issues) {
+  const bugIssues = [];
+  const enhancementIssues = [];
+
+  issues.forEach((issue) => {
+    if (issue.labels.some((label) => label.name === "bug")) {
+      bugIssues.push(issue);
+    } else {
+      enhancementIssues.push(issue);
+    }
+  });
+
+  return { bugIssues, enhancementIssues };
+}
+
+// Helper function to build a detailed description for each issue
+async function formatIssueLine(github, context, issue, index) {
+  let line = `${index + 1}. *<${issue.html_url}|#${issue.number}>:* ${issue.title}`;
+  line += ` (by ${createGithubLink(issue.user.login)}; ${formatDateDifference(issue.created_at)})`;
+
+  if (issue.comments > 0) {
+    line += `; ${issue.comments} comment${issue.comments > 1 ? "s" : ""}`;
+    const participants = await getParticipants(
+      github,
+      context,
+      issue.number,
+      issue.user.login,
+    );
+    if (participants.length > 0) {
+      const participantLinks = participants.map(createGithubLink).join(", ");
+      line += `; participants: ${participantLinks}`;
+    }
+  }
+
+  if (issue.assignees.length > 0) {
+    const assigneeLinks = issue.assignees
+      .map((assignee) => createGithubLink(assignee.login))
+      .join(", ");
+    line += `; assigned to: ${assigneeLinks}`;
+  }
+
+  return line;
+}
+
+// Helper function to build a message for Slack with grouped and formatted issues
+async function buildSlackMessage(github, context, issueGroups, lookbackDays) {
+  const messageLines = [
+    `*🛠️ Phoenix Customer Issues Opened in the Last ${lookbackDays} Day(s) Pending <https://github.com/Arize-ai/phoenix/issues?q=is%3Aissue+is%3Aopen+label%3Atriage|Triage>*\n`,
+  ];
+
+  for (const [issuesArray, header] of issueGroups) {
+    if (issuesArray.length > 0) {
+      messageLines.push(header); // Add the group header (e.g., "🐛 Bugs")
+      const issueDescriptions = await Promise.all(
+        issuesArray.map((issue, index) =>
+          formatIssueLine(github, context, issue, index),
+        ),
+      );
+      messageLines.push(...issueDescriptions);
+    }
+  }
+
+  return messageLines.join("\n");
+}
+
+// Main function to fetch and format issues, then send the Slack message
+module.exports = async ({ github, context, core }) => {
+  const requiredLabels = ["triage"];
+  const lookbackDays = parseInt(process.env.LOOKBACK_DAYS || "120", 10);
+  const stalenessThreshold = parseInt(
     process.env.STALENESS_THRESHOLD_IN_DAYS || "14",
     10,
   );
 
-  // Calculate the cutoff date
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
+  cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
 
-  // Fetch issues created since DAYS ago
+  // Retrieve issues created within the specified lookback period
   const issues = await github.paginate(github.rest.issues.listForRepo, {
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -22,130 +162,33 @@ module.exports = async ({ github, context, core }) => {
     per_page: 100,
   });
 
-  // Check if issue has any of the required labels
-  function hasRequiredLabel(issueLabels, requiredLabels) {
-    return issueLabels.some((label) => requiredLabels.includes(label.name));
-  }
-
-  // Filter issues
-  const filteredIssues = issues
-    .filter(
-      (issue) =>
-        hasRequiredLabel(issue.labels, requiredLabels) &&
-        new Date(issue.created_at) > cutoffDate &&
-        !issue.pull_request,
-    )
-    .sort((a, b) => b.number - a.number);
-
-  // Function to calculate diff in days
-  function diffInDays(date1, date2) {
-    const diffInMs = Math.abs(date1 - date2);
-    return Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-  }
-
-  // Function to calculate "X days ago" from created_at date for display purposes
-  function timeAgo(createdAt) {
-    const now = new Date();
-    const diff = diffInDays(new Date(createdAt), now);
-    if (diff === 0) {
-      return "Today";
-    } else if (diff === 1) {
-      return "Yesterday";
-    } else {
-      return `${diff} days ago`;
-    }
-  }
-
-  // Function to get unique participants from comments on an issue, excluding the author
-  async function getParticipants(issueNumber, author) {
-    try {
-      const comments = await github.paginate(github.rest.issues.listComments, {
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: issueNumber,
-        per_page: 100,
-      });
-      // Extract unique usernames of commenters, excluding the author
-      return [
-        ...new Set(
-          comments
-            .map((comment) => comment.user.login)
-            .filter((username) => username !== author),
-        ),
-      ].sort();
-    } catch (error) {
-      console.error(
-        `Error fetching comments for issue #${issueNumber}: ${error}`,
-      );
-      return [];
-    }
-  }
-
-  // Format the issues as a Markdown message for Slack
+  // Filter issues by label and date, then categorize by staleness and type
+  const filteredIssues = filterIssues(issues, requiredLabels, cutoffDate);
   if (filteredIssues.length === 0) {
     core.setOutput("has_issues", "false");
-  } else {
-    core.setOutput("has_issues", "true");
-    let message = `*🛠️ Phoenix Customer Issues Opened in the Last ${days} Day(s)`;
-    message += ` Pending <https://github.com/Arize-ai/phoenix/issues?q=is%3Aissue+is%3Aopen+label%3Atriage|Triage>`;
-    message += `*\n\n`;
-    const now = new Date();
-    // Filter issues that are stale
-    const staleIssues = filteredIssues.filter(
-      (issue) => diffInDays(new Date(issue.created_at), now) > staleThreshold,
-    );
-    const freshIssues = filteredIssues.filter(
-      (issue) => !staleIssues.includes(issue),
-    );
-    // Separate fresh issues into two lists: those with the "bug" label and those without
-    const bugIssues = freshIssues.filter((issue) =>
-      issue.labels.some((label) => label.name === "bug"),
-    );
-    const enhancementIssues = freshIssues.filter(
-      (issue) => !bugIssues.includes(issue),
-    );
-    const issueGroups = [
-      [bugIssues, "*🐛 Bugs*"],
-      [enhancementIssues, "*💡 Enhancements or Inquiries*"],
-      [staleIssues, `*🥀 Stale Issues (>${staleThreshold} days)*`],
-    ];
-    // Use `for...of` loop to allow async/await inside the loop
-    for (const [issues, header] of issueGroups) {
-      if (issues.length > 0) {
-        message += `${header}\n`;
-        for (const [i, issue] of issues.entries()) {
-          message += `${i + 1}. *<${issue.html_url}|#${issue.number}>:* ${issue.title}`;
-          message += ` (by <https://github.com/${issue.user.login}|${issue.user.login}>`;
-          message += `; ${timeAgo(issue.created_at)}`;
-          if (issue.comments > 0) {
-            message += `; ${issue.comments} comments`;
-            const participants = await getParticipants(
-              issue.number,
-              issue.user.login,
-            );
-            if (participants.length > 0) {
-              message += `; participants: `;
-              message += participants
-                .map(
-                  (participant) =>
-                    `<https://github.com/${participant}|${participant}>`,
-                )
-                .join(", ");
-            }
-          }
-          if (issue.assignees.length > 0) {
-            message += `; assigned to: `;
-            message += issue.assignees
-              .map(
-                (assignee) =>
-                  `<https://github.com/${assignee.login}|${assignee.login}>`,
-              )
-              .join(", ");
-          }
-          message += `)\n`;
-        }
-      }
-    }
-    core.setOutput("slack_message", message);
+    return;
   }
+
+  core.setOutput("has_issues", "true");
+
+  const { staleIssues, freshIssues } = splitIssuesByStaleness(
+    filteredIssues,
+    stalenessThreshold,
+  );
+  const { bugIssues, enhancementIssues } = categorizeIssues(freshIssues);
+
+  const issueGroups = [
+    [bugIssues, "*🐛 Bugs*"],
+    [enhancementIssues, "*💡 Enhancements or Inquiries*"],
+    [staleIssues, `*🥀 Stale Issues (>${stalenessThreshold} days)*`],
+  ];
+
+  // Build the Slack message and set as output
+  const message = await buildSlackMessage(
+    github,
+    context,
+    issueGroups,
+    lookbackDays,
+  );
+  core.setOutput("slack_message", message);
 };
