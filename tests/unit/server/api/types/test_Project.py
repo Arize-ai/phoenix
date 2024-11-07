@@ -1252,7 +1252,9 @@ class TestProject:
         }.items():
             for after, expected in values:
                 field = (
-                    "sessions(sort:{col:tokenCountTotal,dir:"
+                    "sessions(sort:{col:"
+                    + column
+                    + ",dir:"
                     + direction
                     + '},first:1,after:"'
                     + base64.b64encode(after).decode()

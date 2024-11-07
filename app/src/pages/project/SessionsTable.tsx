@@ -105,7 +105,7 @@ export function SessionsTable(props: SessionsTableProps) {
       ...session,
       tokenCountTotal: session.tokenUsage.total,
     }));
-  }, [data]);
+  }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
     {
