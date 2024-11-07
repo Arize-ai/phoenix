@@ -37,18 +37,18 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
     ChatCompletionSubscriptionPayload,
-    ChatCompletionSubscriptionSpan,
+    ChatCompletionSubscriptionResult,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
+from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.attributes import get_attribute_value
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
@@ -131,11 +131,11 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            db_span = span.to_db_span(playground_project_id)
+            db_span = span.db_span(playground_project_id)
             session.add(db_span)
             await session.flush()
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
-        yield ChatCompletionSubscriptionSpan(span=to_gql_span(db_span))
+        yield ChatCompletionSubscriptionResult(span=to_gql_span(db_span))
 
     @strawberry.subscription
     async def chat_completion_over_dataset(
@@ -341,28 +341,14 @@ async def _chat_completion_payloads(
             chunk.dataset_example_id = example_id
             yield chunk
         span.set_attributes(llm_client.attributes)
-    db_span = span.to_db_span(project_id)
     await results_queue.put(
         (
             example_id,
-            db_span,
-            models.ExperimentRun(
+            span.db_span(project_id),
+            span.db_run(
+                project_id=project_id,
                 experiment_id=experiment_id,
-                dataset_example_id=from_global_id_with_expected_type(
-                    example_id, DatasetExample.__name__
-                ),
-                trace_id=db_span.trace.trace_id,
-                output=models.ExperimentRunOutput(
-                    task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
-                ),
-                repetition_number=1,
-                start_time=db_span.start_time,
-                end_time=db_span.end_time,
-                error=error_message if (error_message := span.error_message) is not None else None,
-                prompt_token_count=get_attribute_value(db_span.attributes, LLM_TOKEN_COUNT_PROMPT),
-                completion_token_count=get_attribute_value(
-                    db_span.attributes, LLM_TOKEN_COUNT_COMPLETION
-                ),
+                example_id=revision.dataset_example_id,
             ),
         )
     )
@@ -376,15 +362,16 @@ async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
     results: Iterable[tuple[DatasetExampleID, models.Span, models.ExperimentRun]],
-) -> AsyncIterator[ChatCompletionSubscriptionSpan]:
+) -> AsyncIterator[ChatCompletionSubscriptionResult]:
     async with db() as session:
         for _, span, run in results:
             session.add(span)
             session.add(run)
         await session.flush()
     for example_id, span, _ in results:
-        yield ChatCompletionSubscriptionSpan(
+        yield ChatCompletionSubscriptionResult(
             span=to_gql_span(span),
+            experiment_run=to_gql_experiment_run(run),
             dataset_example_id=example_id,
         )
 

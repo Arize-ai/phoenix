@@ -40,7 +40,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import (
     SpanEvent,
     SpanException,
@@ -88,7 +88,8 @@ class streaming_llm_span:
         self._trace_id = _generate_trace_id()
         self._span_id = _generate_span_id()
         self._db_span: Optional[models.Span] = None
-        self._db_trace: models.Trace
+        self._db_trace: Optional[models.Trace] = None
+        self._db_run: Optional[models.ExperimentRun] = None
 
     async def __aenter__(self) -> Self:
         self._start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
@@ -134,7 +135,17 @@ class streaming_llm_span:
         else:
             assert_never(chunk)
 
-    def to_db_span(
+    def db_trace(self, project_id: int) -> models.Trace:
+        if self._db_trace is None:
+            self._db_trace = models.Trace(
+                project_rowid=project_id,
+                trace_id=self._trace_id,
+                start_time=self._start_time,
+                end_time=self._end_time,
+            )
+        return self._db_trace
+
+    def db_span(
         self,
         project_id: int,
     ) -> models.Span:
@@ -142,14 +153,9 @@ class streaming_llm_span:
             return self._db_span
         prompt_tokens = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
         completion_tokens = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
-        self._db_trace = models.Trace(
-            project_rowid=project_id,
-            trace_id=self._trace_id,
-            start_time=self._start_time,
-            end_time=self._end_time,
-        )
+        trace = self.db_trace(project_id=project_id)
         self._db_span = models.Span(
-            trace_rowid=self._db_trace.id,
+            trace_rowid=trace.id,
             span_id=self._span_id,
             parent_id=None,
             name="ChatCompletion",
@@ -165,9 +171,33 @@ class streaming_llm_span:
             cumulative_llm_token_count_completion=completion_tokens,
             llm_token_count_prompt=prompt_tokens,
             llm_token_count_completion=completion_tokens,
-            trace=self._db_trace,
+            trace=trace,
         )
         return self._db_span
+
+    def db_run(
+        self, *, project_id: int, experiment_id: int, example_id: int
+    ) -> models.ExperimentRun:
+        if self._db_run is not None:
+            return self._db_run
+        span = self.db_span(project_id=project_id)
+        trace = self.db_trace(project_id=project_id)
+        self._db_run = models.ExperimentRun(
+            experiment_id=experiment_id,
+            dataset_example_id=example_id,
+            trace_id=trace.trace_id,
+            output=models.ExperimentRunOutput(
+                task_output=get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES),
+            ),
+            repetition_number=1,
+            start_time=span.start_time,
+            end_time=span.end_time,
+            error=span.status_message or None,
+            prompt_token_count=get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
+            completion_token_count=get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION),
+            trace=trace,
+        )
+        return self._db_run
 
     @property
     def error_message(self) -> Optional[str]:
