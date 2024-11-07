@@ -845,12 +845,19 @@ export const getChatCompletionVariables = ({
     targetProvider: instance.model.provider,
   });
   if (instance.tools.length > 0) {
-    invocationParameters = invocationParameters.map((param) =>
-      param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
-        ? { ...param, valueJson: convertedToolChoice }
-        : param
+    // ensure a single tool choice is added to the invocation parameters
+    invocationParameters = invocationParameters.filter(
+      (param) =>
+        param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
+        param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
     );
+    invocationParameters.push({
+      canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+      valueJson: convertedToolChoice,
+    });
   } else {
+    // remove tool choice if there are no tools
     invocationParameters = invocationParameters.filter(
       (param) =>
         param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
