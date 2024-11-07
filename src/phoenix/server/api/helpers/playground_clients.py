@@ -710,7 +710,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             **invocation_parameters,
         }
         throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
-        async with throttled_stream(**anthropic_params) as stream:
+        async with await throttled_stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
                     self._attributes.update(
