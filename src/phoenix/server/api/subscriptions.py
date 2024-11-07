@@ -27,7 +27,12 @@ from phoenix.server.api.helpers.playground_clients import (
 from phoenix.server.api.helpers.playground_registry import (
     PLAYGROUND_CLIENT_REGISTRY,
 )
-from phoenix.server.api.helpers.playground_spans import streaming_llm_span
+from phoenix.server.api.helpers.playground_spans import (
+    get_db_experiment_run,
+    get_db_span,
+    get_db_trace,
+    streaming_llm_span,
+)
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -115,8 +120,8 @@ class Subscription:
                 span.add_response_chunk(chunk)
                 yield chunk
             span.set_attributes(llm_client.attributes)
-        if span.error_message is not None:
-            yield ChatCompletionSubscriptionError(message=span.error_message)
+        if span.status_message is not None:
+            yield ChatCompletionSubscriptionError(message=span.status_message)
         async with info.context.db() as session:
             if (
                 playground_project_id := await session.scalar(
@@ -131,7 +136,8 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            db_span = span.db_span(playground_project_id)
+            db_trace = get_db_trace(span, playground_project_id)
+            db_span = get_db_span(span, db_trace)
             session.add(db_span)
             await session.flush()
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
@@ -341,20 +347,15 @@ async def _chat_completion_payloads(
             chunk.dataset_example_id = example_id
             yield chunk
         span.set_attributes(llm_client.attributes)
-    await results_queue.put(
-        (
-            example_id,
-            span.db_span(project_id),
-            span.db_run(
-                project_id=project_id,
-                experiment_id=experiment_id,
-                example_id=revision.dataset_example_id,
-            ),
-        )
+    db_trace = get_db_trace(span, project_id)
+    db_span = get_db_span(span, db_trace)
+    db_run = get_db_experiment_run(
+        db_span, db_trace, experiment_id=experiment_id, example_id=revision.dataset_example_id
     )
-    if span.error_message is not None:
+    await results_queue.put((example_id, db_span, db_run))
+    if span.status_message is not None:
         yield ChatCompletionSubscriptionError(
-            message=span.error_message, dataset_example_id=example_id
+            message=span.status_message, dataset_example_id=example_id
         )
 
 
