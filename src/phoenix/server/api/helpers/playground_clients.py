@@ -714,7 +714,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                         {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
                     )
                 elif (
-                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                    isinstance(event, anthropic_types.RawContentBlockStartEvent)
                     and event.content_block.type == "tool_use"
                 ):
                     tool_call_chunk = ToolCallChunk(
