@@ -10,7 +10,7 @@ jobs:
     name: Pending Triage
     runs-on: ubuntu-latest
     env:
-      DAYS: 90
+      DAYS: 120
     steps:
       - name: Retrieve and format issues
         id: retrieve-issues
