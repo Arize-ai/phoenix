@@ -1242,26 +1242,23 @@ class TestProject:
         field = "sessions(sort:{col:tokenCountTotal,dir:desc},first:1){edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[:1]
-        after = base64.b64encode(b"4:INT:2").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:desc},first:1,after:"'
-            + after
+            + base64.b64encode(b"4:INT:2").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[1:2]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:desc},first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[2:3]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:desc},first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
@@ -1270,26 +1267,23 @@ class TestProject:
         field = "sessions(sort:{col:tokenCountTotal,dir:asc},first:1){edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][:1]
-        after = base64.b64encode(b"1:INT:0").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:asc},first:1,after:"'
-            + after
+            + base64.b64encode(b"1:INT:0").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][1:2]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:asc},first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][2:3]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:asc},first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
@@ -1315,18 +1309,16 @@ class TestProject:
         field = 'sessions(sort:{col:tokenCountTotal,dir:desc},filterIoSubstring:"\\"\'f",first:1){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[:1]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:desc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[1:2]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:desc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
@@ -1335,18 +1327,16 @@ class TestProject:
         field = 'sessions(sort:{col:tokenCountTotal,dir:asc},filterIoSubstring:"\\"\'f",first:1){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][:1]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:asc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][1:2]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:tokenCountTotal,dir:asc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
@@ -1374,21 +1364,24 @@ class TestProject:
         field = "sessions(sort:{col:numTraces,dir:desc},first:1){edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[:1]
-        after = base64.b64encode(b"4:INT:2").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"'
+            + base64.b64encode(b"4:INT:2").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[1:2]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"'
+            + base64.b64encode(b"3:INT:1").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[2:3]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:desc},first:1,after:"'
+            + base64.b64encode(b"2:INT:1").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[3:4]
@@ -1396,21 +1389,24 @@ class TestProject:
         field = "sessions(sort:{col:numTraces,dir:asc},first:1){edges{node{id}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][:1]
-        after = base64.b64encode(b"1:INT:1").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"'
+            + base64.b64encode(b"1:INT:1").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][1:2]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"'
+            + base64.b64encode(b"2:INT:1").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][2:3]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
-            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"' + after + '"){edges{node{id}}}'
+            'sessions(sort:{col:numTraces,dir:asc},first:1,after:"'
+            + base64.b64encode(b"3:INT:1").decode()
+            + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][3:4]
@@ -1437,18 +1433,16 @@ class TestProject:
         field = 'sessions(sort:{col:numTraces,dir:desc},filterIoSubstring:"\\"\'f",first:1){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[:1]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:numTraces,dir:desc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[1:2]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:numTraces,dir:desc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
@@ -1457,18 +1451,16 @@ class TestProject:
         field = 'sessions(sort:{col:numTraces,dir:asc},filterIoSubstring:"\\"\'f",first:1){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][:1]
-        after = base64.b64encode(b"2:INT:1").decode()
         field = (
             'sessions(sort:{col:numTraces,dir:asc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"2:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == expected[::-1][1:2]
-        after = base64.b64encode(b"3:INT:1").decode()
         field = (
             'sessions(sort:{col:numTraces,dir:asc},filterIoSubstring:"\\"\'f",first:1,after:"'
-            + after
+            + base64.b64encode(b"3:INT:1").decode()
             + '"){edges{node{id}}}'
         )
         res = await self._node(field, project, httpx_client)
