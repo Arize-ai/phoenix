@@ -1,4 +1,5 @@
 asyncpg
 openai
+anthropic
 psycopg[binary,pool]
 uvloop; platform_system != 'Windows'
