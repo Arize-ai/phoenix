@@ -1,0 +1,532 @@
+interactions:
+- request:
+    body: '{"messages": [{"content": "What country is Delhi in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6i5l8l2iGU2Creu1qn34gQwsd","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6i5l8l2iGU2Creu1qn34gQwsd","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"India"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6i5l8l2iGU2Creu1qn34gQwsd","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6i5l8l2iGU2Creu1qn34gQwsd","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Sydney in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6lLG7AX79x47CM73RKOUQNRmx","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6lLG7AX79x47CM73RKOUQNRmx","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Australia"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6lLG7AX79x47CM73RKOUQNRmx","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6lLG7AX79x47CM73RKOUQNRmx","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Paris in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6y4tECf7jXsoFH2WHcrRmlAew","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6y4tECf7jXsoFH2WHcrRmlAew","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"France"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6y4tECf7jXsoFH2WHcrRmlAew","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6y4tECf7jXsoFH2WHcrRmlAew","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Vancouver in? Answer with the
+      country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO64m1Wcl09EYAs0qstNpEFL9SE","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO64m1Wcl09EYAs0qstNpEFL9SE","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Canada"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO64m1Wcl09EYAs0qstNpEFL9SE","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO64m1Wcl09EYAs0qstNpEFL9SE","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Moscow in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6hv0PrGIrGO5Z0MWp0Ge3E7EJ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6hv0PrGIrGO5Z0MWp0Ge3E7EJ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Russia"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6hv0PrGIrGO5Z0MWp0Ge3E7EJ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6hv0PrGIrGO5Z0MWp0Ge3E7EJ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Lyon in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6RJ5b15g3TZb4Kbn1Kas495Vj","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6RJ5b15g3TZb4Kbn1Kas495Vj","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"France"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6RJ5b15g3TZb4Kbn1Kas495Vj","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6RJ5b15g3TZb4Kbn1Kas495Vj","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Osaka in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6jtnsr2IIBaRT8CUI4LRWpCq1","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6jtnsr2IIBaRT8CUI4LRWpCq1","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Japan"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6jtnsr2IIBaRT8CUI4LRWpCq1","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6jtnsr2IIBaRT8CUI4LRWpCq1","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Shanghai in? Answer with the
+      country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6Gs9Zpu5BLvwvtamendBOKILS","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6Gs9Zpu5BLvwvtamendBOKILS","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"China"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6Gs9Zpu5BLvwvtamendBOKILS","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6Gs9Zpu5BLvwvtamendBOKILS","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Beijing in? Answer with the
+      country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6XJSaNqlP4XBNWXcHd2v8yZQZ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6XJSaNqlP4XBNWXcHd2v8yZQZ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"China"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6XJSaNqlP4XBNWXcHd2v8yZQZ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6XJSaNqlP4XBNWXcHd2v8yZQZ","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Berlin in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6AWXcDBsoxIRutVLUMgP1qmdl","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6AWXcDBsoxIRutVLUMgP1qmdl","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Germany"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6AWXcDBsoxIRutVLUMgP1qmdl","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6AWXcDBsoxIRutVLUMgP1qmdl","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Guadalajara in? Answer with
+      the country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6IqP7W0CEUIlpkN3ifIQzTim8","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IqP7W0CEUIlpkN3ifIQzTim8","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Mexico"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IqP7W0CEUIlpkN3ifIQzTim8","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IqP7W0CEUIlpkN3ifIQzTim8","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":25,"completion_tokens":1,"total_tokens":26,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Seoul in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6EYdA8zeHioMlH1tkVfK3VHQV","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6EYdA8zeHioMlH1tkVfK3VHQV","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"South"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6EYdA8zeHioMlH1tkVfK3VHQV","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"
+        Korea"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6EYdA8zeHioMlH1tkVfK3VHQV","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6EYdA8zeHioMlH1tkVfK3VHQV","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":2,"total_tokens":24,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Mumbai in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6IxqxBrC9sfweL7IjugbtVQTm","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IxqxBrC9sfweL7IjugbtVQTm","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"India"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IxqxBrC9sfweL7IjugbtVQTm","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6IxqxBrC9sfweL7IjugbtVQTm","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Tokyo in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6VTdV79GSiB8izoNTNRJK0M5W","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6VTdV79GSiB8izoNTNRJK0M5W","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Japan"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6VTdV79GSiB8izoNTNRJK0M5W","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6VTdV79GSiB8izoNTNRJK0M5W","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Munich in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6un7weMc6Z4MHzheyafQ72PGk","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6un7weMc6Z4MHzheyafQ72PGk","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Germany"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6un7weMc6Z4MHzheyafQ72PGk","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6un7weMc6Z4MHzheyafQ72PGk","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Toronto in? Answer with the
+      country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6kOMr91Bww47bdA39X4TMCV8u","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6kOMr91Bww47bdA39X4TMCV8u","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Canada"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6kOMr91Bww47bdA39X4TMCV8u","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6kOMr91Bww47bdA39X4TMCV8u","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Busan in? Answer with the country
+      name only without punctuation.", "role": "user"}], "model": "gpt-4", "stream":
+      true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO6HgimbymNay03ZXA7IY4Ib5mM","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6HgimbymNay03ZXA7IY4Ib5mM","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"South"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6HgimbymNay03ZXA7IY4Ib5mM","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"
+        Korea"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6HgimbymNay03ZXA7IY4Ib5mM","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO6HgimbymNay03ZXA7IY4Ib5mM","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":23,"completion_tokens":2,"total_tokens":25,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages": [{"content": "What country is Melbourne in? Answer with the
+      country name only without punctuation.", "role": "user"}], "model": "gpt-4",
+      "stream": true, "stream_options": {"include_usage": true}}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: 'data: {"id":"chatcmpl-AQnO68qqH0iz76EtjpoTENEz7NHcr","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO68qqH0iz76EtjpoTENEz7NHcr","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"Australia"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO68qqH0iz76EtjpoTENEz7NHcr","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+
+        data: {"id":"chatcmpl-AQnO68qqH0iz76EtjpoTENEz7NHcr","object":"chat.completion.chunk","created":1730949738,"model":"gpt-4-0613","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":22,"completion_tokens":1,"total_tokens":23,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}}}
+
+
+        data: [DONE]
+
+
+        '
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

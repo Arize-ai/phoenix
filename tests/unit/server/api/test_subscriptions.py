@@ -28,7 +28,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.attributes import flatten
+from phoenix.trace.attributes import flatten, get_attribute_value
 
 
 def remove_all_vcr_request_headers(request: Any) -> Any:
@@ -1284,6 +1284,106 @@ class TestChatCompletionOverDatasetSubscription:
             "Japan",
         }
 
+    async def test_all_spans_yielded_when_number_of_examples_exceeds_batch_size(
+        self,
+        gql_client: Any,
+        openai_api_key: str,
+        cities_and_countries: list[tuple[str, str]],
+        playground_city_and_country_dataset: None,
+    ) -> None:
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        variables = {
+            "input": {
+                "model": {"providerKey": "OPENAI", "name": "gpt-4"},
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
+                "messages": [
+                    {
+                        "role": "USER",
+                        "content": (
+                            "What country is {city} in? "
+                            "Answer with the country name only without punctuation."
+                        ),
+                    }
+                ],
+                "templateLanguage": "F_STRING",
+            }
+        }
+        payloads: dict[Optional[str], list[Any]] = {}
+        async with gql_client.subscription(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="ChatCompletionOverDatasetSubscription",
+        ) as subscription:
+            custom_vcr = vcr.VCR()
+            custom_vcr.register_matcher(
+                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+            )  # a custom request matcher is needed since the requests are concurrent
+            with custom_vcr.use_cassette(
+                Path(__file__).parent / "cassettes/test_subscriptions/"
+                "TestChatCompletionOverDatasetSubscription.test_all_spans_yielded_when_number_of_examples_exceeds_batch_size[sqlite].yaml",
+                decode_compressed_response=True,
+                before_record_request=remove_all_vcr_request_headers,
+                before_record_response=remove_all_vcr_response_headers,
+                match_on=[_request_bodies_contain_same_city.__name__],
+            ):
+                async for payload in subscription.stream():
+                    if (
+                        dataset_example_id := payload["chatCompletionOverDataset"][
+                            "datasetExampleId"
+                        ]
+                    ) not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
+
+        # check subscription payloads
+        cities_to_countries = dict(cities_and_countries)
+        num_examples = len(cities_to_countries)
+        example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(index)))
+            for index in range(1, num_examples + 1)
+        ]
+        assert set(payloads.keys()) == set(example_ids) | {None}
+
+        # check span payloads
+        for example_id in example_ids:
+            assert (span_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
+                "__typename"
+            ] == ChatCompletionSubscriptionSpan.__name__
+            assert all(
+                payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+                for payload in payloads[example_id]
+            )
+            assert (span := span_payload["span"])
+            assert isinstance(span["attributes"], str)
+            attributes = json.loads(span["attributes"])
+            assert isinstance(
+                input_messages := get_attribute_value(attributes, LLM_INPUT_MESSAGES),
+                list,
+            )
+            assert len(input_messages) == 1
+            assert isinstance(input_message_content := input_messages[0]["message"]["content"], str)
+            assert (city := _extract_city(input_message_content)) in cities_to_countries
+            assert isinstance(
+                output_messages := get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
+                list,
+            )
+            assert len(output_messages) == 1
+            assert isinstance(
+                output_message_content := output_messages[0]["message"]["content"], str
+            )
+            assert output_message_content == cities_to_countries[city]
+            response_text = "".join(
+                payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+            )
+            assert response_text == output_message_content
+
+        # check experiment payload
+        assert len(payloads[None]) == 1
+        assert (experiment := payloads[None].pop()["chatCompletionOverDataset"]["experiment"])
+        assert isinstance(experiment["id"], str)
+
 
 def _request_bodies_contain_same_city(
     request1: vcr.request.Request, request2: vcr.request.Request
@@ -1376,6 +1476,77 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
         session.add(dataset)
         await session.flush()
         session.add_all(versions)
+        await session.flush()
+        session.add_all(examples)
+        await session.flush()
+        session.add_all(revisions)
+        await session.flush()
+
+
+@pytest.fixture
+def cities_and_countries() -> list[tuple[str, str]]:
+    return [
+        ("Toronto", "Canada"),
+        ("Vancouver", "Canada"),
+        ("Paris", "France"),
+        ("Lyon", "France"),
+        ("Berlin", "Germany"),
+        ("Munich", "Germany"),
+        ("Tokyo", "Japan"),
+        ("Osaka", "Japan"),
+        ("Sydney", "Australia"),
+        ("Melbourne", "Australia"),
+        ("Guadalajara", "Mexico"),
+        ("Moscow", "Russia"),
+        ("Beijing", "China"),
+        ("Shanghai", "China"),
+        ("Mumbai", "India"),
+        ("Delhi", "India"),
+        ("Seoul", "South Korea"),
+        ("Busan", "South Korea"),
+    ]
+
+
+@pytest.fixture
+async def playground_city_and_country_dataset(
+    cities_and_countries: list[tuple[str, str]], db: DbSessionFactory
+) -> None:
+    """
+    A dataset with many example.
+    """
+    dataset = models.Dataset(
+        id=1,
+        name="dataset-name",
+        metadata_={},
+    )
+    version = models.DatasetVersion(
+        id=1,
+        dataset_id=dataset.id,
+        metadata_={},
+    )
+    examples = [
+        models.DatasetExample(
+            id=example_id,
+            dataset_id=dataset.id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+        for example_id in range(1, len(cities_and_countries) + 1)
+    ]
+    revisions = [
+        models.DatasetExampleRevision(
+            dataset_example_id=example.id,
+            dataset_version_id=version.id,
+            input={"city": city},
+            output={"country": country},
+            metadata_={},
+            revision_kind="CREATE",
+        )
+        for example, (city, country) in zip(examples, cities_and_countries)
+    ]
+    async with db() as session:
+        session.add(dataset)
+        await session.flush()
+        session.add(version)
         await session.flush()
         session.add_all(examples)
         await session.flush()
