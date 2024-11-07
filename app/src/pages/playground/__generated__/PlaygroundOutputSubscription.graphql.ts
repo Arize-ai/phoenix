@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f7c82cbb555fb710843e3fb6d396e9f>>
+ * @generated SignedSource<<e36df6c61f56e3301d9185436885ed6f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,7 +56,7 @@ export type PlaygroundOutputSubscription$data = {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly message: string;
   } | {
-    readonly __typename: "FinishedChatCompletion";
+    readonly __typename: "ChatCompletionSubscriptionSpan";
     readonly span: {
       readonly id: string;
     };
@@ -181,7 +181,7 @@ v2 = [
             "storageKey": null
           }
         ],
-        "type": "FinishedChatCompletion",
+        "type": "ChatCompletionSubscriptionSpan",
         "abstractKey": null
       },
       {
@@ -220,16 +220,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "74f9e043219138270050265796ba4d74",
+    "cacheID": "df33e140e8107aa8be20e43d2b8e3810",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionSpan {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1aebc9c1efdbd7ed6a65c0fa36fa040c";
+(node as any).hash = "78c7281524284ac63799cb6d59b9f7c8";
 
 export default node;

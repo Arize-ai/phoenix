@@ -1,5 +1,5 @@
 import logging
-from asyncio import FIRST_COMPLETED, Task, create_task, wait
+from asyncio import FIRST_COMPLETED, Queue, Task, create_task, wait
 from collections.abc import Iterator
 from typing import (
     Any,
@@ -36,10 +36,10 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    ChatCompletionOverDatasetSubscriptionExperiment,
     ChatCompletionSubscriptionError,
+    ChatCompletionSubscriptionExperiment,
     ChatCompletionSubscriptionPayload,
-    FinishedChatCompletion,
+    ChatCompletionSubscriptionSpan,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -132,10 +132,11 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            db_span = span.add_to_session(session, playground_project_id)
+            db_span = span.to_db_span(playground_project_id)
+            session.add(db_span)
             await session.flush()
-            yield FinishedChatCompletion(span=to_gql_span(db_span))
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
+        yield ChatCompletionSubscriptionSpan(span=to_gql_span(db_span))
 
     @strawberry.subscription
     async def chat_completion_over_dataset(
@@ -246,11 +247,10 @@ class Subscription:
             )
             session.add(experiment)
             await session.flush()
-        yield ChatCompletionOverDatasetSubscriptionExperiment(
-            experiment=to_gql_experiment(experiment)
-        )
+        yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
 
-        spans: dict[DatasetExampleID, streaming_llm_span] = {}
+        spans: Queue[tuple[DatasetExampleID, models.Span]] = Queue()
+        runs: Queue[tuple[DatasetExampleID, models.ExperimentRun]] = Queue()
         async for payload in _merge_iterators(
             [
                 _stream_chat_completion_over_dataset_example(
@@ -258,6 +258,9 @@ class Subscription:
                     llm_client_class=llm_client_class,
                     revision=revision,
                     spans=spans,
+                    runs=runs,
+                    experiment_id=experiment.id,
+                    project_id=playground_project_id,
                 )
                 for revision in revisions
             ]
@@ -265,40 +268,18 @@ class Subscription:
             yield payload
 
         async with info.context.db() as session:
-            db_spans = {
-                example_id: span.add_to_session(session, playground_project_id)
-                for example_id, span in spans.items()
-            }
-            runs = [
-                models.ExperimentRun(
-                    experiment_id=experiment.id,
-                    dataset_example_id=from_global_id_with_expected_type(
-                        example_id, DatasetExample.__name__
-                    ),
-                    trace_id=span.trace_id,
-                    output=models.ExperimentRunOutput(
-                        task_output=_get_playground_experiment_task_output(span)
-                    ),
-                    repetition_number=1,
-                    start_time=span.start_time,
-                    end_time=span.end_time,
-                    error=error_message
-                    if (error_message := span.error_message) is not None
-                    else None,
-                    prompt_token_count=get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
-                    completion_token_count=get_attribute_value(
-                        span.attributes, LLM_TOKEN_COUNT_COMPLETION
-                    ),
+            while not spans.empty():
+                example_id, span = await spans.get()
+                session.add(span)
+                await session.flush()
+                yield ChatCompletionSubscriptionSpan(
+                    span=to_gql_span(span),
+                    dataset_example_id=example_id,
                 )
-                for example_id, span in spans.items()
-            ]
-            session.add_all(runs)
+            while not runs.empty():
+                _, run = await runs.get()
+                session.add(run)
             await session.flush()
-        for example_id in spans:
-            yield FinishedChatCompletion(
-                span=to_gql_span(db_spans[example_id]),
-                dataset_example_id=example_id,
-            )
 
 
 async def _stream_chat_completion_over_dataset_example(
@@ -306,7 +287,10 @@ async def _stream_chat_completion_over_dataset_example(
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],
     revision: models.DatasetExampleRevision,
-    spans: dict[DatasetExampleID, streaming_llm_span],
+    spans: Queue[tuple[DatasetExampleID, models.Span]],
+    runs: Queue[tuple[DatasetExampleID, models.ExperimentRun]],
+    experiment_id: int,
+    project_id: int,
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     llm_client = llm_client_class(
@@ -334,13 +318,11 @@ async def _stream_chat_completion_over_dataset_example(
     except TemplateFormatterError as error:
         yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
         return
-    span = streaming_llm_span(
+    async with streaming_llm_span(
         input=input,
         messages=messages,
         invocation_parameters=invocation_parameters,
-    )
-    spans[example_id] = span
-    async with span:
+    ) as span:
         async for chunk in llm_client.chat_completion_create(
             messages=messages, tools=input.tools or [], **invocation_parameters
         ):
@@ -348,6 +330,31 @@ async def _stream_chat_completion_over_dataset_example(
             chunk.dataset_example_id = example_id
             yield chunk
         span.set_attributes(llm_client.attributes)
+    db_span = span.to_db_span(project_id)
+    await spans.put((example_id, db_span))
+    await runs.put(
+        (
+            example_id,
+            models.ExperimentRun(
+                experiment_id=experiment_id,
+                dataset_example_id=from_global_id_with_expected_type(
+                    example_id, DatasetExample.__name__
+                ),
+                trace_id=span.trace_id,
+                output=models.ExperimentRunOutput(
+                    task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                ),
+                repetition_number=1,
+                start_time=span.start_time,
+                end_time=span.end_time,
+                error=error_message if (error_message := span.error_message) is not None else None,
+                prompt_token_count=get_attribute_value(db_span.attributes, LLM_TOKEN_COUNT_PROMPT),
+                completion_token_count=get_attribute_value(
+                    db_span.attributes, LLM_TOKEN_COUNT_COMPLETION
+                ),
+            ),
+        )
+    )
     if span.error_message is not None:
         yield ChatCompletionSubscriptionError(
             message=span.error_message, dataset_example_id=example_id
@@ -416,12 +423,6 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
     assert_never(template_language)
-
-
-def _get_playground_experiment_task_output(
-    span: streaming_llm_span,
-) -> Any:
-    return get_attribute_value(span.attributes, LLM_OUTPUT_MESSAGES)
 
 
 _DEFAULT_PLAYGROUND_EXPERIMENT_NAME = "playground-experiment"

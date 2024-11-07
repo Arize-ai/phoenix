@@ -16,9 +16,9 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    ChatCompletionOverDatasetSubscriptionExperiment,
     ChatCompletionSubscriptionError,
-    FinishedChatCompletion,
+    ChatCompletionSubscriptionExperiment,
+    ChatCompletionSubscriptionSpan,
     TextChunk,
     ToolCallChunk,
 )
@@ -78,7 +78,7 @@ class TestChatCompletionSubscription:
               arguments
             }
           }
-          ... on FinishedChatCompletion {
+          ... on ChatCompletionSubscriptionSpan {
             span {
               ...SpanFragment
             }
@@ -174,7 +174,7 @@ class TestChatCompletionSubscription:
         assert payloads
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
-        ] == FinishedChatCompletion.__name__
+        ] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletion"]["__typename"] == TextChunk.__name__ for payload in payloads
         )
@@ -311,7 +311,7 @@ class TestChatCompletionSubscription:
         assert "api key" in status_message.lower()
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
-        ] == FinishedChatCompletion.__name__
+        ] == ChatCompletionSubscriptionSpan.__name__
         subscription_span = last_payload["chatCompletion"]["span"]
         span_id = subscription_span["id"]
 
@@ -447,7 +447,7 @@ class TestChatCompletionSubscription:
         assert payloads
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
-        ] == FinishedChatCompletion.__name__
+        ] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletion"]["__typename"] == ToolCallChunk.__name__
             for payload in payloads
@@ -602,7 +602,7 @@ class TestChatCompletionSubscription:
         assert payloads
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
-        ] == FinishedChatCompletion.__name__
+        ] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletion"]["__typename"] == TextChunk.__name__ for payload in payloads
         )
@@ -748,7 +748,7 @@ class TestChatCompletionSubscription:
         assert payloads
         assert (last_payload := payloads.pop())["chatCompletion"][
             "__typename"
-        ] == FinishedChatCompletion.__name__
+        ] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletion"]["__typename"] == TextChunk.__name__ for payload in payloads
         )
@@ -854,7 +854,7 @@ class TestChatCompletionOverDatasetSubscription:
           ... on TextChunk {
             content
           }
-          ... on FinishedChatCompletion {
+          ... on ChatCompletionSubscriptionSpan {
             span {
               ...SpanFragment
             }
@@ -862,7 +862,7 @@ class TestChatCompletionOverDatasetSubscription:
           ... on ChatCompletionSubscriptionError {
             message
           }
-          ... on ChatCompletionOverDatasetSubscriptionExperiment {
+          ... on ChatCompletionSubscriptionExperiment {
             experiment {
               id
             }
@@ -1009,7 +1009,7 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 1 payloads
         assert (last_example_1_payload := payloads[example_id_1].pop())[
             "chatCompletionOverDataset"
-        ]["__typename"] == FinishedChatCompletion.__name__
+        ]["__typename"] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id_1]
@@ -1024,7 +1024,7 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 2 payloads
         assert (last_example_2_payload := payloads[example_id_2].pop())[
             "chatCompletionOverDataset"
-        ]["__typename"] == FinishedChatCompletion.__name__
+        ]["__typename"] == ChatCompletionSubscriptionSpan.__name__
         assert all(
             payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id_2]
@@ -1047,7 +1047,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert len(payloads[None]) == 1
         assert (result_payload := payloads[None].pop()["chatCompletionOverDataset"])[
             "__typename"
-        ] == ChatCompletionOverDatasetSubscriptionExperiment.__name__
+        ] == ChatCompletionSubscriptionExperiment.__name__
         experiment = result_payload["experiment"]
         assert (experiment_id := experiment.pop("id"))
 

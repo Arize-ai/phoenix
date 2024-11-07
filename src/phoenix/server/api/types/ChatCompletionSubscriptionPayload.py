@@ -30,7 +30,7 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class FinishedChatCompletion(ChatCompletionSubscriptionPayload):
+class ChatCompletionSubscriptionSpan(ChatCompletionSubscriptionPayload):
     span: Span
 
 
@@ -40,5 +40,5 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class ChatCompletionOverDatasetSubscriptionExperiment(ChatCompletionSubscriptionPayload):
+class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     experiment: Experiment

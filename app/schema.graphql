@@ -152,18 +152,23 @@ input ChatCompletionOverDatasetInput {
   experimentMetadata: JSON = {}
 }
 
-type ChatCompletionOverDatasetSubscriptionResult implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
-  experiment: Experiment!
-}
-
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   message: String!
 }
 
+type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  experiment: Experiment!
+}
+
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
+}
+
+type ChatCompletionSubscriptionSpan implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  span: Span!
 }
 
 type ChatCompletionToolCall {
@@ -900,11 +905,6 @@ type ExperimentRunEdge {
 type ExportedFile {
   """File name without the file extension."""
   fileName: String!
-}
-
-type FinishedChatCompletion implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
-  span: Span!
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
