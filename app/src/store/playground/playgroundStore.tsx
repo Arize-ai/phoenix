@@ -390,6 +390,88 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
+    upsertInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInput,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      const currentInvocationParameterInput =
+        instance.model.invocationParameters.find(
+          (p) => p.invocationName === invocationParameterInput.invocationName
+        );
+
+      if (currentInvocationParameterInput) {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: instance.model.invocationParameters.map(
+                    (p) =>
+                      p.invocationName ===
+                      invocationParameterInput.invocationName
+                        ? invocationParameterInput
+                        : p
+                  ),
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      } else {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: [
+                    ...instance.model.invocationParameters,
+                    invocationParameterInput,
+                  ],
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      }
+    },
+    deleteInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInputInvocationName,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters:
+                  instance.model.invocationParameters.filter(
+                    (p) =>
+                      p.invocationName !==
+                      invocationParameterInputInvocationName
+                  ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
     ...initialProps,
   });
   return create(devtools(playgroundStore));

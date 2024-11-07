@@ -47,6 +47,12 @@ export const basePlaygroundSpan: PlaygroundSpan = {
       invocationInputField: "value_int",
       invocationName: "seed",
     },
+    {
+      __typename: "JsonInvocationParameter",
+      canonicalName: "RESPONSE_FORMAT",
+      invocationInputField: "value_json",
+      invocationName: "response_format",
+    },
   ],
 };
 export const spanAttributesWithInputMessages = {

@@ -47,9 +47,25 @@ export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<
 
 export const TOOL_CHOICE_PARAM_NAME = "tool_choice";
 
+export const RESPONSE_FORMAT_PARAM_CANONICAL_NAME: Extract<
+  CanonicalParameterName,
+  "RESPONSE_FORMAT"
+> = "RESPONSE_FORMAT";
+
+export const RESPONSE_FORMAT_PARAM_NAME = "response_format";
+
 /**
  * List of parameter canonical names to ignore in the invocation parameters form
  * These parameters are rendered else where on the page
  */
 export const paramsToIgnoreInInvocationParametersForm: CanonicalParameterName[] =
-  [TOOL_CHOICE_PARAM_CANONICAL_NAME];
+  [TOOL_CHOICE_PARAM_CANONICAL_NAME, RESPONSE_FORMAT_PARAM_CANONICAL_NAME];
+
+/**
+ * List of parameter canonical names to ignore in the chat completion params subscription/mutation
+ *
+ * These parameters have first class keys in the schema and are handled elsewhere
+ */
+export const paramsToIgnoreInChatCompletionParams: CanonicalParameterName[] = [
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+];

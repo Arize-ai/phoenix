@@ -1,7 +1,6 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
-import { JsonObjectSchema } from "@phoenix/pages/playground/schemas";
 import {
   LlmProviderToolCall,
   LlmProviderToolDefinition,
@@ -114,7 +113,6 @@ export interface PlaygroundInstance {
    * @default "auto"
    */
   toolChoice?: ToolChoice;
-  responseFormat?: JsonObjectSchema;
   input: PlaygroundInput;
   model: ModelConfig;
   output?: ChatMessage[] | string;
@@ -206,6 +204,20 @@ export interface PlaygroundState extends PlaygroundProps {
   updateInstanceModelInvocationParameters: (params: {
     instanceId: number;
     invocationParameters: InvocationParameterInput[];
+  }) => void;
+  /**
+   * Upsert an invocation parameter input for a model
+   */
+  upsertInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInput: InvocationParameterInput;
+  }) => void;
+  /**
+   * Delete an invocation parameter input for a model
+   */
+  deleteInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInputInvocationName: string;
   }) => void;
   /**
    * Filter the invocation parameters for a model based on the model's supported parameters

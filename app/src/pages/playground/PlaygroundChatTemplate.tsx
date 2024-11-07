@@ -46,6 +46,10 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "./constants";
+import {
   MessageContentRadioGroup,
   MessageMode,
 } from "./MessageContentRadioGroup";
@@ -76,12 +80,18 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   );
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const upsertInvocationParameterInput = usePlaygroundContext(
+    (state) => state.upsertInvocationParameterInput
+  );
   const playgroundInstance = instances.find((instance) => instance.id === id);
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
   const hasTools = playgroundInstance.tools.length > 0;
-  const hasResponseFormat = playgroundInstance.responseFormat != null;
+  const hasResponseFormat =
+    playgroundInstance.model.invocationParameters.find(
+      (p) => p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    ) != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -162,11 +172,15 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             size="compact"
             aria-label="output schema"
             icon={<Icon svg={<Icons.Code />} />}
-            disabled={playgroundInstance.responseFormat != null}
+            disabled={hasResponseFormat}
             onClick={() => {
-              updateInstance({
+              upsertInvocationParameterInput({
                 instanceId: id,
-                patch: { responseFormat: createOpenAIResponseFormat() },
+                invocationParameterInput: {
+                  valueJson: createOpenAIResponseFormat(),
+                  invocationName: RESPONSE_FORMAT_PARAM_NAME,
+                  canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+                },
               });
             }}
           >
@@ -235,12 +249,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         </Flex>
       </View>
       {hasTools ? <PlaygroundTools {...props} /> : null}
-      {playgroundInstance.responseFormat ? (
-        <PlaygroundResponseFormat
-          {...props}
-          responseFormat={playgroundInstance.responseFormat}
-        />
-      ) : null}
+      {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
     </DndContext>
   );
 }
@@ -474,7 +483,7 @@ function SortableMessageItem({
               text={
                 messageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : (message.content ?? "")
+                  : message.content ?? ""
               }
             />
             <Button

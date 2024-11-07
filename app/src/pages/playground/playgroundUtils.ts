@@ -458,7 +458,9 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
     modelSupportedInvocationParameters
   );
-  const { responseFormat, parsingErrors: responseFormatParsingErrors } =
+  // parse response format separately so that we can get distinct errors messages from the rest of
+  // the invocation parameters
+  const { parsingErrors: responseFormatParsingErrors } =
     getResponseFormatFromAttributes(parsedAttributes);
 
   // Merge invocation parameters into model config, if model config is present
@@ -490,7 +492,6 @@ export function transformSpanAttributesToPlaygroundInstance(
       output,
       spanId: span.id,
       tools: tools ?? basePlaygroundInstance.tools,
-      responseFormat,
     },
     parsingErrors: [
       ...messageParsingErrors,

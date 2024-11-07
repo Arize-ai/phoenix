@@ -20,10 +20,10 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
-  JsonObjectSchema,
-  jsonObjectSchema,
-  openAIResponseFormatJSONSchema,
-} from "./schemas";
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "./constants";
+import { jsonObjectSchema, openAIResponseFormatJSONSchema } from "./schemas";
 import { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -34,14 +34,27 @@ const RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT = 400;
 
 export function PlaygroundResponseFormat({
   playgroundInstanceId,
-  responseFormat,
-}: PlaygroundInstanceProps & {
-  responseFormat: JsonObjectSchema;
-}) {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+}: PlaygroundInstanceProps) {
+  const deleteInvocationParameterInput = usePlaygroundContext(
+    (state) => state.deleteInvocationParameterInput
+  );
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((i) => i.id === playgroundInstanceId)
+  );
+  const upsertInvocationParameterInput = usePlaygroundContext(
+    (state) => state.upsertInvocationParameterInput
+  );
+
+  if (!instance) {
+    throw new Error(`Instance ${playgroundInstanceId} not found`);
+  }
+
+  const responseFormat = instance.model.invocationParameters.find(
+    (p) => p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+  );
 
   const [responseFormatDefinition, setResponseFormatDefinition] = useState(
-    JSON.stringify(responseFormat, null, 2)
+    JSON.stringify(responseFormat?.valueJson ?? {}, null, 2)
   );
 
   const onChange = useCallback(
@@ -59,14 +72,16 @@ export function PlaygroundResponseFormat({
       if (!success) {
         return;
       }
-      updateInstance({
+      upsertInvocationParameterInput({
         instanceId: playgroundInstanceId,
-        patch: {
-          responseFormat: format,
+        invocationParameterInput: {
+          invocationName: RESPONSE_FORMAT_PARAM_NAME,
+          valueJson: format,
+          canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
         },
       });
     },
-    [playgroundInstanceId, updateInstance]
+    [playgroundInstanceId, upsertInvocationParameterInput]
   );
 
   return (
@@ -91,11 +106,10 @@ export function PlaygroundResponseFormat({
                   variant="default"
                   size="compact"
                   onClick={() => {
-                    updateInstance({
+                    deleteInvocationParameterInput({
                       instanceId: playgroundInstanceId,
-                      patch: {
-                        responseFormat: undefined,
-                      },
+                      invocationParameterInputInvocationName:
+                        RESPONSE_FORMAT_PARAM_NAME,
                     });
                   }}
                 />

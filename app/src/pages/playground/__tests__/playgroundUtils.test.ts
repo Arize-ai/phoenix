@@ -5,6 +5,7 @@ import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import {
   _resetInstanceId,
   _resetMessageId,
+  createOpenAIResponseFormat,
   PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store";
@@ -78,7 +79,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: "fake-id",
-  responseFormat: undefined,
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
@@ -117,14 +117,9 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       ...basePlaygroundSpan,
       attributes: "invalid json",
     };
-    const {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      responseFormat: _,
-      ...expected
-    } = expectedPlaygroundInstanceWithIO;
     expect(transformSpanAttributesToPlaygroundInstance(span)).toStrictEqual({
       playgroundInstance: {
-        ...expected,
+        ...expectedPlaygroundInstanceWithIO,
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
@@ -462,8 +457,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...spanAttributesWithInputMessages.llm,
           // only parameters defined on the span InvocationParameter[] field are parsed
           // note that snake case keys are automatically converted to camel case
-          invocation_parameters:
-            '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
+          invocation_parameters: `{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"], "response_format": ${JSON.stringify(createOpenAIResponseFormat())}}`,
         },
       }),
     };
@@ -492,6 +486,11 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               canonicalName: "STOP_SEQUENCES",
               invocationName: "stop",
               valueStringList: ["stop", "me"],
+            },
+            {
+              canonicalName: "RESPONSE_FORMAT",
+              invocationName: "response_format",
+              valueJson: createOpenAIResponseFormat(),
             },
           ],
         },
