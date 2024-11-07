@@ -1,6 +1,10 @@
+import asyncio
 import importlib.util
+import inspect
+import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
+from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -16,7 +20,13 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.models.rate_limiters import (
+    AsyncCallable,
+    GenericType,
+    ParameterSpec,
+    RateLimiter,
+    RateLimitError,
+)
 from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
     register_llm_client,
@@ -82,6 +92,54 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
             cooldown_seconds=5,
             verbose=False,
         )
+
+    # TODO: update the rate limiter class in phoenix.evals to support decorated sync functions
+    def _alimit(
+        self, fn: Callable[ParameterSpec, GenericType]
+    ) -> AsyncCallable[ParameterSpec, GenericType]:
+        @wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            self._initialize_async_primitives()
+            assert self._rate_limit_handling_lock is not None and isinstance(
+                self._rate_limit_handling_lock, asyncio.Lock
+            )
+            assert self._rate_limit_handling is not None and isinstance(
+                self._rate_limit_handling, asyncio.Event
+            )
+            try:
+                try:
+                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
+                except asyncio.TimeoutError:
+                    self._rate_limit_handling.set()  # Set the event as a failsafe
+                await self._throttler.async_wait_until_ready()
+                request_start_time = time.time()
+                if inspect.iscoroutinefunction(fn):
+                    return await fn(*args, **kwargs)  # type: ignore
+                else:
+                    return fn(*args, **kwargs)
+            except self._rate_limit_error:
+                async with self._rate_limit_handling_lock:
+                    self._rate_limit_handling.clear()  # prevent new requests from starting
+                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
+                    try:
+                        for _attempt in range(self._max_rate_limit_retries):
+                            try:
+                                request_start_time = time.time()
+                                await self._throttler.async_wait_until_ready()
+                                if inspect.iscoroutinefunction(fn):
+                                    return await fn(*args, **kwargs)  # type: ignore
+                                else:
+                                    return fn(*args, **kwargs)
+                            except self._rate_limit_error:
+                                self._throttler.on_rate_limit_error(
+                                    request_start_time, verbose=self._verbose
+                                )
+                                continue
+                    finally:
+                        self._rate_limit_handling.set()  # allow new requests to start
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+
+        return wrapper
 
 
 class PlaygroundStreamingClient(ABC):
@@ -651,7 +709,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "max_tokens": 1024,
             **invocation_parameters,
         }
-        throttled_stream = self.rate_limiter.limit(self.client.messages.stream)
+        throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
         async with throttled_stream(**anthropic_params) as stream:
             async for event in stream:
                 if isinstance(event, anthropic_types.RawMessageStartEvent):
