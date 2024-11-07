@@ -5,7 +5,7 @@ module.exports = async ({ github, context, core }) => {
   // Access the DAYS environment variable
   const days = parseInt(process.env.LOOKBACK_DAYS || "120", 10);
   const staleThreshold = parseInt(
-    process.env.STALE_THRESHOLD_IN_DAYS || "30",
+    process.env.STALENESS_THRESHOLD_IN_DAYS || "14",
     10,
   );
 
@@ -92,7 +92,7 @@ module.exports = async ({ github, context, core }) => {
     const now = new Date();
     // Filter issues that are stale
     const staleIssues = filteredIssues.filter(
-      (issue) => diffInDays(new Date(issue.createdAt), now) > staleThreshold,
+      (issue) => diffInDays(new Date(issue.created_at), now) > staleThreshold,
     );
     const freshIssues = filteredIssues.filter(
       (issue) => !staleIssues.includes(issue),

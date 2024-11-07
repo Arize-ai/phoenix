@@ -1,7 +1,6 @@
 name: Collect customer issues
 
 on:
-  pull_request:
   schedule:
     - cron: "0 15 * * 1-5"
   workflow_dispatch:
@@ -12,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       LOOKBACK_DAYS: 120
-      STALE_THRESHOLD_IN_DAYS: 30
+      STALENESS_THRESHOLD_IN_DAYS: 14
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
