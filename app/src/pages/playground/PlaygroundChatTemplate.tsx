@@ -483,7 +483,7 @@ function SortableMessageItem({
               text={
                 messageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : message.content ?? ""
+                  : (message.content ?? "")
               }
             />
             <Button
