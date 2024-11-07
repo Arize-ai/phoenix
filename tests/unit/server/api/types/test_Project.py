@@ -1,7 +1,6 @@
 # ruff: noqa: E501
 import base64
 from datetime import datetime
-from functools import singledispatchmethod
 from typing import Any, NamedTuple
 
 import httpx
@@ -13,10 +12,9 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.types import DbSessionFactory
 
-from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -1154,14 +1152,6 @@ class _Data(NamedTuple):
 
 
 class TestProject:
-    @singledispatchmethod
-    def _gid(self, obj: models.Project) -> str:
-        return str(GlobalID(Project.__name__, str(obj.id)))
-
-    @_gid.register
-    def _(self, obj: models.ProjectSession) -> str:
-        return str(GlobalID(ProjectSession.__name__, str(obj.id)))
-
     @staticmethod
     async def _node(
         field: str,
@@ -1238,10 +1228,10 @@ class TestProject:
         column = "tokenCountTotal"
         project = _data.projects[0]
         result: list[str] = [
-            self._gid(_data.project_sessions[2]),
-            self._gid(_data.project_sessions[3]),
-            self._gid(_data.project_sessions[1]),
-            self._gid(_data.project_sessions[0]),
+            _gid(_data.project_sessions[2]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[0]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1280,8 +1270,8 @@ class TestProject:
         column = "tokenCountTotal"
         project = _data.projects[0]
         result: list[str] = [
-            self._gid(_data.project_sessions[3]),
-            self._gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1326,10 +1316,10 @@ class TestProject:
         column = "numTraces"
         project = _data.projects[0]
         result: list[str] = [
-            self._gid(_data.project_sessions[2]),
-            self._gid(_data.project_sessions[3]),
-            self._gid(_data.project_sessions[1]),
-            self._gid(_data.project_sessions[0]),
+            _gid(_data.project_sessions[2]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[0]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1368,8 +1358,8 @@ class TestProject:
         column = "numTraces"
         project = _data.projects[0]
         result: list[str] = [
-            self._gid(_data.project_sessions[3]),
-            self._gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
@@ -1415,8 +1405,8 @@ class TestProject:
         field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == {
-            self._gid(_data.project_sessions[1]),
-            self._gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[3]),
         }
 
     async def test_sessions_substring_search_looks_at_only_root_spans(
