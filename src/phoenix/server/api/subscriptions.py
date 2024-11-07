@@ -232,7 +232,7 @@ class Subscription:
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _DEFAULT_PLAYGROUND_EXPERIMENT_NAME,
+                name=input.experiment_name or _default_playground_experiment_name(),
                 description=input.experiment_description
                 or _default_playground_experiment_description(dataset_name=dataset.name),
                 repetitions=1,
@@ -248,15 +248,13 @@ class Subscription:
             await session.flush()
         yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
 
-        spans: Queue[tuple[DatasetExampleID, models.Span]] = Queue()
-        runs: Queue[tuple[DatasetExampleID, models.ExperimentRun]] = Queue()
+        results_queue: Queue[tuple[DatasetExampleID, models.Span, models.ExperimentRun]] = Queue()
         chat_completion_iterators = [
             _chat_completion_payloads(
                 input=input,
                 llm_client_class=llm_client_class,
                 revision=revision,
-                spans=spans,
-                runs=runs,
+                results_queue=results_queue,
                 experiment_id=experiment.id,
                 project_id=playground_project_id,
             )
@@ -280,16 +278,16 @@ class Subscription:
                     logger.exception(error)
                 else:
                     tasks[iterator] = _as_task(iterator)
-                if spans.qsize() >= batch_size or runs.qsize() >= batch_size:
+                if results_queue.qsize() >= batch_size:
                     result_iterator = _chat_completion_result_payloads(
-                        db=info.context.db, spans=_drain(spans), runs=_drain(runs)
+                        db=info.context.db, results=_drain_to_list(results_queue)
                     )
                     tasks[result_iterator] = _as_task(result_iterator)
-        if not spans.empty() or not runs.empty():
+        if not results_queue.empty():
             remaining_results = [
                 result
                 async for result in _chat_completion_result_payloads(
-                    db=info.context.db, spans=_drain(spans), runs=_drain(runs)
+                    db=info.context.db, results=_drain_to_list(results_queue)
                 )
             ]
             for result in remaining_results:
@@ -301,8 +299,7 @@ async def _chat_completion_payloads(
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],
     revision: models.DatasetExampleRevision,
-    spans: Queue[tuple[DatasetExampleID, models.Span]],
-    runs: Queue[tuple[DatasetExampleID, models.ExperimentRun]],
+    results_queue: Queue[tuple[DatasetExampleID, models.Span, models.ExperimentRun]],
     experiment_id: int,
     project_id: int,
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -345,10 +342,10 @@ async def _chat_completion_payloads(
             yield chunk
         span.set_attributes(llm_client.attributes)
     db_span = span.to_db_span(project_id)
-    await spans.put((example_id, db_span))
-    await runs.put(
+    await results_queue.put(
         (
             example_id,
+            db_span,
             models.ExperimentRun(
                 experiment_id=experiment_id,
                 dataset_example_id=from_global_id_with_expected_type(
@@ -378,14 +375,14 @@ async def _chat_completion_payloads(
 async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
-    spans: Iterable[tuple[DatasetExampleID, models.Span]],
-    runs: Iterable[tuple[DatasetExampleID, models.ExperimentRun]],
+    results: Iterable[tuple[DatasetExampleID, models.Span, models.ExperimentRun]],
 ) -> AsyncIterator[ChatCompletionSubscriptionSpan]:
     async with db() as session:
-        session.add_all(span for _, span in spans)
-        session.add_all(run for _, run in runs)
+        for _, span, run in results:
+            session.add(span)
+            session.add(run)
         await session.flush()
-    for example_id, span in spans:
+    for example_id, span, _ in results:
         yield ChatCompletionSubscriptionSpan(
             span=to_gql_span(span),
             dataset_example_id=example_id,
@@ -396,7 +393,7 @@ def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
     return create_task(_as_coroutine(iterable))
 
 
-def _drain(queue: Queue[GenericType]) -> list[GenericType]:
+def _drain_to_list(queue: Queue[GenericType]) -> list[GenericType]:
     values: list[GenericType] = []
     while True:
         try:
@@ -445,7 +442,8 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
     assert_never(template_language)
 
 
-_DEFAULT_PLAYGROUND_EXPERIMENT_NAME = "playground-experiment"
+def _default_playground_experiment_name() -> str:
+    return "playground-experiment"
 
 
 def _default_playground_experiment_description(dataset_name: str) -> str:
