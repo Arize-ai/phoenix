@@ -31,7 +31,10 @@ import { IntCell, TextCell } from "../../components/table";
 import { TokenCount } from "../../components/trace/TokenCount";
 
 import { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
-import { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
+import {
+  ProjectSessionColumn,
+  SessionsTableQuery,
+} from "./__generated__/SessionsTableQuery.graphql";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
@@ -58,12 +61,17 @@ export function SessionsTable(props: SessionsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
+          sort: {
+            type: "ProjectSessionSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
           filterIoSubstring: { type: "String", defaultValue: null }
         ) {
           name
           sessions(
             first: $first
             after: $after
+            sort: $sort
             filterIoSubstring: $filterIoSubstring
             timeRange: $timeRange
           ) @connection(key: "SessionsTable_sessions") {
@@ -93,7 +101,10 @@ export function SessionsTable(props: SessionsTableProps) {
       props.project
     );
   const tableData = useMemo(() => {
-    return data.sessions.edges.map(({ session }) => session);
+    return data.sessions.edges.map(({ session }) => ({
+      ...session,
+      tokenCountTotal: session.tokenUsage.total,
+    }));
   }, [data]);
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
@@ -118,19 +129,19 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "start time",
       accessorKey: "startTime",
-      enableSorting: false,
+      enableSorting: true,
       cell: TimestampCell,
     },
     {
       header: "end time",
       accessorKey: "endTime",
-      enableSorting: false,
+      enableSorting: true,
       cell: TimestampCell,
     },
     {
       header: "total tokens",
-      accessorKey: "tokenUsage.total",
-      enableSorting: false,
+      accessorKey: "tokenCountTotal",
+      enableSorting: true,
       minSize: 80,
       cell: ({ row, getValue }) => {
         const value = getValue();
@@ -150,14 +161,21 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "total traces",
       accessorKey: "numTraces",
-      enableSorting: false,
+      enableSorting: true,
       cell: IntCell,
     },
   ];
   useEffect(() => {
+    const sort = sorting[0];
     startTransition(() => {
       refetch(
         {
+          sort: sort
+            ? {
+                col: sort.id as ProjectSessionColumn,
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : { col: "startTime", dir: "desc" },
           after: null,
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstring,

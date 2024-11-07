@@ -1,12 +1,13 @@
 import operator
 from datetime import datetime
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, assert_never
 
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, desc, distinct, or_, select
+from sqlalchemy import and_, desc, distinct, func, or_, select
 from sqlalchemy.orm import contains_eager
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
@@ -15,6 +16,10 @@ from strawberry.types import Info
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.ProjectSessionSort import (
+    ProjectSessionColumn,
+    ProjectSessionSort,
+)
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
@@ -258,6 +263,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         after: Optional[CursorString] = UNSET,
+        sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
@@ -267,11 +273,8 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= table.start_time)
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
-        if after:
-            cursor = Cursor.from_string(after)
-            stmt = stmt.where(table.id < cursor.rowid)
         if filter_io_substring:
-            subq = (
+            filter_subq = (
                 stmt.with_only_columns(distinct(table.id).label("id"))
                 .join_from(table, models.Trace)
                 .join_from(models.Trace, models.Span)
@@ -289,17 +292,76 @@ class Project(Node):
                     )
                 )
             ).subquery()
-            stmt = stmt.join(subq, table.id == subq.c.id)
+            stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
+        if sort:
+            key: ColumnElement[Any]
+            if sort.col is ProjectSessionColumn.startTime:
+                key = table.start_time.label("key")
+            elif sort.col is ProjectSessionColumn.endTime:
+                key = table.end_time.label("key")
+            elif (
+                sort.col is ProjectSessionColumn.tokenCountTotal
+                or sort.col is ProjectSessionColumn.numTraces
+            ):
+                if sort.col is ProjectSessionColumn.tokenCountTotal:
+                    sort_subq = (
+                        select(
+                            models.Trace.project_session_rowid.label("id"),
+                            func.sum(models.Span.cumulative_llm_token_count_total).label("key"),
+                        )
+                        .join_from(models.Trace, models.Span)
+                        .where(models.Span.parent_id.is_(None))
+                        .group_by(models.Trace.project_session_rowid)
+                    ).subquery()
+                elif sort.col is ProjectSessionColumn.numTraces:
+                    sort_subq = (
+                        select(
+                            models.Trace.project_session_rowid.label("id"),
+                            func.count(models.Trace.id).label("key"),
+                        ).group_by(models.Trace.project_session_rowid)
+                    ).subquery()
+                else:
+                    assert_never(sort.col)
+                key = sort_subq.c.key
+                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
+            else:
+                assert_never(sort.col)
+            stmt = stmt.add_columns(key)
+            if sort.dir is SortDir.asc:
+                stmt = stmt.order_by(key.asc(), table.id.asc())
+            else:
+                stmt = stmt.order_by(key.desc(), table.id.desc())
+            if after:
+                cursor = Cursor.from_string(after)
+                assert cursor.sort_column is not None
+                compare = operator.lt if sort.dir is SortDir.desc else operator.gt
+                stmt = stmt.where(
+                    compare(
+                        tuple_(key, table.id),
+                        (cursor.sort_column.value, cursor.rowid),
+                    )
+                )
+        else:
+            stmt = stmt.order_by(table.id.desc())
+            if after:
+                cursor = Cursor.from_string(after)
+                stmt = stmt.where(table.id < cursor.rowid)
         if first:
             stmt = stmt.limit(
                 first + 1  # over-fetch by one to determine whether there's a next page
             )
-        stmt = stmt.order_by(table.id.desc())
         cursors_and_nodes = []
         async with info.context.db() as session:
-            records = await session.scalars(stmt)
-            async for project_session in islice(records, first):
+            records = await session.execute(stmt)
+            async for record in islice(records, first):
+                project_session = record[0]
                 cursor = Cursor(rowid=project_session.id)
+                if sort:
+                    assert len(record) > 1
+                    cursor.sort_column = CursorSortColumn(
+                        type=sort.col.data_type,
+                        value=record[1],
+                    )
                 cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
             has_next_page = True
             try:

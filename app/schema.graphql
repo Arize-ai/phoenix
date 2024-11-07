@@ -1238,7 +1238,7 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
-  sessions(timeRange: TimeRange, first: Int = 50, after: String, filterIoSubstring: String): ProjectSessionConnection!
+  sessions(timeRange: TimeRange, first: Int = 50, after: String, sort: ProjectSessionSort, filterIoSubstring: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -1297,6 +1297,13 @@ type ProjectSession implements Node {
   traceLatencyMsQuantile(probability: Float!): Float
 }
 
+enum ProjectSessionColumn {
+  startTime
+  endTime
+  tokenCountTotal
+  numTraces
+}
+
 """A connection to a list of items."""
 type ProjectSessionConnection {
   """Pagination data for this connection"""
@@ -1313,6 +1320,12 @@ type ProjectSessionEdge {
 
   """The item at the end of the edge"""
   node: ProjectSession!
+}
+
+"""The sort key and direction for ProjectSession connections."""
+input ProjectSessionSort {
+  col: ProjectSessionColumn!
+  dir: SortDir!
 }
 
 type PromptResponse {
