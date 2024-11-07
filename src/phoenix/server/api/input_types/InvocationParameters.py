@@ -47,25 +47,24 @@ class InvocationParameterBase:
     canonical_name: Optional[CanonicalParameterName] = None
     label: str
     required: bool = False
-    hidden: bool = False
 
 
 @strawberry.type
 class IntInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_int
-    default_value: Optional[int] = UNSET
+    default_value: Optional[int] = None
 
 
 @strawberry.type
 class FloatInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_float
-    default_value: Optional[float] = UNSET
+    default_value: Optional[float] = None
 
 
 @strawberry.type
 class BoundedFloatInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_float
-    default_value: Optional[float] = UNSET
+    default_value: Optional[float] = None
     min_value: float
     max_value: float
 
@@ -73,25 +72,25 @@ class BoundedFloatInvocationParameter(InvocationParameterBase):
 @strawberry.type
 class StringInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_string
-    default_value: Optional[str] = UNSET
+    default_value: Optional[str] = None
 
 
 @strawberry.type
 class JSONInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_json
-    default_value: Optional[JSON] = UNSET
+    default_value: Optional[JSON] = None
 
 
 @strawberry.type
 class StringListInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_string_list
-    default_value: Optional[list[str]] = UNSET
+    default_value: Optional[list[str]] = None
 
 
 @strawberry.type
 class BooleanInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_bool
-    default_value: Optional[bool] = UNSET
+    default_value: Optional[bool] = None
 
 
 def extract_parameter(

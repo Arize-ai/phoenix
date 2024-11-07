@@ -44,7 +44,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
-  const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
   const [, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -59,9 +58,12 @@ export function Playground(props: Partial<PlaygroundProps>) {
     );
   }, [setSearchParams]);
 
+  const enableStreaming = window.Config.websocketsEnabled;
+
   return (
     <PlaygroundProvider
       {...props}
+      streaming={enableStreaming}
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
@@ -78,7 +80,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {showStreamToggle ? <PlaygroundStreamToggle /> : null}
+              {enableStreaming ? <PlaygroundStreamToggle /> : null}
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>

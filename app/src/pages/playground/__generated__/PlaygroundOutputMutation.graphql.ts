@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f7c82cbb555fb710843e3fb6d396e9f>>
+ * @generated SignedSource<<5d6eab8386cb44a3cc9ca53420a68b94>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
@@ -48,37 +48,29 @@ export type TemplateOptions = {
   language: TemplateLanguage;
   variables: any;
 };
-export type PlaygroundOutputSubscription$variables = {
+export type PlaygroundOutputMutation$variables = {
   input: ChatCompletionInput;
 };
-export type PlaygroundOutputSubscription$data = {
+export type PlaygroundOutputMutation$data = {
   readonly chatCompletion: {
-    readonly __typename: "ChatCompletionSubscriptionError";
-    readonly message: string;
-  } | {
-    readonly __typename: "FinishedChatCompletion";
+    readonly __typename: "ChatCompletionMutationPayload";
+    readonly content: string | null;
+    readonly errorMessage: string | null;
     readonly span: {
       readonly id: string;
     };
-  } | {
-    readonly __typename: "TextChunk";
-    readonly content: string;
-  } | {
-    readonly __typename: "ToolCallChunk";
-    readonly function: {
-      readonly arguments: string;
-      readonly name: string;
-    };
-    readonly id: string;
-  } | {
-    // This will never be '%other', but we need some
-    // value in case none of the concrete values match.
-    readonly __typename: "%other";
+    readonly toolCalls: ReadonlyArray<{
+      readonly function: {
+        readonly arguments: string;
+        readonly name: string;
+      };
+      readonly id: string;
+    }>;
   };
 };
-export type PlaygroundOutputSubscription = {
-  response: PlaygroundOutputSubscription$data;
-  variables: PlaygroundOutputSubscription$variables;
+export type PlaygroundOutputMutation = {
+  response: PlaygroundOutputMutation$data;
+  variables: PlaygroundOutputMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -106,7 +98,7 @@ v2 = [
         "variableName": "input"
       }
     ],
-    "concreteType": null,
+    "concreteType": "ChatCompletionMutationPayload",
     "kind": "LinkedField",
     "name": "chatCompletion",
     "plural": false,
@@ -119,27 +111,44 @@ v2 = [
         "storageKey": null
       },
       {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "content",
-            "storageKey": null
-          }
-        ],
-        "type": "TextChunk",
-        "abstractKey": null
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "content",
+        "storageKey": null
       },
       {
-        "kind": "InlineFragment",
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "errorMessage",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Span",
+        "kind": "LinkedField",
+        "name": "span",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/)
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "ChatCompletionToolCall",
+        "kind": "LinkedField",
+        "name": "toolCalls",
+        "plural": true,
         "selections": [
           (v1/*: any*/),
           {
             "alias": null,
             "args": null,
-            "concreteType": "FunctionCallChunk",
+            "concreteType": "ChatCompletionFunctionCall",
             "kind": "LinkedField",
             "name": "function",
             "plural": false,
@@ -162,41 +171,7 @@ v2 = [
             "storageKey": null
           }
         ],
-        "type": "ToolCallChunk",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Span",
-            "kind": "LinkedField",
-            "name": "span",
-            "plural": false,
-            "selections": [
-              (v1/*: any*/)
-            ],
-            "storageKey": null
-          }
-        ],
-        "type": "FinishedChatCompletion",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "message",
-            "storageKey": null
-          }
-        ],
-        "type": "ChatCompletionSubscriptionError",
-        "abstractKey": null
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -207,29 +182,29 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PlaygroundOutputSubscription",
+    "name": "PlaygroundOutputMutation",
     "selections": (v2/*: any*/),
-    "type": "Subscription",
+    "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PlaygroundOutputSubscription",
+    "name": "PlaygroundOutputMutation",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "74f9e043219138270050265796ba4d74",
+    "cacheID": "9dc63d3e40081b276c1cbd5f21405c6f",
     "id": null,
     "metadata": {},
-    "name": "PlaygroundOutputSubscription",
-    "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "name": "PlaygroundOutputMutation",
+    "operationKind": "mutation",
+    "text": "mutation PlaygroundOutputMutation(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    content\n    errorMessage\n    span {\n      id\n    }\n    toolCalls {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1aebc9c1efdbd7ed6a65c0fa36fa040c";
+(node as any).hash = "085e7cb2bebd2c6c6e44b511364c6dd9";
 
 export default node;

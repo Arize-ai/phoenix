@@ -174,19 +174,16 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
-                default_value=UNSET,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
-                default_value=UNSET,
                 min_value=-2.0,
                 max_value=2.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
-                default_value=UNSET,
                 min_value=-2.0,
                 max_value=2.0,
             ),
@@ -194,13 +191,11 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="stop",
                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
                 label="Stop Sequences",
-                default_value=UNSET,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=UNSET,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -208,20 +203,16 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
-                default_value=UNSET,
             ),
             JSONInvocationParameter(
                 invocation_name="tool_choice",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
-                default_value=UNSET,
-                hidden=True,
             ),
             JSONInvocationParameter(
                 invocation_name="response_format",
                 label="Response Format",
                 canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
-                default_value=UNSET,
             ),
         ]
 
@@ -370,20 +361,16 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Completion Tokens",
-                default_value=UNSET,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
-                default_value=UNSET,
             ),
             JSONInvocationParameter(
                 invocation_name="tool_choice",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
-                default_value=UNSET,
-                hidden=True,
             ),
         ]
 
@@ -556,14 +543,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
-                default_value=UNSET,
                 required=True,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=UNSET,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -571,13 +556,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="stop_sequences",
                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
                 label="Stop Sequences",
-                default_value=UNSET,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                default_value=UNSET,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -585,8 +568,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="tool_choice",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
-                default_value=UNSET,
-                hidden=True,
             ),
         ]
 

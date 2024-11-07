@@ -42,6 +42,11 @@ export const generateMessageId = () => playgroundMessageId++;
 export const generateToolId = () => playgroundToolId++;
 
 /**
+ * Generates a new playground run ID
+ */
+const generateRunId = () => playgroundRunId++;
+
+/**
  * Resets the playground instance ID to 0
  *
  * NB: This is only used for testing purposes
@@ -106,7 +111,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
-    isRunning: false,
   };
 }
 
@@ -185,7 +189,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
-            isRunning: false,
             spanId: null,
           },
         ],
@@ -291,26 +294,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       set({
         instances: instances.map((instance) => ({
           ...instance,
-          activeRunId: playgroundRunId++,
-          isRunning: true,
+          activeRunId: generateRunId(),
           spanId: null, // Clear out the span when (re)running
         })),
-      });
-    },
-    runPlaygroundInstance: (instanceId: number) => {
-      const instances = get().instances;
-      set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              activeRunId: playgroundRunId++,
-              isRunning: true,
-              spanId: null, // Clear out the span when (re)running
-            };
-          }
-          return instance;
-        }),
       });
     },
     markPlaygroundInstanceComplete: (instanceId: number) => {
@@ -320,7 +306,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
-              isRunning: false,
+              activeRunId: null,
             };
           }
           return instance;

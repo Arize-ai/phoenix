@@ -71,18 +71,17 @@ class streaming_llm_span:
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
         self._attributes.update(
             chain(
-                _llm_span_kind(),
-                _llm_model_name(input.model.name),
-                _llm_tools(input.tools or []),
-                _llm_input_messages(messages),
-                _llm_invocation_parameters(invocation_parameters),
-                _input_value_and_mime_type(input),
+                llm_span_kind(),
+                llm_model_name(input.model.name),
+                llm_tools(input.tools or []),
+                llm_input_messages(messages),
+                llm_invocation_parameters(invocation_parameters),
+                input_value_and_mime_type(input),
             )
         )
         self._events: list[SpanEvent] = []
         self._start_time: datetime
         self._end_time: datetime
-        self._response_chunks: list[Union[TextChunk, ToolCallChunk]] = []
         self._text_chunks: list[TextChunk] = []
         self._tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         self._status_code: StatusCode
@@ -115,10 +114,10 @@ class streaming_llm_span:
                     exception_stacktrace=format_exc(),
                 )
             )
-        if self._response_chunks:
+        if self._text_chunks or self._tool_call_chunks:
             self._attributes.update(
                 chain(
-                    _output_value_and_mime_type(self._response_chunks),
+                    _output_value_and_mime_type(self._text_chunks, self._tool_call_chunks),
                     _llm_output_messages(self._text_chunks, self._tool_call_chunks),
                 )
             )
@@ -166,7 +165,6 @@ class streaming_llm_span:
         return self._db_span
 
     def add_response_chunk(self, chunk: Union[TextChunk, ToolCallChunk]) -> None:
-        self._response_chunks.append(chunk)
         if isinstance(chunk, TextChunk):
             self._text_chunks.append(chunk)
         elif isinstance(chunk, ToolCallChunk):
@@ -195,27 +193,29 @@ class streaming_llm_span:
         return self._db_span.attributes
 
 
-def _llm_span_kind() -> Iterator[tuple[str, Any]]:
+def llm_span_kind() -> Iterator[tuple[str, Any]]:
     yield OPENINFERENCE_SPAN_KIND, LLM
 
 
-def _llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
+def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
     yield LLM_MODEL_NAME, model_name
 
 
-def _llm_invocation_parameters(
+def llm_invocation_parameters(
     invocation_parameters: Mapping[str, Any],
 ) -> Iterator[tuple[str, Any]]:
     if invocation_parameters:
         yield LLM_INVOCATION_PARAMETERS, safe_json_dumps(invocation_parameters)
 
 
-def _llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
+def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
     for tool_index, tool in enumerate(tools):
         yield f"{LLM_TOOLS}.{tool_index}.{TOOL_JSON_SCHEMA}", json.dumps(tool)
 
 
-def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
+def input_value_and_mime_type(
+    input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
+) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}
     input_data = {k: v for k, v in input_data.items() if k not in disallowed_keys}
@@ -224,12 +224,69 @@ def _input_value_and_mime_type(input: Any) -> Iterator[tuple[str, Any]]:
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def _output_value_and_mime_type(output: Any) -> Iterator[tuple[str, Any]]:
-    yield OUTPUT_MIME_TYPE, JSON
-    yield OUTPUT_VALUE, safe_json_dumps(jsonify(output))
+def _merge_tool_call_chunks(
+    chunks_by_id: defaultdict[str, list[ToolCallChunk]],
+) -> list[dict[str, Any]]:
+    merged_tool_calls = []
+
+    for tool_id, chunks in chunks_by_id.items():
+        if not chunks:
+            continue
+        first_chunk = chunks[0]
+        if not first_chunk:
+            continue
+
+        if not hasattr(first_chunk, "function") or not hasattr(first_chunk.function, "name"):
+            continue
+        # Combine all argument chunks
+        merged_arguments = "".join(
+            chunk.function.arguments
+            for chunk in chunks
+            if chunk and hasattr(chunk, "function") and hasattr(chunk.function, "arguments")
+        )
+
+        merged_tool_calls.append(
+            {
+                "id": tool_id,
+                # Only the first chunk has the tool name
+                "function": {
+                    "name": first_chunk.function.name,
+                    "arguments": merged_arguments or "{}",
+                },
+            }
+        )
+
+    return merged_tool_calls
 
 
-def _llm_input_messages(
+def _output_value_and_mime_type(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
+    content = "".join(chunk.content for chunk in text_chunks)
+    merged_tool_calls = _merge_tool_call_chunks(tool_call_chunks)
+    if content and merged_tool_calls:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield (
+            OUTPUT_VALUE,
+            safe_json_dumps(
+                {
+                    "content": content,
+                    "tool_calls": jsonify(
+                        merged_tool_calls,
+                    ),
+                }
+            ),
+        )
+    elif merged_tool_calls:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(merged_tool_calls))
+    elif content:
+        yield OUTPUT_MIME_TYPE, TEXT
+        yield OUTPUT_VALUE, content
+
+
+def llm_input_messages(
     messages: Iterable[
         tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
     ],
@@ -299,6 +356,7 @@ def _serialize_event(event: SpanEvent) -> dict[str, Any]:
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
 
 LLM = OpenInferenceSpanKindValues.LLM.value
 

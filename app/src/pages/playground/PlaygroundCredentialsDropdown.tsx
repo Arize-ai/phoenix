@@ -28,6 +28,9 @@ export function PlaygroundCredentialsDropdown() {
       new Set(state.instances.map((instance) => instance.model.provider))
     )
   );
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
+  );
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentials = useCredentialsContext((state) => state);
   return (
@@ -39,7 +42,9 @@ export function PlaygroundCredentialsDropdown() {
       `}
     >
       <DropdownTrigger placement="bottom">
-        <DropdownButton size="compact">API Keys</DropdownButton>
+        <DropdownButton size="compact" isDisabled={isRunning}>
+          API Keys
+        </DropdownButton>
         <DropdownMenu>
           <View padding="size-200">
             <Form

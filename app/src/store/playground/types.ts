@@ -76,7 +76,7 @@ type ManualInput = {
   variablesValueCache: Record<string, string | undefined>;
 };
 
-type PlaygroundInput = DatasetInput | ManualInput;
+export type PlaygroundInput = DatasetInput | ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;
@@ -99,7 +99,7 @@ export type Tool = {
  * - a template
  * - tools
  * - input (dataset or manual)
- * - output (experiment or spans)
+ * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
   /**
@@ -112,16 +112,12 @@ export interface PlaygroundInstance {
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice: ToolChoice;
+  toolChoice?: ToolChoice;
   input: PlaygroundInput;
   model: ModelConfig;
   output?: ChatMessage[] | string;
   spanId: string | null;
   activeRunId: number | null;
-  /**
-   * Whether or not the playground instance is actively running or not
-   **/
-  isRunning: boolean;
 }
 
 /**
@@ -162,7 +158,7 @@ export interface PlaygroundProps {
    */
   templateLanguage: TemplateLanguage;
   /**
-   * Whether or not to use streaming or not
+   * Whether or not to use streaming
    * @default true
    */
   streaming: boolean;
@@ -235,10 +231,6 @@ export interface PlaygroundState extends PlaygroundProps {
    * Run all the active playground Instances
    */
   runPlaygroundInstances: () => void;
-  /**
-   * Run a specific playground instance
-   */
-  runPlaygroundInstance: (instanceId: number) => void;
   /**
    * Mark a given playground instance as completed
    */

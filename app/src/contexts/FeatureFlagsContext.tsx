@@ -3,10 +3,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { Dialog, DialogContainer, Switch, View } from "@arizeai/components";
 
-type FeatureFlag =
-  | "playground"
-  | "playgroundNonStreaming"
-  | "playgroundWithDatasets";
+type FeatureFlag = "playground" | "playgroundWithDatasets";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -16,7 +13,6 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   playground: false,
-  playgroundNonStreaming: false,
   playgroundWithDatasets: false,
 };
 

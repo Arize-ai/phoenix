@@ -5,6 +5,7 @@ import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import {
   _resetInstanceId,
   _resetMessageId,
+  PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store";
 
@@ -26,6 +27,7 @@ import {
   getOutputFromAttributes,
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
+  getVariablesMapFromInstances,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -48,7 +50,6 @@ import {
 const baseTestPlaygroundInstance: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  isRunning: false,
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -67,7 +68,6 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
 const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
-  isRunning: false,
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -933,6 +933,137 @@ describe("extractVariablesFromInstances", () => {
     expect(
       extractVariablesFromInstances({ instances, templateLanguage })
     ).toEqual(["name", "age"]);
+  });
+});
+
+describe("getVariablesMapFromInstances", () => {
+  const baseTestPlaygroundInstance: PlaygroundInstance = {
+    id: 0,
+    activeRunId: null,
+    model: {
+      provider: "OPENAI",
+      modelName: "gpt-3.5-turbo",
+      invocationParameters: [],
+    },
+    input: { variablesValueCache: {} },
+    tools: [],
+    toolChoice: "auto",
+    spanId: null,
+    template: {
+      __type: "chat",
+      messages: [],
+    },
+  };
+
+  it("should extract variables and map them correctly for chat messages", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {{name}}", role: "user" },
+            { id: 1, content: "How are you, {{name}}?", role: "ai" },
+          ],
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateLanguage, input })
+    ).toEqual({
+      variablesMap: { name: "John" },
+      variableKeys: ["name"],
+    });
+  });
+
+  it("should extract variables and map them correctly for text completion prompts", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "text_completion",
+          prompt: "Hello {{name}}",
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateLanguage, input })
+    ).toEqual({
+      variablesMap: { name: "John" },
+      variableKeys: ["name"],
+    });
+  });
+
+  it("should handle multiple instances and variable extraction", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {{name}}", role: "user" },
+            { id: 1, content: "How are you, {{name}}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [{ id: 0, content: "{{name}} is {{age}}", role: "user" }],
+        },
+      },
+    ];
+    const templateLanguage = "MUSTACHE";
+    const input: PlaygroundInput = {
+      variablesValueCache: { name: "John", age: "30" },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateLanguage, input })
+    ).toEqual({
+      variablesMap: { name: "John", age: "30" },
+      variableKeys: ["name", "age"],
+    });
+  });
+
+  it("should handle multiple instances and variable extraction with fstring", () => {
+    const instances: PlaygroundInstance[] = [
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [
+            { id: 0, content: "Hello {name}", role: "user" },
+            { id: 1, content: "How are you, {{escaped}}?", role: "ai" },
+          ],
+        },
+      },
+      {
+        ...baseTestPlaygroundInstance,
+        template: {
+          __type: "chat",
+          messages: [{ id: 0, content: "{name}} is {age}}", role: "user" }],
+        },
+      },
+    ];
+    const templateLanguage: TemplateLanguage = "F_STRING";
+    const input: PlaygroundInput = {
+      variablesValueCache: { name: "John", age: "30" },
+    };
+
+    expect(
+      getVariablesMapFromInstances({ instances, templateLanguage, input })
+    ).toEqual({
+      variablesMap: { name: "John", age: "30" },
+      variableKeys: ["name", "age"],
+    });
   });
 });
 

@@ -227,7 +227,7 @@ class TestChatCompletionSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -255,7 +255,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -655,7 +655,7 @@ class TestChatCompletionSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -682,7 +682,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert (llm_input_messages := attributes.pop(LLM_INPUT_MESSAGES))
         assert len(llm_input_messages) == 3
         llm_input_message = llm_input_messages[0]["message"]
@@ -801,7 +801,7 @@ class TestChatCompletionSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -830,7 +830,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -1092,7 +1092,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -1119,7 +1119,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -1170,7 +1170,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "json"
+        assert (output := span.pop("output")).pop("mimeType") == "text"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -1197,7 +1197,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -1379,6 +1379,7 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
 
 LLM = OpenInferenceSpanKindValues.LLM.value
 JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME

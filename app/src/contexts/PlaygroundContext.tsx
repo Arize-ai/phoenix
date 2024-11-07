@@ -30,3 +30,13 @@ export function usePlaygroundContext<T>(
   if (!store) throw new Error("Missing PlaygroundContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);
 }
+
+/**
+ * Returns the raw playground store. Should only be used for accessing the store directly.
+ * Using this hook ensures up to date (non stale) values in hooks / callbacks without making them depend on specific components of the store.
+ */
+export function usePlaygroundStore() {
+  const store = React.useContext(PlaygroundContext);
+  if (!store) throw new Error("Missing PlaygroundContext.Provider in the tree");
+  return store;
+}

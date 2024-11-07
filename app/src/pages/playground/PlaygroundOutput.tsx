@@ -1,9 +1,15 @@
-import React, { Suspense, useMemo, useState } from "react";
-import { useSubscription } from "react-relay";
-import { graphql, GraphQLSubscriptionConfig } from "relay-runtime";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
+import { useMutation, useRelayEnvironment } from "react-relay";
+import {
+  graphql,
+  GraphQLSubscriptionConfig,
+  PayloadError,
+  requestSubscription,
+} from "relay-runtime";
 
-import { Card, Flex, Icon, Icons, View } from "@arizeai/components";
+import { Card, Flex, View } from "@arizeai/components";
 
+import { Loading } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
@@ -12,30 +18,49 @@ import {
 } from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { OpenAIToolCall } from "@phoenix/schemas/toolCallSchemas";
-import { ChatMessage, generateMessageId } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
-
 import {
-  ChatCompletionMessageInput,
-  ChatCompletionMessageRole,
-  InvocationParameterInput,
-  PlaygroundOutputSubscription,
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import {
+  ChatMessage,
+  generateMessageId,
+  PlaygroundInstance,
+} from "@phoenix/store";
+
+import PlaygroundOutputMutation, {
+  PlaygroundOutputMutation as PlaygroundOutputMutationType,
+  PlaygroundOutputMutation$data,
+} from "./__generated__/PlaygroundOutputMutation.graphql";
+import {
+  PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
-  PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import { PlaygroundToolCall } from "./PlaygroundToolCall";
-import { isChatMessages } from "./playgroundUtils";
+import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
+import {
+  PartialOutputToolCall,
+  PlaygroundToolCall,
+} from "./PlaygroundToolCall";
+import { getChatCompletionVariables, isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
-import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
 
 interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
 
-function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
+/**
+ * A chat message with potentially partial tool calls, for when tool calls are being streamed back to the client
+ */
+type PlaygroundOutputMessage = Omit<ChatMessage, "toolCalls"> & {
+  toolCalls?: ChatMessage["toolCalls"] | readonly PartialOutputToolCall[];
+};
+
+function PlaygroundOutputMessage({
+  message,
+}: {
+  message: PlaygroundOutputMessage;
+}) {
   const { role, content, toolCalls } = message;
   const styles = useChatMessageStyles(role);
   const { mode: markdownMode } = useMarkdownMode();
@@ -67,245 +92,87 @@ function PlaygroundOutputMessage({ message }: { message: ChatMessage }) {
   );
 }
 
+function PlaygroundOutputContent({
+  content,
+  partialToolCalls,
+}: {
+  content: OutputContent;
+  partialToolCalls: readonly PartialOutputToolCall[];
+}) {
+  if (isChatMessages(content)) {
+    return content.map((message, index) => {
+      return <PlaygroundOutputMessage key={index} message={message} />;
+    });
+  }
+  if (typeof content === "string" || partialToolCalls.length > 0) {
+    return (
+      <PlaygroundOutputMessage
+        message={{
+          id: generateMessageId(),
+          content,
+          role: "ai",
+          toolCalls: partialToolCalls,
+        }}
+      />
+    );
+  }
+  return "click run to see output";
+}
+
+type OutputContent = PlaygroundInstance["output"];
+
 export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const instanceId = props.playgroundInstanceId;
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((instance) => instance.id === instanceId)
-  );
+  const instances = usePlaygroundContext((state) => state.instances);
+  const streaming = usePlaygroundContext((state) => state.streaming);
+  const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
-  if (!instance) {
-    throw new Error(`Playground instance ${instanceId} not found`);
-  }
-
-  const runId = instance.activeRunId;
-  const hasRunId = runId !== null;
-
-  const OutputEl = useMemo(() => {
-    if (hasRunId) {
-      return (
-        <PlaygroundOutputText key={runId} playgroundInstanceId={instanceId} />
-      );
-    }
-    if (isChatMessages(instance.output)) {
-      const messages = instance.output;
-
-      return messages.map((message, index) => {
-        return <PlaygroundOutputMessage key={index} message={message} />;
-      });
-    }
-    if (typeof instance.output === "string") {
-      return (
-        <PlaygroundOutputMessage
-          message={{
-            id: generateMessageId(),
-            content: instance.output,
-            role: "ai",
-          }}
-        />
-      );
-    }
-    return "click run to see output";
-  }, [hasRunId, instance.output, instanceId, runId]);
-
-  return (
-    <Card
-      title={<TitleWithAlphabeticIndex index={index} title="Output" />}
-      collapsible
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
-    >
-      <View padding="size-200">
-        <MarkdownDisplayProvider>{OutputEl}</MarkdownDisplayProvider>
-      </View>
-      <Suspense>
-        {instance.spanId ? (
-          <RunMetadataFooter spanId={instance.spanId} />
-        ) : null}
-      </Suspense>
-    </Card>
-  );
-}
-
-function useChatCompletionSubscription({
-  params,
-  runId,
-  onNext,
-  onCompleted,
-  onFailed,
-}: {
-  params: PlaygroundOutputSubscription$variables;
-  runId: number;
-  onNext: (response: PlaygroundOutputSubscription$data) => void;
-  onCompleted: () => void;
-  onFailed: (error: Error) => void;
-}) {
-  const config = useMemo<
-    GraphQLSubscriptionConfig<PlaygroundOutputSubscription>
-  >(
-    () => ({
-      subscription: graphql`
-        subscription PlaygroundOutputSubscription(
-          $messages: [ChatCompletionMessageInput!]!
-          $model: GenerativeModelInput!
-          $invocationParameters: [InvocationParameterInput!]!
-          $tools: [JSON!]
-          $templateOptions: TemplateOptions
-          $apiKey: String
-        ) {
-          chatCompletion(
-            input: {
-              messages: $messages
-              model: $model
-              invocationParameters: $invocationParameters
-              tools: $tools
-              template: $templateOptions
-              apiKey: $apiKey
-            }
-          ) {
-            __typename
-            ... on TextChunk {
-              content
-            }
-            ... on ToolCallChunk {
-              id
-              function {
-                name
-                arguments
-              }
-            }
-            ... on FinishedChatCompletion {
-              span {
-                id
-              }
-            }
-            ... on ChatCompletionSubscriptionError {
-              message
-            }
-          }
-        }
-      `,
-      variables: params,
-      onNext: (response) => {
-        if (response) {
-          onNext(response);
-        }
-      },
-      onCompleted: () => {
-        onCompleted();
-      },
-      onError: (error) => {
-        onFailed(error);
-      },
-    }),
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [runId]
-  );
-  return useSubscription(config);
-}
-
-/**
- * A utility function to convert playground messages content to GQL chat completion message input
- */
-function toGqlChatCompletionMessage(
-  message: ChatMessage
-): ChatCompletionMessageInput {
-  return {
-    content: message.content,
-    role: toGqlChatCompletionRole(message.role),
-    toolCalls: message.toolCalls,
-    toolCallId: message.toolCallId,
-  };
-}
-
-function toGqlChatCompletionRole(
-  role: ChatMessageRole
-): ChatCompletionMessageRole {
-  switch (role) {
-    case "system":
-      return "SYSTEM";
-    case "user":
-      return "USER";
-    case "tool":
-      return "TOOL";
-    case "ai":
-      return "AI";
-    default:
-      assertUnreachable(role);
-  }
-}
-
-function PlaygroundOutputText(props: PlaygroundInstanceProps) {
-  const instances = usePlaygroundContext((state) => state.instances);
-  const credentials = useCredentialsContext((state) => state);
-  const instance = instances.find(
-    (instance) => instance.id === props.playgroundInstanceId
-  );
+  const instance = instances.find((instance) => instance.id === instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
-  const { variablesMap: templateVariables } = useDerivedPlaygroundVariables();
+
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
   );
-  const notifyError = useNotifyError();
+  const environment = useRelayEnvironment();
+
+  const playgroundStore = usePlaygroundStore();
+
   if (!instance) {
-    throw new Error("No instance found");
-  }
-  if (typeof instance.activeRunId !== "number") {
-    throw new Error("No message found");
+    throw new Error(`No instance found for id ${instanceId}`);
   }
 
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
 
-  const [output, setOutput] = useState<string | undefined>(undefined);
-  const [toolCalls, setToolCalls] = useState<OpenAIToolCall[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const azureModelParams =
-    instance.model.provider === "AZURE_OPENAI"
-      ? {
-          endpoint: instance.model.endpoint,
-          apiVersion: instance.model.apiVersion,
-        }
-      : {};
+  const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
+    PlaygroundOutputMutation
+  );
 
-  const invocationParameters: InvocationParameterInput[] = [
-    ...instance.model.invocationParameters,
-    // TODO(apowell): add toolChoice to invocation parameters
-    // {
-    //   invocationName: "toolChoice",
-    //   valueString: instance.toolChoice, // this doesn't work because toolChoice may be json
-    // },
-  ];
+  const hasRunId = instance?.activeRunId != null;
+  const notifyError = useNotifyError();
 
-  useChatCompletionSubscription({
-    params: {
-      messages: instance.template.messages.map(toGqlChatCompletionMessage),
-      model: {
-        providerKey: instance.model.provider,
-        name: instance.model.modelName || "",
-        ...azureModelParams,
-      },
-      invocationParameters,
-      templateOptions: {
-        variables: templateVariables,
-        language: templateLanguage,
-      },
-      tools: instance.tools.length
-        ? instance.tools.map((tool) => tool.definition)
-        : undefined,
-      apiKey: credentials[instance.model.provider],
-    },
-    runId: instance.activeRunId,
-    onNext: (response) => {
-      const chatCompletion = response.chatCompletion;
+  const [outputContent, setOutputContent] = useState<OutputContent>(
+    instance.output
+  );
+  const [toolCalls, setToolCalls] = useState<readonly PartialOutputToolCall[]>(
+    []
+  );
+
+  const onNext = useCallback(
+    ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
+      setLoading(false);
       if (chatCompletion.__typename === "TextChunk") {
-        setOutput((acc) => (acc || "") + chatCompletion.content);
+        const content = chatCompletion.content;
+        setOutputContent((prev) => {
+          const newOutput = prev != null ? prev + content : content;
+          return newOutput;
+        });
+        return;
       } else if (chatCompletion.__typename === "ToolCallChunk") {
         setToolCalls((toolCalls) => {
           let toolCallExists = false;
@@ -336,69 +203,226 @@ function PlaygroundOutputText(props: PlaygroundInstanceProps) {
           }
           return updated;
         });
-      } else if (chatCompletion.__typename === "FinishedChatCompletion") {
+        return;
+      }
+      if (chatCompletion.__typename === "FinishedChatCompletion") {
         updateInstance({
-          instanceId: props.playgroundInstanceId,
+          instanceId,
           patch: {
             spanId: chatCompletion.span.id,
           },
         });
-      } else if (
-        chatCompletion.__typename === "ChatCompletionSubscriptionError"
-      ) {
+        return;
+      }
+      if (chatCompletion.__typename === "ChatCompletionSubscriptionError") {
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        updateInstance({
-          instanceId: props.playgroundInstanceId,
-          patch: {
-            isRunning: false,
-          },
-        });
-        notifyError({
-          title: "Chat completion failed",
-          message: chatCompletion.message,
-        });
+        if (chatCompletion.message != null) {
+          notifyError({
+            title: "Chat completion failed",
+            message: chatCompletion.message,
+            expireMs: 10000,
+          });
+        }
       }
     },
-    onCompleted: () => {
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
-    },
-    onFailed: (error) => {
-      // TODO(apowell): We should display this error to the user after formatting it nicely.
-      // eslint-disable-next-line no-console
-      console.error(error);
+    [
+      instanceId,
+      markPlaygroundInstanceComplete,
+      notifyError,
+      props.playgroundInstanceId,
+      updateInstance,
+    ]
+  );
+
+  const onCompleted = useCallback(
+    (
+      response: PlaygroundOutputMutation$data,
+      errors: PayloadError[] | null
+    ) => {
+      setLoading(false);
       markPlaygroundInstanceComplete(props.playgroundInstanceId);
       updateInstance({
-        instanceId: props.playgroundInstanceId,
+        instanceId,
         patch: {
-          activeRunId: null,
+          spanId: response.chatCompletion.span.id,
         },
       });
-      notifyError({
-        title: "Failed to get output",
-        message: "Please try again.",
-      });
+      if (errors) {
+        notifyError({
+          title: "Chat completion failed",
+          message: errors[0].message,
+        });
+        return;
+      }
+      if (response.chatCompletion.errorMessage != null) {
+        notifyError({
+          title: "Chat completion failed",
+          message: response.chatCompletion.errorMessage,
+        });
+        return;
+      }
+      setOutputContent(response.chatCompletion.content ?? undefined);
+      setToolCalls(response.chatCompletion.toolCalls);
     },
-  });
+    [
+      instanceId,
+      markPlaygroundInstanceComplete,
+      notifyError,
+      props.playgroundInstanceId,
+      updateInstance,
+    ]
+  );
 
-  if (instance.isRunning) {
-    return (
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <Icon svg={<Icons.LoadingOutline />} />
-        Running...
-      </Flex>
-    );
-  }
-  if (output || toolCalls.length) {
-    return (
-      <PlaygroundOutputMessage
-        message={{
-          id: generateMessageId(),
-          content: output,
-          role: "ai",
-          toolCalls: toolCalls,
-        }}
-      />
-    );
-  }
-  return "";
+  useEffect(() => {
+    if (!hasRunId) {
+      return;
+    }
+    setLoading(true);
+    setOutputContent(undefined);
+    setToolCalls([]);
+    const variables = getChatCompletionVariables({
+      playgroundStore,
+      instanceId,
+      credentials,
+    });
+
+    if (streaming) {
+      const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
+        {
+          subscription: PlaygroundOutputSubscription,
+          variables,
+          onNext: (response) => {
+            if (response) {
+              onNext(response);
+            }
+          },
+          onCompleted: () => {
+            setLoading(false);
+            markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          },
+          onError: (error) => {
+            setLoading(false);
+            // TODO(apowell): We should display this error to the user after formatting it nicely.
+            // eslint-disable-next-line no-console
+            console.error(error);
+            markPlaygroundInstanceComplete(props.playgroundInstanceId);
+            updateInstance({
+              instanceId: props.playgroundInstanceId,
+              patch: {
+                activeRunId: null,
+              },
+            });
+            notifyError({
+              title: "Failed to get output",
+              message: "Please try again.",
+            });
+          },
+        };
+      const subscription = requestSubscription(environment, config);
+      return subscription.dispose;
+    }
+    generateChatCompletion({
+      variables,
+      onCompleted,
+      onError(error) {
+        setLoading(false);
+        markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        notifyError({
+          title: "Failed to get output",
+          message: error.message,
+        });
+      },
+    });
+  }, [
+    credentials,
+    environment,
+    generateChatCompletion,
+    hasRunId,
+    instanceId,
+    markPlaygroundInstanceComplete,
+    notifyError,
+    onCompleted,
+    onNext,
+    playgroundStore,
+    props.playgroundInstanceId,
+    streaming,
+    updateInstance,
+  ]);
+
+  return (
+    <Card
+      title={<TitleWithAlphabeticIndex index={index} title="OutputContent" />}
+      collapsible
+      variant="compact"
+      bodyStyle={{ padding: 0 }}
+    >
+      {loading ? (
+        <View padding="size-200">
+          <Loading message="Running..." />
+        </View>
+      ) : (
+        <>
+          <View padding="size-200">
+            <MarkdownDisplayProvider>
+              <PlaygroundOutputContent
+                content={outputContent}
+                partialToolCalls={toolCalls}
+              />
+            </MarkdownDisplayProvider>
+          </View>
+          <Suspense>
+            {instance.spanId ? (
+              <RunMetadataFooter spanId={instance.spanId} />
+            ) : null}
+          </Suspense>
+        </>
+      )}
+    </Card>
+  );
 }
+
+graphql`
+  subscription PlaygroundOutputSubscription($input: ChatCompletionInput!) {
+    chatCompletion(input: $input) {
+      __typename
+      ... on TextChunk {
+        content
+      }
+      ... on ToolCallChunk {
+        id
+        function {
+          name
+          arguments
+        }
+      }
+      ... on FinishedChatCompletion {
+        span {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionError {
+        message
+      }
+    }
+  }
+`;
+
+graphql`
+  mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
+    chatCompletion(input: $input) {
+      __typename
+      content
+      errorMessage
+      span {
+        id
+      }
+      toolCalls {
+        id
+        function {
+          name
+          arguments
+        }
+      }
+    }
+  }
+`;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25f9a3301a3afa2f5e37fce2e1b76103>>
+ * @generated SignedSource<<1e7d574479ac5b7b9fde941f3231cba0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,13 +22,18 @@ export type InvocationParametersFormQuery$variables = {
 export type InvocationParametersFormQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
+    readonly booleanDefaultValue?: boolean | null;
     readonly canonicalName?: CanonicalParameterName | null;
+    readonly floatDefaultValue?: number | null;
+    readonly intDefaultValue?: number | null;
     readonly invocationInputField?: InvocationInputField;
     readonly invocationName?: string;
     readonly label?: string;
     readonly maxValue?: number;
     readonly minValue?: number;
     readonly required?: boolean;
+    readonly stringDefaultValue?: string | null;
+    readonly stringListDefaultValue?: ReadonlyArray<string> | null;
   }>;
 };
 export type InvocationParametersFormQuery = {
@@ -52,9 +57,6 @@ v1 = {
   "storageKey": null
 },
 v2 = [
-  (v1/*: any*/)
-],
-v3 = [
   {
     "alias": null,
     "args": [
@@ -128,32 +130,75 @@ v3 = [
             "name": "maxValue",
             "storageKey": null
           },
-          (v1/*: any*/)
+          (v1/*: any*/),
+          {
+            "alias": "floatDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
         ],
         "type": "BoundedFloatInvocationParameter",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": "intDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
+        ],
         "type": "IntInvocationParameter",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": "stringDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
+        ],
         "type": "StringInvocationParameter",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": "stringListDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
+        ],
         "type": "StringListInvocationParameter",
         "abstractKey": null
       },
       {
         "kind": "InlineFragment",
-        "selections": (v2/*: any*/),
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": "booleanDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
+        ],
         "type": "BooleanInvocationParameter",
         "abstractKey": null
       }
@@ -167,7 +212,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "InvocationParametersFormQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -176,19 +221,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "InvocationParametersFormQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "74874505b29df3d985f063d70d0560c4",
+    "cacheID": "3cb8a2f44047c49a75b02fa75d245cd0",
     "id": null,
     "metadata": {},
     "name": "InvocationParametersFormQuery",
     "operationKind": "query",
-    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n    }\n  }\n}\n"
+    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bd85203434a152b7e12c0a96b6476800";
+(node as any).hash = "83e597b9bb0c07647c9fb9b7873be073";
 
 export default node;
