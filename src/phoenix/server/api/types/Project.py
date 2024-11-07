@@ -1,6 +1,6 @@
 import operator
 from datetime import datetime
-from typing import Any, ClassVar, Optional, assert_never
+from typing import Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
@@ -12,6 +12,7 @@ from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models

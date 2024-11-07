@@ -1,7 +1,7 @@
 from enum import Enum, auto
-from typing import assert_never
 
 import strawberry
+from typing_extensions import assert_never
 
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
