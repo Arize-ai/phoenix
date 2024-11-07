@@ -65,9 +65,17 @@ ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
 
 class KeyedSingleton:
-    _instances: dict[tuple[type, Hashable], Any] = {}
+    _instances = {}
 
-    def __new__(cls, singleton_key: Hashable) -> Any:
+    def __new__(cls, *args, **kwargs):
+        if 'singleton_key' in kwargs:
+            singleton_key = kwargs.pop('singleton_key')
+        elif args:
+            singleton_key = args[0]
+            args = args[1:]
+        else:
+            raise ValueError("singleton_key must be provided")
+
         instance_key = (cls, singleton_key)
         if instance_key not in cls._instances:
             instance = super().__new__(cls)
