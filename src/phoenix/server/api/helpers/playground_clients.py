@@ -6,14 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Hashable,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
 
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
@@ -28,10 +21,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimiter,
     RateLimitError,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PROVIDER_DEFAULT,
-    register_llm_client,
-)
+from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
@@ -55,10 +45,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from openai.types import CompletionUsage
-    from openai.types.chat import (
-        ChatCompletionMessageParam,
-        ChatCompletionMessageToolCallParam,
-    )
+    from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
 
 DependencyName: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
@@ -248,12 +235,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        from openai import (
-            AsyncOpenAI,
-        )
-        from openai import (
-            RateLimitError as OpenAIRateLimitError,
-        )
+        from openai import AsyncOpenAI
+        from openai import RateLimitError as OpenAIRateLimitError
 
         super().__init__(model=model, api_key=api_key)
         self.client = AsyncOpenAI(api_key=api_key)
@@ -714,7 +697,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                         {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
                     )
                 elif (
-                    isinstance(event, anthropic_types.RawContentBlockStartEvent)
+                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
                     and event.content_block.type == "tool_use"
                 ):
                     tool_call_chunk = ToolCallChunk(
@@ -732,6 +715,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                         anthropic_types.RawContentBlockDeltaEvent,
                         anthropic_types.RawMessageDeltaEvent,
                         anthropic_streaming.ContentBlockStopEvent,
+                        anthropic_streaming.InputJsonEvent,
                     ),
                 ):
                     # event types emitted by the stream that don't contain useful information
