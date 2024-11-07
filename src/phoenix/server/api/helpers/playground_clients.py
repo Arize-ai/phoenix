@@ -65,9 +65,9 @@ ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
 
 class KeyedSingleton:
-    _instances = {}
+    _instances: dict[Hashable, "KeyedSingleton"] = {}
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args: Any, **kwargs: Any) -> "KeyedSingleton":
         if 'singleton_key' in kwargs:
             singleton_key = kwargs.pop('singleton_key')
         elif args:
