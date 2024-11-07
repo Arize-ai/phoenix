@@ -282,11 +282,11 @@ def _output_value_and_mime_type(
         yield OUTPUT_MIME_TYPE, JSON
         yield (
             OUTPUT_VALUE,
-            safe_json_dumps({"content": text, "tool_calls": jsonify(tool_calls.values())}),
+            safe_json_dumps({"content": text, "tool_calls": jsonify(list(tool_calls.values()))}),
         )
     elif tool_calls:
         yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(tool_calls.values()))
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(list(tool_calls.values())))
     elif text:
         yield OUTPUT_MIME_TYPE, TEXT
         yield OUTPUT_VALUE, text
