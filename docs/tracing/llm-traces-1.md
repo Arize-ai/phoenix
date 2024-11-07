@@ -158,6 +158,14 @@ Here we're using OpenAI, so we'll install the built-in OpenAI instrumentor we pr
 pip install -q openinference-instrumentation-openai openai getpass
 ```
 
+Initialize the OpenAIInstrumentor before your application code:
+
+```python
+from openinference.instrumentation.openai import OpenAIInstrumentor
+
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
 ## Use OpenAI as normal
 
 From here we can use OpenAI as normal. All of our requests will be traced and reported to Phoenix automatically.

@@ -6,8 +6,12 @@ description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex Wo
 
 [LlamaIndex Workflows](https://www.llamaindex.ai/blog/introducing-workflows-beta-a-new-way-to-create-complex-ai-applications-with-llamaindex) are a subset of the LlamaIndex package specifically designed to support agent development.
 
-{% hint style="info" %}
+{% hint style="success" %}
 Our [LlamaIndexInstrumentor](llamaindex.md) automatically captures traces for LlamaIndex Workflows agents. If you've already enabled that instrumentor, you do not need to complete the steps below.
+{% endhint %}
+
+{% hint style="info" %}
+We recommend using `llama_index >= 0.11.0`
 {% endhint %}
 
 ## Launch Phoenix

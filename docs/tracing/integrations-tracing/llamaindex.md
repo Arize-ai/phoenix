@@ -12,6 +12,10 @@ Troubleshooting an LLM application using the OpenInferenceTraceCallback
 
 For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrumentor aptly named the `LlamaIndexInstrumentor` . This callback is what is used to create spans and send them to the Phoenix collector.
 
+{% hint style="info" %}
+We recommend using `llama_index >= 0.11.0`
+{% endhint %}
+
 ## Launch Phoenix
 
 Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm. This paradigm requires LlamaIndex >= 0.10.43. For legacy support, see below.
@@ -150,7 +154,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-llama_index llama-index
+pip install openinference-instrumentation-llama_index llama-index>=0.11.0
 ```
 
 ## Setup
