@@ -112,7 +112,7 @@ class ChatCompletionMutationMixin:
         )
 
         text_content = ""
-        tool_calls: list[ChatCompletionToolCall] = []
+        tool_calls: dict[str, ChatCompletionToolCall] = {}
         events = []
         attributes.update(
             chain(
@@ -137,38 +137,16 @@ class ChatCompletionMutationMixin:
                 if isinstance(chunk, TextChunk):
                     text_content += chunk.content
                 elif isinstance(chunk, ToolCallChunk):
-                    if len(tool_calls) == 0:
-                        tool_call = ChatCompletionToolCall(
+                    if chunk.id not in tool_calls:
+                        tool_calls[chunk.id] = ChatCompletionToolCall(
                             id=chunk.id,
                             function=ChatCompletionFunctionCall(
                                 name=chunk.function.name,
                                 arguments=chunk.function.arguments,
                             ),
                         )
-                        tool_calls.append(tool_call)
                     else:
-                        tool_exists = False
-                        for i, tool_call in enumerate(tool_calls):
-                            if tool_call.id == chunk.id:
-                                tool_calls[i] = ChatCompletionToolCall(
-                                    id=tool_call.id,
-                                    function=ChatCompletionFunctionCall(
-                                        name=tool_call.function.name,
-                                        arguments=tool_call.function.arguments
-                                        + chunk.function.arguments,
-                                    ),
-                                )
-                                tool_exists = True
-                                break
-                        if not tool_exists:
-                            tool_call = ChatCompletionToolCall(
-                                id=chunk.id,
-                                function=ChatCompletionFunctionCall(
-                                    name=chunk.function.name,
-                                    arguments=chunk.function.arguments,
-                                ),
-                            )
-                            tool_calls.append(tool_call)
+                        tool_calls[chunk.id].function.arguments += chunk.function.arguments
                 else:
                     assert_never(chunk)
         except Exception as e:
@@ -258,7 +236,7 @@ class ChatCompletionMutationMixin:
         else:
             return ChatCompletionMutationPayload(
                 content=text_content if text_content else None,
-                tool_calls=tool_calls,
+                tool_calls=list(tool_calls.values()),
                 span=gql_span,
                 error_message=None,
             )
@@ -298,30 +276,29 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
 
 
 def _output_value_and_mime_type(
-    text: str, tool_calls: list[ChatCompletionToolCall]
+    text: str, tool_calls: dict[str, ChatCompletionToolCall]
 ) -> Iterator[tuple[str, Any]]:
-    formatted_tool_calls = tool_calls[0] if len(tool_calls) == 1 else tool_calls
-    if len(tool_calls) == 0:
-        yield OUTPUT_MIME_TYPE, TEXT
-        yield OUTPUT_VALUE, text
-    if len(text) == 0:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(formatted_tool_calls))
-    if len(text) > 0 and len(tool_calls) > 0:
+    if text and tool_calls:
         yield OUTPUT_MIME_TYPE, JSON
         yield (
             OUTPUT_VALUE,
-            safe_json_dumps({"content": text, "tool_calls": jsonify(formatted_tool_calls)}),
+            safe_json_dumps({"content": text, "tool_calls": jsonify(tool_calls.values())}),
         )
+    elif tool_calls:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(tool_calls.values))
+    elif text:
+        yield OUTPUT_MIME_TYPE, TEXT
+        yield OUTPUT_VALUE, text
 
 
 def _llm_output_messages(
-    text_content: str, tool_calls: List[ChatCompletionToolCall]
+    text_content: str, tool_calls: dict[str, ChatCompletionToolCall]
 ) -> Iterator[tuple[str, Any]]:
     yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
     if text_content:
         yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", text_content
-    for tool_call_index, tool_call in enumerate(tool_calls):
+    for tool_call_index, tool_call in enumerate(tool_calls.values()):
         yield (
             f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
             tool_call.function.name,

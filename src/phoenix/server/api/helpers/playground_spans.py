@@ -226,24 +226,37 @@ def input_value_and_mime_type(
 
 def _merge_tool_call_chunks(
     chunks_by_id: defaultdict[str, list[ToolCallChunk]],
-) -> Union[list[dict[str, Any]], dict[str, Any]]:
+) -> list[dict[str, Any]]:
     merged_tool_calls = []
 
     for tool_id, chunks in chunks_by_id.items():
-        # Get the name from the first chunk since it should be the same for all chunks
+        if not chunks:
+            continue
         first_chunk = chunks[0]
+        if not first_chunk:
+            continue
 
+        if not hasattr(first_chunk, "function") or not hasattr(first_chunk.function, "name"):
+            continue
         # Combine all argument chunks
-        merged_arguments = "".join(chunk.function.arguments for chunk in chunks)
+        merged_arguments = "".join(
+            chunk.function.arguments
+            for chunk in chunks
+            if chunk and hasattr(chunk, "function") and hasattr(chunk.function, "arguments")
+        )
 
         merged_tool_calls.append(
             {
                 "id": tool_id,
-                "function": {"name": first_chunk.function.name, "arguments": merged_arguments},
+                # Only the first chunk has the tool name
+                "function": {
+                    "name": first_chunk.function.name,
+                    "arguments": merged_arguments or "{}",
+                },
             }
         )
 
-    return merged_tool_calls[0] if len(merged_tool_calls) == 1 else merged_tool_calls
+    return merged_tool_calls
 
 
 def _output_value_and_mime_type(
@@ -252,18 +265,25 @@ def _output_value_and_mime_type(
 ) -> Iterator[tuple[str, Any]]:
     content = "".join(chunk.content for chunk in text_chunks)
     merged_tool_calls = _merge_tool_call_chunks(tool_call_chunks)
-    if len(merged_tool_calls) == 0:
-        yield OUTPUT_MIME_TYPE, TEXT
-        yield OUTPUT_VALUE, content
-    elif len(content) == 0:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(merged_tool_calls))
-    else:
+    if content and merged_tool_calls:
         yield OUTPUT_MIME_TYPE, JSON
         yield (
             OUTPUT_VALUE,
-            safe_json_dumps({"content": content, "tool_calls": jsonify(merged_tool_calls)}),
+            safe_json_dumps(
+                {
+                    "content": content,
+                    "tool_calls": jsonify(
+                        merged_tool_calls,
+                    ),
+                }
+            ),
         )
+    elif merged_tool_calls:
+        yield OUTPUT_MIME_TYPE, JSON
+        yield OUTPUT_VALUE, safe_json_dumps(jsonify(merged_tool_calls))
+    elif content:
+        yield OUTPUT_MIME_TYPE, TEXT
+        yield OUTPUT_VALUE, content
 
 
 def llm_input_messages(
