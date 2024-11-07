@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from functools import singledispatch
 from secrets import token_hex
 from typing import Any, Dict, Optional, Type, TypeVar, cast
 
@@ -8,6 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.types.ProjectSession import ProjectSession
+
+
+@singledispatch
+def _gid(_: models.Base) -> str:
+    raise NotImplementedError
+
+
+@_gid.register
+def _(obj: models.ProjectSession) -> str:
+    return str(GlobalID(ProjectSession.__name__, str(obj.id)))
 
 
 async def _node(
