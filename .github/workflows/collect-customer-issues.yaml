@@ -2,7 +2,7 @@ name: Collect customer issues
 
 on:
   schedule:
-    - cron: "0 15 * * *"
+    - cron: "0 15 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     name: Pending Triage
     runs-on: ubuntu-latest
     env:
-      DAYS: 30
+      DAYS: 90
     steps:
       - name: Retrieve and format issues
         id: retrieve-issues
@@ -20,17 +20,6 @@ jobs:
             // List of labels to filter by
             const requiredLabels = [
               "triage",
-            ];
-
-            // List of core developers to exclude
-            const coreDevelopers = [
-              "mikeldking",
-              "axiomofjoy",
-              "anticorrelator",
-              "cephalization",
-              "Parker-Stafford",
-              "Jgilhuly",
-              "RogerHYang",
             ];
 
             // Access the DAYS environment variable
@@ -59,7 +48,6 @@ jobs:
 
             // Filter issues
             const filteredIssues = issues.filter(issue =>
-              !coreDevelopers.includes(issue.user.login) &&
               hasRequiredLabel(issue.labels, requiredLabels) &&
               new Date(issue.created_at) > cutoffDate &&
               !issue.pull_request
