@@ -68,8 +68,8 @@ class KeyedSingleton:
     _instances: dict[Hashable, "KeyedSingleton"] = {}
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "KeyedSingleton":
-        if 'singleton_key' in kwargs:
-            singleton_key = kwargs.pop('singleton_key')
+        if "singleton_key" in kwargs:
+            singleton_key = kwargs.pop("singleton_key")
         elif args:
             singleton_key = args[0]
             args = args[1:]
