@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<814210e1a750a2c446a2043b5a6ab0b8>>
+ * @generated SignedSource<<dfe7f546aee7b7d1747b599c71b83ff7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -86,7 +86,21 @@ return {
             "name": "key",
             "storageKey": null
           },
-          (v2/*: any*/)
+          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "dependenciesInstalled",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "dependencies",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       },
@@ -111,12 +125,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8e6ad232aae761280ca29a0571fe7c23",
+    "cacheID": "312c7daf378370f2936ee987869d155d",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
   }
 };
 })();
