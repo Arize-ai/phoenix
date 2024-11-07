@@ -305,26 +305,28 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   return (
     <View padding="size-200" overflow="auto">
       <Form>
-        <ModelProviderPicker
-          provider={instance.model.provider}
-          query={query}
-          onChange={updateProvider}
-        />
-        {instance.model.provider === "AZURE_OPENAI" ? (
-          <AzureOpenAiModelConfigFormField instance={instance} />
-        ) : (
-          <ModelPicker
-            modelName={instance.model.modelName}
+        <Flex direction="column" gap="size-200">
+          <ModelProviderPicker
             provider={instance.model.provider}
             query={query}
-            onChange={onModelNameChange}
+            onChange={updateProvider}
           />
-        )}
-        {instance.model.modelName ? (
-          <InvocationParametersForm instanceId={playgroundInstanceId} />
-        ) : (
-          <></>
-        )}
+          {instance.model.provider === "AZURE_OPENAI" ? (
+            <AzureOpenAiModelConfigFormField instance={instance} />
+          ) : (
+            <ModelPicker
+              modelName={instance.model.modelName}
+              provider={instance.model.provider}
+              query={query}
+              onChange={onModelNameChange}
+            />
+          )}
+          {instance.model.modelName ? (
+            <InvocationParametersForm instanceId={playgroundInstanceId} />
+          ) : (
+            <></>
+          )}
+        </Flex>
       </Form>
     </View>
   );

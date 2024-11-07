@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
@@ -23,7 +24,9 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundProps } from "@phoenix/store";
 
+import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
@@ -41,10 +44,25 @@ const playgroundWrapCSS = css`
 `;
 
 export function Playground(props: Partial<PlaygroundProps>) {
+  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
+    graphql`
+      query PlaygroundQuery {
+        modelProviders {
+          name
+          dependenciesInstalled
+          dependencies
+        }
+      }
+    `,
+    {}
+  );
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
   const [, setSearchParams] = useSearchParams();
+  const hasInstalledProvider = modelProviders.some(
+    (provider) => provider.dependenciesInstalled
+  );
 
   useEffect(() => {
     setSearchParams(
@@ -59,6 +77,10 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }, [setSearchParams]);
 
   const enableStreaming = window.Config.websocketsEnabled;
+
+  if (!hasInstalledProvider) {
+    return <NoInstalledProvider availableProviders={modelProviders} />;
+  }
 
   return (
     <PlaygroundProvider
