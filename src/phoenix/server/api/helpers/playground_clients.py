@@ -697,6 +697,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "model": self.model_name,
             "system": system_prompt,
             "max_tokens": 1024,
+            "tools": tools,
             **invocation_parameters,
         }
         throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
