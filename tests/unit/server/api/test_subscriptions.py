@@ -1584,9 +1584,7 @@ async def playground_city_and_country_dataset(
     ]
     async with db() as session:
         session.add(dataset)
-        await session.flush()
         session.add(version)
-        await session.flush()
         session.add_all(examples)
         await session.flush()
         session.add_all(revisions)
