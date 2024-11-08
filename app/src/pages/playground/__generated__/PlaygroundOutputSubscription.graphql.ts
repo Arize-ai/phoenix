@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f7c82cbb555fb710843e3fb6d396e9f>>
+ * @generated SignedSource<<b8dadeaac479f8c23e824ca7de38062d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,10 +56,10 @@ export type PlaygroundOutputSubscription$data = {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly message: string;
   } | {
-    readonly __typename: "FinishedChatCompletion";
+    readonly __typename: "ChatCompletionSubscriptionResult";
     readonly span: {
       readonly id: string;
-    };
+    } | null;
   } | {
     readonly __typename: "TextChunk";
     readonly content: string;
@@ -181,7 +181,7 @@ v2 = [
             "storageKey": null
           }
         ],
-        "type": "FinishedChatCompletion",
+        "type": "ChatCompletionSubscriptionResult",
         "abstractKey": null
       },
       {
@@ -220,16 +220,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "74f9e043219138270050265796ba4d74",
+    "cacheID": "aca7bf342ad2dc5db66b07e236a68268",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1aebc9c1efdbd7ed6a65c0fa36fa040c";
+(node as any).hash = "bb5936a61a0e99dbb4a298a6e552a01c";
 
 export default node;

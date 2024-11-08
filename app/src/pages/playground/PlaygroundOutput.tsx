@@ -205,7 +205,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      if (chatCompletion.__typename === "FinishedChatCompletion") {
+      if (
+        chatCompletion.__typename === "ChatCompletionSubscriptionResult" &&
+        chatCompletion.span != null
+      ) {
         updateInstance({
           instanceId,
           patch: {
@@ -395,7 +398,7 @@ graphql`
           arguments
         }
       }
-      ... on FinishedChatCompletion {
+      ... on ChatCompletionSubscriptionResult {
         span {
           id
         }

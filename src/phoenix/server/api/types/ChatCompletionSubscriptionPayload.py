@@ -4,6 +4,7 @@ import strawberry
 from strawberry.relay import GlobalID
 
 from .Experiment import Experiment
+from .ExperimentRun import ExperimentRun
 from .Span import Span
 
 
@@ -30,8 +31,9 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class FinishedChatCompletion(ChatCompletionSubscriptionPayload):
-    span: Span
+class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
+    span: Optional[Span] = None
+    experiment_run: Optional[ExperimentRun] = None
 
 
 @strawberry.type
@@ -40,5 +42,5 @@ class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
 
 
 @strawberry.type
-class ChatCompletionOverDatasetSubscriptionResult(ChatCompletionSubscriptionPayload):
+class ChatCompletionSubscriptionExperiment(ChatCompletionSubscriptionPayload):
     experiment: Experiment
