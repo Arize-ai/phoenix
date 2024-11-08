@@ -20,6 +20,7 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
+import { InvocationParametersForm } from "../InvocationParametersForm";
 import {
   extractVariablesFromInstances,
   getBaseModelConfigFromAttributes,
@@ -27,6 +28,7 @@ import {
   getModelInvocationParametersFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
+  getResponseFormatFromAttributes,
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
@@ -610,6 +612,25 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         invocationParameters: [],
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+    });
+  });
+
+  it("should only return response format parsing errors if response format is defined AND malformed", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: `{"response_format": 1234}`,
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
     });
   });
 });

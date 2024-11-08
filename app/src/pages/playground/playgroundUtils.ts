@@ -55,6 +55,8 @@ import {
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
   TOOL_CHOICE_PARAM_NAME,
@@ -468,8 +470,15 @@ export function transformSpanAttributesToPlaygroundInstance(
     modelConfig != null
       ? {
           ...modelConfig,
-          // TODO(apowell): Remove response_format and tool related parameters from invocation parameters
-          invocationParameters,
+          invocationParameters:
+            // remove response format from invocation parameters if there are parsing errors
+            responseFormatParsingErrors.length > 0
+              ? invocationParameters.filter(
+                  (param) =>
+                    param.invocationName !== RESPONSE_FORMAT_PARAM_NAME &&
+                    param.canonicalName !== RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+                )
+              : invocationParameters,
         }
       : null;
 
