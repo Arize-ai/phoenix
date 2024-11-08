@@ -17,7 +17,7 @@ import { CreateDatasetForm } from "./CreateDatasetForm";
 export function NewDatasetButton({
   onDatasetCreated,
 }: {
-  onDatasetCreated: (datasetId: string) => void;
+  onDatasetCreated?: (datasetId: string) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +54,7 @@ export function NewDatasetButton({
                 title: `Dataset Created`,
                 message: `Dataset "${name}" created successfully`,
               });
-              onDatasetCreated(id);
+              onDatasetCreated && onDatasetCreated(id);
             }}
           />
         </View>

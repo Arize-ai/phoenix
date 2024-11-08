@@ -187,19 +187,7 @@ export function SpanToDatasetExampleDialog({
                       errorMessage={error?.message}
                       label="Dataset"
                     />
-                    <NewDatasetButton
-                      onDatasetCreated={() => {
-                        // startTransition(() => {
-                        //   // Refetch the datasets
-                        //   refetch(
-                        //     {},
-                        //     {
-                        //       fetchPolicy: "store-and-network",
-                        //     }
-                        //   );
-                        // });
-                      }}
-                    />
+                    <NewDatasetButton />
                   </Flex>
                 )}
               />

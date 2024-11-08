@@ -48,7 +48,7 @@ function JSONCell<TData extends object, TValue>({
 
 const PAGE_SIZE = 100;
 
-//un-memoized normal table body component - see memoized version below
+// un-memoized normal table body component - see memoized version below
 function TableBody<T>({ table }: { table: Table<T> }) {
   return (
     <tbody>
@@ -71,7 +71,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
     </tbody>
   );
 }
-//special memoized wrapper for our table body that we will use during column resizing
+// special memoized wrapper for our table body that we will use during column resizing
 export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
