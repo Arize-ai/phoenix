@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 from typing import Any
 
 import vcr
@@ -7,7 +6,7 @@ from pytest import FixtureRequest
 from vcr.cassette import Cassette
 
 
-class CustomVCR(vcr.VCR):
+class CustomVCR(vcr.VCR):  # type: ignore[misc]
     def __init__(
         self,
         request: FixtureRequest,
@@ -31,7 +30,7 @@ class CustomVCR(vcr.VCR):
         module_name = self._request.node.module.__name__.split(".")[-1]
         test_name = self._request.node.name
         file_name_parts.append(_remove_parameters(test_name))
-        test_file_path = Path(str(self._request.fspath))
+        test_file_path = self._request.path
         path = (
             test_file_path.parent / "cassettes" / module_name / f'{".".join(file_name_parts)}.yaml'
         )
