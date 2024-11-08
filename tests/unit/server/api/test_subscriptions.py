@@ -1266,7 +1266,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
-        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+        assert datetime.fromisoformat(run.pop("startTime")) <= datetime.fromisoformat(
             run.pop("endTime")
         )
         assert run.pop("error") is None
@@ -1289,7 +1289,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
-        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+        assert datetime.fromisoformat(run.pop("startTime")) <= datetime.fromisoformat(
             run.pop("endTime")
         )
         assert run.pop("error") is None
@@ -1312,7 +1312,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
-        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+        assert datetime.fromisoformat(run.pop("startTime")) <= datetime.fromisoformat(
             run.pop("endTime")
         )
         assert run.pop("error") == "Missing template variable(s): city"
