@@ -1,6 +1,7 @@
 name: Collect customer issues
 
 on:
+  pull_request:
   schedule:
     - cron: "0 15 * * 1-5"
   workflow_dispatch:
