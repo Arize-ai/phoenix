@@ -5,9 +5,9 @@ import { assertUnreachable, schemaForType } from "@phoenix/typeUtils";
 /**
  * OpenAI's tool choice schema
  *
- * @see https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
+ * @see https://platform.openAI.com/docs/api-reference/chat/create#chat-create-tool_choice
  */
-export const openaiToolChoiceSchema = schemaForType<ToolChoice>()(
+export const openAIToolChoiceSchema = schemaForType<ToolChoice>()(
   z.union([
     z.literal("auto"),
     z.literal("none"),
@@ -19,7 +19,7 @@ export const openaiToolChoiceSchema = schemaForType<ToolChoice>()(
   ])
 );
 
-export type OpenaiToolChoice = z.infer<typeof openaiToolChoiceSchema>;
+export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
 
 /**
  * Anthropic's tool choice schema
@@ -53,19 +53,19 @@ export const anthropicToolChoiceToOpenaiToolChoice =
     }
   });
 
-export const openaiToolChoiceToAnthropicToolChoice =
-  openaiToolChoiceSchema.transform((openai): AnthropicToolChoice => {
-    if (typeof openai === "string") {
+export const openAIToolChoiceToAnthropicToolChoice =
+  openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
+    if (typeof openAI === "string") {
       return { type: "auto" };
     }
     return {
       type: "tool",
-      name: openai.function.name,
+      name: openAI.function.name,
     };
   });
 
 export const llmProviderToolChoiceSchema = z.union([
-  openaiToolChoiceSchema,
+  openAIToolChoiceSchema,
   anthropicToolChoiceSchema,
 ]);
 
@@ -88,10 +88,10 @@ export type ToolChoiceWithProvider =
 export const detectToolChoiceProvider = (
   toolChoice: unknown
 ): ToolChoiceWithProvider => {
-  const { success: openaiSuccess, data: openaiData } =
-    openaiToolChoiceSchema.safeParse(toolChoice);
-  if (openaiSuccess) {
-    return { provider: "OPENAI", toolChoice: openaiData };
+  const { success: openAISuccess, data: openAIData } =
+    openAIToolChoiceSchema.safeParse(toolChoice);
+  if (openAISuccess) {
+    return { provider: "OPENAI", toolChoice: openAIData };
   }
   const { success: anthropicSuccess, data: anthropicData } =
     anthropicToolChoiceSchema.safeParse(toolChoice);
@@ -147,7 +147,7 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
     case "OPENAI":
       return toolChoice as ProviderToToolChoiceMap[T];
     case "ANTHROPIC":
-      return openaiToolChoiceToAnthropicToolChoice.parse(
+      return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
       ) as ProviderToToolChoiceMap[T];
     default:
@@ -164,10 +164,10 @@ export const safelyConvertToolChoiceToProvider = <T extends ModelProvider>({
 }): ProviderToToolChoiceMap[T] | null => {
   try {
     // convert incoming tool choice to the OpenAI format
-    const openaiToolChoice = toOpenAIToolChoice(toolChoice);
+    const openAIToolChoice = toOpenAIToolChoice(toolChoice);
     // convert the OpenAI format to the target provider format
     return fromOpenAIToolChoice({
-      toolChoice: openaiToolChoice,
+      toolChoice: openAIToolChoice,
       targetProvider,
     });
   } catch (e) {
