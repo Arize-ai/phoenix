@@ -8,11 +8,6 @@ import {
 
 import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
-/**
- * The input mode for the playground
- * @example "manual" or "dataset"
- */
-export type PlaygroundInputMode = "manual" | "dataset";
 
 /**
  * A chat message with a role and content
@@ -69,14 +64,14 @@ export type PlaygroundTemplate =
   | PlaygroundTextCompletionTemplate;
 
 type DatasetInput = {
-  datasetId: string;
+  datasetId?: string;
 };
 
 type ManualInput = {
-  variablesValueCache: Record<string, string | undefined>;
+  variablesValueCache?: Record<string, string | undefined>;
 };
 
-export type PlaygroundInput = DatasetInput | ManualInput;
+export type PlaygroundInput = DatasetInput & ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;
@@ -113,7 +108,6 @@ export interface PlaygroundInstance {
    * @default "auto"
    */
   toolChoice?: ToolChoice;
-  input: PlaygroundInput;
   model: ModelConfig;
   output?: ChatMessage[] | string;
   spanId: string | null;
@@ -136,12 +130,6 @@ export interface PlaygroundProps {
    * @default "chat"
    */
   operationType: GenAIOperationType;
-  /**
-   * The input mode for the playground(s)
-   * NB: the input mode for all instances is synchronized
-   * @default "manual"
-   */
-  inputMode: PlaygroundInputMode;
   /**
    * The input to all the playground instances
    */
@@ -175,9 +163,15 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   setOperationType: (operationType: GenAIOperationType) => void;
   /**
-   * Setter for the input mode.
+   * The input for the playground. Setting a datasetId will cause the playground to use the dataset as input
+   * The variablesValueCache will be set and maintained even when switching between dataset and manual input
+   * This allows the user to switch between dataset and manual input without losing the manual input values
    */
-  setInputMode: (inputMode: PlaygroundInputMode) => void;
+  input: PlaygroundInput;
+  /**
+   * Sets the input for the playground
+   */
+  setInput: (input: PlaygroundInput) => void;
   /**
    * Add a comparison instance to the playground
    */
@@ -248,19 +242,3 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   setStreaming: (streaming: boolean) => void;
 }
-
-/**
- * Check if the input is manual
- */
-export const isManualInput = (input: PlaygroundInput): input is ManualInput => {
-  return "variablesValueCache" in input;
-};
-
-/**
- * Check if the input is a dataset
- */
-export const isDatasetInput = (
-  input: PlaygroundInput
-): input is DatasetInput => {
-  return "datasetId" in input;
-};

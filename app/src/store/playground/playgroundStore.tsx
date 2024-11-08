@@ -12,9 +12,7 @@ import {
 import {
   GenAIOperationType,
   InitialPlaygroundState,
-  isManualInput,
   PlaygroundChatTemplate,
-  PlaygroundInputMode,
   PlaygroundInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
@@ -106,8 +104,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    // TODO(apowell) - use datasetId if in dataset mode
-    input: { variablesValueCache: {} },
     output: undefined,
     spanId: null,
     activeRunId: null,
@@ -152,12 +148,14 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     input: {
       // variablesValueCache is used to store the values of variables for the
       // manual input mode. It is indexed by the variable key. It keeps old
-      // values when variables are removed so that they can be restored.
+      // values when variables are removed or when switching to dataset input so that they can be restored.
       variablesValueCache: {},
     },
     templateLanguage: TemplateLanguages.Mustache,
-    setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
     instances: getInitialInstances(initialProps),
+    setInput: (input) => {
+      set({ input });
+    },
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
         set({
@@ -318,14 +316,12 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
-      if (isManualInput(input)) {
-        set({
-          input: {
-            ...input,
-            variablesValueCache: { ...input.variablesValueCache, [key]: value },
-          },
-        });
-      }
+      set({
+        input: {
+          ...input,
+          variablesValueCache: { ...input.variablesValueCache, [key]: value },
+        },
+      });
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });

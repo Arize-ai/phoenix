@@ -16,10 +16,10 @@ import {
 } from "@arizeai/components";
 
 import { JSONEditor } from "@phoenix/components/code";
+import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
-import { DatasetPicker } from "./DatasetPicker";
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -56,7 +56,6 @@ export function SpanToDatasetExampleDialog({
             }
           }
         }
-        ...DatasetPicker__datasets
       }
     `,
     { spanId },
@@ -180,13 +179,28 @@ export function SpanToDatasetExampleDialog({
                   field: { onChange, onBlur },
                   fieldState: { invalid, error },
                 }) => (
-                  <DatasetPicker
-                    onSelectionChange={onChange}
-                    onBlur={onBlur}
-                    validationState={invalid ? "invalid" : "valid"}
-                    errorMessage={error?.message}
-                    query={data}
-                  />
+                  <Flex direction="row" gap="size-100" alignItems="end">
+                    <DatasetPicker
+                      onSelectionChange={onChange}
+                      onBlur={onBlur}
+                      validationState={invalid ? "invalid" : "valid"}
+                      errorMessage={error?.message}
+                      label="Dataset"
+                    />
+                    <NewDatasetButton
+                      onDatasetCreated={() => {
+                        // startTransition(() => {
+                        //   // Refetch the datasets
+                        //   refetch(
+                        //     {},
+                        //     {
+                        //       fetchPolicy: "store-and-network",
+                        //     }
+                        //   );
+                        // });
+                      }}
+                    />
+                  </Flex>
                 )}
               />
 

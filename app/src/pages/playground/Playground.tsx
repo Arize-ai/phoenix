@@ -16,7 +16,6 @@ import {
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
@@ -28,8 +27,9 @@ import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
+import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
+import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
 import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
@@ -103,6 +103,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
               {enableStreaming ? <PlaygroundStreamToggle /> : null}
+              <PlaygroundDatasetPicker />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>
@@ -178,16 +179,16 @@ const playgroundInputOutputPanelContentCSS = css`
 `;
 
 function PlaygroundContent() {
-  const playgroundWithDatasetsEnabled = useFeatureFlag(
-    "playgroundWithDatasets"
-  );
   const instances = usePlaygroundContext((state) => state.instances);
+  const input = usePlaygroundContext((state) => state.input);
+  const datasetId = input.datasetId;
+  const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
 
   return (
     <PanelGroup
-      direction={isSingleInstance ? "horizontal" : "vertical"}
+      direction={isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"}
       autoSaveId={
         isSingleInstance ? "playground-horizontal" : "playground-vertical"
       }
@@ -224,35 +225,31 @@ function PlaygroundContent() {
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
-          <Accordion arrowPosition="start" size="L">
-            <AccordionItem
-              title="Inputs"
-              id="input"
-              extra={
-                playgroundWithDatasetsEnabled ? (
-                  <PlaygroundInputTypeTypeRadioGroup />
-                ) : null
-              }
-            >
-              <View padding="size-200" height={"100%"}>
-                <PlaygroundInput />
-              </View>
-            </AccordionItem>
-            <AccordionItem title="Output" id="output">
-              <View padding="size-200" height="100%">
-                <Flex direction="row" gap="size-200">
-                  {instances.map((instance, i) => (
-                    <View key={i} flex="1 1 0px">
-                      <PlaygroundOutput
-                        key={i}
-                        playgroundInstanceId={instance.id}
-                      />
-                    </View>
-                  ))}
-                </Flex>
-              </View>
-            </AccordionItem>
-          </Accordion>
+          {isDatasetMode ? (
+            <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+          ) : (
+            <Accordion arrowPosition="start" size="L">
+              <AccordionItem title="Inputs" id="input">
+                <View padding="size-200" height={"100%"}>
+                  <PlaygroundInput />
+                </View>
+              </AccordionItem>
+              <AccordionItem title="Output" id="output">
+                <View padding="size-200" height="100%">
+                  <Flex direction="row" gap="size-200">
+                    {instances.map((instance, i) => (
+                      <View key={i} flex="1 1 0px">
+                        <PlaygroundOutput
+                          key={i}
+                          playgroundInstanceId={instance.id}
+                        />
+                      </View>
+                    ))}
+                  </Flex>
+                </View>
+              </AccordionItem>
+            </Accordion>
+          )}
         </div>
       </Panel>
     </PanelGroup>
