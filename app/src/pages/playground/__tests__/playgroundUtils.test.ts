@@ -20,7 +20,6 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { InvocationParametersForm } from "../InvocationParametersForm";
 import {
   extractVariablesFromInstances,
   getBaseModelConfigFromAttributes,
@@ -28,7 +27,6 @@ import {
   getModelInvocationParametersFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
-  getResponseFormatFromAttributes,
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
