@@ -8,6 +8,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
   GenAIOperationType,
@@ -111,6 +112,22 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
+  };
+}
+
+export function createOpenAIResponseFormat(): OpenAIResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "response",
+      schema: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+      strict: true,
+    },
   };
 }
 
@@ -367,6 +384,88 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             return {
               ...instance,
               model: { ...instance.model, invocationParameters },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    upsertInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInput,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      const currentInvocationParameterInput =
+        instance.model.invocationParameters.find(
+          (p) => p.invocationName === invocationParameterInput.invocationName
+        );
+
+      if (currentInvocationParameterInput) {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: instance.model.invocationParameters.map(
+                    (p) =>
+                      p.invocationName ===
+                      invocationParameterInput.invocationName
+                        ? invocationParameterInput
+                        : p
+                  ),
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      } else {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: [
+                    ...instance.model.invocationParameters,
+                    invocationParameterInput,
+                  ],
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      }
+    },
+    deleteInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInputInvocationName,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters:
+                  instance.model.invocationParameters.filter(
+                    (p) =>
+                      p.invocationName !==
+                      invocationParameterInputInvocationName
+                  ),
+              },
             };
           }
           return instance;

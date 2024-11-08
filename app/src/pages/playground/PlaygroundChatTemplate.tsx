@@ -36,6 +36,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
+  createOpenAIResponseFormat,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
   PlaygroundInstance,
@@ -45,10 +46,15 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "./constants";
+import {
   MessageContentRadioGroup,
   MessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
+import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
   createToolCallForProvider,
@@ -74,11 +80,18 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   );
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const upsertInvocationParameterInput = usePlaygroundContext(
+    (state) => state.upsertInvocationParameterInput
+  );
   const playgroundInstance = instances.find((instance) => instance.id === id);
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
   const hasTools = playgroundInstance.tools.length > 0;
+  const hasResponseFormat =
+    playgroundInstance.model.invocationParameters.find(
+      (p) => p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    ) != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -151,9 +164,28 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         paddingBottom="size-100"
         borderColor="dark"
         borderTopWidth="thin"
-        borderBottomWidth={hasTools ? "thin" : undefined}
+        borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
+          <Button
+            variant="default"
+            size="compact"
+            aria-label="output schema"
+            icon={<Icon svg={<Icons.PlusOutline />} />}
+            disabled={hasResponseFormat}
+            onClick={() => {
+              upsertInvocationParameterInput({
+                instanceId: id,
+                invocationParameterInput: {
+                  valueJson: createOpenAIResponseFormat(),
+                  invocationName: RESPONSE_FORMAT_PARAM_NAME,
+                  canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+                },
+              });
+            }}
+          >
+            Output Schema
+          </Button>
           <Button
             variant="default"
             aria-label="add tool"
@@ -217,6 +249,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         </Flex>
       </View>
       {hasTools ? <PlaygroundTools {...props} /> : null}
+      {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
     </DndContext>
   );
 }

@@ -206,6 +206,20 @@ export interface PlaygroundState extends PlaygroundProps {
     invocationParameters: InvocationParameterInput[];
   }) => void;
   /**
+   * Upsert an invocation parameter input for a model
+   */
+  upsertInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInput: InvocationParameterInput;
+  }) => void;
+  /**
+   * Delete an invocation parameter input for a model
+   */
+  deleteInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInputInvocationName: string;
+  }) => void;
+  /**
    * Filter the invocation parameters for a model based on the model's supported parameters
    */
   filterInstanceModelInvocationParameters: (params: {

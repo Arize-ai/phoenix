@@ -51,9 +51,12 @@ import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+  MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOL_CHOICE_PARAM_CANONICAL_NAME,
   TOOL_CHOICE_PARAM_NAME,
@@ -63,6 +66,7 @@ import { InvocationParameter } from "./InvocationParametersForm";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
+  JsonObjectSchema,
   llmInputMessageSchema,
   llmOutputMessageSchema,
   LlmToolSchema,
@@ -70,6 +74,7 @@ import {
   MessageSchema,
   modelConfigSchema,
   modelConfigWithInvocationParametersSchema,
+  modelConfigWithResponseFormatSchema,
   outputSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
@@ -343,6 +348,21 @@ export function getModelInvocationParametersFromAttributes(
   };
 }
 
+export function getResponseFormatFromAttributes(parsedAttributes: unknown) {
+  const { success, data } =
+    modelConfigWithResponseFormatSchema.safeParse(parsedAttributes);
+  if (!success) {
+    return {
+      responseFormat: undefined,
+      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
+    };
+  }
+  return {
+    responseFormat: data.llm.invocation_parameters.response_format,
+    parsingErrors: [],
+  };
+}
+
 /**
  * Processes the tools from the span attributes into OpenAI tools to be used in the playground
  * @param tools tools from the span attributes
@@ -440,13 +460,25 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
     modelSupportedInvocationParameters
   );
+  // parse response format separately so that we can get distinct errors messages from the rest of
+  // the invocation parameters
+  const { parsingErrors: responseFormatParsingErrors } =
+    getResponseFormatFromAttributes(parsedAttributes);
 
   // Merge invocation parameters into model config, if model config is present
   modelConfig =
     modelConfig != null
       ? {
           ...modelConfig,
-          invocationParameters,
+          invocationParameters:
+            // remove response format from invocation parameters if there are parsing errors
+            responseFormatParsingErrors.length > 0
+              ? invocationParameters.filter(
+                  (param) =>
+                    param.invocationName !== RESPONSE_FORMAT_PARAM_NAME &&
+                    param.canonicalName !== RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+                )
+              : invocationParameters,
         }
       : null;
 
@@ -476,6 +508,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       ...modelConfigParsingErrors,
       ...toolsParsingErrors,
       ...invocationParametersParsingErrors,
+      ...responseFormatParsingErrors,
     ],
   };
 }
@@ -604,10 +637,7 @@ export const toCamelCase = (str: string) =>
  */
 export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
   (
-    invocationParameters: Record<
-      string,
-      string | number | boolean | string[] | Record<string, unknown>
-    >,
+    invocationParameters: JsonObjectSchema,
     modelSupportedInvocationParameters: InvocationParameter[]
   ): InvocationParameterInput[] => {
     return Object.entries(invocationParameters)
@@ -824,12 +854,19 @@ export const getChatCompletionVariables = ({
     targetProvider: instance.model.provider,
   });
   if (instance.tools.length > 0) {
-    invocationParameters = invocationParameters.map((param) =>
-      param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
-        ? { ...param, valueJson: convertedToolChoice }
-        : param
+    // ensure a single tool choice is added to the invocation parameters
+    invocationParameters = invocationParameters.filter(
+      (param) =>
+        param.invocationName !== TOOL_CHOICE_PARAM_NAME &&
+        param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
     );
+    invocationParameters.push({
+      canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+      valueJson: convertedToolChoice,
+    });
   } else {
+    // remove tool choice if there are no tools
     invocationParameters = invocationParameters.filter(
       (param) =>
         param.invocationName !== TOOL_CHOICE_PARAM_NAME &&

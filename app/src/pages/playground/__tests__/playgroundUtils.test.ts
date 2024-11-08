@@ -5,6 +5,7 @@ import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import {
   _resetInstanceId,
   _resetMessageId,
+  createOpenAIResponseFormat,
   PlaygroundInput,
   PlaygroundInstance,
 } from "@phoenix/store";
@@ -13,6 +14,7 @@ import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+  MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -144,7 +146,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           modelName: "gpt-4o",
         },
         template: defaultTemplate,
-
         output: undefined,
       },
       parsingErrors: [
@@ -153,6 +154,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         OUTPUT_VALUE_PARSING_ERROR,
         MODEL_CONFIG_PARSING_ERROR,
         MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
       ],
     });
   });
@@ -455,8 +457,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...spanAttributesWithInputMessages.llm,
           // only parameters defined on the span InvocationParameter[] field are parsed
           // note that snake case keys are automatically converted to camel case
-          invocation_parameters:
-            '{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"]}',
+          invocation_parameters: `{"top_p": 0.5, "max_tokens": 100, "seed": 12345, "stop": ["stop", "me"], "response_format": ${JSON.stringify(createOpenAIResponseFormat())}}`,
         },
       }),
     };
@@ -485,6 +486,11 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               canonicalName: "STOP_SEQUENCES",
               invocationName: "stop",
               valueStringList: ["stop", "me"],
+            },
+            {
+              canonicalName: "RESPONSE_FORMAT",
+              invocationName: "response_format",
+              valueJson: createOpenAIResponseFormat(),
             },
           ],
         },
@@ -548,7 +554,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
       },
-      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+      parsingErrors: [
+        MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
+      ],
     });
   });
 
@@ -568,7 +577,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
       },
-      parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+      parsingErrors: [
+        MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
+        MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
+      ],
     });
   });
 
@@ -598,6 +610,25 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         invocationParameters: [],
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
+    });
+  });
+
+  it("should only return response format parsing errors if response format is defined AND malformed", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          invocation_parameters: `{"response_format": 1234}`,
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
     });
   });
 });

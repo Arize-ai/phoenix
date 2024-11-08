@@ -1,4 +1,5 @@
 import { z } from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   LLMAttributePostfixes,
@@ -105,17 +106,36 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * Model generic invocation parameters schema in zod.
+ * The zod schema for JSON literal primitives
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
  */
-const invocationParameterSchema = z.record(
+const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+type Literal = z.infer<typeof literalSchema>;
+type Json = Literal | { [key: string]: Json } | Json[];
+/**
+ * The zod schema for JSON
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
+ */
+export const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
   z.union([
-    z.boolean(),
-    z.number(),
-    z.string(),
-    z.array(z.string()),
-    z.record(z.unknown()),
+    literalSchema,
+    z.array(jsonLiteralSchema),
+    z.record(jsonLiteralSchema),
   ])
 );
+
+export type JsonLiteralSchema = z.infer<typeof jsonLiteralSchema>;
+
+export const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
+  z.record(jsonLiteralSchema)
+);
+
+export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
+
+/**
+ * Model generic invocation parameters schema in zod.
+ */
+const invocationParameterSchema = jsonObjectSchema;
 
 /**
  * The type of the invocation parameters schema
@@ -143,7 +163,15 @@ const stringToInvocationParametersSchema = z
       return z.NEVER;
     }
 
-    return invocationParameterSchema.parse(json);
+    const { success, data } = invocationParameterSchema.safeParse(json);
+    if (!success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The invocation parameters must be a valid JSON object",
+      });
+      return z.NEVER;
+    }
+    return data;
   })
   .default("{}");
 /**
@@ -164,6 +192,17 @@ export const modelConfigWithInvocationParametersSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.invocation_parameters]:
       stringToInvocationParametersSchema,
+  }),
+});
+
+export const modelConfigWithResponseFormatSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          response_format: jsonObjectSchema.optional(),
+        })
+      ),
   }),
 });
 
@@ -225,3 +264,23 @@ export const llmToolSchema = z
   .optional();
 
 export type LlmToolSchema = z.infer<typeof llmToolSchema>;
+
+export const openAIResponseFormatSchema = z.lazy(() =>
+  z.object({
+    type: z.literal("json_schema"),
+    json_schema: z.object({
+      name: z.string().describe("The name of the schema"),
+      schema: jsonLiteralSchema,
+      strict: z.literal(true).describe("The schema must be strict"),
+    }),
+  })
+);
+
+export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
+
+export const openAIResponseFormatJSONSchema = zodToJsonSchema(
+  openAIResponseFormatSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);

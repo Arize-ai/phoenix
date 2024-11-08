@@ -28,9 +28,10 @@ export const MODEL_CONFIG_PARSING_ERROR =
   "Unable to parse model config, expected llm.model_name to be present.";
 export const MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR =
   "Unable to parse model config, expected llm.invocation_parameters json string to be present.";
-// TODO(parker / apowell) - adjust this error message with anthropic support https://github.com/Arize-ai/phoenix/issues/5100
+export const MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR =
+  "Unable to parse invocation parameters response_format, expected llm.invocation_parameters.response_format to be a well formed json object or undefined.";
 export const TOOLS_PARSING_ERROR =
-  "Unable to parse tools, expected tools to be an array of valid OpenAI tools.";
+  "Unable to parse tools, expected tools to be an array of valid tools.";
 
 export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],
@@ -45,9 +46,16 @@ export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<
 
 export const TOOL_CHOICE_PARAM_NAME = "tool_choice";
 
+export const RESPONSE_FORMAT_PARAM_CANONICAL_NAME: Extract<
+  CanonicalParameterName,
+  "RESPONSE_FORMAT"
+> = "RESPONSE_FORMAT";
+
+export const RESPONSE_FORMAT_PARAM_NAME = "response_format";
+
 /**
  * List of parameter canonical names to ignore in the invocation parameters form
  * These parameters are rendered else where on the page
  */
 export const paramsToIgnoreInInvocationParametersForm: CanonicalParameterName[] =
-  [TOOL_CHOICE_PARAM_CANONICAL_NAME];
+  [TOOL_CHOICE_PARAM_CANONICAL_NAME, RESPONSE_FORMAT_PARAM_CANONICAL_NAME];

@@ -351,7 +351,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   return (
     <Card
-      title={<TitleWithAlphabeticIndex index={index} title="OutputContent" />}
+      title={<TitleWithAlphabeticIndex index={index} title="Output" />}
       collapsible
       variant="compact"
       bodyStyle={{ padding: 0 }}
