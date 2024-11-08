@@ -7,6 +7,7 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
+    Sequence,
     TypeVar,
     cast,
 )
@@ -292,18 +293,14 @@ class Subscription:
                     tasks[iterator] = _as_task(iterator)
                 if results_queue.qsize() >= batch_size:
                     result_iterator = _chat_completion_result_payloads(
-                        db=info.context.db, results=_drain_to_list(results_queue)
+                        db=info.context.db, results=_drain_no_wait(results_queue)
                     )
                     tasks[result_iterator] = _as_task(result_iterator)
-        if not results_queue.empty():
-            remaining_results = [
-                result
-                async for result in _chat_completion_result_payloads(
-                    db=info.context.db, results=_drain_to_list(results_queue)
-                )
-            ]
-            for result in remaining_results:
-                yield result
+        if remaining_results := await _drain(results_queue):
+            async for result_payload in _chat_completion_result_payloads(
+                db=info.context.db, results=remaining_results
+            ):
+                yield result_payload
 
 
 async def _chat_completion_payloads(
@@ -387,8 +384,10 @@ async def _chat_completion_payloads(
 async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
-    results: Iterable[ChatCompletionResult],
+    results: Sequence[ChatCompletionResult],
 ) -> AsyncIterator[ChatCompletionSubscriptionResult]:
+    if not results:
+        return
     async with db() as session:
         for _, span, run in results:
             if span:
@@ -407,7 +406,14 @@ def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
     return create_task(_as_coroutine(iterable))
 
 
-def _drain_to_list(queue: Queue[GenericType]) -> list[GenericType]:
+async def _drain(queue: Queue[GenericType]) -> list[GenericType]:
+    values: list[GenericType] = []
+    while not queue.empty():
+        values.append(await queue.get())
+    return values
+
+
+def _drain_no_wait(queue: Queue[GenericType]) -> list[GenericType]:
     values: list[GenericType] = []
     while True:
         try:

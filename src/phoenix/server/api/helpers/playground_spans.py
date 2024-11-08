@@ -55,7 +55,8 @@ ToolCallID: TypeAlias = str
 
 class streaming_llm_span:
     """
-    A context manager that mirrors the interface of an OTel span.
+    A context manager that records OpenInference attributes for streaming chat
+    completion LLM spans.
     """
 
     def __init__(
@@ -159,7 +160,7 @@ class streaming_llm_span:
     @property
     def status_message(self) -> Optional[str]:
         if self._status_code is StatusCode.UNSET:
-            raise ValueError("Cannot access error message before the context manager is exited")
+            raise ValueError("Cannot access status message before the context manager is exited")
         return self._status_message
 
     @property
