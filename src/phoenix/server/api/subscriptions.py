@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from asyncio import FIRST_COMPLETED, Queue, QueueEmpty, Task, create_task, wait
+from asyncio import FIRST_COMPLETED, Queue, QueueEmpty, Task, create_task, wait, wait_for
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timezone
 from typing import (
@@ -259,11 +260,13 @@ class Subscription:
             )
             session.add(experiment)
             await session.flush()
-        yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
+        yield ChatCompletionSubscriptionExperiment(
+            experiment=to_gql_experiment(experiment)
+        )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results_queue: Queue[ChatCompletionResult] = Queue()
-        chat_completion_iterators = [
-            _chat_completion_payloads(
+        chat_completion_streams = [
+            _stream_chat_completion_over_dataset_example(
                 input=input,
                 llm_client_class=llm_client_class,
                 revision=revision,
@@ -273,29 +276,32 @@ class Subscription:
             )
             for revision in revisions
         ]
-        tasks: dict[
+        stream_to_async_tasks: dict[
             AsyncIterator[ChatCompletionSubscriptionPayload],
             Task[ChatCompletionSubscriptionPayload],
-        ] = {iterator: _as_task(iterator) for iterator in chat_completion_iterators}
+        ] = {iterator: _create_task_with_timeout(iterator) for iterator in chat_completion_streams}
         batch_size = 10
-        while tasks:
-            completed_tasks, _ = await wait(tasks.values(), return_when=FIRST_COMPLETED)
+        while stream_to_async_tasks:
+            async_tasks_to_run = [task for task in stream_to_async_tasks.values()]
+            completed_tasks, _ = await wait(async_tasks_to_run, return_when=FIRST_COMPLETED)
             for task in completed_tasks:
-                iterator = next(it for it, t in tasks.items() if t == task)
+                iterator = next(it for it, t in stream_to_async_tasks.items() if t == task)
                 try:
                     yield task.result()
-                except StopAsyncIteration:
-                    del tasks[iterator]
+                except (StopAsyncIteration, asyncio.TimeoutError):
+                    del stream_to_async_tasks[iterator]  # removes exhausted iterator
                 except Exception as error:
-                    del tasks[iterator]
+                    del stream_to_async_tasks[iterator]  # removes failed iterator
                     logger.exception(error)
                 else:
-                    tasks[iterator] = _as_task(iterator)
+                    stream_to_async_tasks[iterator] = _create_task_with_timeout(iterator)
                 if results_queue.qsize() >= batch_size:
                     result_iterator = _chat_completion_result_payloads(
                         db=info.context.db, results=_drain_no_wait(results_queue)
                     )
-                    tasks[result_iterator] = _as_task(result_iterator)
+                    stream_to_async_tasks[result_iterator] = _create_task_with_timeout(
+                        result_iterator
+                    )
         if remaining_results := await _drain(results_queue):
             async for result_payload in _chat_completion_result_payloads(
                 db=info.context.db, results=remaining_results
@@ -303,7 +309,7 @@ class Subscription:
                 yield result_payload
 
 
-async def _chat_completion_payloads(
+async def _stream_chat_completion_over_dataset_example(
     *,
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],
@@ -402,8 +408,10 @@ async def _chat_completion_result_payloads(
         )
 
 
-def _as_task(iterable: AsyncIterator[GenericType]) -> Task[GenericType]:
-    return create_task(_as_coroutine(iterable))
+def _create_task_with_timeout(
+    iterable: AsyncIterator[GenericType], timeout_in_seconds: int = 60
+) -> Task[GenericType]:
+    return create_task(wait_for(_as_coroutine(iterable), timeout=timeout_in_seconds))
 
 
 async def _drain(queue: Queue[GenericType]) -> list[GenericType]:
