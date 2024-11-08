@@ -25,7 +25,6 @@ import {
   CredentialsState,
   generateMessageId,
   generateToolId,
-  isManualInput,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -582,9 +581,7 @@ export const getVariablesMapFromInstances = ({
     templateLanguage,
   });
 
-  const variableValueCache = isManualInput(input)
-    ? input.variablesValueCache
-    : {};
+  const variableValueCache = input.variablesValueCache ?? {};
 
   const variablesMap = variableKeys.reduce(
     (acc, key) => {
