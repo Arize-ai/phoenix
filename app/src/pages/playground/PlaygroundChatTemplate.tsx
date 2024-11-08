@@ -171,7 +171,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             variant="default"
             size="compact"
             aria-label="output schema"
-            icon={<Icon svg={<Icons.Code />} />}
+            icon={<Icon svg={<Icons.PlusOutline />} />}
             disabled={hasResponseFormat}
             onClick={() => {
               upsertInvocationParameterInput({

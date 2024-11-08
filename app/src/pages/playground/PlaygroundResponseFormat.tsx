@@ -92,7 +92,6 @@ export function PlaygroundResponseFormat({
             variant="compact"
             title={
               <Flex direction="row" gap="size-100">
-                {/* <SpanKindIcon spanKind="responseFormat" /> */}
                 <Text>Schema</Text>
               </Flex>
             }

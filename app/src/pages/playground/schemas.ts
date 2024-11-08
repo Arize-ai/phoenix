@@ -105,10 +105,17 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
  */
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
-// https://zod.dev/?id=json-type
+/**
+ * The zod schema for JSON literal primitives
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
+ */
 const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 type Literal = z.infer<typeof literalSchema>;
 type Json = Literal | { [key: string]: Json } | Json[];
+/**
+ * The zod schema for JSON
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
+ */
 export const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
   z.union([
     literalSchema,

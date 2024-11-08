@@ -30,9 +30,8 @@ export const MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR =
   "Unable to parse model config, expected llm.invocation_parameters json string to be present.";
 export const MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR =
   "Unable to parse invocation parameters response_format, expected llm.invocation_parameters.response_format to be a well formed json object or undefined.";
-// TODO(parker / apowell) - adjust this error message with anthropic support https://github.com/Arize-ai/phoenix/issues/5100
 export const TOOLS_PARSING_ERROR =
-  "Unable to parse tools, expected tools to be an array of valid OpenAI tools.";
+  "Unable to parse tools, expected tools to be an array of valid tools.";
 
 export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],
@@ -60,12 +59,3 @@ export const RESPONSE_FORMAT_PARAM_NAME = "response_format";
  */
 export const paramsToIgnoreInInvocationParametersForm: CanonicalParameterName[] =
   [TOOL_CHOICE_PARAM_CANONICAL_NAME, RESPONSE_FORMAT_PARAM_CANONICAL_NAME];
-
-/**
- * List of parameter canonical names to ignore in the chat completion params subscription/mutation
- *
- * These parameters have first class keys in the schema and are handled elsewhere
- */
-export const paramsToIgnoreInChatCompletionParams: CanonicalParameterName[] = [
-  TOOL_CHOICE_PARAM_CANONICAL_NAME,
-];
