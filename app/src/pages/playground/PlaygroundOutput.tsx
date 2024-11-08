@@ -205,7 +205,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         });
         return;
       }
-      if (chatCompletion.__typename === "ChatCompletionSubscriptionResult") {
+      if (
+        chatCompletion.__typename === "ChatCompletionSubscriptionResult" &&
+        chatCompletion.span != null
+      ) {
         updateInstance({
           instanceId,
           patch: {

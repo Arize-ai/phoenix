@@ -1,12 +1,14 @@
 import logging
 from asyncio import FIRST_COMPLETED, Queue, QueueEmpty, Task, create_task, wait
 from collections.abc import AsyncIterator, Iterator
+from datetime import datetime, timezone
 from typing import (
     Any,
     Iterable,
     Mapping,
     Optional,
     TypeVar,
+    cast,
 )
 
 import strawberry
@@ -17,6 +19,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -71,6 +74,9 @@ ChatCompletionMessage: TypeAlias = tuple[
     ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
 ]
 DatasetExampleID: TypeAlias = GlobalID
+ChatCompletionResult: TypeAlias = tuple[
+    DatasetExampleID, Optional[models.Span], models.ExperimentRun
+]
 PLAYGROUND_PROJECT_NAME = "playground"
 
 
@@ -254,7 +260,7 @@ class Subscription:
             await session.flush()
         yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
 
-        results_queue: Queue[tuple[DatasetExampleID, models.Span, models.ExperimentRun]] = Queue()
+        results_queue: Queue[ChatCompletionResult] = Queue()
         chat_completion_iterators = [
             _chat_completion_payloads(
                 input=input,
@@ -305,7 +311,7 @@ async def _chat_completion_payloads(
     input: ChatCompletionOverDatasetInput,
     llm_client_class: type["PlaygroundStreamingClient"],
     revision: models.DatasetExampleRevision,
-    results_queue: Queue[tuple[DatasetExampleID, models.Span, models.ExperimentRun]],
+    results_queue: Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -325,6 +331,7 @@ async def _chat_completion_payloads(
         for message in input.messages
     ]
     try:
+        format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         messages = list(
             _formatted_messages(
                 messages=messages,
@@ -333,7 +340,25 @@ async def _chat_completion_payloads(
             )
         )
     except TemplateFormatterError as error:
+        format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
+        await results_queue.put(
+            (
+                example_id,
+                None,
+                models.ExperimentRun(
+                    experiment_id=experiment_id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=None,
+                    output={},
+                    repetition_number=1,
+                    start_time=format_start_time,
+                    end_time=format_end_time,
+                    error=str(error),
+                    trace=None,
+                ),
+            )
+        )
         return
     async with streaming_llm_span(
         input=input,
@@ -362,16 +387,17 @@ async def _chat_completion_payloads(
 async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
-    results: Iterable[tuple[DatasetExampleID, models.Span, models.ExperimentRun]],
+    results: Iterable[ChatCompletionResult],
 ) -> AsyncIterator[ChatCompletionSubscriptionResult]:
     async with db() as session:
         for _, span, run in results:
-            session.add(span)
+            if span:
+                session.add(span)
             session.add(run)
         await session.flush()
-    for example_id, span, _ in results:
+    for example_id, span, run in results:
         yield ChatCompletionSubscriptionResult(
-            span=to_gql_span(span),
+            span=to_gql_span(span) if span else None,
             experiment_run=to_gql_experiment_run(run),
             dataset_example_id=example_id,
         )

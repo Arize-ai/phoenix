@@ -858,6 +858,9 @@ class TestChatCompletionOverDatasetSubscription:
             span {
               ...SpanFragment
             }
+            experimentRun {
+              ...ExperimentRunFragment
+            }
           }
           ... on ChatCompletionSubscriptionError {
             message
@@ -891,21 +894,25 @@ class TestChatCompletionOverDatasetSubscription:
             runs {
               edges {
                 run: node {
-                  id
-                  experimentId
-                  startTime
-                  endTime
-                  output
-                  error
-                  traceId
-                  trace {
-                    id
-                    traceId
-                  }
+                  ...ExperimentRunFragment
                 }
               }
             }
           }
+        }
+      }
+
+      fragment ExperimentRunFragment on ExperimentRun {
+        id
+        experimentId
+        startTime
+        endTime
+        output
+        error
+        traceId
+        trace {
+          id
+          traceId
         }
       }
 
@@ -1000,55 +1007,58 @@ class TestChatCompletionOverDatasetSubscription:
 
         # check subscription payloads
         assert len(payloads) == 4
-        example_id_1, example_id_2, example_id_3 = [
+        example_ids = [
             str(GlobalID(type_name=DatasetExample.__name__, node_id=str(index)))
             for index in range(1, 4)
         ]
-        assert set(payloads.keys()) == {example_id_1, example_id_2, example_id_3, None}
+        assert set(payloads.keys()) == set(example_ids) | {None}
 
-        # check example 1 payloads
-        assert (last_example_1_payload := payloads[example_id_1].pop())[
-            "chatCompletionOverDataset"
-        ]["__typename"] == ChatCompletionSubscriptionResult.__name__
+        # gather spans and experiment runs
+        subscription_runs = {}
+        subscription_spans = {}
+        for example_id in example_ids:
+            assert (result_payload := payloads[example_id].pop()["chatCompletionOverDataset"])
+            assert result_payload.pop("__typename") == ChatCompletionSubscriptionResult.__name__
+            assert result_payload.pop("datasetExampleId") == example_id
+            subscription_runs[example_id] = result_payload.pop("experimentRun")
+            subscription_spans[example_id] = result_payload.pop("span")
+            assert not result_payload
+
+        # check example 1 response text
+        example_id = example_ids[0]
         assert all(
             payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
-            for payload in payloads[example_id_1]
+            for payload in payloads[example_id]
         )
-        example_1_response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_1]
+        response_text = "".join(
+            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
         )
-        assert example_1_response_text == "France"
-        example_1_subscription_span = last_example_1_payload["chatCompletionOverDataset"]["span"]
-        example_1_span_id = example_1_subscription_span["id"]
+        assert response_text == "France"
 
-        # check example 2 payloads
-        assert (last_example_2_payload := payloads[example_id_2].pop())[
-            "chatCompletionOverDataset"
-        ]["__typename"] == ChatCompletionSubscriptionResult.__name__
+        # check example 2 response text
+        example_id = example_ids[1]
         assert all(
             payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
-            for payload in payloads[example_id_2]
+            for payload in payloads[example_id]
         )
-        example_2_response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id_2]
+        response_text = "".join(
+            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
         )
-        assert example_2_response_text == "Japan"
-        example_2_subscription_span = last_example_2_payload["chatCompletionOverDataset"]["span"]
-        example_2_span_id = example_2_subscription_span["id"]
+        assert response_text == "Japan"
 
-        # check example 3 payloads
-        assert len(payloads[example_id_3]) == 1
-        assert (error_payload := payloads[example_id_3].pop()["chatCompletionOverDataset"])[
+        # check example 3 error message
+        example_id = example_ids[2]
+        assert (error_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionError.__name__
         assert error_payload["message"] == "Missing template variable(s): city"
 
-        # check result payload
+        # check experiment payload
         assert len(payloads[None]) == 1
-        assert (result_payload := payloads[None].pop()["chatCompletionOverDataset"])[
+        assert (experiment_payload := payloads[None].pop()["chatCompletionOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
-        experiment = result_payload["experiment"]
+        experiment = experiment_payload["experiment"]
         assert (experiment_id := experiment.pop("id"))
 
         # query for the span via the node interface to ensure that the span
@@ -1056,18 +1066,21 @@ class TestChatCompletionOverDatasetSubscription:
         # by the subscription
 
         # check example 1 span
+        example_id = example_ids[0]
+        span_id = subscription_spans[example_id]["id"]
         data = await gql_client.execute(
-            query=self.QUERY, variables={"spanId": example_1_span_id}, operation_name="SpanQuery"
+            query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
-            example_1_subscription_span.pop("attributes")
+            subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == example_1_subscription_span
+        assert span == subscription_span
 
         # check example 1 span attributes
-        assert span.pop("id") == example_1_span_id
+        assert span.pop("id") == span_id
         assert span.pop("name") == "ChatCompletion"
         assert span.pop("statusCode") == "OK"
         assert not span.pop("statusMessage")
@@ -1134,18 +1147,21 @@ class TestChatCompletionOverDatasetSubscription:
         assert not attributes
 
         # check example 2 span
+        example_id = example_ids[1]
+        span_id = subscription_spans[example_id]["id"]
         data = await gql_client.execute(
-            query=self.QUERY, variables={"spanId": example_2_span_id}, operation_name="SpanQuery"
+            query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
         span = data["span"]
+        subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
-            example_2_subscription_span.pop("attributes")
+            subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        assert span == example_2_subscription_span
+        assert span == subscription_span
 
         # check example 2 span attributes
-        assert span.pop("id") == example_2_span_id
+        assert span.pop("id") == span_id
         assert span.pop("name") == "ChatCompletion"
         assert span.pop("statusCode") == "OK"
         assert not span.pop("statusMessage")
@@ -1211,6 +1227,10 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert not attributes
 
+        # check that example 3 has no span
+        example_id = example_ids[2]
+        assert subscription_spans[example_id] is None
+
         # check experiment
         data = await gql_client.execute(
             query=self.QUERY,
@@ -1233,12 +1253,16 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
         assert created_at == updated_at
-        runs = [run["run"] for run in experiment.pop("runs")["edges"]]
-        assert len(runs) == 2
+        runs = {run["run"]["id"]: run["run"] for run in experiment.pop("runs")["edges"]}
+        assert len(runs) == 3
 
-        # check run 1
-        run = runs.pop(0)
-        assert run.pop("id")
+        # check example 1 run
+        example_id = example_ids[0]
+        subscription_run = subscription_runs[example_id]
+        run_id = subscription_run["id"]
+        run = runs.pop(run_id)
+        assert run == subscription_run
+        assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
@@ -1246,8 +1270,8 @@ class TestChatCompletionOverDatasetSubscription:
             run.pop("endTime")
         )
         assert run.pop("error") is None
-        assert isinstance(run_1_output := run.pop("output"), list)
-        assert len(run_1_output) == 1
+        assert isinstance(run_output := run.pop("output"), list)
+        assert len(run_output) == 1
         assert (trace_id := run.pop("traceId")) is not None
         trace = run.pop("trace")
         assert trace.pop("id")
@@ -1255,9 +1279,13 @@ class TestChatCompletionOverDatasetSubscription:
         assert not trace
         assert not run
 
-        # check run 2
-        run = runs.pop()
-        assert run.pop("id")
+        # check example 2 run
+        example_id = example_ids[1]
+        subscription_run = subscription_runs[example_id]
+        run_id = subscription_run["id"]
+        run = runs.pop(run_id)
+        assert run == subscription_run
+        assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
@@ -1265,24 +1293,35 @@ class TestChatCompletionOverDatasetSubscription:
             run.pop("endTime")
         )
         assert run.pop("error") is None
-        assert isinstance(run_2_output := run.pop("output"), list)
-        assert len(run_2_output) == 1
+        assert isinstance(run_output := run.pop("output"), list)
+        assert len(run_output) == 1
         assert (trace_id := run.pop("traceId")) is not None
         trace = run.pop("trace")
         assert trace.pop("id")
         assert trace.pop("traceId") == trace_id
         assert not trace
+        assert not run
+
+        # check example 3 run
+        example_id = example_ids[2]
+        subscription_run = subscription_runs[example_id]
+        run_id = subscription_run["id"]
+        run = runs.pop(run_id)
+        assert run == subscription_run
+        assert run.pop("id") == run_id
+        assert isinstance(experiment_id := run.pop("experimentId"), str)
+        type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
+        assert type_name == Experiment.__name__
+        assert datetime.fromisoformat(run.pop("startTime")) < datetime.fromisoformat(
+            run.pop("endTime")
+        )
+        assert run.pop("error") == "Missing template variable(s): city"
+        assert run.pop("output") is None
+        assert run.pop("traceId") is None
+        assert run.pop("trace") is None
         assert not run
         assert not runs
         assert not experiment
-
-        # check run outputs
-        assert (run_1_output_message := run_1_output[0]["message"])["role"] == "assistant"
-        assert (run_2_output_message := run_2_output[0]["message"])["role"] == "assistant"
-        assert {run_1_output_message["content"], run_2_output_message["content"]} == {
-            "France",
-            "Japan",
-        }
 
     async def test_all_spans_yielded_when_number_of_examples_exceeds_batch_size(
         self,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<612b71c5e999fc0534a21076d7ea5dbf>>
+ * @generated SignedSource<<b8dadeaac479f8c23e824ca7de38062d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -59,7 +59,7 @@ export type PlaygroundOutputSubscription$data = {
     readonly __typename: "ChatCompletionSubscriptionResult";
     readonly span: {
       readonly id: string;
-    };
+    } | null;
   } | {
     readonly __typename: "TextChunk";
     readonly content: string;

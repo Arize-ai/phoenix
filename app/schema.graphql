@@ -168,7 +168,7 @@ interface ChatCompletionSubscriptionPayload {
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
-  span: Span!
+  span: Span
   experimentRun: ExperimentRun
 }
 

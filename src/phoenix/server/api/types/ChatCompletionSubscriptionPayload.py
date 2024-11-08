@@ -32,7 +32,7 @@ class ToolCallChunk(ChatCompletionSubscriptionPayload):
 
 @strawberry.type
 class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
-    span: Span
+    span: Optional[Span] = None
     experiment_run: Optional[ExperimentRun] = None
 
 
