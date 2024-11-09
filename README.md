@@ -113,7 +113,7 @@ For details about tracing integrations and example applications, see the [OpenIn
 
 Join our community to connect with thousands of AI builders.
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
+- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-22vj03k4k-MlrNEwv5WeswapTs0kNCBw).
 - 📚 Read our [documentation](https://docs.arize.com/phoenix).
 - 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
