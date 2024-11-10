@@ -1,5 +1,6 @@
 import contextlib
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any, Optional
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -7,6 +8,17 @@ from uuid import uuid4
 import httpx
 from httpx_ws import AsyncWebSocketSession, aconnect_ws
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
+
+
+class GraphQLError(Exception):
+    def __init__(self, message: str) -> None:
+        self.message = message
+
+
+@dataclass
+class GraphQLExecutionResult:
+    data: Optional[dict[str, Any]]
+    errors: Optional[list[GraphQLError]]
 
 
 class AsyncGraphQLClient:
@@ -26,7 +38,7 @@ class AsyncGraphQLClient:
         query: str,
         variables: Optional[dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-    ) -> dict[str, Any]:
+    ) -> GraphQLExecutionResult:
         """
         Executes queries and mutations.
         """
@@ -40,10 +52,13 @@ class AsyncGraphQLClient:
         )
         response.raise_for_status()
         response_json = response.json()
-        if (errors := response_json.get("errors")) is not None:
-            raise RuntimeError(errors)
-        assert isinstance(data := response_json.get("data"), dict)
-        return data
+        return GraphQLExecutionResult(
+            data=response_json.get("data"),
+            errors=[
+                GraphQLError(message=error["message"]) for error in response_json.get("errors", [])
+            ]
+            or None,
+        )
 
     @contextlib.asynccontextmanager
     async def subscription(

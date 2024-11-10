@@ -149,7 +149,7 @@ Source = "https://github.com/Arize-ai/phoenix"
 path = "src/phoenix/version.py"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling<=1.25.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

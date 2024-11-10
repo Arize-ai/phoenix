@@ -187,10 +187,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -319,10 +319,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -462,10 +462,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -615,10 +615,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -761,10 +761,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -1069,10 +1069,10 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 1 span
         example_id = example_ids[0]
         span_id = subscription_spans[example_id]["id"]
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1150,10 +1150,10 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 2 span
         example_id = example_ids[1]
         span_id = subscription_spans[example_id]["id"]
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1233,12 +1233,12 @@ class TestChatCompletionOverDatasetSubscription:
         assert subscription_spans[example_id] is None
 
         # check experiment
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY,
             variables={"experimentId": experiment_id},
             operation_name="ExperimentQuery",
         )
-        experiment = data["experiment"]
+        experiment = response.data["experiment"]
         assert experiment.pop("id") == experiment_id
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
