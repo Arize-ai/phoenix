@@ -1,12 +1,12 @@
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import func, insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 class TestDeleteExperiment:
@@ -26,28 +26,23 @@ class TestDeleteExperiment:
     async def test_deletes_and_returns_experiments(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         simple_experiments: Any,
     ) -> None:
         async with db() as session:
             assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {
-                    "experimentIds": [
-                        str(GlobalID(type_name="Experiment", node_id=str(1))),
-                        str(GlobalID(type_name="Experiment", node_id=str(2))),
-                    ],
-                },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentIds": [
+                    str(GlobalID(type_name="Experiment", node_id=str(1))),
+                    str(GlobalID(type_name="Experiment", node_id=str(2))),
+                ],
             },
         )
         assert (await session.scalar(func.count(models.Experiment.id))) == 0
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert response.errors is None
+        assert response.data == {
             "deleteExperiments": {
                 "experiments": [
                     {
@@ -69,28 +64,24 @@ class TestDeleteExperiment:
     async def test_non_existent_experiment_id_results_in_no_deletions_and_returns_error(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         simple_experiments: Any,
     ) -> None:
         async with db() as session:
             assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {
-                    "experimentIds": [
-                        str(GlobalID(type_name="Experiment", node_id=str(1))),
-                        str(GlobalID(type_name="Experiment", node_id=str(3))),
-                    ],
-                },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentIds": [
+                    str(GlobalID(type_name="Experiment", node_id=str(1))),
+                    str(GlobalID(type_name="Experiment", node_id=str(3))),
+                ],
             },
         )
-        assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        assert response.status_code == 200
-        response_json = response.json()
-        assert (errors := response_json.get("errors"))
-        assert errors[0]["message"] == (
+        async with db() as session:
+            assert (await session.scalar(func.count(models.Experiment.id))) == 2
+        assert len(errors := response.errors) == 1
+        assert errors[0].message == (
             "Failed to delete experiment(s), probably due to invalid input experiment ID(s): "
             f"['{str(GlobalID('Experiment', str(3)))}']"
         )
