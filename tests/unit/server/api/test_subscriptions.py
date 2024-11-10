@@ -29,6 +29,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 def remove_all_vcr_request_headers(request: Any) -> Any:
@@ -139,7 +140,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
     ) -> None:
         variables = {
@@ -271,7 +272,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
     ) -> None:
         variables = {
@@ -394,7 +395,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
     ) -> None:
         get_current_weather_tool_schema = {
@@ -550,7 +551,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
     ) -> None:
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
@@ -712,7 +713,7 @@ class TestChatCompletionSubscription:
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         anthropic_api_key: str,
     ) -> None:
         variables = {
@@ -958,7 +959,7 @@ class TestChatCompletionOverDatasetSubscription:
 
     async def test_emits_expected_payloads_and_records_expected_spans_and_experiment(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         playground_dataset_with_patch_revision: None,
     ) -> None:
@@ -1325,7 +1326,7 @@ class TestChatCompletionOverDatasetSubscription:
 
     async def test_all_spans_yielded_when_number_of_examples_exceeds_batch_size(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         cities_and_countries: list[tuple[str, str]],
         playground_city_and_country_dataset: None,
