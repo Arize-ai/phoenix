@@ -1,5 +1,18 @@
-import React, { ReactNode, useCallback, useMemo, useRef } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Disposable,
+  graphql,
+  useLazyLoadQuery,
+  usePaginationFragment,
+  useRelayEnvironment,
+} from "react-relay";
 import {
   CellContext,
   ColumnDef,
@@ -8,19 +21,60 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
+import { GraphQLSubscriptionConfig, requestSubscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
+import { Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { useNotifyError } from "@phoenix/contexts";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundInstance } from "@phoenix/store";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
+import PlaygroundDatasetExamplesTableSubscription, {
+  PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
+  PlaygroundDatasetExamplesTableSubscription$data,
+} from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { PlaygroundOutput, PlaygroundOutputContent } from "./PlaygroundOutput";
+import { PartialOutputToolCall } from "./PlaygroundToolCall";
+import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
+import { RunMetadataFooter } from "./RunMetadataFooter";
+
+type InstanceId = number;
+type ExampleId = string;
+
+type ExampleRunData =
+  | {
+      content?: string;
+      toolCalls?: readonly PartialOutputToolCall[];
+      spanId?: string;
+    }
+  | undefined;
+
+type InstanceToExampleResponsesMap = Record<
+  InstanceId,
+  Record<ExampleId, ExampleRunData> | undefined
+>;
+
+const getInitialExampleResponsesMap = (instances: PlaygroundInstance[]) => {
+  return instances.reduce((acc, instance) => {
+    return {
+      ...acc,
+      [instance.id]: {},
+    };
+  }, {});
+};
 
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
@@ -37,11 +91,12 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
 
 function JSONCell<TData extends object, TValue>({
   getValue,
-}: CellContext<TData, TValue>) {
+  collapseSingleKey,
+}: CellContext<TData, TValue> & { collapseSingleKey?: boolean }) {
   const value = getValue();
   return (
     <LargeTextWrap>
-      <JSONText json={value} space={2} />
+      <JSONText json={value} space={2} collapseSingleKey={collapseSingleKey} />
     </LargeTextWrap>
   );
 }
@@ -82,7 +137,186 @@ export function PlaygroundDatasetExamplesTable({
 }: {
   datasetId: string;
 }) {
+  const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+
+  const hasSomeRunIds = instances.some(
+    (instance) => instance.activeRunId !== null
+  );
+
+  const credentials = useCredentialsContext((state) => state);
+  const markPlaygroundInstanceComplete = usePlaygroundContext(
+    (state) => state.markPlaygroundInstanceComplete
+  );
+  const playgroundStore = usePlaygroundStore();
+
+  const [exampleResponsesMap, setExampleResponsesMap] =
+    useState<InstanceToExampleResponsesMap>(
+      getInitialExampleResponsesMap(instances)
+    );
+  const notifyError = useNotifyError();
+
+  const onNext = useCallback(
+    (instanceId: number) =>
+      (response?: PlaygroundDatasetExamplesTableSubscription$data | null) => {
+        if (response == null) {
+          return;
+        }
+        if (response.chatCompletionOverDataset.__typename === "TextChunk") {
+          const { content, datasetExampleId } =
+            response.chatCompletionOverDataset;
+          if (datasetExampleId != null) {
+            setExampleResponsesMap((exampleResponsesMap) => {
+              const existingInstanceResponses = exampleResponsesMap[instanceId];
+              const existingExampleResponse =
+                existingInstanceResponses?.[datasetExampleId] ?? {};
+              const newInstanceExampleResponseMap = {
+                ...existingInstanceResponses,
+                [datasetExampleId]: {
+                  ...existingExampleResponse,
+                  content: (existingExampleResponse?.content ?? "") + content,
+                },
+              };
+              return {
+                ...exampleResponsesMap,
+                [instanceId]: newInstanceExampleResponseMap,
+              };
+            });
+          }
+          return;
+        } else if (
+          response.chatCompletionOverDataset.__typename === "ToolCallChunk"
+        ) {
+          // setToolCalls((toolCalls) => {
+          //   let toolCallExists = false;
+          //   const updated = toolCalls.map((toolCall) => {
+          //     if (toolCall.id === response.chatCompletionOverDataset.id) {
+          //       toolCallExists = true;
+          //       return {
+          //         ...toolCall,
+          //         function: {
+          //           ...toolCall.function,
+          //           arguments:
+          //             toolCall.function.arguments +
+          //             response.chatCompletionOverDataset.function.arguments,
+          //         },
+          //       };
+          //     } else {
+          //       return toolCall;
+          //     }
+          //   });
+          //   if (!toolCallExists) {
+          //     updated.push({
+          //       id: response.chatCompletionOverDataset.id,
+          //       function: {
+          //         name: response.chatCompletionOverDataset.function.name,
+          //         arguments: response.chatCompletionOverDataset.function.arguments,
+          //       },
+          //     });
+          //   }
+          //   return updated;
+          // });
+          return;
+        }
+        if (
+          response.chatCompletionOverDataset.__typename ===
+          "FinishedChatCompletion"
+        ) {
+          const { span, datasetExampleId } = response.chatCompletionOverDataset;
+          if (datasetExampleId != null) {
+            setExampleResponsesMap((exampleResponsesMap) => {
+              const existingInstanceResponses = exampleResponsesMap[instanceId];
+              const existingExampleResponse =
+                existingInstanceResponses?.[datasetExampleId] ?? {};
+              const newInstanceExampleResponseMap = {
+                ...existingInstanceResponses,
+                [datasetExampleId]: {
+                  ...existingExampleResponse,
+                  spanId: span.id,
+                },
+              };
+              return {
+                ...exampleResponsesMap,
+                [instanceId]: newInstanceExampleResponseMap,
+              };
+            });
+          }
+          return;
+        }
+        if (
+          response.chatCompletionOverDataset.__typename ===
+          "ChatCompletionSubscriptionError"
+        ) {
+          markPlaygroundInstanceComplete(instanceId);
+          if (response.chatCompletionOverDataset.message != null) {
+            notifyError({
+              title: "Chat completion failed",
+              message: response.chatCompletionOverDataset.message,
+              expireMs: 10000,
+            });
+          }
+        }
+      },
+    [markPlaygroundInstanceComplete, notifyError]
+  );
+
+  useEffect(() => {
+    if (!hasSomeRunIds) {
+      return;
+    }
+    const { instances, streaming } = playgroundStore.getState();
+    if (streaming) {
+      const subscriptions: Disposable[] = [];
+      setExampleResponsesMap(getInitialExampleResponsesMap(instances));
+      for (const instance of instances) {
+        const { activeRunId } = instance;
+        if (activeRunId === null) {
+          continue;
+        }
+        const variables = {
+          input: getChatCompletionOverDatasetInput({
+            credentials,
+            instanceId: instance.id,
+            playgroundStore,
+            datasetId,
+          }),
+        };
+        const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
+          {
+            subscription: PlaygroundDatasetExamplesTableSubscription,
+            variables,
+            onNext: onNext(instance.id),
+            onCompleted: () => {
+              markPlaygroundInstanceComplete(instance.id);
+            },
+            onError: (error) => {
+              notifyError({
+                title: "Chat completion failed",
+                message: error.message,
+                expireMs: 10000,
+              });
+              markPlaygroundInstanceComplete(instance.id);
+            },
+          };
+        const subscription = requestSubscription(environment, config);
+        subscriptions.push(subscription);
+      }
+      return () => {
+        for (const subscription of subscriptions) {
+          subscription.dispose();
+        }
+      };
+    }
+  }, [
+    credentials,
+    datasetId,
+    environment,
+    hasSomeRunIds,
+    markPlaygroundInstanceComplete,
+    notifyError,
+    onNext,
+    playgroundStore,
+  ]);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
@@ -144,7 +378,7 @@ export function PlaygroundDatasetExamplesTable({
   );
   type TableRow = (typeof tableData)[number];
 
-  const playgroundInstanceOutputColumns = useMemo(() => {
+  const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => ({
       id: instance.id.toString(),
       header: () => (
@@ -153,23 +387,47 @@ export function PlaygroundDatasetExamplesTable({
           <span>Output</span>
         </Flex>
       ),
+
+      cell: ({ row }) => {
+        const maybeData = exampleResponsesMap[instance.id]?.[row.original.id];
+        if (maybeData == null && hasSomeRunIds) {
+          return <Loading />;
+        }
+        if (maybeData == null) {
+          return null;
+        }
+        return (
+          <Flex direction={"column"} gap={"size-200"}>
+            <Text>{maybeData.content}</Text>
+            {maybeData.spanId == null ? null : (
+              <View
+                borderTopColor="light"
+                // borderTopWidth="thin"
+                paddingTop={"size-100"}
+              >
+                <RunMetadataFooter spanId={maybeData.spanId} />
+              </View>
+            )}
+          </Flex>
+        );
+      },
       minSize: 500,
     }));
-  }, [instances]);
+  }, [hasSomeRunIds, exampleResponsesMap, instances]);
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "input",
       accessorKey: "input",
-      cell: JSONCell,
-      minSize: 300,
+      cell: (props) => JSONCell({ ...props, collapseSingleKey: false }),
+      maxSize: 400,
+      minSize: 200,
     },
     {
       header: "reference output",
       accessorKey: "output",
-      cell: ({ getValue }) => {
-        return <JSONText json={getValue()} space={2} disableTitle />;
-      },
-      minSize: 300,
+      cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
+      maxSize: 400,
+      minSize: 200,
     },
     ...playgroundInstanceOutputColumns,
   ];
@@ -278,3 +536,40 @@ export function PlaygroundDatasetExamplesTable({
     </div>
   );
 }
+
+graphql`
+  subscription PlaygroundDatasetExamplesTableSubscription(
+    $input: ChatCompletionOverDatasetInput!
+  ) {
+    chatCompletionOverDataset(input: $input) {
+      __typename
+      ... on TextChunk {
+        content
+        datasetExampleId
+      }
+      ... on ToolCallChunk {
+        id
+        datasetExampleId
+        function {
+          name
+          arguments
+        }
+      }
+      ... on FinishedChatCompletion {
+        datasetExampleId
+        span {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionError {
+        datasetExampleId
+        message
+      }
+      ... on ChatCompletionOverDatasetSubscriptionResult {
+        experiment {
+          id
+        }
+      }
+    }
+  }
+`;
