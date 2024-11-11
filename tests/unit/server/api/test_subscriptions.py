@@ -3,8 +3,6 @@ import re
 from datetime import datetime
 from typing import Any, Optional
 
-import pytest
-import pytz
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -13,7 +11,6 @@ from openinference.semconv.trace import (
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
-from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -26,7 +23,6 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
-from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
@@ -1362,161 +1358,6 @@ def _extract_city(body: str) -> str:
     if match := re.search(r"What country is (\w+) in\?", body):
         return match.group(1)
     raise ValueError(f"Could not extract city from body: {body}")
-
-
-@pytest.fixture
-async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
-    """
-    A dataset with a single example and two versions. In the first version, the
-    dataset example is created. In the second version, the dataset example is
-    patched.
-    """
-    dataset = models.Dataset(
-        id=1,
-        name="dataset-name",
-        metadata_={},
-    )
-    versions = [
-        models.DatasetVersion(
-            id=1,
-            dataset_id=dataset.id,
-            metadata_={},
-        ),
-        models.DatasetVersion(
-            id=2,
-            dataset_id=dataset.id,
-            metadata_={},
-        ),
-    ]
-    examples = [
-        models.DatasetExample(
-            id=1,
-            dataset_id=dataset.id,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-        ),
-        models.DatasetExample(
-            id=2,
-            dataset_id=dataset.id,
-            created_at=datetime(year=2020, month=2, day=2, hour=0, minute=0, tzinfo=pytz.utc),
-        ),
-        models.DatasetExample(
-            id=3,
-            dataset_id=dataset.id,
-            created_at=datetime(year=2020, month=2, day=3, hour=0, minute=0, tzinfo=pytz.utc),
-        ),
-    ]
-    revisions = [
-        models.DatasetExampleRevision(
-            dataset_example_id=examples[0].id,
-            dataset_version_id=versions[0].id,
-            input={"city": "Paris"},
-            output={},
-            metadata_={},
-            revision_kind="CREATE",
-        ),
-        models.DatasetExampleRevision(
-            dataset_example_id=examples[1].id,
-            dataset_version_id=versions[0].id,
-            input={"city": "Tokyo"},
-            output={},
-            metadata_={},
-            revision_kind="CREATE",
-        ),
-        models.DatasetExampleRevision(
-            dataset_example_id=examples[0].id,
-            dataset_version_id=versions[1].id,
-            input={"city": "Cairo"},
-            output={},
-            metadata_={},
-            revision_kind="CREATE",
-        ),
-        models.DatasetExampleRevision(
-            dataset_example_id=examples[2].id,
-            dataset_version_id=versions[0].id,
-            input={"cities": "Madrid"},
-            output={},
-            metadata_={},
-            revision_kind="PATCH",
-        ),
-    ]
-    async with db() as session:
-        session.add(dataset)
-        await session.flush()
-        session.add_all(versions)
-        await session.flush()
-        session.add_all(examples)
-        await session.flush()
-        session.add_all(revisions)
-        await session.flush()
-
-
-@pytest.fixture
-def cities_and_countries() -> list[tuple[str, str]]:
-    return [
-        ("Toronto", "Canada"),
-        ("Vancouver", "Canada"),
-        ("Paris", "France"),
-        ("Lyon", "France"),
-        ("Berlin", "Germany"),
-        ("Munich", "Germany"),
-        ("Tokyo", "Japan"),
-        ("Osaka", "Japan"),
-        ("Sydney", "Australia"),
-        ("Melbourne", "Australia"),
-        ("Guadalajara", "Mexico"),
-        ("Moscow", "Russia"),
-        ("Beijing", "China"),
-        ("Shanghai", "China"),
-        ("Mumbai", "India"),
-        ("Delhi", "India"),
-        ("Seoul", "South Korea"),
-        ("Busan", "South Korea"),
-    ]
-
-
-@pytest.fixture
-async def playground_city_and_country_dataset(
-    cities_and_countries: list[tuple[str, str]], db: DbSessionFactory
-) -> None:
-    """
-    A dataset with many example.
-    """
-    dataset = models.Dataset(
-        id=1,
-        name="dataset-name",
-        metadata_={},
-    )
-    version = models.DatasetVersion(
-        id=1,
-        dataset_id=dataset.id,
-        metadata_={},
-    )
-    examples = [
-        models.DatasetExample(
-            id=example_id,
-            dataset_id=dataset.id,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
-        )
-        for example_id in range(1, len(cities_and_countries) + 1)
-    ]
-    revisions = [
-        models.DatasetExampleRevision(
-            dataset_example_id=example.id,
-            dataset_version_id=version.id,
-            input={"city": city},
-            output={"country": country},
-            metadata_={},
-            revision_kind="CREATE",
-        )
-        for example, (city, country) in zip(examples, cities_and_countries)
-    ]
-    async with db() as session:
-        session.add(dataset)
-        session.add(version)
-        session.add_all(examples)
-        await session.flush()
-        session.add_all(revisions)
-        await session.flush()
 
 
 LLM = OpenInferenceSpanKindValues.LLM.value
