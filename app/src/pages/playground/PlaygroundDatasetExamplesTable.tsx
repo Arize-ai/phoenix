@@ -46,7 +46,6 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
-import { PlaygroundOutput, PlaygroundOutputContent } from "./PlaygroundOutput";
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
