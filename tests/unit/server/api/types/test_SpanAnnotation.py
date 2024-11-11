@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
@@ -9,6 +8,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.fixture
@@ -59,46 +59,43 @@ async def project_with_a_single_trace_and_span(
 
 async def test_annotating_a_span(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
     span_gid = GlobalID("Span", "1")
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation AddSpanAnnotation($input: [CreateSpanAnnotationInput!]!) {
-                    createSpanAnnotations(input: $input) {
-                        spanAnnotations {
-                            id
-                            spanId
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation AddSpanAnnotation($input: [CreateSpanAnnotationInput!]!) {
+                createSpanAnnotations(input: $input) {
+                    spanAnnotations {
+                        id
+                        spanId
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": [
-                    {
-                        "spanId": str(span_gid),
-                        "name": "Test Annotation",
-                        "annotatorKind": "HUMAN",
-                        "label": "True",
-                        "score": 0.95,
-                        "explanation": "This is a test annotation.",
-                        "metadata": {},
-                    }
-                ]
-            },
+            }
+        """,
+        variables={
+            "input": [
+                {
+                    "spanId": str(span_gid),
+                    "name": "Test Annotation",
+                    "annotatorKind": "HUMAN",
+                    "label": "True",
+                    "score": 0.95,
+                    "explanation": "This is a test annotation.",
+                    "metadata": {},
+                }
+            ]
         },
     )
-
-    data = response.json()["data"]
+    assert not response.errors
+    assert (data := response.data) is not None
     annotation_gid = GlobalID.from_id(data["createSpanAnnotations"]["spanAnnotations"][0]["id"])
     annotation_id = from_global_id_with_expected_type(annotation_gid, "SpanAnnotation")
     async with db() as session:
@@ -113,37 +110,34 @@ async def test_annotating_a_span(
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
 
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation PatchSpanAnnotation($input: [PatchAnnotationInput!]!) {
-                    patchSpanAnnotations(input: $input) {
-                        spanAnnotations {
-                            id
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation PatchSpanAnnotation($input: [PatchAnnotationInput!]!) {
+                patchSpanAnnotations(input: $input) {
+                    spanAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": [
-                    {
-                        "annotationId": str(annotation_gid),
-                        "name": "Updated Annotation",
-                        "annotatorKind": "HUMAN",
-                        "label": "Positive",
-                        "score": 0.95,
-                        "explanation": "Updated explanation",
-                        "metadata": {"updated": True},
-                    }
-                ]
-            },
+            }
+        """,
+        variables={
+            "input": [
+                {
+                    "annotationId": str(annotation_gid),
+                    "name": "Updated Annotation",
+                    "annotatorKind": "HUMAN",
+                    "label": "Positive",
+                    "score": 0.95,
+                    "explanation": "Updated explanation",
+                    "metadata": {"updated": True},
+                }
+            ]
         },
     )
     async with db() as session:
@@ -156,29 +150,26 @@ async def test_annotating_a_span(
     assert orm_annotation.explanation == "Updated explanation"
     assert orm_annotation.metadata_ == {"updated": True}
 
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation DeleteSpanAnnotation($input: DeleteAnnotationsInput!) {
-                    deleteSpanAnnotations(input: $input) {
-                        spanAnnotations {
-                            id
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation DeleteSpanAnnotation($input: DeleteAnnotationsInput!) {
+                deleteSpanAnnotations(input: $input) {
+                    spanAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": {
-                    "annotationIds": [str(annotation_gid)],
-                }
-            },
+            }
+        """,
+        variables={
+            "input": {
+                "annotationIds": [str(annotation_gid)],
+            }
         },
     )
     async with db() as session:

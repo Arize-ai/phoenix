@@ -2,7 +2,6 @@ from datetime import datetime
 from statistics import mean
 from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert
@@ -11,10 +10,11 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 async def test_experiment_resolver_returns_sequence_number(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     interlaced_experiments: list[int],
 ) -> None:
     query = """
@@ -27,22 +27,22 @@ async def test_experiment_resolver_returns_sequence_number(
         }
       }
     """
-    variables = {
-        "experimentId": str(
-            GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
-        ),
-    }
-    response = await httpx_client.post("/graphql", json={"query": query, "variables": variables})
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentId": str(
+                GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
+            ),
+        },
+    )
+    assert not response.errors
+    assert response.data == {
         "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
     }
 
 
 async def test_runs_resolver_returns_runs_for_experiment(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     dataset_with_experiment_runs: Any,
 ) -> None:
     query = """
@@ -66,19 +66,14 @@ async def test_runs_resolver_returns_runs_for_experiment(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "experiment": {
             "runs": {
                 "edges": [
@@ -122,7 +117,7 @@ async def test_runs_resolver_returns_runs_for_experiment(
 
 
 async def test_run_count_resolver_returns_correct_counts(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     experiments_with_runs_and_annotations: Any,
 ) -> None:
     query = """
@@ -141,19 +136,14 @@ async def test_run_count_resolver_returns_correct_counts(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "dataset": {
             "experiments": {
                 "edges": [
@@ -182,7 +172,7 @@ async def test_run_count_resolver_returns_correct_counts(
 
 
 async def test_average_run_latency_resolver_returns_correct_values(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     experiments_with_runs_and_annotations: Any,
 ) -> None:
     query = """
@@ -201,19 +191,14 @@ async def test_average_run_latency_resolver_returns_correct_values(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "dataset": {
             "experiments": {
                 "edges": [
@@ -244,7 +229,7 @@ async def test_average_run_latency_resolver_returns_correct_values(
 class TestExperimentAnnotationSummaries:
     async def test_experiment_resolver_returns_expected_values(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
@@ -270,19 +255,14 @@ class TestExperimentAnnotationSummaries:
             }
           }
         """
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": query,
-                "variables": {
-                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-                },
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "dataset": {
                 "experiments": {
                     "edges": [
@@ -345,7 +325,7 @@ class TestExperimentAnnotationSummaries:
 
     async def test_dataset_resolver_returns_expected_values(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
@@ -364,19 +344,14 @@ class TestExperimentAnnotationSummaries:
             }
           }
         """
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": query,
-                "variables": {
-                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-                },
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "dataset": {
                 "experimentAnnotationSummaries": [
                     {
@@ -409,7 +384,7 @@ class TestExperimentAnnotationSummaries:
 
 
 async def test_error_rate_returns_expected_values(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     experiments_with_runs: Any,
 ) -> None:
     query = """
@@ -428,18 +403,14 @@ async def test_error_rate_returns_expected_values(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
         },
     )
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "dataset": {
             "experiments": {
                 "edges": [

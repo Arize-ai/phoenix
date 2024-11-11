@@ -1,7 +1,5 @@
 from datetime import datetime
-from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
@@ -10,11 +8,12 @@ from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 async def test_project_resolver_returns_correct_project(
-    httpx_client: httpx.AsyncClient,
-    project_with_a_single_trace_and_span: Any,
+    gql_client: AsyncGraphQLClient,
+    project_with_a_single_trace_and_span: None,
 ) -> None:
     query = """
       query ($spanId: GlobalID!) {
@@ -29,27 +28,25 @@ async def test_project_resolver_returns_correct_project(
       }
     """
     span_id = str(GlobalID(Span.__name__, str(1)))
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "spanId": span_id,
-            },
-        },
+    response = await gql_client.execute(
+        query=query,
+        variables={"spanId": span_id},
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    actual_project = response_json["data"]["span"]["project"]
-    assert actual_project == {
-        "id": str(GlobalID(Project.__name__, str(1))),
-        "name": "project-name",
+    assert not response.errors
+    assert response.data == {
+        "span": {
+            "project": {
+                "id": str(GlobalID(Project.__name__, str(1))),
+                "name": "project-name",
+            }
+        }
     }
 
 
 async def test_querying_spans_contained_in_datasets(
-    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any, simple_dataset: Any
+    gql_client: AsyncGraphQLClient,
+    project_with_a_single_trace_and_span: None,
+    simple_dataset: None,
 ) -> None:
     query = """
       query ($spanId: GlobalID!) {
@@ -61,24 +58,20 @@ async def test_querying_spans_contained_in_datasets(
       }
     """
     span_id = str(GlobalID(Span.__name__, str(1)))
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "spanId": span_id,
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "spanId": span_id,
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    actual_contained_in_dataset = response_json["data"]["span"]["containedInDataset"]
+    assert not response.errors
+    assert (data := response.data) is not None
+    actual_contained_in_dataset = data["span"]["containedInDataset"]
     assert actual_contained_in_dataset is True
 
 
 async def test_querying_spans_not_contained_in_datasets(
-    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any
+    gql_client: AsyncGraphQLClient, project_with_a_single_trace_and_span: None
 ) -> None:
     query = """
       query ($spanId: GlobalID!) {
@@ -90,19 +83,15 @@ async def test_querying_spans_not_contained_in_datasets(
       }
     """
     span_id = str(GlobalID(Span.__name__, str(1)))
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "spanId": span_id,
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "spanId": span_id,
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    actual_contained_in_dataset = response_json["data"]["span"]["containedInDataset"]
+    assert not response.errors
+    assert (data := response.data) is not None
+    actual_contained_in_dataset = data["span"]["containedInDataset"]
     assert actual_contained_in_dataset is False
 
 

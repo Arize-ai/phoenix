@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert
@@ -11,6 +10,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.mark.parametrize(
@@ -47,7 +47,7 @@ from phoenix.server.types import DbSessionFactory
 async def test_dataset_example_span_resolver(
     example_id: str,
     expected_span: Mapping[str, Any],
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     dataset_with_span_and_nonspan_examples: Any,
 ) -> None:
     query = """
@@ -78,27 +78,20 @@ async def test_dataset_example_span_resolver(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "exampleId": example_id,
-            },
-        },
+    response = await gql_client.execute(
+        query=query,
+        variables={"exampleId": example_id},
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    actual_example = response_json["data"]["example"]
-    assert actual_example == {
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["example"] == {
         "id": example_id,
         "span": expected_span,
     }
 
 
 async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     example_with_experiment_runs: Any,
 ) -> None:
     query = """
@@ -121,19 +114,12 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "exampleId": str(GlobalID("DatasetExample", str(1))),
-            },
-        },
+    response = await gql_client.execute(
+        query=query,
+        variables={"exampleId": str(GlobalID("DatasetExample", str(1)))},
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "example": {
             "experimentRuns": {
                 "edges": [

@@ -17,7 +17,7 @@ class GraphQLError(Exception):
 
 @dataclass
 class GraphQLExecutionResult:
-    data: dict[str, Any] = field(default_factory=dict)
+    data: Optional[dict[str, Any]] = None
     errors: list[GraphQLError] = field(default_factory=list)
 
 
@@ -52,9 +52,12 @@ class AsyncGraphQLClient:
         )
         response.raise_for_status()
         response_json = response.json()
-        data = response_json.get("data") or {}
-        errors = [GraphQLError(error["message"]) for error in (response_json.get("errors") or [])]
-        return GraphQLExecutionResult(data=data, errors=errors)
+        return GraphQLExecutionResult(
+            data=response_json.get("data"),
+            errors=[
+                GraphQLError(message=error["message"]) for error in response_json.get("errors", [])
+            ],
+        )
 
     @contextlib.asynccontextmanager
     async def subscription(

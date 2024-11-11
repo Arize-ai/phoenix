@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert
@@ -11,6 +10,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 class TestDatasetExampleNodeInterface:
@@ -33,136 +33,114 @@ class TestDatasetExampleNodeInterface:
 
     async def test_unspecified_version_returns_latest_revision(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "exampleId": example_id,
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_example = response_json["data"]["example"]
-        assert actual_example == {
-            "id": example_id,
-            "createdAt": "2020-01-01T00:00:00+00:00",
-            "revision": {
-                "input": {"input": "second-input"},
-                "output": {"output": "second-output"},
-                "metadata": {},
-                "revisionKind": "PATCH",
-            },
+        assert not response.errors
+        assert response.data == {
+            "example": {
+                "id": example_id,
+                "createdAt": "2020-01-01T00:00:00+00:00",
+                "revision": {
+                    "input": {"input": "second-input"},
+                    "output": {"output": "second-output"},
+                    "metadata": {},
+                    "revisionKind": "PATCH",
+                },
+            }
         }
 
     async def test_returns_latest_revision_up_to_specified_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "exampleId": example_id,
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_example = response_json["data"]["example"]
-        assert actual_example == {
-            "id": example_id,
-            "createdAt": "2020-01-01T00:00:00+00:00",
-            "revision": {
-                "input": {"input": "first-input"},
-                "output": {"output": "first-output"},
-                "metadata": {},
-                "revisionKind": "CREATE",
-            },
+        assert not response.errors
+        assert response.data == {
+            "example": {
+                "id": example_id,
+                "createdAt": "2020-01-01T00:00:00+00:00",
+                "revision": {
+                    "input": {"input": "first-input"},
+                    "output": {"output": "first-output"},
+                    "metadata": {},
+                    "revisionKind": "CREATE",
+                },
+            }
         }
 
     async def test_returns_latest_revision_up_to_version_even_if_version_does_not_change_example(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_three_versions: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "exampleId": example_id,
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_example = response_json["data"]["example"]
-        assert actual_example == {
-            "id": example_id,
-            "createdAt": "2020-01-01T00:00:00+00:00",
-            "revision": {
-                "input": {"input": "first-input"},
-                "output": {"output": "first-output"},
-                "metadata": {},
-                "revisionKind": "CREATE",
-            },
+        assert not response.errors
+        assert response.data == {
+            "example": {
+                "id": example_id,
+                "createdAt": "2020-01-01T00:00:00+00:00",
+                "revision": {
+                    "input": {"input": "first-input"},
+                    "output": {"output": "first-output"},
+                    "metadata": {},
+                    "revisionKind": "CREATE",
+                },
+            }
         }
 
     async def test_non_existent_version_id_returns_error(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),  # doesn't exist
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "exampleId": example_id,
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),  # doesn't exist
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert len(errors := response_json.get("errors")) == 1
-        assert errors[0]["message"] == "Could not find revision."
+        assert response.errors
+        assert response.errors[0].message == "Could not find revision."
 
     async def test_deleted_dataset_example_returns_error(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "exampleId": example_id,
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert len(errors := response_json.get("errors")) == 1
-        assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
+        assert response.errors
+        assert response.errors[0].message == f"Unknown dataset example: {example_id}"
 
 
 class TestDatasetExampleCountResolver:
@@ -178,42 +156,32 @@ class TestDatasetExampleCountResolver:
 
     async def test_count_uses_latest_version_when_no_version_is_specified(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"exampleCount": 0}}
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 0}}
 
     async def test_count_uses_specified_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"exampleCount": 1}}
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 1}}
 
 
 class TestDatasetExamplesResolver:
@@ -241,21 +209,16 @@ class TestDatasetExamplesResolver:
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
+        assert not response.errors
         edges = [
             {
                 "node": {
@@ -280,45 +243,35 @@ class TestDatasetExamplesResolver:
                 }
             },
         ]
-        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
+        assert response.data == {"node": {"examples": {"edges": edges}}}
 
     async def test_excludes_deleted_examples(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"examples": {"edges": []}}}
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": []}}}
 
     async def test_returns_latest_revisions_up_to_specified_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
+        assert not response.errors
         edges = [
             {
                 "node": {
@@ -343,29 +296,24 @@ class TestDatasetExamplesResolver:
                 }
             },
         ]
-        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
+        assert response.data == {"node": {"examples": {"edges": edges}}}
 
     async def test_returns_latest_revisions_up_to_version_even_if_version_does_not_change_example(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_three_versions: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(
-                        GlobalID("DatasetVersion", str(2))
-                    ),  # example is not changed in this version
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(
+                    GlobalID("DatasetVersion", str(2))
+                ),  # example is not changed in this version
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "node": {
                 "examples": {
                     "edges": [
@@ -387,23 +335,18 @@ class TestDatasetExamplesResolver:
 
     async def test_version_id_on_revision_resolver_takes_precedence(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_patch_revision: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
-                    "revisionDatasetVersionId": str(GlobalID("DatasetVersion", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                "revisionDatasetVersionId": str(GlobalID("DatasetVersion", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
+        assert not response.errors
         edges = [
             {
                 "node": {
@@ -428,7 +371,7 @@ class TestDatasetExamplesResolver:
                 }
             },
         ]
-        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
+        assert response.data == {"node": {"examples": {"edges": edges}}}
 
 
 @pytest.mark.parametrize(
@@ -493,7 +436,7 @@ class TestDatasetExamplesResolver:
 async def test_versions_resolver_returns_versions_in_correct_order(
     sort_direction: str,
     expected_versions: Mapping[str, Any],
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     dataset_with_three_versions: Any,
 ) -> None:
     query = """
@@ -513,21 +456,16 @@ async def test_versions_resolver_returns_versions_in_correct_order(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "datasetId": str(GlobalID("Dataset", str(1))),
-                "dir": sort_direction,
-                "col": "createdAt",
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "dir": sort_direction,
+            "col": "createdAt",
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {"dataset": {"versions": {"edges": expected_versions}}}
+    assert not response.errors
+    assert response.data == {"dataset": {"versions": {"edges": expected_versions}}}
 
 
 class TestDatasetExperimentCountResolver:
@@ -543,42 +481,32 @@ class TestDatasetExperimentCountResolver:
 
     async def test_experiment_count_uses_all_versions_when_no_version_is_specified(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"experimentCount": 2}}
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 2}}
 
     async def test_experiment_count_uses_specified_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_deletion: Any,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
-                },
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"experimentCount": 1}}
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 1}}
 
 
 class TestDatasetExperimentsResolver:
@@ -601,24 +529,22 @@ class TestDatasetExperimentsResolver:
 
     async def test_experiments_have_sequence_number(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         interlaced_experiments: list[int],
     ) -> None:
         variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
-        response = await httpx_client.post(
-            "/graphql",
-            json={"query": self.QUERY, "variables": variables},
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
+        assert not response.errors
         edges = [
             {"node": {"sequenceNumber": 4, "id": str(GlobalID(Experiment.__name__, str(11)))}},
             {"node": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(8)))}},
             {"node": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}},
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
-        assert response_json["data"] == {"node": {"experiments": {"edges": edges}}}
+        assert response.data == {"node": {"experiments": {"edges": edges}}}
 
 
 @pytest.fixture

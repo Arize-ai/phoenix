@@ -80,7 +80,8 @@ class TestDeleteExperiment:
         )
         async with db() as session:
             assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        assert len(errors := response.errors) == 1
+        assert (errors := response.errors)
+        assert len(errors) == 1
         assert errors[0].message == (
             "Failed to delete experiment(s), probably due to invalid input experiment ID(s): "
             f"['{str(GlobalID('Experiment', str(3)))}']"
