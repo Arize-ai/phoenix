@@ -144,6 +144,7 @@ function AddPromptButton() {
 const playgroundPromptPanelContentCSS = css`
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden;
   & > .ac-accordion {
     display: flex;
@@ -155,8 +156,12 @@ const playgroundPromptPanelContentCSS = css`
       height: 100%;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       flex: 1 1 auto;
+      & > [role="button"] {
+        flex: unset;
+      }
       .ac-accordion-itemContent {
         height: 100%;
         overflow: hidden;
