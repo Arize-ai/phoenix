@@ -22,23 +22,23 @@ function formatDateDifference(date) {
 }
 
 // Helper function to get a sorted list of unique participants from comments on an issue, excluding the author
-async function getParticipants(github, context, issueNumber, author) {
+async function getParticipants(github, issue) {
   try {
     const comments = await github.paginate(github.rest.issues.listComments, {
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      issue_number: issueNumber,
+      owner: issue.repository.owner.login,
+      repo: issue.repository.name,
+      issue_number: issue.number,
       per_page: 100,
     });
 
     const participants = new Set(
       comments
         .map((comment) => comment.user.login)
-        .filter((username) => username !== author), // Exclude the author
+        .filter((username) => username !== issue.user.login), // Exclude the author
     );
     return Array.from(participants).sort();
   } catch (error) {
-    console.error(`Error fetching comments for issue #${issueNumber}:`, error);
+    console.error(`Error fetching comments for issue #${issue.number}:`, error);
     return [];
   }
 }
@@ -52,7 +52,7 @@ function filterIssues(issues, requiredLabels, cutoffDate) {
       const isNotPR = !issue.pull_request;
       return hasLabels && isRecent && isNotPR;
     })
-    .sort((a, b) => b.number - a.number); // Sort by issue number, newest first
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by creation date, newest first
 }
 
 // Helper function to separate issues into "stale" and "fresh" based on staleness threshold
@@ -92,18 +92,13 @@ function categorizeIssues(issues) {
 }
 
 // Helper function to build a detailed description for each issue
-async function formatIssueLine(github, context, issue, index) {
+async function formatIssueLine(github, issue, index) {
   let line = `${index + 1}. *<${issue.html_url}|#${issue.number}>:* ${issue.title}`;
   line += ` (by ${createGithubLink(issue.user.login)}; ${formatDateDifference(issue.created_at)})`;
 
   if (issue.comments > 0) {
     line += `; ${issue.comments} comment${issue.comments > 1 ? "s" : ""}`;
-    const participants = await getParticipants(
-      github,
-      context,
-      issue.number,
-      issue.user.login,
-    );
+    const participants = await getParticipants(github, issue);
     if (participants.length > 0) {
       const participantLinks = participants.map(createGithubLink).join(", ");
       line += `; participants: ${participantLinks}`;
@@ -121,9 +116,9 @@ async function formatIssueLine(github, context, issue, index) {
 }
 
 // Helper function to build a message for Slack with grouped and formatted issues
-async function buildSlackMessage(github, context, issueGroups, lookbackDays) {
+async function buildSlackMessage(github, issueGroups, lookbackDays) {
   const messageLines = [
-    `*🛠️ Phoenix Customer Issues Opened in the Last ${lookbackDays} Day(s) Pending <https://github.com/Arize-ai/phoenix/issues?q=is%3Aissue+is%3Aopen+label%3Atriage|Triage>*\n`,
+    `*🛠️ Customer Issues Opened in the Last ${lookbackDays} Day(s) Pending Triage*\n`,
   ];
 
   for (const [issuesArray, header] of issueGroups) {
@@ -131,7 +126,7 @@ async function buildSlackMessage(github, context, issueGroups, lookbackDays) {
       messageLines.push(header); // Add the group header (e.g., "🐛 Bugs")
       const issueDescriptions = await Promise.all(
         issuesArray.map((issue, index) =>
-          formatIssueLine(github, context, issue, index),
+          formatIssueLine(github, issue, index),
         ),
       );
       messageLines.push(...issueDescriptions);
@@ -153,14 +148,18 @@ module.exports = async ({ github, context, core }) => {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
 
+  const issues = [];
   // Retrieve issues created within the specified lookback period
-  const issues = await github.paginate(github.rest.issues.listForRepo, {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    state: "open",
-    since: cutoffDate.toISOString(),
-    per_page: 100,
-  });
+  for (const repo of ["phoenix", "openinference"]) {
+    const repoIssues = await github.paginate(github.rest.issues.listForRepo, {
+      owner: context.repo.owner,
+      repo: repo,
+      state: "open",
+      since: cutoffDate.toISOString(),
+      per_page: 100,
+    });
+    issues.push(...repoIssues);
+  }
 
   // Filter issues by label and date, then categorize by staleness and type
   const filteredIssues = filterIssues(issues, requiredLabels, cutoffDate);
@@ -184,11 +183,6 @@ module.exports = async ({ github, context, core }) => {
   ];
 
   // Build the Slack message and set as output
-  const message = await buildSlackMessage(
-    github,
-    context,
-    issueGroups,
-    lookbackDays,
-  );
+  const message = await buildSlackMessage(github, issueGroups, lookbackDays);
   core.setOutput("slack_message", message);
 };
