@@ -41,7 +41,7 @@ class TestDeleteExperiment:
             },
         )
         assert (await session.scalar(func.count(models.Experiment.id))) == 0
-        assert response.errors is None
+        assert not response.errors
         assert response.data == {
             "deleteExperiments": {
                 "experiments": [

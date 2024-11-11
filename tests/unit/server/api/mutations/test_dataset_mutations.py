@@ -39,7 +39,7 @@ async def test_create_dataset(
             "metadata": {"original-metadata-key": "original-metadata-value"},
         },
     )
-    assert response.errors is None
+    assert not response.errors
     assert response.data == {
         "createDataset": {
             "dataset": {
@@ -82,7 +82,7 @@ class TestPatchDatasetMutation:
                 "metadata": {"patched-metadata-key": "patched-metadata-value"},
             },
         )
-        assert response.errors is None
+        assert not response.errors
         assert response.data == {
             "patchDataset": {
                 "dataset": {
@@ -108,7 +108,7 @@ class TestPatchDatasetMutation:
                 "metadata": None,
             },
         )
-        assert response.errors is None
+        assert not response.errors
         assert response.data == {
             "patchDataset": {
                 "dataset": {
@@ -132,7 +132,7 @@ class TestPatchDatasetMutation:
                 "description": "patched-dataset-description",
             },
         )
-        assert response.errors is None
+        assert not response.errors
         assert response.data == {
             "patchDataset": {
                 "dataset": {
@@ -182,7 +182,7 @@ async def test_add_span_to_dataset(
             ],
         },
     )
-    assert response.errors is None
+    assert not response.errors
     assert response.data == {
         "addSpansToDataset": {
             "dataset": {
@@ -370,7 +370,7 @@ class TestPatchDatasetExamples:
             query=self.MUTATION,
             variables={"input": mutation_input},
         )
-        assert response.errors is None
+        assert not response.errors
         actual_examples = response.data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
         assert actual_examples == expected_examples
 
@@ -511,7 +511,7 @@ async def test_delete_a_dataset(
             "datasetId": str(dataset_id),
         },
     )
-    assert response.errors is None
+    assert not response.errors
     assert response.data["deleteDataset"]["dataset"] == {
         "id": str(dataset_id)
     }, "deleted dataset is returned"

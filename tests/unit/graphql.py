@@ -1,6 +1,6 @@
 import contextlib
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -17,8 +17,8 @@ class GraphQLError(Exception):
 
 @dataclass
 class GraphQLExecutionResult:
-    data: Optional[dict[str, Any]]
-    errors: Optional[list[GraphQLError]]
+    data: dict[str, Any] = field(default_factory=dict)
+    errors: list[GraphQLError] = field(default_factory=list)
 
 
 class AsyncGraphQLClient:
@@ -52,13 +52,9 @@ class AsyncGraphQLClient:
         )
         response.raise_for_status()
         response_json = response.json()
-        return GraphQLExecutionResult(
-            data=response_json.get("data"),
-            errors=[
-                GraphQLError(message=error["message"]) for error in response_json.get("errors", [])
-            ]
-            or None,
-        )
+        data = response_json.get("data") or {}
+        errors = [GraphQLError(error["message"]) for error in (response_json.get("errors") or [])]
+        return GraphQLExecutionResult(data=data, errors=errors)
 
     @contextlib.asynccontextmanager
     async def subscription(

@@ -28,7 +28,7 @@ async def test_projects_omits_experiment_projects(
       }
     """
     response = await gql_client.execute(query=query)
-    assert response.errors is None
+    assert not response.errors
     assert response.data == {
         "projects": {
             "edges": [
@@ -80,7 +80,7 @@ async def test_compare_experiments_returns_expected_comparisons(
             ],
         },
     )
-    assert response.errors is None
+    assert not response.errors
     assert response.data == {
         "compareExperiments": [
             {
