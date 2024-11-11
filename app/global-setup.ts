@@ -21,7 +21,7 @@ async function globalSetup(config: FullConfig) {
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin123");
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  await page.waitForURL("**/projects/**");
+  await page.waitForURL("**/projects");
   await page.goto(`${baseURL}/settings`);
   await page.waitForURL("**/settings");
   await page.getByRole("button", { name: "Add User" }).click();
