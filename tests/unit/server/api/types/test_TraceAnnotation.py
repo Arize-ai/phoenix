@@ -63,7 +63,7 @@ async def test_annotating_a_trace(
     project_with_a_single_trace_and_span: Any,
 ) -> None:
     trace_gid = GlobalID("Trace", "1")
-    create_response = await gql_client.execute(
+    response = await gql_client.execute(
         query="""
             mutation AddTraceAnnotation($input: [CreateTraceAnnotationInput!]!) {
                 createTraceAnnotations(input: $input) {
@@ -94,12 +94,10 @@ async def test_annotating_a_trace(
             ]
         },
     )
-    assert not create_response.errors
-    assert (data := create_response.data) is not None
+    assert not response.errors
+    assert (data := response.data) is not None
     annotation_gid = GlobalID.from_id(data["createTraceAnnotations"]["traceAnnotations"][0]["id"])
     annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
-
-    # Verify creation in database
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
@@ -112,8 +110,7 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
 
-    # Update annotation
-    patch_response = await gql_client.execute(
+    response = await gql_client.execute(
         query="""
             mutation PatchTraceAnnotation($input: [PatchAnnotationInput!]!) {
                 patchTraceAnnotations(input: $input) {
@@ -143,9 +140,7 @@ async def test_annotating_a_trace(
             ]
         },
     )
-    assert not patch_response.errors
-
-    # Verify update in database
+    assert not response.errors
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
@@ -156,8 +151,7 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "Updated explanation"
     assert orm_annotation.metadata_ == {"updated": True}
 
-    # Delete annotation
-    delete_response = await gql_client.execute(
+    response = await gql_client.execute(
         query="""
             mutation DeleteTraceAnnotation($input: DeleteAnnotationsInput!) {
                 deleteTraceAnnotations(input: $input) {
@@ -179,9 +173,7 @@ async def test_annotating_a_trace(
             }
         },
     )
-    assert not delete_response.errors
-
-    # Verify deletion in database
+    assert not response.errors
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
