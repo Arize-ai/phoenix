@@ -21,6 +21,7 @@ from faker import Faker
 from httpx import AsyncByteStream, Request, Response
 from httpx_ws import AsyncWebSocketSession, aconnect_ws
 from psycopg import Connection
+from pytest import FixtureRequest
 from pytest_postgresql import factories
 from sqlalchemy import URL, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -42,6 +43,7 @@ from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.session.client import Client
 from phoenix.trace.schemas import Span
 from tests.unit.transport import ASGIWebSocketTransport
+from tests.unit.vcr import CustomVCR
 
 
 def pytest_terminal_summary(
@@ -351,6 +353,11 @@ def rand_trace_id() -> Iterator[str]:
                 yield span_id
 
     return _(set())
+
+
+@pytest.fixture
+def custom_vcr(request: FixtureRequest) -> CustomVCR:
+    return CustomVCR(request)
 
 
 class AsyncGraphQLClient:

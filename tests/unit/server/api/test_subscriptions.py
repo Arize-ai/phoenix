@@ -1,18 +1,17 @@
 import json
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Optional
 
 import pytest
 import pytz
-import vcr
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
 from strawberry.relay.types import GlobalID
+from vcr.request import Request as VCRRequest
 
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
@@ -29,38 +28,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
-
-
-def remove_all_vcr_request_headers(request: Any) -> Any:
-    """
-    Removes all request headers.
-
-    Example:
-    ```
-    @pytest.mark.vcr(
-        before_record_response=remove_all_vcr_request_headers
-    )
-    def test_openai() -> None:
-        # make request to OpenAI
-    """
-    request.headers.clear()
-    return request
-
-
-def remove_all_vcr_response_headers(response: dict[str, Any]) -> dict[str, Any]:
-    """
-    Removes all response headers.
-
-    Example:
-    ```
-    @pytest.mark.vcr(
-        before_record_response=remove_all_vcr_response_headers
-    )
-    def test_openai() -> None:
-        # make request to OpenAI
-    """
-    response["headers"] = {}
-    return response
+from tests.unit.vcr import CustomVCR
 
 
 class TestChatCompletionSubscription:
@@ -141,6 +109,7 @@ class TestChatCompletionSubscription:
         self,
         gql_client: Any,
         openai_api_key: str,
+        custom_vcr: CustomVCR,
     ) -> None:
         variables = {
             "input": {
@@ -161,13 +130,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_openai_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-            ):
+            with custom_vcr.use_cassette():
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
@@ -273,6 +236,7 @@ class TestChatCompletionSubscription:
         self,
         gql_client: Any,
         openai_api_key: str,
+        custom_vcr: CustomVCR,
     ) -> None:
         variables = {
             "input": {
@@ -293,13 +257,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_openai_emits_expected_payloads_and_records_expected_span_on_error[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-            ):
+            with custom_vcr.use_cassette():
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
@@ -396,6 +354,7 @@ class TestChatCompletionSubscription:
         self,
         gql_client: Any,
         openai_api_key: str,
+        custom_vcr: CustomVCR,
     ) -> None:
         get_current_weather_tool_schema = {
             "type": "function",
@@ -434,13 +393,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-            ):
+            with custom_vcr.use_cassette():
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
@@ -552,6 +505,7 @@ class TestChatCompletionSubscription:
         self,
         gql_client: Any,
         openai_api_key: str,
+        custom_vcr: CustomVCR,
     ) -> None:
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
         tool_calls = [
@@ -589,13 +543,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-            ):
+            with custom_vcr.use_cassette():
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
@@ -714,6 +662,7 @@ class TestChatCompletionSubscription:
         self,
         gql_client: Any,
         anthropic_api_key: str,
+        custom_vcr: CustomVCR,
     ) -> None:
         variables = {
             "input": {
@@ -735,13 +684,7 @@ class TestChatCompletionSubscription:
             variables=variables,
             operation_name="ChatCompletionSubscription",
         ) as subscription:
-            with vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionSubscription.test_anthropic_text_response_emits_expected_payloads_and_records_expected_span[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-            ):
+            with custom_vcr.use_cassette():
                 payloads = [payload async for payload in subscription.stream()]
 
         # check subscription payloads
@@ -961,6 +904,7 @@ class TestChatCompletionOverDatasetSubscription:
         gql_client: Any,
         openai_api_key: str,
         playground_dataset_with_patch_revision: None,
+        custom_vcr: CustomVCR,
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
@@ -984,18 +928,10 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr = vcr.VCR()
             custom_vcr.register_matcher(
                 _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
             )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionOverDatasetSubscription.test_emits_expected_payloads_and_records_expected_spans_and_experiment[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-                match_on=[_request_bodies_contain_same_city.__name__],
-            ):
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1329,6 +1265,7 @@ class TestChatCompletionOverDatasetSubscription:
         openai_api_key: str,
         cities_and_countries: list[tuple[str, str]],
         playground_city_and_country_dataset: None,
+        custom_vcr: CustomVCR,
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
@@ -1355,18 +1292,10 @@ class TestChatCompletionOverDatasetSubscription:
             variables=variables,
             operation_name="ChatCompletionOverDatasetSubscription",
         ) as subscription:
-            custom_vcr = vcr.VCR()
             custom_vcr.register_matcher(
                 _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
             )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(
-                Path(__file__).parent / "cassettes/test_subscriptions/"
-                "TestChatCompletionOverDatasetSubscription.test_all_spans_yielded_when_number_of_examples_exceeds_batch_size[sqlite].yaml",
-                decode_compressed_response=True,
-                before_record_request=remove_all_vcr_request_headers,
-                before_record_response=remove_all_vcr_response_headers,
-                match_on=[_request_bodies_contain_same_city.__name__],
-            ):
+            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
                 async for payload in subscription.stream():
                     if (
                         dataset_example_id := payload["chatCompletionOverDataset"][
@@ -1424,9 +1353,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert isinstance(experiment["id"], str)
 
 
-def _request_bodies_contain_same_city(
-    request1: vcr.request.Request, request2: vcr.request.Request
-) -> None:
+def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:
     assert _extract_city(request1.body.decode()) == _extract_city(request2.body.decode())
 
 
