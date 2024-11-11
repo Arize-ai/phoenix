@@ -1,5 +1,6 @@
 import React, {
   ReactNode,
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -24,13 +25,25 @@ import {
 import { GraphQLSubscriptionConfig, requestSubscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
+import {
+  Button,
+  DialogContainer,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+} from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -46,18 +59,24 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
-import { RunMetadataFooter } from "./RunMetadataFooter";
+
+const PAGE_SIZE = 100;
 
 type InstanceId = number;
 type ExampleId = string;
+type Span = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "FinishedChatCompletion" }
+>["span"];
 
 type ExampleRunData =
   | {
       content?: string;
       toolCalls?: readonly PartialOutputToolCall[];
-      spanId?: string;
+      span?: Span;
     }
   | undefined;
 
@@ -100,7 +119,18 @@ function JSONCell<TData extends object, TValue>({
   );
 }
 
-const PAGE_SIZE = 100;
+function SpanMetadata({ span }: { span: Span }) {
+  return (
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <TokenCount
+        tokenCountTotal={span.tokenCountTotal || 0}
+        tokenCountPrompt={span.tokenCountPrompt || 0}
+        tokenCountCompletion={span.tokenCountCompletion || 0}
+      />
+      <LatencyText latencyMs={span.latencyMs || 0} />
+    </Flex>
+  );
+}
 
 // un-memoized normal table body component - see memoized version below
 function TableBody<T>({ table }: { table: Table<T> }) {
@@ -138,6 +168,7 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const [dialog, setDialog] = useState<ReactNode>(null);
 
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
@@ -231,7 +262,7 @@ export function PlaygroundDatasetExamplesTable({
                 ...existingInstanceResponses,
                 [datasetExampleId]: {
                   ...existingExampleResponse,
-                  spanId: span.id,
+                  span: span,
                 },
               };
               return {
@@ -395,19 +426,43 @@ export function PlaygroundDatasetExamplesTable({
         if (maybeData == null) {
           return null;
         }
+        const { span, content, toolCalls } = maybeData;
+        const hasSpan = span != null;
+        let traceButton = null;
+        if (hasSpan) {
+          traceButton = (
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                className="trace-button"
+                size="compact"
+                aria-label="View run trace"
+                icon={<Icon svg={<Icons.Trace />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <PlaygroundRunTraceDetailsDialog
+                        traceId={span.context.traceId}
+                        projectId={span.project.id}
+                        title={`Experiment Run Trace`}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>View Trace</Tooltip>
+            </TooltipTrigger>
+          );
+        }
         return (
-          <Flex direction={"column"} gap={"size-200"}>
-            <Text>{maybeData.content}</Text>
-            {maybeData.spanId == null ? null : (
-              <View
-                borderTopColor="light"
-                // borderTopWidth="thin"
-                paddingTop={"size-100"}
-              >
-                <RunMetadataFooter spanId={maybeData.spanId} />
-              </View>
-            )}
-          </Flex>
+          <CellWithControlsWrap controls={traceButton}>
+            <Flex direction={"column"} gap={"size-200"}>
+              <Text>{content}</Text>
+              {hasSpan ? <SpanMetadata span={span} /> : null}
+            </Flex>
+          </CellWithControlsWrap>
         );
       },
       minSize: 500,
@@ -532,6 +587,15 @@ export function PlaygroundDatasetExamplesTable({
           <TableBody table={table} />
         )}
       </table>
+      <DialogContainer
+        isDismissable
+        type="slideOver"
+        onDismiss={() => {
+          setDialog(null);
+        }}
+      >
+        {dialog}
+      </DialogContainer>
     </div>
   );
 }
@@ -558,6 +622,16 @@ graphql`
         datasetExampleId
         span {
           id
+          tokenCountCompletion
+          tokenCountPrompt
+          tokenCountTotal
+          latencyMs
+          project {
+            id
+          }
+          context {
+            traceId
+          }
         }
       }
       ... on ChatCompletionSubscriptionError {

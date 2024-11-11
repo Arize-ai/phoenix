@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27940b4643944f97e331b2942d046b6f>>
+ * @generated SignedSource<<fec3a544c18f540426ceffcc1dca73a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,7 +66,17 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly __typename: "FinishedChatCompletion";
     readonly datasetExampleId: string | null;
     readonly span: {
+      readonly context: {
+        readonly traceId: string;
+      };
       readonly id: string;
+      readonly latencyMs: number | null;
+      readonly project: {
+        readonly id: string;
+      };
+      readonly tokenCountCompletion: number | null;
+      readonly tokenCountPrompt: number | null;
+      readonly tokenCountTotal: number | null;
     };
   } | {
     readonly __typename: "TextChunk";
@@ -198,7 +208,65 @@ v4 = [
             "kind": "LinkedField",
             "name": "span",
             "plural": false,
-            "selections": (v3/*: any*/),
+            "selections": [
+              (v2/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountCompletion",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountPrompt",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountTotal",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMs",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "project",
+                "plural": false,
+                "selections": (v3/*: any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanContext",
+                "kind": "LinkedField",
+                "name": "context",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "traceId",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -259,16 +327,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "55595f06b2ed1deeb7c8c1d082f20b8d",
+    "cacheID": "ea85df8b587c51f921739ee42d0b3780",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      datasetExampleId\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n    ... on ChatCompletionOverDatasetSubscriptionResult {\n      experiment {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      datasetExampleId\n      span {\n        id\n        tokenCountCompletion\n        tokenCountPrompt\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n    ... on ChatCompletionOverDatasetSubscriptionResult {\n      experiment {\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "65387c828b898bf8cfd6537d5420b057";
+(node as any).hash = "4ad83b4e48c614d554c2e76d93a79418";
 
 export default node;
