@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd029bdb4d270e271279fce055881bec>>
+ * @generated SignedSource<<e3f066e64d90eb93257520726177bdad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,14 +13,6 @@ export type homeLoaderQuery$variables = Record<PropertyKey, never>;
 export type homeLoaderQuery$data = {
   readonly functionality: {
     readonly modelInferences: boolean;
-  };
-  readonly projects: {
-    readonly edges: ReadonlyArray<{
-      readonly project: {
-        readonly endTime: string | null;
-        readonly id: string;
-      };
-    }>;
   };
 };
 export type homeLoaderQuery = {
@@ -47,53 +39,6 @@ var v0 = [
       }
     ],
     "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "ProjectConnection",
-    "kind": "LinkedField",
-    "name": "projects",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "ProjectEdge",
-        "kind": "LinkedField",
-        "name": "edges",
-        "plural": true,
-        "selections": [
-          {
-            "alias": "project",
-            "args": null,
-            "concreteType": "Project",
-            "kind": "LinkedField",
-            "name": "node",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "id",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "endTime",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
   }
 ];
 return {
@@ -114,16 +59,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "6926e4e720b443f7b7252b60271944e6",
+    "cacheID": "8bfba02258509f0b645b86f3322838d8",
     "id": null,
     "metadata": {},
     "name": "homeLoaderQuery",
     "operationKind": "query",
-    "text": "query homeLoaderQuery {\n  functionality {\n    modelInferences\n  }\n  projects {\n    edges {\n      project: node {\n        id\n        endTime\n      }\n    }\n  }\n}\n"
+    "text": "query homeLoaderQuery {\n  functionality {\n    modelInferences\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a4bbc4917b3217b8254d68ec7c76dbdd";
+(node as any).hash = "a248736e236c8d5348e0ecfbe9440ca2";
 
 export default node;
