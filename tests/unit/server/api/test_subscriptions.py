@@ -153,7 +153,8 @@ class TestChatCompletionSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -280,7 +281,8 @@ class TestChatCompletionSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -418,7 +420,8 @@ class TestChatCompletionSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -566,7 +569,8 @@ class TestChatCompletionSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -707,7 +711,8 @@ class TestChatCompletionSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -1008,7 +1013,8 @@ class TestChatCompletionOverDatasetSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1089,7 +1095,8 @@ class TestChatCompletionOverDatasetSubscription:
         response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = response.data["span"]
+        assert (data := response.data) is not None
+        span = data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1174,7 +1181,8 @@ class TestChatCompletionOverDatasetSubscription:
             variables={"experimentId": experiment_id},
             operation_name="ExperimentQuery",
         )
-        experiment = response.data["experiment"]
+        assert (data := response.data) is not None
+        experiment = data["experiment"]
         assert experiment.pop("id") == experiment_id
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
