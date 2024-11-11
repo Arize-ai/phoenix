@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<310f2749422dcd246ac79c7ddf439c23>>
+ * @generated SignedSource<<b8dadeaac479f8c23e824ca7de38062d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE";
+export type ChatCompletionInput = {
+  apiKey?: string | null;
+  invocationParameters?: ReadonlyArray<InvocationParameterInput>;
+  messages: ReadonlyArray<ChatCompletionMessageInput>;
+  model: GenerativeModelInput;
+  template?: TemplateOptions | null;
+  tools?: ReadonlyArray<any> | null;
+};
 export type ChatCompletionMessageInput = {
   content?: any;
   role: ChatCompletionMessageRole;
@@ -24,33 +33,33 @@ export type GenerativeModelInput = {
   name: string;
   providerKey: GenerativeProviderKey;
 };
-export type InvocationParameters = {
-  maxCompletionTokens?: number | null;
-  maxTokens?: number | null;
-  seed?: number | null;
-  stop?: ReadonlyArray<string> | null;
-  temperature?: number | null;
-  toolChoice?: any | null;
-  topP?: number | null;
+export type InvocationParameterInput = {
+  canonicalName?: CanonicalParameterName | null;
+  invocationName: string;
+  valueBool?: boolean | null;
+  valueBoolean?: boolean | null;
+  valueFloat?: number | null;
+  valueInt?: number | null;
+  valueJson?: any | null;
+  valueString?: string | null;
+  valueStringList?: ReadonlyArray<string> | null;
 };
 export type TemplateOptions = {
   language: TemplateLanguage;
   variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {
-  apiKey?: string | null;
-  invocationParameters: InvocationParameters;
-  messages: ReadonlyArray<ChatCompletionMessageInput>;
-  model: GenerativeModelInput;
-  templateOptions?: TemplateOptions | null;
-  tools?: ReadonlyArray<any> | null;
+  input: ChatCompletionInput;
 };
 export type PlaygroundOutputSubscription$data = {
   readonly chatCompletion: {
-    readonly __typename: "FinishedChatCompletion";
+    readonly __typename: "ChatCompletionSubscriptionError";
+    readonly message: string;
+  } | {
+    readonly __typename: "ChatCompletionSubscriptionResult";
     readonly span: {
       readonly id: string;
-    };
+    } | null;
   } | {
     readonly __typename: "TextChunk";
     readonly content: string;
@@ -73,82 +82,28 @@ export type PlaygroundOutputSubscription = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "apiKey"
-},
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
 v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "invocationParameters"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "messages"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "model"
-},
-v4 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "templateOptions"
-},
-v5 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "tools"
-},
-v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = [
+v2 = [
   {
     "alias": null,
     "args": [
       {
-        "fields": [
-          {
-            "kind": "Variable",
-            "name": "apiKey",
-            "variableName": "apiKey"
-          },
-          {
-            "kind": "Variable",
-            "name": "invocationParameters",
-            "variableName": "invocationParameters"
-          },
-          {
-            "kind": "Variable",
-            "name": "messages",
-            "variableName": "messages"
-          },
-          {
-            "kind": "Variable",
-            "name": "model",
-            "variableName": "model"
-          },
-          {
-            "kind": "Variable",
-            "name": "template",
-            "variableName": "templateOptions"
-          },
-          {
-            "kind": "Variable",
-            "name": "tools",
-            "variableName": "tools"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
       }
     ],
     "concreteType": null,
@@ -180,7 +135,7 @@ v7 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v6/*: any*/),
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -221,12 +176,26 @@ v7 = [
             "name": "span",
             "plural": false,
             "selections": [
-              (v6/*: any*/)
+              (v1/*: any*/)
             ],
             "storageKey": null
           }
         ],
-        "type": "FinishedChatCompletion",
+        "type": "ChatCompletionSubscriptionResult",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "message",
+            "storageKey": null
+          }
+        ],
+        "type": "ChatCompletionSubscriptionError",
         "abstractKey": null
       }
     ],
@@ -235,46 +204,32 @@ v7 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": [
-      (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
-    "selections": (v7/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Subscription",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v2/*: any*/),
-      (v3/*: any*/),
-      (v1/*: any*/),
-      (v5/*: any*/),
-      (v4/*: any*/),
-      (v0/*: any*/)
-    ],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
-    "selections": (v7/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "54f42285c230d77abe27c047dc37e700",
+    "cacheID": "aca7bf342ad2dc5db66b07e236a68268",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $messages: [ChatCompletionMessageInput!]!\n  $model: GenerativeModelInput!\n  $invocationParameters: InvocationParameters!\n  $tools: [JSON!]\n  $templateOptions: TemplateOptions\n  $apiKey: String\n) {\n  chatCompletion(input: {messages: $messages, model: $model, invocationParameters: $invocationParameters, tools: $tools, template: $templateOptions, apiKey: $apiKey}) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on FinishedChatCompletion {\n      span {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2ee0074ffec630990e0c4bc90b17a86a";
+(node as any).hash = "bb5936a61a0e99dbb4a298a6e552a01c";
 
 export default node;

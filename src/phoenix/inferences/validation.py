@@ -1,5 +1,4 @@
 import math
-from typing import List
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -11,8 +10,8 @@ from .schema import EmbeddingColumnNames, Schema
 RESERVED_EMBEDDING_NAMES = ("prompt", "response")
 
 
-def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
-    errs: List[str] = []
+def _check_valid_schema(schema: Schema) -> list[err.ValidationError]:
+    errs: list[str] = []
     if schema.excluded_column_names is None:
         return []
 
@@ -34,7 +33,7 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     return []
 
 
-def validate_inferences_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+def validate_inferences_inputs(dataframe: DataFrame, schema: Schema) -> list[err.ValidationError]:
     errors = _check_missing_columns(dataframe, schema)
     if errors:
         return errors
@@ -53,12 +52,12 @@ def validate_inferences_inputs(dataframe: DataFrame, schema: Schema) -> List[err
     return []
 
 
-def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> list[err.ValidationError]:
     embedding_col_names = schema.embedding_feature_column_names
     if embedding_col_names is None:
         return []
 
-    embedding_errors: List[err.ValidationError] = []
+    embedding_errors: list[err.ValidationError] = []
     for embedding_name, column_names in embedding_col_names.items():
         if embedding_name in RESERVED_EMBEDDING_NAMES:
             embedding_errors += _validate_reserved_embedding_name(embedding_name, schema)
@@ -71,8 +70,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
 
 def _check_valid_prompt_response_data(
     dataframe: DataFrame, schema: Schema
-) -> List[err.ValidationError]:
-    prompt_response_errors: List[err.ValidationError] = []
+) -> list[err.ValidationError]:
+    prompt_response_errors: list[err.ValidationError] = []
 
     prompt_response_column_names = {
         "prompt": schema.prompt_column_names,
@@ -89,7 +88,7 @@ def _check_valid_prompt_response_data(
 
 def _validate_reserved_embedding_name(
     embedding_name: str, schema: Schema
-) -> List[err.ValidationError]:
+) -> list[err.ValidationError]:
     if embedding_name == "prompt" and schema.prompt_column_names is not None:
         return [err.InvalidEmbeddingReservedName(embedding_name, "schema.prompt_column_names")]
     elif embedding_name == "response" and schema.response_column_names is not None:
@@ -99,9 +98,9 @@ def _validate_reserved_embedding_name(
 
 def _validate_embedding_vector(
     dataframe: DataFrame, name: str, vector_column_name: str
-) -> List[err.ValidationError]:
+) -> list[err.ValidationError]:
     vector_column = dataframe[vector_column_name]
-    errors: List[err.ValidationError] = []
+    errors: list[err.ValidationError] = []
     vector_length = None
 
     for vector in vector_column:
@@ -156,8 +155,8 @@ def _validate_embedding_vector(
     return errors
 
 
-def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    wrong_type_cols: List[str] = []
+def _check_column_types(dataframe: DataFrame, schema: Schema) -> list[err.ValidationError]:
+    wrong_type_cols: list[str] = []
     if schema.prediction_id_column_name is not None:
         if not (
             is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
@@ -172,7 +171,7 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
     return []
 
 
-def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> list[err.ValidationError]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []

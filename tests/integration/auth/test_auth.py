@@ -1,18 +1,14 @@
 from collections import defaultdict
+from collections.abc import Iterator, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import (
     Any,
-    ContextManager,
-    DefaultDict,
-    Dict,
     Generic,
-    Iterator,
     Literal,
     Optional,
-    Sequence,
-    Set,
     TypeVar,
 )
 
@@ -90,8 +86,8 @@ class TestOriginAndReferer:
     )
     def test_csrf_origin_validation(
         self,
-        headers: Dict[str, str],
-        expectation: ContextManager[Any],
+        headers: dict[str, str],
+        expectation: AbstractContextManager[Any],
     ) -> None:
         resp = _httpx_client(headers=headers).get("/healthz")
         with expectation:
@@ -332,7 +328,7 @@ class TestLogOut:
 class TestLoggedInTokens:
     class _JtiSet(Generic[_TokenT]):
         def __init__(self) -> None:
-            self._set: Set[str] = set()
+            self._set: set[str] = set()
 
         def add(self, token: _TokenT) -> None:
             assert (jti := _decode_jwt(token)["jti"]) not in self._set
@@ -390,7 +386,7 @@ class TestRefreshToken:
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
-        logged_in_users: DefaultDict[int, Dict[int, _LoggedInUser]] = defaultdict(dict)
+        logged_in_users: defaultdict[int, dict[int, _LoggedInUser]] = defaultdict(dict)
 
         # user logs into first browser
         logged_in_users[0][0] = u.log_in()
@@ -445,7 +441,7 @@ class TestCreateUser:
         self,
         role_or_user: UserRoleInput,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _profiles: Iterator[_Profile],
     ) -> None:
@@ -575,7 +571,7 @@ class TestPatchUser:
         role_or_user: _RoleOrUser,
         role: UserRoleInput,
         new_role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
     ) -> None:
         u = _get_user(role_or_user)
@@ -600,7 +596,7 @@ class TestPatchUser:
         self,
         role_or_user: UserRoleInput,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _passwords: Iterator[_Password],
     ) -> None:
@@ -640,7 +636,7 @@ class TestPatchUser:
         self,
         role_or_user: _RoleOrUser,
         role: UserRoleInput,
-        expectation: ContextManager[Optional[Unauthorized]],
+        expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
         _usernames: Iterator[_Username],
     ) -> None:

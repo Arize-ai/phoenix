@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -14,7 +14,7 @@ class ChatCompletionMessageInput:
         default="",
         description="The content of the message as JSON to support various kinds of text",
     )
-    tool_calls: Optional[List[JSON]] = strawberry.field(
+    tool_calls: Optional[list[JSON]] = strawberry.field(
         description="The tool calls that were made in the message",
         default=UNSET,
     )

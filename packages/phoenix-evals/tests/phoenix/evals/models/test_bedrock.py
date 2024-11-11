@@ -6,6 +6,12 @@ import pytest
 from phoenix.evals import BedrockModel
 
 
+def test_instantiation_by_positional_args_is_not_allowed():
+    session = boto3.Session(region_name="us-west-2")
+    with pytest.raises(AssertionError, match="positional arguments"):
+        BedrockModel(session)
+
+
 def test_bedrock_model_can_be_instantiated():
     session = boto3.Session(region_name="us-west-2")
     model = BedrockModel(session=session)

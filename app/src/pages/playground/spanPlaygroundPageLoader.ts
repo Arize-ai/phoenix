@@ -39,6 +39,34 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
               traceId
             }
             attributes
+            invocationParameters {
+              __typename
+              ... on InvocationParameterBase {
+                invocationName
+                canonicalName
+              }
+              ... on BooleanInvocationParameter {
+                invocationInputField
+              }
+              ... on StringInvocationParameter {
+                invocationInputField
+              }
+              ... on BoundedFloatInvocationParameter {
+                invocationInputField
+              }
+              ... on FloatInvocationParameter {
+                invocationInputField
+              }
+              ... on IntInvocationParameter {
+                invocationInputField
+              }
+              ... on JSONInvocationParameter {
+                invocationInputField
+              }
+              ... on StringListInvocationParameter {
+                invocationInputField
+              }
+            }
           }
         }
       }

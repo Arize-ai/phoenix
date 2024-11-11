@@ -42,6 +42,18 @@ export function isObject(value: unknown): value is object {
 }
 
 /**
+ * A type guard for checking if a value is an object with string keys
+ */
+export function isStringKeyedObject(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    isObject(value) &&
+    Object.keys(value).every((key) => typeof key === "string")
+  );
+}
+
+/**
  * Makes a type mutable
  */
 export type Mutable<T> = {

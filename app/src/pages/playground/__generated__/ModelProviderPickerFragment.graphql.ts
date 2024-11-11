@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d3d09b89a6d54cc8b22d75946b7094b>>
+ * @generated SignedSource<<6992596f53ae31a8cbc7fcd00ff5ab9e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,8 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
 import { FragmentRefs } from "relay-runtime";
 export type ModelProviderPickerFragment$data = {
   readonly modelProviders: ReadonlyArray<{
+    readonly dependencies: ReadonlyArray<string>;
+    readonly dependenciesInstalled: boolean;
     readonly key: GenerativeProviderKey;
     readonly name: string;
   }>;
@@ -50,6 +52,20 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "name",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "dependenciesInstalled",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "dependencies",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -59,6 +75,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "c83e86a2772127916f7387dca27b74ce";
+(node as any).hash = "1d4ba7f81a958c9a17bd45dce0456ddb";
 
 export default node;

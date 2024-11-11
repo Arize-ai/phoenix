@@ -3,7 +3,7 @@ import inspect
 import io
 import json
 from io import BytesIO, StringIO
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import httpx
 import pandas as pd
@@ -101,7 +101,7 @@ async def test_list_datasets(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values: Dict[str, Any] = {
+    fixture_values: dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(2))),
         "name": "revised dataset",
         "description": "this dataset grows over time",
@@ -147,7 +147,7 @@ async def test_list_fewer_datasets(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values: Dict[str, Any] = {
+    fixture_values: dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(1))),
         "name": "empty dataset",
         "description": "emptied after two revisions",
@@ -185,7 +185,7 @@ async def test_list_datasets_with_cursor(
     # datasets are returned in reverse order of insertion
     assert "created_at" in datasets[0]
     assert "updated_at" in datasets[0]
-    fixture_values: Dict[str, Any] = {
+    fixture_values: dict[str, Any] = {
         "id": str(GlobalID("Dataset", str(2))),
         "name": "revised dataset",
         "description": "this dataset grows over time",
@@ -374,7 +374,7 @@ async def test_get_dataset_download_specific_version(
 
 async def test_get_dataset_jsonl_openai_ft(
     httpx_client: httpx.AsyncClient,
-    dataset_with_messages: Tuple[int, int],
+    dataset_with_messages: tuple[int, int],
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
@@ -405,7 +405,7 @@ async def test_get_dataset_jsonl_openai_ft(
 
 
 async def test_get_dataset_jsonl_openai_evals(
-    httpx_client: httpx.AsyncClient, dataset_with_messages: Tuple[int, int]
+    httpx_client: httpx.AsyncClient, dataset_with_messages: tuple[int, int]
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))

@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from random import randrange
-from typing import Any, Dict, Optional, Tuple, TypedDict
+from typing import Any, Optional, TypedDict
 from urllib.parse import unquote, urlparse
 
 from authlib.common.security import generate_token
@@ -192,7 +192,7 @@ class UserInfo:
     profile_picture_url: Optional[str]
 
 
-def _validate_token_data(token_data: Dict[str, Any]) -> None:
+def _validate_token_data(token_data: dict[str, Any]) -> None:
     """
     Performs basic validations on the token data returned by the IDP.
     """
@@ -201,7 +201,7 @@ def _validate_token_data(token_data: Dict[str, Any]) -> None:
     assert token_type.lower() == "bearer"
 
 
-def _parse_user_info(user_info: Dict[str, Any]) -> UserInfo:
+def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
     """
@@ -321,7 +321,7 @@ async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: s
 
 async def _email_and_username_exist(
     session: AsyncSession, /, *, email: str, username: Optional[str]
-) -> Tuple[bool, bool]:
+) -> tuple[bool, bool]:
     """
     Checks whether the email and username are already in use.
     """

@@ -9,7 +9,7 @@ export function PlaygroundRunButton() {
     (state) => state.runPlaygroundInstances
   );
   const isRunning = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.isRunning)
+    state.instances.some((instance) => instance.activeRunId != null)
   );
   return (
     <Button

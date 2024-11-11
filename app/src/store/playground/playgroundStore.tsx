@@ -5,17 +5,15 @@ import { TemplateLanguages } from "@phoenix/components/templateEditor/constants"
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
+  DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { OpenAIToolCall } from "@phoenix/schemas";
+import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
   GenAIOperationType,
   InitialPlaygroundState,
-  isManualInput,
-  OpenAITool,
   PlaygroundChatTemplate,
-  PlaygroundInputMode,
   PlaygroundInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
@@ -41,6 +39,11 @@ export const generateMessageId = () => playgroundMessageId++;
  * Generates a new playground tool ID
  */
 export const generateToolId = () => playgroundToolId++;
+
+/**
+ * Generates a new playground run ID
+ */
+const generateRunId = () => playgroundRunId++;
 
 /**
  * Resets the playground instance ID to 0
@@ -96,63 +99,65 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
-      modelName: "gpt-4o",
-      invocationParameters: {},
+      modelName: DEFAULT_MODEL_NAME,
+      invocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
     toolChoice: "auto",
-    // TODO(apowell) - use datasetId if in dataset mode
-    input: { variablesValueCache: {} },
     output: undefined,
     spanId: null,
     activeRunId: null,
-    isRunning: false,
   };
 }
 
-/**
- * Creates an empty OpenAI tool call with fields but no values filled in
- */
-export function createOpenAIToolCall(): OpenAIToolCall {
+export function createOpenAIResponseFormat(): OpenAIResponseFormat {
   return {
-    id: "",
-    function: {
-      name: "",
-      arguments: {},
-    },
-  };
-}
-
-/**
- * Creates a default tool with a unique ID and a function definition
- * @param toolNumber the number of the tool in that instance for example instance.tools.length + 1
- * @returns a {@link Tool} with a unique ID and a function definition
- */
-export function createOpenAITool(toolNumber: number): OpenAITool {
-  return {
-    id: generateToolId(),
-    definition: {
-      type: "function",
-      function: {
-        name: `new_function_${toolNumber}`,
-        parameters: {
-          type: "object",
-          properties: {
-            new_arg: {
-              type: "string",
-            },
-          },
-          required: [],
-        },
+    type: "json_schema",
+    json_schema: {
+      name: "response",
+      schema: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
       },
+      strict: true,
     },
   };
 }
 
-export const createPlaygroundStore = (
-  initialProps?: InitialPlaygroundState
-) => {
+/**
+ * Gets the initial instances for the playground store
+ * If the initial props has instances, those will be used.
+ * If not a default instance will be created and saved model config defaults will be used if present.
+ * @returns a list of {@link PlaygroundInstance} instances
+ *
+ * NB: This function is only exported for testing
+ */
+export function getInitialInstances(initialProps: InitialPlaygroundState) {
+  if (initialProps.instances != null && initialProps.instances.length > 0) {
+    return initialProps.instances;
+  }
+  const instance = createPlaygroundInstance();
+
+  const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
+  const hasSavedModelConfig = savedModelConfigs.length > 0;
+  if (!hasSavedModelConfig) {
+    return [instance];
+  }
+  const savedDefaultProviderConfig =
+    savedModelConfigs.find(
+      (config) => config.provider === DEFAULT_MODEL_PROVIDER
+    ) ?? savedModelConfigs[0];
+  instance.model = {
+    ...instance.model,
+    ...savedDefaultProviderConfig,
+  };
+  return [instance];
+}
+
+export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
     operationType: "chat",
@@ -160,12 +165,14 @@ export const createPlaygroundStore = (
     input: {
       // variablesValueCache is used to store the values of variables for the
       // manual input mode. It is indexed by the variable key. It keeps old
-      // values when variables are removed so that they can be restored.
+      // values when variables are removed or when switching to dataset input so that they can be restored.
       variablesValueCache: {},
     },
     templateLanguage: TemplateLanguages.Mustache,
-    setInputMode: (inputMode: PlaygroundInputMode) => set({ inputMode }),
-    instances: [createPlaygroundInstance()],
+    instances: getInitialInstances(initialProps),
+    setInput: (input) => {
+      set({ input });
+    },
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
         set({
@@ -197,26 +204,44 @@ export const createPlaygroundStore = (
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
-            isRunning: false,
             spanId: null,
           },
         ],
       });
     },
-    updateModel: ({ instanceId, model }) => {
+    updateModel: ({ instanceId, model, modelConfigByProvider }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
       if (!instance) {
         return;
       }
+      let newModel = model;
       const currentModel = instance.model;
+      const savedProviderConfig =
+        model.provider != null
+          ? modelConfigByProvider[model.provider]
+          : undefined;
+
       if (model.provider !== currentModel.provider) {
-        // Force clear the model name if the provider changes
-        model = {
-          ...model,
-          modelName: undefined,
-        };
+        if (savedProviderConfig != null) {
+          newModel = {
+            ...savedProviderConfig,
+            provider: model.provider,
+            invocationParameters: [
+              ...instance.model.invocationParameters,
+              // These should never be changing at the same time as the provider but spread here to be safe
+              ...(model.invocationParameters ?? []),
+            ],
+          };
+        } else {
+          // Force clear the model name if the provider changes
+          newModel = {
+            ...newModel,
+            modelName: undefined,
+          };
+        }
       }
+
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -224,11 +249,11 @@ export const createPlaygroundStore = (
               ...instance,
               model: {
                 ...instance.model,
-                ...model,
-                invocationParameters: {
-                  ...instance.model.invocationParameters,
-                  ...model.invocationParameters,
-                },
+                ...newModel,
+                invocationParameters: [
+                  ...(instance.model.invocationParameters ?? []),
+                  ...(model.invocationParameters ?? []),
+                ],
               },
             };
           }
@@ -284,26 +309,9 @@ export const createPlaygroundStore = (
       set({
         instances: instances.map((instance) => ({
           ...instance,
-          activeRunId: playgroundRunId++,
-          isRunning: true,
+          activeRunId: generateRunId(),
           spanId: null, // Clear out the span when (re)running
         })),
-      });
-    },
-    runPlaygroundInstance: (instanceId: number) => {
-      const instances = get().instances;
-      set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              activeRunId: playgroundRunId++,
-              isRunning: true,
-              spanId: null, // Clear out the span when (re)running
-            };
-          }
-          return instance;
-        }),
       });
     },
     markPlaygroundInstanceComplete: (instanceId: number) => {
@@ -313,7 +321,7 @@ export const createPlaygroundStore = (
           if (instance.id === instanceId) {
             return {
               ...instance,
-              isRunning: false,
+              activeRunId: null,
             };
           }
           return instance;
@@ -325,17 +333,140 @@ export const createPlaygroundStore = (
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
-      if (isManualInput(input)) {
-        set({
-          input: {
-            ...input,
-            variablesValueCache: { ...input.variablesValueCache, [key]: value },
-          },
-        });
-      }
+      set({
+        input: {
+          ...input,
+          variablesValueCache: { ...input.variablesValueCache, [key]: value },
+        },
+      });
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
+    },
+    filterInstanceModelInvocationParameters: ({
+      instanceId,
+      modelSupportedInvocationParameters,
+      filter,
+    }) => {
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters: filter(
+                  instance.model.invocationParameters,
+                  modelSupportedInvocationParameters
+                ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstanceModelInvocationParameters: ({
+      instanceId,
+      invocationParameters,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: { ...instance.model, invocationParameters },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    upsertInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInput,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      const currentInvocationParameterInput =
+        instance.model.invocationParameters.find(
+          (p) => p.invocationName === invocationParameterInput.invocationName
+        );
+
+      if (currentInvocationParameterInput) {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: instance.model.invocationParameters.map(
+                    (p) =>
+                      p.invocationName ===
+                      invocationParameterInput.invocationName
+                        ? invocationParameterInput
+                        : p
+                  ),
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      } else {
+        set({
+          instances: get().instances.map((instance) => {
+            if (instance.id === instanceId) {
+              return {
+                ...instance,
+                model: {
+                  ...instance.model,
+                  invocationParameters: [
+                    ...instance.model.invocationParameters,
+                    invocationParameterInput,
+                  ],
+                },
+              };
+            }
+            return instance;
+          }),
+        });
+      }
+    },
+    deleteInvocationParameterInput: ({
+      instanceId,
+      invocationParameterInputInvocationName,
+    }) => {
+      const instance = get().instances.find((i) => i.id === instanceId);
+      if (!instance) {
+        return;
+      }
+      set({
+        instances: get().instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                invocationParameters:
+                  instance.model.invocationParameters.filter(
+                    (p) =>
+                      p.invocationName !==
+                      invocationParameterInputInvocationName
+                  ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
     },
     ...initialProps,
   });

@@ -1,6 +1,6 @@
 from datetime import datetime
 from statistics import mean
-from typing import Any, List
+from typing import Any
 
 import httpx
 import pytest
@@ -15,7 +15,7 @@ from phoenix.server.types import DbSessionFactory
 
 async def test_experiment_resolver_returns_sequence_number(
     httpx_client: httpx.AsyncClient,
-    interlaced_experiments: List[int],
+    interlaced_experiments: list[int],
 ) -> None:
     query = """
       query ($experimentId: GlobalID!) {

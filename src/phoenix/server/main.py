@@ -6,7 +6,7 @@ from argparse import SUPPRESS, ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
 from jinja2 import BaseLoader, Environment
@@ -21,6 +21,7 @@ from phoenix.config import (
     get_env_database_schema,
     get_env_db_logging_level,
     get_env_enable_prometheus,
+    get_env_enable_websockets,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
@@ -95,6 +96,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
+|  Websockets: {{ websockets_enabled }}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -162,7 +164,7 @@ def main() -> None:
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
-
+    parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
     serve_parser = subparsers.add_parser("serve")
@@ -312,8 +314,8 @@ def main() -> None:
 
     authentication_enabled, secret = get_env_auth_settings()
 
-    fixture_spans: List[Span] = []
-    fixture_evals: List[pb.Evaluation] = []
+    fixture_spans: list[Span] = []
+    fixture_evals: list[pb.Evaluation] = []
     if trace_dataset_name is not None:
         fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (
@@ -348,6 +350,14 @@ def main() -> None:
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
+
+    # Get enable_websockets from environment variable or command line argument
+    enable_websockets = get_env_enable_websockets()
+    if args.enable_websockets is not None:
+        enable_websockets = args.enable_websockets.lower() == "true"
+    if enable_websockets is None:
+        enable_websockets = True
+
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
@@ -358,6 +368,7 @@ def main() -> None:
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
+        websockets_enabled=enable_websockets,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -382,10 +393,12 @@ def main() -> None:
             connection_method="STARTTLS",
             validate_certs=get_env_smtp_validate_certs(),
         )
+
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
+        enable_websockets=enable_websockets,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=corpus_model,

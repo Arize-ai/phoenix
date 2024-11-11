@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, overload
+from typing import Optional, overload
 from urllib.parse import urlparse
 
 from phoenix.utilities.logging import log_a_list
@@ -80,6 +80,10 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 """
 Whether or not to log migrations. Defaults to true.
 """
+ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
+"""
+Whether or not to enable websockets. Defaults to None.
+"""
 
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
@@ -141,6 +145,11 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
 Whether to validate SMTP server certificates. Defaults to true.
 """
+
+# API extension settings
+ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
+ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
+ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS = "PHOENIX_GRPC_INTERCEPTOR_PATHS"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -273,7 +282,7 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return os.environ.get(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
+def get_env_auth_settings() -> tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
@@ -329,8 +338,8 @@ def get_env_refresh_token_expiry() -> timedelta:
     return timedelta(minutes=minutes)
 
 
-def get_env_csrf_trusted_origins() -> List[str]:
-    origins: List[str] = []
+def get_env_csrf_trusted_origins() -> list[str]:
+    origins: list[str] = []
     if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
     for origin in csrf_trusted_origins.split(","):
@@ -369,6 +378,10 @@ def get_env_smtp_port() -> int:
 
 def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
+
+
+def get_env_enable_websockets() -> Optional[bool]:
+    return _bool_val(ENV_PHOENIX_ENABLE_WEBSOCKETS)
 
 
 @dataclass(frozen=True)
@@ -428,7 +441,7 @@ class OAuth2ClientConfig:
         )
 
 
-def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
+def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
     Get OAuth2 settings from environment variables.
     """
@@ -494,7 +507,7 @@ def ensure_working_dir() -> None:
 ensure_working_dir()
 
 
-def get_exported_files(directory: Path) -> List[Path]:
+def get_exported_files(directory: Path) -> list[Path]:
     """
     Yields the list of paths of exported files.
 
@@ -505,7 +518,7 @@ def get_exported_files(directory: Path) -> List[Path]:
 
     Returns
     -------
-    list: List[Path]
+    list: list[Path]
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
@@ -584,7 +597,7 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
-def get_env_client_headers() -> Optional[Dict[str, str]]:
+def get_env_client_headers() -> Optional[dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
@@ -641,6 +654,51 @@ def get_env_db_logging_level() -> int:
         env_var=ENV_DB_LOGGING_LEVEL,
         default_level=logging.WARNING,
     )
+
+
+def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid middleware entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
+def get_env_gql_extension_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_GQL_EXTENSION_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid extension entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
+def get_env_grpc_interceptor_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid interceptor entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
 
 
 def _get_logging_level(env_var: str, default_level: int) -> int:

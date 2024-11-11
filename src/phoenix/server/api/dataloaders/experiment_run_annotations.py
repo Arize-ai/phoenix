@@ -1,8 +1,4 @@
 from collections import defaultdict
-from typing import (
-    DefaultDict,
-    List,
-)
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -13,7 +9,7 @@ from phoenix.server.types import DbSessionFactory
 
 ExperimentRunID: TypeAlias = int
 Key: TypeAlias = ExperimentRunID
-Result: TypeAlias = List[OrmExperimentRunAnnotation]
+Result: TypeAlias = list[OrmExperimentRunAnnotation]
 
 
 class ExperimentRunAnnotations(DataLoader[Key, Result]):
@@ -24,9 +20,9 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         run_ids = keys
-        annotations: DefaultDict[Key, Result] = defaultdict(list)
+        annotations: defaultdict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             async for run_id, annotation in await session.stream(
                 select(

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -37,12 +37,17 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.InvocationParameters import (
+    InvocationParameter,
+)
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -80,77 +85,61 @@ from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
+initialize_playground_clients()
+
 
 @strawberry.input
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
+    model_name: Optional[str] = None
 
 
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(self) -> List[GenerativeProvider]:
+    async def model_providers(self) -> list[GenerativeProvider]:
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
         return [
             GenerativeProvider(
-                name="OpenAI",
-                key=GenerativeProviderKey.OPENAI,
-            ),
-            GenerativeProvider(
-                name="Azure OpenAI",
-                key=GenerativeProviderKey.AZURE_OPENAI,
-            ),
-            GenerativeProvider(
-                name="Anthropic",
-                key=GenerativeProviderKey.ANTHROPIC,
-            ),
+                name=provider_key.value,
+                key=provider_key,
+            )
+            for provider_key in available_providers
         ]
 
     @strawberry.field
-    async def models(self, input: Optional[ModelsInput] = None) -> List[GenerativeModel]:
-        openai_models = [
-            "o1-preview",
-            "o1-preview-2024-09-12",
-            "o1-mini",
-            "o1-mini-2024-09-12",
-            "gpt-4o",
-            "gpt-4o-2024-08-06",
-            "gpt-4o-2024-05-13",
-            "chatgpt-4o-latest",
-            "gpt-4o-mini",
-            "gpt-4o-mini-2024-07-18",
-            "gpt-4-turbo",
-            "gpt-4-turbo-2024-04-09",
-            "gpt-4-turbo-preview",
-            "gpt-4-0125-preview",
-            "gpt-4-1106-preview",
-            "gpt-4",
-            "gpt-4-0613",
-            "gpt-3.5-turbo-0125",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-            "gpt-3.5-turbo-instruct",
-        ]
-        anthropic_models = [
-            "claude-3-5-sonnet-20240620",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-        ]
-        openai_generative_models = [
-            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.OPENAI)
-            for model_name in openai_models
-        ]
-        anthropic_generative_models = [
-            GenerativeModel(name=model_name, provider_key=GenerativeProviderKey.ANTHROPIC)
-            for model_name in anthropic_models
-        ]
-
-        all_models = openai_generative_models + anthropic_generative_models
-
+    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
         if input is not None and input.provider_key is not None:
-            return [model for model in all_models if model.provider_key == input.provider_key]
+            supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
+            supported_models = [
+                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                for model_name in supported_model_names
+            ]
+            return supported_models
 
+        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        all_models: list[GenerativeModel] = []
+        for provider_key, model_name in registered_models:
+            if model_name is not None and provider_key is not None:
+                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
         return all_models
+
+    @strawberry.field
+    async def model_invocation_parameters(
+        self, input: Optional[ModelsInput] = None
+    ) -> list[InvocationParameter]:
+        if input is None:
+            return []
+        provider_key = input.provider_key
+        model_name = input.model_name
+        if provider_key is not None:
+            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            if client is None:
+                return []
+            invocation_parameters = client.supported_invocation_parameters()
+            return invocation_parameters
+        else:
+            return []
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
@@ -183,7 +172,7 @@ class Query:
     async def user_roles(
         self,
         info: Info[Context, None],
-    ) -> List[UserRole]:
+    ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
                 select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
@@ -197,7 +186,7 @@ class Query:
         ]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
+    async def user_api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -209,7 +198,7 @@ class Query:
         return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
+    async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -304,8 +293,8 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: List[GlobalID],
-    ) -> List[ExperimentComparison]:
+        experiment_ids: list[GlobalID],
+    ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
@@ -369,7 +358,7 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
             async for run in await session.stream_scalars(
@@ -576,9 +565,9 @@ class Query:
     @strawberry.field
     def clusters(
         self,
-        clusters: List[ClusterInput],
-    ) -> List[Cluster]:
-        clustered_events: Dict[str, Set[ID]] = defaultdict(set)
+        clusters: list[ClusterInput],
+    ) -> list[Cluster]:
+        clustered_events: dict[str, set[ID]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
             clustered_events[cluster.id or str(i)].update(cluster.event_ids)
         return to_gql_clusters(
@@ -590,19 +579,19 @@ class Query:
         self,
         info: Info[Context, None],
         event_ids: Annotated[
-            List[ID],
+            list[ID],
             strawberry.argument(
                 description="Event ID of the coordinates",
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[InputCoordinate2D]],
+            Optional[list[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[InputCoordinate3D]],
+            Optional[list[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -625,7 +614,7 @@ class Query:
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> List[Cluster]:
+    ) -> list[Cluster]:
         coordinates_3d = ensure_list(coordinates_3d)
         coordinates_2d = ensure_list(coordinates_2d)
 
@@ -661,13 +650,13 @@ class Query:
         if len(event_ids) == 0:
             return []
 
-        grouped_event_ids: Dict[
+        grouped_event_ids: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[ID],
+            list[ID],
         ] = defaultdict(list)
-        grouped_coordinates: Dict[
+        grouped_coordinates: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[npt.NDArray[np.float64]],
+            list[npt.NDArray[np.float64]],
         ] = defaultdict(list)
 
         for event_id, coordinate in zip(event_ids, coordinates):

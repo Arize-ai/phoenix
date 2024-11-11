@@ -1,8 +1,7 @@
 import textwrap
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert, select
@@ -12,10 +11,11 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 async def test_create_dataset(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
 ) -> None:
     create_dataset_mutation = """
       mutation ($name: String!, $description: String!, $metadata: JSON!) {
@@ -31,21 +31,16 @@ async def test_create_dataset(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": create_dataset_mutation,
-            "variables": {
-                "name": "original-dataset-name",
-                "description": "original-dataset-description",
-                "metadata": {"original-metadata-key": "original-metadata-value"},
-            },
+    response = await gql_client.execute(
+        query=create_dataset_mutation,
+        variables={
+            "name": "original-dataset-name",
+            "description": "original-dataset-description",
+            "metadata": {"original-metadata-key": "original-metadata-value"},
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "createDataset": {
             "dataset": {
                 "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
@@ -75,25 +70,20 @@ class TestPatchDatasetMutation:
 
     async def test_patch_all_dataset_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_a_single_version: None,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {
-                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-                    "name": "patched-dataset-name",
-                    "description": "patched-dataset-description",
-                    "metadata": {"patched-metadata-key": "patched-metadata-value"},
-                },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                "name": "patched-dataset-name",
+                "description": "patched-dataset-description",
+                "metadata": {"patched-metadata-key": "patched-metadata-value"},
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "patchDataset": {
                 "dataset": {
                     "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
@@ -106,25 +96,20 @@ class TestPatchDatasetMutation:
 
     async def test_only_description_field_can_be_set_to_null(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_a_single_version: None,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {
-                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-                    "name": None,
-                    "description": None,
-                    "metadata": None,
-                },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                "name": None,
+                "description": None,
+                "metadata": None,
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "patchDataset": {
                 "dataset": {
                     "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
@@ -137,23 +122,18 @@ class TestPatchDatasetMutation:
 
     async def test_updating_a_single_field_leaves_remaining_fields_unchannged(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_a_single_version: None,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {
-                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
-                    "description": "patched-dataset-description",
-                },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                "description": "patched-dataset-description",
             },
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
+        assert not response.errors
+        assert response.data == {
             "patchDataset": {
                 "dataset": {
                     "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
@@ -166,7 +146,7 @@ class TestPatchDatasetMutation:
 
 
 async def test_add_span_to_dataset(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     empty_dataset: None,
     spans: None,
     span_annotation: None,
@@ -192,23 +172,18 @@ async def test_add_span_to_dataset(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "datasetId": str(dataset_id),
-                "spanIds": [
-                    str(GlobalID(type_name="Span", node_id=span_id))
-                    for span_id in map(str, range(1, 4))
-                ],
-            },
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "datasetId": str(dataset_id),
+            "spanIds": [
+                str(GlobalID(type_name="Span", node_id=span_id))
+                for span_id in map(str, range(1, 4))
+            ],
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "addSpansToDataset": {
             "dataset": {
                 "id": str(dataset_id),
@@ -347,7 +322,7 @@ class TestPatchDatasetExamples:
 
     async def test_happy_path(
         self,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_revisions: None,
     ) -> None:
         # todo: update this test case to verify that version description and
@@ -391,19 +366,12 @@ class TestPatchDatasetExamples:
                 }
             },
         ]
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {"input": mutation_input},
-            },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"input": mutation_input},
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_examples = response_json["data"]["patchDatasetExamples"]["dataset"]["examples"][
-            "edges"
-        ]
+        assert not response.errors
+        actual_examples = response.data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
         assert actual_examples == expected_examples
 
     @pytest.mark.parametrize(
@@ -505,28 +473,23 @@ class TestPatchDatasetExamples:
     )
     async def test_raises_value_error_for_invalid_input(
         self,
-        mutation_input: Dict[str, Any],
+        mutation_input: dict[str, Any],
         expected_error_message: str,
-        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
         dataset_with_revisions: None,
         dataset_with_a_single_version: None,
     ) -> None:
-        response = await httpx_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {"input": mutation_input},
-            },
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"input": mutation_input},
         )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert len(errors := response_json.get("errors")) == 1
-        assert errors[0]["message"] == expected_error_message
+        assert len(errors := response.errors) == 1
+        assert errors[0].message == expected_error_message
 
 
 async def test_delete_a_dataset(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     empty_dataset: None,
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
@@ -542,19 +505,14 @@ async def test_delete_a_dataset(
         """
     )
 
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "datasetId": str(dataset_id),
-            },
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "datasetId": str(dataset_id),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"]["deleteDataset"]["dataset"] == {
+    assert not response.errors
+    assert response.data["deleteDataset"]["dataset"] == {
         "id": str(dataset_id)
     }, "deleted dataset is returned"
     async with db() as session:
@@ -564,9 +522,7 @@ async def test_delete_a_dataset(
     assert not dataset
 
 
-async def test_deleting_a_nonexistent_dataset_fails(
-    httpx_client: httpx.AsyncClient,
-) -> None:
+async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClient) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
@@ -579,20 +535,14 @@ async def test_deleting_a_nonexistent_dataset_fails(
         }
         """
     )
-
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "datasetId": str(dataset_id),
-            },
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "datasetId": str(dataset_id),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert (errors := response_json.get("errors")), "Dataset does not exist"
-    assert f"Unknown dataset: {dataset_id}" in errors[0]["message"]
+    assert len(errors := response.errors) == 1
+    assert f"Unknown dataset: {dataset_id}" in errors[0].message
 
 
 @pytest.fixture

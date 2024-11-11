@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import ClassVar, Tuple, Type
+from typing import ClassVar
 
 from phoenix.db import models
 
@@ -14,8 +14,8 @@ class DmlEvent(ABC):
     operation, e.g. insertion, update, or deletion.
     """
 
-    table: ClassVar[Type[models.Base]]
-    ids: Tuple[int, ...] = field(default_factory=tuple)
+    table: ClassVar[type[models.Base]]
+    ids: tuple[int, ...] = field(default_factory=tuple)
 
     def __bool__(self) -> bool:
         return bool(self.ids)

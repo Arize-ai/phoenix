@@ -1,6 +1,5 @@
 import os
 from time import sleep
-from typing import Set
 
 from faker import Faker
 
@@ -19,7 +18,7 @@ class TestLaunchApp:
             # This test is not intended for an in-memory databases.
             os.environ.pop("PHOENIX_SQL_DATABASE_URL", None)
         project_name = _fake.unique.pystr()
-        span_names: Set[str] = set()
+        span_names: set[str] = set()
         for i in range(2):
             with _server():
                 for j, exporter in enumerate([_http_span_exporter, _grpc_span_exporter]):

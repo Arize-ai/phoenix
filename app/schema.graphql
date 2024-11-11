@@ -65,13 +65,48 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+type BooleanInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Boolean
+}
+
+type BoundedFloatInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Float
+  minValue: Float!
+  maxValue: Float!
+}
+
+enum CanonicalParameterName {
+  TEMPERATURE
+  MAX_COMPLETION_TOKENS
+  STOP_SEQUENCES
+  TOP_P
+  RANDOM_SEED
+  TOOL_CHOICE
+  RESPONSE_FORMAT
+}
+
+type ChatCompletionFunctionCall {
+  name: String!
+  arguments: String!
+}
+
 input ChatCompletionInput {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
-  invocationParameters: InvocationParameters! = {}
+  invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
-  template: TemplateOptions
   apiKey: String = null
+  template: TemplateOptions
 }
 
 input ChatCompletionMessageInput {
@@ -96,7 +131,51 @@ enum ChatCompletionMessageRole {
   AI
 }
 
-union ChatCompletionSubscriptionPayload = TextChunk | ToolCallChunk | FinishedChatCompletion
+type ChatCompletionMutationPayload {
+  content: String
+  toolCalls: [ChatCompletionToolCall!]!
+  span: Span!
+  errorMessage: String
+}
+
+input ChatCompletionOverDatasetInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: [InvocationParameterInput!]! = []
+  tools: [JSON!]
+  apiKey: String = null
+  templateLanguage: TemplateLanguage!
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = {}
+}
+
+type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  message: String!
+}
+
+type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  experiment: Experiment!
+}
+
+interface ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+}
+
+type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  span: Span
+  experimentRun: ExperimentRun
+}
+
+type ChatCompletionToolCall {
+  id: String!
+  function: ChatCompletionFunctionCall!
+}
 
 input ClearProjectInput {
   id: GlobalID!
@@ -829,11 +908,17 @@ type ExportedFile {
   fileName: String!
 }
 
-type FinishedChatCompletion {
-  span: Span!
+type FloatInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Float
 }
 
-type FunctionCallChunk {
+type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   name: String!
   arguments: String!
 }
@@ -861,6 +946,8 @@ input GenerativeModelInput {
 type GenerativeProvider {
   name: String!
   key: GenerativeProviderKey!
+  dependencies: [String!]!
+  dependenciesInstalled: Boolean!
 }
 
 enum GenerativeProviderKey {
@@ -920,24 +1007,63 @@ input InputCoordinate3D {
   z: Float!
 }
 
+type IntInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Int
+}
+
 type IntervalBin {
   range: NumericRange!
 }
 
-input InvocationParameters {
-  temperature: Float
-  maxCompletionTokens: Int
-  maxTokens: Int
-  topP: Float
-  stop: [String!]
-  seed: Int
-  toolChoice: JSON
+enum InvocationInputField {
+  value_int
+  value_float
+  value_bool
+  value_string
+  value_json
+  value_string_list
+  value_boolean
+}
+
+union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
+
+interface InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+}
+
+input InvocationParameterInput {
+  invocationName: String!
+  canonicalName: CanonicalParameterName = null
+  valueInt: Int
+  valueFloat: Float
+  valueBool: Boolean
+  valueString: String
+  valueJson: JSON
+  valueStringList: [String!]
+  valueBoolean: Boolean
 }
 
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
+
+type JSONInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: JSON
+}
 
 type LabelFraction {
   label: String!
@@ -985,6 +1111,7 @@ type Model {
 
 input ModelsInput {
   providerKey: GenerativeProviderKey
+  modelName: String = null
 }
 
 type Mutation {
@@ -1022,6 +1149,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -1181,6 +1309,7 @@ type PromptResponse {
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
+  modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -1328,6 +1457,9 @@ type Span implements Node {
 
   """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
+
+  """Invocation parameters for the span"""
+  invocationParameters: [InvocationParameter!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -1453,8 +1585,27 @@ enum SpanStatusCode {
   UNSET
 }
 
+type StringInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: String
+}
+
+type StringListInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: [String!]
+}
+
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -1484,7 +1635,8 @@ input TemplateOptions {
   language: TemplateLanguage!
 }
 
-type TextChunk {
+type TextChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   content: String!
 }
 
@@ -1505,7 +1657,8 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type ToolCallChunk {
+type ToolCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!
 }

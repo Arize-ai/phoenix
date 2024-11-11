@@ -1,13 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    Any,
-    DefaultDict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-)
+from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, func, select
@@ -23,20 +16,20 @@ from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["prompt", "completion", "total"]
 ProjectRowId: TypeAlias = int
-TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
+TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
 TokenCount: TypeAlias = int
 
-Segment: TypeAlias = Tuple[TimeInterval, FilterCondition]
-Param: TypeAlias = Tuple[ProjectRowId, Kind]
+Segment: TypeAlias = tuple[TimeInterval, FilterCondition]
+Param: TypeAlias = tuple[ProjectRowId, Kind]
 
-Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition]
+Key: TypeAlias = tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition]
 Result: TypeAlias = TokenCount
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = 0
 
 
-def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+def _cache_key_fn(key: Key) -> tuple[Segment, Param]:
     kind, project_rowid, time_range, filter_condition = key
     interval = (
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
@@ -45,7 +38,7 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
 
 
 _Section: TypeAlias = ProjectRowId
-_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind]
+_SubKey: TypeAlias = tuple[TimeInterval, FilterCondition, Kind]
 
 
 class TokenCountCache(
@@ -60,7 +53,7 @@ class TokenCountCache(
             sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 3),
         )
 
-    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (interval, filter_condition), (project_rowid, kind) = _cache_key_fn(key)
         return project_rowid, (interval, filter_condition, kind)
 
@@ -78,11 +71,11 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: List[Result] = [DEFAULT_VALUE] * len(keys)
-        arguments: DefaultDict[
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+        results: list[Result] = [DEFAULT_VALUE] * len(keys)
+        arguments: defaultdict[
             Segment,
-            DefaultDict[Param, List[ResultPosition]],
+            defaultdict[Param, list[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)

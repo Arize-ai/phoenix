@@ -88,6 +88,7 @@
               },
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
               oAuth2Idps: {{ oauth2_idps | tojson }},
+              websocketsEnabled: Boolean("{{websockets_enabled}}" == "True"),
           }),
           writable: false
       });

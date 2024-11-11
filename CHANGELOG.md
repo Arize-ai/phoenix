@@ -1,5 +1,56 @@
 # Changelog
 
+## [5.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.6.0...arize-phoenix-v5.7.0) (2024-11-06)
+
+
+### Features
+
+* Add chat completion mutation ([#5255](https://github.com/Arize-ai/phoenix/issues/5255)) ([348fd4c](https://github.com/Arize-ai/phoenix/commit/348fd4c17a65401f0c475c2c401e354a33a26102))
+* Add environment configuration for fastapi + gql extensions ([#5275](https://github.com/Arize-ai/phoenix/issues/5275)) ([c0700a3](https://github.com/Arize-ai/phoenix/commit/c0700a3bfd8ed56e7ef763da2d56de948f5ed25a))
+* convert tool call schemas between providers ([#5206](https://github.com/Arize-ai/phoenix/issues/5206)) ([16ae9d0](https://github.com/Arize-ai/phoenix/commit/16ae9d0854551a8314756695115fb4f482eca76a))
+* Detect websocket availability and pass to client ([#5224](https://github.com/Arize-ai/phoenix/issues/5224)) ([661ec17](https://github.com/Arize-ai/phoenix/commit/661ec1743bda024dc154689d0e64ab40cb87015f))
+* Only show providers if dependencies are installed ([#5251](https://github.com/Arize-ai/phoenix/issues/5251)) ([2fd2948](https://github.com/Arize-ai/phoenix/commit/2fd29480409206fe2483ac2ba7dd41949e68fd2e))
+* Overhaul invocation parameter specification ([#5228](https://github.com/Arize-ai/phoenix/issues/5228)) ([2e7e670](https://github.com/Arize-ai/phoenix/commit/2e7e670d15078d570bcc3fe3a670a9ffccc695cd))
+* **playground:** add `response_format` to invocation parameters ([#5239](https://github.com/Arize-ai/phoenix/issues/5239)) ([2ea4100](https://github.com/Arize-ai/phoenix/commit/2ea4100d62c2f37a6fb80d404fdcfbcf422b89f7))
+* **playground:** save model config by provider in preferences ([#5216](https://github.com/Arize-ai/phoenix/issues/5216)) ([d9cb1f1](https://github.com/Arize-ai/phoenix/commit/d9cb1f142af910ea20f1b0085e85b7746dadab17))
+* **playground:** streaming chat completion over a dataset ([#5237](https://github.com/Arize-ai/phoenix/issues/5237)) ([cc13eda](https://github.com/Arize-ai/phoenix/commit/cc13eda8f2a4b79c82d575d22ff420fdbaad24ef))
+* Provide and then parse invocation params from Span into Playground page store ([#5256](https://github.com/Arize-ai/phoenix/issues/5256)) ([c26e050](https://github.com/Arize-ai/phoenix/commit/c26e050f8d0dec4fc87a9d612116d3130450552e))
+
+
+### Bug Fixes
+
+* use truncatedValue for descendant span input output values ([#5270](https://github.com/Arize-ai/phoenix/issues/5270)) ([49c0466](https://github.com/Arize-ai/phoenix/commit/49c0466e586cdd083caf490cb1ea94a6c957fcd3))
+
+## [5.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.2...arize-phoenix-v5.6.0) (2024-10-29)
+
+
+### Features
+
+* Add Annotate button and slide over to run metadata footer ([#5184](https://github.com/Arize-ai/phoenix/issues/5184)) ([106a42f](https://github.com/Arize-ai/phoenix/commit/106a42fd7018d744a3aafb6d8b1bf9a9a03dfc4b))
+* Add LLMRelationalEvaluator to phoenix experiments ([#5170](https://github.com/Arize-ai/phoenix/issues/5170)) ([19021e4](https://github.com/Arize-ai/phoenix/commit/19021e4f4780a5d1bec453a1a7d132bd35f67cec))
+* Add markdown toggle to playground output cards ([#5212](https://github.com/Arize-ai/phoenix/issues/5212)) ([752b654](https://github.com/Arize-ai/phoenix/commit/752b654d5aca1d94142ee80186bd15f9e7ae24ac))
+* **playground:** add token counts for anthropic ([#5161](https://github.com/Arize-ai/phoenix/issues/5161)) ([2eae8c5](https://github.com/Arize-ai/phoenix/commit/2eae8c5df25c4454352d4167b3435675db19ae75))
+* **playground:** add tool role messages to ui ([#5103](https://github.com/Arize-ai/phoenix/issues/5103)) ([083ef42](https://github.com/Arize-ai/phoenix/commit/083ef427c794bbf64f66b8ed7e5d8490250050c6))
+* **playground:** plumb through message tool_calls from span to playground ([#5197](https://github.com/Arize-ai/phoenix/issues/5197)) ([a1886a0](https://github.com/Arize-ai/phoenix/commit/a1886a022056444c79f244e7750bb9f745ced64b))
+* **playground:** plumb through tools on spans to playground ([#5203](https://github.com/Arize-ai/phoenix/issues/5203)) ([be1a103](https://github.com/Arize-ai/phoenix/commit/be1a1030d19eb40b7d4edcab45c3991f6e6c7359))
+* Scaffold model invocation params form ([#5040](https://github.com/Arize-ai/phoenix/issues/5040)) ([#5045](https://github.com/Arize-ai/phoenix/issues/5045)) ([6efc700](https://github.com/Arize-ai/phoenix/commit/6efc70087538265068092b6d72b2dbfd6f927688))
+
+
+### Bug Fixes
+
+* `px.Client().get_dataset_versions` should use `self._client.get` instead of `httpx.get` ([#5220](https://github.com/Arize-ai/phoenix/issues/5220)) ([c810e16](https://github.com/Arize-ai/phoenix/commit/c810e1694914280f024a4f713582dc37179090f0))
+* Bubble errors up from nested invocation parameter schema transforms ([#5202](https://github.com/Arize-ai/phoenix/issues/5202)) ([6ccb0c0](https://github.com/Arize-ai/phoenix/commit/6ccb0c0071fc9c1de07b16c2884183e4be562e56))
+* Do not pin span in url for playground trace details slideover ([#5200](https://github.com/Arize-ai/phoenix/issues/5200)) ([7f41824](https://github.com/Arize-ai/phoenix/commit/7f418248d39e0f2d739143deb451539b073d37bd))
+* **playground:** improve playground error handling ([#5188](https://github.com/Arize-ai/phoenix/issues/5188)) ([b0436d7](https://github.com/Arize-ai/phoenix/commit/b0436d79c64a0db23f46a8fdf3592d1cea965bda))
+* remove `embeddings` from core dependencies ([#5150](https://github.com/Arize-ai/phoenix/issues/5150)) ([fab0ca2](https://github.com/Arize-ai/phoenix/commit/fab0ca282096409afaf728ddee8c3567c9a553ba))
+* **styles:** make prompt section scrollable to the bottom ([#5173](https://github.com/Arize-ai/phoenix/issues/5173)) ([99a3d1c](https://github.com/Arize-ai/phoenix/commit/99a3d1c0d4adc0b9f64c493769c8c87f9f3d136f))
+* update to properly initialize when brought into view ([#5172](https://github.com/Arize-ai/phoenix/issues/5172)) ([26aae5e](https://github.com/Arize-ai/phoenix/commit/26aae5e4c7a8a63cdc66106cb3c30f55ca678d79))
+
+
+### Documentation
+
+* Typo Fix ([#5157](https://github.com/Arize-ai/phoenix/issues/5157)) ([31749b2](https://github.com/Arize-ai/phoenix/commit/31749b246a168f22ca387e046db90562e25937bd))
+
 ## [5.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.5.1...arize-phoenix-v5.5.2) (2024-10-21)
 
 

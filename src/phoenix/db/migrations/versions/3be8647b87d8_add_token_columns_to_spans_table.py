@@ -6,7 +6,7 @@ Create Date: 2024-08-03 22:11:28.733133
 
 """
 
-from typing import Any, Dict, List, Optional, Sequence, TypedDict, Union
+from typing import Any, Optional, Sequence, TypedDict, Union
 
 import sqlalchemy as sa
 from alembic import op
@@ -51,21 +51,21 @@ JSON_ = (
 )
 
 
-class JsonDict(TypeDecorator[Dict[str, Any]]):
+class JsonDict(TypeDecorator[dict[str, Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[Dict[str, Any]], _: Dialect) -> Dict[str, Any]:
+    def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
 
-class JsonList(TypeDecorator[List[Any]]):
+class JsonList(TypeDecorator[list[Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[List[Any]], _: Dialect) -> List[Any]:
+    def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
 
 
@@ -86,8 +86,8 @@ class Base(DeclarativeBase):
         }
     )
     type_annotation_map = {
-        Dict[str, Any]: JsonDict,
-        List[Dict[str, Any]]: JsonList,
+        dict[str, Any]: JsonDict,
+        list[dict[str, Any]]: JsonList,
         ExperimentRunOutput: JsonDict,
     }
 
@@ -95,7 +95,7 @@ class Base(DeclarativeBase):
 class Span(Base):
     __tablename__ = "spans"
     id: Mapped[int] = mapped_column(primary_key=True)
-    attributes: Mapped[Dict[str, Any]]
+    attributes: Mapped[dict[str, Any]]
     llm_token_count_prompt: Mapped[Optional[int]]
     llm_token_count_completion: Mapped[Optional[int]]
 

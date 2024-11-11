@@ -1,15 +1,18 @@
 import { z } from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 
 import {
   LLMAttributePostfixes,
   MessageAttributePostfixes,
   SemanticAttributePrefixes,
+  ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
+import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
+import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
-import { Mutable, schemaForType } from "@phoenix/typeUtils";
-
-import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { isObject, schemaForType } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -17,10 +20,15 @@ import { InvocationParameters } from "./__generated__/PlaygroundOutputSubscripti
  */
 const toolCallSchema = z
   .object({
-    function: z
+    tool_call: z
       .object({
-        name: z.string(),
-        arguments: z.string(),
+        id: z.string().optional(),
+        function: z
+          .object({
+            name: z.string(),
+            arguments: z.string(),
+          })
+          .partial(),
       })
       .partial(),
   })
@@ -33,7 +41,7 @@ const toolCallSchema = z
 const messageSchema = z.object({
   [SemanticAttributePrefixes.message]: z.object({
     [MessageAttributePostfixes.role]: z.string(),
-    [MessageAttributePostfixes.content]: z.string(),
+    [MessageAttributePostfixes.content]: z.string().optional(),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
   }),
 });
@@ -85,7 +93,10 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
   z.object({
     id: z.number(),
     role: chatMessageRolesSchema,
-    content: z.string(),
+    // Tool call messages may not have content
+    content: z.string().optional(),
+    toolCallId: z.string().optional(),
+    toolCalls: z.array(llmProviderToolCallSchema).optional(),
   })
 );
 
@@ -95,22 +106,36 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
 /**
- * Model graphql invocation parameters schema in zod.
- *
- * Includes all keys besides toolChoice
+ * The zod schema for JSON literal primitives
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
  */
-const invocationParameterSchema = schemaForType<
-  Mutable<InvocationParameters>
->()(
-  z.object({
-    temperature: z.coerce.number().optional(),
-    topP: z.coerce.number().optional(),
-    maxTokens: z.coerce.number().optional(),
-    stop: z.array(z.string()).optional(),
-    seed: z.coerce.number().optional(),
-    maxCompletionTokens: z.coerce.number().optional(),
-  })
+const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+type Literal = z.infer<typeof literalSchema>;
+type Json = Literal | { [key: string]: Json } | Json[];
+/**
+ * The zod schema for JSON
+ * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
+ */
+export const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
+  z.union([
+    literalSchema,
+    z.array(jsonLiteralSchema),
+    z.record(jsonLiteralSchema),
+  ])
 );
+
+export type JsonLiteralSchema = z.infer<typeof jsonLiteralSchema>;
+
+export const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
+  z.record(jsonLiteralSchema)
+);
+
+export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
+
+/**
+ * Model generic invocation parameters schema in zod.
+ */
+const invocationParameterSchema = jsonObjectSchema;
 
 /**
  * The type of the invocation parameters schema
@@ -128,36 +153,27 @@ export type InvocationParametersSchema = z.infer<
  */
 const stringToInvocationParametersSchema = z
   .string()
-  .transform((s) => {
-    let json;
-    try {
-      json = JSON.parse(s);
-    } catch (e) {
-      return {};
+  .transform((s, ctx) => {
+    const { json } = safelyParseJSON(s);
+    if (!isObject(json)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The invocation parameters must be a valid JSON object",
+      });
+      return z.NEVER;
     }
-    // using the invocationParameterSchema as a base,
-    // apply all matching keys from the input string,
-    // and then map snake cased keys to camel case on top
-    return (
-      invocationParameterSchema
-        .passthrough()
-        .transform((o) => ({
-          ...o,
-          // map snake cased keys to camel case, the first char after each _ is uppercase
-          ...Object.fromEntries(
-            Object.entries(o).map(([k, v]) => [
-              k.replace(/_([a-z])/g, (_, char) => char.toUpperCase()),
-              v,
-            ])
-          ),
-        }))
-        // reparse the object to ensure the mapped keys are also validated
-        .transform(invocationParameterSchema.parse)
-        .parse(json)
-    );
+
+    const { success, data } = invocationParameterSchema.safeParse(json);
+    if (!success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The invocation parameters must be a valid JSON object",
+      });
+      return z.NEVER;
+    }
+    return data;
   })
   .default("{}");
-
 /**
  * The zod schema for llm model config
  * @see {@link https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
@@ -179,38 +195,92 @@ export const modelConfigWithInvocationParametersSchema = z.object({
   }),
 });
 
-/**
- * Default set of invocation parameters for all providers and models.
- */
-const baseInvocationParameterSchema = invocationParameterSchema.omit({
-  maxCompletionTokens: true,
+export const modelConfigWithResponseFormatSchema = z.object({
+  [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.invocation_parameters]:
+      stringToInvocationParametersSchema.pipe(
+        z.object({
+          response_format: jsonObjectSchema.optional(),
+        })
+      ),
+  }),
 });
 
 /**
- * Invocation parameters for O1 models.
+ *  The zod schema for llm.tools.{i}.tool.json_schema attribute
+ *  This will be a json string parsed into an object
  */
-const o1BaseInvocationParameterSchema = invocationParameterSchema.pick({
-  maxCompletionTokens: true,
-});
+export const toolJSONSchemaSchema = z
+  .string()
+  .transform((s, ctx) => {
+    const { json } = safelyParseJSON(s);
+
+    if (json == null || !isObject(json)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The tool JSON schema must be a valid JSON object",
+      });
+      return z.NEVER;
+    }
+    return json;
+  })
+  .transform((o, ctx) => {
+    const { data, success } = llmProviderToolDefinitionSchema.safeParse(o);
+
+    if (!success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "The tool JSON schema must be a valid tool schema",
+      });
+      return z.NEVER;
+    }
+    return data;
+  });
 
 /**
- * Provider schemas for all models and optionally for a specific model.
+ * The zod schema for llm.tools
+ * @see {@link  https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md|Semantic Conventions}
+ * Note there are other attributes that can be on llm.tools.{i}.tool, namely description, name, and parameters
+ * however, these are encompassed by the json schema in some cases and calls to api's using destructured tools is not supported in the playground yet
  */
-export const providerSchemas = {
-  OPENAI: {
-    default: baseInvocationParameterSchema,
-    "o1-preview": o1BaseInvocationParameterSchema,
-    "o1-preview-2024-09-12": o1BaseInvocationParameterSchema,
-    "o1-mini": o1BaseInvocationParameterSchema,
-    "o1-mini-2024-09-12": o1BaseInvocationParameterSchema,
-  },
-  AZURE_OPENAI: {
-    default: baseInvocationParameterSchema,
-  },
-  ANTHROPIC: {
-    default: baseInvocationParameterSchema,
-  },
-} satisfies Record<
-  ModelProvider,
-  Record<string, z.ZodType<InvocationParametersSchema>>
->;
+export const llmToolSchema = z
+  .object({
+    [SemanticAttributePrefixes.llm]: z
+      .object({
+        [LLMAttributePostfixes.tools]: z
+          .array(
+            z
+              .object({
+                [SemanticAttributePrefixes.tool]: z.object({
+                  [ToolAttributePostfixes.json_schema]: toolJSONSchemaSchema,
+                }),
+              })
+              .optional()
+          )
+          .optional(),
+      })
+      .optional(),
+  })
+  .optional();
+
+export type LlmToolSchema = z.infer<typeof llmToolSchema>;
+
+export const openAIResponseFormatSchema = z.lazy(() =>
+  z.object({
+    type: z.literal("json_schema"),
+    json_schema: z.object({
+      name: z.string().describe("The name of the schema"),
+      schema: jsonLiteralSchema,
+      strict: z.literal(true).describe("The schema must be strict"),
+    }),
+  })
+);
+
+export type OpenAIResponseFormat = z.infer<typeof openAIResponseFormatSchema>;
+
+export const openAIResponseFormatJSONSchema = zodToJsonSchema(
+  openAIResponseFormatSchema,
+  {
+    removeAdditionalStrategy: "passthrough",
+  }
+);

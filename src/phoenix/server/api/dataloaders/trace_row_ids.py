@@ -1,8 +1,4 @@
-from typing import (
-    List,
-    Optional,
-    Tuple,
-)
+from typing import Optional
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -15,7 +11,7 @@ TraceId: TypeAlias = str
 Key: TypeAlias = TraceId
 TraceRowId: TypeAlias = int
 ProjectRowId: TypeAlias = int
-Result: TypeAlias = Optional[Tuple[TraceRowId, ProjectRowId]]
+Result: TypeAlias = Optional[tuple[TraceRowId, ProjectRowId]]
 
 
 class TraceRowIdsDataLoader(DataLoader[Key, Result]):
@@ -23,7 +19,7 @@ class TraceRowIdsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: list[Key]) -> list[Result]:
         stmt = select(
             models.Trace.trace_id,
             models.Trace.id,

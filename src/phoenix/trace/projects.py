@@ -1,5 +1,6 @@
 import types
-from typing import Any, Callable, Optional, Type
+from collections.abc import Callable
+from typing import Any, Optional
 
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk import trace
@@ -58,7 +59,7 @@ class using_project:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         traceback: Optional[types.TracebackType],
     ) -> None:

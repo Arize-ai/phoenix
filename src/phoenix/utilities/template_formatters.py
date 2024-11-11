@@ -1,12 +1,13 @@
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from string import Formatter
-from typing import Any, Iterable, Set
+from typing import Any
 
 
 class TemplateFormatter(ABC):
     @abstractmethod
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         """
         Parse the template and return a set of variable names.
         """
@@ -18,7 +19,9 @@ class TemplateFormatter(ABC):
         """
         template_variable_names = self.parse(template)
         if missing_template_variables := template_variable_names - set(variables.keys()):
-            raise ValueError(f"Missing template variables: {', '.join(missing_template_variables)}")
+            raise TemplateFormatterError(
+                f"Missing template variable(s): {', '.join(missing_template_variables)}"
+            )
         return self._format(template, template_variable_names, **variables)
 
     @abstractmethod
@@ -37,7 +40,7 @@ class FStringTemplateFormatter(TemplateFormatter):
     'world'
     """
 
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
@@ -57,7 +60,7 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
 
-    def parse(self, template: str) -> Set[str]:
+    def parse(self, template: str) -> set[str]:
         return set(match for match in re.findall(self.PATTERN, template))
 
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
@@ -68,3 +71,11 @@ class MustacheTemplateFormatter(TemplateFormatter):
                 string=template,
             )
         return template
+
+
+class TemplateFormatterError(Exception):
+    """
+    An error raised when template formatting fails.
+    """
+
+    pass

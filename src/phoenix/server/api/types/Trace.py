@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from sqlalchemy import desc, select
@@ -69,7 +69,7 @@ class Trace(Node):
         self,
         info: Info[Context, None],
         sort: Optional[TraceAnnotationSort] = None,
-    ) -> List[TraceAnnotation]:
+    ) -> list[TraceAnnotation]:
         async with info.context.db() as session:
             stmt = select(models.TraceAnnotation).filter_by(span_rowid=self.id_attr)
             if sort:

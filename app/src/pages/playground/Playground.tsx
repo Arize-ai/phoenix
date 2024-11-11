@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -14,17 +16,20 @@ import {
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
-import { InitialPlaygroundState } from "@phoenix/store";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { PlaygroundProps } from "@phoenix/store";
 
+import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
+import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
+import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
 import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundInputTypeTypeRadioGroup } from "./PlaygroundInputModeRadioGroup";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
@@ -38,10 +43,51 @@ const playgroundWrapCSS = css`
   height: 100%;
 `;
 
-export function Playground(props: InitialPlaygroundState) {
-  const showStreamToggle = useFeatureFlag("playgroundNonStreaming");
+export function Playground(props: Partial<PlaygroundProps>) {
+  const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
+    graphql`
+      query PlaygroundQuery {
+        modelProviders {
+          name
+          dependenciesInstalled
+          dependencies
+        }
+      }
+    `,
+    {}
+  );
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
+  const [, setSearchParams] = useSearchParams();
+  const hasInstalledProvider = modelProviders.some(
+    (provider) => provider.dependenciesInstalled
+  );
+
+  useEffect(() => {
+    setSearchParams(
+      (searchParams) => {
+        // remove lingering selectedSpanNodeId param so as to not poison the trace details slideover
+        // with stale data from previous pages
+        searchParams.delete("selectedSpanNodeId");
+        return searchParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
+  const enableStreaming = window.Config.websocketsEnabled;
+
+  if (!hasInstalledProvider) {
+    return <NoInstalledProvider availableProviders={modelProviders} />;
+  }
+
   return (
-    <PlaygroundProvider {...props}>
+    <PlaygroundProvider
+      {...props}
+      streaming={enableStreaming}
+      modelConfigByProvider={modelConfigByProvider}
+    >
       <div css={playgroundWrapCSS}>
         <View
           borderBottomColor="dark"
@@ -56,7 +102,8 @@ export function Playground(props: InitialPlaygroundState) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {showStreamToggle ? <PlaygroundStreamToggle /> : null}
+              {enableStreaming ? <PlaygroundStreamToggle /> : null}
+              <PlaygroundDatasetPicker />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
             </Flex>
@@ -127,23 +174,21 @@ const playgroundPromptPanelContentCSS = css`
 `;
 
 const playgroundInputOutputPanelContentCSS = css`
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  flex: 1 1 auto;
+  overflow: auto;
 `;
 
 function PlaygroundContent() {
-  const playgroundWithDatasetsEnabled = useFeatureFlag(
-    "playgroundWithDatasets"
-  );
   const instances = usePlaygroundContext((state) => state.instances);
+  const input = usePlaygroundContext((state) => state.input);
+  const datasetId = input.datasetId;
+  const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
 
   return (
     <PanelGroup
-      direction={isSingleInstance ? "horizontal" : "vertical"}
+      direction={isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"}
       autoSaveId={
         isSingleInstance ? "playground-horizontal" : "playground-vertical"
       }
@@ -180,35 +225,31 @@ function PlaygroundContent() {
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
-          <Accordion arrowPosition="start" size="L">
-            <AccordionItem
-              title="Inputs"
-              id="input"
-              extra={
-                playgroundWithDatasetsEnabled ? (
-                  <PlaygroundInputTypeTypeRadioGroup />
-                ) : null
-              }
-            >
-              <View padding="size-200">
-                <PlaygroundInput />
-              </View>
-            </AccordionItem>
-            <AccordionItem title="Output" id="output">
-              <View padding="size-200" height="100%">
-                <Flex direction="row" gap="size-200">
-                  {instances.map((instance, i) => (
-                    <View key={i} flex="1 1 0px">
-                      <PlaygroundOutput
-                        key={i}
-                        playgroundInstanceId={instance.id}
-                      />
-                    </View>
-                  ))}
-                </Flex>
-              </View>
-            </AccordionItem>
-          </Accordion>
+          {isDatasetMode ? (
+            <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+          ) : (
+            <Accordion arrowPosition="start" size="L">
+              <AccordionItem title="Inputs" id="input">
+                <View padding="size-200" height={"100%"}>
+                  <PlaygroundInput />
+                </View>
+              </AccordionItem>
+              <AccordionItem title="Output" id="output">
+                <View padding="size-200" height="100%">
+                  <Flex direction="row" gap="size-200">
+                    {instances.map((instance, i) => (
+                      <View key={i} flex="1 1 0px">
+                        <PlaygroundOutput
+                          key={i}
+                          playgroundInstanceId={instance.id}
+                        />
+                      </View>
+                    ))}
+                  </Flex>
+                </View>
+              </AccordionItem>
+            </Accordion>
+          )}
         </div>
       </Panel>
     </PanelGroup>

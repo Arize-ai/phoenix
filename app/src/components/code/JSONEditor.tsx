@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
 import { EditorView, hoverTooltip } from "@codemirror/view";
@@ -30,12 +30,19 @@ export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
   const { jsonSchema, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
+  // Force a refresh of the editor when the jsonSchema changes
+  // Code mirror does not automatically refresh when the extensions change
+  const [schemaKey, setSchemaKey] = React.useState(0);
+  useEffect(() => {
+    setSchemaKey((prev) => prev + 1);
+  }, [jsonSchema]);
   const extensions = useMemo(() => {
     const baseExtensions = [
       json(),
       EditorView.lineWrapping,
       linter(jsonParseLinter()),
     ];
+
     if (jsonSchema) {
       baseExtensions.push(
         linter(jsonSchemaLinter(), { needsRefresh: handleRefresh }),
@@ -51,6 +58,7 @@ export function JSONEditor(props: JSONEditorProps) {
 
   return (
     <CodeMirror
+      key={schemaKey}
       value={props.value}
       extensions={extensions}
       editable

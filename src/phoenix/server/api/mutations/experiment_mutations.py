@@ -1,5 +1,4 @@
 import asyncio
-from typing import List
 
 import strawberry
 from sqlalchemy import delete
@@ -20,7 +19,7 @@ from phoenix.server.dml_event import ExperimentDeleteEvent
 
 @strawberry.type
 class ExperimentMutationPayload:
-    experiments: List[Experiment]
+    experiments: list[Experiment]
 
 
 @strawberry.type

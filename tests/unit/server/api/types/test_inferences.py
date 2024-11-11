@@ -1,4 +1,5 @@
-from typing import Callable, Literal, Optional
+from collections.abc import Callable
+from typing import Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp

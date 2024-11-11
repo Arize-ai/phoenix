@@ -1,13 +1,13 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import { InvocationParameters } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
-import { OpenAIToolCall, OpenAIToolDefinition } from "@phoenix/schemas";
+import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
+import {
+  LlmProviderToolCall,
+  LlmProviderToolDefinition,
+} from "@phoenix/schemas";
 
+import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
-/**
- * The input mode for the playground
- * @example "manual" or "dataset"
- */
-export type PlaygroundInputMode = "manual" | "dataset";
 
 /**
  * A chat message with a role and content
@@ -31,8 +31,9 @@ export type PlaygroundInputMode = "manual" | "dataset";
 export type ChatMessage = {
   id: number;
   role: ChatMessageRole;
+  // Tool call messages may not have content
   content?: string;
-  toolCalls?: OpenAIToolCall[];
+  toolCalls?: LlmProviderToolCall[];
   toolCallId?: string;
 };
 
@@ -63,29 +64,29 @@ export type PlaygroundTemplate =
   | PlaygroundTextCompletionTemplate;
 
 type DatasetInput = {
-  datasetId: string;
+  datasetId?: string;
 };
 
 type ManualInput = {
-  variablesValueCache: Record<string, string | undefined>;
+  variablesValueCache?: Record<string, string | undefined>;
 };
 
-type PlaygroundInput = DatasetInput | ManualInput;
+export type PlaygroundInput = DatasetInput & ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;
-  invocationParameters: Partial<Omit<InvocationParameters, "toolChoice">>;
+  invocationParameters: InvocationParameterInput[];
 };
 
 /**
  * The type of a tool in the playground
  */
-export type OpenAITool = {
+export type Tool = {
   id: number;
-  definition: Partial<OpenAIToolDefinition>;
+  definition: LlmProviderToolDefinition;
 };
 
 /**
@@ -93,7 +94,7 @@ export type OpenAITool = {
  * - a template
  * - tools
  * - input (dataset or manual)
- * - output (experiment or spans)
+ * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
   /**
@@ -101,21 +102,16 @@ export interface PlaygroundInstance {
    */
   id: number;
   template: PlaygroundTemplate;
-  tools: OpenAITool[];
+  tools: Tool[];
   /**
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice: ToolChoice;
-  input: PlaygroundInput;
+  toolChoice?: ToolChoice;
   model: ModelConfig;
-  output: ChatMessage[] | undefined | string;
+  output?: ChatMessage[] | string;
   spanId: string | null;
   activeRunId: number | null;
-  /**
-   * Whether or not the playground instance is actively running or not
-   **/
-  isRunning: boolean;
 }
 
 /**
@@ -135,12 +131,6 @@ export interface PlaygroundProps {
    */
   operationType: GenAIOperationType;
   /**
-   * The input mode for the playground(s)
-   * NB: the input mode for all instances is synchronized
-   * @default "manual"
-   */
-  inputMode: PlaygroundInputMode;
-  /**
    * The input to all the playground instances
    */
   input: PlaygroundInput;
@@ -156,13 +146,15 @@ export interface PlaygroundProps {
    */
   templateLanguage: TemplateLanguage;
   /**
-   * Whether or not to use streaming or not
+   * Whether or not to use streaming
    * @default true
    */
   streaming: boolean;
 }
 
-export type InitialPlaygroundState = Partial<PlaygroundProps>;
+export type InitialPlaygroundState = Partial<PlaygroundProps> & {
+  modelConfigByProvider: ModelConfigByProvider;
+};
 
 export interface PlaygroundState extends PlaygroundProps {
   /**
@@ -171,9 +163,15 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   setOperationType: (operationType: GenAIOperationType) => void;
   /**
-   * Setter for the input mode.
+   * The input for the playground. Setting a datasetId will cause the playground to use the dataset as input
+   * The variablesValueCache will be set and maintained even when switching between dataset and manual input
+   * This allows the user to switch between dataset and manual input without losing the manual input values
    */
-  setInputMode: (inputMode: PlaygroundInputMode) => void;
+  input: PlaygroundInput;
+  /**
+   * Sets the input for the playground
+   */
+  setInput: (input: PlaygroundInput) => void;
   /**
    * Add a comparison instance to the playground
    */
@@ -195,20 +193,52 @@ export interface PlaygroundState extends PlaygroundProps {
     patch: Partial<PlaygroundInstance>;
   }) => void;
   /**
+   * Update the invocation parameters for a model
+   */
+  updateInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    invocationParameters: InvocationParameterInput[];
+  }) => void;
+  /**
+   * Upsert an invocation parameter input for a model
+   */
+  upsertInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInput: InvocationParameterInput;
+  }) => void;
+  /**
+   * Delete an invocation parameter input for a model
+   */
+  deleteInvocationParameterInput: (params: {
+    instanceId: number;
+    invocationParameterInputInvocationName: string;
+  }) => void;
+  /**
+   * Filter the invocation parameters for a model based on the model's supported parameters
+   */
+  filterInstanceModelInvocationParameters: (params: {
+    instanceId: number;
+    modelSupportedInvocationParameters: InvocationParameter[];
+    filter: (
+      invocationParameterInputs: InvocationParameterInput[],
+      definitions: InvocationParameter[]
+    ) => InvocationParameterInput[];
+  }) => void;
+  /**
    * Update an instance's model configuration
    */
   updateModel: (params: {
     instanceId: number;
     model: Partial<ModelConfig>;
+    /**
+     * The saved model configurations for providers will be used as the default parameters for the new provider if the provider is changed
+     */
+    modelConfigByProvider: Partial<Record<ModelProvider, ModelConfig>>;
   }) => void;
   /**
    * Run all the active playground Instances
    */
   runPlaygroundInstances: () => void;
-  /**
-   * Run a specific playground instance
-   */
-  runPlaygroundInstance: (instanceId: number) => void;
   /**
    * Mark a given playground instance as completed
    */
@@ -226,19 +256,3 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   setStreaming: (streaming: boolean) => void;
 }
-
-/**
- * Check if the input is manual
- */
-export const isManualInput = (input: PlaygroundInput): input is ManualInput => {
-  return "variablesValueCache" in input;
-};
-
-/**
- * Check if the input is a dataset
- */
-export const isDatasetInput = (
-  input: PlaygroundInput
-): input is DatasetInput => {
-  return "datasetId" in input;
-};

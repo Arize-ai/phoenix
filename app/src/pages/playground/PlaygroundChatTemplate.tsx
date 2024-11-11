@@ -36,21 +36,30 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   ChatMessage,
-  createOpenAITool,
-  createOpenAIToolCall,
+  createOpenAIResponseFormat,
   generateMessageId,
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
+  PlaygroundInstance,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "./constants";
+import {
   MessageContentRadioGroup,
   MessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
+import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
+import {
+  createToolCallForProvider,
+  createToolForProvider,
+} from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -71,11 +80,18 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   );
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const upsertInvocationParameterInput = usePlaygroundContext(
+    (state) => state.upsertInvocationParameterInput
+  );
   const playgroundInstance = instances.find((instance) => instance.id === id);
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
   const hasTools = playgroundInstance.tools.length > 0;
+  const hasResponseFormat =
+    playgroundInstance.model.invocationParameters.find(
+      (p) => p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    ) != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
     throw new Error(`Invalid template type ${template.__type}`);
@@ -130,6 +146,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             return (
               <SortableMessageItem
                 playgroundInstanceId={id}
+                instance={playgroundInstance}
                 templateLanguage={templateLanguage}
                 template={template}
                 key={message.id}
@@ -147,21 +164,55 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         paddingBottom="size-100"
         borderColor="dark"
         borderTopWidth="thin"
-        borderBottomWidth={hasTools ? "thin" : undefined}
+        borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
+          <Button
+            variant="default"
+            size="compact"
+            aria-label="output schema"
+            icon={<Icon svg={<Icons.PlusOutline />} />}
+            disabled={hasResponseFormat}
+            onClick={() => {
+              upsertInvocationParameterInput({
+                instanceId: id,
+                invocationParameterInput: {
+                  valueJson: createOpenAIResponseFormat(),
+                  invocationName: RESPONSE_FORMAT_PARAM_NAME,
+                  canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+                },
+              });
+            }}
+          >
+            Output Schema
+          </Button>
           <Button
             variant="default"
             aria-label="add tool"
             size="compact"
             icon={<Icon svg={<Icons.PlusOutline />} />}
             onClick={() => {
+              const patch: Partial<PlaygroundInstance> = {
+                tools: [
+                  ...playgroundInstance.tools,
+                  createToolForProvider({
+                    provider: playgroundInstance.model.provider,
+                    toolNumber: playgroundInstance.tools.length + 1,
+                  }),
+                ],
+              };
+              if (playgroundInstance.tools.length === 0) {
+                patch.toolChoice = "auto";
+              }
               updateInstance({
                 instanceId: id,
                 patch: {
                   tools: [
                     ...playgroundInstance.tools,
-                    createOpenAITool(playgroundInstance.tools.length + 1),
+                    createToolForProvider({
+                      provider: playgroundInstance.model.provider,
+                      toolNumber: playgroundInstance.tools.length + 1,
+                    }),
                   ],
                 },
               });
@@ -198,6 +249,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         </Flex>
       </View>
       {hasTools ? <PlaygroundTools {...props} /> : null}
+      {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
     </DndContext>
   );
 }
@@ -310,12 +362,14 @@ function SortableMessageItem({
   templateLanguage,
   template,
   message,
+  instance,
 }: PropsWithChildren<
   PlaygroundInstanceProps & {
     template: PlaygroundChatTemplateType;
     message: ChatMessage;
     templateLanguage: TemplateLanguage;
     index: number;
+    instance: PlaygroundInstance;
   }
 >) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
@@ -413,7 +467,9 @@ function SortableMessageItem({
                       case "toolCalls":
                         updateMessage({
                           content: "",
-                          toolCalls: [createOpenAIToolCall()],
+                          toolCalls: [
+                            createToolCallForProvider(instance.model.provider),
+                          ],
                         });
                         break;
                       default:

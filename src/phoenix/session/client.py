@@ -4,23 +4,11 @@ import logging
 import re
 import weakref
 from collections import Counter
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import (
-    Any,
-    BinaryIO,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, BinaryIO, Literal, Optional, Union, cast
 from urllib.parse import quote, urljoin
 
 import httpx
@@ -129,7 +117,7 @@ class Client(TraceDataExtractor):
         # Deprecated
         stop_time: Optional[datetime] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+    ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
 
@@ -142,7 +130,7 @@ class Client(TraceDataExtractor):
                 using environment variables. If not provided, falls back to the default project.
 
         Returns:
-            Union[pd.DataFrame, List[pd.DataFrame]]:
+            Union[pd.DataFrame, list[pd.DataFrame]]:
                 A pandas DataFrame or a list of pandas.
                 DataFrames containing the queried span data, or None if no spans are found.
         """
@@ -208,7 +196,7 @@ class Client(TraceDataExtractor):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
-    ) -> List[Evaluations]:
+    ) -> list[Evaluations]:
         """
         Retrieves evaluations for a given project from the Phoenix server or active session.
 
@@ -218,7 +206,7 @@ class Client(TraceDataExtractor):
                 default project.
 
         Returns:
-            List[Evaluations]:
+            list[Evaluations]:
                 A list of Evaluations objects containing evaluation data. Returns an
                 empty list if no evaluations are found.
         """
@@ -426,7 +414,7 @@ class Client(TraceDataExtractor):
             pandas DataFrame
         """
         url = urljoin(self._base_url, f"v1/datasets/{dataset_id}/versions")
-        response = httpx.get(url=url, params={"limit": limit})
+        response = self._client.get(url=url, params={"limit": limit})
         response.raise_for_status()
         if not (records := response.json()["data"]):
             return pd.DataFrame()
@@ -768,10 +756,10 @@ class Client(TraceDataExtractor):
 FileName: TypeAlias = str
 FilePointer: TypeAlias = BinaryIO
 FileType: TypeAlias = str
-FileHeaders: TypeAlias = Dict[str, str]
+FileHeaders: TypeAlias = dict[str, str]
 
 
-def _get_csv_column_headers(path: Path) -> Tuple[str, ...]:
+def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
     path = path.resolve()
     if not path.is_file():
         raise FileNotFoundError(f"File does not exist: {path}")
@@ -788,7 +776,7 @@ def _get_csv_column_headers(path: Path) -> Tuple[str, ...]:
 def _prepare_csv(
     path: Path,
     keys: DatasetKeys,
-) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+) -> tuple[FileName, FilePointer, FileType, FileHeaders]:
     column_headers = _get_csv_column_headers(path)
     (header, freq), *_ = Counter(column_headers).most_common(1)
     if freq > 1:
@@ -803,7 +791,7 @@ def _prepare_csv(
 def _prepare_pyarrow(
     df: pd.DataFrame,
     keys: DatasetKeys,
-) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+) -> tuple[FileName, FilePointer, FileType, FileHeaders]:
     if df.empty:
         raise ValueError("dataframe has no data")
     (header, freq), *_ = Counter(df.columns).most_common(1)
@@ -824,7 +812,7 @@ _response_header = re.compile(r"(?i)(response|answer|output)s*$")
 
 def _infer_keys(
     table: Union[str, Path, pd.DataFrame],
-) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[str, ...]]:
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     column_headers = (
         tuple(table.columns)
         if isinstance(table, pd.DataFrame)
