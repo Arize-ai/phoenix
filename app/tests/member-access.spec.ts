@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password").fill("member123");
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  await page.waitForURL("**/projects/**");
+  await page.waitForURL("**/projects");
 });
 
 test("can create user key", async ({ page }) => {

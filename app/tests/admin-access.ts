@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByLabel("Email").fill("admin@localhost");
   await page.getByLabel("Password").fill("admin123");
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  await page.waitForURL("**/projects/**");
+  await page.waitForURL("**/projects");
 });
 
 test("admin can create system api key", async ({ page }) => {
