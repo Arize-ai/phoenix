@@ -555,6 +555,7 @@ export function PlaygroundDatasetExamplesTable({
           );
         },
         minSize: 500,
+        maxSize: 800,
       }));
     }, [exampleResponsesMap, hasSomeRunIds, instances]);
 
