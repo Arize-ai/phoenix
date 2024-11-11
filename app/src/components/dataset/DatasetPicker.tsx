@@ -1,7 +1,7 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Item, Picker, PickerProps } from "@arizeai/components";
+import { Flex, Item, Picker, PickerProps, Text } from "@arizeai/components";
 
 import { DatasetPickerQuery } from "./__generated__/DatasetPickerQuery.graphql";
 
@@ -27,6 +27,7 @@ export function DatasetPicker(props: DatasetPickerProps) {
             dataset: node {
               id
               name
+              exampleCount
             }
           }
         }
@@ -52,7 +53,16 @@ export function DatasetPicker(props: DatasetPickerProps) {
     >
       {data.datasets.edges.map(({ dataset }) => (
         <Item key={dataset.id} aria-label={dataset.name}>
-          {dataset.name}
+          <Flex
+            direction="column"
+            justifyContent={"space-between"}
+            width={"100%"}
+          >
+            <Text>{dataset.name}</Text>
+            <Text color="text-700" textSize="small">
+              {dataset.exampleCount} examples
+            </Text>
+          </Flex>
         </Item>
       ))}
     </Picker>

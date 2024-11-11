@@ -42,6 +42,7 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useNotifyError } from "@phoenix/contexts";
@@ -51,6 +52,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
@@ -60,23 +62,28 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
-import { PartialOutputToolCall } from "./PlaygroundToolCall";
+import {
+  PartialOutputToolCall,
+  PlaygroundToolCall,
+} from "./PlaygroundToolCall";
 import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 
 const PAGE_SIZE = 100;
 
 type InstanceId = number;
 type ExampleId = string;
-type Span = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-  { __typename: "FinishedChatCompletion" }
->["span"];
+type Span = NonNullable<
+  Extract<
+    PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+    { __typename: "ChatCompletionSubscriptionResult" }
+  >["span"]
+>;
 
 type ExampleRunData =
   | {
       content?: string;
-      toolCalls?: readonly PartialOutputToolCall[];
-      span?: Span;
+      toolCalls?: Record<string, PartialOutputToolCall | undefined>;
+      span?: Span | null;
     }
   | undefined;
 
@@ -168,6 +175,9 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const setExperimentId = usePlaygroundContext(
+    (state) => state.setExperimentId
+  );
   const [dialog, setDialog] = useState<ReactNode>(null);
 
   const hasSomeRunIds = instances.some(
@@ -192,10 +202,47 @@ export function PlaygroundDatasetExamplesTable({
         if (response == null) {
           return;
         }
-        if (response.chatCompletionOverDataset.__typename === "TextChunk") {
-          const { content, datasetExampleId } =
-            response.chatCompletionOverDataset;
-          if (datasetExampleId != null) {
+        const chatCompletion = response.chatCompletionOverDataset;
+        switch (chatCompletion.__typename) {
+          case "ChatCompletionSubscriptionError":
+            markPlaygroundInstanceComplete(instanceId);
+            notifyError({
+              title: "Chat completion failed",
+              message: chatCompletion.message,
+              expireMs: 10000,
+            });
+            return;
+          case "ChatCompletionSubscriptionExperiment":
+            setExperimentId(chatCompletion.experiment.id);
+            break;
+          case "ChatCompletionSubscriptionResult": {
+            const { span, datasetExampleId } = chatCompletion;
+            if (datasetExampleId != null) {
+              setExampleResponsesMap((exampleResponsesMap) => {
+                const existingInstanceResponses =
+                  exampleResponsesMap[instanceId];
+                const existingExampleResponse =
+                  existingInstanceResponses?.[datasetExampleId] ?? {};
+                const newInstanceExampleResponseMap = {
+                  ...existingInstanceResponses,
+                  [datasetExampleId]: {
+                    ...existingExampleResponse,
+                    span: span,
+                  },
+                };
+                return {
+                  ...exampleResponsesMap,
+                  [instanceId]: newInstanceExampleResponseMap,
+                };
+              });
+            }
+            return;
+          }
+          case "TextChunk": {
+            const { content, datasetExampleId } = chatCompletion;
+            if (datasetExampleId == null) {
+              return;
+            }
             setExampleResponsesMap((exampleResponsesMap) => {
               const existingInstanceResponses = exampleResponsesMap[instanceId];
               const existingExampleResponse =
@@ -212,57 +259,43 @@ export function PlaygroundDatasetExamplesTable({
                 [instanceId]: newInstanceExampleResponseMap,
               };
             });
+            return;
           }
-          return;
-        } else if (
-          response.chatCompletionOverDataset.__typename === "ToolCallChunk"
-        ) {
-          // setToolCalls((toolCalls) => {
-          //   let toolCallExists = false;
-          //   const updated = toolCalls.map((toolCall) => {
-          //     if (toolCall.id === response.chatCompletionOverDataset.id) {
-          //       toolCallExists = true;
-          //       return {
-          //         ...toolCall,
-          //         function: {
-          //           ...toolCall.function,
-          //           arguments:
-          //             toolCall.function.arguments +
-          //             response.chatCompletionOverDataset.function.arguments,
-          //         },
-          //       };
-          //     } else {
-          //       return toolCall;
-          //     }
-          //   });
-          //   if (!toolCallExists) {
-          //     updated.push({
-          //       id: response.chatCompletionOverDataset.id,
-          //       function: {
-          //         name: response.chatCompletionOverDataset.function.name,
-          //         arguments: response.chatCompletionOverDataset.function.arguments,
-          //       },
-          //     });
-          //   }
-          //   return updated;
-          // });
-          return;
-        }
-        if (
-          response.chatCompletionOverDataset.__typename ===
-          "FinishedChatCompletion"
-        ) {
-          const { span, datasetExampleId } = response.chatCompletionOverDataset;
-          if (datasetExampleId != null) {
+          case "ToolCallChunk": {
+            const {
+              datasetExampleId,
+              function: toolFunction,
+              id,
+            } = chatCompletion;
+            if (datasetExampleId == null) {
+              return null;
+            }
             setExampleResponsesMap((exampleResponsesMap) => {
               const existingInstanceResponses = exampleResponsesMap[instanceId];
               const existingExampleResponse =
                 existingInstanceResponses?.[datasetExampleId] ?? {};
+              const existingToolCalls = existingExampleResponse.toolCalls ?? {};
+              const existingToolCall = existingToolCalls[id];
+              const updatedToolCall: PartialOutputToolCall = {
+                ...existingToolCall,
+                id,
+                function: {
+                  name: existingToolCall?.function?.name ?? toolFunction.name,
+                  arguments:
+                    existingToolCall?.function.arguments != null
+                      ? existingToolCall.function.arguments +
+                        toolFunction.arguments
+                      : toolFunction.arguments,
+                },
+              };
               const newInstanceExampleResponseMap = {
                 ...existingInstanceResponses,
                 [datasetExampleId]: {
                   ...existingExampleResponse,
-                  span: span,
+                  toolCalls: {
+                    ...existingToolCalls,
+                    [id]: updatedToolCall,
+                  },
                 },
               };
               return {
@@ -270,24 +303,17 @@ export function PlaygroundDatasetExamplesTable({
                 [instanceId]: newInstanceExampleResponseMap,
               };
             });
+            return;
           }
-          return;
-        }
-        if (
-          response.chatCompletionOverDataset.__typename ===
-          "ChatCompletionSubscriptionError"
-        ) {
-          markPlaygroundInstanceComplete(instanceId);
-          if (response.chatCompletionOverDataset.message != null) {
-            notifyError({
-              title: "Chat completion failed",
-              message: response.chatCompletionOverDataset.message,
-              expireMs: 10000,
-            });
-          }
+          // This should never happen
+          // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
+          case "%other":
+            return;
+          default:
+            return assertUnreachable(chatCompletion);
         }
       },
-    [markPlaygroundInstanceComplete, notifyError]
+    [markPlaygroundInstanceComplete, notifyError, setExperimentId]
   );
 
   useEffect(() => {
@@ -428,13 +454,12 @@ export function PlaygroundDatasetExamplesTable({
         }
         const { span, content, toolCalls } = maybeData;
         const hasSpan = span != null;
-        let traceButton = null;
+        const spanControls: ReactNode[] = [];
         if (hasSpan) {
-          traceButton = (
+          spanControls.push(
             <TooltipTrigger>
               <Button
                 variant="default"
-                className="trace-button"
                 size="compact"
                 aria-label="View run trace"
                 icon={<Icon svg={<Icons.Trace />} />}
@@ -455,11 +480,44 @@ export function PlaygroundDatasetExamplesTable({
               <Tooltip>View Trace</Tooltip>
             </TooltipTrigger>
           );
+          spanControls.push(
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                size="compact"
+                aria-label="Annotate span"
+                icon={<Icon svg={<Icons.EditOutline />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <EditSpanAnnotationsDialog
+                        spanNodeId={span.id}
+                        projectId={span.project.id}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>Annotate</Tooltip>
+            </TooltipTrigger>
+          );
         }
         return (
-          <CellWithControlsWrap controls={traceButton}>
+          <CellWithControlsWrap controls={spanControls}>
             <Flex direction={"column"} gap={"size-200"}>
               <Text>{content}</Text>
+              {toolCalls != null
+                ? Object.values(toolCalls).map((toolCall) =>
+                    toolCall == null ? null : (
+                      <PlaygroundToolCall
+                        key={toolCall.id}
+                        toolCall={toolCall}
+                      />
+                    )
+                  )
+                : null}
               {hasSpan ? <SpanMetadata span={span} /> : null}
             </Flex>
           </CellWithControlsWrap>
@@ -618,7 +676,12 @@ graphql`
           arguments
         }
       }
-      ... on FinishedChatCompletion {
+      ... on ChatCompletionSubscriptionExperiment {
+        experiment {
+          id
+        }
+      }
+      ... on ChatCompletionSubscriptionResult {
         datasetExampleId
         span {
           id
@@ -637,11 +700,6 @@ graphql`
       ... on ChatCompletionSubscriptionError {
         datasetExampleId
         message
-      }
-      ... on ChatCompletionOverDatasetSubscriptionResult {
-        experiment {
-          id
-        }
       }
     }
   }

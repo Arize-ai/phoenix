@@ -27,8 +27,8 @@ import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
-import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
+import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -144,6 +144,7 @@ function AddPromptButton() {
 const playgroundPromptPanelContentCSS = css`
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden;
   & > .ac-accordion {
     display: flex;
@@ -155,8 +156,12 @@ const playgroundPromptPanelContentCSS = css`
       height: 100%;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       flex: 1 1 auto;
+      & > [role="button"] {
+        flex: unset;
+      }
       .ac-accordion-itemContent {
         height: 100%;
         overflow: hidden;
@@ -225,7 +230,7 @@ function PlaygroundContent() {
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
           {isDatasetMode ? (
-            <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+            <PlaygroundDatasetSection datasetId={datasetId} />
           ) : (
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">
