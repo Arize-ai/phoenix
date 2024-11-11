@@ -25,6 +25,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix import Client, TraceDataset
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations, TraceEvaluations
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="CI fails for unknown reason")
@@ -72,22 +73,20 @@ class TestSendingAnnotationsBeforeSpans:
     @staticmethod
     async def _last_updated_at(
         project_names: list[str],
-        httpx_client: AsyncClient,
+        gql_client: AsyncGraphQLClient,
     ) -> dict[str, datetime]:
         q = "query{projects{edges{node{name streamingLastUpdatedAt}}}}"
-        resp = await httpx_client.post("/graphql", json=dict(query=q))
-        assert resp.status_code == 200
-        resp_json = resp.json()
-        assert not resp_json.get("errors")
+        resp = await gql_client.execute(q)
+        assert (data := resp.data)
         return {
             edge["node"]["name"]: datetime.fromisoformat(edge["node"]["streamingLastUpdatedAt"])
-            for edge in resp_json["data"]["projects"]["edges"]
+            for edge in data["projects"]["edges"]
             if edge["node"]["name"] in project_names and edge["node"]["streamingLastUpdatedAt"]
         }
 
     @staticmethod
     async def _mean_scores(
-        httpx_client: AsyncClient,
+        gql_client: AsyncGraphQLClient,
         summary: _Summary,
         project_names: list[str],
         *names: str,
@@ -95,13 +94,11 @@ class TestSendingAnnotationsBeforeSpans:
         ans = {}
         for name in names:
             q = "query{projects{edges{node{name " + f'{summary}Name:"{name}"' + "){meanScore}}}}}"
-            resp = await httpx_client.post("/graphql", json=dict(query=q))
-            assert resp.status_code == 200
-            resp_json = resp.json()
-            assert not resp_json.get("errors")
+            resp = await gql_client.execute(q)
+            assert (data := resp.data)
             ans[name] = {
                 edge["node"]["name"]: edge["node"][summary.split("(")[0]]["meanScore"]
-                for edge in resp_json["data"]["projects"]["edges"]
+                for edge in data["projects"]["edges"]
                 if edge["node"]["name"] in project_names
                 and edge["node"][summary.split("(")[0]] is not None
             }
@@ -110,20 +107,17 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     async def clear_all_projects(
         self,
-        httpx_client: AsyncClient,
+        gql_client: AsyncGraphQLClient,
     ) -> Callable[[], Awaitable[None]]:
         async def _() -> None:
             q = "query{projects{edges{node{id}}}}"
-            resp = await httpx_client.post("/graphql", json=dict(query=q))
-            assert resp.status_code == 200
-            resp_json = resp.json()
-            assert not resp_json.get("errors")
-            for edge in resp_json["data"]["projects"]["edges"]:
+            resp = await gql_client.execute(q)
+            assert (data := resp.data)
+            for edge in data["projects"]["edges"]:
                 id_ = edge["node"]["id"]
                 m = "mutation{clearProject(input:{id:" + f'"{id_}"' + "}){__typename}}"
-                resp = await httpx_client.post("/graphql", json=dict(query=m))
-                assert resp.status_code == 200
-                assert not resp.json().get("errors")
+                resp = await gql_client.execute(m)
+                assert resp.data is not None
 
         return _
 
@@ -227,10 +221,10 @@ class TestSendingAnnotationsBeforeSpans:
     def assert_last_updated_at(
         self,
         project_names: list[str],
-        httpx_client: AsyncClient,
+        gql_client: AsyncGraphQLClient,
     ) -> Callable[[Callable[[datetime, datetime], bool], datetime], Awaitable[None]]:
         async def _(compare: Callable[[datetime, datetime], bool], t: datetime) -> None:
-            projects = await self._last_updated_at(project_names, httpx_client)
+            projects = await self._last_updated_at(project_names, gql_client)
             for project_name in project_names:
                 assert (last_updated_at := projects.get(project_name))
                 assert compare(last_updated_at, t)
@@ -301,14 +295,14 @@ class TestSendingAnnotationsBeforeSpans:
         trace_ids: dict[str, list[str]],
         traces: dict[str, TraceDataset],
         px_client: Client,
-        httpx_client: AsyncClient,
+        gql_client: AsyncGraphQLClient,
         mean_score: float,
     ) -> Callable[[bool, float], Awaitable[None]]:
         async def _(exist: bool, score_offset: float = 0) -> None:
             expected = mean_score + score_offset
             summaries, names = anno_summaries, anno_names + eval_names
             for summary in summaries:
-                mean_scores = await self._mean_scores(httpx_client, summary, project_names, *names)
+                mean_scores = await self._mean_scores(gql_client, summary, project_names, *names)
                 for name in names:
                     if not exist:
                         assert not mean_scores.get(name)
