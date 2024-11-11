@@ -618,7 +618,15 @@ export function PlaygroundDatasetExamplesTable({
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    table.getState().columnSizingInfo,
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    table.getState().columnSizing,
+    columns.length,
+  ]);
 
   return (
     <div
