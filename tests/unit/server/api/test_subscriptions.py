@@ -28,6 +28,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
+from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
 
 
@@ -107,7 +108,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -149,10 +150,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -234,7 +235,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -276,10 +277,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -352,7 +353,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -414,10 +415,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -503,7 +504,7 @@ class TestChatCompletionSubscription:
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -562,10 +563,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -660,7 +661,7 @@ class TestChatCompletionSubscription:
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         anthropic_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
@@ -703,10 +704,10 @@ class TestChatCompletionSubscription:
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
         # by the subscription
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
         )
@@ -901,7 +902,7 @@ class TestChatCompletionOverDatasetSubscription:
 
     async def test_emits_expected_payloads_and_records_expected_spans_and_experiment(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         playground_dataset_with_patch_revision: None,
         custom_vcr: CustomVCR,
@@ -1004,10 +1005,10 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 1 span
         example_id = example_ids[0]
         span_id = subscription_spans[example_id]["id"]
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1085,10 +1086,10 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 2 span
         example_id = example_ids[1]
         span_id = subscription_spans[example_id]["id"]
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY, variables={"spanId": span_id}, operation_name="SpanQuery"
         )
-        span = data["span"]
+        span = response.data["span"]
         subscription_span = subscription_spans[example_id]
         assert json.loads(attributes := span.pop("attributes")) == json.loads(
             subscription_span.pop("attributes")
@@ -1168,12 +1169,12 @@ class TestChatCompletionOverDatasetSubscription:
         assert subscription_spans[example_id] is None
 
         # check experiment
-        data = await gql_client.execute(
+        response = await gql_client.execute(
             query=self.QUERY,
             variables={"experimentId": experiment_id},
             operation_name="ExperimentQuery",
         )
-        experiment = data["experiment"]
+        experiment = response.data["experiment"]
         assert experiment.pop("id") == experiment_id
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
@@ -1261,7 +1262,7 @@ class TestChatCompletionOverDatasetSubscription:
 
     async def test_all_spans_yielded_when_number_of_examples_exceeds_batch_size(
         self,
-        gql_client: Any,
+        gql_client: AsyncGraphQLClient,
         openai_api_key: str,
         cities_and_countries: list[tuple[str, str]],
         playground_city_and_country_dataset: None,

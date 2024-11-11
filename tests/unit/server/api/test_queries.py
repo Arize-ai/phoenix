@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert
@@ -9,10 +8,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 async def test_projects_omits_experiment_projects(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     projects_with_and_without_experiments: Any,
 ) -> None:
     query = """
@@ -27,14 +27,9 @@ async def test_projects_omits_experiment_projects(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={"query": query},
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
         "projects": {
             "edges": [
                 {
@@ -49,7 +44,7 @@ async def test_projects_omits_experiment_projects(
 
 
 async def test_compare_experiments_returns_expected_comparisons(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     comparison_experiments: Any,
 ) -> None:
     query = """
@@ -75,23 +70,18 @@ async def test_compare_experiments_returns_expected_comparisons(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "experimentIds": [
-                    str(GlobalID("Experiment", str(2))),
-                    str(GlobalID("Experiment", str(1))),
-                    str(GlobalID("Experiment", str(3))),
-                ],
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentIds": [
+                str(GlobalID("Experiment", str(2))),
+                str(GlobalID("Experiment", str(1))),
+                str(GlobalID("Experiment", str(3))),
+            ],
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "compareExperiments": [
             {
                 "example": {
