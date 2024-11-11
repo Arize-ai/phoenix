@@ -70,26 +70,38 @@ import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 
 const PAGE_SIZE = 100;
 
+type ExamplesTableRow = {
+  id: string;
+  input: unknown;
+  output: unknown;
+};
+
 type InstanceId = number;
 type ExampleId = string;
-type Span = NonNullable<
-  Extract<
-    PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-    { __typename: "ChatCompletionSubscriptionResult" }
-  >["span"]
+type ChatCompletionResult = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "ChatCompletionSubscriptionResult" }
 >;
 
-type ExampleRunData =
-  | {
-      content?: string;
-      toolCalls?: Record<string, PartialOutputToolCall | undefined>;
-      span?: Span | null;
-    }
-  | undefined;
+type Span = NonNullable<ChatCompletionResult["span"]>;
+type ToolCallChunk = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "ToolCallChunk" }
+>;
+type TextChunk = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "TextChunk" }
+>;
+
+type ExampleRunData = {
+  content?: string;
+  toolCalls?: Record<string, PartialOutputToolCall | undefined>;
+  span?: Span | null;
+};
 
 type InstanceToExampleResponsesMap = Record<
   InstanceId,
-  Record<ExampleId, ExampleRunData> | undefined
+  Record<ExampleId, ExampleRunData | undefined> | undefined
 >;
 
 const getInitialExampleResponsesMap = (instances: PlaygroundInstance[]) => {
@@ -99,6 +111,86 @@ const getInitialExampleResponsesMap = (instances: PlaygroundInstance[]) => {
       [instance.id]: {},
     };
   }, {});
+};
+
+/**
+ * Updates an examples response for a particular instance. Takes in the current map and applies the chunk to it returning a new map.
+ */
+const updateExampleResponsesMap = ({
+  instanceId,
+  response,
+  currentMap,
+}: {
+  instanceId: number;
+  response: ChatCompletionResult | TextChunk | ToolCallChunk;
+  currentMap: InstanceToExampleResponsesMap;
+}): InstanceToExampleResponsesMap => {
+  const exampleId = response.datasetExampleId;
+  if (exampleId == null) {
+    return currentMap;
+  }
+  const existingInstanceResponses = currentMap[instanceId];
+  const existingExampleResponse = existingInstanceResponses?.[exampleId] ?? {};
+  switch (response.__typename) {
+    case "ChatCompletionSubscriptionResult": {
+      const newInstanceExampleResponseMap = {
+        ...existingInstanceResponses,
+        [exampleId]: {
+          ...existingExampleResponse,
+          span: response.span,
+        },
+      };
+      return {
+        ...currentMap,
+        [instanceId]: newInstanceExampleResponseMap,
+      };
+    }
+    case "TextChunk": {
+      const newInstanceExampleResponseMap = {
+        ...existingInstanceResponses,
+        [exampleId]: {
+          ...existingExampleResponse,
+          content: (existingExampleResponse?.content ?? "") + response.content,
+        },
+      };
+      return {
+        ...currentMap,
+        [instanceId]: newInstanceExampleResponseMap,
+      };
+    }
+    case "ToolCallChunk": {
+      const { id, function: toolFunction } = response;
+      const existingToolCalls = existingExampleResponse.toolCalls ?? {};
+      const existingToolCall = existingToolCalls[id];
+      const updatedToolCall: PartialOutputToolCall = {
+        ...existingToolCall,
+        id,
+        function: {
+          name: existingToolCall?.function?.name ?? toolFunction.name,
+          arguments:
+            existingToolCall?.function.arguments != null
+              ? existingToolCall.function.arguments + toolFunction.arguments
+              : toolFunction.arguments,
+        },
+      };
+      const newInstanceExampleResponseMap = {
+        ...existingInstanceResponses,
+        [exampleId]: {
+          ...existingExampleResponse,
+          toolCalls: {
+            ...existingToolCalls,
+            [id]: updatedToolCall,
+          },
+        },
+      };
+      return {
+        ...currentMap,
+        [instanceId]: newInstanceExampleResponseMap,
+      };
+    }
+    default:
+      return assertUnreachable(response);
+  }
 };
 
 function LargeTextWrap({ children }: { children: ReactNode }) {
@@ -123,6 +215,90 @@ function JSONCell<TData extends object, TValue>({
     <LargeTextWrap>
       <JSONText json={value} space={2} collapseSingleKey={collapseSingleKey} />
     </LargeTextWrap>
+  );
+}
+
+function ExampleOutputCell({
+  exampleData,
+  isRunning,
+  setDialog,
+}: {
+  exampleData: ExampleRunData | null;
+  isRunning: boolean;
+  setDialog(dialog: ReactNode): void;
+}) {
+  if (exampleData == null && isRunning) {
+    return <Loading />;
+  }
+  if (exampleData == null) {
+    return null;
+  }
+  const { span, content, toolCalls } = exampleData;
+  const hasSpan = span != null;
+  const spanControls: ReactNode[] = [];
+  if (hasSpan) {
+    spanControls.push(
+      <TooltipTrigger>
+        <Button
+          variant="default"
+          size="compact"
+          aria-label="View run trace"
+          icon={<Icon svg={<Icons.Trace />} />}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startTransition(() => {
+              setDialog(
+                <PlaygroundRunTraceDetailsDialog
+                  traceId={span.context.traceId}
+                  projectId={span.project.id}
+                  title={`Experiment Run Trace`}
+                />
+              );
+            });
+          }}
+        />
+        <Tooltip>View Trace</Tooltip>
+      </TooltipTrigger>
+    );
+    spanControls.push(
+      <TooltipTrigger>
+        <Button
+          variant="default"
+          size="compact"
+          aria-label="Annotate span"
+          icon={<Icon svg={<Icons.EditOutline />} />}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            startTransition(() => {
+              setDialog(
+                <EditSpanAnnotationsDialog
+                  spanNodeId={span.id}
+                  projectId={span.project.id}
+                />
+              );
+            });
+          }}
+        />
+        <Tooltip>Annotate</Tooltip>
+      </TooltipTrigger>
+    );
+  }
+  return (
+    <CellWithControlsWrap controls={spanControls}>
+      <Flex direction={"column"} gap={"size-200"}>
+        <Text>{content}</Text>
+        {toolCalls != null
+          ? Object.values(toolCalls).map((toolCall) =>
+              toolCall == null ? null : (
+                <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />
+              )
+            )
+          : null}
+        {hasSpan ? <SpanMetadata span={span} /> : null}
+      </Flex>
+    </CellWithControlsWrap>
   );
 }
 
@@ -211,99 +387,21 @@ export function PlaygroundDatasetExamplesTable({
               message: chatCompletion.message,
               expireMs: 10000,
             });
-            return;
+            break;
           case "ChatCompletionSubscriptionExperiment":
             setExperimentId(chatCompletion.experiment.id);
             break;
-          case "ChatCompletionSubscriptionResult": {
-            const { span, datasetExampleId } = chatCompletion;
-            if (datasetExampleId != null) {
-              setExampleResponsesMap((exampleResponsesMap) => {
-                const existingInstanceResponses =
-                  exampleResponsesMap[instanceId];
-                const existingExampleResponse =
-                  existingInstanceResponses?.[datasetExampleId] ?? {};
-                const newInstanceExampleResponseMap = {
-                  ...existingInstanceResponses,
-                  [datasetExampleId]: {
-                    ...existingExampleResponse,
-                    span: span,
-                  },
-                };
-                return {
-                  ...exampleResponsesMap,
-                  [instanceId]: newInstanceExampleResponseMap,
-                };
-              });
-            }
-            return;
-          }
-          case "TextChunk": {
-            const { content, datasetExampleId } = chatCompletion;
-            if (datasetExampleId == null) {
-              return;
-            }
-            setExampleResponsesMap((exampleResponsesMap) => {
-              const existingInstanceResponses = exampleResponsesMap[instanceId];
-              const existingExampleResponse =
-                existingInstanceResponses?.[datasetExampleId] ?? {};
-              const newInstanceExampleResponseMap = {
-                ...existingInstanceResponses,
-                [datasetExampleId]: {
-                  ...existingExampleResponse,
-                  content: (existingExampleResponse?.content ?? "") + content,
-                },
-              };
-              return {
-                ...exampleResponsesMap,
-                [instanceId]: newInstanceExampleResponseMap,
-              };
-            });
-            return;
-          }
+          case "ChatCompletionSubscriptionResult":
+          case "TextChunk":
           case "ToolCallChunk": {
-            const {
-              datasetExampleId,
-              function: toolFunction,
-              id,
-            } = chatCompletion;
-            if (datasetExampleId == null) {
-              return null;
-            }
             setExampleResponsesMap((exampleResponsesMap) => {
-              const existingInstanceResponses = exampleResponsesMap[instanceId];
-              const existingExampleResponse =
-                existingInstanceResponses?.[datasetExampleId] ?? {};
-              const existingToolCalls = existingExampleResponse.toolCalls ?? {};
-              const existingToolCall = existingToolCalls[id];
-              const updatedToolCall: PartialOutputToolCall = {
-                ...existingToolCall,
-                id,
-                function: {
-                  name: existingToolCall?.function?.name ?? toolFunction.name,
-                  arguments:
-                    existingToolCall?.function.arguments != null
-                      ? existingToolCall.function.arguments +
-                        toolFunction.arguments
-                      : toolFunction.arguments,
-                },
-              };
-              const newInstanceExampleResponseMap = {
-                ...existingInstanceResponses,
-                [datasetExampleId]: {
-                  ...existingExampleResponse,
-                  toolCalls: {
-                    ...existingToolCalls,
-                    [id]: updatedToolCall,
-                  },
-                },
-              };
-              return {
-                ...exampleResponsesMap,
-                [instanceId]: newInstanceExampleResponseMap,
-              };
+              return updateExampleResponsesMap({
+                instanceId,
+                response: chatCompletion,
+                currentMap: exampleResponsesMap,
+              });
             });
-            return;
+            break;
           }
           // This should never happen
           // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
@@ -420,7 +518,7 @@ export function PlaygroundDatasetExamplesTable({
 
   // Refetch the data when the dataset version changes
   const tableData = useMemo(
-    () =>
+    (): ExamplesTableRow[] =>
       data.examples.edges.map((edge) => {
         const example = edge.example;
         const revision = example.revision;
@@ -434,98 +532,32 @@ export function PlaygroundDatasetExamplesTable({
   );
   type TableRow = (typeof tableData)[number];
 
-  const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
-    return instances.map((instance, index) => ({
-      id: instance.id.toString(),
-      header: () => (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <AlphabeticIndexIcon index={index} />
-          <span>Output</span>
-        </Flex>
-      ),
+  const playgroundInstanceOutputColumns =
+    useMemo((): ColumnDef<ExamplesTableRow>[] => {
+      return instances.map((instance, index) => ({
+        id: instance.id.toString(),
+        header: () => (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <AlphabeticIndexIcon index={index} />
+            <span>Output</span>
+          </Flex>
+        ),
 
-      cell: ({ row }) => {
-        const maybeData = exampleResponsesMap[instance.id]?.[row.original.id];
-        if (maybeData == null && hasSomeRunIds) {
-          return <Loading />;
-        }
-        if (maybeData == null) {
-          return null;
-        }
-        const { span, content, toolCalls } = maybeData;
-        const hasSpan = span != null;
-        const spanControls: ReactNode[] = [];
-        if (hasSpan) {
-          spanControls.push(
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                size="compact"
-                aria-label="View run trace"
-                icon={<Icon svg={<Icons.Trace />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  startTransition(() => {
-                    setDialog(
-                      <PlaygroundRunTraceDetailsDialog
-                        traceId={span.context.traceId}
-                        projectId={span.project.id}
-                        title={`Experiment Run Trace`}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>View Trace</Tooltip>
-            </TooltipTrigger>
+        cell: ({ row }) => {
+          const exampleData =
+            exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
+          return (
+            <ExampleOutputCell
+              exampleData={exampleData}
+              isRunning={hasSomeRunIds}
+              setDialog={setDialog}
+            />
           );
-          spanControls.push(
-            <TooltipTrigger>
-              <Button
-                variant="default"
-                size="compact"
-                aria-label="Annotate span"
-                icon={<Icon svg={<Icons.EditOutline />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  startTransition(() => {
-                    setDialog(
-                      <EditSpanAnnotationsDialog
-                        spanNodeId={span.id}
-                        projectId={span.project.id}
-                      />
-                    );
-                  });
-                }}
-              />
-              <Tooltip>Annotate</Tooltip>
-            </TooltipTrigger>
-          );
-        }
-        return (
-          <CellWithControlsWrap controls={spanControls}>
-            <Flex direction={"column"} gap={"size-200"}>
-              <Text>{content}</Text>
-              {toolCalls != null
-                ? Object.values(toolCalls).map((toolCall) =>
-                    toolCall == null ? null : (
-                      <PlaygroundToolCall
-                        key={toolCall.id}
-                        toolCall={toolCall}
-                      />
-                    )
-                  )
-                : null}
-              {hasSpan ? <SpanMetadata span={span} /> : null}
-            </Flex>
-          </CellWithControlsWrap>
-        );
-      },
-      minSize: 500,
-    }));
-  }, [hasSomeRunIds, exampleResponsesMap, instances]);
+        },
+        minSize: 500,
+      }));
+    }, [exampleResponsesMap, hasSomeRunIds, instances]);
+
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "input",
