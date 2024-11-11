@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.7.0...arize-phoenix-v5.8.0) (2024-11-11)
+
+
+### Features
+
+* Add empty state, helper tooltips, when provider clients are not installed in Playground ([#5291](https://github.com/Arize-ai/phoenix/issues/5291)) ([6c33152](https://github.com/Arize-ai/phoenix/commit/6c33152acda24f11bdeac2c56b4c8492e5591e8e))
+* Add env var configuration for grpc interceptor extensions ([#5280](https://github.com/Arize-ai/phoenix/issues/5280)) ([6295586](https://github.com/Arize-ai/phoenix/commit/6295586bb75739b5231aa227c48590f3cd173143))
+* Add rate limiters to playground clients ([#5289](https://github.com/Arize-ai/phoenix/issues/5289)) ([0efb9f3](https://github.com/Arize-ai/phoenix/commit/0efb9f34acafc57b6864d74538f190a205427a29))
+* **playground:** add dataset selector and dataset examples table to playground ([#5297](https://github.com/Arize-ai/phoenix/issues/5297)) ([e403b90](https://github.com/Arize-ai/phoenix/commit/e403b90d766c09c6455f657359f302a266d2dd1d))
+* **playground:** add non streaming option to ui ([#5250](https://github.com/Arize-ai/phoenix/issues/5250)) ([5f6976c](https://github.com/Arize-ai/phoenix/commit/5f6976ca5b0f85d797a3055e9a52823a1d529758))
+* route to the projects page as the default ([#5319](https://github.com/Arize-ai/phoenix/issues/5319)) ([92e1668](https://github.com/Arize-ai/phoenix/commit/92e16686d3219d536c1ea82fef16c82b5195d55f))
+* Support playground anthropic tool calls ([#5296](https://github.com/Arize-ai/phoenix/issues/5296)) ([b6e7499](https://github.com/Arize-ai/phoenix/commit/b6e74999a13d9428063ad73955a1df7a3390f616))
+* Support Response Format in Playground ([#5259](https://github.com/Arize-ai/phoenix/issues/5259)) ([d2ff57a](https://github.com/Arize-ai/phoenix/commit/d2ff57a1952ee0f62e155eb46893ba6fb45f5d6f))
+
+
+### Bug Fixes
+
+* make playground prompts accordion the proper size when collapsed ([#5315](https://github.com/Arize-ai/phoenix/issues/5315)) ([76f0759](https://github.com/Arize-ai/phoenix/commit/76f0759f54397fdc9fd58afbec0cbb82c86ffaeb))
+* **playground:** allow scroll in playground prompts ([#5320](https://github.com/Arize-ai/phoenix/issues/5320)) ([04af112](https://github.com/Arize-ai/phoenix/commit/04af1124d23e69cc448586b31f293d18c3752cf4))
+
 ## [5.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.6.0...arize-phoenix-v5.7.0) (2024-11-06)
 
 
