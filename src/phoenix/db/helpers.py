@@ -117,15 +117,30 @@ def dedup(
 def get_dataset_example_revisions(
     dataset_version_id: int,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
-    version = select(models.DatasetVersion).filter_by(id=dataset_version_id).subquery()
+    version = (
+        select(
+            models.DatasetVersion.id,
+            models.DatasetVersion.dataset_id,
+        )
+        .filter_by(id=dataset_version_id)
+        .subquery()
+    )
     table = models.DatasetExampleRevision
     revision = (
         select(
             table.dataset_example_id,
             func.max(table.dataset_version_id).label("dataset_version_id"),
         )
-        .join_from(table, models.DatasetExample)
-        .join_from(models.DatasetExample, version)
+        .join_from(
+            table,
+            models.DatasetExample,
+            table.dataset_example_id == models.DatasetExample.id,
+        )
+        .join_from(
+            models.DatasetExample,
+            version,
+            models.DatasetExample.dataset_id == version.c.dataset_id,
+        )
         .where(models.DatasetExample.dataset_id == version.c.dataset_id)
         .where(table.dataset_version_id <= version.c.id)
         .group_by(table.dataset_example_id)
