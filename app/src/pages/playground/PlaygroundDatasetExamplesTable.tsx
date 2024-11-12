@@ -137,7 +137,7 @@ const updateExampleResponsesMap = ({
   currentMap: InstanceToExampleResponsesMap;
 }): InstanceToExampleResponsesMap => {
   if (response.__typename === "ChatCompletionOverDatasetMutationPayload") {
-    const newMap = { ...currentMap };
+    const instanceResponses: Record<string, ExampleRunData> = {};
     for (const example of response.examples) {
       const { datasetExampleId, result } = example;
       switch (result.__typename) {
@@ -147,7 +147,6 @@ const updateExampleResponsesMap = ({
         }
         case "ChatCompletionMutationPayload": {
           const { content, span, toolCalls } = result;
-          const instanceResponses = currentMap[instanceId] ?? {};
           instanceResponses[datasetExampleId] = {
             content: content ?? "",
             toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
@@ -159,7 +158,6 @@ const updateExampleResponsesMap = ({
             ),
             span,
           };
-          newMap[instanceId] = instanceResponses;
           break;
         }
         case "%other":
@@ -168,7 +166,10 @@ const updateExampleResponsesMap = ({
           assertUnreachable(result);
       }
     }
-    return newMap;
+    return {
+      ...currentMap,
+      [instanceId]: instanceResponses,
+    };
   }
   const exampleId = response.datasetExampleId;
   if (exampleId == null) {
