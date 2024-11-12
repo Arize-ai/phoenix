@@ -70,12 +70,6 @@ import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 
 const PAGE_SIZE = 100;
 
-type ExamplesTableRow = {
-  id: string;
-  input: unknown;
-  output: unknown;
-};
-
 type InstanceId = number;
 type ExampleId = string;
 type ChatCompletionResult = Extract<
@@ -235,54 +229,54 @@ function ExampleOutputCell({
   }
   const { span, content, toolCalls } = exampleData;
   const hasSpan = span != null;
-  const spanControls: ReactNode[] = [];
+  let spanControls: ReactNode = null;
   if (hasSpan) {
-    spanControls.push(
-      <TooltipTrigger>
-        <Button
-          variant="default"
-          size="compact"
-          aria-label="View run trace"
-          icon={<Icon svg={<Icons.Trace />} />}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            startTransition(() => {
-              setDialog(
-                <PlaygroundRunTraceDetailsDialog
-                  traceId={span.context.traceId}
-                  projectId={span.project.id}
-                  title={`Experiment Run Trace`}
-                />
-              );
-            });
-          }}
-        />
-        <Tooltip>View Trace</Tooltip>
-      </TooltipTrigger>
-    );
-    spanControls.push(
-      <TooltipTrigger>
-        <Button
-          variant="default"
-          size="compact"
-          aria-label="Annotate span"
-          icon={<Icon svg={<Icons.EditOutline />} />}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            startTransition(() => {
-              setDialog(
-                <EditSpanAnnotationsDialog
-                  spanNodeId={span.id}
-                  projectId={span.project.id}
-                />
-              );
-            });
-          }}
-        />
-        <Tooltip>Annotate</Tooltip>
-      </TooltipTrigger>
+    spanControls = (
+      <>
+        <TooltipTrigger>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label="View run trace"
+            icon={<Icon svg={<Icons.Trace />} />}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              startTransition(() => {
+                setDialog(
+                  <PlaygroundRunTraceDetailsDialog
+                    traceId={span.context.traceId}
+                    projectId={span.project.id}
+                    title={`Experiment Run Trace`}
+                  />
+                );
+              });
+            }}
+          />
+          <Tooltip>View Trace</Tooltip>
+        </TooltipTrigger>
+        <TooltipTrigger>
+          <Button
+            variant="default"
+            size="compact"
+            aria-label="Annotate span"
+            icon={<Icon svg={<Icons.EditOutline />} />}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              startTransition(() => {
+                setDialog(
+                  <EditSpanAnnotationsDialog
+                    spanNodeId={span.id}
+                    projectId={span.project.id}
+                  />
+                );
+              });
+            }}
+          />
+          <Tooltip>Annotate</Tooltip>
+        </TooltipTrigger>
+      </>
     );
   }
   return (
@@ -518,7 +512,7 @@ export function PlaygroundDatasetExamplesTable({
 
   // Refetch the data when the dataset version changes
   const tableData = useMemo(
-    (): ExamplesTableRow[] =>
+    () =>
       data.examples.edges.map((edge) => {
         const example = edge.example;
         const revision = example.revision;
@@ -532,49 +526,44 @@ export function PlaygroundDatasetExamplesTable({
   );
   type TableRow = (typeof tableData)[number];
 
-  const playgroundInstanceOutputColumns =
-    useMemo((): ColumnDef<ExamplesTableRow>[] => {
-      return instances.map((instance, index) => ({
-        id: instance.id.toString(),
-        header: () => (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <AlphabeticIndexIcon index={index} />
-            <span>Output</span>
-          </Flex>
-        ),
+  const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
+    return instances.map((instance, index) => ({
+      id: instance.id.toString(),
+      header: () => (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AlphabeticIndexIcon index={index} />
+          <span>Output</span>
+        </Flex>
+      ),
 
-        cell: ({ row }) => {
-          const exampleData =
-            exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
-          return (
-            <ExampleOutputCell
-              exampleData={exampleData}
-              isRunning={hasSomeRunIds}
-              setDialog={setDialog}
-            />
-          );
-        },
-        minSize: 500,
-        maxSize: 800,
-      }));
-    }, [exampleResponsesMap, hasSomeRunIds, instances]);
+      cell: ({ row }) => {
+        const exampleData =
+          exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
+        return (
+          <ExampleOutputCell
+            exampleData={exampleData}
+            isRunning={hasSomeRunIds}
+            setDialog={setDialog}
+          />
+        );
+      },
+      minSize: 500,
+    }));
+  }, [exampleResponsesMap, hasSomeRunIds, instances]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "input",
       accessorKey: "input",
       cell: (props) => JSONCell({ ...props, collapseSingleKey: false }),
-      maxSize: 400,
-      minSize: 200,
     },
     {
       header: "reference output",
       accessorKey: "output",
       cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
-      maxSize: 400,
-      minSize: 200,
     },
     ...playgroundInstanceOutputColumns,
+    { id: "tail", minSize: 500 },
   ];
   const table = useReactTable<TableRow>({
     columns,
