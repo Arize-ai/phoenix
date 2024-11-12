@@ -42,15 +42,12 @@ export function JSONEditor(props: JSONEditorProps) {
   }, [jsonSchema]);
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
-  // This prevents the extensions useMemo from needlessly re-running when optionalLint is false
-  const hasContent = !optionalLint || (contentLength && contentLength > 0);
+  // If optionalLint is true, we only lint when there is content to allow for empty json values
+  const shouldLint = !optionalLint || (contentLength && contentLength > 0);
   const extensions = useMemo(() => {
     const baseExtensions = [json(), EditorView.lineWrapping];
 
-    // Lint when:
-    // - optionalLint is false
-    // - optionalLint is true and there is content
-    if (!optionalLint || (optionalLint && hasContent)) {
+    if (shouldLint) {
       baseExtensions.push(linter(jsonParseLinter()));
     }
 
@@ -65,7 +62,7 @@ export function JSONEditor(props: JSONEditorProps) {
       );
     }
     return baseExtensions;
-  }, [jsonSchema, hasContent, optionalLint]);
+  }, [jsonSchema, shouldLint]);
 
   return (
     <CodeMirror
