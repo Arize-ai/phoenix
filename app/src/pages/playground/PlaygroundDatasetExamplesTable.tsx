@@ -537,7 +537,6 @@ export function PlaygroundDatasetExamplesTable({
         }
       };
     } else {
-      // setLoading(true);
       setExampleResponsesMap(getInitialExampleResponsesMap(instances));
       for (const instance of instances) {
         const { activeRunId } = instance;
