@@ -3,7 +3,6 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
@@ -12,6 +11,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -483,7 +483,7 @@ async def test_project_spans(
     start_cursor: Cursor,
     end_cursor: Cursor,
     has_next_page: bool,
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     llama_index_rag_spans: Any,
 ) -> None:
     query = """
@@ -512,17 +512,10 @@ async def test_project_spans(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": variables,
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    spans = response_json["data"]["node"]["spans"]
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    spans = data["node"]["spans"]
     page_info = spans["pageInfo"]
     assert Cursor.from_string(page_info["startCursor"]) == start_cursor
     assert Cursor.from_string(page_info["endCursor"]) == end_cursor

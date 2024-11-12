@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
@@ -9,6 +8,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.fixture
@@ -58,47 +58,44 @@ async def project_with_a_single_trace_and_span(
 
 
 async def test_annotating_a_trace(
+    gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
     trace_gid = GlobalID("Trace", "1")
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation AddTraceAnnotation($input: [CreateTraceAnnotationInput!]!) {
-                    createTraceAnnotations(input: $input) {
-                        traceAnnotations {
-                            id
-                            traceId
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation AddTraceAnnotation($input: [CreateTraceAnnotationInput!]!) {
+                createTraceAnnotations(input: $input) {
+                    traceAnnotations {
+                        id
+                        traceId
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": [
-                    {
-                        "traceId": str(trace_gid),
-                        "name": "Test Annotation",
-                        "annotatorKind": "HUMAN",
-                        "label": "True",
-                        "score": 0.95,
-                        "explanation": "This is a test annotation.",
-                        "metadata": {},
-                    }
-                ]
-            },
+            }
+        """,
+        variables={
+            "input": [
+                {
+                    "traceId": str(trace_gid),
+                    "name": "Test Annotation",
+                    "annotatorKind": "HUMAN",
+                    "label": "True",
+                    "score": 0.95,
+                    "explanation": "This is a test annotation.",
+                    "metadata": {},
+                }
+            ]
         },
     )
-    assert response.status_code == 200
-    data = response.json()["data"]
+    assert not response.errors
+    assert (data := response.data) is not None
     annotation_gid = GlobalID.from_id(data["createTraceAnnotations"]["traceAnnotations"][0]["id"])
     annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
     async with db() as session:
@@ -113,40 +110,37 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
 
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation PatchTraceAnnotation($input: [PatchAnnotationInput!]!) {
-                    patchTraceAnnotations(input: $input) {
-                        traceAnnotations {
-                            id
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation PatchTraceAnnotation($input: [PatchAnnotationInput!]!) {
+                patchTraceAnnotations(input: $input) {
+                    traceAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": [
-                    {
-                        "annotationId": str(annotation_gid),
-                        "name": "Updated Annotation",
-                        "annotatorKind": "HUMAN",
-                        "label": "Positive",
-                        "score": 0.95,
-                        "explanation": "Updated explanation",
-                        "metadata": {"updated": True},
-                    }
-                ]
-            },
+            }
+        """,
+        variables={
+            "input": [
+                {
+                    "annotationId": str(annotation_gid),
+                    "name": "Updated Annotation",
+                    "annotatorKind": "HUMAN",
+                    "label": "Positive",
+                    "score": 0.95,
+                    "explanation": "Updated explanation",
+                    "metadata": {"updated": True},
+                }
+            ]
         },
     )
-    assert response.status_code == 200
+    assert not response.errors
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
@@ -157,32 +151,29 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "Updated explanation"
     assert orm_annotation.metadata_ == {"updated": True}
 
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": """
-                mutation DeleteTraceAnnotation($input: DeleteAnnotationsInput!) {
-                    deleteTraceAnnotations(input: $input) {
-                        traceAnnotations {
-                            id
-                            name
-                            annotatorKind
-                            label
-                            score
-                            explanation
-                            metadata
-                        }
+    response = await gql_client.execute(
+        query="""
+            mutation DeleteTraceAnnotation($input: DeleteAnnotationsInput!) {
+                deleteTraceAnnotations(input: $input) {
+                    traceAnnotations {
+                        id
+                        name
+                        annotatorKind
+                        label
+                        score
+                        explanation
+                        metadata
                     }
                 }
-            """,
-            "variables": {
-                "input": {
-                    "annotationIds": [str(annotation_gid)],
-                }
-            },
+            }
+        """,
+        variables={
+            "input": {
+                "annotationIds": [str(annotation_gid)],
+            }
         },
     )
-    assert response.status_code == 200
+    assert not response.errors
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)

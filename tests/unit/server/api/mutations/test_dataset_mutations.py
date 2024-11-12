@@ -371,7 +371,8 @@ class TestPatchDatasetExamples:
             variables={"input": mutation_input},
         )
         assert not response.errors
-        actual_examples = response.data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
+        assert (data := response.data) is not None
+        actual_examples = data["patchDatasetExamples"]["dataset"]["examples"]["edges"]
         assert actual_examples == expected_examples
 
     @pytest.mark.parametrize(
@@ -483,7 +484,8 @@ class TestPatchDatasetExamples:
             query=self.MUTATION,
             variables={"input": mutation_input},
         )
-        assert len(errors := response.errors) == 1
+        assert (errors := response.errors)
+        assert len(errors) == 1
         assert errors[0].message == expected_error_message
 
 
@@ -512,7 +514,8 @@ async def test_delete_a_dataset(
         },
     )
     assert not response.errors
-    assert response.data["deleteDataset"]["dataset"] == {
+    assert (data := response.data) is not None
+    assert data["deleteDataset"]["dataset"] == {
         "id": str(dataset_id)
     }, "deleted dataset is returned"
     async with db() as session:
@@ -541,7 +544,8 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
             "datasetId": str(dataset_id),
         },
     )
-    assert len(errors := response.errors) == 1
+    assert (errors := response.errors)
+    assert len(errors) == 1
     assert f"Unknown dataset: {dataset_id}" in errors[0].message
 
 

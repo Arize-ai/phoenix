@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any
 
-import httpx
 import pytest
 import pytz
 from sqlalchemy import insert
@@ -9,10 +8,11 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 
 async def test_annotations_resolver_returns_annotations_for_run(
-    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
     experiment_run_with_annotations: Any,
 ) -> None:
     query = """
@@ -39,19 +39,14 @@ async def test_annotations_resolver_returns_annotations_for_run(
         }
       }
     """
-    response = await httpx_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "runId": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
-            },
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "runId": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
         },
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
+    assert not response.errors
+    assert response.data == {
         "run": {
             "annotations": {
                 "edges": [
