@@ -131,12 +131,18 @@ enum ChatCompletionMessageRole {
   AI
 }
 
+type ChatCompletionMutationError {
+  message: String!
+}
+
 type ChatCompletionMutationPayload {
   content: String
   toolCalls: [ChatCompletionToolCall!]!
   span: Span!
   errorMessage: String
 }
+
+union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
 input ChatCompletionOverDatasetInput {
   messages: [ChatCompletionMessageInput!]!
@@ -150,6 +156,19 @@ input ChatCompletionOverDatasetInput {
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
+}
+
+type ChatCompletionOverDatasetMutationExamplePayload {
+  datasetExampleId: GlobalID!
+  experimentRunId: GlobalID!
+  result: ChatCompletionMutationPayloadChatCompletionMutationError!
+}
+
+type ChatCompletionOverDatasetMutationPayload {
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID!
+  experimentId: GlobalID!
+  examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -1149,6 +1168,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
 }
 

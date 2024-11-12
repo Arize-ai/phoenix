@@ -12,8 +12,8 @@ export type FeatureFlagsContextType = {
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
-  playground: false,
-  playgroundWithDatasets: false,
+  playground: true,
+  playgroundWithDatasets: true,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

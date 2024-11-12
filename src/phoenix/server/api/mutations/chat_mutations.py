@@ -1,9 +1,10 @@
+import asyncio
 import json
-from dataclasses import asdict
+from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain
 from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional
+from typing import Any, Iterable, Iterator, List, Optional, Union
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -18,14 +19,19 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
 from sqlalchemy import insert, select
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import get_dataset_example_revisions
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.playground_clients import (
+    PlaygroundStreamingClient,
+    initialize_playground_clients,
+)
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.playground_spans import (
     input_value_and_mime_type,
@@ -35,13 +41,24 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_span_kind,
     llm_tools,
 )
-from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.ChatCompletionInput import (
+    ChatCompletionInput,
+    ChatCompletionOverDatasetInput,
+)
 from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
+from phoenix.server.api.subscriptions import (
+    _default_playground_experiment_description,
+    _default_playground_experiment_metadata,
+    _default_playground_experiment_name,
+)
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
@@ -80,20 +97,187 @@ class ChatCompletionMutationPayload:
 
 
 @strawberry.type
+class ChatCompletionMutationError:
+    message: str
+
+
+@strawberry.type
+class ChatCompletionOverDatasetMutationExamplePayload:
+    dataset_example_id: GlobalID
+    experiment_run_id: GlobalID
+    result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
+
+
+@strawberry.type
+class ChatCompletionOverDatasetMutationPayload:
+    dataset_id: GlobalID
+    dataset_version_id: GlobalID
+    experiment_id: GlobalID
+    examples: list[ChatCompletionOverDatasetMutationExamplePayload] = field(default_factory=list)
+
+
+@strawberry.type
 class ChatCompletionMutationMixin:
     @strawberry.mutation
+    @classmethod
+    async def chat_completion_over_dataset(
+        cls,
+        info: Info[Context, None],
+        input: ChatCompletionOverDatasetInput,
+    ) -> ChatCompletionOverDatasetMutationPayload:
+        provider_key = input.model.provider_key
+        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
+        if llm_client_class is None:
+            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+        llm_client = llm_client_class(
+            model=input.model,
+            api_key=input.api_key,
+        )
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        dataset_version_id = (
+            from_global_id_with_expected_type(
+                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if input.dataset_version_id
+            else None
+        )
+        async with info.context.db() as session:
+            dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
+            if dataset is None:
+                raise NotFound("Dataset not found")
+            if dataset_version_id is None:
+                resolved_version_id = await session.scalar(
+                    select(models.DatasetVersion.id)
+                    .filter_by(dataset_id=dataset_id)
+                    .order_by(models.DatasetVersion.id.desc())
+                    .limit(1)
+                )
+                if resolved_version_id is None:
+                    raise NotFound("No versions found for the given dataset")
+            else:
+                resolved_version_id = dataset_version_id
+            revisions = [
+                revision
+                async for revision in await session.stream_scalars(
+                    get_dataset_example_revisions(resolved_version_id)
+                )
+            ]
+            if not revisions:
+                raise NotFound("No examples found for the given dataset and version")
+            experiment = models.Experiment(
+                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
+                dataset_version_id=resolved_version_id,
+                name=input.experiment_name or _default_playground_experiment_name(),
+                description=input.experiment_description
+                or _default_playground_experiment_description(dataset_name=dataset.name),
+                repetitions=1,
+                metadata_=input.experiment_metadata
+                or _default_playground_experiment_metadata(
+                    dataset_name=dataset.name,
+                    dataset_id=input.dataset_id,
+                    version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
+                ),
+                project_name=PLAYGROUND_PROJECT_NAME,
+            )
+            session.add(experiment)
+            await session.flush()
+
+        start_time = datetime.now(timezone.utc)
+        results = await asyncio.gather(
+            *(
+                cls._chat_completion(
+                    info,
+                    llm_client,
+                    ChatCompletionInput(
+                        model=input.model,
+                        api_key=input.api_key,
+                        messages=input.messages,
+                        tools=input.tools,
+                        invocation_parameters=input.invocation_parameters,
+                        template=TemplateOptions(
+                            language=input.template_language,
+                            variables=revision.input,
+                        ),
+                    ),
+                )
+                for revision in revisions
+            ),
+            return_exceptions=True,
+        )
+
+        payload = ChatCompletionOverDatasetMutationPayload(
+            dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
+            dataset_version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
+            experiment_id=GlobalID(models.Experiment.__name__, str(experiment.id)),
+        )
+        experiment_runs = []
+        for revision, result in zip(revisions, results):
+            if isinstance(result, BaseException):
+                experiment_run = models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id="",
+                    output={},
+                    repetition_number=1,
+                    start_time=start_time,
+                    end_time=start_time,
+                    error=str(result),
+                )
+            else:
+                experiment_run = models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=str(result.span.context.trace_id),
+                    output={},
+                    repetition_number=1,
+                    start_time=result.span.start_time,
+                    end_time=result.span.end_time,
+                    error=str(result.error_message) if result.error_message else None,
+                )
+            experiment_runs.append(experiment_run)
+
+        async with info.context.db() as session:
+            session.add_all(experiment_runs)
+            await session.flush()
+
+        for revision, experiment_run, result in zip(revisions, experiment_runs, results):
+            dataset_example_id = GlobalID(
+                models.DatasetExample.__name__, str(revision.dataset_example_id)
+            )
+            experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
+            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
+                dataset_example_id=dataset_example_id,
+                experiment_run_id=experiment_run_id,
+                result=result
+                if isinstance(result, ChatCompletionMutationPayload)
+                else ChatCompletionMutationError(message=str(result)),
+            )
+            payload.examples.append(example_payload)
+        return payload
+
+    @strawberry.mutation
+    @classmethod
     async def chat_completion(
-        self, info: Info[Context, None], input: ChatCompletionInput
+        cls, info: Info[Context, None], input: ChatCompletionInput
     ) -> ChatCompletionMutationPayload:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        attributes: dict[str, Any] = {}
         llm_client = llm_client_class(
             model=input.model,
             api_key=input.api_key,
         )
+        return await cls._chat_completion(info, llm_client, input)
+
+    @classmethod
+    async def _chat_completion(
+        cls,
+        info: Info[Context, None],
+        llm_client: PlaygroundStreamingClient,
+        input: ChatCompletionInput,
+    ) -> ChatCompletionMutationPayload:
+        attributes: dict[str, Any] = {}
 
         messages = [
             (
