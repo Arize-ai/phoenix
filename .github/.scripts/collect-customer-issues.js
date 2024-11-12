@@ -21,12 +21,25 @@ function formatDateDifference(date) {
   return `${daysDifference} days ago`;
 }
 
+// Helper function to extract the owner and repo name from a GitHub URL
+function extractOwnerAndRepoFromHtmlUrl(url) {
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (match) {
+    return {
+      owner: match[1],
+      repo: match[2],
+    };
+  }
+  throw new Error(`Invalid GitHub URL ${url}`);
+}
+
 // Helper function to get a sorted list of unique participants from comments on an issue, excluding the author
 async function getParticipants(github, issue) {
   try {
+    const { owner, repo } = extractOwnerAndRepoFromHtmlUrl(issue.html_url);
     const comments = await github.paginate(github.rest.issues.listComments, {
-      owner: issue.repository.owner.login,
-      repo: issue.repository.name,
+      owner: owner,
+      repo: repo,
       issue_number: issue.number,
       per_page: 100,
     });
