@@ -63,15 +63,9 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
-type DatasetInput = {
-  datasetId?: string;
-};
-
-type ManualInput = {
+export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
-
-export type PlaygroundInput = DatasetInput & ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;

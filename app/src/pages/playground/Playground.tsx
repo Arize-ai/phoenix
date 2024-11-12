@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -184,8 +184,7 @@ const playgroundInputOutputPanelContentCSS = css`
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
-  const input = usePlaygroundContext((state) => state.input);
-  const datasetId = input.datasetId;
+  const { datasetId } = useParams<{ datasetId: string }>();
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
