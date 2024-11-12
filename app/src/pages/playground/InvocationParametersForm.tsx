@@ -12,6 +12,7 @@ import {
 } from "./__generated__/InvocationParametersFormQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
+import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import {
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
@@ -92,6 +93,15 @@ const InvocationParameterFormField = ({
           {field.label}
         </Switch>
       );
+    case "JSONInvocationParameter": {
+      return (
+        <InvocationParameterJsonEditor
+          initialValue={value}
+          onChange={onChange}
+          label={field.label ?? field.invocationName ?? ""}
+        />
+      );
+    }
     default:
       return null;
   }
@@ -125,6 +135,8 @@ const getInvocationParameterValue = (
       return field.stringDefaultValue;
     case "BooleanInvocationParameter":
       return field.booleanDefaultValue;
+    case "JSONInvocationParameter":
+      return field.jsonDefaultValue;
     default: {
       return null;
     }
@@ -201,6 +213,10 @@ export const InvocationParametersForm = ({
             ... on BooleanInvocationParameter {
               invocationInputField
               booleanDefaultValue: defaultValue
+            }
+            ... on JSONInvocationParameter {
+              invocationInputField
+              jsonDefaultValue: defaultValue
             }
           }
         }
