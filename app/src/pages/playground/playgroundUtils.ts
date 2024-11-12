@@ -851,6 +851,16 @@ export const createToolCallForProvider = (
 function toGqlChatCompletionMessage(
   message: ChatMessage
 ): ChatCompletionMessageInput {
+  if (Array.isArray(message.content)) {
+    return {
+      content: null,
+      role: toGqlChatCompletionRole(message.role),
+      toolCalls: message.toolCalls,
+      toolCallId: message.toolCallId,
+      // TODO(apowell): Add tool result somehow. Either leave content as array and pass it through,
+      // or extract tool result from content array and pass it as a new top level field for chat message
+    };
+  }
   return {
     content: message.content,
     role: toGqlChatCompletionRole(message.role),

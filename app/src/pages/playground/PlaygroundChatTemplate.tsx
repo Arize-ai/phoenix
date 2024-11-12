@@ -47,11 +47,14 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { ChatMessageArrayContentEditor } from "./ChatMessageArrayContentEditor";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import { RESPONSE_FORMAT_PARAM_CANONICAL_NAME } from "./constants";
 import {
-  MessageContentRadioGroup,
-  MessageMode,
+  AIMessageContentRadioGroup,
+  AIMessageMode,
+  UserMessageContentRadioGroup,
+  UserMessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
 import {
@@ -192,7 +195,7 @@ function MessageEditor({
   template: PlaygroundChatTemplateType;
   templateLanguage: TemplateLanguage;
   updateMessage: (patch: Partial<ChatMessage>) => void;
-  messageMode: MessageMode;
+  messageMode: AIMessageMode;
 }) {
   if (messageMode === "toolCalls") {
     return (
@@ -212,6 +215,22 @@ function MessageEditor({
             />
           </CodeWrap>
         </Field>
+      </View>
+    );
+  }
+  if (Array.isArray(message.content)) {
+    return (
+      <View
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-200"
+        paddingBottom="size-200"
+      >
+        <ChatMessageArrayContentEditor
+          playgroundInstanceId={playgroundInstanceId}
+          templateMessages={template.messages}
+          messageId={message.id}
+        />
       </View>
     );
   }
@@ -251,8 +270,12 @@ function MessageEditor({
             if (message.content == null) {
               return;
             }
-            const { json: parsedContent } = safelyParseJSON(message.content);
-            updateMessage({ content: JSON.stringify(parsedContent, null, 2) });
+            if (typeof message.content === "string") {
+              const { json: parsedContent } = safelyParseJSON(message.content);
+              updateMessage({
+                content: JSON.stringify(parsedContent, null, 2),
+              });
+            }
           }}
         />
       </Form>
@@ -318,9 +341,14 @@ function SortableMessageItem({
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
+  const hasMultiPartContent = Array.isArray(message.content);
 
-  const [messageMode, setMessageMode] = useState<MessageMode>(
+  const [aiMessageMode, setAIMessageMode] = useState<AIMessageMode>(
     hasTools ? "toolCalls" : "text"
+  );
+
+  const [userMessageMode, setUserMessageMode] = useState<UserMessageMode>(
+    hasMultiPartContent ? "multiPart" : "text"
   );
 
   const updateMessage = useCallback(
@@ -352,12 +380,17 @@ function SortableMessageItem({
             includeLabel={false}
             role={message.role}
             onChange={(role) => {
+              let content = message.content;
               let toolCalls = message.toolCalls;
               // Tool calls should only be attached to ai messages
               // Clear tools from the message and reset the message mode when switching away form ai
               if (role !== "ai") {
                 toolCalls = undefined;
-                setMessageMode("text");
+                setAIMessageMode("text");
+              }
+              if (role !== "user") {
+                content = "";
+                setUserMessageMode("text");
               }
               updateInstance({
                 instanceId: playgroundInstanceId,
@@ -365,7 +398,9 @@ function SortableMessageItem({
                   template: {
                     __type: "chat",
                     messages: template.messages.map((msg) =>
-                      msg.id === message.id ? { ...msg, role, toolCalls } : msg
+                      msg.id === message.id
+                        ? { ...msg, role, toolCalls, content }
+                        : msg
                     ),
                   },
                 },
@@ -377,11 +412,11 @@ function SortableMessageItem({
           <Flex direction="row" gap="size-100">
             {
               // Only show tool calls option for AI messages
-              message.role === "ai" && (
-                <MessageContentRadioGroup
-                  messageMode={messageMode}
+              message.role === "ai" ? (
+                <AIMessageContentRadioGroup
+                  messageMode={aiMessageMode}
                   onChange={(mode) => {
-                    setMessageMode(mode);
+                    setAIMessageMode(mode);
                     switch (mode) {
                       case "text":
                         updateMessage({
@@ -402,13 +437,35 @@ function SortableMessageItem({
                     }
                   }}
                 />
-              )
+              ) : // Only show multi-part content option for user messages
+              message.role === "user" ? (
+                <UserMessageContentRadioGroup
+                  messageMode={userMessageMode}
+                  onChange={(mode) => {
+                    setUserMessageMode(mode);
+                    switch (mode) {
+                      case "text":
+                        updateMessage({ content: "" });
+                        break;
+                      case "multiPart":
+                        updateMessage({
+                          content: [],
+                        });
+                        break;
+                      default:
+                        assertUnreachable(mode);
+                    }
+                  }}
+                />
+              ) : null
             }
             <CopyToClipboardButton
               text={
-                messageMode === "toolCalls"
+                aiMessageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : (message.content ?? "")
+                  : typeof message.content === "string"
+                    ? message.content
+                    : JSON.stringify(message.content)
               }
             />
             <Button
@@ -441,7 +498,7 @@ function SortableMessageItem({
         <div>
           <MessageEditor
             message={message}
-            messageMode={messageMode}
+            messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
             template={template}
             templateLanguage={templateLanguage}
