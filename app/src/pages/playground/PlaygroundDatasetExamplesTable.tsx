@@ -569,7 +569,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => ({
-      id: instance.id.toString(),
+      id: `instance ${instance.id}`,
       header: () => (
         <Flex direction="row" gap="size-100" alignItems="center">
           <AlphabeticIndexIcon index={index} />

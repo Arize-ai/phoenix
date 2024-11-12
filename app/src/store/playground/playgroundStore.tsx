@@ -471,6 +471,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     setExperimentId: (experimentId: string | null) => {
       set({ experimentId });
     },
+    getInstance: (instanceId: number) => {
+      return get().instances.find((i) => i.id === instanceId);
+    },
     ...initialProps,
   });
   return create(devtools(playgroundStore));
