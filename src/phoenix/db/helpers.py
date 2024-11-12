@@ -7,7 +7,16 @@ from openinference.semconv.trace import (
     RerankerAttributes,
     SpanAttributes,
 )
-from sqlalchemy import Integer, Select, SQLColumnExpression, case, distinct, func, select
+from sqlalchemy import (
+    Integer,
+    Select,
+    SQLColumnExpression,
+    and_,
+    case,
+    distinct,
+    func,
+    select,
+)
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -103,3 +112,48 @@ def dedup(
             ans.append(item)
             seen.add(k)
     return ans
+
+
+def get_dataset_example_revisions(
+    dataset_version_id: int,
+) -> Select[tuple[models.DatasetExampleRevision]]:
+    version = (
+        select(
+            models.DatasetVersion.id,
+            models.DatasetVersion.dataset_id,
+        )
+        .filter_by(id=dataset_version_id)
+        .subquery()
+    )
+    table = models.DatasetExampleRevision
+    revision = (
+        select(
+            table.dataset_example_id,
+            func.max(table.dataset_version_id).label("dataset_version_id"),
+        )
+        .join_from(
+            table,
+            models.DatasetExample,
+            table.dataset_example_id == models.DatasetExample.id,
+        )
+        .join_from(
+            models.DatasetExample,
+            version,
+            models.DatasetExample.dataset_id == version.c.dataset_id,
+        )
+        .where(models.DatasetExample.dataset_id == version.c.dataset_id)
+        .where(table.dataset_version_id <= version.c.id)
+        .group_by(table.dataset_example_id)
+        .subquery()
+    )
+    return (
+        select(table)
+        .where(table.revision_kind != "DELETE")
+        .join(
+            revision,
+            onclause=and_(
+                revision.c.dataset_example_id == table.dataset_example_id,
+                revision.c.dataset_version_id == table.dataset_version_id,
+            ),
+        )
+    )

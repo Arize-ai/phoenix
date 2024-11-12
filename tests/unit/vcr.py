@@ -19,6 +19,7 @@ class CustomVCR(vcr.VCR):  # type: ignore[misc]
                 "decode_compressed_response": True,
                 "before_record_request": remove_request_headers,
                 "before_record_response": remove_response_headers,
+                "ignore_hosts": ["test"],
                 **kwargs,
             }
         )
