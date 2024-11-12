@@ -21,7 +21,7 @@ export function InvocationParameterJsonEditor({
   label: string;
 }) {
   const [editorValue, setEditorValue] = useState(
-    initialValue == null ? "" : (safelyStringifyJSON(initialValue) ?? "")
+    initialValue == null ? "" : (safelyStringifyJSON(initialValue).json ?? "")
   );
 
   const onChange = useCallback(

@@ -45,8 +45,8 @@ export function safelyStringifyJSON(
   ...args: Parameters<typeof JSON.stringify>
 ) {
   try {
-    return JSON.stringify(...args);
+    return { json: JSON.stringify(...args) };
   } catch (e) {
-    return null;
+    return { json: null, stringifyError: e };
   }
 }
