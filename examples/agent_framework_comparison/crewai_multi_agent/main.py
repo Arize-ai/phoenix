@@ -1,10 +1,9 @@
 import os
 import sys
 
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 import gradio as gr
-
 from router import run_crewai
 from utils.instrument import Framework, instrument
 

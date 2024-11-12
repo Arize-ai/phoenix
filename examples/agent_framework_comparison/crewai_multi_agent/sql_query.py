@@ -2,21 +2,19 @@ import os
 import sys
 from typing import Type
 
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 from crewai_tools import BaseTool
+from db.database import run_query
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from pydantic import BaseModel, Field
-
-from db.database import run_query
 
 
 class SQLQueryInput(BaseModel):
     """Input for SQLQueryTool."""
 
-    sql_query: str = Field(
-        description="The SQL query to retrieve dataset for data analysis.")
+    sql_query: str = Field(description="The SQL query to retrieve dataset for data analysis.")
 
 
 class SQLQueryTool(BaseTool):

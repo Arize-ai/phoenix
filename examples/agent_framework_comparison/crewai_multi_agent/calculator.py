@@ -25,8 +25,7 @@ class CalculatorTool(BaseTool):
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span("calculator_tool") as span:
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, "CHAIN")
-            span.set_attribute(SpanAttributes.INPUT_VALUE,
-                               f"a={a}, b={b}, operator={operator}")
+            span.set_attribute(SpanAttributes.INPUT_VALUE, f"a={a}, b={b}, operator={operator}")
 
             if operator == "+":
                 result = a + b
