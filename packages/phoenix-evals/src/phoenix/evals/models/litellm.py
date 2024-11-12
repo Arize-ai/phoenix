@@ -49,7 +49,7 @@ class LiteLLMModel(BaseModel):
 
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     num_retries: int = 0
     request_timeout: int = 60

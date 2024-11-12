@@ -61,7 +61,7 @@ class BedrockModel(BaseModel):
 
     model_id: str = "anthropic.claude-v2"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     top_k: int = 256
     stop_sequences: List[str] = field(default_factory=list)
