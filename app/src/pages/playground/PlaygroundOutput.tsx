@@ -72,7 +72,7 @@ function PlaygroundOutputMessage({
       variant="compact"
       extra={<ConnectedMarkdownModeRadioGroup />}
     >
-      {content != null && (
+      {content != null && !Array.isArray(content) && (
         <Flex direction="column" alignItems="start">
           {markdownMode === "text" ? (
             content
