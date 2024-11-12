@@ -252,9 +252,9 @@ export interface PlaygroundState extends PlaygroundProps {
   /**
    * The id of the experiment associated with the last playground run if any
    */
-  experimentId?: string;
+  experimentId?: string | null;
   /**
    * Set the value of the experiment id
    */
-  setExperimentId: (experimentId: string) => void;
+  setExperimentId: (experimentId: string | null) => void;
 }

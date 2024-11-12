@@ -484,7 +484,9 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
-                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  flexBasis: `var(--col-${cell.column.id}-size)`,
+                  flexGrow: 1,
+                  flexShrink: 1,
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}

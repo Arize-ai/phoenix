@@ -5,7 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, distinct, exists, func, or_, select
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
@@ -48,6 +48,7 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import (
     InvocationParameter,
 )
+from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -235,15 +236,17 @@ class Query:
         )
         stmt = (
             select(models.Project)
-            .outerjoin(
-                models.Experiment,
-                models.Project.name == models.Experiment.project_name,
+            .where(
+                or_(
+                    ~exists().where(models.Experiment.project_name == models.Project.name),
+                    models.Project.name == PLAYGROUND_PROJECT_NAME,
+                )
             )
-            .where(models.Experiment.project_name.is_(None))
             .order_by(models.Project.id)
         )
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
+            print("test--", projects)
             data = [
                 Project(
                     id_attr=project.id,
