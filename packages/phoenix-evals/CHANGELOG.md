@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.3...arize-phoenix-evals-v0.17.4) (2024-11-12)
+
+
+### Bug Fixes
+
+* **evals:** increase default max tokens ([#5339](https://github.com/Arize-ai/phoenix/issues/5339)) ([b4af61e](https://github.com/Arize-ai/phoenix/commit/b4af61ee544c929fb01ac97724c1c657f0a46715))
+
 ## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.2...arize-phoenix-evals-v0.17.3) (2024-11-06)
 
 
