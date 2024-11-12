@@ -17,8 +17,7 @@ export function InvocationParameterJsonEditor({
   initialValue: unknown;
   // jsonValue is typed as any on the gql side to allow any json value to be set
   // we can mostly assume this any is safe because we are safely parsing and stringifying incoming and outgoing json
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onChange: (value: any) => void;
+  onChange: (value: unknown) => void;
   label: string;
 }) {
   const [editorValue, setEditorValue] = useState(

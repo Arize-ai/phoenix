@@ -36,8 +36,8 @@ const InvocationParameterFormField = ({
   onChange,
 }: {
   field: InvocationParameter;
-  value: string | number | readonly string[] | boolean | undefined;
-  onChange: (value: string | number | string[] | boolean | undefined) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
 }) => {
   const { __typename } = field;
   switch (__typename) {
@@ -110,7 +110,15 @@ const InvocationParameterFormField = ({
 const getInvocationParameterValue = (
   field: InvocationParameter,
   parameterInput: InvocationParameterInput
-): string | number | readonly string[] | boolean | null | undefined => {
+):
+  | string
+  | number
+  | readonly string[]
+  | boolean
+  | null
+  | Record<string, unknown>
+  | unknown[]
+  | undefined => {
   if (field.invocationInputField === undefined) {
     throw new Error("Invocation input field is required");
   }
@@ -145,7 +153,7 @@ const getInvocationParameterValue = (
 
 const makeInvocationParameterInput = (
   field: InvocationParameter,
-  value: string | number | string[] | boolean | undefined
+  value: unknown
 ): InvocationParameterInput | null => {
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
@@ -243,10 +251,7 @@ export const InvocationParametersForm = ({
   ]);
 
   const onChange = useCallback(
-    (
-      field: InvocationParameter,
-      value: string | number | string[] | boolean | undefined
-    ) => {
+    (field: InvocationParameter, value: unknown) => {
       const existingParameter = instance.model.invocationParameters.find(
         (p) => p.invocationName === field.invocationName
       );
