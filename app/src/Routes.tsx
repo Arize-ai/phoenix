@@ -166,8 +166,7 @@ const router = createBrowserRouter(
             }}
           >
             <Route index element={<PlaygroundPage />} />
-            <Route path="datasets/:datasetId">
-              <Route index element={<PlaygroundPage />} />
+            <Route path="datasets/:datasetId" element={<PlaygroundPage />}>
               <Route
                 path="examples/:exampleId"
                 element={<PlaygroundExamplePage />}
