@@ -116,7 +116,6 @@ def dedup(
 
 def get_dataset_example_revisions(
     dataset_version_id: int,
-    exclude_deleted: bool = True,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
     version = select(models.DatasetVersion).filter_by(id=dataset_version_id).subquery()
     table = models.DatasetExampleRevision
@@ -132,13 +131,14 @@ def get_dataset_example_revisions(
         .group_by(table.dataset_example_id)
         .subquery()
     )
-    stmt = select(table).join(
-        revision,
-        onclause=and_(
-            revision.c.dataset_example_id == table.dataset_example_id,
-            revision.c.dataset_version_id == table.dataset_version_id,
-        ),
+    return (
+        select(table)
+        .where(table.revision_kind != "DELETE")
+        .join(
+            revision,
+            onclause=and_(
+                revision.c.dataset_example_id == table.dataset_example_id,
+                revision.c.dataset_version_id == table.dataset_version_id,
+            ),
+        )
     )
-    if exclude_deleted:
-        return stmt.where(table.revision_kind != "DELETE")
-    return stmt
