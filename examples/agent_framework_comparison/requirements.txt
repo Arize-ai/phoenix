@@ -1,5 +1,5 @@
 openai==1.52.2
-gradio==5.3.0
+gradio==5.5.0
 python-dotenv==1.0.1
 arize-phoenix>=4.29.0
 
