@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -111,6 +111,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
         </View>
         <PlaygroundContent />
       </div>
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </PlaygroundProvider>
   );
 }

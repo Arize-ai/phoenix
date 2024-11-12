@@ -1,15 +1,7 @@
-import React, { Suspense } from "react";
-import { Outlet } from "react-router";
+import React from "react";
 
 import { Playground } from "./Playground";
 
 export function PlaygroundPage() {
-  return (
-    <>
-      <Playground />
-      <Suspense>
-        <Outlet />
-      </Suspense>
-    </>
-  );
+  return <Playground />;
 }
