@@ -412,6 +412,7 @@ target-version = "py39"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"examples/**/*.py" = ["E501"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "NPY201"]

@@ -1,13 +1,12 @@
 import os
 import sys
 
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 import gradio as gr
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
 from router import run_autogen_agents
 from utils.instrument import Framework, instrument
 

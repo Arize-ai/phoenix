@@ -2,21 +2,21 @@ import os
 import sys
 from typing import Annotated
 
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
+from db.database import run_query
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 
-from db.database import run_query
-
 
 class SQLQueryInput(BaseModel):
-    sql_query: Annotated[str, Field(description="The SQL query to retrieve dataset for data analysis.")]
+    sql_query: Annotated[
+        str, Field(description="The SQL query to retrieve dataset for data analysis.")
+    ]
 
 
 def run_sql_query(input: Annotated[SQLQueryInput, "Input to the SQL query executor."]) -> str:
-
     def _sanitize_query(query):
         query = query.strip()
         if query.startswith("```") and query.endswith("```"):
