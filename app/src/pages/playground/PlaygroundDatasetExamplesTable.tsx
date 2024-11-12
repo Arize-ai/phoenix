@@ -148,14 +148,16 @@ const updateExampleResponsesMap = ({
         case "ChatCompletionMutationPayload": {
           const { content, span, toolCalls } = result;
           instanceResponses[datasetExampleId] = {
-            content: content ?? "",
-            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-              (map, toolCall) => {
-                map[toolCall.id] = toolCall;
-                return map;
-              },
-              {}
-            ),
+            content: content ?? undefined,
+            toolCalls: toolCalls
+              ? toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+                  (map, toolCall) => {
+                    map[toolCall.id] = toolCall;
+                    return map;
+                  },
+                  {}
+                )
+              : undefined,
             span,
           };
           break;
