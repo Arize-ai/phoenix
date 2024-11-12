@@ -27,7 +27,6 @@ import { GraphQLSubscriptionConfig, requestSubscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
-  Alert,
   Button,
   DialogContainer,
   Flex,
@@ -313,7 +312,10 @@ function ExampleOutputCell({
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
         {errorMessage != null ? (
-          <Alert variant="danger">{errorMessage}</Alert>
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+            <Text color="danger">{errorMessage}</Text>
+          </Flex>
         ) : null}
         <Text>{content}</Text>
         {toolCalls != null
