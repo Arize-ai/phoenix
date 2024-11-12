@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d11b306fd63af5ed3eae24c2dfcd005>>
+ * @generated SignedSource<<4f34f1e6015cd23ecf69f2f8126fe8d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type DatasetPickerQuery$data = {
   readonly datasets: {
     readonly edges: ReadonlyArray<{
       readonly dataset: {
+        readonly exampleCount: number;
         readonly id: string;
         readonly name: string;
       };
@@ -55,6 +56,13 @@ var v0 = [
             "args": null,
             "kind": "ScalarField",
             "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleCount",
             "storageKey": null
           }
         ],
@@ -170,7 +178,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "619e092a5677c13b739ce8926e9caab3",
+    "cacheID": "ba71791351337fdd4016ab2dc41ef65e",
     "id": null,
     "metadata": {
       "connection": [
@@ -186,11 +194,11 @@ return {
     },
     "name": "DatasetPickerQuery",
     "operationKind": "query",
-    "text": "query DatasetPickerQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetPickerQuery {\n  datasets(first: 100) {\n    edges {\n      dataset: node {\n        id\n        name\n        exampleCount\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1923e64cee8935caed2a3c132b826b08";
+(node as any).hash = "5949a605c226a9ac97df28e12c7858bd";
 
 export default node;

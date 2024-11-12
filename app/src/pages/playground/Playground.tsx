@@ -27,8 +27,8 @@ import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
-import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetPicker } from "./PlaygroundDatasetPicker";
+import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
@@ -230,7 +230,7 @@ function PlaygroundContent() {
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
           {isDatasetMode ? (
-            <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+            <PlaygroundDatasetSection datasetId={datasetId} />
           ) : (
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">

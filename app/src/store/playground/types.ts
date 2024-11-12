@@ -255,4 +255,12 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
+  /**
+   * The id of the experiment associated with the last playground run if any
+   */
+  experimentId?: string;
+  /**
+   * Set the value of the experiment id
+   */
+  setExperimentId: (experimentId: string) => void;
 }

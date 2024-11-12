@@ -1,5 +1,4 @@
 import React, {
-  PropsWithChildren,
   ReactNode,
   startTransition,
   Suspense,
@@ -46,7 +45,10 @@ import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -107,34 +109,6 @@ const tableWrapCSS = css`
       vertical-align: top;
     }
   }
-`;
-
-const cellWithControlsWrapCSS = css`
-  position: relative;
-  min-height: 75px;
-  .controls {
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
-    z-index: 1;
-  }
-  &:hover .controls {
-    opacity: 1;
-    display: flex;
-    // make them stand out
-    .ac-button {
-      border-color: var(--ac-global-color-primary);
-    }
-  }
-`;
-
-const cellControlsCSS = css`
-  position: absolute;
-  top: -23px;
-  right: 0px;
-  display: flex;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-100);
 `;
 
 const annotationTooltipExtraCSS = css`
@@ -253,15 +227,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minWidth: 500,
         cell: ({ row }) => {
           return (
-            <div css={cellWithControlsWrapCSS}>
-              <LargeTextWrap>
-                <JSONText
-                  json={row.original.input}
-                  disableTitle
-                  space={displayFullText ? 2 : 0}
-                />
-              </LargeTextWrap>
-              <div className="controls" css={cellControlsCSS}>
+            <CellWithControlsWrap
+              controls={
                 <TooltipTrigger>
                   <Button
                     variant="default"
@@ -285,8 +252,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   />
                   <Tooltip>View Example</Tooltip>
                 </TooltipTrigger>
-              </div>
-            </div>
+              }
+            >
+              <LargeTextWrap>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={displayFullText ? 2 : 0}
+                />
+              </LargeTextWrap>
+            </CellWithControlsWrap>
           );
         },
       },
@@ -386,13 +361,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         );
 
         return run ? (
-          <RunOutputWrap controls={runControls}>
+          <CellWithControlsWrap controls={runControls}>
             <ExperimentRunOutput
               {...run}
               displayFullText={displayFullText}
               setDialog={setDialog}
             />
-          </RunOutputWrap>
+          </CellWithControlsWrap>
         ) : (
           <NotRunText />
         );
@@ -663,19 +638,6 @@ function ExperimentRunOutput(
   );
 }
 
-/**
- * Provides space for the controls and output of a run.
- */
-function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
-  return (
-    <div css={cellWithControlsWrapCSS}>
-      {props.children}
-      <div css={cellControlsCSS} className="controls">
-        {props.controls}
-      </div>
-    </div>
-  );
-}
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">

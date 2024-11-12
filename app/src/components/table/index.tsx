@@ -4,3 +4,4 @@ export * from "./IntCell";
 export * from "./PercentCell";
 export * from "./TextCell";
 export * from "./CompactJSONCell";
+export * from "./CellWithControlsWrapper";

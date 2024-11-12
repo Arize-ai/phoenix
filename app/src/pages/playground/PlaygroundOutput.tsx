@@ -42,7 +42,7 @@ import {
   PartialOutputToolCall,
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
-import { getChatCompletionVariables, isChatMessages } from "./playgroundUtils";
+import { getChatCompletionInput, isChatMessages } from "./playgroundUtils";
 import { RunMetadataFooter } from "./RunMetadataFooter";
 import { TitleWithAlphabeticIndex } from "./TitleWithAlphabeticIndex";
 import { PlaygroundInstanceProps } from "./types";
@@ -283,7 +283,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setLoading(true);
     setOutputContent(undefined);
     setToolCalls([]);
-    const variables = getChatCompletionVariables({
+    const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
       credentials,
@@ -293,7 +293,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
         {
           subscription: PlaygroundOutputSubscription,
-          variables,
+          variables: {
+            input,
+          },
           onNext: (response) => {
             if (response) {
               onNext(response);
@@ -325,7 +327,9 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       return subscription.dispose;
     }
     generateChatCompletion({
-      variables,
+      variables: {
+        input,
+      },
       onCompleted,
       onError(error) {
         setLoading(false);

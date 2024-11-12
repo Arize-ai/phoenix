@@ -26,11 +26,17 @@ export function JSONText({
   maxLength,
   space = 0,
   disableTitle = false,
+  collapseSingleKey = true,
 }: {
   json: unknown;
   maxLength?: number;
   space?: number;
   disableTitle?: boolean;
+  /**
+   * If true, if the json object has only one key and the value is a string, render just the string.
+   * @default true
+   */
+  collapseSingleKey?: boolean;
 }) {
   const hasMaxLength = typeof maxLength === "number";
   const fullValue = useMemo(
@@ -53,7 +59,7 @@ export function JSONText({
     return <span title={title}>--</span>;
   }
   // If the object has only one key and the value is a string, show the string
-  if (Object.keys(obj).length === 1) {
+  if (Object.keys(obj).length === 1 && collapseSingleKey) {
     const key = Object.keys(obj)[0];
     const singleValue = obj[key];
     if (typeof singleValue === "string") {

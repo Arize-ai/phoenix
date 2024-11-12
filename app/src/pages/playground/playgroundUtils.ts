@@ -38,12 +38,12 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { PlaygroundOutputMutation$variables } from "./__generated__/PlaygroundOutputMutation.graphql";
+import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
+  ChatCompletionInput,
   ChatCompletionMessageInput,
   ChatCompletionMessageRole,
   InvocationParameterInput,
-  PlaygroundOutputSubscription$variables,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
   ChatRoleMap,
@@ -811,7 +811,10 @@ function toGqlChatCompletionRole(
   }
 }
 
-export const getChatCompletionVariables = ({
+/**
+ * Gets chat completion input for either running over a dataset or using variable input
+ */
+const getBaseChatCompletionInput = ({
   playgroundStore,
   instanceId,
   credentials,
@@ -819,11 +822,9 @@ export const getChatCompletionVariables = ({
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
-}):
-  | PlaygroundOutputMutation$variables
-  | PlaygroundOutputSubscription$variables => {
+}) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const instances = playgroundStore.getState().instances;
+  const { instances } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -834,14 +835,6 @@ export const getChatCompletionVariables = ({
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
-  const templateLanguage = playgroundStore.getState().templateLanguage;
-
-  const input = playgroundStore.getState().input;
-  const { variablesMap } = getVariablesMapFromInstances({
-    instances,
-    input,
-    templateLanguage,
-  });
 
   let invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
@@ -879,22 +872,78 @@ export const getChatCompletionVariables = ({
       : {};
 
   return {
-    input: {
-      messages: instance.template.messages.map(toGqlChatCompletionMessage),
-      model: {
-        providerKey: instance.model.provider,
-        name: instance.model.modelName || "",
-        ...azureModelParams,
-      },
-      invocationParameters: invocationParameters,
-      template: {
-        variables: variablesMap,
-        language: templateLanguage,
-      },
-      tools: instance.tools.length
-        ? instance.tools.map((tool) => tool.definition)
-        : undefined,
-      apiKey: credentials[instance.model.provider],
+    messages: instance.template.messages.map(toGqlChatCompletionMessage),
+    model: {
+      providerKey: instance.model.provider,
+      name: instance.model.modelName || "",
+      ...azureModelParams,
     },
+    invocationParameters: invocationParameters,
+    tools: instance.tools.length
+      ? instance.tools.map((tool) => tool.definition)
+      : undefined,
+    apiKey: credentials[instance.model.provider],
+  } as const;
+};
+
+/**
+ * Gets chat completion input for running over variables
+ */
+export const getChatCompletionInput = ({
+  playgroundStore,
+  instanceId,
+  credentials,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+  credentials: CredentialsState;
+}): ChatCompletionInput => {
+  const baseChatCompletionVariables = getBaseChatCompletionInput({
+    playgroundStore,
+    instanceId,
+    credentials,
+  });
+
+  const { instances, templateLanguage, input } = playgroundStore.getState();
+
+  const { variablesMap } = getVariablesMapFromInstances({
+    instances,
+    input,
+    templateLanguage,
+  });
+
+  return {
+    ...baseChatCompletionVariables,
+    template: {
+      variables: variablesMap,
+      language: templateLanguage,
+    },
+  };
+};
+
+/**
+ * Gets chat completion input for running over a dataset
+ */
+export const getChatCompletionOverDatasetInput = ({
+  playgroundStore,
+  instanceId,
+  credentials,
+  datasetId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+  credentials: CredentialsState;
+  datasetId: string;
+}): ChatCompletionOverDatasetInput => {
+  const baseChatCompletionVariables = getBaseChatCompletionInput({
+    playgroundStore,
+    instanceId,
+    credentials,
+  });
+
+  return {
+    ...baseChatCompletionVariables,
+    templateLanguage: playgroundStore.getState().templateLanguage,
+    datasetId,
   };
 };

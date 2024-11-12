@@ -468,6 +468,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
+    setExperimentId: (experimentId: string) => {
+      set({ experimentId });
+    },
     ...initialProps,
   });
   return create(devtools(playgroundStore));
