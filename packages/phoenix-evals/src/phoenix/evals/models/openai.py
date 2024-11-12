@@ -134,7 +134,7 @@ class OpenAIModel(BaseModel):
     base_url: Optional[str] = field(repr=False, default=None)
     model: str = "gpt-4"
     temperature: float = 0.0
-    max_tokens: Optional[int] = 256
+    max_tokens: Optional[int] = None
     top_p: float = 1
     frequency_penalty: float = 0
     presence_penalty: float = 0
