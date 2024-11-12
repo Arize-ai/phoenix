@@ -5,6 +5,7 @@ on:
     branches: [main, sessions]
   pull_request:
     paths:
+      - "**/*.py"
       - "src/**"
       - "tests/**"
       - "tutorials/**"
