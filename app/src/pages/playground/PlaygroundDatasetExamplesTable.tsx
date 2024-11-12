@@ -11,6 +11,7 @@ import {
   Disposable,
   graphql,
   useLazyLoadQuery,
+  useMutation,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
@@ -22,7 +23,11 @@ import {
   Table,
   useReactTable,
 } from "@tanstack/react-table";
-import { GraphQLSubscriptionConfig, requestSubscription } from "relay-runtime";
+import {
+  GraphQLSubscriptionConfig,
+  PayloadError,
+  requestSubscription,
+} from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
@@ -55,6 +60,10 @@ import { PlaygroundInstance } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
+import PlaygroundDatasetExamplesTableMutation, {
+  PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
+  PlaygroundDatasetExamplesTableMutation$data,
+} from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import PlaygroundDatasetExamplesTableSubscription, {
@@ -75,6 +84,10 @@ type ExampleId = string;
 type ChatCompletionResult = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
+>;
+type ChatCompletionOverDatasetMutationPayload = Extract<
+  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
+  { __typename: "ChatCompletionOverDatasetMutationPayload" }
 >;
 
 type Span = NonNullable<ChatCompletionResult["span"]>;
@@ -116,9 +129,47 @@ const updateExampleResponsesMap = ({
   currentMap,
 }: {
   instanceId: number;
-  response: ChatCompletionResult | TextChunk | ToolCallChunk;
+  response:
+    | ChatCompletionResult
+    | TextChunk
+    | ToolCallChunk
+    | ChatCompletionOverDatasetMutationPayload;
   currentMap: InstanceToExampleResponsesMap;
 }): InstanceToExampleResponsesMap => {
+  if (response.__typename === "ChatCompletionOverDatasetMutationPayload") {
+    const newMap = { ...currentMap };
+    for (const example of response.examples) {
+      const { datasetExampleId, result } = example;
+      switch (result.__typename) {
+        case "ChatCompletionMutationError": {
+          // TODO: handle error
+          break;
+        }
+        case "ChatCompletionMutationPayload": {
+          const { content, span, toolCalls } = result;
+          const instanceResponses = currentMap[instanceId] ?? {};
+          instanceResponses[datasetExampleId] = {
+            content: content ?? "",
+            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+              (map, toolCall) => {
+                map[toolCall.id] = toolCall;
+                return map;
+              },
+              {}
+            ),
+            span,
+          };
+          newMap[instanceId] = instanceResponses;
+          break;
+        }
+        case "%other":
+          break;
+        default:
+          assertUnreachable(result);
+      }
+    }
+    return newMap;
+  }
   const exampleId = response.datasetExampleId;
   if (exampleId == null) {
     return currentMap;
@@ -408,6 +459,37 @@ export function PlaygroundDatasetExamplesTable({
     [markPlaygroundInstanceComplete, notifyError, setExperimentId]
   );
 
+  const [generateChatCompletion] =
+    useMutation<PlaygroundDatasetExamplesTableMutationType>(
+      PlaygroundDatasetExamplesTableMutation
+    );
+
+  const onCompleted = useCallback(
+    (instanceId: number) =>
+      (
+        response: PlaygroundDatasetExamplesTableMutation$data,
+        errors: PayloadError[] | null
+      ) => {
+        markPlaygroundInstanceComplete(instanceId);
+        if (errors) {
+          notifyError({
+            title: "Chat completion failed",
+            message: errors[0].message,
+          });
+          return;
+        }
+        setExperimentId(response.chatCompletionOverDataset.experimentId);
+        setExampleResponsesMap((exampleResponsesMap) => {
+          return updateExampleResponsesMap({
+            instanceId,
+            response: response.chatCompletionOverDataset,
+            currentMap: exampleResponsesMap,
+          });
+        });
+      },
+    [markPlaygroundInstanceComplete, notifyError, setExperimentId]
+  );
+
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
@@ -454,14 +536,44 @@ export function PlaygroundDatasetExamplesTable({
           subscription.dispose();
         }
       };
+    } else {
+      // setLoading(true);
+      setExampleResponsesMap(getInitialExampleResponsesMap(instances));
+      for (const instance of instances) {
+        const { activeRunId } = instance;
+        if (activeRunId === null) {
+          continue;
+        }
+        const variables = {
+          input: getChatCompletionOverDatasetInput({
+            credentials,
+            instanceId: instance.id,
+            playgroundStore,
+            datasetId,
+          }),
+        };
+        generateChatCompletion({
+          variables,
+          onCompleted: onCompleted(instance.id),
+          onError(error) {
+            markPlaygroundInstanceComplete(instance.id);
+            notifyError({
+              title: "Failed to get output",
+              message: error.message,
+            });
+          },
+        });
+      }
     }
   }, [
     credentials,
     datasetId,
     environment,
+    generateChatCompletion,
     hasSomeRunIds,
     markPlaygroundInstanceComplete,
     notifyError,
+    onCompleted,
     onNext,
     playgroundStore,
   ]);
@@ -730,6 +842,52 @@ graphql`
       ... on ChatCompletionSubscriptionError {
         datasetExampleId
         message
+      }
+    }
+  }
+`;
+
+graphql`
+  mutation PlaygroundDatasetExamplesTableMutation(
+    $input: ChatCompletionOverDatasetInput!
+  ) {
+    chatCompletionOverDataset(input: $input) {
+      __typename
+      datasetId
+      datasetVersionId
+      experimentId
+      examples {
+        datasetExampleId
+        result {
+          __typename
+          ... on ChatCompletionMutationError {
+            message
+          }
+          ... on ChatCompletionMutationPayload {
+            content
+            errorMessage
+            span {
+              id
+              tokenCountCompletion
+              tokenCountPrompt
+              tokenCountTotal
+              latencyMs
+              project {
+                id
+              }
+              context {
+                traceId
+              }
+            }
+            toolCalls {
+              id
+              function {
+                name
+                arguments
+              }
+            }
+          }
+        }
       }
     }
   }
