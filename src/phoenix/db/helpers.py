@@ -17,7 +17,7 @@ from sqlalchemy import (
     func,
     select,
 )
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from phoenix.db import models
 
@@ -114,12 +114,8 @@ def dedup(
     return ans
 
 
-_DatasetId: TypeAlias = int
-_DatasetVersionId: TypeAlias = Optional[int]
-
-
 def get_dataset_example_revisions(
-    dataset_version_id: _DatasetVersionId,
+    dataset_version_id: int,
     exclude_deleted: bool = True,
 ) -> Select[tuple[models.DatasetExampleRevision]]:
     version = select(models.DatasetVersion).filter_by(id=dataset_version_id).subquery()
