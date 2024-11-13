@@ -236,17 +236,18 @@ class Query:
         )
         stmt = (
             select(models.Project)
-            .where(
-                or_(
-                    ~exists().where(models.Experiment.project_name == models.Project.name),
-                    models.Project.name == PLAYGROUND_PROJECT_NAME,
-                )
+            .outerjoin(
+                models.Experiment,
+                and_(
+                    models.Project.name == models.Experiment.project_name,
+                    models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
+                ),
             )
+            .where(models.Experiment.project_name.is_(None))
             .order_by(models.Project.id)
         )
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
-            print("test--", projects)
             data = [
                 Project(
                     id_attr=project.id,

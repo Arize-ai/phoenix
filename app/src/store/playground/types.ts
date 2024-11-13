@@ -257,8 +257,4 @@ export interface PlaygroundState extends PlaygroundProps {
    * Set the value of the experiment id
    */
   setExperimentId: (experimentId: string | null) => void;
-  /**
-   * Gets a particular instance from the store by id
-   */
-  getInstance: (instanceId: number) => PlaygroundInstance | undefined;
 }
