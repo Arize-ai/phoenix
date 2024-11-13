@@ -62,7 +62,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
@@ -216,7 +216,6 @@ class ChatCompletionMutationMixin:
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
                     dataset_example_id=revision.dataset_example_id,
-                    trace_id="",
                     output={},
                     repetition_number=1,
                     start_time=start_time,
@@ -224,11 +223,16 @@ class ChatCompletionMutationMixin:
                     error=str(result),
                 )
             else:
+                db_span = result.span.db_span
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=str(result.span.context.trace_id),
-                    output={},
+                    output=models.ExperimentRunOutput(
+                        task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                    ),
+                    prompt_token_count=db_span.cumulative_llm_token_count_prompt,
+                    completion_token_count=db_span.cumulative_llm_token_count_completion,
                     repetition_number=1,
                     start_time=result.span.start_time,
                     end_time=result.span.end_time,
