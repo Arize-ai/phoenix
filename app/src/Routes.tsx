@@ -200,6 +200,13 @@ const router = createBrowserRouter(
               crumb: () => "Settings",
             }}
           />
+          <Route
+            path="/v1/*"
+            element={<APIsPage />}
+            handle={{
+              crumb: () => "APIs",
+            }}
+          />
         </Route>
       </Route>
     </Route>
