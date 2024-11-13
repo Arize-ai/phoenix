@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dea6f2976e391ac86101b8d9b3e37df3>>
+ * @generated SignedSource<<9c8435262691e589c039d8052a312930>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,6 +28,7 @@ export type InvocationParametersFormQuery$data = {
     readonly intDefaultValue?: number | null;
     readonly invocationInputField?: InvocationInputField;
     readonly invocationName?: string;
+    readonly jsonDefaultValue?: any | null;
     readonly label?: string;
     readonly maxValue?: number;
     readonly minValue?: number;
@@ -211,6 +212,21 @@ v3 = [
         ],
         "type": "BooleanInvocationParameter",
         "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": "jsonDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          }
+        ],
+        "type": "JSONInvocationParameter",
+        "abstractKey": null
       }
     ],
     "storageKey": null
@@ -234,16 +250,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "8b7255b5858b46ad9be0f87c4d7b48ae",
+    "cacheID": "56e31957e89e73349ff41fc66455df1f",
     "id": null,
     "metadata": {},
     "name": "InvocationParametersFormQuery",
     "operationKind": "query",
-    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on FloatInvocationParameter {\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n  }\n}\n"
+    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on FloatInvocationParameter {\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n    ... on JSONInvocationParameter {\n      invocationInputField\n      jsonDefaultValue: defaultValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ceada4e5d9525ded1a046d55f2e24a75";
+(node as any).hash = "583498af6dd9d28f63d53bcece9f2b7d";
 
 export default node;

@@ -184,6 +184,7 @@ type ProviderToToolCallMap = {
   OPENAI: OpenAIToolCall;
   AZURE_OPENAI: OpenAIToolCall;
   ANTHROPIC: AnthropicToolCall;
+  GEMINI: OpenAIToolCall;
 };
 
 /**
@@ -230,6 +231,8 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
       return openAIToolCallToAnthropic.parse(
         toolCall
       ) as ProviderToToolCallMap[T];
+    case "GEMINI":
+      return toolCall as ProviderToToolCallMap[T];
     default:
       assertUnreachable(targetProvider);
   }

@@ -113,6 +113,8 @@ export function PlaygroundTool({
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
+      case "GEMINI":
+        return openAIToolDefinitionJSONSchema as JSONSchema7;
     }
   }, [instance.model.provider]);
 
