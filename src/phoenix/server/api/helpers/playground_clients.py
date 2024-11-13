@@ -6,7 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, NotRequired, Optional, TypedDict, Union
 
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
@@ -55,7 +55,11 @@ ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
 
 class Dependency(TypedDict):
     name: str
-    module_name: Optional[str] = None  # set if the import name differs from the install name
+    module_name: NotRequired[str]  # set if the import name differs from the install name
+
+
+def dependency_import_name(dependency: Dependency) -> str:
+    return dependency.get("module_name") or dependency["name"]
 
 
 class KeyedSingleton:
@@ -200,8 +204,8 @@ class PlaygroundStreamingClient(ABC):
     def dependencies_are_installed(cls) -> bool:
         try:
             for dependency in cls.dependencies():
-                module_name = dependency.get("module_name") or dependency["name"]
-                if importlib.util.find_spec(module_name) is None:
+                import_name = dependency_import_name(dependency)
+                if importlib.util.find_spec(import_name) is None:
                     return False
             return True
         except ValueError:
