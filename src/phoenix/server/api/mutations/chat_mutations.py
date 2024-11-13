@@ -332,7 +332,6 @@ class ChatCompletionMutationMixin:
                         tool_calls[chunk.id].function.arguments += chunk.function.arguments
                 else:
                     assert_never(chunk)
-            attributes.update(llm_client.attributes)
         except Exception as e:
             # Handle exceptions and record exception event
             status_code = StatusCode.ERROR
@@ -351,6 +350,7 @@ class ChatCompletionMutationMixin:
         else:
             end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
 
+        attributes.update(llm_client.attributes)
         if text_content or tool_calls:
             attributes.update(
                 chain(
