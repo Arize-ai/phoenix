@@ -802,8 +802,6 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             FloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
-                min_value=-2.0,
-                max_value=2.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_p",
