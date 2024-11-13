@@ -158,6 +158,15 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           };
         }
+        // TODO(apowell): #5348 Add Gemini tool call
+        case "GEMINI":
+          return {
+            id: tool_call.id ?? "",
+            function: {
+              name: tool_call.function?.name ?? "",
+              arguments: toolCallArgs,
+            },
+          };
         default:
           assertUnreachable(provider);
       }
@@ -699,6 +708,12 @@ export const convertInstanceToolsToProvider = ({
             targetProvider: provider,
           }),
         };
+      // TODO(apowell): #5348 Add Gemini tool definition
+      case "GEMINI":
+        return {
+          ...tool,
+          definition: toOpenAIToolDefinition(tool.definition),
+        };
       default:
         assertUnreachable(provider);
     }
@@ -725,6 +740,9 @@ export const convertMessageToolCallsToProvider = ({
           toolCall: toOpenAIToolCall(toolCall),
           targetProvider: provider,
         });
+      // TODO(apowell): #5348 Add Gemini tool call
+      case "GEMINI":
+        return toOpenAIToolCall(toolCall);
       default:
         assertUnreachable(provider);
     }
@@ -756,6 +774,12 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
+    // TODO(apowell): #5348 Add Gemini tool definition
+    case "GEMINI":
+      return {
+        id: generateToolId(),
+        definition: createOpenAIToolDefinition(toolNumber),
+      };
     default:
       assertUnreachable(provider);
   }
@@ -775,6 +799,9 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
+    // TODO(apowell): #5348 Add Gemini tool call
+    case "GEMINI":
+      return createOpenAIToolCall();
     default:
       assertUnreachable(provider);
   }

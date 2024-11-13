@@ -209,6 +209,7 @@ type ProviderToToolDefinitionMap = {
   OPENAI: OpenAIToolDefinition;
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
+  GEMINI: OpenAIToolDefinition;
 };
 
 /**
@@ -248,6 +249,9 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAnthropic.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
+    // TODO(apowell): #5348 Add Gemini tool calls schema
+    case "GEMINI":
+      return toolDefinition as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);
   }

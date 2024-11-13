@@ -43,7 +43,6 @@ const InvocationParameterFormField = ({
   switch (__typename) {
     case "InvocationParameterBase":
       return null;
-    case "FloatInvocationParameter":
     case "BoundedFloatInvocationParameter":
       if (typeof value !== "number" && value !== undefined) return null;
       return (
@@ -57,6 +56,7 @@ const InvocationParameterFormField = ({
           onChange={(value) => onChange(value)}
         />
       );
+    case "FloatInvocationParameter":
     case "IntInvocationParameter":
       return (
         <TextField
@@ -203,6 +203,10 @@ export const InvocationParametersForm = ({
             ... on BoundedFloatInvocationParameter {
               minValue
               maxValue
+              invocationInputField
+              floatDefaultValue: defaultValue
+            }
+            ... on FloatInvocationParameter {
               invocationInputField
               floatDefaultValue: defaultValue
             }

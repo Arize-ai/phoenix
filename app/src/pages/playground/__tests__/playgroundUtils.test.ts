@@ -686,6 +686,8 @@ describe("processAttributeToolCalls", () => {
       testSpanToolCall,
       expectedTestOpenAIToolCall,
     ],
+    // TODO(apowell): #5348 Add Gemini tool tests
+    GEMINI: ["GEMINI", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1118,6 +1120,8 @@ describe("getToolsFromAttributes", () => {
       testSpanOpenAITool,
       testSpanOpenAIToolJsonSchema,
     ],
+    // TODO(apowell): #5348 Add Gemini tool tests
+    GEMINI: ["GEMINI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(
