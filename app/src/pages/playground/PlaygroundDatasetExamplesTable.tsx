@@ -154,7 +154,9 @@ const updateExampleResponsesMap = ({
       const { datasetExampleId, result } = example;
       switch (result.__typename) {
         case "ChatCompletionMutationError": {
-          // TODO: handle error
+          instanceResponses[datasetExampleId] = {
+            errorMessage: result.message,
+          };
           break;
         }
         case "ChatCompletionMutationPayload": {
