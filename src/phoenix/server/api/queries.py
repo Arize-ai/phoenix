@@ -5,7 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, exists, func, or_, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
