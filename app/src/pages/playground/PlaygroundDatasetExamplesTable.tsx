@@ -149,7 +149,7 @@ const updateExampleResponsesMap = ({
   currentMap: InstanceToExampleResponsesMap;
 }): InstanceToExampleResponsesMap => {
   if (response.__typename === "ChatCompletionOverDatasetMutationPayload") {
-    const instanceResponses: Record<string, ExampleRunData> = {};
+    const instanceResponses: Record<string, ExampleRunData | undefined> = {};
     for (const example of response.examples) {
       const { datasetExampleId, result } = example;
       switch (result.__typename) {
