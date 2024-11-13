@@ -33,7 +33,7 @@ Note that you can provide a **label**, a **score**, or both. With Phoenix an ann
 Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
 
 {% hint style="info" %}
-If you're self-hosting Phoenix, be sure to change the endpoint in the code below to <`your phoenix endpoint>/v1/span_annotations?sync=false`
+If you're self-hosting Phoenix, be sure to change the endpoint in the code below to `<your phoenix endpoint>/v1/span_annotations?sync=false`
 {% endhint %}
 
 {% tabs %}
