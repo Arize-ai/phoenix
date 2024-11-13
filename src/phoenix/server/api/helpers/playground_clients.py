@@ -26,6 +26,7 @@ from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelI
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
     CanonicalParameterName,
+    FloatInvocationParameter,
     IntInvocationParameter,
     InvocationParameter,
     InvocationParameterInput,
@@ -44,6 +45,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
+    from google.generativeai.types import ContentType
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
 
@@ -744,6 +746,141 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 assert_never(role)
 
         return anthropic_messages, system_prompt
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GEMINI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-pro",
+        "gemini-1.0-pro",
+    ],
+)
+class GeminiStreamingClient(PlaygroundStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+    ) -> None:
+        import google.generativeai as google_genai
+
+        super().__init__(model=model, api_key=api_key)
+        google_genai.configure(api_key=api_key)
+        self.model_name = model.name
+        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, google_genai.RateLimitError)
+
+    @classmethod
+    def dependencies(cls) -> list[DependencyName]:
+        return ["google-generativeai"]
+
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        return [
+            BoundedFloatInvocationParameter(
+                invocation_name="temperature",
+                canonical_name=CanonicalParameterName.TEMPERATURE,
+                label="Temperature",
+                default_value=0.0,
+                min_value=0.0,
+                max_value=2.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="max_output_tokens",
+                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
+                label="Max Output Tokens",
+            ),
+            StringListInvocationParameter(
+                invocation_name="stop",
+                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
+                label="Stop Sequences",
+            ),
+            FloatInvocationParameter(
+                invocation_name="presence_penalty",
+                label="Presence Penalty",
+            ),
+            FloatInvocationParameter(
+                invocation_name="frequency_penalty",
+                label="Frequency Penalty",
+                min_value=-2.0,
+                max_value=2.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_p",
+                canonical_name=CanonicalParameterName.TOP_P,
+                label="Top P",
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            BoundedFloatInvocationParameter(
+                invocation_name="top_k",
+                canonical_name=CanonicalParameterName.TOP_K,
+                label="Top K",
+                min_value=0.0,
+                max_value=1.0,
+            ),
+            IntInvocationParameter(
+                invocation_name="seed",
+                canonical_name=CanonicalParameterName.RANDOM_SEED,
+                label="Seed",
+            ),
+        ]
+
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import google.generativeai as google_genai
+
+        gemini_message_history, current_message, system_prompt = self._build_gemini_messages(
+            messages
+        )
+        client = google_genai.GenerativeModel(
+            model_name=self.model_name, system_instruction=system_prompt
+        )
+
+        gemini_config = google_genai.GenerationConfig(
+            **invocation_parameters,
+        )
+        gemini_params = {
+            "content": current_message,
+            "generation_config": gemini_config,
+            "stream": True,
+        }
+
+        chat = client.start_chat(history=gemini_message_history)
+        async with await chat.send_message_async(**gemini_params) as stream:
+            async for event in stream:
+                yield TextChunk(content=event.text)
+
+    def _build_gemini_messages(
+        self,
+        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+    ) -> tuple[list["ContentType"], str, str]:
+        gemini_message_history: list["ContentType"] = []
+        system_prompt = ""
+        for role, content, _tool_call_id, _tool_calls in messages:
+            if role == ChatCompletionMessageRole.USER:
+                gemini_message_history.append({"role": "user", "parts": content})
+            elif role == ChatCompletionMessageRole.AI:
+                gemini_message_history.append({"role": "model", "parts": content})
+            elif role == ChatCompletionMessageRole.SYSTEM:
+                system_prompt += content + "\n"
+            elif role == ChatCompletionMessageRole.TOOL:
+                raise NotImplementedError
+            else:
+                assert_never(role)
+        if gemini_message_history:
+            prompt = gemini_message_history.pop()["parts"]
+        else:
+            prompt = ""
+
+        return gemini_message_history, prompt, system_prompt
 
 
 def initialize_playground_clients() -> None:
