@@ -1,14 +1,14 @@
 # Capture Feedback
 
 {% hint style="info" %}
-feedback and annotations are available for arize-phoenix>=4.20.0 and are in beta
+feedback and annotations are available for arize-phoenix>=4.20.0
 {% endhint %}
 
 <figure><img src="../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
 
-When building LLM applications, it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have identified these example, you can share them for further review, automatic evaluation, or fine-tuning.&#x20;
+When building LLM applications, it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have identified these example, you can share them for further review, automatic evaluation, or fine-tuning.
 
-Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to attach feedback to a span.&#x20;
+Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to attach feedback to a span.
 
 Phoenix expects feedback to be in the form of an **annotation.** Annotations consist of these fields:
 
@@ -27,10 +27,14 @@ Phoenix expects feedback to be in the form of an **annotation.** Annotations con
 
 Note that you can provide a **label**, a **score**, or both. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (either an **LLM** or a **HUMAN**) and can be attached to the **spans** you have logged to Phoenix.
 
-## Send Annotations to Phoenix&#x20;
+## Send Annotations to Phoenix
 
 \
 Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
+
+{% hint style="info" %}
+If you're self-hosting Phoenix, be sure to change the endpoint in the code below to <`your phoenix endpoint>/v1/span_annotations?sync=false`
+{% endhint %}
 
 {% tabs %}
 {% tab title="Python" %}
@@ -64,9 +68,12 @@ annotation_payload = {
     ]
 }
 
+headers = {'api_key': '<your phoenix api key>'}
+
 client.post(
-    "http://PHOENIX_HOST:PHOENIX_PORT/v1/span_annotations?sync=false",
+    "https://app.phoenix.arize.com/v1/span_annotations?sync=false",
     json=annotation_payload,
+    headers=headers
 )
 ```
 {% endtab %}
@@ -88,11 +95,12 @@ You can use the spanId to send an annotation associated with that span.
 ```typescript
 async function postFeedback(spanId: string) {
   // ...
-  await fetch("http://localhost:6006/v1/span_annotations?sync=false", {
+  await fetch("https://app.phoenix.arize.com/v1/span_annotations?sync=false", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       accept: "application/json",
+      "api_key": "<your phoenix api key>,
     },
     body: JSON.stringify({
       data: [
@@ -116,9 +124,10 @@ async function postFeedback(spanId: string) {
 {% tab title="curl" %}
 ```bash
 curl -X 'POST' \
-  'http://localhost:6006/v1/span_annotations?sync=true' \
+  'https://app.phoenix.arize.com/v1/span_annotations?sync=false' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H 'api_key: <your phoenix api key> \
   -d '{
   "data": [
     {
