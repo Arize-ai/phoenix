@@ -63,15 +63,9 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
-type DatasetInput = {
-  datasetId?: string;
-};
-
-type ManualInput = {
+export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
 };
-
-export type PlaygroundInput = DatasetInput & ManualInput;
 
 export type ModelConfig = {
   provider: ModelProvider;
@@ -258,9 +252,9 @@ export interface PlaygroundState extends PlaygroundProps {
   /**
    * The id of the experiment associated with the last playground run if any
    */
-  experimentId?: string;
+  experimentId?: string | null;
   /**
    * Set the value of the experiment id
    */
-  setExperimentId: (experimentId: string) => void;
+  setExperimentId: (experimentId: string | null) => void;
 }

@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useSearchParams } from "react-router-dom";
+import { Outlet, useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -15,6 +15,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Loading } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
   PlaygroundProvider,
@@ -111,6 +112,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
         </View>
         <PlaygroundContent />
       </div>
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </PlaygroundProvider>
   );
 }
@@ -184,8 +188,7 @@ const playgroundInputOutputPanelContentCSS = css`
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
-  const input = usePlaygroundContext((state) => state.input);
-  const datasetId = input.datasetId;
+  const { datasetId } = useParams<{ datasetId: string }>();
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
@@ -230,7 +233,9 @@ function PlaygroundContent() {
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
           {isDatasetMode ? (
-            <PlaygroundDatasetSection datasetId={datasetId} />
+            <Suspense fallback={<Loading />}>
+              <PlaygroundDatasetSection datasetId={datasetId} />
+            </Suspense>
           ) : (
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">
