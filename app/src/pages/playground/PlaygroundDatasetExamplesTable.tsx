@@ -539,9 +539,9 @@ export function PlaygroundDatasetExamplesTable({
     const { instances, streaming, setExperimentId } =
       playgroundStore.getState();
     setExperimentId(null);
+    setExampleResponsesMap(getInitialExampleResponsesMap(instances));
     if (streaming) {
       const subscriptions: Disposable[] = [];
-      setExampleResponsesMap(getInitialExampleResponsesMap(instances));
       for (const instance of instances) {
         const { activeRunId } = instance;
         if (activeRunId === null) {
@@ -581,7 +581,6 @@ export function PlaygroundDatasetExamplesTable({
         }
       };
     } else {
-      setExampleResponsesMap(getInitialExampleResponsesMap(instances));
       for (const instance of instances) {
         const { activeRunId } = instance;
         if (activeRunId === null) {
