@@ -15,7 +15,6 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
   PlaygroundProvider,
