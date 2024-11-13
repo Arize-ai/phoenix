@@ -1,10 +1,10 @@
 import React, { startTransition } from "react";
+import { useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@arizeai/components";
 
 import { DatasetPicker } from "@phoenix/components/dataset";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 const playgroundDatasetPickerCSS = css`
   display: flex;
@@ -21,20 +21,20 @@ const playgroundDatasetPickerCSS = css`
 `;
 
 export function PlaygroundDatasetPicker() {
-  const input = usePlaygroundContext((state) => state.input);
-  const setInput = usePlaygroundContext((state) => state.setInput);
+  const navigate = useNavigate();
+  const { datasetId } = useParams<{ datasetId: string }>();
+  const selectedDatasetId = datasetId ?? "";
+
   return (
     <div css={playgroundDatasetPickerCSS}>
       <DatasetPicker
         size={"compact"}
         placeholder="Test over a dataset"
-        // Fallback to empty string here otherwise the picker will complain of switching from a controlled to uncontrolled component
-        // It can't distinguish between undefined and intentionally null
-        selectedKey={input.datasetId ?? ""}
+        selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {
           startTransition(() => {
             if (typeof datasetId === "string") {
-              setInput({ ...input, datasetId });
+              navigate(`/playground/datasets/${datasetId}`);
             }
           });
         }}
@@ -44,7 +44,7 @@ export function PlaygroundDatasetPicker() {
         variant={"default"}
         icon={<Icon svg={<Icons.CloseOutline />} />}
         onClick={() => {
-          setInput({ ...input, datasetId: undefined });
+          navigate("/playground");
         }}
       />
     </div>

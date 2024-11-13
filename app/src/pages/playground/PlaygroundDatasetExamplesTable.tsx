@@ -14,6 +14,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -97,6 +98,10 @@ type InstanceToExampleResponsesMap = Record<
   InstanceId,
   Record<ExampleId, ExampleRunData | undefined> | undefined
 >;
+
+type TableRow = {
+  id: string;
+};
 
 const getInitialExampleResponsesMap = (instances: PlaygroundInstance[]) => {
   return instances.reduce((acc, instance) => {
@@ -310,11 +315,25 @@ function SpanMetadata({ span }: { span: Span }) {
 }
 
 // un-memoized normal table body component - see memoized version below
-function TableBody<T>({ table }: { table: Table<T> }) {
+function TableBody({
+  table,
+  datasetId,
+}: {
+  table: Table<TableRow>;
+  datasetId: string;
+}) {
+  const navigate = useNavigate();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => (
-        <tr key={row.id}>
+        <tr
+          key={row.id}
+          onClick={() => {
+            navigate(
+              `/playground/datasets/${datasetId}/examples/${row.original.id}`
+            );
+          }}
+        >
           {row.getVisibleCells().map((cell) => {
             return (
               <td
@@ -511,7 +530,7 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   // Refetch the data when the dataset version changes
-  const tableData = useMemo(
+  const tableData = useMemo<TableRow[]>(
     () =>
       data.examples.edges.map((edge) => {
         const example = edge.example;
@@ -524,7 +543,6 @@ export function PlaygroundDatasetExamplesTable({
       }),
     [data]
   );
-  type TableRow = (typeof tableData)[number];
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => ({
@@ -670,9 +688,9 @@ export function PlaygroundDatasetExamplesTable({
         {isEmpty ? (
           <TableEmpty />
         ) : table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} />
+          <MemoizedTableBody table={table} datasetId={datasetId} />
         ) : (
-          <TableBody table={table} />
+          <TableBody table={table} datasetId={datasetId} />
         )}
       </table>
       <DialogContainer

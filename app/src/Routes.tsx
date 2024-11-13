@@ -6,6 +6,7 @@ import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLo
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
+import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
@@ -165,6 +166,12 @@ const router = createBrowserRouter(
             }}
           >
             <Route index element={<PlaygroundPage />} />
+            <Route path="datasets/:datasetId" element={<PlaygroundPage />}>
+              <Route
+                path="examples/:exampleId"
+                element={<PlaygroundExamplePage />}
+              />
+            </Route>
             <Route
               path="spans/:spanId" // TODO: Make it possible to go back to the span
               element={<SpanPlaygroundPage />}
