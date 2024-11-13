@@ -40,3 +40,13 @@ export function safelyParseJSON(str: string) {
     return { json: null, parseError: e };
   }
 }
+
+export function safelyStringifyJSON(
+  ...args: Parameters<typeof JSON.stringify>
+) {
+  try {
+    return { json: JSON.stringify(...args) };
+  } catch (e) {
+    return { json: null, stringifyError: e };
+  }
+}

@@ -12,6 +12,7 @@ import {
 } from "./__generated__/InvocationParametersFormQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
+import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import {
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
@@ -35,8 +36,8 @@ const InvocationParameterFormField = ({
   onChange,
 }: {
   field: InvocationParameter;
-  value: string | number | readonly string[] | boolean | undefined;
-  onChange: (value: string | number | string[] | boolean | undefined) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
 }) => {
   const { __typename } = field;
   switch (__typename) {
@@ -92,6 +93,15 @@ const InvocationParameterFormField = ({
           {field.label}
         </Switch>
       );
+    case "JSONInvocationParameter": {
+      return (
+        <InvocationParameterJsonEditor
+          initialValue={value}
+          onChange={onChange}
+          label={field.label ?? field.invocationName ?? ""}
+        />
+      );
+    }
     default:
       return null;
   }
@@ -100,7 +110,15 @@ const InvocationParameterFormField = ({
 const getInvocationParameterValue = (
   field: InvocationParameter,
   parameterInput: InvocationParameterInput
-): string | number | readonly string[] | boolean | null | undefined => {
+):
+  | string
+  | number
+  | readonly string[]
+  | boolean
+  | null
+  | Record<string, unknown>
+  | unknown[]
+  | undefined => {
   if (field.invocationInputField === undefined) {
     throw new Error("Invocation input field is required");
   }
@@ -125,6 +143,8 @@ const getInvocationParameterValue = (
       return field.stringDefaultValue;
     case "BooleanInvocationParameter":
       return field.booleanDefaultValue;
+    case "JSONInvocationParameter":
+      return field.jsonDefaultValue;
     default: {
       return null;
     }
@@ -133,7 +153,7 @@ const getInvocationParameterValue = (
 
 const makeInvocationParameterInput = (
   field: InvocationParameter,
-  value: string | number | string[] | boolean | undefined
+  value: unknown
 ): InvocationParameterInput | null => {
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
@@ -202,6 +222,10 @@ export const InvocationParametersForm = ({
               invocationInputField
               booleanDefaultValue: defaultValue
             }
+            ... on JSONInvocationParameter {
+              invocationInputField
+              jsonDefaultValue: defaultValue
+            }
           }
         }
       `,
@@ -227,10 +251,7 @@ export const InvocationParametersForm = ({
   ]);
 
   const onChange = useCallback(
-    (
-      field: InvocationParameter,
-      value: string | number | string[] | boolean | undefined
-    ) => {
+    (field: InvocationParameter, value: unknown) => {
       const existingParameter = instance.model.invocationParameters.find(
         (p) => p.invocationName === field.invocationName
       );

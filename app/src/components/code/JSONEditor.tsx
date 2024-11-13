@@ -24,11 +24,15 @@ export type JSONEditorProps = Omit<
    * JSON Schema to use for validation, if provided will enable JSON Schema validation with tooltips in the editor
    */
   jsonSchema?: JSONSchema7;
+  /**
+   * If true, will not lint the content if it is empty
+   */
+  optionalLint?: boolean;
 };
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
-  const { jsonSchema, ...restProps } = props;
+  const { jsonSchema, optionalLint, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   // Force a refresh of the editor when the jsonSchema changes
   // Code mirror does not automatically refresh when the extensions change
@@ -36,12 +40,16 @@ export function JSONEditor(props: JSONEditorProps) {
   useEffect(() => {
     setSchemaKey((prev) => prev + 1);
   }, [jsonSchema]);
+  const contentLength = props.value?.length;
+  // When optionalLint is false, this value will always be true
+  // If optionalLint is true, we only lint when there is content to allow for empty json values
+  const shouldLint = !optionalLint || (contentLength && contentLength > 0);
   const extensions = useMemo(() => {
-    const baseExtensions = [
-      json(),
-      EditorView.lineWrapping,
-      linter(jsonParseLinter()),
-    ];
+    const baseExtensions = [json(), EditorView.lineWrapping];
+
+    if (shouldLint) {
+      baseExtensions.push(linter(jsonParseLinter()));
+    }
 
     if (jsonSchema) {
       baseExtensions.push(
@@ -54,7 +62,7 @@ export function JSONEditor(props: JSONEditorProps) {
       );
     }
     return baseExtensions;
-  }, [jsonSchema]);
+  }, [jsonSchema, shouldLint]);
 
   return (
     <CodeMirror
