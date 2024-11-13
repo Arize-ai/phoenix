@@ -110,7 +110,7 @@ type ExampleRunData = {
   content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
   span?: Span | null;
-  errorMessage?: string;
+  errorMessage?: string | null;
 };
 
 type InstanceToExampleResponsesMap = Record<
@@ -250,12 +250,6 @@ const updateExampleResponsesMapFromMutationResponse = ({
       }
       case "ChatCompletionMutationPayload": {
         const { errorMessage, content, span, toolCalls } = result;
-        if (errorMessage) {
-          instanceResponses[datasetExampleId] = {
-            errorMessage,
-          };
-          break;
-        }
         instanceResponses[datasetExampleId] = {
           content: content,
           toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
@@ -266,6 +260,7 @@ const updateExampleResponsesMapFromMutationResponse = ({
             {}
           ),
           span,
+          errorMessage,
         };
         break;
       }
