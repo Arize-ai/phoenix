@@ -15,6 +15,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -439,7 +440,7 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.setExperimentId
   );
   const [dialog, setDialog] = useState<ReactNode>(null);
-
+  const navigate = useNavigate();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
   );
@@ -699,7 +700,37 @@ export function PlaygroundDatasetExamplesTable({
     {
       header: "input",
       accessorKey: "input",
-      cell: (props) => JSONCell({ ...props, collapseSingleKey: false }),
+      cell: ({ row }) => {
+        return (
+          <CellWithControlsWrap
+            controls={
+              <TooltipTrigger>
+                <Button
+                  variant="default"
+                  size="compact"
+                  aria-label="View example details"
+                  icon={<Icon svg={<Icons.ExpandOutline />} />}
+                  onClick={() => {
+                    navigate(
+                      `/playground/datasets/${datasetId}/examples/${row.original.id}`
+                    );
+                  }}
+                />
+                <Tooltip>View Example</Tooltip>
+              </TooltipTrigger>
+            }
+          >
+            <LargeTextWrap>
+              <JSONText
+                json={row.original.input}
+                disableTitle
+                space={2}
+                collapseSingleKey={false}
+              />
+            </LargeTextWrap>
+          </CellWithControlsWrap>
+        );
+      },
       size: 200,
     },
     {
