@@ -812,7 +812,6 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_k",
-                canonical_name=CanonicalParameterName.TOP_K,
                 label="Top K",
                 min_value=0.0,
                 max_value=1.0,
