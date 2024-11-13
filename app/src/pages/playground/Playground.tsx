@@ -233,9 +233,7 @@ function PlaygroundContent() {
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
           {isDatasetMode ? (
-            <Suspense fallback={<Loading />}>
-              <PlaygroundDatasetSection datasetId={datasetId} />
-            </Suspense>
+            <PlaygroundDatasetSection datasetId={datasetId} />
           ) : (
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">
