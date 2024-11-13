@@ -6,7 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, TypedDict, Union
 
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
@@ -49,9 +49,13 @@ if TYPE_CHECKING:
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
 
-DependencyName: TypeAlias = str
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
+
+
+class Dependency(TypedDict):
+    name: str
+    module_name: Optional[str] = None  # set if the import name differs from the install name
 
 
 class KeyedSingleton:
@@ -150,8 +154,8 @@ class PlaygroundStreamingClient(ABC):
 
     @classmethod
     @abstractmethod
-    def dependencies(cls) -> list[DependencyName]:
-        # A list of dependency names this client needs to run
+    def dependencies(cls) -> list[Dependency]:
+        # A list of dependencies this client needs to run
         ...
 
     @classmethod
@@ -196,7 +200,8 @@ class PlaygroundStreamingClient(ABC):
     def dependencies_are_installed(cls) -> bool:
         try:
             for dependency in cls.dependencies():
-                if importlib.util.find_spec(dependency) is None:
+                module_name = dependency.get("module_name") or dependency["name"]
+                if importlib.util.find_spec(module_name) is None:
                     return False
             return True
         except ValueError:
@@ -246,8 +251,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
 
     @classmethod
-    def dependencies(cls) -> list[DependencyName]:
-        return ["openai"]
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="openai")]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -626,8 +631,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
 
     @classmethod
-    def dependencies(cls) -> list[DependencyName]:
-        return ["anthropic"]
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="anthropic")]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -771,8 +776,8 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         self.model_name = model.name
 
     @classmethod
-    def dependencies(cls) -> list[DependencyName]:
-        return ["google-generativeai"]
+    def dependencies(cls) -> list[Dependency]:
+        return [Dependency(name="google-generativeai", module_name="google.generativeai")]
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
