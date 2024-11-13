@@ -249,7 +249,13 @@ const updateExampleResponsesMapFromMutationResponse = ({
         break;
       }
       case "ChatCompletionMutationPayload": {
-        const { content, span, toolCalls } = result;
+        const { errorMessage, content, span, toolCalls } = result;
+        if (errorMessage) {
+          instanceResponses[datasetExampleId] = {
+            errorMessage,
+          };
+          break;
+        }
         instanceResponses[datasetExampleId] = {
           content: content,
           toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
