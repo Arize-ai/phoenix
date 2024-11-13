@@ -306,7 +306,6 @@ class ChatCompletionMutationMixin:
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
                 input_value_and_mime_type(input),
-                **llm_client.attributes,
             )
         )
 
@@ -351,6 +350,7 @@ class ChatCompletionMutationMixin:
         else:
             end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
 
+        attributes.update(llm_client.attributes)
         if text_content or tool_calls:
             attributes.update(
                 chain(

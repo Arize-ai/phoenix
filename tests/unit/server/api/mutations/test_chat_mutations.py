@@ -36,6 +36,7 @@ class TestChatCompletionMutationMixin:
                   ... on ChatCompletionMutationPayload {
                     content
                     span {
+                      cumulativeTokenCountTotal
                       input {
                         value
                       }
@@ -93,6 +94,7 @@ class TestChatCompletionMutationMixin:
                 assert result["content"]
                 assert result["span"]["input"]["value"]
                 assert result["span"]["output"]["value"]
+                assert result["span"]["cumulativeTokenCountTotal"]
 
 
 def _request_bodies_contain_same_city(request1: Request, request2: Request) -> None:
