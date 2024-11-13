@@ -73,12 +73,17 @@ const PAGE_SIZE = 100;
 
 type InstanceId = number;
 type ExampleId = string;
-type ChatCompletionResult = Extract<
+type ChatCompletionSubscriptionResult = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
 >;
 
-type Span = NonNullable<ChatCompletionResult["span"]>;
+type ChatCompletionSubscriptionError = Extract<
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  { __typename: "ChatCompletionSubscriptionError" }
+>;
+
+type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
 type ToolCallChunk = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ToolCallChunk" }
@@ -92,6 +97,7 @@ type ExampleRunData = {
   content?: string;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
   span?: Span | null;
+  errorMessage?: string;
 };
 
 type InstanceToExampleResponsesMap = Record<
@@ -121,7 +127,11 @@ const updateExampleResponsesMap = ({
   currentMap,
 }: {
   instanceId: number;
-  response: ChatCompletionResult | TextChunk | ToolCallChunk;
+  response:
+    | ChatCompletionSubscriptionResult
+    | TextChunk
+    | ToolCallChunk
+    | ChatCompletionSubscriptionError;
   currentMap: InstanceToExampleResponsesMap;
 }): InstanceToExampleResponsesMap => {
   const exampleId = response.datasetExampleId;
@@ -187,6 +197,20 @@ const updateExampleResponsesMap = ({
         [instanceId]: newInstanceExampleResponseMap,
       };
     }
+    case "ChatCompletionSubscriptionError": {
+      const { message } = response;
+      const newInstanceExampleResponseMap = {
+        ...existingInstanceResponses,
+        [exampleId]: {
+          ...existingExampleResponse,
+          errorMessage: message,
+        },
+      };
+      return {
+        ...currentMap,
+        [instanceId]: newInstanceExampleResponseMap,
+      };
+    }
     default:
       return assertUnreachable(response);
   }
@@ -232,7 +256,7 @@ function ExampleOutputCell({
   if (exampleData == null) {
     return null;
   }
-  const { span, content, toolCalls } = exampleData;
+  const { span, content, toolCalls, errorMessage } = exampleData;
   const hasSpan = span != null;
   let spanControls: ReactNode = null;
   if (hasSpan) {
@@ -287,6 +311,12 @@ function ExampleOutputCell({
   return (
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
+        {errorMessage != null ? (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+            <Text color="danger">{errorMessage}</Text>
+          </Flex>
+        ) : null}
         <Text>{content}</Text>
         {toolCalls != null
           ? Object.values(toolCalls).map((toolCall) =>
@@ -393,19 +423,12 @@ export function PlaygroundDatasetExamplesTable({
         }
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
-          case "ChatCompletionSubscriptionError":
-            markPlaygroundInstanceComplete(instanceId);
-            notifyError({
-              title: "Chat completion failed",
-              message: chatCompletion.message,
-              expireMs: 10000,
-            });
-            break;
           case "ChatCompletionSubscriptionExperiment":
             setExperimentId(chatCompletion.experiment.id);
             break;
           case "ChatCompletionSubscriptionResult":
           case "TextChunk":
+          case "ChatCompletionSubscriptionError":
           case "ToolCallChunk": {
             setExampleResponsesMap((exampleResponsesMap) => {
               return updateExampleResponsesMap({
@@ -424,14 +447,16 @@ export function PlaygroundDatasetExamplesTable({
             return assertUnreachable(chatCompletion);
         }
       },
-    [markPlaygroundInstanceComplete, notifyError, setExperimentId]
+    [setExperimentId]
   );
 
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming } = playgroundStore.getState();
+    const { instances, streaming, setExperimentId } =
+      playgroundStore.getState();
+    setExperimentId(null);
     if (streaming) {
       const subscriptions: Disposable[] = [];
       setExampleResponsesMap(getInitialExampleResponsesMap(instances));
@@ -546,7 +571,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => ({
-      id: instance.id.toString(),
+      id: `instance ${instance.id}`,
       header: () => (
         <Flex direction="row" gap="size-100" alignItems="center">
           <AlphabeticIndexIcon index={index} />
@@ -565,7 +590,7 @@ export function PlaygroundDatasetExamplesTable({
           />
         );
       },
-      minSize: 500,
+      size: 500,
     }));
   }, [exampleResponsesMap, hasSomeRunIds, instances]);
 
@@ -574,14 +599,16 @@ export function PlaygroundDatasetExamplesTable({
       header: "input",
       accessorKey: "input",
       cell: (props) => JSONCell({ ...props, collapseSingleKey: false }),
+      size: 200,
     },
     {
       header: "reference output",
       accessorKey: "output",
       cell: (props) => JSONCell({ ...props, collapseSingleKey: true }),
+      size: 200,
     },
     ...playgroundInstanceOutputColumns,
-    { id: "tail", minSize: 500 },
+    { id: "tail", size: 700, minSize: 700 },
   ];
   const table = useReactTable<TableRow>({
     columns,
@@ -640,9 +667,6 @@ export function PlaygroundDatasetExamplesTable({
       css={css`
         flex: 1 1 auto;
         overflow: auto;
-        table {
-          min-width: 100%;
-        }
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}

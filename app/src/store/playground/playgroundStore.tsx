@@ -468,7 +468,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
-    setExperimentId: (experimentId: string) => {
+    setExperimentId: (experimentId: string | null) => {
       set({ experimentId });
     },
     ...initialProps,
