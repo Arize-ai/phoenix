@@ -101,7 +101,7 @@ type TextChunk = Extract<
 >;
 
 type ExampleRunData = {
-  content?: string;
+  content?: string | null;
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
   span?: Span | null;
 };
@@ -148,16 +148,14 @@ const updateExampleResponsesMap = ({
         case "ChatCompletionMutationPayload": {
           const { content, span, toolCalls } = result;
           instanceResponses[datasetExampleId] = {
-            content: content ?? undefined,
-            toolCalls: toolCalls
-              ? toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-                  (map, toolCall) => {
-                    map[toolCall.id] = toolCall;
-                    return map;
-                  },
-                  {}
-                )
-              : undefined,
+            content: content,
+            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+              (map, toolCall) => {
+                map[toolCall.id] = toolCall;
+                return map;
+              },
+              {}
+            ),
             span,
           };
           break;
