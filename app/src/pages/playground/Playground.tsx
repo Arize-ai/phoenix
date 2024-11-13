@@ -15,6 +15,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Loading } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
   PlaygroundProvider,
@@ -232,7 +233,9 @@ function PlaygroundContent() {
       <Panel>
         <div css={playgroundInputOutputPanelContentCSS}>
           {isDatasetMode ? (
-            <PlaygroundDatasetSection datasetId={datasetId} />
+            <Suspense fallback={<Loading />}>
+              <PlaygroundDatasetSection datasetId={datasetId} />
+            </Suspense>
           ) : (
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">

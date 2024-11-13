@@ -1,4 +1,4 @@
-import React, { startTransition } from "react";
+import React from "react";
 import { useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
@@ -43,11 +43,7 @@ export function PlaygroundDatasetPicker() {
         placeholder="Test over a dataset"
         selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {
-          startTransition(() => {
-            if (typeof datasetId === "string") {
-              navigate(`/playground/datasets/${datasetId}`);
-            }
-          });
+          navigate(`/playground/datasets/${datasetId}`);
         }}
       />
       <Button
