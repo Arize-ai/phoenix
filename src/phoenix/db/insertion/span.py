@@ -37,36 +37,37 @@ async def insert_span(
     assert project_rowid is not None
 
     project_session: Optional[models.ProjectSession] = None
-    session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
-    session_user = get_attribute_value(span.attributes, SpanAttributes.USER_ID)
-    if session_id is not None and (not isinstance(session_id, str) or session_id.strip()):
-        session_id = str(session_id).strip()
-        assert isinstance(session_id, str)
-        if session_user is not None:
-            session_user = str(session_user).strip()
-            assert isinstance(session_user, str)
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(session_id=session_id)
-        )
-        if project_session:
-            if project_session.end_time < span.end_time:
-                project_session.end_time = span.end_time
-                project_session.project_id = project_rowid
-            if span.start_time < project_session.start_time:
-                project_session.start_time = span.start_time
-                if session_user and project_session.session_user != session_user:
-                    project_session.session_user = session_user
-        else:
-            project_session = models.ProjectSession(
-                project_id=project_rowid,
-                session_id=session_id,
-                session_user=session_user if session_user else None,
-                start_time=span.start_time,
-                end_time=span.end_time,
+    if span.parent_id is None:
+        session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
+        session_user = get_attribute_value(span.attributes, SpanAttributes.USER_ID)
+        if session_id is not None and (not isinstance(session_id, str) or session_id.strip()):
+            session_id = str(session_id).strip()
+            assert isinstance(session_id, str)
+            if session_user is not None:
+                session_user = str(session_user).strip()
+                assert isinstance(session_user, str)
+            project_session = await session.scalar(
+                select(models.ProjectSession).filter_by(session_id=session_id)
             )
-            session.add(project_session)
-        if project_session in session.dirty:
-            await session.flush()
+            if project_session:
+                if project_session.end_time < span.end_time:
+                    project_session.end_time = span.end_time
+                    project_session.project_id = project_rowid
+                if span.start_time < project_session.start_time:
+                    project_session.start_time = span.start_time
+                    if session_user and project_session.session_user != session_user:
+                        project_session.session_user = session_user
+            else:
+                project_session = models.ProjectSession(
+                    project_id=project_rowid,
+                    session_id=session_id,
+                    session_user=session_user if session_user else None,
+                    start_time=span.start_time,
+                    end_time=span.end_time,
+                )
+                session.add(project_session)
+            if project_session in session.dirty:
+                await session.flush()
 
     trace_id = span.context.trace_id
     trace = await session.scalar(select(models.Trace).filter_by(trace_id=trace_id))
