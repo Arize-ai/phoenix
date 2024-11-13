@@ -973,6 +973,7 @@ enum GenerativeProviderKey {
   OPENAI
   ANTHROPIC
   AZURE_OPENAI
+  GEMINI
 }
 
 """
