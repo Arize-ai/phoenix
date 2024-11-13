@@ -144,47 +144,9 @@ const updateExampleResponsesMap = ({
     | ChatCompletionSubscriptionResult
     | TextChunk
     | ToolCallChunk
-    | ChatCompletionSubscriptionError
-    | ChatCompletionOverDatasetMutationPayload;
+    | ChatCompletionSubscriptionError;
   currentMap: InstanceToExampleResponsesMap;
 }): InstanceToExampleResponsesMap => {
-  if (response.__typename === "ChatCompletionOverDatasetMutationPayload") {
-    const instanceResponses: Record<string, ExampleRunData | undefined> = {};
-    for (const example of response.examples) {
-      const { datasetExampleId, result } = example;
-      switch (result.__typename) {
-        case "ChatCompletionMutationError": {
-          instanceResponses[datasetExampleId] = {
-            errorMessage: result.message,
-          };
-          break;
-        }
-        case "ChatCompletionMutationPayload": {
-          const { content, span, toolCalls } = result;
-          instanceResponses[datasetExampleId] = {
-            content: content,
-            toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-              (map, toolCall) => {
-                map[toolCall.id] = toolCall;
-                return map;
-              },
-              {}
-            ),
-            span,
-          };
-          break;
-        }
-        case "%other":
-          break;
-        default:
-          assertUnreachable(result);
-      }
-    }
-    return {
-      ...currentMap,
-      [instanceId]: instanceResponses,
-    };
-  }
   const exampleId = response.datasetExampleId;
   if (exampleId == null) {
     return currentMap;
@@ -265,6 +227,52 @@ const updateExampleResponsesMap = ({
     default:
       return assertUnreachable(response);
   }
+};
+
+const updateExampleResponsesMapFromMutationResponse = ({
+  instanceId,
+  response,
+  currentMap,
+}: {
+  instanceId: number;
+  response: ChatCompletionOverDatasetMutationPayload;
+  currentMap: InstanceToExampleResponsesMap;
+}): InstanceToExampleResponsesMap => {
+  const instanceResponses: Record<string, ExampleRunData | undefined> = {};
+  for (const example of response.examples) {
+    const { datasetExampleId, result } = example;
+    switch (result.__typename) {
+      case "ChatCompletionMutationError": {
+        instanceResponses[datasetExampleId] = {
+          errorMessage: result.message,
+        };
+        break;
+      }
+      case "ChatCompletionMutationPayload": {
+        const { content, span, toolCalls } = result;
+        instanceResponses[datasetExampleId] = {
+          content: content,
+          toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
+            (map, toolCall) => {
+              map[toolCall.id] = toolCall;
+              return map;
+            },
+            {}
+          ),
+          span,
+        };
+        break;
+      }
+      case "%other":
+        break;
+      default:
+        assertUnreachable(result);
+    }
+  }
+  return {
+    ...currentMap,
+    [instanceId]: instanceResponses,
+  };
 };
 
 function LargeTextWrap({ children }: { children: ReactNode }) {
@@ -522,7 +530,7 @@ export function PlaygroundDatasetExamplesTable({
         }
         setExperimentId(response.chatCompletionOverDataset.experimentId);
         setExampleResponsesMap((exampleResponsesMap) => {
-          return updateExampleResponsesMap({
+          return updateExampleResponsesMapFromMutationResponse({
             instanceId,
             response: response.chatCompletionOverDataset,
             currentMap: exampleResponsesMap,
