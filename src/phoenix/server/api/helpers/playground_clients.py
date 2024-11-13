@@ -855,7 +855,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         }
 
         chat = client.start_chat(history=gemini_message_history)
-        async with await chat.send_message_async(**gemini_params) as stream:
+        async with chat.send_message(**gemini_params) as stream:
             async for event in stream:
                 yield TextChunk(content=event.text)
 
