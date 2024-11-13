@@ -850,9 +850,11 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         gemini_message_history, current_message, system_prompt = self._build_gemini_messages(
             messages
         )
-        client = google_genai.GenerativeModel(
-            model_name=self.model_name, system_instruction=system_prompt
-        )
+
+        model_args = {"model_name": self.model_name}
+        if system_prompt:
+            model_args["system_instruction"] = system_prompt
+        client = google_genai.GenerativeModel(**model_args)
 
         gemini_config = google_genai.GenerationConfig(
             **invocation_parameters,
@@ -873,14 +875,14 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     ) -> tuple[list["ContentType"], str, str]:
         gemini_message_history: list["ContentType"] = []
-        system_prompt = ""
+        system_prompts = []
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
                 gemini_message_history.append({"role": "user", "parts": content})
             elif role == ChatCompletionMessageRole.AI:
                 gemini_message_history.append({"role": "model", "parts": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
-                system_prompt += content + "\n"
+                system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
@@ -890,7 +892,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         else:
             prompt = ""
 
-        return gemini_message_history, prompt, system_prompt
+        return gemini_message_history, prompt, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
