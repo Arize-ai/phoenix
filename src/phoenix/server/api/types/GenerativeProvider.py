@@ -8,6 +8,7 @@ class GenerativeProviderKey(Enum):
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
+    GEMINI = "Google AI Studio"
 
 
 @strawberry.type
