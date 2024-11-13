@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9fb41f55365b529fe2259bc43f26045d>>
+ * @generated SignedSource<<9bc296474e8e476b0b7b302d7f626110>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -55,8 +55,6 @@ export type PlaygroundDatasetExamplesTableMutation$variables = {
 export type PlaygroundDatasetExamplesTableMutation$data = {
   readonly chatCompletionOverDataset: {
     readonly __typename: "ChatCompletionOverDatasetMutationPayload";
-    readonly datasetId: string;
-    readonly datasetVersionId: string;
     readonly examples: ReadonlyArray<{
       readonly datasetExampleId: string;
       readonly result: {
@@ -138,20 +136,6 @@ v3 = [
     "plural": false,
     "selections": [
       (v1/*: any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "datasetId",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "datasetVersionId",
-        "storageKey": null
-      },
       {
         "alias": null,
         "args": null,
@@ -353,16 +337,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "c2fa6b0a6cb01d8857a28c8dd61a01a4",
+    "cacheID": "5545ba76d6e030f32efac014aec91639",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    datasetId\n    datasetVersionId\n    experimentId\n    examples {\n      datasetExampleId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e45db7dd6ce72b11d0a0e2136588ace4";
+(node as any).hash = "bc4fd259c609ba1bda148c079b26b0d3";
 
 export default node;

@@ -901,8 +901,6 @@ graphql`
   ) {
     chatCompletionOverDataset(input: $input) {
       __typename
-      datasetId
-      datasetVersionId
       experimentId
       examples {
         datasetExampleId
