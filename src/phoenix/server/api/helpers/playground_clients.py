@@ -769,7 +769,6 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
-        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, google_genai.RateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[DependencyName]:
