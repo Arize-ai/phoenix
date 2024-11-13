@@ -25,7 +25,7 @@ class GenerativeProvider:
 
         default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
         if default_client:
-            return [dependency.name for dependency in default_client.dependencies()]
+            return [dependency["name"] for dependency in default_client.dependencies()]
         return []
 
     @strawberry.field
