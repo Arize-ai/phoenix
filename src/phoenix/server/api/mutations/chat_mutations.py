@@ -306,7 +306,6 @@ class ChatCompletionMutationMixin:
                 llm_input_messages(messages),
                 llm_invocation_parameters(invocation_parameters),
                 input_value_and_mime_type(input),
-                **llm_client.attributes,
             )
         )
 
@@ -333,6 +332,7 @@ class ChatCompletionMutationMixin:
                         tool_calls[chunk.id].function.arguments += chunk.function.arguments
                 else:
                     assert_never(chunk)
+            attributes.update(llm_client.attributes)
         except Exception as e:
             # Handle exceptions and record exception event
             status_code = StatusCode.ERROR
