@@ -761,11 +761,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
         for role, content, _tool_call_id, _tool_calls in messages:
+            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
             if role == ChatCompletionMessageRole.USER:
-                user_content = self._anthropic_message_content(content)
-                anthropic_messages.append({"role": "user", "content": user_content})
+                anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": content})
+                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
@@ -775,14 +775,21 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
         return anthropic_messages, system_prompt
 
-    def _anthropic_message_content(self, content):
+    def _anthropic_message_content(
+        self, content: str, tool_calls: Optional[list[JSONScalarType]]
+    ) -> str:
+        if tool_calls and content:
+            tool_use_content = [{"type": "text", "content": str(content)}]
+            tool_use_content.extend(tool_calls)
+            return tool_use_content
         try:
             possible_tool_content = json.loads(content)
             if isinstance(possible_tool_content, list) and len(possible_tool_content) >= 1:
-                if possible_tool_content[0].get("type") in ("tool_result", "tool_use"):
+                if possible_tool_content[0].get("type") in ("tool_result"):
                     return possible_tool_content
         except Exception:
             return content
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.GEMINI,
