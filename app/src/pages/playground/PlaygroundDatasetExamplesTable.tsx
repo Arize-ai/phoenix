@@ -152,6 +152,8 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
       css={css`
         max-height: 300px;
         overflow-y: auto;
+        padding: var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-200);
       `}
     >
       {children}
@@ -347,6 +349,8 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
+                  padding: 0,
+                  height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking

@@ -3,7 +3,12 @@ import { css } from "@emotion/react";
 
 const cellWithControlsWrapCSS = css`
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
   min-height: 75px;
+  padding: var(--ac-global-dimension-static-size-200);
   .controls {
     transition: opacity 0.2s ease-in-out;
     opacity: 0;
@@ -22,7 +27,7 @@ const cellWithControlsWrapCSS = css`
 
 const cellControlsCSS = css`
   position: absolute;
-  top: -23px;
+  top: -4px;
   right: 0px;
   display: flex;
   flex-direction: row;
