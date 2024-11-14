@@ -779,10 +779,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self, content: str, tool_calls: Optional[list[JSONScalarType]]
     ) -> str:
         if tool_calls and content:
+            # Anthropic combines tool calls and the reasoning text into a single message object
             tool_use_content = [{"type": "text", "text": str(content)}]
             tool_use_content.extend(tool_calls)
             return tool_use_content
         try:
+            # Anthropic will return tool call results as a JSON object in the content field
+            # Because our GQL type assumes that content is a string, we need to attempt to parse
+            # it as a JSON object and check if it contains tool call results
             possible_tool_content = json.loads(content)
             if isinstance(possible_tool_content, list) and len(possible_tool_content) >= 1:
                 if possible_tool_content[0].get("type") in ("tool_result"):
