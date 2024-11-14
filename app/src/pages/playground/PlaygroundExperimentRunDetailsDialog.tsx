@@ -1,14 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import {
-  Card,
-  CardProps,
-  Dialog,
-  DialogContainer,
-  Flex,
-  View,
-} from "@arizeai/components";
+import { Card, CardProps, Dialog, Flex, View } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -56,45 +49,43 @@ export function PlaygroundExperimentRunDetailsDialog({
   }, [data]);
   const { exampleId, input, referenceOutput, runOutput } = run;
   return (
-    <DialogContainer type="slideOver" isDismissable onDismiss={() => {}}>
-      <Dialog size="XL" title={`Experiment Run for Example: ${exampleId}`}>
-        <Flex direction="row" justifyContent="center">
-          <View
-            width="900px"
-            paddingStart="auto"
-            paddingEnd="auto"
-            paddingTop="size-200"
-            paddingBottom="size-200"
-          >
-            <Flex direction="column" gap="size-200">
+    <Dialog size="XL" title={`Experiment Run for Example: ${exampleId}`}>
+      <Flex direction="row" justifyContent="center">
+        <View
+          width="900px"
+          paddingStart="auto"
+          paddingEnd="auto"
+          paddingTop="size-200"
+          paddingBottom="size-200"
+        >
+          <Flex direction="column" gap="size-200">
+            <Card
+              title="Input"
+              {...defaultCardProps}
+              extra={<CopyToClipboardButton text={input} />}
+            >
+              <JSONBlock value={input} />
+            </Card>
+            <Card
+              title="Reference Output"
+              {...defaultCardProps}
+              extra={<CopyToClipboardButton text={referenceOutput} />}
+            >
+              <JSONBlock value={referenceOutput} />
+            </Card>
+            {runOutput && (
               <Card
-                title="Input"
+                title="Run Output"
                 {...defaultCardProps}
-                extra={<CopyToClipboardButton text={input} />}
+                extra={<CopyToClipboardButton text={runOutput} />}
               >
-                <JSONBlock value={input} />
+                <JSONBlock value={runOutput} />
               </Card>
-              <Card
-                title="Reference Output"
-                {...defaultCardProps}
-                extra={<CopyToClipboardButton text={referenceOutput} />}
-              >
-                <JSONBlock value={referenceOutput} />
-              </Card>
-              {runOutput && (
-                <Card
-                  title="Run Output"
-                  {...defaultCardProps}
-                  extra={<CopyToClipboardButton text={runOutput} />}
-                >
-                  <JSONBlock value={runOutput} />
-                </Card>
-              )}
-            </Flex>
-          </View>
-        </Flex>
-      </Dialog>
-    </DialogContainer>
+            )}
+          </Flex>
+        </View>
+      </Flex>
+    </Dialog>
   );
 }
 
