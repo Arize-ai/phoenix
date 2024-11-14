@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9b7bf8d80d79db107e7afad6492650a4>>
+ * @generated SignedSource<<9c8435262691e589c039d8052a312930>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type ModelsInput = {
   modelName?: string | null;
@@ -57,7 +57,14 @@ v1 = {
   "name": "invocationInputField",
   "storageKey": null
 },
-v2 = [
+v2 = {
+  "alias": "floatDefaultValue",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "defaultValue",
+  "storageKey": null
+},
+v3 = [
   {
     "alias": null,
     "args": [
@@ -132,15 +139,18 @@ v2 = [
             "storageKey": null
           },
           (v1/*: any*/),
-          {
-            "alias": "floatDefaultValue",
-            "args": null,
-            "kind": "ScalarField",
-            "name": "defaultValue",
-            "storageKey": null
-          }
+          (v2/*: any*/)
         ],
         "type": "BoundedFloatInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v1/*: any*/),
+          (v2/*: any*/)
+        ],
+        "type": "FloatInvocationParameter",
         "abstractKey": null
       },
       {
@@ -228,7 +238,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "InvocationParametersFormQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -237,19 +247,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "InvocationParametersFormQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "d0f0f7961fc9bc2ccc4a558c5a4ab98a",
+    "cacheID": "56e31957e89e73349ff41fc66455df1f",
     "id": null,
     "metadata": {},
     "name": "InvocationParametersFormQuery",
     "operationKind": "query",
-    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n    ... on JSONInvocationParameter {\n      invocationInputField\n      jsonDefaultValue: defaultValue\n    }\n  }\n}\n"
+    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on FloatInvocationParameter {\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n    ... on JSONInvocationParameter {\n      invocationInputField\n      jsonDefaultValue: defaultValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d5fd6c5574552d91f3f6e4df531d907";
+(node as any).hash = "583498af6dd9d28f63d53bcece9f2b7d";
 
 export default node;

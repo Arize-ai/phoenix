@@ -1,4 +1,5 @@
-declare type ModelProvider = "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC";
+// TODO: Pull from GenerativeProviderKey in gql schema
+declare type ModelProvider = "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GEMINI";
 
 /**
  * The role of a chat message

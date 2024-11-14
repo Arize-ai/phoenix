@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9bc296474e8e476b0b7b302d7f626110>>
+ * @generated SignedSource<<b2d394334da9b3ce4738fcdcea985036>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE";
 export type ChatCompletionOverDatasetInput = {
   apiKey?: string | null;

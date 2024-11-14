@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfe7f546aee7b7d1747b599c71b83ff7>>
+ * @generated SignedSource<<16ff5bed2bd91b23b7055365ced74c8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "OPENAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type ModelConfigButtonDialogQuery$variables = {
   providerKey: GenerativeProviderKey;
 };
