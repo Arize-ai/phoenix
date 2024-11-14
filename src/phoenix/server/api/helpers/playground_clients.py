@@ -779,7 +779,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self, content: str, tool_calls: Optional[list[JSONScalarType]]
     ) -> str:
         if tool_calls and content:
-            tool_use_content = [{"type": "text", "content": str(content)}]
+            tool_use_content = [{"type": "text", "text": str(content)}]
             tool_use_content.extend(tool_calls)
             return tool_use_content
         try:
