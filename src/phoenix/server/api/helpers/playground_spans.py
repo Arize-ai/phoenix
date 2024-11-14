@@ -335,15 +335,16 @@ def llm_input_messages(
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
         if tool_calls is not None:
             for tool_call_index, tool_call in enumerate(tool_calls):
-                yield (
-                    f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-                    tool_call["function"]["name"],
-                )
-                if arguments := tool_call["function"]["arguments"]:
+                if tool_call_function := tool_call.get("function"):
                     yield (
-                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                        safe_json_dumps(jsonify(arguments)),
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                        tool_call_function["name"],
                     )
+                    if arguments := tool_call_function["arguments"]:
+                        yield (
+                            f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                            safe_json_dumps(jsonify(arguments)),
+                        )
 
 
 def _llm_output_messages(
