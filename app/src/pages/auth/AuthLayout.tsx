@@ -10,7 +10,6 @@ export function AuthLayout({ children }: PropsWithChildren) {
         padding-top: 200px;
         width: 100%;
         height: 100vh;
-        overflow: hidden;
         background: radial-gradient(
           90% 60% at 50% 30%,
           rgba(5, 145, 193, 0.4) 0%,
@@ -31,6 +30,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
         marginStart="auto"
         marginEnd="auto"
         borderRadius="medium"
+        overflow={"auto"}
       >
         {children}
       </View>
