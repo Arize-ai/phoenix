@@ -762,7 +762,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         system_prompt = ""
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                anthropic_messages.append({"role": "user", "content": content})
+                user_content = self._anthropic_message_content(content)
+                anthropic_messages.append({"role": "user", "content": user_content})
             elif role == ChatCompletionMessageRole.AI:
                 anthropic_messages.append({"role": "assistant", "content": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
@@ -774,6 +775,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
         return anthropic_messages, system_prompt
 
+    def _anthropic_message_content(self, content):
+        try:
+            possible_tool_content = json.loads(content)
+            if isinstance(possible_tool_content, list) and len(possible_tool_content) >= 1:
+                if possible_tool_content[0].get("type") in ("tool_result", "tool_use"):
+                    return possible_tool_content
+        except Exception:
+            return content
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.GEMINI,
