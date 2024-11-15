@@ -3,7 +3,7 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonZodSchema";
+import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaZodSchema = z
   .object({

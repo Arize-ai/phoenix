@@ -9,7 +9,10 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
-import { JSONLiteral, jsonLiteralSchema } from "@phoenix/schemas/jsonZodSchema";
+import {
+  JSONLiteral,
+  jsonLiteralSchema,
+} from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { isObject, schemaForType } from "@phoenix/typeUtils";

@@ -3,7 +3,7 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { JSONLiteral, jsonLiteralSchema } from "./jsonZodSchema";
+import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like
