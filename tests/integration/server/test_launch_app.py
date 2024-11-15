@@ -1,7 +1,10 @@
 import os
 from time import sleep
 
+import pandas as pd
+import phoenix as px
 from faker import Faker
+from phoenix.trace.dsl import SpanQuery
 
 from .._helpers import (
     _get_gql_spans,
@@ -33,3 +36,15 @@ class TestLaunchApp:
                 project = _get_gql_spans(None, "name")[project_name]
                 gql_span_names = set(span["name"] for span in project)
                 assert gql_span_names == span_names
+
+                q = SpanQuery()
+                results = px.Client().query_spans(q, q, project_name=project_name)
+                assert isinstance(results, list)
+                assert len(results) == 2
+                df0, df1 = results
+                assert isinstance(df0, pd.DataFrame)
+                assert isinstance(df1, pd.DataFrame)
+                assert df0.size
+                assert df1.size
+                assert len(df0) == len(gql_span_names)
+                assert len(df1) == len(gql_span_names)

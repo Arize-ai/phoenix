@@ -11,7 +11,6 @@ from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_docum
 async def test_get_retrieved_documents(
     px_client: Client,
     default_project: Any,
-    abc_project: Any,
 ) -> None:
     expected = pd.DataFrame(
         {
@@ -33,7 +32,6 @@ async def test_get_retrieved_documents(
 async def test_get_qa_with_reference(
     px_client: Client,
     default_project: Any,
-    abc_project: Any,
 ) -> None:
     expected = pd.DataFrame(
         {

@@ -1,8 +1,12 @@
+import json
+from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from secrets import token_urlsafe
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+import pandas as pd
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -19,6 +23,7 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
+from phoenix.utilities.json import encode_df_as_json_payload
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
@@ -72,6 +77,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
 async def query_spans_handler(
     request: Request,
     request_body: QuerySpansRequestBody,
+    accept: Optional[str] = Header(None),
     project_name: Optional[str] = Query(
         default=None, description="The project name to get evaluations from"
     ),
@@ -116,6 +122,13 @@ async def query_spans_handler(
     if not results:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
+    if accept == "application/json":
+        boundary_token = token_urlsafe(64)
+        return StreamingResponse(
+            content=_json_multipart(results, boundary_token),
+            media_type=f"multipart/mixed; boundary={boundary_token}",
+        )
+
     async def content() -> AsyncIterator[bytes]:
         for result in results:
             yield df_to_bytes(result)
@@ -124,6 +137,22 @@ async def query_spans_handler(
         content=content(),
         media_type="application/x-pandas-arrow",
     )
+
+
+async def _json_multipart(
+    results: list[pd.DataFrame],
+    boundary_token: str,
+) -> AsyncIterator[str]:
+    for df in results:
+        yield f"--{boundary_token}\r\n"
+        yield "Content-Type: application/json\r\n\r\n"
+        payload = await get_running_loop().run_in_executor(
+            None,
+            lambda: json.dumps(encode_df_as_json_payload(df)),
+        )
+        yield payload
+        yield "\r\n"
+    yield f"--{boundary_token}--\r\n"
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)
