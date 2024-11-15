@@ -78,7 +78,7 @@ import {
 } from "./PlaygroundToolCall";
 import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 type InstanceId = number;
 type ExampleId = string;
@@ -633,7 +633,7 @@ export function PlaygroundDatasetExamplesTable({
       @argumentDefinitions(
         datasetVersionId: { type: "GlobalID" }
         after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
+        first: { type: "Int", defaultValue: 20 }
       ) {
         examples(
           datasetVersionId: $datasetVersionId
@@ -799,6 +799,7 @@ export function PlaygroundDatasetExamplesTable({
       css={css`
         flex: 1 1 auto;
         overflow: auto;
+        height: 100%;
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
