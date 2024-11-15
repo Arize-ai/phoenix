@@ -19,6 +19,7 @@ import {
   toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import { anthropicToolResultMessageSchema } from "@phoenix/schemas/toolResultSchemas";
 import {
   ChatMessage,
   createPlaygroundInstance,
@@ -33,7 +34,6 @@ import {
 } from "@phoenix/store";
 import {
   assertUnreachable,
-  isObject,
   isStringKeyedObject,
   Mutable,
 } from "@phoenix/typeUtils";
@@ -190,10 +190,27 @@ function processAttributeMessagesToChatMessage({
   provider: ModelProvider;
 }): ChatMessage[] {
   return messages.map(({ message }) => {
+    if (Array.isArray(message.content)) {
+      // check if message matches anthropic tool result schema
+      const { data, success } =
+        anthropicToolResultMessageSchema.safeParse(message);
+      const toolResult = data?.content.find(
+        (content) => content?.type === "tool_result"
+      );
+      if (success && toolResult != null) {
+        return {
+          id: generateMessageId(),
+          role: getChatRole("tool"),
+          content: toolResult.content,
+          toolCallId: toolResult.tool_use_id,
+        };
+      }
+    }
     return {
       id: generateMessageId(),
       role: getChatRole(message.role),
-      content: message.content,
+      content:
+        typeof message.content === "string" ? message.content : undefined,
       toolCalls: processAttributeToolCalls({
         provider,
         toolCalls: message.tool_calls,
@@ -852,14 +869,6 @@ export const createToolCallForProvider = (
 function toGqlChatCompletionMessage(
   message: ChatMessage
 ): ChatCompletionMessageInput {
-  if (Array.isArray(message.content) || isObject(message.content)) {
-    return {
-      content: JSON.stringify(message.content),
-      role: toGqlChatCompletionRole(message.role),
-      toolCalls: message.toolCalls,
-      toolCallId: message.toolCallId,
-    };
-  }
   return {
     content: message.content,
     role: toGqlChatCompletionRole(message.role),

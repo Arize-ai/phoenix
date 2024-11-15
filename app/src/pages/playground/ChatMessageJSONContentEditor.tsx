@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -19,7 +19,6 @@ export function ChatMessageJSONContentEditor({
   templateMessages: ChatMessage[];
   messageId: number;
 }) {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
@@ -49,34 +48,35 @@ export function ChatMessageJSONContentEditor({
     }
   }, [lastValidContent, content]);
 
-  const onChange = useCallback(
-    (value: string) => {
-      setEditorValue(value);
-      const { json: parsedContent } = safelyParseJSON(value);
-      if (parsedContent == null || !Array.isArray(parsedContent)) {
-        return;
-      }
+  // TODO: re-enable this when we support raw json message content
+  // const onChange = useCallback(
+  //   (value: string) => {
+  //     setEditorValue(value);
+  //     const { json: parsedContent } = safelyParseJSON(value);
+  //     if (parsedContent == null || !Array.isArray(parsedContent)) {
+  //       return;
+  //     }
 
-      setLastValidContent(parsedContent);
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch: {
-          template: {
-            __type: "chat",
-            messages: templateMessages.map((m) =>
-              messageId === m.id
-                ? {
-                    ...m,
-                    content: parsedContent,
-                  }
-                : m
-            ),
-          },
-        },
-      });
-    },
-    [messageId, playgroundInstanceId, templateMessages, updateInstance]
-  );
+  //     setLastValidContent(parsedContent);
+  //     updateInstance({
+  //       instanceId: playgroundInstanceId,
+  //       patch: {
+  //         template: {
+  //           __type: "chat",
+  //           messages: templateMessages.map((m) =>
+  //             messageId === m.id
+  //               ? {
+  //                   ...m,
+  //                   content: parsedContent,
+  //                 }
+  //               : m
+  //           ),
+  //         },
+  //       },
+  //     });
+  //   },
+  //   [messageId, playgroundInstanceId, templateMessages, updateInstance]
+  // );
 
-  return <JSONEditor value={editorValue} onChange={onChange} />;
+  return <JSONEditor value={editorValue} onChange={() => {}} />;
 }

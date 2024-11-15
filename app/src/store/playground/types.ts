@@ -33,10 +33,8 @@ export type ChatMessage = {
   role: ChatMessageRole;
   // Tool call messages may not have content
   // Array typed content may be used for tool calls depending on the provider
-  // In which case, content will be rendered as an editable JSON string
-  content?: string | Array<Record<string, unknown>>;
-  // TODO(apowell): Should we keep this? Should we just assume that element of type tool_result of the content array is the tool result?
-  toolResult?: Record<string, unknown>;
+  // But we do not currently support this in the playground
+  content?: string;
   toolCalls?: LlmProviderToolCall[];
   toolCallId?: string;
 };

@@ -704,6 +704,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
 
+        # print messages separated by newlines
+        print("\n".join(f"{message}" for message in anthropic_messages))
+
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
@@ -769,7 +772,18 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": _tool_call_id or "",
+                                "content": content or "",
+                            }
+                        ],
+                    }
+                )
             else:
                 assert_never(role)
 
@@ -778,23 +792,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     def _anthropic_message_content(
         self, content: str, tool_calls: Optional[list[JSONScalarType]]
     ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
-        if tool_calls and content:
+        if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
-            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = [
-                TextBlockParam(text=content, type="text")
-            ]
+            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = []
+            if content:
+                tool_use_content.append({"type": "text", "text": content})
             tool_use_content.extend(tool_calls)
             return tool_use_content
-        try:
-            # Anthropic will return tool call results as a JSON object in the content field
-            # Because our GQL type assumes that content is a string, we need to attempt to parse
-            # it as a JSON object and check if it contains tool call results
-            possible_tool_content = json.loads(content)
-            if isinstance(possible_tool_content, list) and len(possible_tool_content) >= 1:
-                if possible_tool_content[0].get("type") in ("tool_result"):
-                    return possible_tool_content
-        except Exception:
-            pass
+
         return content
 
 

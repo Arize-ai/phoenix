@@ -44,7 +44,7 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { assertUnreachable, isObject } from "@phoenix/typeUtils";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageJSONContentEditor } from "./ChatMessageJSONContentEditor";
@@ -54,8 +54,6 @@ import {
   AIMessageContentRadioGroup,
   AIMessageMode,
   MessageMode,
-  UserMessageContentRadioGroup,
-  UserMessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
 import {
@@ -351,27 +349,9 @@ function SortableMessageItem({
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
-  let hasJSONContent = false;
-  if (message.content != null) {
-    if (typeof message.content === "string") {
-      // check if string content is valid object or array json
-      const { json: contentJson } = safelyParseJSON(message?.content ?? "");
-      hasJSONContent =
-        contentJson != null &&
-        (Array.isArray(contentJson) || isObject(contentJson));
-    } else {
-      // non string, non-null content should be considered json
-      hasJSONContent =
-        Array.isArray(message.content) || isObject(message.content);
-    }
-  }
 
   const [aiMessageMode, setAIMessageMode] = useState<AIMessageMode>(
     hasTools ? "toolCalls" : "text"
-  );
-
-  const [userMessageMode, setUserMessageMode] = useState<UserMessageMode>(
-    hasJSONContent ? "json" : "text"
   );
 
   const updateMessage = useCallback(
@@ -403,17 +383,13 @@ function SortableMessageItem({
             includeLabel={false}
             role={message.role}
             onChange={(role) => {
-              let content = message.content;
+              const content = message.content;
               let toolCalls = message.toolCalls;
               // Tool calls should only be attached to ai messages
               // Clear tools from the message and reset the message mode when switching away form ai
               if (role !== "ai") {
                 toolCalls = undefined;
                 setAIMessageMode("text");
-              }
-              if (role !== "user") {
-                content = "";
-                setUserMessageMode("text");
               }
               updateInstance({
                 instanceId: playgroundInstanceId,
@@ -460,32 +436,6 @@ function SortableMessageItem({
                     }
                   }}
                 />
-              ) : // Only show multi-part content option for user messages
-              message.role === "user" ? (
-                <UserMessageContentRadioGroup
-                  messageMode={userMessageMode}
-                  onChange={(mode) => {
-                    setUserMessageMode(mode);
-                    switch (mode) {
-                      case "text":
-                        updateMessage({
-                          // if we parse the user message content as json, but the user disagrees,
-                          // they can change it back to text, keeping the parsed value
-                          // changing back to json afterwards will not parse the new value back however
-                          content: message.content?.toString() ?? "",
-                        });
-                        break;
-                      case "json": {
-                        updateMessage({
-                          content: [],
-                        });
-                        break;
-                      }
-                      default:
-                        assertUnreachable(mode);
-                    }
-                  }}
-                />
               ) : null
             }
             <CopyToClipboardButton
@@ -527,9 +477,7 @@ function SortableMessageItem({
         <div>
           <MessageEditor
             message={message}
-            messageMode={
-              message.role === "user" ? userMessageMode : aiMessageMode
-            }
+            messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
             template={template}
             templateLanguage={templateLanguage}
