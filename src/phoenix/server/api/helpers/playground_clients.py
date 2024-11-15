@@ -703,10 +703,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
-
-        # print messages separated by newlines
-        print("\n".join(f"{message}" for message in anthropic_messages))
-
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
