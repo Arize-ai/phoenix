@@ -794,7 +794,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 if possible_tool_content[0].get("type") in ("tool_result"):
                     return possible_tool_content
         except Exception:
-            return content
+            pass
         return content
 
 
