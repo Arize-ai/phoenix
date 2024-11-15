@@ -396,10 +396,7 @@ function ExampleOutputCell({
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
         {errorMessage != null ? (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-            <Text color="danger">{errorMessage}</Text>
-          </Flex>
+          <CellErrorWrap>{errorMessage}</CellErrorWrap>
         ) : null}
         <Text>{content}</Text>
         {toolCalls != null
