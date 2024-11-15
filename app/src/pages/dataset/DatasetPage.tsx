@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
+  Button,
   Counter,
   Flex,
   Icon,
@@ -162,6 +163,15 @@ function DatasetPageContent({
             <DatasetHistoryButton datasetId={dataset.id} />
             <DatasetCodeDropdown />
             <RunExperimentButton />
+            <Button
+              variant={"default"}
+              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              onClick={() => {
+                navigate(`/playground/datasets/${dataset.id}`);
+              }}
+            >
+              Playground
+            </Button>
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
