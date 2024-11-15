@@ -44,15 +44,16 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ChatMessageArrayContentEditor } from "./ChatMessageArrayContentEditor";
+import { ChatMessageJSONContentEditor } from "./ChatMessageJSONContentEditor";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import { RESPONSE_FORMAT_PARAM_CANONICAL_NAME } from "./constants";
 import {
   AIMessageContentRadioGroup,
   AIMessageMode,
+  MessageMode,
   UserMessageContentRadioGroup,
   UserMessageMode,
 } from "./MessageContentRadioGroup";
@@ -195,7 +196,7 @@ function MessageEditor({
   template: PlaygroundChatTemplateType;
   templateLanguage: TemplateLanguage;
   updateMessage: (patch: Partial<ChatMessage>) => void;
-  messageMode: AIMessageMode;
+  messageMode: MessageMode;
 }) {
   if (messageMode === "toolCalls") {
     return (
@@ -218,7 +219,7 @@ function MessageEditor({
       </View>
     );
   }
-  if (Array.isArray(message.content)) {
+  if (messageMode === "json") {
     return (
       <View
         paddingStart="size-200"
@@ -226,7 +227,7 @@ function MessageEditor({
         paddingTop="size-200"
         paddingBottom="size-200"
       >
-        <ChatMessageArrayContentEditor
+        <ChatMessageJSONContentEditor
           playgroundInstanceId={playgroundInstanceId}
           templateMessages={template.messages}
           messageId={message.id}
@@ -235,6 +236,15 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
+    const toolMessageContent =
+      // transform empty values into empty object string
+      message.content == null || message.content === ""
+        ? "{}"
+        : // transform non-string values into a pretty-printed JSON string
+          typeof message.content === "string"
+          ? // assume strings are already JSON strings
+            message.content
+          : JSON.stringify(message.content, null, 2);
     return (
       <Form
         onSubmit={(e) => {
@@ -258,11 +268,7 @@ function MessageEditor({
           />
         </View>
         <JSONEditor
-          value={
-            message.content == null || message.content === ""
-              ? "{}"
-              : message.content
-          }
+          value={toolMessageContent}
           aria-label="tool message content"
           height={"100%"}
           onChange={(val) => updateMessage({ content: val })}
@@ -296,7 +302,11 @@ function MessageEditor({
     >
       <TemplateEditor
         height="100%"
-        value={message.content}
+        value={
+          typeof message.content === "string"
+            ? message.content
+            : JSON.stringify(message.content, null, 2)
+        }
         aria-label="Message content"
         templateLanguage={templateLanguage}
         onChange={(val) => updateMessage({ content: val })}
@@ -341,14 +351,27 @@ function SortableMessageItem({
   };
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
-  const hasMultiPartContent = Array.isArray(message.content);
+  let hasJSONContent = false;
+  if (message.content != null) {
+    if (typeof message.content === "string") {
+      // check if string content is valid object or array json
+      const { json: contentJson } = safelyParseJSON(message?.content ?? "");
+      hasJSONContent =
+        contentJson != null &&
+        (Array.isArray(contentJson) || isObject(contentJson));
+    } else {
+      // non string, non-null content should be considered json
+      hasJSONContent =
+        Array.isArray(message.content) || isObject(message.content);
+    }
+  }
 
   const [aiMessageMode, setAIMessageMode] = useState<AIMessageMode>(
     hasTools ? "toolCalls" : "text"
   );
 
   const [userMessageMode, setUserMessageMode] = useState<UserMessageMode>(
-    hasMultiPartContent ? "multiPart" : "text"
+    hasJSONContent ? "json" : "text"
   );
 
   const updateMessage = useCallback(
@@ -445,13 +468,19 @@ function SortableMessageItem({
                     setUserMessageMode(mode);
                     switch (mode) {
                       case "text":
-                        updateMessage({ content: "" });
+                        updateMessage({
+                          // if we parse the user message content as json, but the user disagrees,
+                          // they can change it back to text, keeping the parsed value
+                          // changing back to json afterwards will not parse the new value back however
+                          content: message.content?.toString() ?? "",
+                        });
                         break;
-                      case "multiPart":
+                      case "json": {
                         updateMessage({
                           content: [],
                         });
                         break;
+                      }
                       default:
                         assertUnreachable(mode);
                     }
@@ -498,7 +527,9 @@ function SortableMessageItem({
         <div>
           <MessageEditor
             message={message}
-            messageMode={aiMessageMode}
+            messageMode={
+              message.role === "user" ? userMessageMode : aiMessageMode
+            }
             playgroundInstanceId={playgroundInstanceId}
             template={template}
             templateLanguage={templateLanguage}

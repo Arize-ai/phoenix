@@ -33,6 +33,7 @@ import {
 } from "@phoenix/store";
 import {
   assertUnreachable,
+  isObject,
   isStringKeyedObject,
   Mutable,
 } from "@phoenix/typeUtils";
@@ -851,7 +852,7 @@ export const createToolCallForProvider = (
 function toGqlChatCompletionMessage(
   message: ChatMessage
 ): ChatCompletionMessageInput {
-  if (Array.isArray(message.content)) {
+  if (Array.isArray(message.content) || isObject(message.content)) {
     return {
       content: JSON.stringify(message.content),
       role: toGqlChatCompletionRole(message.role),

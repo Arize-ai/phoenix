@@ -10,7 +10,7 @@ const EMPTY_CONTENT: Array<unknown> = [];
 /**
  * Editor for message content array
  */
-export function ChatMessageArrayContentEditor({
+export function ChatMessageJSONContentEditor({
   playgroundInstanceId,
   templateMessages,
   messageId,
@@ -30,9 +30,10 @@ export function ChatMessageArrayContentEditor({
 
   // Find the target message and get its content
   const message = templateMessages.find((m) => m.id === messageId);
-  const content = Array.isArray(message?.content)
-    ? message.content
-    : EMPTY_CONTENT;
+  const content =
+    typeof message?.content === "string"
+      ? (safelyParseJSON(message.content).json ?? EMPTY_CONTENT)
+      : (message?.content ?? EMPTY_CONTENT);
 
   const [editorValue, setEditorValue] = useState(() =>
     JSON.stringify(content, null, 2)

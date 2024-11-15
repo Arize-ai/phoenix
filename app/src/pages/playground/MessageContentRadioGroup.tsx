@@ -3,14 +3,15 @@ import React from "react";
 import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
 
 export type AIMessageMode = "text" | "toolCalls";
-export type UserMessageMode = "text" | "multiPart";
+export type UserMessageMode = "text" | "json";
+export type MessageMode = AIMessageMode | UserMessageMode;
 
 function isAIMessageMode(value: string): value is AIMessageMode {
   return value === "text" || value === "toolCalls";
 }
 
 function isUserMessageMode(value: string): value is UserMessageMode {
-  return value === "text" || value === "multiPart";
+  return value === "text" || value === "json";
 }
 
 export function AIMessageContentRadioGroup({
@@ -66,8 +67,8 @@ export function UserMessageContentRadioGroup({
       <Radio label="text input" value={"text"}>
         <Icon svg={<Icons.MessageSquareOutline />} />
       </Radio>
-      <Radio label="multi-part" value={"multiPart"}>
-        <Icon svg={<Icons.ListOutline />} />
+      <Radio label="json input" value={"json"}>
+        <Icon svg={<Icons.Code />} />
       </Radio>
     </RadioGroup>
   );
