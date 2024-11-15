@@ -335,7 +335,22 @@ def llm_input_messages(
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
         if tool_calls is not None:
             for tool_call_index, tool_call in enumerate(tool_calls):
-                if tool_call_function := tool_call.get("function"):
+                if tool_call.get("type") == "tool_use":
+                    # Anthropic spans
+                    yield (
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                        tool_call["name"],
+                    )
+                    yield (
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                        safe_json_dumps(jsonify(tool_call["input"])),
+                    )
+                    yield (
+                        f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                        tool_call["id"],
+                    )
+                elif tool_call_function := tool_call.get("function"):
+                    # OpenAI spans
                     yield (
                         f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
                         tool_call_function["name"],
@@ -419,5 +434,5 @@ MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
 
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
