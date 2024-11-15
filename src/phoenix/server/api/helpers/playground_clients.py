@@ -48,7 +48,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
-    from anthropic.types import MessageParam
+    from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
@@ -777,10 +777,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
     def _anthropic_message_content(
         self, content: str, tool_calls: Optional[list[JSONScalarType]]
-    ) -> str:
+    ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
         if tool_calls and content:
             # Anthropic combines tool calls and the reasoning text into a single message object
-            tool_use_content = [{"type": "text", "text": str(content)}]
+            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = [
+                TextBlockParam(text=content, type="text")
+            ]
             tool_use_content.extend(tool_calls)
             return tool_use_content
         try:
@@ -793,6 +795,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     return possible_tool_content
         except Exception:
             return content
+        return content
 
 
 @register_llm_client(
