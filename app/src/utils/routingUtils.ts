@@ -9,7 +9,7 @@ export function createLoginRedirectUrl() {
   const searchParams = window.location.search;
   let basePath = "";
   let pathAfterBase = "";
-  if (basename === "" || basename === "/") {
+  if (basename == null || basename === "" || basename === "/") {
     pathAfterBase = path;
   } else if (basename.startsWith("/") && path.startsWith(basename)) {
     const afterBase = path.slice(basename.length);
@@ -30,7 +30,7 @@ export function createLoginRedirectUrl() {
  */
 export function prependBaseNameIfExists(path: string) {
   const basename = window.Config.basename;
-  if (basename === "" || basename === "/") {
+  if (basename == null || basename === "" || basename === "/") {
     return path;
   }
   return basename + path;
