@@ -3,6 +3,8 @@ import { css } from "@emotion/react";
 
 import { Button } from "@arizeai/components";
 
+import { createUrlWithBase } from "@phoenix/utils/routingUtils";
+
 type OAuth2LoginProps = {
   idpName: string;
   idpDisplayName: string;
@@ -38,7 +40,9 @@ export function OAuth2Login({
 }: OAuth2LoginProps) {
   return (
     <form
-      action={`/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`}
+      action={createUrlWithBase(
+        `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`
+      )}
       method="post"
       css={loginCSS}
       data-provider={idpName}
