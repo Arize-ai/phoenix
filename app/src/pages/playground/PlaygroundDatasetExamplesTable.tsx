@@ -58,7 +58,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
@@ -76,7 +76,10 @@ import {
   PartialOutputToolCall,
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
-import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
+import {
+  extractedVariablesFromInstance,
+  getChatCompletionOverDatasetInput,
+} from "./playgroundUtils";
 
 const PAGE_SIZE = 100;
 
@@ -297,20 +300,45 @@ function JSONCell<TData extends object, TValue>({
   );
 }
 
+function CellErrorWrap({ children }: { children: ReactNode }) {
+  return (
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Text color="danger">{children}</Text>
+    </Flex>
+  );
+}
+
 function ExampleOutputCell({
   exampleData,
   isRunning,
   setDialog,
+  instanceVariables,
+  datasetExampleInput,
 }: {
   exampleData: ExampleRunData | null;
   isRunning: boolean;
   setDialog(dialog: ReactNode): void;
+  instanceVariables: string[];
+  datasetExampleInput: Record<string, unknown>;
 }) {
   if (exampleData == null && isRunning) {
     return <Loading />;
   }
   if (exampleData == null) {
-    return null;
+    const missingVariables = instanceVariables.filter((variable) => {
+      return datasetExampleInput[variable] == null;
+    });
+    if (missingVariables.length === 0) {
+      return null;
+    }
+    return (
+      <CellErrorWrap>
+        {`Missing output for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+          ", "
+        )}`}
+      </CellErrorWrap>
+    );
   }
   const { span, content, toolCalls, errorMessage } = exampleData;
   const hasSpan = span != null;
@@ -436,6 +464,9 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
   const setExperimentId = usePlaygroundContext(
     (state) => state.setExperimentId
   );
@@ -684,17 +715,25 @@ export function PlaygroundDatasetExamplesTable({
       cell: ({ row }) => {
         const exampleData =
           exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
+        const instanceVariables = extractedVariablesFromInstance({
+          instance,
+          templateLanguage,
+        });
         return (
           <ExampleOutputCell
             exampleData={exampleData}
             isRunning={hasSomeRunIds}
             setDialog={setDialog}
+            instanceVariables={instanceVariables}
+            datasetExampleInput={
+              isStringKeyedObject(row.original.input) ? row.original.input : {}
+            }
           />
         );
       },
       size: 500,
     }));
-  }, [exampleResponsesMap, hasSomeRunIds, instances]);
+  }, [exampleResponsesMap, hasSomeRunIds, instances, templateLanguage]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
