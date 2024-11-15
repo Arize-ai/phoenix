@@ -28,6 +28,13 @@ describe("toolSchemas", () => {
       expect(result.provider).toBe("ANTHROPIC");
       expect(result.validatedToolDefinition).toEqual(anthropicTool);
     });
+
+    it("should return unknown provider for unknown tool definition", () => {
+      const unknownTool = { name: "test_name", input_schema: {} };
+      const result = detectToolDefinitionProvider(unknownTool);
+      expect(result.provider).toBe("UNKNOWN");
+      expect(result.validatedToolDefinition).toBeNull();
+    });
   });
 
   describe("toOpenAIToolDefinition", () => {
@@ -46,6 +53,10 @@ describe("toolSchemas", () => {
         },
       });
       const openAITool = toOpenAIToolDefinition(anthropicTool);
+      expect(openAITool).not.toBeNull();
+      if (!openAITool) {
+        throw new Error("OpenAI tool definition is null");
+      }
       expect(openAITool.function.name).toBe(anthropicTool.name);
       expect(openAITool.function.description).toBe(anthropicTool.description);
       expect(openAITool.function.parameters).toEqual(
@@ -57,6 +68,12 @@ describe("toolSchemas", () => {
       const openAITool = getTestOpenAIToolDefinition();
       const result = toOpenAIToolDefinition(openAITool);
       expect(result).toEqual(openAITool);
+    });
+
+    it("should return null if the provider is unknown", () => {
+      const unknownTool = { name: "test_name", input_schema: {} };
+      const result = toOpenAIToolDefinition(unknownTool);
+      expect(result).toBeNull();
     });
   });
 

@@ -1,10 +1,15 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
+import {
+  getTestAnthropicToolCall,
+  getTestOpenAIToolCall,
+} from "@phoenix/schemas/__tests__/fixtures";
 import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import {
   _resetInstanceId,
   _resetMessageId,
+  ChatMessage,
   createOpenAIResponseFormat,
   PlaygroundInput,
   PlaygroundInstance,
@@ -1162,4 +1167,70 @@ describe("getToolsFromAttributes", () => {
       parsingErrors: [],
     });
   });
+});
+
+type TestName = string;
+type ToolCallConversionTestTuple<T extends ModelProvider> = [
+  TestName,
+  T,
+  ChatMessage["toolCalls"],
+  ChatMessage["toolCalls"],
+];
+
+type ToolCallConversionTestMap = {
+  [P in ModelProvider]: [ToolCallConversionTestTuple<P>];
+};
+
+describe("convertMessageToolCallsToProvider", () => {
+  const ProviderToToolTestMap: ToolCallConversionTestMap = {
+    ANTHROPIC: [
+      [
+        "convert from openai to anthropic",
+        "ANTHROPIC",
+        [
+          getTestOpenAIToolCall({
+            function: {
+              name: "my test func",
+              arguments: { test: "arg" },
+            },
+          }),
+        ],
+        [
+          getTestAnthropicToolCall({
+            name: "my test func",
+            input: { test: "arg" },
+          }),
+        ],
+      ],
+    ],
+    OPENAI: ["OPENAI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    AZURE_OPENAI: [
+      "AZURE_OPENAI",
+      testSpanOpenAITool,
+      testSpanOpenAIToolJsonSchema,
+    ],
+    // TODO(apowell): #5348 Add Gemini tool tests
+    GEMINI: ["GEMINI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+  };
+
+  test.for(Object.values(ProviderToToolTestMap).flat())(
+    "should %s",
+    ([_testName, provider, toolCalls, expected]) => {
+      const parsedAttributes = {
+        llm: {
+          tools: [spanTool],
+        },
+      };
+      const result = getToolsFromAttributes(parsedAttributes);
+      expect(result).toEqual({
+        tools: [
+          {
+            id: expect.any(Number),
+            definition: toolDefinition,
+          },
+        ],
+        parsingErrors: [],
+      });
+    }
+  );
 });

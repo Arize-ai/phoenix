@@ -3,6 +3,8 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { JSONLiteral, jsonLiteralSchema } from "./jsonZodSchema";
+
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like
  *
@@ -136,6 +138,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
+  jsonLiteralSchema,
 ]);
 
 export type LlmProviderToolCall = z.infer<typeof llmProviderToolCallSchema>;
@@ -158,7 +161,7 @@ type ToolCallWithProvider =
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
-  | { provider: null; validatedToolCall: null };
+  | { provider: "UNKNOWN"; validatedToolCall: null };
 
 /**
  * Detect the provider of a tool call object
@@ -177,34 +180,34 @@ export const detectToolCallProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
-  return { provider: null, validatedToolCall: null };
+  return { provider: "UNKNOWN", validatedToolCall: null };
 };
 
 type ProviderToToolCallMap = {
   OPENAI: OpenAIToolCall;
   AZURE_OPENAI: OpenAIToolCall;
   ANTHROPIC: AnthropicToolCall;
-  GEMINI: OpenAIToolCall;
+  // Use generic JSON type for unknown tool formats / new providers
+  GEMINI: JSONLiteral;
 };
 
 /**
- * Converts a tool call to the OpenAI format
+ * Converts a tool call to the OpenAI format if possible
  * @param toolCall a tool call from an unknown LlmProvider
  * @returns the tool call parsed to the OpenAI format
  */
 export const toOpenAIToolCall = (
   toolCall: LlmProviderToolCall
-): OpenAIToolCall => {
+): OpenAIToolCall | null => {
   const { provider, validatedToolCall } = detectToolCallProvider(toolCall);
-  if (provider == null || validatedToolCall == null) {
-    throw new Error("Could not detect provider of tool call");
-  }
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return validatedToolCall;
     case "ANTHROPIC":
       return anthropicToolCallToOpenAI.parse(validatedToolCall);
+    case "UNKNOWN":
+      return null;
     default:
       assertUnreachable(provider);
   }
