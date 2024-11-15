@@ -33,7 +33,7 @@ export function createUrlWithBase(pathAfterBase: string) {
   if (basePath === "" || basePath === "/") {
     return pathAfterBase;
   }
-  return `${basePath}${pathAfterBase}`;
+  return basePath + pathAfterBase;
 }
 
 /**
