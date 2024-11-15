@@ -37,7 +37,7 @@ from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
-from phoenix.utilities.json import DataFrameJSONPayload, decode_df_from_json_payload
+from phoenix.utilities.json import decode_df_from_json_payload
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ class Client(TraceDataExtractor):
                 part, text = text.split(boundary, 1)
                 if "Content-Type: application/json" in part:
                     json_string = part.split("\r\n\r\n", 1)[1].strip()
-                    payload = cast(DataFrameJSONPayload, json.loads(json_string))
+                    payload = json.loads(json_string)
                     df = decode_df_from_json_payload(payload)
                     results.append(df)
         else:

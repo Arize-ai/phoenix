@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
   "scikit-learn",
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
-  "pandas>=1.0",
+  "pandas>=1.4",
   "jinja2",
   "starlette",
   "uvicorn",
@@ -75,7 +75,7 @@ dev = [
   "nbqa",
   "ruff==0.6.9",
   "mypy==1.12.1",
-  "pandas>=1.0",
+  "pandas>=1.4",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603",
@@ -222,7 +222,7 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-semantic-conventions",
   "pandas-stubs==2.0.3.230814",
-  "pandas>=1.0",
+  "pandas>=1.4",
   "prometheus_client",
   "py-grpc-prometheus",
   "pypistats",  # this is needed to type-check third-party packages

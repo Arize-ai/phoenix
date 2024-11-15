@@ -2,14 +2,11 @@ import dataclasses
 import datetime
 from collections.abc import Mapping, Sequence
 from enum import Enum
-from io import StringIO
 from pathlib import Path
-from secrets import token_urlsafe
-from typing import Any, TypedDict, Union, get_args, get_origin
+from typing import Any, Hashable, Union, get_args, get_origin
 
 import numpy as np
 import pandas as pd
-from pandas import Index
 from strawberry import UNSET
 from strawberry.types.base import StrawberryObjectDefinition
 
@@ -77,54 +74,9 @@ def jsonify(obj: Any) -> Any:
     return f"<{cls.__module__}.{cls.__name__} object>"
 
 
-class DataFrameJSONPayload(TypedDict):
-    index_names: dict[str, str]
-    column_names: dict[str, str]
-    records: str
+def encode_df_as_json_payload(df: pd.DataFrame) -> dict[Hashable, Any]:
+    return df.to_dict(orient="tight")
 
 
-def encode_df_as_json_payload(df: pd.DataFrame) -> DataFrameJSONPayload:
-    df = df.copy()
-    column_names = {f"{i}_{name}": name for i, name in enumerate(df.columns)}
-    df.columns = Index(list(column_names.keys()))
-    index_marker = token_urlsafe(8)  # to avoid conflict with existing column names
-    index_names = {
-        f"{i}_{index_marker}_{(name or '')}": name for i, name in enumerate(df.index.names)
-    }
-    df.index.names = list(index_names.keys())
-    df = df.reset_index()
-    records = df.to_json(orient="records", force_ascii=False)
-    return {
-        "index_names": index_names,
-        "column_names": column_names,
-        "records": records,
-    }
-
-
-def decode_df_from_json_payload(payload: DataFrameJSONPayload) -> pd.DataFrame:
-    df = pd.read_json(StringIO(payload["records"]), orient="records", dtype=False)
-    index_names = payload["index_names"]
-    sorted_index_names = [""] * len(index_names)
-    final_index_names = [""] * len(index_names)
-    for index_name, final_index_name in index_names.items():
-        i = int(index_name.split("_", 1)[0])
-        sorted_index_names[i] = index_name
-        final_index_names[i] = final_index_name
-    column_names = payload["column_names"]
-    if df.empty:
-        index: "pd.Index[Any]"
-        if len(final_index_names) == 1:
-            index = pd.Index([], name=final_index_names[0], dtype=object)
-        else:
-            index = pd.MultiIndex.from_tuples([], names=final_index_names)
-        sorted_column_names = [""] * len(column_names)
-        final_column_names = [""] * len(column_names)
-        for column_name, final_column_name in column_names.items():
-            i = int(column_name.split("_", 1)[0])
-            sorted_column_names[i] = column_name
-            final_column_names[i] = final_column_name
-        return pd.DataFrame([], columns=final_column_names, index=index)
-    df = df.set_index(sorted_index_names, drop=True)
-    df.index.names = final_index_names
-    df = df.rename(columns=column_names)
-    return df
+def decode_df_from_json_payload(payload: dict[Hashable, Any]) -> pd.DataFrame:
+    return pd.DataFrame.from_dict(payload, orient="tight")

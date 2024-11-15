@@ -148,7 +148,7 @@ async def _json_multipart(
         yield "Content-Type: application/json\r\n\r\n"
         payload = await get_running_loop().run_in_executor(
             None,
-            lambda: json.dumps(encode_df_as_json_payload(df)),
+            lambda: json.dumps(encode_df_as_json_payload(df), ensure_ascii=False),
         )
         yield payload
         yield "\r\n"
