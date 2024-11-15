@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
+import { createUrlWithBase } from "@phoenix/utils/routingUtils";
 import { getReturnUrl } from "@phoenix/utils/routingUtils";
 
 type LoginFormParams = {
@@ -31,7 +32,7 @@ export function LoginForm(props: LoginFormProps) {
       setError(null);
       setIsLoading(true);
       try {
-        const response = await fetch("/auth/login", {
+        const response = await fetch(createUrlWithBase("/auth/login"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

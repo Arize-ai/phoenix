@@ -1,19 +1,40 @@
 export const RETURN_URL_URL_PARAM = "returnUrl";
 
 /**
- * Gets the current url path and query string, excluding the domain and protocol.
+ * Creates a URL to redirect to the login page with the current path as the return URL
  */
-const getCurrentUrlPath = (): string => {
-  return window.location.pathname + window.location.search;
-};
+export function createLoginRedirectUrl() {
+  const path = window.location.pathname;
+  const basename = window.Config.basename;
+  const searchParams = window.location.search;
+  let basePath = "";
+  let pathAfterBase = "";
+  if (basename === "" || basename === "/") {
+    pathAfterBase = path;
+  } else if (basename.startsWith("/") && path.startsWith(basename)) {
+    const afterBase = path.slice(basename.length);
+    if (afterBase === "" || afterBase.startsWith("/")) {
+      basePath = basename;
+      pathAfterBase = afterBase;
+    }
+  }
+  let redirectUrl = `${basePath}/login`;
+  if (pathAfterBase.length || searchParams.length) {
+    redirectUrl += `?${RETURN_URL_URL_PARAM}=${encodeURIComponent(pathAfterBase + searchParams)}`;
+  }
+  return redirectUrl;
+}
 
 /**
- * Creates a return url query parameter based on the current pathname and search
- * @returns {string} returnUrlQueryParam - the return url query parameter
+ * If a base path is set, prepends the base path to the provided path
  */
-export const createReturnUrlQueryParam = (): string => {
-  return `${RETURN_URL_URL_PARAM}=${encodeURIComponent(getCurrentUrlPath())}`;
-};
+export function createUrlWithBase(pathAfterBase: string) {
+  const basePath = window.Config.basename;
+  if (basePath === "" || basePath === "/") {
+    return pathAfterBase;
+  }
+  return `${basePath}${pathAfterBase}`;
+}
 
 /**
  * Takes a path and the current search params and creates a redirect url with the return url query parameter

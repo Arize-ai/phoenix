@@ -1,6 +1,6 @@
 import {
+  createLoginRedirectUrl,
   createRedirectUrlWithReturn,
-  createReturnUrlQueryParam,
   getReturnUrl,
   sanitizeUrl,
 } from "../routingUtils";
@@ -110,8 +110,8 @@ describe("routingUtils", () => {
         pathname: "/account",
         search: "?test=true",
       });
-      expect(createReturnUrlQueryParam()).toEqual(
-        `returnUrl=%2Faccount%3Ftest%3Dtrue`
+      expect(createLoginRedirectUrl()).toEqual(
+        `/login?returnUrl=%2Faccount%3Ftest%3Dtrue`
       );
     });
   });
