@@ -5,7 +5,7 @@ import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
-import { createUrlWithBase } from "@phoenix/utils/routingUtils";
+import { prependBaseNameIfExists } from "@phoenix/utils/routingUtils";
 
 const MIN_PASSWORD_LENGTH = 4;
 
@@ -33,7 +33,7 @@ export function ResetPasswordWithTokenForm({
       setIsLoading(true);
       try {
         const response = await fetch(
-          createUrlWithBase("/auth/password-reset"),
+          prependBaseNameIfExists("/auth/password-reset"),
           {
             method: "POST",
             headers: {

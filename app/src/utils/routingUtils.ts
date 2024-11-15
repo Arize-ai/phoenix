@@ -26,14 +26,14 @@ export function createLoginRedirectUrl() {
 }
 
 /**
- * If a base path is set, prepends the base path to the provided path
+ * If a basename is set, prepends the basename to the provided path
  */
-export function createUrlWithBase(pathAfterBase: string) {
-  const basePath = window.Config.basename;
-  if (basePath === "" || basePath === "/") {
-    return pathAfterBase;
+export function prependBaseNameIfExists(path: string) {
+  const basename = window.Config.basename;
+  if (basename === "" || basename === "/") {
+    return path;
   }
-  return basePath + pathAfterBase;
+  return basename + path;
 }
 
 /**
