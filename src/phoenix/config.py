@@ -559,7 +559,12 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    return os.getenv(ENV_PHOENIX_HOST_ROOT_PATH) or HOST_ROOT_PATH
+    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+        return HOST_ROOT_PATH
+    host_root_path = host_root_path.strip("/")
+    if not host_root_path:
+        return HOST_ROOT_PATH
+    return "/" + host_root_path
 
 
 def get_env_collector_endpoint() -> Optional[str]:
