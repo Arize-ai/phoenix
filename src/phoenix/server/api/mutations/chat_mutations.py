@@ -1,5 +1,4 @@
 import asyncio
-import json
 from dataclasses import asdict, field
 from datetime import datetime, timezone
 from itertools import chain
@@ -494,7 +493,7 @@ def _llm_output_messages(
         if arguments := tool_call.function.arguments:
             yield (
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                json.dumps(arguments),
+                arguments,
             )
 
 
