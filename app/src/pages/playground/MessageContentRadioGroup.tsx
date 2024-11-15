@@ -1,6 +1,14 @@
 import React from "react";
 
-import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
+import {
+  Icon,
+  Icons,
+  Radio,
+  RadioGroup,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 export type AIMessageMode = "text" | "toolCalls";
 export type UserMessageMode = "text" | "json";
@@ -35,10 +43,20 @@ export function AIMessageContentRadioGroup({
       }}
     >
       <Radio label="text input" value={"text"}>
-        <Icon svg={<Icons.MessageSquareOutline />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.MessageSquareOutline />} />
+          </TriggerWrap>
+          <Tooltip>Text input</Tooltip>
+        </TooltipTrigger>
       </Radio>
       <Radio label="tool calling" value={"toolCalls"}>
-        <Icon svg={<Icons.Code />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.Code />} />
+          </TriggerWrap>
+          <Tooltip>Tool calling</Tooltip>
+        </TooltipTrigger>
       </Radio>
     </RadioGroup>
   );
@@ -65,10 +83,20 @@ export function UserMessageContentRadioGroup({
       }}
     >
       <Radio label="text input" value={"text"}>
-        <Icon svg={<Icons.MessageSquareOutline />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.MessageSquareOutline />} />
+          </TriggerWrap>
+          <Tooltip>Text input</Tooltip>
+        </TooltipTrigger>
       </Radio>
       <Radio label="json input" value={"json"}>
-        <Icon svg={<Icons.Code />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.Code />} />
+          </TriggerWrap>
+          <Tooltip>JSON input</Tooltip>
+        </TooltipTrigger>
       </Radio>
     </RadioGroup>
   );
