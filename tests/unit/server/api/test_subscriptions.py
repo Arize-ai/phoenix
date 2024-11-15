@@ -640,10 +640,11 @@ class TestChatCompletionSubscription:
         assert llm_input_message["tool_calls"] == [
             {
                 "tool_call": {
+                    "id": tool_call_id,
                     "function": {
                         "name": "get_weather",
                         "arguments": '"{\\n    \\"city\\": \\"San Francisco\\"\\n}"',
-                    }
+                    },
                 }
             }
         ]
