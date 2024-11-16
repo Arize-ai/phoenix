@@ -77,7 +77,7 @@ You can persist data in the notebook by either setting the `use_temp_dir` flag t
 
 Phoenix does natively support gRPC for trace collection post 4.0 release. See [deployment](../deployment/ "mention") for details.
 
-## How do I resolve NOT\_PARSABLE errors caused by token limits?Can I use gRPC for trace collection?How do I resolve `NOT_PARSABLE` errors caused by token limits?
+## How do I resolve Phoenix Evals, showing NOT\_PARSABLE?
 
 `NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON. Here's how to fix it:
 
