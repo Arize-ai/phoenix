@@ -93,4 +93,4 @@ Phoenix does natively support gRPC for trace collection post 4.0 release. See [d
     ```
 2. Update Phoenix: Use version ≥0.17.4, which removes token limits for OpenAI and increases defaults for other APIs.
 3. Check Logs: Look for `finish_reason="length"` to confirm token limits caused the issue.&#x20;
-
+4. If the above doesn't work, it's possible the llm-as-a-judge output might not fit into the defined rails for that particular Eval. Double check the prompt output matches the rail expectations.
