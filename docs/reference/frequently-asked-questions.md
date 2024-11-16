@@ -81,7 +81,7 @@ Phoenix does natively support gRPC for trace collection post 4.0 release. See [d
 
 `NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON. Here's how to fix it:
 
-1.  **Increase `max_tokens`**: Update the model configuration as follows:
+1.  Increase `max_tokens`: Update the model configuration as follows:
 
     ```python
     pythonCopy codellm_judge_model = OpenAIModel(
@@ -91,6 +91,6 @@ Phoenix does natively support gRPC for trace collection post 4.0 release. See [d
         max_tokens=1000,  # Increase token limit
     )
     ```
-2. **Update Phoenix**: Use version ≥0.17.4, which removes token limits for OpenAI and increases defaults for other APIs.
-3. **Check Logs**: Look for `finish_reason="length"` to confirm token limits caused the issue.&#x20;
+2. Update Phoenix: Use version ≥0.17.4, which removes token limits for OpenAI and increases defaults for other APIs.
+3. Check Logs: Look for `finish_reason="length"` to confirm token limits caused the issue.&#x20;
 
