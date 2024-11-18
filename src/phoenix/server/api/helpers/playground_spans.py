@@ -335,7 +335,7 @@ def llm_input_messages(
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
         if role == ChatCompletionMessageRole.TOOL and tool_call_id:
             # Anthropic tool result spans
-            yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{TOOL_CALL_ID}", tool_call_id
+            yield f"{LLM_INPUT_MESSAGES}.{i}.{TOOL_CALL_ID}", tool_call_id
 
         if tool_calls is not None:
             for tool_call_index, tool_call in enumerate(tool_calls):
