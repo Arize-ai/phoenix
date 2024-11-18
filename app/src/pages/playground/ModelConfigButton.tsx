@@ -4,9 +4,11 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
+  useMemo,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import debounce from "lodash/debounce";
 
 import {
   Button,
@@ -72,16 +74,24 @@ function AzureOpenAiModelConfigFormField({
     [instance.id, instance.model, modelConfigByProvider, updateModel]
   );
 
+  const debouncedUpdateModelName = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "modelName",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <TextField
         label="Deployment Name"
-        value={instance.model.modelName ?? ""}
+        defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "modelName",
-            value,
-          });
+          debouncedUpdateModelName(value);
         }}
       />
       <TextField
