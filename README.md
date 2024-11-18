@@ -25,6 +25,9 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
+    <a target="_blank" href="https://gurubase.io/g/phoenix">
+        <img src="https://img.shields.io/badge/Gurubase-Ask%20Phoenix%20Guru-006BFF">
+    </a>
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
