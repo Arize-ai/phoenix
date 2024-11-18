@@ -670,7 +670,7 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
-export const getToolName = (tool: Tool): string => {
+export const getToolName = (tool: Tool): string | null => {
   const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
     tool.definition
   );
@@ -681,7 +681,7 @@ export const getToolName = (tool: Tool): string => {
     case "ANTHROPIC":
       return validatedToolDefinition.name;
     case "UNKNOWN":
-      return "Unknown Tool";
+      return null;
     default:
       assertUnreachable(provider);
   }

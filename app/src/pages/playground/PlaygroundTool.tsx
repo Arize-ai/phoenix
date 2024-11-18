@@ -141,8 +141,10 @@ export function PlaygroundTool({
             size="compact"
             onClick={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
+              const toolName = getToolName(tool);
               const deletingToolChoice =
                 typeof instance.toolChoice === "object" &&
+                toolName != null &&
                 instance.toolChoice.function.name === getToolName(tool);
 
               let toolChoice = instance.toolChoice;
