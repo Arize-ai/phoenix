@@ -75,7 +75,7 @@ export function PlaygroundExperimentRunDetailsDialog({
       size="fullscreen"
     >
       <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-        <Panel defaultSize={100}>
+        <Panel defaultSize={33}>
           <div
             css={css`
               overflow-y: auto;
@@ -125,7 +125,7 @@ export function PlaygroundExperimentRunDetailsDialog({
           </div>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={100}>
+        <Panel defaultSize={67}>
           <Flex direction="column" height="100%">
             <View
               paddingStart="size-200"
