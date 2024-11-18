@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5344538b5c95ffa9fb8fd6bbca420db>>
+ * @generated SignedSource<<355046acaf87bb3beb7942b4f7258e53>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,7 +56,7 @@ v4 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 100
+    "value": 20
   }
 ];
 return {
@@ -210,7 +210,7 @@ return {
                     "storageKey": null
                   }
                 ],
-                "storageKey": "examples(first:100)"
+                "storageKey": "examples(first:20)"
               },
               {
                 "alias": null,
@@ -233,12 +233,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "672414fd6f5daae4d116d1964a3e6c27",
+    "cacheID": "795ea41682593e1fedd5ced3252f7602",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment on Dataset {\n  examples(first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

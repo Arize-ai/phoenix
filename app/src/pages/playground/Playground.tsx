@@ -231,12 +231,12 @@ function PlaygroundContent() {
       </Panel>
       <PanelResizeHandle css={resizeHandleCSS} />
       <Panel>
-        <div css={playgroundInputOutputPanelContentCSS}>
-          {isDatasetMode ? (
-            <Suspense fallback={<Loading />}>
-              <PlaygroundDatasetSection datasetId={datasetId} />
-            </Suspense>
-          ) : (
+        {isDatasetMode ? (
+          <Suspense fallback={<Loading />}>
+            <PlaygroundDatasetSection datasetId={datasetId} />
+          </Suspense>
+        ) : (
+          <div css={playgroundInputOutputPanelContentCSS}>
             <Accordion arrowPosition="start" size="L">
               <AccordionItem title="Inputs" id="input">
                 <View padding="size-200" height={"100%"}>
@@ -258,8 +258,8 @@ function PlaygroundContent() {
                 </View>
               </AccordionItem>
             </Accordion>
-          )}
-        </div>
+          </div>
+        )}
       </Panel>
     </PanelGroup>
   );
