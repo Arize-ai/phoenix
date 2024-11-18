@@ -64,53 +64,42 @@ export function PlaygroundExperimentRunDetailsDialog({
     >
       <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
         <Panel defaultSize={33}>
-          <div
-            css={css`
-              overflow-y: auto;
-              height: 100%;
-            `}
-          >
-            <View overflow="hidden" padding="size-200">
-              <Flex direction="row" gap="size-200" flex="1 1 auto">
-                <View width="50%">
-                  <Card
-                    title="Input"
-                    {...defaultCardProps}
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
-                    extra={
-                      <CopyToClipboardButton text={JSON.stringify(input)} />
-                    }
-                  >
-                    <JSONBlock value={JSON.stringify(input, null, 2)} />
-                  </Card>
-                </View>
-                <View width="50%">
-                  <Card
-                    title="Reference Output"
-                    {...defaultCardProps}
-                    extra={
-                      <CopyToClipboardButton
-                        text={JSON.stringify(referenceOutput)}
-                      />
-                    }
-                    bodyStyle={{
-                      padding: 0,
-                      maxHeight: "300px",
-                      overflowY: "auto",
-                    }}
-                  >
-                    <JSONBlock
-                      value={JSON.stringify(referenceOutput, null, 2)}
+          <View overflow="auto" height="100%" padding="size-200">
+            <Flex direction="row" gap="size-200" flex="1 1 auto">
+              <View width="50%">
+                <Card
+                  title="Input"
+                  {...defaultCardProps}
+                  bodyStyle={{
+                    padding: 0,
+                    maxHeight: "300px",
+                    overflowY: "auto",
+                  }}
+                  extra={<CopyToClipboardButton text={JSON.stringify(input)} />}
+                >
+                  <JSONBlock value={JSON.stringify(input, null, 2)} />
+                </Card>
+              </View>
+              <View width="50%">
+                <Card
+                  title="Reference Output"
+                  {...defaultCardProps}
+                  extra={
+                    <CopyToClipboardButton
+                      text={JSON.stringify(referenceOutput)}
                     />
-                  </Card>
-                </View>
-              </Flex>
-            </View>
-          </div>
+                  }
+                  bodyStyle={{
+                    padding: 0,
+                    maxHeight: "300px",
+                    overflowY: "auto",
+                  }}
+                >
+                  <JSONBlock value={JSON.stringify(referenceOutput, null, 2)} />
+                </Card>
+              </View>
+            </Flex>
+          </View>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel defaultSize={67}>
