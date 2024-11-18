@@ -41,6 +41,10 @@ in the generated question.
 """
 ```
 
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span\_templates.py#L189).
+{% endhint %}
+
 **Example Code:**
 
 ```python

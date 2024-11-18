@@ -36,6 +36,10 @@ The AI answer is very brief and lacks the specific details that are present in t
 
 Overview of template:
 
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L433).
+{% endhint %}
+
 ```python
 print(HUMAN_VS_AI_PROMPT_TEMPLATE)
 
@@ -104,4 +108,3 @@ relevance_classifications = llm_classify(
 | Precision | <mark style="color:green;">0.90</mark> | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.78</mark> |
 | Recall    | <mark style="color:green;">0.56</mark> | <mark style="color:green;">0.74</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.87</mark> |
 | F1        | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.82</mark> | <mark style="color:green;">0.77</mark> | <mark style="color:green;">0.82</mark> |
-
