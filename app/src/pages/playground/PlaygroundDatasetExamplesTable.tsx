@@ -48,7 +48,6 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useNotifyError } from "@phoenix/contexts";
@@ -71,6 +70,7 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
   PartialOutputToolCall,
@@ -100,6 +100,9 @@ type ChatCompletionSubscriptionError = Extract<
 >;
 
 type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
+type ExperimentRun = NonNullable<
+  ChatCompletionSubscriptionResult["experimentRun"]
+>;
 type ToolCallChunk = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ToolCallChunk" }
@@ -114,6 +117,7 @@ type ExampleRunData = {
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
   span?: Span | null;
   errorMessage?: string | null;
+  experimentRun?: ExperimentRun | null;
 };
 
 type InstanceToExampleResponsesMap = Record<
@@ -159,6 +163,7 @@ const updateExampleResponsesMap = ({
         [exampleId]: {
           ...existingExampleResponse,
           span: response.span,
+          experimentRun: response.experimentRun,
         },
       };
       return {
@@ -340,55 +345,61 @@ function ExampleOutputCell({
       </CellErrorWrap>
     );
   }
-  const { span, content, toolCalls, errorMessage } = exampleData;
+  const { span, content, toolCalls, errorMessage, experimentRun } = exampleData;
   const hasSpan = span != null;
+  const hasExperimentRun = experimentRun != null;
   let spanControls: ReactNode = null;
-  if (hasSpan) {
+  if (hasSpan || hasExperimentRun) {
     spanControls = (
       <>
-        <TooltipTrigger>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label="View run trace"
-            icon={<Icon svg={<Icons.Trace />} />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              startTransition(() => {
-                setDialog(
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={span.context.traceId}
-                    projectId={span.project.id}
-                    title={`Experiment Run Trace`}
-                  />
-                );
-              });
-            }}
-          />
-          <Tooltip>View Trace</Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label="Annotate span"
-            icon={<Icon svg={<Icons.EditOutline />} />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              startTransition(() => {
-                setDialog(
-                  <EditSpanAnnotationsDialog
-                    spanNodeId={span.id}
-                    projectId={span.project.id}
-                  />
-                );
-              });
-            }}
-          />
-          <Tooltip>Annotate</Tooltip>
-        </TooltipTrigger>
+        {hasExperimentRun && (
+          <TooltipTrigger>
+            <Button
+              variant="default"
+              size="compact"
+              aria-label="View experiment run details"
+              icon={<Icon svg={<Icons.ExpandOutline />} />}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startTransition(() => {
+                  setDialog(
+                    <PlaygroundExperimentRunDetailsDialog
+                      runId={experimentRun.id}
+                    />
+                  );
+                });
+              }}
+            />
+            <Tooltip>View run details</Tooltip>
+          </TooltipTrigger>
+        )}
+        {hasSpan && (
+          <>
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                size="compact"
+                aria-label="View run trace"
+                icon={<Icon svg={<Icons.Trace />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <PlaygroundRunTraceDetailsDialog
+                        traceId={span.context.traceId}
+                        projectId={span.project.id}
+                        title={`Experiment Run Trace`}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>View Trace</Tooltip>
+            </TooltipTrigger>
+          </>
+        )}
       </>
     );
   }
@@ -936,6 +947,9 @@ graphql`
           context {
             traceId
           }
+        }
+        experimentRun {
+          id
         }
       }
       ... on ChatCompletionSubscriptionError {
