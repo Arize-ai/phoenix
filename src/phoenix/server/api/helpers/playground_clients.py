@@ -347,6 +347,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             if (usage := chunk.usage) is not None:
                 token_usage = usage
                 continue
+            if not chunk.choices:
+                # for Azure, initial chunk contains the content filter
+                continue
             choice = chunk.choices[0]
             delta = choice.delta
             if choice.finish_reason is None:
