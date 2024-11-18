@@ -136,7 +136,7 @@ export function PlaygroundExperimentRunDetailsDialog({
               borderBottomWidth="thin"
               flex="none"
             >
-              <Heading level={2}>Experiment</Heading>
+              <Heading level={2}>Experiment Run Output</Heading>
             </View>
             <div
               css={css`
