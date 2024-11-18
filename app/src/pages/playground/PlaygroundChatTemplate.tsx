@@ -1,4 +1,5 @@
 import React, { PropsWithChildren, useCallback, useState } from "react";
+import { useLazyLoadQuery } from "react-relay";
 import {
   DndContext,
   KeyboardSensor,
@@ -13,6 +14,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
@@ -44,6 +46,7 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { PlaygroundChatTemplateResponseFormatQuery } from "./__generated__/PlaygroundChatTemplateResponseFormatQuery.graphql";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
@@ -87,6 +90,37 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
+  // We don't care about the model name for Azure OpenAI
+  const modelNameQueryInput =
+    playgroundInstance.model.provider !== "AZURE_OPENAI"
+      ? (playgroundInstance.model?.modelName ?? null)
+      : null;
+  const { modelInvocationParameters } =
+    useLazyLoadQuery<PlaygroundChatTemplateResponseFormatQuery>(
+      graphql`
+        query PlaygroundChatTemplateResponseFormatQuery($input: ModelsInput!) {
+          modelInvocationParameters(input: $input) {
+            __typename
+            ... on InvocationParameterBase {
+              invocationName
+              canonicalName
+            }
+          }
+        }
+      `,
+      {
+        input: {
+          providerKey: playgroundInstance.model.provider,
+          modelName: modelNameQueryInput,
+        },
+      }
+    );
+
+  const supportsResponseFormat = modelInvocationParameters?.some(
+    (p) =>
+      p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+      p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+  );
   const hasTools = playgroundInstance.tools.length > 0;
   const hasResponseFormat =
     playgroundInstance.model.invocationParameters.find(
@@ -167,25 +201,27 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
-          <Button
-            variant="default"
-            size="compact"
-            aria-label="output schema"
-            icon={<Icon svg={<Icons.PlusOutline />} />}
-            disabled={hasResponseFormat}
-            onClick={() => {
-              upsertInvocationParameterInput({
-                instanceId: id,
-                invocationParameterInput: {
-                  valueJson: createOpenAIResponseFormat(),
-                  invocationName: RESPONSE_FORMAT_PARAM_NAME,
-                  canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
-                },
-              });
-            }}
-          >
-            Output Schema
-          </Button>
+          {supportsResponseFormat ? (
+            <Button
+              variant="default"
+              size="compact"
+              aria-label="output schema"
+              icon={<Icon svg={<Icons.PlusOutline />} />}
+              disabled={hasResponseFormat}
+              onClick={() => {
+                upsertInvocationParameterInput({
+                  instanceId: id,
+                  invocationParameterInput: {
+                    valueJson: createOpenAIResponseFormat(),
+                    invocationName: RESPONSE_FORMAT_PARAM_NAME,
+                    canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+                  },
+                });
+              }}
+            >
+              Output Schema
+            </Button>
+          ) : null}
           <Button
             variant="default"
             aria-label="add tool"

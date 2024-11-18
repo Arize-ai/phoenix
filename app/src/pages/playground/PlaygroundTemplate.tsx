@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 
 import {
   Button,
@@ -50,7 +50,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
       }
     >
       {template.__type === "chat" ? (
-        <PlaygroundChatTemplate {...props} />
+        <Suspense>
+          <PlaygroundChatTemplate {...props} />
+        </Suspense>
       ) : (
         "Completion Template"
       )}
