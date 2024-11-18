@@ -655,7 +655,11 @@ class TestChatCompletionSubscription:
             }
         ]
         llm_input_message = llm_input_messages[2]["message"]
-        assert llm_input_message == {"content": "sunny", "role": "tool"}
+        assert llm_input_message == {
+            "content": "sunny",
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+        }
         assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
             {
                 "message": {
