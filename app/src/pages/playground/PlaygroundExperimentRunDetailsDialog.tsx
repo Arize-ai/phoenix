@@ -125,7 +125,7 @@ export function PlaygroundExperimentRunDetailsDialog({
           </div>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={200}>
+        <Panel defaultSize={100}>
           <Flex direction="column" height="100%">
             <View
               paddingStart="size-200"
