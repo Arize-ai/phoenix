@@ -46,18 +46,6 @@ export function PlaygroundExperimentRunDetailsDialog({
                 output
               }
             }
-            annotations {
-              edges {
-                annotation: node {
-                  id
-                  name
-                  label
-                  score
-                  explanation
-                  annotatorKind
-                }
-              }
-            }
           }
         }
       }
