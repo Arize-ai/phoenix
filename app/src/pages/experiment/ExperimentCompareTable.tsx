@@ -755,7 +755,7 @@ function SelectedExampleDialog({
                     {...defaultCardProps}
                     extra={
                       <CopyToClipboardButton
-                        text={JSON.stringify(selectedExample.input)}
+                        text={JSON.stringify(selectedExample.referenceOutput)}
                       />
                     }
                     bodyStyle={{
