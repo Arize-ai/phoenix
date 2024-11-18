@@ -172,6 +172,13 @@ type InvocationParametersFormProps = {
   instanceId: number;
 };
 
+/**
+ * Azure openai has user defined model names but our invocation parameters query will never know
+ * what they are. We will just pass in a stub model name and the query will fallback to the set
+ * of invocation parameters that are defaults to our azure client.
+ */
+const AZURE_MODEL_NAME = "AZURE_DEPLOYMENT";
+
 export const InvocationParametersForm = ({
   instanceId,
 }: InvocationParametersFormProps) => {
@@ -188,6 +195,8 @@ export const InvocationParametersForm = ({
   const filterInstanceModelInvocationParameters = usePlaygroundContext(
     (state) => state.filterInstanceModelInvocationParameters
   );
+  const modelNameToQuery =
+    model.provider !== "AZURE_OPENAI" ? model.modelName : AZURE_MODEL_NAME;
   const { modelInvocationParameters } =
     useLazyLoadQuery<InvocationParametersFormQuery>(
       graphql`
@@ -233,7 +242,7 @@ export const InvocationParametersForm = ({
           }
         }
       `,
-      { input: { providerKey: model.provider, modelName: model.modelName } }
+      { input: { providerKey: model.provider, modelName: modelNameToQuery } }
     );
 
   useEffect(() => {
