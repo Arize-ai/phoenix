@@ -5,4 +5,7 @@ export const baseWindowConfig = {
   basename: "/",
   platformVersion: "1.0.0",
 };
-Object.defineProperty(window, "Config", { value: baseWindowConfig });
+Object.defineProperty(window, "Config", {
+  value: baseWindowConfig,
+  writable: true,
+});

@@ -1,10 +1,10 @@
+import { baseWindowConfig } from "../../../vitest.setup";
 import {
   createLoginRedirectUrl,
   createRedirectUrlWithReturn,
   getReturnUrl,
   sanitizeUrl,
 } from "../routingUtils";
-// import { baseWindowConfig } from "../../../windowTestConfig";
 
 const maliciousURLS = [
   "https://google.com",
@@ -15,8 +15,6 @@ const maliciousURLS = [
   "/\\bin",
   "\\\\bin",
 ];
-
-const baseWindowConfig = {};
 
 const validURLs = [
   "/account",
@@ -32,7 +30,10 @@ describe("routingUtils", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
-    Object.defineProperty(window, "Config", { value: baseWindowConfig });
+    Object.defineProperty(window, "Config", {
+      value: baseWindowConfig,
+      writable: true,
+    });
   });
   describe("sanitizeRedirectUrl", () => {
     test.each(maliciousURLS)("%s is invalid - route to root", (url) => {
