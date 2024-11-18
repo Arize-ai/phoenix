@@ -41,10 +41,7 @@ class TestLaunchApp:
                 results = px.Client().query_spans(q, q, project_name=project_name)
                 assert isinstance(results, list)
                 assert len(results) == 2
-                df0, df1 = results
-                assert isinstance(df0, pd.DataFrame)
-                assert isinstance(df1, pd.DataFrame)
-                assert df0.size
-                assert df1.size
-                assert len(df0) == len(gql_span_names)
-                assert len(df1) == len(gql_span_names)
+                for df in results:
+                    assert isinstance(df, pd.DataFrame)
+                    assert df.size
+                    assert len(df) == len(span_names)
