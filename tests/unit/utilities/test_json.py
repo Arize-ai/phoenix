@@ -113,7 +113,7 @@ class TestDataFrameJSONRoundtrip:
 
     def test_can_handle_complex_types(self) -> None:
         expected = pd.DataFrame(
-            {"a": [[{}, [[1, {}, []], {"2\r": [None]}]], [np.nan], {"3\n": [{}, [{}]]}]}
+            {"a": [0, [{}, [[1, {}, []], {"2\r": [None]}]], [np.nan], {"3\n": [{}, [{}]]}]}
         )
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)
