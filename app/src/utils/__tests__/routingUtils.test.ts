@@ -4,6 +4,7 @@ import {
   getReturnUrl,
   sanitizeUrl,
 } from "../routingUtils";
+// import { baseWindowConfig } from "../../../windowTestConfig";
 
 const maliciousURLS = [
   "https://google.com",
@@ -14,6 +15,8 @@ const maliciousURLS = [
   "/\\bin",
   "\\\\bin",
 ];
+
+const baseWindowConfig = {};
 
 const validURLs = [
   "/account",
@@ -29,6 +32,7 @@ describe("routingUtils", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
+    Object.defineProperty(window, "Config", { value: baseWindowConfig });
   });
   describe("sanitizeRedirectUrl", () => {
     test.each(maliciousURLS)("%s is invalid - route to root", (url) => {
@@ -109,6 +113,9 @@ describe("routingUtils", () => {
       windowSpy.mockReturnValue({
         pathname: "/account",
         search: "?test=true",
+      });
+      Object.defineProperty(window, "Config", {
+        value: { ...baseWindowConfig, basename: "/something" },
       });
       expect(createLoginRedirectUrl()).toEqual(
         `/login?returnUrl=%2Faccount%3Ftest%3Dtrue`
