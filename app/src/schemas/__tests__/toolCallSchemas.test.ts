@@ -12,18 +12,25 @@ import { getTestAnthropicToolCall, getTestOpenAIToolCall } from "./fixtures";
 
 describe("toolCallSchemas", () => {
   describe("detectToolCallProvider", () => {
-    it("should detect OpenAI tool definition", () => {
+    it("should detect OpenAI tool call", () => {
       const openAITool = getTestOpenAIToolCall();
       const result = detectToolCallProvider(openAITool);
       expect(result.provider).toBe("OPENAI");
       expect(result.validatedToolCall).toEqual(openAITool);
     });
 
-    it("should detect Anthropic tool definition", () => {
+    it("should detect Anthropic tool call", () => {
       const anthropicToolCall = getTestAnthropicToolCall();
       const result = detectToolCallProvider(anthropicToolCall);
       expect(result.provider).toBe("ANTHROPIC");
       expect(result.validatedToolCall).toEqual(anthropicToolCall);
+    });
+
+    it("should return unknown provider for unknown tool call", () => {
+      const unknownTool = { id: "test_id", name: "test_name", input: {} };
+      const result = detectToolCallProvider(unknownTool);
+      expect(result.provider).toBe("UNKNOWN");
+      expect(result.validatedToolCall).toBeNull();
     });
   });
 
@@ -35,6 +42,10 @@ describe("toolCallSchemas", () => {
         input: { test: "test" },
       });
       const openAITool = toOpenAIToolCall(anthropicToolCall);
+      expect(openAITool).not.toBeNull();
+      if (!openAITool) {
+        throw new Error("OpenAI tool call is null");
+      }
       expect(openAITool.function.name).toBe(anthropicToolCall.name);
       expect(openAITool.id).toBe(anthropicToolCall.id);
       expect(openAITool.function.arguments).toEqual(anthropicToolCall.input);
@@ -44,6 +55,12 @@ describe("toolCallSchemas", () => {
       const openAITool = getTestOpenAIToolCall();
       const result = toOpenAIToolCall(openAITool);
       expect(result).toEqual(openAITool);
+    });
+
+    it("should return null if the provider is unknown", () => {
+      const unknownTool = { id: "test_id", name: "test_name", input: {} };
+      const result = toOpenAIToolCall(unknownTool);
+      expect(result).toBeNull();
     });
   });
 

@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, { Key, Suspense, useCallback, useEffect, useState } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
 import {
   graphql,
@@ -28,6 +28,7 @@ import {
   generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
@@ -54,6 +55,20 @@ interface PlaygroundOutputProps extends PlaygroundInstanceProps {}
  */
 type PlaygroundOutputMessage = Omit<ChatMessage, "toolCalls"> & {
   toolCalls?: ChatMessage["toolCalls"] | readonly PartialOutputToolCall[];
+};
+
+const getToolCallKey = (
+  toolCall:
+    | NonNullable<ChatMessage["toolCalls"]>[number]
+    | PartialOutputToolCall[]
+): Key => {
+  if (
+    isStringKeyedObject(toolCall) &&
+    (typeof toolCall.id === "string" || typeof toolCall.id === "number")
+  ) {
+    return toolCall.id;
+  }
+  return JSON.stringify(toolCall);
 };
 
 function PlaygroundOutputMessage({
@@ -85,7 +100,12 @@ function PlaygroundOutputMessage({
       )}
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
-            return <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />;
+            return (
+              <PlaygroundToolCall
+                key={getToolCallKey(toolCall)}
+                toolCall={toolCall}
+              />
+            );
           })
         : null}
     </Card>

@@ -84,7 +84,7 @@ export function ChatMessageToolCallsEditor({
     [messageId, playgroundInstanceId, templateMessages, updateInstance]
   );
 
-  const toolCallsJSONSchema = useMemo((): JSONSchema7 => {
+  const toolCallsJSONSchema = useMemo((): JSONSchema7 | null => {
     switch (instance.model.provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
@@ -93,7 +93,7 @@ export function ChatMessageToolCallsEditor({
         return anthropicToolCallsJSONSchema as JSONSchema7;
       // TODO(apowell): #5348 Add Gemini tool calls schema
       case "GEMINI":
-        return openAIToolCallsJSONSchema as JSONSchema7;
+        return null;
     }
   }, [instance.model.provider]);
 

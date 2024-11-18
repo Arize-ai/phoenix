@@ -9,6 +9,10 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
+import {
+  JSONLiteral,
+  jsonLiteralSchema,
+} from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
 import { isObject, schemaForType } from "@phoenix/typeUtils";
@@ -105,30 +109,8 @@ const chatMessageSchema = schemaForType<ChatMessage>()(
  */
 export const chatMessagesSchema = z.array(chatMessageSchema);
 
-/**
- * The zod schema for JSON literal primitives
- * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
- */
-const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-type Literal = z.infer<typeof literalSchema>;
-type Json = Literal | { [key: string]: Json } | Json[];
-/**
- * The zod schema for JSON
- * @see {@link https://zod.dev/?id=json-type|Zod Documentation}
- */
-export const jsonLiteralSchema: z.ZodType<Json> = z.lazy(() =>
-  z.union([
-    literalSchema,
-    z.array(jsonLiteralSchema),
-    z.record(jsonLiteralSchema),
-  ])
-);
-
-export type JsonLiteralSchema = z.infer<typeof jsonLiteralSchema>;
-
-export const jsonObjectSchema: z.ZodType<{ [key: string]: Json }> = z.lazy(() =>
-  z.record(jsonLiteralSchema)
-);
+export const jsonObjectSchema: z.ZodType<{ [key: string]: JSONLiteral }> =
+  z.lazy(() => z.record(jsonLiteralSchema));
 
 export type JsonObjectSchema = z.infer<typeof jsonObjectSchema>;
 
@@ -270,7 +252,7 @@ export const openAIResponseFormatSchema = z.lazy(() =>
     type: z.literal("json_schema"),
     json_schema: z.object({
       name: z.string().describe("The name of the schema"),
-      schema: jsonLiteralSchema,
+      schema: jsonLiteralSchema.describe("The schema itself in JSON format"),
       strict: z.literal(true).describe("The schema must be strict"),
     }),
   })

@@ -683,7 +683,7 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
-export const getToolName = (tool: Tool): string => {
+export const getToolName = (tool: Tool): string | null => {
   const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
     tool.definition
   );
@@ -693,11 +693,18 @@ export const getToolName = (tool: Tool): string => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
+    case "UNKNOWN":
+      return null;
     default:
       assertUnreachable(provider);
   }
 };
 
+/**
+ * Best effort attempts to convert instance tools to the providers schema
+ * If the tool definition cannot be converted, it will be returned as is
+ * @returns A list of playground {@link Tool|Tools}
+ */
 export const convertInstanceToolsToProvider = ({
   instanceTools,
   provider,
@@ -708,31 +715,44 @@ export const convertInstanceToolsToProvider = ({
   return instanceTools.map((tool) => {
     switch (provider) {
       case "OPENAI":
-      case "AZURE_OPENAI":
+      case "AZURE_OPENAI": {
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
         return {
           ...tool,
-          definition: toOpenAIToolDefinition(tool.definition),
+          definition: maybeOpenAIToolDefinition ?? tool.definition,
         };
-      case "ANTHROPIC":
+      }
+      case "ANTHROPIC": {
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+        const definition = maybeOpenAIToolDefinition
+          ? fromOpenAIToolDefinition({
+              toolDefinition: maybeOpenAIToolDefinition,
+              targetProvider: provider,
+            })
+          : tool.definition;
         return {
           ...tool,
-          definition: fromOpenAIToolDefinition({
-            toolDefinition: toOpenAIToolDefinition(tool.definition),
-            targetProvider: provider,
-          }),
+          definition,
         };
+      }
       // TODO(apowell): #5348 Add Gemini tool definition
       case "GEMINI":
-        return {
-          ...tool,
-          definition: toOpenAIToolDefinition(tool.definition),
-        };
+        return tool;
       default:
         assertUnreachable(provider);
     }
   });
 };
 
+/**
+ * Best effort attempts to convert message tool calls to the providers schema
+ * If the tool definition cannot be converted, it will be returned as is
+ * @returns A list of {@link ChatMessage} tool calls
+ */
 export const convertMessageToolCallsToProvider = ({
   toolCalls,
   provider,
@@ -746,16 +766,21 @@ export const convertMessageToolCallsToProvider = ({
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
-      case "AZURE_OPENAI":
-        return toOpenAIToolCall(toolCall);
-      case "ANTHROPIC":
-        return fromOpenAIToolCall({
-          toolCall: toOpenAIToolCall(toolCall),
-          targetProvider: provider,
-        });
+      case "AZURE_OPENAI": {
+        return toOpenAIToolCall(toolCall) ?? toolCall;
+      }
+      case "ANTHROPIC": {
+        const maybeOpenAIToolCall = toOpenAIToolCall(toolCall);
+        return maybeOpenAIToolCall != null
+          ? fromOpenAIToolCall({
+              toolCall: maybeOpenAIToolCall,
+              targetProvider: provider,
+            })
+          : toolCall;
+      }
       // TODO(apowell): #5348 Add Gemini tool call
       case "GEMINI":
-        return toOpenAIToolCall(toolCall);
+        return toolCall;
       default:
         assertUnreachable(provider);
     }

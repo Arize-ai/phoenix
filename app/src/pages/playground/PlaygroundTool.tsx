@@ -106,7 +106,7 @@ export function PlaygroundTool({
     return getToolName(tool);
   }, [tool]);
 
-  const toolDefinitionJSONSchema = useMemo((): JSONSchema7 => {
+  const toolDefinitionJSONSchema = useMemo((): JSONSchema7 | null => {
     switch (instance.model.provider) {
       case "OPENAI":
       case "AZURE_OPENAI":
@@ -114,7 +114,7 @@ export function PlaygroundTool({
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
       case "GEMINI":
-        return openAIToolDefinitionJSONSchema as JSONSchema7;
+        return null;
     }
   }, [instance.model.provider]);
 
@@ -141,8 +141,10 @@ export function PlaygroundTool({
             size="compact"
             onClick={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
+              const toolName = getToolName(tool);
               const deletingToolChoice =
                 typeof instance.toolChoice === "object" &&
+                toolName != null &&
                 instance.toolChoice.function.name === getToolName(tool);
 
               let toolChoice = instance.toolChoice;

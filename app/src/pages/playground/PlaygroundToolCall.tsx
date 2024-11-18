@@ -55,7 +55,7 @@ export function PlaygroundToolCall({
           name: validatedToolCall.name,
           input: validatedToolCall.input,
         };
-      case null: {
+      case "UNKNOWN": {
         // This should never be the case, happen but we should handle it in case the server returns an invalid tool call
         if (!isPartialOutputToolCall(toolCall)) {
           return null;
