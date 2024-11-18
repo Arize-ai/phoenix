@@ -16,6 +16,7 @@ import {
 } from "@arizeai/components";
 
 import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -44,6 +45,18 @@ export function PlaygroundExperimentRunDetailsDialog({
               revision {
                 input
                 output
+              }
+            }
+            annotations {
+              edges {
+                annotation: node {
+                  id
+                  name
+                  label
+                  score
+                  explanation
+                  annotatorKind
+                }
               }
             }
           }
@@ -139,6 +152,22 @@ export function PlaygroundExperimentRunDetailsDialog({
                       endTime={run.endTime}
                     />
                   )}
+                  <ul
+                    css={css`
+                      margin-top: var(--ac-global-dimension-static-size-100);
+                      display: flex;
+                      flex-direction: column;
+                      justify-content: flex-start;
+                      align-items: flex-end;
+                      gap: var(--ac-global-dimension-static-size-100);
+                    `}
+                  >
+                    {run.annotations?.edges.map((edge) => (
+                      <li key={edge.annotation.id}>
+                        <AnnotationLabel annotation={edge.annotation} />
+                      </li>
+                    ))}
+                  </ul>
                 </ViewSummaryAside>
               </Flex>
             </div>
