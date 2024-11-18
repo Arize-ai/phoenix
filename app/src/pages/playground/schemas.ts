@@ -50,6 +50,7 @@ const messageSchema = z.object({
       z.array(z.record(z.string(), z.unknown())),
     ]),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
+    [MessageAttributePostfixes.tool_call_id]: z.string().optional(),
   }),
 });
 

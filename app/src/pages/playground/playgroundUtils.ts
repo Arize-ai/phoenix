@@ -215,6 +215,7 @@ function processAttributeMessagesToChatMessage({
         provider,
         toolCalls: message.tool_calls,
       }),
+      toolCallId: message.tool_call_id,
     };
   });
 }
