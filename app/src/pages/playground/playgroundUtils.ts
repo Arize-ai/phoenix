@@ -530,6 +530,49 @@ export const isChatMessages = (
   return chatMessagesSchema.safeParse(messages).success;
 };
 
+export const extractVariablesFromInstance = ({
+  instance,
+  templateLanguage,
+}: {
+  instance: PlaygroundInstance;
+  templateLanguage: TemplateLanguage;
+}) => {
+  const variables = new Set<string>();
+  const instanceType = instance.template.__type;
+  const utils = getTemplateLanguageUtils(templateLanguage);
+  // this double nested loop should be okay since we don't expect more than 4 instances
+  // and a handful of messages per instance
+  switch (instanceType) {
+    case "chat": {
+      // for each chat message in the instance
+      instance.template.messages.forEach((message) => {
+        // extract variables from the message content
+        const extractedVariables =
+          message.content == null
+            ? []
+            : utils.extractVariables(message.content);
+        extractedVariables.forEach((variable) => {
+          variables.add(variable);
+        });
+      });
+      break;
+    }
+    case "text_completion": {
+      const extractedVariables = utils.extractVariables(
+        instance.template.prompt
+      );
+      extractedVariables.forEach((variable) => {
+        variables.add(variable);
+      });
+      break;
+    }
+    default: {
+      assertUnreachable(instanceType);
+    }
+  }
+  return Array.from(variables);
+};
+
 export const extractVariablesFromInstances = ({
   instances,
   templateLanguage,
@@ -537,43 +580,13 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateLanguage: TemplateLanguage;
 }) => {
-  const variables = new Set<string>();
-  const utils = getTemplateLanguageUtils(templateLanguage);
-  instances.forEach((instance) => {
-    const instanceType = instance.template.__type;
-    // this double nested loop should be okay since we don't expect more than 4 instances
-    // and a handful of messages per instance
-    switch (instanceType) {
-      case "chat": {
-        // for each chat message in the instance
-        instance.template.messages.forEach((message) => {
-          // extract variables from the message content
-          const extractedVariables =
-            message.content == null
-              ? []
-              : utils.extractVariables(message.content);
-          extractedVariables.forEach((variable) => {
-            variables.add(variable);
-          });
-        });
-        break;
-      }
-      case "text_completion": {
-        const extractedVariables = utils.extractVariables(
-          instance.template.prompt
-        );
-        extractedVariables.forEach((variable) => {
-          variables.add(variable);
-        });
-        break;
-      }
-      default: {
-        assertUnreachable(instanceType);
-      }
-    }
-  });
-
-  return Array.from(variables);
+  return Array.from(
+    new Set(
+      instances.flatMap((instance) =>
+        extractVariablesFromInstance({ instance, templateLanguage })
+      )
+    )
+  );
 };
 
 export const getVariablesMapFromInstances = ({
