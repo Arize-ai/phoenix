@@ -26,7 +26,7 @@
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
     <a target="_blank" href="https://gurubase.io/g/phoenix">
-        <img src="https://img.shields.io/badge/Gurubase-Ask%20Phoenix%20Guru-006BFF">
+        <img src="https://img.shields.io/badge/Gurubase-Ask%20Phoenix%20Guru-blue">
     </a>
 </p>
 
