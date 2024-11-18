@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<636f5568261490d37177e54159700f41>>
+ * @generated SignedSource<<ffece3ac129ed4c07e5346ce99c08470>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,26 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type PlaygroundExperimentRunDetailsDialogQuery$variables = {
   runId: string;
 };
 export type PlaygroundExperimentRunDetailsDialogQuery$data = {
   readonly run: {
+    readonly annotations?: {
+      readonly edges: ReadonlyArray<{
+        readonly annotation: {
+          readonly annotatorKind: ExperimentRunAnnotatorKind;
+          readonly explanation: string | null;
+          readonly id: string;
+          readonly label: string | null;
+          readonly name: string;
+          readonly score: number | null;
+        };
+      }>;
+    };
+    readonly endTime?: string;
+    readonly error?: string | null;
     readonly example?: {
       readonly id: string;
       readonly revision: {
@@ -22,6 +37,7 @@ export type PlaygroundExperimentRunDetailsDialogQuery$data = {
       };
     };
     readonly output?: any | null;
+    readonly startTime?: string;
   };
 };
 export type PlaygroundExperimentRunDetailsDialogQuery = {
@@ -65,6 +81,27 @@ v4 = {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "startTime",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "endTime",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "error",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "DatasetExample",
       "kind": "LinkedField",
       "name": "example",
@@ -87,6 +124,75 @@ v4 = {
               "storageKey": null
             },
             (v2/*: any*/)
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ExperimentRunAnnotationConnection",
+      "kind": "LinkedField",
+      "name": "annotations",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "ExperimentRunAnnotationEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": "annotation",
+              "args": null,
+              "concreteType": "ExperimentRunAnnotation",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v3/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "label",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "score",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "explanation",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "annotatorKind",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
           ],
           "storageKey": null
         }
@@ -153,16 +259,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "de3393f3f7384c6faa87696266af423c",
+    "cacheID": "1e3277995e47da369d84557def1a62bf",
     "id": null,
     "metadata": {},
     "name": "PlaygroundExperimentRunDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query PlaygroundExperimentRunDetailsDialogQuery(\n  $runId: GlobalID!\n) {\n  run: node(id: $runId) {\n    __typename\n    ... on ExperimentRun {\n      output\n      example {\n        id\n        revision {\n          input\n          output\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query PlaygroundExperimentRunDetailsDialogQuery(\n  $runId: GlobalID!\n) {\n  run: node(id: $runId) {\n    __typename\n    ... on ExperimentRun {\n      output\n      startTime\n      endTime\n      error\n      example {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      annotations {\n        edges {\n          annotation: node {\n            id\n            name\n            label\n            score\n            explanation\n            annotatorKind\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1b009a10dd6d4040cd3d84e1c22d83dd";
+(node as any).hash = "2eee337b0f8c4e738dd6580efa1e3c96";
 
 export default node;
