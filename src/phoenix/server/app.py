@@ -253,7 +253,7 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, trusted_hostnames: list[str], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
 
@@ -767,7 +767,12 @@ def create_app(
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
-        middlewares.append(Middleware(RequestOriginHostnameValidator, trusted_hostnames))
+        middlewares.append(
+            Middleware(
+                RequestOriginHostnameValidator,
+                trusted_hostnames=trusted_hostnames,
+            )
+        )
     elif email_sender or oauth2_client_configs:
         logger.warning(
             "CSRF protection can be enabled by listing trusted origins via "
