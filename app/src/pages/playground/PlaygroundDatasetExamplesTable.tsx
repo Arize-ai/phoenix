@@ -348,51 +348,51 @@ function ExampleOutputCell({
           </TooltipTrigger>
         )}
         {hasSpan && (
-          <TooltipTrigger>
-            <Button
-              variant="default"
-              size="compact"
-              aria-label="View run trace"
-              icon={<Icon svg={<Icons.Trace />} />}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                startTransition(() => {
-                  setDialog(
-                    <PlaygroundRunTraceDetailsDialog
-                      traceId={span.context.traceId}
-                      projectId={span.project.id}
-                      title={`Experiment Run Trace`}
-                    />
-                  );
-                });
-              }}
-            />
-            <Tooltip>View Trace</Tooltip>
-          </TooltipTrigger>
-        )}
-        {hasSpan && (
-          <TooltipTrigger>
-            <Button
-              variant="default"
-              size="compact"
-              aria-label="Annotate span"
-              icon={<Icon svg={<Icons.EditOutline />} />}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                startTransition(() => {
-                  setDialog(
-                    <EditSpanAnnotationsDialog
-                      spanNodeId={span.id}
-                      projectId={span.project.id}
-                    />
-                  );
-                });
-              }}
-            />
-            <Tooltip>Annotate</Tooltip>
-          </TooltipTrigger>
+          <>
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                size="compact"
+                aria-label="View run trace"
+                icon={<Icon svg={<Icons.Trace />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <PlaygroundRunTraceDetailsDialog
+                        traceId={span.context.traceId}
+                        projectId={span.project.id}
+                        title={`Experiment Run Trace`}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>View Trace</Tooltip>
+            </TooltipTrigger>
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                size="compact"
+                aria-label="Annotate span"
+                icon={<Icon svg={<Icons.EditOutline />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <EditSpanAnnotationsDialog
+                        spanNodeId={span.id}
+                        projectId={span.project.id}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>Annotate</Tooltip>
+            </TooltipTrigger>
+          </>
         )}
       </>
     );
