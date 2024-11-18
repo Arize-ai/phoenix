@@ -364,6 +364,11 @@ def llm_input_messages(
                             f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
                             safe_json_dumps(jsonify(arguments)),
                         )
+                    if tool_call_id := tool_call.get("id"):
+                        yield (
+                            f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                            tool_call_id,
+                        )
 
 
 def _llm_output_messages(
