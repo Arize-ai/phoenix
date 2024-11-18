@@ -77,7 +77,7 @@ import {
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
 import {
-  extractedVariablesFromInstance,
+  extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
 
@@ -712,7 +712,7 @@ export function PlaygroundDatasetExamplesTable({
       cell: ({ row }) => {
         const exampleData =
           exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
-        const instanceVariables = extractedVariablesFromInstance({
+        const instanceVariables = extractVariablesFromInstance({
           instance,
           templateLanguage,
         });

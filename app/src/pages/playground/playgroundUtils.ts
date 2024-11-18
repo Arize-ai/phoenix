@@ -530,7 +530,7 @@ export const isChatMessages = (
   return chatMessagesSchema.safeParse(messages).success;
 };
 
-export const extractedVariablesFromInstance = ({
+export const extractVariablesFromInstance = ({
   instance,
   templateLanguage,
 }: {
@@ -583,7 +583,7 @@ export const extractVariablesFromInstances = ({
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
-        extractedVariablesFromInstance({ instance, templateLanguage })
+        extractVariablesFromInstance({ instance, templateLanguage })
       )
     )
   );
