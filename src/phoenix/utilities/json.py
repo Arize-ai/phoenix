@@ -2,11 +2,14 @@ import dataclasses
 import datetime
 from collections.abc import Mapping, Sequence
 from enum import Enum
+from io import StringIO
 from pathlib import Path
-from typing import Any, Hashable, Union, get_args, get_origin
+from typing import Any, Union, cast, get_args, get_origin
 
 import numpy as np
 import pandas as pd
+from pandas.io.json import build_table_schema, ujson_dumps  # type: ignore
+from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 from strawberry import UNSET
 from strawberry.types.base import StrawberryObjectDefinition
 
@@ -74,9 +77,27 @@ def jsonify(obj: Any) -> Any:
     return f"<{cls.__module__}.{cls.__name__} object>"
 
 
-def encode_df_as_json_payload(df: pd.DataFrame) -> dict[Hashable, Any]:
-    return df.to_dict(orient="tight")
+def encode_df_as_json_string(df: pd.DataFrame) -> str:
+    index_names = df.index.names
+    n = len(index_names)
+    primary_key = [f"{i}_{(x or '')}" for i, x in enumerate(index_names)]
+    df = df.set_axis([f"{i}_{x}" for i, x in enumerate(df.columns, n)], axis=1)
+    df = df.reset_index(names=primary_key)
+    schema = build_table_schema(df, False, primary_key)  # type: ignore
+    data = df.to_dict("records")
+    return cast(
+        str,
+        ujson_dumps(
+            {"schema": schema, "data": data},
+            date_unit="ns",
+            iso_dates=True,
+            ensure_ascii=False,
+        ),
+    )
 
 
-def decode_df_from_json_payload(payload: dict[Hashable, Any]) -> pd.DataFrame:
-    return pd.DataFrame.from_dict(payload, orient="tight")
+def decode_df_from_json_string(obj: str) -> pd.DataFrame:
+    # Note: read_json converts an all null column to NaN
+    df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
+    df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
+    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)

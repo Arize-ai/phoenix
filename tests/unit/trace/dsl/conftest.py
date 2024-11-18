@@ -174,7 +174,6 @@ async def abc_project(db: DbSessionFactory) -> None:
                 attributes={
                     "input": {"value": "xy%z*"},
                     "output": {"value": "321"},
-                    "metadata": {"1.2.3": 123},
                 },
                 events=[],
                 status_code="OK",

@@ -12,7 +12,7 @@ opentelemetry-proto>=1.12.0
 opentelemetry-sdk
 opentelemetry-semantic-conventions
 pandas-stubs==2.0.3.230814
-pandas>=1.4
+pandas>=1.0
 prometheus_client
 psycopg[binary,pool]
 py-grpc-prometheus

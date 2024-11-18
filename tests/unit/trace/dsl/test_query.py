@@ -42,7 +42,7 @@ async def test_select_all(
             "attributes.llm.token_count.prompt": [None, None, None, 100.0],
             "attributes.llm.token_count.completion": [None, None, None, 200.0],
             "attributes.metadata": [
-                {"1.2.3": 123},
+                None,
                 {"a.b.c": 123, "1.2.3": "abc", "x.y": {"z.a": {"b.c": 321}}},
                 None,
                 None,

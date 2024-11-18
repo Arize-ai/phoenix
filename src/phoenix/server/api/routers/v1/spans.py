@@ -1,4 +1,3 @@
-import json
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -23,7 +22,7 @@ from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
-from phoenix.utilities.json import encode_df_as_json_payload
+from phoenix.utilities.json import encode_df_as_json_string
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
@@ -146,11 +145,7 @@ async def _json_multipart(
     for df in results:
         yield f"--{boundary_token}\r\n"
         yield "Content-Type: application/json\r\n\r\n"
-        payload = await get_running_loop().run_in_executor(
-            None,
-            lambda: json.dumps(encode_df_as_json_payload(df), ensure_ascii=False),
-        )
-        yield payload
+        yield await get_running_loop().run_in_executor(None, encode_df_as_json_string, df)
         yield "\r\n"
     yield f"--{boundary_token}--\r\n"
 
