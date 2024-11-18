@@ -330,13 +330,17 @@ def llm_input_messages(
         tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
     ],
 ) -> Iterator[tuple[str, Any]]:
-    for i, (role, content, _tool_call_id, tool_calls) in enumerate(messages):
+    for i, (role, content, tool_call_id, tool_calls) in enumerate(messages):
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_ROLE}", role.value.lower()
         yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_CONTENT}", content
+        if role == ChatCompletionMessageRole.TOOL and tool_call_id:
+            # Anthropic tool result spans
+            yield f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{TOOL_CALL_ID}", tool_call_id
+
         if tool_calls is not None:
             for tool_call_index, tool_call in enumerate(tool_calls):
                 if tool_call.get("type") == "tool_use":
-                    # Anthropic spans
+                    # Anthropic tool call spans
                     yield (
                         f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
                         tool_call["name"],
@@ -350,7 +354,7 @@ def llm_input_messages(
                         tool_call["id"],
                     )
                 elif tool_call_function := tool_call.get("function"):
-                    # OpenAI spans
+                    # OpenAI tool call spans
                     yield (
                         f"{LLM_INPUT_MESSAGES}.{i}.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
                         tool_call_function["name"],
