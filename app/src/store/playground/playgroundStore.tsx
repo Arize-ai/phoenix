@@ -227,6 +227,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           newModel = {
             ...savedProviderConfig,
             provider: model.provider,
+            // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
             invocationParameters: [
               ...instance.model.invocationParameters,
               // These should never be changing at the same time as the provider but spread here to be safe

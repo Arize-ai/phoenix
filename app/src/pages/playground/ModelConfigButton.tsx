@@ -273,11 +273,19 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const updateProvider = useCallback(
     (provider: ModelProvider) => {
+      if (provider === instance.model.provider) {
+        return;
+      }
+      const savedProviderConfig = modelConfigByProvider[provider];
       const patch: Partial<PlaygroundInstance> = {
         model: {
           ...instance.model,
+          // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
+          // Only update the model name
+          modelName: savedProviderConfig?.modelName ?? null,
+          apiVersion: savedProviderConfig?.apiVersion ?? null,
+          endpoint: savedProviderConfig?.endpoint ?? null,
           provider,
-          modelName: null,
         },
         tools: convertInstanceToolsToProvider({
           instanceTools: instance.tools,
@@ -307,6 +315,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       instance.model,
       instance.template,
       instance.tools,
+      modelConfigByProvider,
       playgroundInstanceId,
       updateInstance,
     ]
