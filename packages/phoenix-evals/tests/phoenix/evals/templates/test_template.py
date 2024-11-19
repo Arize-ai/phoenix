@@ -32,6 +32,7 @@ def test_template_with_default_delimiters_uses_python_string_formatting():
         == 'Hello, world! Look at this JSON { "hello": "world" }'
     )
 
+
 def test_template_with_default_delimiters_accepts_keys_with_dots():
     template = PromptTemplate(template='Hello, {my.name}! Look at this JSON {{ "hello": "world" }}')
     assert (
