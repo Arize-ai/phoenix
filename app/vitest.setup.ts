@@ -1,9 +1,11 @@
 import "vitest-canvas-mock";
 
+export const baseWindowConfig = {
+  authenticationEnabled: true,
+  basename: "/",
+  platformVersion: "1.0.0",
+};
 Object.defineProperty(window, "Config", {
-  value: {
-    authenticationEnabled: true,
-    basename: "/",
-    platformVersion: "1.0.0",
-  },
+  value: baseWindowConfig,
+  writable: true,
 });

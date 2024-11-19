@@ -1,6 +1,7 @@
+import { baseWindowConfig } from "../../../vitest.setup";
 import {
+  createLoginRedirectUrl,
   createRedirectUrlWithReturn,
-  createReturnUrlQueryParam,
   getReturnUrl,
   sanitizeUrl,
 } from "../routingUtils";
@@ -29,6 +30,10 @@ describe("routingUtils", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
+    Object.defineProperty(window, "Config", {
+      value: baseWindowConfig,
+      writable: true,
+    });
   });
   describe("sanitizeRedirectUrl", () => {
     test.each(maliciousURLS)("%s is invalid - route to root", (url) => {
@@ -104,15 +109,82 @@ describe("routingUtils", () => {
     });
   });
 
-  describe("createReturnUrlQueryParam", () => {
-    it("should return the returnUrl query param, with the current pathname and search params", () => {
-      windowSpy.mockReturnValue({
+  describe("createLoginRedirectUrl", () => {
+    test.each([
+      {
+        description:
+          "should redirect to login with returnUrl query param when pathname is empty",
+        pathname: "",
+        search: "",
+        basename: undefined,
+        expected: "/login?returnUrl=%2F",
+      },
+      {
+        description:
+          "should redirect to login with returnUrl query param when pathname is /",
+        pathname: "/",
+        search: "",
+        basename: "",
+        expected: "/login?returnUrl=%2F",
+      },
+      {
+        description:
+          "should return the returnUrl query param with the current pathname",
+        pathname: "/account",
+        search: "",
+        basename: "/",
+        expected: "/login?returnUrl=%2Faccount",
+      },
+      {
+        description:
+          "should return the returnUrl query param with the current pathname and search params",
         pathname: "/account",
         search: "?test=true",
+        basename: "",
+        expected: "/login?returnUrl=%2Faccount%3Ftest%3Dtrue",
+      },
+      {
+        description:
+          "should redirect to basename login with returnUrl query param with the current pathname",
+        pathname: "/basename/account",
+        search: "",
+        basename: "/basename",
+        expected: "/basename/login?returnUrl=%2Faccount",
+      },
+      {
+        description:
+          "should redirect to basename login with returnUrl query param with the current pathname and search params",
+        pathname: "/basename/account",
+        search: "?test=true",
+        basename: "/basename",
+        expected: "/basename/login?returnUrl=%2Faccount%3Ftest%3Dtrue",
+      },
+      {
+        description:
+          "should redirect to basename login when pathname does not start with basename",
+        pathname: "/doesNotStartWithBasename/account",
+        search: "?test=true",
+        basename: "/basename",
+        expected: "/basename/login",
+      },
+      {
+        description:
+          "should redirect to basename login when pathname starts with basename but does not match",
+        pathname: "/basenameAndExtra/account",
+        search: "?test=true",
+        basename: "/basename",
+        expected: "/basename/login",
+      },
+    ])("$description", ({ pathname, search, basename, expected }) => {
+      windowSpy.mockReturnValue({
+        pathname,
+        origin: "http://127.0.0.1:6006",
+        search,
       });
-      expect(createReturnUrlQueryParam()).toEqual(
-        `returnUrl=%2Faccount%3Ftest%3Dtrue`
-      );
+      Object.defineProperty(window, "Config", {
+        value: { ...baseWindowConfig, basename },
+      });
+      expect(createLoginRedirectUrl()).toEqual(expected);
     });
   });
 });

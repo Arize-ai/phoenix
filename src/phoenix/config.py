@@ -559,7 +559,19 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    return os.getenv(ENV_PHOENIX_HOST_ROOT_PATH) or HOST_ROOT_PATH
+    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+        return HOST_ROOT_PATH
+    if not host_root_path.startswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value must start with '/'"
+        )
+    if host_root_path.endswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value cannot end with '/'"
+        )
+    return host_root_path
 
 
 def get_env_collector_endpoint() -> Optional[str]:

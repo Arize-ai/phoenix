@@ -1,19 +1,75 @@
 export const RETURN_URL_URL_PARAM = "returnUrl";
 
 /**
- * Gets the current url path and query string, excluding the domain and protocol.
+ * Gets a return URL from the input path and query parameters that excludes domain and protocol.
  */
-const getCurrentUrlPath = (): string => {
-  return window.location.pathname + window.location.search;
-};
+function createRelativeReturnUrl(
+  pathname: string,
+  searchParams: URLSearchParams
+) {
+  const returnUrl = new URL(pathname, window.location.origin);
+  searchParams.forEach((value, key) => {
+    returnUrl.searchParams.append(key, value);
+  });
+  return returnUrl.pathname + returnUrl.search;
+}
 
 /**
- * Creates a return url query parameter based on the current pathname and search
- * @returns {string} returnUrlQueryParam - the return url query parameter
+ * Creates a URL to redirect to the login page with the current path as the return URL
  */
-export const createReturnUrlQueryParam = (): string => {
-  return `${RETURN_URL_URL_PARAM}=${encodeURIComponent(getCurrentUrlPath())}`;
-};
+export function createLoginRedirectUrl() {
+  const basename = window.Config.basename;
+  const isEmptyBasename =
+    basename == null || basename === "" || basename === "/";
+  const isValidNonEmptyBasename =
+    basename != null && basename.startsWith("/") && !basename.endsWith("/");
+  if (!(isEmptyBasename || isValidNonEmptyBasename)) {
+    throw new Error(`Invalid basename: ${basename}`);
+  }
+  const pathname = window.location.pathname;
+  const origin = window.location.origin;
+  const existingSearchParams = new URLSearchParams(window.location.search);
+  if (isEmptyBasename) {
+    const redirectUrl = new URL("/login", origin);
+    redirectUrl.searchParams.set(
+      RETURN_URL_URL_PARAM,
+      createRelativeReturnUrl(pathname, existingSearchParams)
+    );
+    return redirectUrl.pathname + redirectUrl.search;
+  }
+  if (pathname.startsWith(basename)) {
+    const pathnameAfterBasename = pathname.slice(basename.length);
+    const isPathnameAfterBasenameValid =
+      pathnameAfterBasename === "" || pathnameAfterBasename.startsWith("/");
+    if (isPathnameAfterBasenameValid) {
+      const redirectUrl = new URL(basename + "/login", origin);
+      redirectUrl.searchParams.set(
+        RETURN_URL_URL_PARAM,
+        createRelativeReturnUrl(pathnameAfterBasename, existingSearchParams)
+      );
+      return redirectUrl.pathname + redirectUrl.search;
+    }
+  }
+  return basename + "/login";
+}
+
+/**
+ * If a basename is set, prepends the basename to the provided path
+ */
+export function prependBasename(path: string) {
+  const basename = window.Config.basename;
+  const isEmptyBasename =
+    basename == null || basename === "" || basename === "/";
+  const isValidNonEmptyBasename =
+    basename != null && basename.startsWith("/") && !basename.endsWith("/");
+  if (!(isEmptyBasename || isValidNonEmptyBasename)) {
+    throw new Error(`Invalid basename: ${basename}`);
+  }
+  if (isEmptyBasename) {
+    return path;
+  }
+  return basename + path;
+}
 
 /**
  * Takes a path and the current search params and creates a redirect url with the return url query parameter
