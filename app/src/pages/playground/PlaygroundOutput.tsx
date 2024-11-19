@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Alert, Card, Flex, Text, View } from "@arizeai/components";
+import { Alert, Card, Flex, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
