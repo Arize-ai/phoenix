@@ -9,7 +9,11 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
 
 from openinference.instrumentation import safe_json_dumps
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import (
+    OpenInferenceLLMProviderValues,
+    OpenInferenceLLMSystemValues,
+    SpanAttributes,
+)
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
@@ -255,6 +259,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai import RateLimitError as OpenAIRateLimitError
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
@@ -610,6 +616,8 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         from openai import AsyncAzureOpenAI
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         if model.endpoint is None or model.api_version is None:
             raise ValueError("endpoint and api_version are required for Azure OpenAI models")
         self.client = AsyncAzureOpenAI(
@@ -638,6 +646,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -784,6 +794,8 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         import google.generativeai as google_genai
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
@@ -905,6 +917,8 @@ def initialize_playground_clients() -> None:
     pass
 
 
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
