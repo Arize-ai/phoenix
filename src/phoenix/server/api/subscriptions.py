@@ -127,7 +127,7 @@ class Subscription:
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
-            span.set_attributes(llm_client.attributes)
+        span.set_attributes(llm_client.attributes)
         if span.status_message is not None:
             yield ChatCompletionSubscriptionError(message=span.status_message)
         async with info.context.db() as session:
