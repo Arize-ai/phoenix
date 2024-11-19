@@ -300,10 +300,9 @@ class Span(Node):
 
         db_span = self.db_span
         attributes = db_span.attributes
-        llm_provider: GenerativeProviderKey = (
-            get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER)
-            or GenerativeProviderKey.OPENAI
-        )
+        llm_provider = _get_model_provider_from_attributes(attributes)
+        if llm_provider is None:
+            return []
         llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
         invocation_parameters = get_attribute_value(
             attributes, SpanAttributes.LLM_INVOCATION_PARAMETERS
@@ -452,3 +451,30 @@ class _SpanIO:
     llm_input_messages: Any
     llm_output_messages: Any
     retrieval_documents: Any
+
+
+model_provider_to_model_prefix_map: dict[GenerativeProviderKey, list[str]] = {
+    GenerativeProviderKey.AZURE_OPENAI: [],
+    GenerativeProviderKey.ANTHROPIC: ["claude"],
+    GenerativeProviderKey.OPENAI: ["gpt", "o1"],
+    GenerativeProviderKey.GEMINI: ["gemini"],
+}
+
+
+def _infer_model_provider_from_model_name(model_name: str) -> GenerativeProviderKey | None:
+    for provider, prefixes in model_provider_to_model_prefix_map.items():
+        if any(prefix in model_name for prefix in prefixes):
+            return provider
+    return None
+
+
+def _get_model_provider_from_attributes(attributes: dict[str, Any]) -> GenerativeProviderKey | None:
+    llm_provider: GenerativeProviderKey | None = get_attribute_value(
+        attributes, SpanAttributes.LLM_PROVIDER
+    )
+    if isinstance(llm_provider, GenerativeProviderKey):
+        return llm_provider
+    llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
+    if isinstance(llm_model, str):
+        return _infer_model_provider_from_model_name(llm_model)
+    return None
