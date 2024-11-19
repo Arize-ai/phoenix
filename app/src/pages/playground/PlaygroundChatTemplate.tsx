@@ -62,7 +62,8 @@ import {
 } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
-import { createToolCallForProvider } from "./playgroundUtils";
+import { createToolCallForProvider   normalizeMessageAttributeValue,
+} from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -234,15 +235,7 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
-    const toolMessageContent =
-      // transform empty values into empty object string
-      message.content == null || message.content === ""
-        ? "{}"
-        : // transform non-string values into a pretty-printed JSON string
-          typeof message.content === "string"
-          ? // assume strings are already JSON strings
-            message.content
-          : JSON.stringify(message.content, null, 2);
+    const toolMessageContent = normalizeMessageAttributeValue(message.content);
     return (
       <Form
         onSubmit={(e) => {
@@ -383,7 +376,6 @@ function SortableMessageItem({
             includeLabel={false}
             role={message.role}
             onChange={(role) => {
-              const content = message.content;
               let toolCalls = message.toolCalls;
               // Tool calls should only be attached to ai messages
               // Clear tools from the message and reset the message mode when switching away form ai
@@ -397,9 +389,7 @@ function SortableMessageItem({
                   template: {
                     __type: "chat",
                     messages: template.messages.map((msg) =>
-                      msg.id === message.id
-                        ? { ...msg, role, toolCalls, content }
-                        : msg
+                      msg.id === message.id ? { ...msg, role, toolCalls } : msg
                     ),
                   },
                 },
@@ -442,9 +432,7 @@ function SortableMessageItem({
               text={
                 aiMessageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : typeof message.content === "string"
-                    ? message.content
-                    : JSON.stringify(message.content)
+                  : normalizeMessageAttributeValue(message.content)
               }
             />
             <Button

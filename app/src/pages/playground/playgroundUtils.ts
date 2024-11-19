@@ -1031,3 +1031,22 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
   };
 };
+
+/**
+ * Given a playground chat message attribute value, returns a normalized json string.
+ *
+ * This string can then be passed into a JSON Editor.
+ *
+ * @param content - the content to normalize
+ * @returns a normalized json string
+ */
+export function normalizeMessageAttributeValue(
+  content?: string | null | Record<string, unknown>
+): string {
+  if (content == null || content === "") {
+    return "{}";
+  }
+  return typeof content === "string"
+    ? content
+    : JSON.stringify(content, null, 2);
+}
