@@ -25,7 +25,7 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
@@ -300,10 +300,9 @@ class Span(Node):
 
         db_span = self.db_span
         attributes = db_span.attributes
-        llm_provider: GenerativeProviderKey = (
-            get_attribute_value(attributes, SpanAttributes.LLM_PROVIDER)
-            or GenerativeProviderKey.OPENAI
-        )
+        llm_provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
+        if llm_provider is None:
+            return []
         llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
         invocation_parameters = get_attribute_value(
             attributes, SpanAttributes.LLM_INVOCATION_PARAMETERS

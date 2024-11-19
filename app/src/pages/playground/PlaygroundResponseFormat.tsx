@@ -50,7 +50,9 @@ export function PlaygroundResponseFormat({
   }
 
   const responseFormat = instance.model.invocationParameters.find(
-    (p) => p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+    (p) =>
+      p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
+      p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
   );
 
   const [responseFormatDefinition, setResponseFormatDefinition] = useState(
