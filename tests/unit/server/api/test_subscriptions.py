@@ -646,15 +646,20 @@ class TestChatCompletionSubscription:
         assert llm_input_message["tool_calls"] == [
             {
                 "tool_call": {
+                    "id": tool_call_id,
                     "function": {
                         "name": "get_weather",
                         "arguments": '"{\\n    \\"city\\": \\"San Francisco\\"\\n}"',
-                    }
+                    },
                 }
             }
         ]
         llm_input_message = llm_input_messages[2]["message"]
-        assert llm_input_message == {"content": "sunny", "role": "tool"}
+        assert llm_input_message == {
+            "content": "sunny",
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+        }
         assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
             {
                 "message": {

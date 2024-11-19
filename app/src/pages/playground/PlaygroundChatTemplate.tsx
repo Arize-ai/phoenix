@@ -50,7 +50,8 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import { RESPONSE_FORMAT_PARAM_CANONICAL_NAME } from "./constants";
 import {
-  MessageContentRadioGroup,
+  AIMessageContentRadioGroup,
+  AIMessageMode,
   MessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
@@ -60,7 +61,10 @@ import {
 } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
-import { createToolCallForProvider } from "./playgroundUtils";
+import {
+  createToolCallForProvider,
+  normalizeMessageAttributeValue,
+} from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 const MESSAGE_Z_INDEX = 1;
@@ -216,6 +220,7 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
+    const toolMessageContent = normalizeMessageAttributeValue(message.content);
     return (
       <Form
         onSubmit={(e) => {
@@ -239,11 +244,7 @@ function MessageEditor({
           />
         </View>
         <JSONEditor
-          value={
-            message.content == null || message.content === ""
-              ? "{}"
-              : message.content
-          }
+          value={toolMessageContent}
           aria-label="tool message content"
           height={"100%"}
           onChange={(val) => updateMessage({ content: val })}
@@ -251,8 +252,12 @@ function MessageEditor({
             if (message.content == null) {
               return;
             }
-            const { json: parsedContent } = safelyParseJSON(message.content);
-            updateMessage({ content: JSON.stringify(parsedContent, null, 2) });
+            if (typeof message.content === "string") {
+              const { json: parsedContent } = safelyParseJSON(message.content);
+              updateMessage({
+                content: JSON.stringify(parsedContent, null, 2),
+              });
+            }
           }}
         />
       </Form>
@@ -273,7 +278,11 @@ function MessageEditor({
     >
       <TemplateEditor
         height="100%"
-        value={message.content}
+        value={
+          typeof message.content === "string"
+            ? message.content
+            : JSON.stringify(message.content, null, 2)
+        }
         aria-label="Message content"
         templateLanguage={templateLanguage}
         onChange={(val) => updateMessage({ content: val })}
@@ -319,7 +328,7 @@ function SortableMessageItem({
 
   const hasTools = message.toolCalls != null && message.toolCalls.length > 0;
 
-  const [messageMode, setMessageMode] = useState<MessageMode>(
+  const [aiMessageMode, setAIMessageMode] = useState<AIMessageMode>(
     hasTools ? "toolCalls" : "text"
   );
 
@@ -357,7 +366,7 @@ function SortableMessageItem({
               // Clear tools from the message and reset the message mode when switching away form ai
               if (role !== "ai") {
                 toolCalls = undefined;
-                setMessageMode("text");
+                setAIMessageMode("text");
               }
               updateInstance({
                 instanceId: playgroundInstanceId,
@@ -377,11 +386,11 @@ function SortableMessageItem({
           <Flex direction="row" gap="size-100">
             {
               // Only show tool calls option for AI messages
-              message.role === "ai" && (
-                <MessageContentRadioGroup
-                  messageMode={messageMode}
+              message.role === "ai" ? (
+                <AIMessageContentRadioGroup
+                  messageMode={aiMessageMode}
                   onChange={(mode) => {
-                    setMessageMode(mode);
+                    setAIMessageMode(mode);
                     switch (mode) {
                       case "text":
                         updateMessage({
@@ -402,13 +411,13 @@ function SortableMessageItem({
                     }
                   }}
                 />
-              )
+              ) : null
             }
             <CopyToClipboardButton
               text={
-                messageMode === "toolCalls"
+                aiMessageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : (message.content ?? "")
+                  : normalizeMessageAttributeValue(message.content)
               }
             />
             <Button
@@ -441,7 +450,7 @@ function SortableMessageItem({
         <div>
           <MessageEditor
             message={message}
-            messageMode={messageMode}
+            messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
             template={template}
             templateLanguage={templateLanguage}

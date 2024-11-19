@@ -48,7 +48,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
-    from anthropic.types import MessageParam
+    from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
@@ -703,7 +703,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
-
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
@@ -761,18 +760,43 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
         for role, content, _tool_call_id, _tool_calls in messages:
+            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
             if role == ChatCompletionMessageRole.USER:
-                anthropic_messages.append({"role": "user", "content": content})
+                anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": content})
+                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": _tool_call_id or "",
+                                "content": content or "",
+                            }
+                        ],
+                    }
+                )
             else:
                 assert_never(role)
 
         return anthropic_messages, system_prompt
+
+    def _anthropic_message_content(
+        self, content: str, tool_calls: Optional[list[JSONScalarType]]
+    ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
+        if tool_calls:
+            # Anthropic combines tool calls and the reasoning text into a single message object
+            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = []
+            if content:
+                tool_use_content.append({"type": "text", "text": content})
+            tool_use_content.extend(tool_calls)
+            return tool_use_content
+
+        return content
 
 
 @register_llm_client(

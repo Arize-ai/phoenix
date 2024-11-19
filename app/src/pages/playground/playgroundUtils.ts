@@ -19,6 +19,7 @@ import {
   toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import { anthropicToolResultMessageSchema } from "@phoenix/schemas/toolResultSchemas";
 import {
   ChatMessage,
   createPlaygroundInstance,
@@ -189,14 +190,32 @@ function processAttributeMessagesToChatMessage({
   provider: ModelProvider;
 }): ChatMessage[] {
   return messages.map(({ message }) => {
+    if (Array.isArray(message.content)) {
+      // check if message matches anthropic tool result schema
+      const { data, success } =
+        anthropicToolResultMessageSchema.safeParse(message);
+      const toolResult = data?.content.find(
+        (content) => content?.type === "tool_result"
+      );
+      if (success && toolResult != null) {
+        return {
+          id: generateMessageId(),
+          role: getChatRole("tool"),
+          content: toolResult.content,
+          toolCallId: toolResult.tool_use_id,
+        };
+      }
+    }
     return {
       id: generateMessageId(),
       role: getChatRole(message.role),
-      content: message.content,
+      content:
+        typeof message.content === "string" ? message.content : undefined,
       toolCalls: processAttributeToolCalls({
         provider,
         toolCalls: message.tool_calls,
       }),
+      toolCallId: message.tool_call_id,
     };
   });
 }
@@ -1012,3 +1031,22 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
   };
 };
+
+/**
+ * Given a playground chat message attribute value, returns a normalized json string.
+ *
+ * This string can then be passed into a JSON Editor.
+ *
+ * @param content - the content to normalize
+ * @returns a normalized json string
+ */
+export function normalizeMessageAttributeValue(
+  content?: string | null | Record<string, unknown>
+): string {
+  if (content == null || content === "") {
+    return "{}";
+  }
+  return typeof content === "string"
+    ? content
+    : JSON.stringify(content, null, 2);
+}

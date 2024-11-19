@@ -1,19 +1,28 @@
 import React from "react";
 
-import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
+import {
+  Icon,
+  Icons,
+  Radio,
+  RadioGroup,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
-export type MessageMode = "text" | "toolCalls";
+export type AIMessageMode = "text" | "toolCalls";
+export type MessageMode = AIMessageMode;
 
-function isMessageMode(value: string): value is MessageMode {
+function isAIMessageMode(value: string): value is AIMessageMode {
   return value === "text" || value === "toolCalls";
 }
 
-export function MessageContentRadioGroup({
+export function AIMessageContentRadioGroup({
   messageMode,
   onChange,
 }: {
-  messageMode: MessageMode;
-  onChange: (messageMode: MessageMode) => void;
+  messageMode: AIMessageMode;
+  onChange: (messageMode: AIMessageMode) => void;
 }) {
   return (
     <RadioGroup
@@ -21,7 +30,7 @@ export function MessageContentRadioGroup({
       variant="inline-button"
       size="compact"
       onChange={(v) => {
-        if (isMessageMode(v)) {
+        if (isAIMessageMode(v)) {
           onChange(v);
         } else {
           throw new Error(`Unknown message mode: ${v}`);
@@ -29,10 +38,20 @@ export function MessageContentRadioGroup({
       }}
     >
       <Radio label="text input" value={"text"}>
-        <Icon svg={<Icons.MessageSquareOutline />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.MessageSquareOutline />} />
+          </TriggerWrap>
+          <Tooltip>Text input</Tooltip>
+        </TooltipTrigger>
       </Radio>
       <Radio label="tool calling" value={"toolCalls"}>
-        <Icon svg={<Icons.Code />} />
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <Icon svg={<Icons.Code />} />
+          </TriggerWrap>
+          <Tooltip>Tool calling</Tooltip>
+        </TooltipTrigger>
       </Radio>
     </RadioGroup>
   );
