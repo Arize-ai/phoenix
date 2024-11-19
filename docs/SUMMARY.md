@@ -4,7 +4,6 @@
 * [Quickstart](quickstart.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
-* [Phoenix Developer Edition](hosted-phoenix.md)
 * [Self-hosting](deployment/README.md)
   * [Quickstart: Deployment](deployment/deploying-phoenix.md)
   * [Environments](deployment/environments.md)

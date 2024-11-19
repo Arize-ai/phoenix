@@ -1,5 +1,26 @@
 # Frequently Asked Questions
 
+## Will Phoenix Developer Edition be on the latest version of Phoenix?
+
+We update the Phoenix version used by Phoenix Developer Edition on a weekly basis.
+
+## Data retention
+
+We have a 30 day data retention policy. We are working on plans to offer a longer data retention period.
+
+## Sharing
+
+Currently accounts are setup to be used specifically for one developer. We will be adding ways to share your traces with other developers on your team shortly!
+
+## Pricing
+
+Phoenix Developer Edition is free up to the following limits, then $50/month.
+
+Free tier limits:
+
+* 100K logs (spans)
+* 10gb storage
+
 ## Can I use Azure OpenAI?
 
 Yes, in fact this is probably the preferred way to interact with OpenAI if your enterprise requires data privacy. Getting the parameters right for Azure can be a bit tricky so check out the [models section for details.](../api/evaluation-models.md#azure-openai)
