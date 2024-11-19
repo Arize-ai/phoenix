@@ -1,7 +1,7 @@
 export const RETURN_URL_URL_PARAM = "returnUrl";
 
 /**
- * Gets the return URL from the input path and query parameters
+ * Gets a return URL from the input path and query parameters that excludes domain and protocol.
  */
 function createRelativeReturnUrl(
   pathname: string,
@@ -56,9 +56,16 @@ export function createLoginRedirectUrl() {
 /**
  * If a basename is set, prepends the basename to the provided path
  */
-export function prependBaseNameIfExists(path: string) {
+export function prependBasename(path: string) {
   const basename = window.Config.basename;
-  if (basename == null || basename === "" || basename === "/") {
+  const isEmptyBasename =
+    basename == null || basename === "" || basename === "/";
+  const isValidNonEmptyBasename =
+    basename != null && basename.startsWith("/") && !basename.endsWith("/");
+  if (!(isEmptyBasename || isValidNonEmptyBasename)) {
+    throw new Error(`Invalid basename: ${basename}`);
+  }
+  if (isEmptyBasename) {
     return path;
   }
   return basename + path;

@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Button } from "@arizeai/components";
 
-import { prependBaseNameIfExists } from "@phoenix/utils/routingUtils";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type OAuth2LoginProps = {
   idpName: string;
@@ -40,7 +40,7 @@ export function OAuth2Login({
 }: OAuth2LoginProps) {
   return (
     <form
-      action={prependBaseNameIfExists(
+      action={prependBasename(
         `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`
       )}
       method="post"

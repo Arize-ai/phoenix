@@ -170,7 +170,7 @@ describe("routingUtils", () => {
       {
         description:
           "should redirect to basename login when pathname starts with basename but does not match",
-        pathname: "/basenameAndMore/account",
+        pathname: "/basenameAndExtra/account",
         search: "?test=true",
         basename: "/basename",
         expected: "/basename/login",
