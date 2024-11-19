@@ -461,7 +461,7 @@ model_provider_to_model_prefix_map: dict[GenerativeProviderKey, list[str]] = {
 }
 
 
-def _infer_model_provider_from_model_name(model_name: str) -> Union[GenerativeProviderKey | None]:
+def _infer_model_provider_from_model_name(model_name: str) -> Union[GenerativeProviderKey, None]:
     for provider, prefixes in model_provider_to_model_prefix_map.items():
         if any(prefix in model_name for prefix in prefixes):
             return provider
