@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sized
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 import strawberry
@@ -25,7 +25,7 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
-from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
