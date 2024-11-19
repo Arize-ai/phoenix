@@ -76,6 +76,7 @@ const InvocationParameterFormField = ({
           isRequired={field.required}
           defaultValue={value?.join(", ") || ""}
           onChange={(value) => onChange(value.split(/, */g))}
+          description={"A comma separated list of strings"}
         />
       );
     case "StringInvocationParameter":
