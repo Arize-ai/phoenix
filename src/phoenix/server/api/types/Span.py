@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sized
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import numpy as np
 import strawberry
@@ -461,18 +461,20 @@ model_provider_to_model_prefix_map: dict[GenerativeProviderKey, list[str]] = {
 }
 
 
-def _infer_model_provider_from_model_name(model_name: str) -> GenerativeProviderKey | None:
+def _infer_model_provider_from_model_name(model_name: str) -> Union[GenerativeProviderKey | None]:
     for provider, prefixes in model_provider_to_model_prefix_map.items():
         if any(prefix in model_name for prefix in prefixes):
             return provider
     return None
 
 
-def _get_model_provider_from_attributes(attributes: dict[str, Any]) -> GenerativeProviderKey | None:
-    llm_provider: GenerativeProviderKey | None = get_attribute_value(
+def _get_model_provider_from_attributes(
+    attributes: dict[str, Any],
+) -> Union[GenerativeProviderKey, None]:
+    llm_provider: Union[GenerativeProviderKey, None] = get_attribute_value(
         attributes, SpanAttributes.LLM_PROVIDER
     )
-    if isinstance(llm_provider, GenerativeProviderKey):
+    if llm_provider in GenerativeProviderKey:
         return llm_provider
     llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
     if isinstance(llm_model, str):
