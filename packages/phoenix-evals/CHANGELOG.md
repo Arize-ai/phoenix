@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.4...arize-phoenix-evals-v0.17.5) (2024-11-19)
+
+
+### Bug Fixes
+
+* Allow dot key values in templates ([#5436](https://github.com/Arize-ai/phoenix/issues/5436)) ([8181094](https://github.com/Arize-ai/phoenix/commit/8181094ebd66e01f01a00ebe97473a965f7274e8))
+
 ## [0.17.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.3...arize-phoenix-evals-v0.17.4) (2024-11-12)
 
 
