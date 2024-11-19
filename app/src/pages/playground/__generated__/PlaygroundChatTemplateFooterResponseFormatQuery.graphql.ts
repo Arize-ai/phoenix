@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<93057944b5f33e489d2dd2cfb700ce68>>
+ * @generated SignedSource<<2003431f2625c180cb4afcf408201b62>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,19 +15,19 @@ export type ModelsInput = {
   modelName?: string | null;
   providerKey?: GenerativeProviderKey | null;
 };
-export type PlaygroundChatTemplateResponseFormatQuery$variables = {
+export type PlaygroundChatTemplateFooterResponseFormatQuery$variables = {
   input: ModelsInput;
 };
-export type PlaygroundChatTemplateResponseFormatQuery$data = {
+export type PlaygroundChatTemplateFooterResponseFormatQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
     readonly canonicalName?: CanonicalParameterName | null;
     readonly invocationName?: string;
   }>;
 };
-export type PlaygroundChatTemplateResponseFormatQuery = {
-  response: PlaygroundChatTemplateResponseFormatQuery$data;
-  variables: PlaygroundChatTemplateResponseFormatQuery$variables;
+export type PlaygroundChatTemplateFooterResponseFormatQuery = {
+  response: PlaygroundChatTemplateFooterResponseFormatQuery$data;
+  variables: PlaygroundChatTemplateFooterResponseFormatQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -90,7 +90,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PlaygroundChatTemplateResponseFormatQuery",
+    "name": "PlaygroundChatTemplateFooterResponseFormatQuery",
     "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -99,20 +99,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PlaygroundChatTemplateResponseFormatQuery",
+    "name": "PlaygroundChatTemplateFooterResponseFormatQuery",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "d477ae472b8e2377c17187780c70f7a5",
+    "cacheID": "01a450b6ebf674efd1c63a87f81d527c",
     "id": null,
     "metadata": {},
-    "name": "PlaygroundChatTemplateResponseFormatQuery",
+    "name": "PlaygroundChatTemplateFooterResponseFormatQuery",
     "operationKind": "query",
-    "text": "query PlaygroundChatTemplateResponseFormatQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n    }\n  }\n}\n"
+    "text": "query PlaygroundChatTemplateFooterResponseFormatQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d83ce7cbdb4ff58ed9662f4a0e03414c";
+(node as any).hash = "f66d71a8f3f680d4f0a4ec0edf0b6332";
 
 export default node;
