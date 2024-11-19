@@ -428,7 +428,7 @@ class OAuth2ClientConfig:
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
             raise ValueError(
-                f"Server metadata URL for {idp_name} OAuth2 IDP which is not localhost"
+                f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
             )
         return cls(
