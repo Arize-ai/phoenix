@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.0...arize-phoenix-v5.9.1) (2024-11-19)
+
+
+### Bug Fixes
+
+* **auth:** ensure auth works behind a proxy ([#5374](https://github.com/Arize-ai/phoenix/issues/5374)) ([b029532](https://github.com/Arize-ai/phoenix/commit/b029532f39113af60a14cde73079bf918e6a2c97))
+* Hide Output Schema (response format) button on unsupported provider instances ([#5425](https://github.com/Arize-ai/phoenix/issues/5425)) ([6224363](https://github.com/Arize-ai/phoenix/commit/622436375dc09173ca78326b4ff35c065e88df12))
+* **playground:** use saved model config for default model when switching providers ([#5426](https://github.com/Arize-ai/phoenix/issues/5426)) ([afc7d6f](https://github.com/Arize-ai/phoenix/commit/afc7d6f54c90602b31bec791a14c9e82e78771f7))
+
 ## [5.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.8.0...arize-phoenix-v5.9.0) (2024-11-18)
 
 
