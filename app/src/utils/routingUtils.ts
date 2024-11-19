@@ -4,25 +4,47 @@ export const RETURN_URL_URL_PARAM = "returnUrl";
  * Creates a URL to redirect to the login page with the current path as the return URL
  */
 export function createLoginRedirectUrl() {
-  const path = window.location.pathname;
   const basename = window.Config.basename;
-  const searchParams = window.location.search;
-  let basePath = "";
-  let pathAfterBase = "";
-  if (basename == null || basename === "" || basename === "/") {
-    pathAfterBase = path;
-  } else if (basename.startsWith("/") && path.startsWith(basename)) {
-    const afterBase = path.slice(basename.length);
-    if (afterBase === "" || afterBase.startsWith("/")) {
-      basePath = basename;
-      pathAfterBase = afterBase;
+  const isEmptyBasename =
+    basename == null || basename === "" || basename === "/";
+  const isValidNonEmptyBasename =
+    basename.startsWith("/") && !basename.endsWith("/");
+  if (!(isEmptyBasename || isValidNonEmptyBasename)) {
+    throw new Error(`Invalid basename: ${basename}`);
+  }
+  const pathname = window.location.pathname;
+  const origin = window.location.origin;
+  const existingSearchParams = new URLSearchParams(window.location.search);
+  if (isEmptyBasename) {
+    const returnUrl = new URL(pathname, origin);
+    existingSearchParams.forEach((value, key) => {
+      returnUrl.searchParams.append(key, value);
+    });
+    const redirectUrl = new URL("/login", origin);
+    redirectUrl.searchParams.set(
+      RETURN_URL_URL_PARAM,
+      returnUrl.pathname + returnUrl.search
+    );
+    return redirectUrl.pathname + redirectUrl.search;
+  }
+  if (pathname.startsWith(basename)) {
+    const pathnameAfterBasename = pathname.slice(basename.length);
+    const basenameMatchesPathname =
+      pathnameAfterBasename === "" || pathnameAfterBasename.startsWith("/");
+    if (basenameMatchesPathname) {
+      const returnUrl = new URL(pathnameAfterBasename, origin);
+      existingSearchParams.forEach((value, key) => {
+        returnUrl.searchParams.append(key, value);
+      });
+      const redirectUrl = new URL(basename + "/login", origin);
+      redirectUrl.searchParams.set(
+        RETURN_URL_URL_PARAM,
+        returnUrl.pathname + returnUrl.search
+      );
+      return redirectUrl.pathname + redirectUrl.search;
     }
   }
-  let redirectUrl = `${basePath}/login`;
-  if (pathAfterBase.length || searchParams.length) {
-    redirectUrl += `?${RETURN_URL_URL_PARAM}=${encodeURIComponent(pathAfterBase + searchParams)}`;
-  }
-  return redirectUrl;
+  return basename + "/login";
 }
 
 /**

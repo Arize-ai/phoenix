@@ -110,17 +110,44 @@ describe("routingUtils", () => {
   });
 
   describe("createReturnUrlQueryParam", () => {
-    it("should return the returnUrl query param, with the current pathname and search params", () => {
+    it("should return the returnUrl query param with the current pathname and search params", () => {
       windowSpy.mockReturnValue({
         pathname: "/account",
+        origin: "http://127.0.0.1:6006",
         search: "?test=true",
       });
       Object.defineProperty(window, "Config", {
-        value: { ...baseWindowConfig, basename: "/something" },
+        value: { ...baseWindowConfig, basename: "/" },
       });
       expect(createLoginRedirectUrl()).toEqual(
         `/login?returnUrl=%2Faccount%3Ftest%3Dtrue`
       );
+    });
+
+    it("should return root path and the returnUrl query param with the current pathname and search params", () => {
+      windowSpy.mockReturnValue({
+        pathname: "/basename/account",
+        origin: "http://127.0.0.1:6006",
+        search: "?test=true",
+      });
+      Object.defineProperty(window, "Config", {
+        value: { ...baseWindowConfig, basename: "/basename" },
+      });
+      expect(createLoginRedirectUrl()).toEqual(
+        `/basename/login?returnUrl=%2Faccount%3Ftest%3Dtrue`
+      );
+    });
+
+    it("should redirect to root path login when path does not match basename", () => {
+      windowSpy.mockReturnValue({
+        pathname: "/base/account", // only partially matches the basename
+        origin: "http://127.0.0.1:6006",
+        search: "?test=true",
+      });
+      Object.defineProperty(window, "Config", {
+        value: { ...baseWindowConfig, basename: "/basename" },
+      });
+      expect(createLoginRedirectUrl()).toEqual(`/basename/login`);
     });
   });
 });
