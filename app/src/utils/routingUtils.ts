@@ -39,9 +39,9 @@ export function createLoginRedirectUrl() {
   }
   if (pathname.startsWith(basename)) {
     const pathnameAfterBasename = pathname.slice(basename.length);
-    const basenameMatchesPathname =
+    const isPathnameAfterBaseValid =
       pathnameAfterBasename === "" || pathnameAfterBasename.startsWith("/");
-    if (basenameMatchesPathname) {
+    if (isPathnameAfterBaseValid) {
       const redirectUrl = new URL(basename + "/login", origin);
       redirectUrl.searchParams.set(
         RETURN_URL_URL_PARAM,
