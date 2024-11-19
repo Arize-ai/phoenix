@@ -54,7 +54,7 @@ When using the `endpoint` argument, we must pass in the fully qualified OTel end
 
 ## Log to a specific project
 
-Phoenix uses [projects](broken-reference) to group traces. If left unspecified, all traces are sent to a default project.
+Phoenix uses projects to group traces. If left unspecified, all traces are sent to a default project.
 
 {% embed url="https://www.youtube.com/watch?v=GPno92s9WFM" %}
 
