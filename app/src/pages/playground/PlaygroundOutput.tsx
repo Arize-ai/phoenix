@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Flex, View } from "@arizeai/components";
+import { Alert, Card, Flex, Text, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
@@ -151,6 +151,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
   const instance = instances.find((instance) => instance.id === instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const [outputError, setOutputError] = useState<{
+    title: string;
+    message?: string;
+  } | null>(null);
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
@@ -174,7 +178,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   const hasRunId = instance?.activeRunId != null;
-  const notifyError = useNotifyError();
+  const notifyErrorToast = useNotifyError();
+
+  const notifyError = useCallback(
+    ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
+      setOutputError({ title, message });
+      notifyErrorToast({
+        title,
+        message,
+        ...rest,
+      });
+    },
+    [notifyErrorToast]
+  );
 
   const [outputContent, setOutputContent] = useState<OutputContent>(
     instance.output
@@ -303,6 +319,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setLoading(true);
     setOutputContent(undefined);
     setToolCalls([]);
+    setOutputError(null);
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -386,6 +403,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       {loading ? (
         <View padding="size-200">
           <Loading message="Running..." />
+        </View>
+      ) : outputError ? (
+        <View padding="size-200">
+          <Alert title={outputError.title} variant="danger">
+            {outputError.message}
+          </Alert>
         </View>
       ) : (
         <>
