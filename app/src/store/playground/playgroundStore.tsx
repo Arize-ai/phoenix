@@ -8,6 +8,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { areInvocationParamsEqual } from "@phoenix/pages/playground/playgroundUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
@@ -395,8 +396,8 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         return;
       }
       const currentInvocationParameterInput =
-        instance.model.invocationParameters.find(
-          (p) => p.invocationName === invocationParameterInput.invocationName
+        instance.model.invocationParameters.find((p) =>
+          areInvocationParamsEqual(p, invocationParameterInput)
         );
 
       if (currentInvocationParameterInput) {
@@ -409,8 +410,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
                   ...instance.model,
                   invocationParameters: instance.model.invocationParameters.map(
                     (p) =>
-                      p.invocationName ===
-                      invocationParameterInput.invocationName
+                      areInvocationParamsEqual(p, invocationParameterInput)
                         ? invocationParameterInput
                         : p
                   ),

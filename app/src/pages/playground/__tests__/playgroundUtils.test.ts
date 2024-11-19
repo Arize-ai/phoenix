@@ -29,6 +29,7 @@ import {
   TOOLS_PARSING_ERROR,
 } from "../constants";
 import {
+  areInvocationParamsEqual,
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
   extractVariablesFromInstances,
@@ -1171,6 +1172,77 @@ describe("getToolsFromAttributes", () => {
       tools: null,
       parsingErrors: [],
     });
+  });
+});
+describe("areInvocationParamsEqual", () => {
+  it("should return true if invocation names are equal", () => {
+    const paramA = {
+      invocationName: "max_tokens",
+      canonicalName: null,
+      valueInt: 100,
+    };
+    const paramB = {
+      invocationName: "max_tokens",
+      canonicalName: null,
+      valueInt: 200,
+    };
+    expect(areInvocationParamsEqual(paramA, paramB)).toBe(true);
+  });
+
+  it("should return true if canonical names are equal", () => {
+    const paramA = {
+      invocationName: "max_tokens",
+      canonicalName: "MAX_COMPLETION_TOKENS" as const,
+      valueInt: 100,
+    };
+    const paramB = {
+      invocationName: "max_tokens_alt",
+      canonicalName: "MAX_COMPLETION_TOKENS" as const,
+      valueInt: 200,
+    };
+    expect(areInvocationParamsEqual(paramA, paramB)).toBe(true);
+  });
+
+  it("should return false if neither invocation names nor canonical names are equal", () => {
+    const paramA = {
+      invocationName: "max_tokens",
+      canonicalName: "MAX_COMPLETION_TOKENS" as const,
+      valueInt: 100,
+    };
+    const paramB = {
+      invocationName: "top_p",
+      canonicalName: "TOP_P" as const,
+      valueFloat: 0.9,
+    };
+    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
+  });
+
+  it("should return false if one canonical name is null and invocation names are not equal", () => {
+    const paramA = {
+      invocationName: "max_tokens",
+      canonicalName: null,
+      valueInt: 100,
+    };
+    const paramB = {
+      invocationName: "top_p",
+      canonicalName: "TOP_P" as const,
+      valueFloat: 0.9,
+    };
+    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
+  });
+
+  it("should return false if both canonical names are null and invocation names are not equal", () => {
+    const paramA = {
+      invocationName: "max_tokens",
+      canonicalName: null,
+      valueInt: 100,
+    };
+    const paramB = {
+      invocationName: "top_p",
+      canonicalName: null,
+      valueFloat: 0.9,
+    };
+    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
   });
 });
 

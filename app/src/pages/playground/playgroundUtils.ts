@@ -615,6 +615,19 @@ export const getVariablesMapFromInstances = ({
   return { variablesMap, variableKeys };
 };
 
+export function areInvocationParamsEqual(
+  paramA: InvocationParameter | InvocationParameterInput,
+  paramB: InvocationParameter | InvocationParameterInput
+) {
+  return (
+    paramA.invocationName === paramB.invocationName ||
+    // loose null comparison to catch undefined and null
+    (paramA.canonicalName != null &&
+      paramB.canonicalName != null &&
+      paramA.canonicalName === paramB.canonicalName)
+  );
+}
+
 /**
  * Filter out parameters that are not supported by a model's invocation parameter schema definitions.
  */
@@ -626,14 +639,7 @@ export const constrainInvocationParameterInputsToDefinition = (
     .filter((ip) =>
       // An input should be kept if it matches an invocation name in the definitions
       // or if it has a canonical name that matches a canonical name in the definitions.
-      definitions.some(
-        (mp) =>
-          mp.invocationName === ip.invocationName ||
-          // loosey null comparison to catch undefined and null
-          (mp.canonicalName != null &&
-            ip.canonicalName != null &&
-            mp.canonicalName === ip.canonicalName)
-      )
+      definitions.some((mp) => areInvocationParamsEqual(mp, ip))
     )
     .map((ip) => ({
       // Transform the invocationName to match the new name from the incoming

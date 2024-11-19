@@ -14,6 +14,7 @@ import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscr
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import {
+  areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
 } from "./playgroundUtils";
@@ -265,8 +266,8 @@ export const InvocationParametersForm = ({
 
   const onChange = useCallback(
     (field: InvocationParameter, value: unknown) => {
-      const existingParameter = instance.model.invocationParameters.find(
-        (p) => p.invocationName === field.invocationName
+      const existingParameter = instance.model.invocationParameters.find((p) =>
+        areInvocationParamsEqual(p, field)
       );
 
       if (existingParameter) {
@@ -275,7 +276,7 @@ export const InvocationParametersForm = ({
           updateInstanceModelInvocationParameters({
             instanceId: instance.id,
             invocationParameters: instance.model.invocationParameters.map(
-              (p) => (p.invocationName === field.invocationName ? input : p)
+              (p) => (areInvocationParamsEqual(p, field) ? input : p)
             ),
           });
         }
@@ -304,12 +305,13 @@ export const InvocationParametersForm = ({
         )
     )
     .map((field) => {
-      const existingParameter = instance.model.invocationParameters.find(
-        (p) => p.invocationName === field.invocationName
+      const existingParameter = instance.model.invocationParameters.find((p) =>
+        areInvocationParamsEqual(p, field)
       );
       const value = existingParameter
         ? getInvocationParameterValue(field, existingParameter)
         : undefined;
+
       return (
         <InvocationParameterFormField
           key={field.invocationName}
