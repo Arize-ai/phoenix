@@ -340,11 +340,9 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
               onChange={onModelNameChange}
             />
           )}
-          {instance.model.modelName ? (
+          <Suspense>
             <InvocationParametersForm instanceId={playgroundInstanceId} />
-          ) : (
-            <></>
-          )}
+          </Suspense>
         </Flex>
       </Form>
     </View>
