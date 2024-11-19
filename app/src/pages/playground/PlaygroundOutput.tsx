@@ -356,7 +356,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             });
             notifyError({
               title: "Failed to get output",
-              message: "Please try again.",
+              message: error.message,
             });
           },
         };
