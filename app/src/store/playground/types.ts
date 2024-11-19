@@ -32,8 +32,6 @@ export type ChatMessage = {
   id: number;
   role: ChatMessageRole;
   // Tool call messages may not have content
-  // Array typed content may be used for tool calls depending on the provider
-  // But we do not currently support this in the playground
   content?: string;
   toolCalls?: LlmProviderToolCall[];
   toolCallId?: string;

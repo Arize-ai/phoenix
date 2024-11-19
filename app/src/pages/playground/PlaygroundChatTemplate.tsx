@@ -47,7 +47,6 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { ChatMessageJSONContentEditor } from "./ChatMessageJSONContentEditor";
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import { RESPONSE_FORMAT_PARAM_CANONICAL_NAME } from "./constants";
 import {
@@ -62,7 +61,9 @@ import {
 } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
-import { createToolCallForProvider   normalizeMessageAttributeValue,
+import {
+  createToolCallForProvider,
+  normalizeMessageAttributeValue,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -215,22 +216,6 @@ function MessageEditor({
             />
           </CodeWrap>
         </Field>
-      </View>
-    );
-  }
-  if (messageMode === "json") {
-    return (
-      <View
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        paddingTop="size-200"
-        paddingBottom="size-200"
-      >
-        <ChatMessageJSONContentEditor
-          playgroundInstanceId={playgroundInstanceId}
-          templateMessages={template.messages}
-          messageId={message.id}
-        />
       </View>
     );
   }

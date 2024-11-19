@@ -11,15 +11,10 @@ import {
 } from "@arizeai/components";
 
 export type AIMessageMode = "text" | "toolCalls";
-export type UserMessageMode = "text" | "json";
-export type MessageMode = AIMessageMode | UserMessageMode;
+export type MessageMode = AIMessageMode;
 
 function isAIMessageMode(value: string): value is AIMessageMode {
   return value === "text" || value === "toolCalls";
-}
-
-function isUserMessageMode(value: string): value is UserMessageMode {
-  return value === "text" || value === "json";
 }
 
 export function AIMessageContentRadioGroup({
@@ -56,46 +51,6 @@ export function AIMessageContentRadioGroup({
             <Icon svg={<Icons.Code />} />
           </TriggerWrap>
           <Tooltip>Tool calling</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-    </RadioGroup>
-  );
-}
-
-export function UserMessageContentRadioGroup({
-  messageMode,
-  onChange,
-}: {
-  messageMode: UserMessageMode;
-  onChange: (messageMode: UserMessageMode) => void;
-}) {
-  return (
-    <RadioGroup
-      defaultValue={messageMode}
-      variant="inline-button"
-      size="compact"
-      onChange={(v) => {
-        if (isUserMessageMode(v)) {
-          onChange(v);
-        } else {
-          throw new Error(`Unknown message mode: ${v}`);
-        }
-      }}
-    >
-      <Radio label="text input" value={"text"}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.MessageSquareOutline />} />
-          </TriggerWrap>
-          <Tooltip>Text input</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-      <Radio label="json input" value={"json"}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.Code />} />
-          </TriggerWrap>
-          <Tooltip>JSON input</Tooltip>
         </TooltipTrigger>
       </Radio>
     </RadioGroup>
