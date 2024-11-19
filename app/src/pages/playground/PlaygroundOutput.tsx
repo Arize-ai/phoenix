@@ -344,9 +344,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           },
           onError: (error) => {
             setLoading(false);
-            // TODO(apowell): We should display this error to the user after formatting it nicely.
-            // eslint-disable-next-line no-console
-            console.error(error);
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
             updateInstance({
               instanceId: props.playgroundInstanceId,
