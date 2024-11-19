@@ -73,6 +73,7 @@ export function PlaygroundCredentialsDropdown() {
                         setCredential({ provider, value });
                       }}
                       value={credentials[provider]}
+                      description={`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
                     />
                   );
                 })}
