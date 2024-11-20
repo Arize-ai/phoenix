@@ -707,7 +707,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             "messages": anthropic_messages,
             "model": self.model_name,
             "system": system_prompt,
-            "max_tokens": 1024,
             "tools": tools,
             **invocation_parameters,
         }
