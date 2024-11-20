@@ -733,7 +733,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => ({
-      id: `instance ${instance.id}`,
+      id: `instance-${instance.id}`,
       header: () => (
         <Flex direction="row" gap="size-100" alignItems="center">
           <AlphabeticIndexIcon index={index} />
@@ -808,7 +808,6 @@ export function PlaygroundDatasetExamplesTable({
       size: 200,
     },
     ...playgroundInstanceOutputColumns,
-    { id: "tail", size: 700, minSize: 700 },
   ];
   const table = useReactTable<TableRow>({
     columns,
@@ -840,6 +839,7 @@ export function PlaygroundDatasetExamplesTable({
    * and especially every data cell (very expensive),
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
   const columnSizeVars = React.useMemo(() => {
     const headers = table.getFlatHeaders();
