@@ -306,27 +306,37 @@ class Subscription:
             ]
         ] = []
         max_results_batch_size = 10
-        max_concurrent_async_tasks = 10
+        max_in_progress_async_tasks = 10
         while not_started or in_progress:
-            while not_started and len(in_progress) < max_concurrent_async_tasks:
-                example_id, stream = not_started.pop()
+            while not_started and len(in_progress) < max_in_progress_async_tasks:
+                ex_id, stream = not_started.pop()
                 task = _create_task_with_timeout(stream)
-                in_progress.append((example_id, stream, task))
+                in_progress.append((ex_id, stream, task))
             async_tasks_to_run = [task for _, _, task in in_progress]
             completed_tasks, _ = await wait(async_tasks_to_run, return_when=FIRST_COMPLETED)
             for completed_task in completed_tasks:
                 idx = [task for _, _, task in in_progress].index(completed_task)
-                example_id_, stream, _ = in_progress[idx]
+                example_id, stream, _ = in_progress[idx]
                 try:
                     yield completed_task.result()
-                except (StopAsyncIteration, asyncio.TimeoutError):
+                except StopAsyncIteration:
                     del in_progress[idx]  # removes exhausted stream
+                except asyncio.TimeoutError:
+                    del in_progress[idx]  # removes timed-out stream
+                    if example_id is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="Timeout", dataset_example_id=example_id
+                        )
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
+                    if example_id is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred", dataset_example_id=example_id
+                        )
                     logger.exception(error)
                 else:
                     task = _create_task_with_timeout(stream)
-                    in_progress[idx] = (example_id_, stream, task)
+                    in_progress[idx] = (example_id, stream, task)
                 if results_queue.qsize() >= max_results_batch_size:
                     result_payloads_task_already_exists = any(
                         stream.ag_code == _chat_completion_result_payloads.__code__
