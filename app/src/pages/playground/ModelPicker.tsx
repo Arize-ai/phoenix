@@ -33,7 +33,9 @@ export function ModelPicker({ query, onChange, ...props }: ModelPickerProps) {
     <Picker
       label={"Model"}
       data-testid="model-picker"
-      selectedKey={props.modelName ?? undefined}
+      // Fallback to empty string here otherwise the picker will complain about switching from a controlled to uncontrolled component
+      // It can't distinguish between undefined and intentionally null
+      selectedKey={props.modelName ?? ""}
       aria-label="model picker"
       placeholder="Select a model"
       onSelectionChange={(key) => {

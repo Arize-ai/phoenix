@@ -70,6 +70,7 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
@@ -305,15 +306,6 @@ function JSONCell<TData extends object, TValue>({
   );
 }
 
-function CellErrorWrap({ children }: { children: ReactNode }) {
-  return (
-    <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-      <Text color="danger">{children}</Text>
-    </Flex>
-  );
-}
-
 function ExampleOutputCell({
   exampleData,
   isRunning,
@@ -338,11 +330,11 @@ function ExampleOutputCell({
       return null;
     }
     return (
-      <CellErrorWrap>
+      <PlaygroundErrorWrap>
         {`Missing output for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
           ", "
         )}`}
-      </CellErrorWrap>
+      </PlaygroundErrorWrap>
     );
   }
   const { span, content, toolCalls, errorMessage, experimentRun } = exampleData;
@@ -407,7 +399,7 @@ function ExampleOutputCell({
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
         {errorMessage != null ? (
-          <CellErrorWrap>{errorMessage}</CellErrorWrap>
+          <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
         ) : null}
         <Text>{content}</Text>
         {toolCalls != null

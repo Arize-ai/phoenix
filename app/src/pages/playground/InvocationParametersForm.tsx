@@ -65,7 +65,13 @@ const InvocationParameterFormField = ({
           isRequired={field.required}
           value={value?.toString() || ""}
           type="number"
-          onChange={(value) => onChange(Number(value))}
+          onChange={(value) => {
+            if (value === "") {
+              onChange(undefined);
+              return;
+            }
+            onChange(Number(value));
+          }}
         />
       );
     case "StringListInvocationParameter":
@@ -74,8 +80,14 @@ const InvocationParameterFormField = ({
         <TextField
           label={field.label}
           isRequired={field.required}
-          defaultValue={value?.join(", ") || ""}
-          onChange={(value) => onChange(value.split(/, */g))}
+          defaultValue={value?.join(", ")}
+          onChange={(value) => {
+            if (value === "") {
+              onChange(undefined);
+              return;
+            }
+            onChange(value.split(/, */g));
+          }}
           description={"A comma separated list of strings"}
         />
       );
@@ -86,7 +98,13 @@ const InvocationParameterFormField = ({
           isRequired={field.required}
           value={value?.toString() || ""}
           type="text"
-          onChange={(value) => onChange(value)}
+          onChange={(value) => {
+            if (value === "") {
+              onChange(undefined);
+              return;
+            }
+            onChange(value);
+          }}
         />
       );
     case "BooleanInvocationParameter":
@@ -250,6 +268,17 @@ export const InvocationParametersForm = ({
       const existingParameter = instance.model.invocationParameters.find((p) =>
         areInvocationParamsEqual(p, field)
       );
+      if (value === undefined) {
+        if (existingParameter) {
+          updateInstanceModelInvocationParameters({
+            instanceId: instance.id,
+            invocationParameters: instance.model.invocationParameters.filter(
+              (p) => !areInvocationParamsEqual(p, field)
+            ),
+          });
+        }
+        return;
+      }
 
       if (existingParameter) {
         const input = makeInvocationParameterInput(field, value);

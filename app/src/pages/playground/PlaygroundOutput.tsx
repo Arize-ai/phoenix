@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Alert, Card, Flex, View } from "@arizeai/components";
+import { Card, Flex, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
@@ -29,6 +29,10 @@ import {
   PlaygroundInstance,
 } from "@phoenix/store";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import {
+  getErrorMessagesFromRelayMutationError,
+  getErrorMessagesFromRelaySubscriptionError,
+} from "@phoenix/utils/errorUtils";
 
 import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
@@ -39,6 +43,7 @@ import {
   PlaygroundOutputSubscription$data,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import {
   PartialOutputToolCall,
   PlaygroundToolCall,
@@ -259,7 +264,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           notifyError({
             title: "Chat completion failed",
             message: chatCompletion.message,
-            expireMs: 10000,
           });
         }
       }
@@ -345,16 +349,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           onError: (error) => {
             setLoading(false);
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
-            updateInstance({
-              instanceId: props.playgroundInstanceId,
-              patch: {
-                activeRunId: null,
-              },
-            });
-            notifyError({
-              title: "Failed to get output",
-              message: error.message,
-            });
+            const errorMessages =
+              getErrorMessagesFromRelaySubscriptionError(error);
+            if (errorMessages != null && errorMessages.length > 0) {
+              notifyError({
+                title: "Failed to get output",
+                message: errorMessages.join("\n"),
+              });
+            } else {
+              notifyError({
+                title: "Failed to get output",
+                message: error.message,
+              });
+            }
           },
         };
       const subscription = requestSubscription(environment, config);
@@ -368,10 +375,18 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       onError(error) {
         setLoading(false);
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        notifyError({
-          title: "Failed to get output",
-          message: error.message,
-        });
+        const errorMessages = getErrorMessagesFromRelayMutationError(error);
+        if (errorMessages != null && errorMessages.length > 0) {
+          notifyError({
+            title: "Failed to get output",
+            message: errorMessages.join("\n"),
+          });
+        } else {
+          notifyError({
+            title: "Failed to get output",
+            message: error.message,
+          });
+        }
       },
     });
   }, [
@@ -403,9 +418,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         </View>
       ) : outputError ? (
         <View padding="size-200">
-          <Alert title={outputError.title} variant="danger">
-            {outputError.message}
-          </Alert>
+          <PlaygroundErrorWrap>{outputError.message}</PlaygroundErrorWrap>
         </View>
       ) : (
         <>
