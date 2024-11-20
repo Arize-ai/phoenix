@@ -43,6 +43,10 @@ export function PlaygroundDatasetPicker() {
         placeholder="Test over a dataset"
         selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {
+          if (selectedDatasetId !== null && datasetId === selectedDatasetId) {
+            navigate("/playground");
+            return;
+          }
           navigate(`/playground/datasets/${datasetId}`);
         }}
       />
