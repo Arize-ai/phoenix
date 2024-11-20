@@ -327,7 +327,7 @@ class Subscription:
                     del in_progress[idx]  # removes timed-out stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
-                            message="Timeout", dataset_example_id=example_id
+                            message="Timed out", dataset_example_id=example_id
                         )
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
@@ -343,8 +343,7 @@ class Subscription:
                 exceeded_write_batch_size = results.qsize() >= write_batch_size
                 exceeded_write_interval = datetime.now() - last_write_time > write_interval
                 write_already_in_progress = any(
-                    stream.ag_code == _chat_completion_result_payloads.__code__
-                    for _, stream, _ in in_progress
+                    _is_result_payloads_stream(stream) for _, stream, _ in in_progress
                 )
                 if (
                     exceeded_write_batch_size or exceeded_write_interval
@@ -455,6 +454,16 @@ async def _chat_completion_result_payloads(
             experiment_run=to_gql_experiment_run(run),
             dataset_example_id=example_id,
         )
+
+
+def _is_result_payloads_stream(
+    stream: AsyncGenerator[ChatCompletionSubscriptionPayload, None],
+) -> bool:
+    """
+    Checks if the given generator was instantiated from
+    `_chat_completion_result_payloads`
+    """
+    return stream.ag_code == _chat_completion_result_payloads.__code__
 
 
 def _create_task_with_timeout(
