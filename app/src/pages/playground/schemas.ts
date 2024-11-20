@@ -45,10 +45,9 @@ const toolCallSchema = z
 const messageSchema = z.object({
   [SemanticAttributePrefixes.message]: z.object({
     [MessageAttributePostfixes.role]: z.string(),
-    [MessageAttributePostfixes.content]: z.union([
-      z.string(),
-      z.array(z.record(z.string(), z.unknown())),
-    ]),
+    [MessageAttributePostfixes.content]: z
+      .union([z.string(), z.array(z.record(z.string(), z.unknown()))])
+      .default(""),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
     [MessageAttributePostfixes.tool_call_id]: z.string().optional(),
   }),
