@@ -424,7 +424,9 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
-        if urlparse(oidc_config_url).scheme != "https":
+        parsed_oidc_config_url = urlparse(oidc_config_url)
+        is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
+        if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
             raise ValueError(
                 f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
