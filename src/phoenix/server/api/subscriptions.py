@@ -2,7 +2,7 @@ import asyncio
 import logging
 from asyncio import FIRST_COMPLETED, Queue, QueueEmpty, Task, create_task, wait, wait_for
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -281,7 +281,7 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
-        results_queue: Queue[ChatCompletionResult] = Queue()
+        results: Queue[ChatCompletionResult] = Queue()
         not_started: list[
             tuple[DatasetExampleID, AsyncGenerator[ChatCompletionSubscriptionPayload, None]]
         ] = [
@@ -291,7 +291,7 @@ class Subscription:
                     input=input,
                     llm_client=llm_client,
                     revision=revision,
-                    results_queue=results_queue,
+                    results=results,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
                 ),
@@ -305,10 +305,12 @@ class Subscription:
                 Task[ChatCompletionSubscriptionPayload],
             ]
         ] = []
-        max_results_batch_size = 10
-        max_in_progress_async_tasks = 10
+        max_in_progress = 10
+        write_batch_size = 10
+        write_interval = timedelta(seconds=10)
+        last_write_time = datetime.now()
         while not_started or in_progress:
-            while not_started and len(in_progress) < max_in_progress_async_tasks:
+            while not_started and len(in_progress) < max_in_progress:
                 ex_id, stream = not_started.pop()
                 task = _create_task_with_timeout(stream)
                 in_progress.append((ex_id, stream, task))
@@ -337,18 +339,23 @@ class Subscription:
                 else:
                     task = _create_task_with_timeout(stream)
                     in_progress[idx] = (example_id, stream, task)
-                if results_queue.qsize() >= max_results_batch_size:
-                    result_payloads_task_already_exists = any(
-                        stream.ag_code == _chat_completion_result_payloads.__code__
-                        for _, stream, _ in in_progress
+
+                exceeded_write_batch_size = results.qsize() >= write_batch_size
+                exceeded_write_interval = datetime.now() - last_write_time > write_interval
+                write_already_in_progress = any(
+                    stream.ag_code == _chat_completion_result_payloads.__code__
+                    for _, stream, _ in in_progress
+                )
+                if (
+                    exceeded_write_batch_size or exceeded_write_interval
+                ) and not write_already_in_progress:
+                    result_payloads_stream = _chat_completion_result_payloads(
+                        db=info.context.db, results=_drain_no_wait(results)
                     )
-                    if not result_payloads_task_already_exists:
-                        result_payloads_stream = _chat_completion_result_payloads(
-                            db=info.context.db, results=_drain_no_wait(results_queue)
-                        )
-                        task = _create_task_with_timeout(result_payloads_stream)
-                        in_progress.append((None, result_payloads_stream, task))
-        if remaining_results := await _drain(results_queue):
+                    task = _create_task_with_timeout(result_payloads_stream)
+                    in_progress.append((None, result_payloads_stream, task))
+                    last_write_time = datetime.now()
+        if remaining_results := await _drain(results):
             async for result_payload in _chat_completion_result_payloads(
                 db=info.context.db, results=remaining_results
             ):
@@ -360,7 +367,7 @@ async def _stream_chat_completion_over_dataset_example(
     input: ChatCompletionOverDatasetInput,
     llm_client: PlaygroundStreamingClient,
     revision: models.DatasetExampleRevision,
-    results_queue: Queue[ChatCompletionResult],
+    results: Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
 ) -> AsyncGenerator[ChatCompletionSubscriptionPayload, None]:
@@ -387,7 +394,7 @@ async def _stream_chat_completion_over_dataset_example(
     except TemplateFormatterError as error:
         format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
-        await results_queue.put(
+        await results.put(
             (
                 example_id,
                 None,
@@ -422,7 +429,7 @@ async def _stream_chat_completion_over_dataset_example(
     db_run = get_db_experiment_run(
         db_span, db_trace, experiment_id=experiment_id, example_id=revision.dataset_example_id
     )
-    await results_queue.put((example_id, db_span, db_run))
+    await results.put((example_id, db_span, db_run))
     if span.status_message is not None:
         yield ChatCompletionSubscriptionError(
             message=span.status_message, dataset_example_id=example_id
