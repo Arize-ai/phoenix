@@ -14,6 +14,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const navigate = useNavigate();
+
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
       query PlaygroundDatasetSectionQuery($datasetId: GlobalID!) {
@@ -47,21 +48,30 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
               </Text>
             ) : null}
           </Flex>
-          {experimentId != null && (
-            <Button
-              size={"compact"}
-              variant="default"
-              disabled={isRunning}
-              icon={<Icon svg={<Icons.ExperimentOutline />} />}
-              onClick={() => {
-                navigate(
-                  `/datasets/${datasetId}/compare?experimentId=${experimentId}`
-                );
-              }}
-            >
-              View Experiment
-            </Button>
-          )}
+          <Flex gap={"size-100"} alignItems={"center"}>
+            {isRunning && (
+              <Text color="text-700">
+                Run in progress, navigating away from the page could result in
+                data loss.
+              </Text>
+            )}
+            {experimentId != null && (
+              <Button
+                size={"compact"}
+                variant="default"
+                disabled={isRunning}
+                loading={isRunning}
+                icon={<Icon svg={<Icons.ExperimentOutline />} />}
+                onClick={() => {
+                  navigate(
+                    `/datasets/${datasetId}/compare?experimentId=${experimentId}`
+                  );
+                }}
+              >
+                View Experiment
+              </Button>
+            )}
+          </Flex>
         </Flex>
       </View>
       <PlaygroundDatasetExamplesTable datasetId={datasetId} />

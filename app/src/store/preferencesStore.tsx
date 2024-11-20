@@ -42,6 +42,11 @@ export interface PreferencesProps {
    * {@link ModelConfig|ModelConfigs} for llm providers will be used as the default parameters for the provider
    */
   modelConfigByProvider: ModelConfigByProvider;
+  /**
+   * Whether or not the playground is in streaming mode
+   * Note: this is always false in environments that do not support streaming
+   */
+  playgroundStreamingEnabled: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -84,6 +89,10 @@ export interface PreferencesState extends PreferencesProps {
     provider: ModelProvider;
     modelConfig: ModelConfig;
   }) => void;
+  /**
+   * Setter for enabling/disabling playground streaming
+   */
+  setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -124,6 +133,10 @@ export const createPreferencesStore = (
           },
         };
       });
+    },
+    playgroundStreamingEnabled: true,
+    setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
+      set({ playgroundStreamingEnabled });
     },
     ...initialProps,
   });
