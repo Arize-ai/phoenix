@@ -190,25 +190,13 @@ function processAttributeMessagesToChatMessage({
   provider: ModelProvider;
 }): ChatMessage[] {
   return messages.map(({ message }) => {
-    if (Array.isArray(message.content)) {
-      // check if message matches anthropic tool result schema
-      const { data, success } =
-        anthropicToolResultMessageSchema.safeParse(message);
-      const toolResult = data?.content.find(
-        (content) => content?.type === "tool_result"
-      );
-      if (success && toolResult != null) {
-        return {
-          id: generateMessageId(),
-          role: getChatRole("tool"),
-          content: toolResult.content,
-          toolCallId: toolResult.tool_use_id,
-        };
-      }
-    }
     return {
       id: generateMessageId(),
-      role: getChatRole(message.role),
+      // if the message has a tool call id, it is a tool "role" message from the perspective of the playground
+      role:
+        message.tool_call_id != null
+          ? getChatRole("tool")
+          : getChatRole(message.role),
       content:
         typeof message.content === "string" ? message.content : undefined,
       toolCalls: processAttributeToolCalls({
