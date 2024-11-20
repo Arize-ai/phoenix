@@ -448,6 +448,11 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  // allow long text with no symbols or spaces to wrap
+                  // otherwise, it will prevent the cell from shrinking
+                  // an alternative solution would be to set a max-width and allow
+                  // the cell to scroll itself
+                  wordBreak: "break-all",
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
