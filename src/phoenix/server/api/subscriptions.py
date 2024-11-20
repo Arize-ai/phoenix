@@ -80,6 +80,7 @@ DatasetExampleID: TypeAlias = GlobalID
 ChatCompletionResult: TypeAlias = tuple[
     DatasetExampleID, Optional[models.Span], models.ExperimentRun
 ]
+ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 PLAYGROUND_PROJECT_NAME = "playground"
 
 
@@ -282,9 +283,7 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: Queue[ChatCompletionResult] = Queue()
-        not_started: list[
-            tuple[DatasetExampleID, AsyncGenerator[ChatCompletionSubscriptionPayload, None]]
-        ] = [
+        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
@@ -299,11 +298,7 @@ class Subscription:
             for revision in revisions
         ]
         in_progress: list[
-            tuple[
-                Optional[DatasetExampleID],
-                AsyncGenerator[ChatCompletionSubscriptionPayload, None],
-                Task[ChatCompletionSubscriptionPayload],
-            ]
+            tuple[Optional[DatasetExampleID], ChatStream, Task[ChatCompletionSubscriptionPayload]]
         ] = []
         max_in_progress = 10
         write_batch_size = 10
@@ -369,7 +364,7 @@ async def _stream_chat_completion_over_dataset_example(
     results: Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
-) -> AsyncGenerator[ChatCompletionSubscriptionPayload, None]:
+) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
     messages = [
@@ -439,7 +434,7 @@ async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
     results: Sequence[ChatCompletionResult],
-) -> AsyncGenerator[ChatCompletionSubscriptionResult, None]:
+) -> ChatStream:
     if not results:
         return
     async with db() as session:
@@ -457,7 +452,7 @@ async def _chat_completion_result_payloads(
 
 
 def _is_result_payloads_stream(
-    stream: AsyncGenerator[ChatCompletionSubscriptionPayload, None],
+    stream: ChatStream,
 ) -> bool:
     """
     Checks if the given generator was instantiated from
