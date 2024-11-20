@@ -92,10 +92,16 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        llm_client = llm_client_class(
-            model=input.model,
-            api_key=input.api_key,
-        )
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
 
         messages = [
             (
@@ -159,6 +165,16 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
 
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
@@ -268,7 +284,7 @@ class Subscription:
         chat_completion_streams = [
             _stream_chat_completion_over_dataset_example(
                 input=input,
-                llm_client_class=llm_client_class,
+                llm_client=llm_client,
                 revision=revision,
                 results_queue=results_queue,
                 experiment_id=experiment.id,
@@ -312,17 +328,13 @@ class Subscription:
 async def _stream_chat_completion_over_dataset_example(
     *,
     input: ChatCompletionOverDatasetInput,
-    llm_client_class: type["PlaygroundStreamingClient"],
+    llm_client: PlaygroundStreamingClient,
     revision: models.DatasetExampleRevision,
     results_queue: Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
 ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    llm_client = llm_client_class(
-        model=input.model,
-        api_key=input.api_key,
-    )
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
     messages = [
         (

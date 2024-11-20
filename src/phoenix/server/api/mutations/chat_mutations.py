@@ -128,10 +128,16 @@ class ChatCompletionMutationMixin:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        llm_client = llm_client_class(
-            model=input.model,
-            api_key=input.api_key,
-        )
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
             from_global_id_with_expected_type(
@@ -267,10 +273,16 @@ class ChatCompletionMutationMixin:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        llm_client = llm_client_class(
-            model=input.model,
-            api_key=input.api_key,
-        )
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
         return await cls._chat_completion(info, llm_client, input)
 
     @classmethod
