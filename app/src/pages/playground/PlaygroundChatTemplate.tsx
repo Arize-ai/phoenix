@@ -62,6 +62,7 @@ import {
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
+  convertMessageToolCallsToProvider,
   createToolCallForProvider,
   normalizeMessageAttributeValue,
 } from "./playgroundUtils";
@@ -349,6 +350,17 @@ function SortableMessageItem({
     [message.id, playgroundInstanceId, template.messages, updateInstance]
   );
 
+  // Preserves the content of the message before switching message modes
+  // Enables the user to switch back to text mode and restore the previous content
+  const [previousMessageContent, setPreviousMessageContent] = useState<
+    ChatMessage["content"]
+  >(message.content);
+  // Preserves the tool calls of the message before switching message modes
+  // Enables the user to switch back to text mode and restore the previous tool calls
+  const [previousMessageToolCalls, setPreviousMessageToolCalls] = useState<
+    ChatMessage["toolCalls"]
+  >(message.toolCalls);
+
   return (
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
       <Card
@@ -393,17 +405,27 @@ function SortableMessageItem({
                     setAIMessageMode(mode);
                     switch (mode) {
                       case "text":
+                        setPreviousMessageToolCalls(message.toolCalls);
                         updateMessage({
-                          content: "",
+                          content: previousMessageContent,
                           toolCalls: undefined,
                         });
                         break;
                       case "toolCalls":
+                        setPreviousMessageContent(message.content);
                         updateMessage({
                           content: "",
-                          toolCalls: [
-                            createToolCallForProvider(instance.model.provider),
-                          ],
+                          toolCalls:
+                            previousMessageToolCalls != null
+                              ? convertMessageToolCallsToProvider({
+                                  toolCalls: previousMessageToolCalls,
+                                  provider: instance.model.provider,
+                                })
+                              : [
+                                  createToolCallForProvider(
+                                    instance.model.provider
+                                  ),
+                                ],
                         });
                         break;
                       default:

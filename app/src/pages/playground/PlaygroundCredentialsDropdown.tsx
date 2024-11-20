@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { css } from "@emotion/react";
 
 import {
@@ -34,6 +34,7 @@ export function PlaygroundCredentialsDropdown() {
   );
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentials = useCredentialsContext((state) => state);
+  const [isOpen, setIsOpen] = useState(false);
   return (
     <div
       css={css`
@@ -42,15 +43,22 @@ export function PlaygroundCredentialsDropdown() {
         }
       `}
     >
-      <DropdownTrigger placement="bottom">
+      <DropdownTrigger
+        placement="bottom"
+        isOpen={isOpen}
+        onOpenChange={(isOpen) => {
+          setIsOpen(isOpen);
+        }}
+      >
         <DropdownButton size="compact" isDisabled={isRunning}>
           API Keys
         </DropdownButton>
         <DropdownMenu>
           <View padding="size-200">
             <Form
-              onSubmit={() => {
-                // TODO: close the dropdown
+              onSubmit={(e) => {
+                e.preventDefault();
+                setIsOpen(false);
               }}
             >
               <Heading level={2} weight="heavy">
@@ -73,6 +81,7 @@ export function PlaygroundCredentialsDropdown() {
                         setCredential({ provider, value });
                       }}
                       value={credentials[provider]}
+                      description={`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
                     />
                   );
                 })}
