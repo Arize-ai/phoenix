@@ -9,20 +9,21 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
+import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
   DialogContainer,
   Flex,
-  Form,
+  Icon,
+  Icons,
   Item,
   Picker,
   Text,
   TextField,
   Tooltip,
   TooltipTrigger,
-  View,
 } from "@arizeai/components";
 
 import {
@@ -35,7 +36,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import { InvocationParametersForm } from "./InvocationParametersForm";
+import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import {
@@ -43,6 +44,24 @@ import {
   convertMessageToolCallsToProvider,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
+
+const modelConfigFormCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-200);
+  .ac-field,
+  .ac-dropdown,
+  .ac-dropdown-button,
+  .ac-slider {
+    width: 100%;
+  }
+  // Makes the filled slider track blue
+  .ac-slider-controls > .ac-slider-track:first-child::before {
+    background: var(--ac-global-color-primary);
+  }
+  padding: var(--ac-global-dimension-size-200);
+  overflow: auto;
+`;
 
 function AzureOpenAiModelConfigFormField({
   instance,
@@ -194,7 +213,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
     });
     notifySuccess({
       title: "Model Configuration Saved",
-      message: `${ModelProviders[instance.model.provider]} model configuration saved`,
+      message: `${ModelProviders[instance.model.provider]} model configuration saved as default for later use.`,
       expireMs: 3000,
     });
   }, [instance.model, notifySuccess, setModelConfigForProvider]);
@@ -204,12 +223,18 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
       size="M"
       extra={
         <TooltipTrigger delay={0} offset={5}>
-          <Button size={"compact"} variant="default" onClick={onSaveConfig}>
-            Save Config
+          <Button
+            size={"compact"}
+            variant="default"
+            onClick={onSaveConfig}
+            icon={<Icon svg={<Icons.SaveOutline />} />}
+          >
+            Save as Default
           </Button>
           <Tooltip>
-            Remember configuration for{" "}
-            {ModelProviders[instance.model.provider] ?? "this provider"}.
+            Saves the current configuration as the default for{" "}
+            {ModelProviders[instance.model.provider] ?? "this provider"} for
+            later use.
           </Tooltip>
         </TooltipTrigger>
       }
@@ -322,29 +347,30 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   );
 
   return (
-    <View padding="size-200" overflow="auto">
-      <Form>
-        <Flex direction="column" gap="size-200">
-          <ModelProviderPicker
-            provider={instance.model.provider}
-            query={query}
-            onChange={updateProvider}
-          />
-          {instance.model.provider === "AZURE_OPENAI" ? (
-            <AzureOpenAiModelConfigFormField instance={instance} />
-          ) : (
-            <ModelPicker
-              modelName={instance.model.modelName}
-              provider={instance.model.provider}
-              query={query}
-              onChange={onModelNameChange}
-            />
-          )}
-          <Suspense>
-            <InvocationParametersForm instanceId={playgroundInstanceId} />
-          </Suspense>
-        </Flex>
-      </Form>
-    </View>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+      }}
+      css={modelConfigFormCSS}
+    >
+      <ModelProviderPicker
+        provider={instance.model.provider}
+        query={query}
+        onChange={updateProvider}
+      />
+      {instance.model.provider === "AZURE_OPENAI" ? (
+        <AzureOpenAiModelConfigFormField instance={instance} />
+      ) : (
+        <ModelPicker
+          modelName={instance.model.modelName}
+          provider={instance.model.provider}
+          query={query}
+          onChange={onModelNameChange}
+        />
+      )}
+      <Suspense>
+        <InvocationParametersFormFields instanceId={playgroundInstanceId} />
+      </Suspense>
+    </form>
   );
 }

@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Slider, Switch, TextField } from "@arizeai/components";
+import { Slider, Switch, TextField } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
 
 import {
-  InvocationParametersFormQuery,
-  InvocationParametersFormQuery$data,
-} from "./__generated__/InvocationParametersFormQuery.graphql";
+  InvocationParametersFormFieldsQuery,
+  InvocationParametersFormFieldsQuery$data,
+} from "./__generated__/InvocationParametersFormFieldsQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
@@ -20,7 +20,7 @@ import {
 } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
-  InvocationParametersFormQuery$data["modelInvocationParameters"]
+  InvocationParametersFormFieldsQuery$data["modelInvocationParameters"]
 >[number];
 
 export type HandleInvocationParameterChange = (
@@ -192,7 +192,7 @@ type InvocationParametersFormProps = {
   instanceId: number;
 };
 
-export const InvocationParametersForm = ({
+export const InvocationParametersFormFields = ({
   instanceId,
 }: InvocationParametersFormProps) => {
   const instance = usePlaygroundContext((state) =>
@@ -216,9 +216,9 @@ export const InvocationParametersForm = ({
   const modelNameToQuery =
     model.provider !== "AZURE_OPENAI" ? model.modelName : null;
   const { modelInvocationParameters } =
-    useLazyLoadQuery<InvocationParametersFormQuery>(
+    useLazyLoadQuery<InvocationParametersFormFieldsQuery>(
       graphql`
-        query InvocationParametersFormQuery($input: ModelsInput!) {
+        query InvocationParametersFormFieldsQuery($input: ModelsInput!) {
           modelInvocationParameters(input: $input) {
             __typename
             ... on InvocationParameterBase {
@@ -359,9 +359,5 @@ export const InvocationParametersForm = ({
       );
     });
 
-  return (
-    <Flex direction="column" gap="size-200">
-      {fieldsForSchema}
-    </Flex>
-  );
+  return fieldsForSchema;
 };
