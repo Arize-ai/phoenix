@@ -341,8 +341,10 @@ class Subscription:
                     _is_result_payloads_stream(stream) for _, stream, _ in in_progress
                 )
                 if (
-                    exceeded_write_batch_size or exceeded_write_interval
-                ) and not write_already_in_progress:
+                    not results.empty()
+                    and (exceeded_write_batch_size or exceeded_write_interval)
+                    and not write_already_in_progress
+                ):
                     result_payloads_stream = _chat_completion_result_payloads(
                         db=info.context.db, results=_drain_no_wait(results)
                     )
