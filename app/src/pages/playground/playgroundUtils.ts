@@ -19,7 +19,6 @@ import {
   toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
-import { anthropicToolResultMessageSchema } from "@phoenix/schemas/toolResultSchemas";
 import {
   ChatMessage,
   createPlaygroundInstance,
