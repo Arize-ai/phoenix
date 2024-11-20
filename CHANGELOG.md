@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.1...arize-phoenix-v5.10.0) (2024-11-20)
+
+
+### Features
+
+* Display playground chat completion errors within output card ([#5439](https://github.com/Arize-ai/phoenix/issues/5439)) ([3200245](https://github.com/Arize-ai/phoenix/commit/32002459acacef0882b54c495b1b1f155daf0735))
+* Implement "tool" message support for Anthropic ([#5334](https://github.com/Arize-ai/phoenix/issues/5334)) ([b7a9a6c](https://github.com/Arize-ai/phoenix/commit/b7a9a6cf4380b01c5d9dd21443b2b31fff8f40bd))
+
+
+### Bug Fixes
+
+* **auth:** enable non-https OpenID Connect config URLs for development with local IDPs ([#5418](https://github.com/Arize-ai/phoenix/issues/5418)) ([d78de07](https://github.com/Arize-ai/phoenix/commit/d78de071a3caf2ac83050569ede3155ed6f7bbbb))
+* **playground:** add llm provider and llm system attributes to playground spans ([#5429](https://github.com/Arize-ai/phoenix/issues/5429)) ([09fff27](https://github.com/Arize-ai/phoenix/commit/09fff27a8685a62c79b4391837f8e5d786d496f0))
+* **playground:** compare invocationName and canonical name in all places where we try to find invocation params ([#5428](https://github.com/Arize-ai/phoenix/issues/5428)) ([3850edd](https://github.com/Arize-ai/phoenix/commit/3850edd36f6eb1584d91651bfa30be27f256e907))
+
 ## [5.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.0...arize-phoenix-v5.9.1) (2024-11-19)
 
 
