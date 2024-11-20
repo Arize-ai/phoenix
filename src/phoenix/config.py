@@ -424,7 +424,9 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
-        if urlparse(oidc_config_url).scheme != "https":
+        parsed_oidc_config_url = urlparse(oidc_config_url)
+        is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
+        if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
             raise ValueError(
                 f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
@@ -559,7 +561,19 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    return os.getenv(ENV_PHOENIX_HOST_ROOT_PATH) or HOST_ROOT_PATH
+    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+        return HOST_ROOT_PATH
+    if not host_root_path.startswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value must start with '/'"
+        )
+    if host_root_path.endswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value cannot end with '/'"
+        )
+    return host_root_path
 
 
 def get_env_collector_endpoint() -> Optional[str]:

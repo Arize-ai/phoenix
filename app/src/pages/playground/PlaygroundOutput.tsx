@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, { Key, Suspense, useCallback, useEffect, useState } from "react";
 import { useMutation, useRelayEnvironment } from "react-relay";
 import {
   graphql,
@@ -7,7 +7,7 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Flex, View } from "@arizeai/components";
+import { Alert, Card, Flex, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
@@ -28,6 +28,7 @@ import {
   generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
@@ -56,6 +57,20 @@ type PlaygroundOutputMessage = Omit<ChatMessage, "toolCalls"> & {
   toolCalls?: ChatMessage["toolCalls"] | readonly PartialOutputToolCall[];
 };
 
+const getToolCallKey = (
+  toolCall:
+    | NonNullable<ChatMessage["toolCalls"]>[number]
+    | PartialOutputToolCall[]
+): Key => {
+  if (
+    isStringKeyedObject(toolCall) &&
+    (typeof toolCall.id === "string" || typeof toolCall.id === "number")
+  ) {
+    return toolCall.id;
+  }
+  return JSON.stringify(toolCall);
+};
+
 function PlaygroundOutputMessage({
   message,
 }: {
@@ -72,7 +87,7 @@ function PlaygroundOutputMessage({
       variant="compact"
       extra={<ConnectedMarkdownModeRadioGroup />}
     >
-      {content != null && (
+      {content != null && !Array.isArray(content) && (
         <Flex direction="column" alignItems="start">
           {markdownMode === "text" ? (
             content
@@ -85,7 +100,12 @@ function PlaygroundOutputMessage({
       )}
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
-            return <PlaygroundToolCall key={toolCall.id} toolCall={toolCall} />;
+            return (
+              <PlaygroundToolCall
+                key={getToolCallKey(toolCall)}
+                toolCall={toolCall}
+              />
+            );
           })
         : null}
     </Card>
@@ -131,6 +151,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
   const instance = instances.find((instance) => instance.id === instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const [outputError, setOutputError] = useState<{
+    title: string;
+    message?: string;
+  } | null>(null);
 
   const markPlaygroundInstanceComplete = usePlaygroundContext(
     (state) => state.markPlaygroundInstanceComplete
@@ -154,7 +178,19 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   );
 
   const hasRunId = instance?.activeRunId != null;
-  const notifyError = useNotifyError();
+  const notifyErrorToast = useNotifyError();
+
+  const notifyError = useCallback(
+    ({ title, message, ...rest }: Parameters<typeof notifyErrorToast>[0]) => {
+      setOutputError({ title, message });
+      notifyErrorToast({
+        title,
+        message,
+        ...rest,
+      });
+    },
+    [notifyErrorToast]
+  );
 
   const [outputContent, setOutputContent] = useState<OutputContent>(
     instance.output
@@ -283,6 +319,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setLoading(true);
     setOutputContent(undefined);
     setToolCalls([]);
+    setOutputError(null);
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -366,6 +403,12 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       {loading ? (
         <View padding="size-200">
           <Loading message="Running..." />
+        </View>
+      ) : outputError ? (
+        <View padding="size-200">
+          <Alert title={outputError.title} variant="danger">
+            {outputError.message}
+          </Alert>
         </View>
       ) : (
         <>

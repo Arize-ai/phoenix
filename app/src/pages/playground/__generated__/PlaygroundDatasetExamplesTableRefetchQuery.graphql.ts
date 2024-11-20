@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ede088bdb776932410e0260d46e5d182>>
+ * @generated SignedSource<<5f02fa700410bd979b2bf466b8d93b8e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,7 +39,7 @@ var v0 = [
     "name": "datasetVersionId"
   },
   {
-    "defaultValue": 100,
+    "defaultValue": 20,
     "kind": "LocalArgument",
     "name": "first"
   },
@@ -261,16 +261,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1265e2fd48b5bbb875adfdc0b612f3b1",
+    "cacheID": "fc176d05790f6c690eead96a6ece1c50",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: GlobalID\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_4a6F8Z\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: GlobalID\n  $first: Int = 20\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_4a6F8Z\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0162da7892a46d0e2eee9857809cd875";
+(node as any).hash = "ae68770500a29b14f7108d56c146fb99";
 
 export default node;

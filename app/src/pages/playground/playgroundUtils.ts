@@ -19,6 +19,7 @@ import {
   toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
+import { anthropicToolResultMessageSchema } from "@phoenix/schemas/toolResultSchemas";
 import {
   ChatMessage,
   createPlaygroundInstance,
@@ -189,14 +190,32 @@ function processAttributeMessagesToChatMessage({
   provider: ModelProvider;
 }): ChatMessage[] {
   return messages.map(({ message }) => {
+    if (Array.isArray(message.content)) {
+      // check if message matches anthropic tool result schema
+      const { data, success } =
+        anthropicToolResultMessageSchema.safeParse(message);
+      const toolResult = data?.content.find(
+        (content) => content?.type === "tool_result"
+      );
+      if (success && toolResult != null) {
+        return {
+          id: generateMessageId(),
+          role: getChatRole("tool"),
+          content: toolResult.content,
+          toolCallId: toolResult.tool_use_id,
+        };
+      }
+    }
     return {
       id: generateMessageId(),
       role: getChatRole(message.role),
-      content: message.content,
+      content:
+        typeof message.content === "string" ? message.content : undefined,
       toolCalls: processAttributeToolCalls({
         provider,
         toolCalls: message.tool_calls,
       }),
+      toolCallId: message.tool_call_id,
     };
   });
 }
@@ -530,6 +549,49 @@ export const isChatMessages = (
   return chatMessagesSchema.safeParse(messages).success;
 };
 
+export const extractVariablesFromInstance = ({
+  instance,
+  templateLanguage,
+}: {
+  instance: PlaygroundInstance;
+  templateLanguage: TemplateLanguage;
+}) => {
+  const variables = new Set<string>();
+  const instanceType = instance.template.__type;
+  const utils = getTemplateLanguageUtils(templateLanguage);
+  // this double nested loop should be okay since we don't expect more than 4 instances
+  // and a handful of messages per instance
+  switch (instanceType) {
+    case "chat": {
+      // for each chat message in the instance
+      instance.template.messages.forEach((message) => {
+        // extract variables from the message content
+        const extractedVariables =
+          message.content == null
+            ? []
+            : utils.extractVariables(message.content);
+        extractedVariables.forEach((variable) => {
+          variables.add(variable);
+        });
+      });
+      break;
+    }
+    case "text_completion": {
+      const extractedVariables = utils.extractVariables(
+        instance.template.prompt
+      );
+      extractedVariables.forEach((variable) => {
+        variables.add(variable);
+      });
+      break;
+    }
+    default: {
+      assertUnreachable(instanceType);
+    }
+  }
+  return Array.from(variables);
+};
+
 export const extractVariablesFromInstances = ({
   instances,
   templateLanguage,
@@ -537,43 +599,13 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateLanguage: TemplateLanguage;
 }) => {
-  const variables = new Set<string>();
-  const utils = getTemplateLanguageUtils(templateLanguage);
-  instances.forEach((instance) => {
-    const instanceType = instance.template.__type;
-    // this double nested loop should be okay since we don't expect more than 4 instances
-    // and a handful of messages per instance
-    switch (instanceType) {
-      case "chat": {
-        // for each chat message in the instance
-        instance.template.messages.forEach((message) => {
-          // extract variables from the message content
-          const extractedVariables =
-            message.content == null
-              ? []
-              : utils.extractVariables(message.content);
-          extractedVariables.forEach((variable) => {
-            variables.add(variable);
-          });
-        });
-        break;
-      }
-      case "text_completion": {
-        const extractedVariables = utils.extractVariables(
-          instance.template.prompt
-        );
-        extractedVariables.forEach((variable) => {
-          variables.add(variable);
-        });
-        break;
-      }
-      default: {
-        assertUnreachable(instanceType);
-      }
-    }
-  });
-
-  return Array.from(variables);
+  return Array.from(
+    new Set(
+      instances.flatMap((instance) =>
+        extractVariablesFromInstance({ instance, templateLanguage })
+      )
+    )
+  );
 };
 
 export const getVariablesMapFromInstances = ({
@@ -602,6 +634,19 @@ export const getVariablesMapFromInstances = ({
   return { variablesMap, variableKeys };
 };
 
+export function areInvocationParamsEqual(
+  paramA: InvocationParameter | InvocationParameterInput,
+  paramB: InvocationParameter | InvocationParameterInput
+) {
+  return (
+    paramA.invocationName === paramB.invocationName ||
+    // loose null comparison to catch undefined and null
+    (paramA.canonicalName != null &&
+      paramB.canonicalName != null &&
+      paramA.canonicalName === paramB.canonicalName)
+  );
+}
+
 /**
  * Filter out parameters that are not supported by a model's invocation parameter schema definitions.
  */
@@ -613,14 +658,7 @@ export const constrainInvocationParameterInputsToDefinition = (
     .filter((ip) =>
       // An input should be kept if it matches an invocation name in the definitions
       // or if it has a canonical name that matches a canonical name in the definitions.
-      definitions.some(
-        (mp) =>
-          mp.invocationName === ip.invocationName ||
-          // loosey null comparison to catch undefined and null
-          (mp.canonicalName != null &&
-            ip.canonicalName != null &&
-            mp.canonicalName === ip.canonicalName)
-      )
+      definitions.some((mp) => areInvocationParamsEqual(mp, ip))
     )
     .map((ip) => ({
       // Transform the invocationName to match the new name from the incoming
@@ -670,7 +708,7 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
-export const getToolName = (tool: Tool): string => {
+export const getToolName = (tool: Tool): string | null => {
   const { provider, validatedToolDefinition } = detectToolDefinitionProvider(
     tool.definition
   );
@@ -680,11 +718,18 @@ export const getToolName = (tool: Tool): string => {
       return validatedToolDefinition.function.name;
     case "ANTHROPIC":
       return validatedToolDefinition.name;
+    case "UNKNOWN":
+      return null;
     default:
       assertUnreachable(provider);
   }
 };
 
+/**
+ * Best effort attempts to convert instance tools to the providers schema
+ * If the tool definition cannot be converted, it will be returned as is
+ * @returns A list of playground {@link Tool|Tools}
+ */
 export const convertInstanceToolsToProvider = ({
   instanceTools,
   provider,
@@ -695,31 +740,44 @@ export const convertInstanceToolsToProvider = ({
   return instanceTools.map((tool) => {
     switch (provider) {
       case "OPENAI":
-      case "AZURE_OPENAI":
+      case "AZURE_OPENAI": {
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
         return {
           ...tool,
-          definition: toOpenAIToolDefinition(tool.definition),
+          definition: maybeOpenAIToolDefinition ?? tool.definition,
         };
-      case "ANTHROPIC":
+      }
+      case "ANTHROPIC": {
+        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
+          tool.definition
+        );
+        const definition = maybeOpenAIToolDefinition
+          ? fromOpenAIToolDefinition({
+              toolDefinition: maybeOpenAIToolDefinition,
+              targetProvider: provider,
+            })
+          : tool.definition;
         return {
           ...tool,
-          definition: fromOpenAIToolDefinition({
-            toolDefinition: toOpenAIToolDefinition(tool.definition),
-            targetProvider: provider,
-          }),
+          definition,
         };
+      }
       // TODO(apowell): #5348 Add Gemini tool definition
       case "GEMINI":
-        return {
-          ...tool,
-          definition: toOpenAIToolDefinition(tool.definition),
-        };
+        return tool;
       default:
         assertUnreachable(provider);
     }
   });
 };
 
+/**
+ * Best effort attempts to convert message tool calls to the providers schema
+ * If the tool definition cannot be converted, it will be returned as is
+ * @returns A list of {@link ChatMessage} tool calls
+ */
 export const convertMessageToolCallsToProvider = ({
   toolCalls,
   provider,
@@ -733,16 +791,21 @@ export const convertMessageToolCallsToProvider = ({
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
-      case "AZURE_OPENAI":
-        return toOpenAIToolCall(toolCall);
-      case "ANTHROPIC":
-        return fromOpenAIToolCall({
-          toolCall: toOpenAIToolCall(toolCall),
-          targetProvider: provider,
-        });
+      case "AZURE_OPENAI": {
+        return toOpenAIToolCall(toolCall) ?? toolCall;
+      }
+      case "ANTHROPIC": {
+        const maybeOpenAIToolCall = toOpenAIToolCall(toolCall);
+        return maybeOpenAIToolCall != null
+          ? fromOpenAIToolCall({
+              toolCall: maybeOpenAIToolCall,
+              targetProvider: provider,
+            })
+          : toolCall;
+      }
       // TODO(apowell): #5348 Add Gemini tool call
       case "GEMINI":
-        return toOpenAIToolCall(toolCall);
+        return toolCall;
       default:
         assertUnreachable(provider);
     }
@@ -909,7 +972,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider],
+    apiKey: credentials[instance.model.provider] || null,
   } as const;
 };
 
@@ -974,3 +1037,22 @@ export const getChatCompletionOverDatasetInput = ({
     datasetId,
   };
 };
+
+/**
+ * Given a playground chat message attribute value, returns a normalized json string.
+ *
+ * This string can then be passed into a JSON Editor.
+ *
+ * @param content - the content to normalize
+ * @returns a normalized json string
+ */
+export function normalizeMessageAttributeValue(
+  content?: string | null | Record<string, unknown>
+): string {
+  if (content == null || content === "") {
+    return "{}";
+  }
+  return typeof content === "string"
+    ? content
+    : JSON.stringify(content, null, 2);
+}

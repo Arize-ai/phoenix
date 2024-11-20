@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timezone
 from typing import (
     Any,
+    AsyncGenerator,
     Iterable,
     Mapping,
     Optional,
@@ -92,10 +93,16 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
-        llm_client = llm_client_class(
-            model=input.model,
-            api_key=input.api_key,
-        )
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
 
         messages = [
             (
@@ -127,7 +134,7 @@ class Subscription:
             ):
                 span.add_response_chunk(chunk)
                 yield chunk
-            span.set_attributes(llm_client.attributes)
+        span.set_attributes(llm_client.attributes)
         if span.status_message is not None:
             yield ChatCompletionSubscriptionError(message=span.status_message)
         async with info.context.db() as session:
@@ -159,6 +166,16 @@ class Subscription:
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
             raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+        try:
+            llm_client = llm_client_class(
+                model=input.model,
+                api_key=input.api_key,
+            )
+        except Exception:
+            raise BadRequest(
+                f"Failed to initialize the LLM client for {provider_key.value} "
+                f"{input.model.name}. Have you set a valid API key?"
+            )
 
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
@@ -268,7 +285,7 @@ class Subscription:
         chat_completion_streams = [
             _stream_chat_completion_over_dataset_example(
                 input=input,
-                llm_client_class=llm_client_class,
+                llm_client=llm_client,
                 revision=revision,
                 results_queue=results_queue,
                 experiment_id=experiment.id,
@@ -277,31 +294,46 @@ class Subscription:
             for revision in revisions
         ]
         stream_to_async_tasks: dict[
-            AsyncIterator[ChatCompletionSubscriptionPayload],
+            AsyncGenerator[ChatCompletionSubscriptionPayload, None],
             Task[ChatCompletionSubscriptionPayload],
-        ] = {iterator: _create_task_with_timeout(iterator) for iterator in chat_completion_streams}
-        batch_size = 10
-        while stream_to_async_tasks:
+        ] = {}
+        max_results_batch_size = 10
+        max_concurrent_async_tasks = 10
+        while chat_completion_streams or stream_to_async_tasks:
+            while (
+                chat_completion_streams and len(stream_to_async_tasks) < max_concurrent_async_tasks
+            ):
+                stream = chat_completion_streams.pop()
+                stream_to_async_tasks[stream] = _create_task_with_timeout(stream)
             async_tasks_to_run = [task for task in stream_to_async_tasks.values()]
             completed_tasks, _ = await wait(async_tasks_to_run, return_when=FIRST_COMPLETED)
-            for task in completed_tasks:
-                iterator = next(it for it, t in stream_to_async_tasks.items() if t == task)
+            for completed_task in completed_tasks:
+                stream = next(
+                    stream
+                    for stream, task in stream_to_async_tasks.items()
+                    if task == completed_task
+                )
                 try:
-                    yield task.result()
+                    yield completed_task.result()
                 except (StopAsyncIteration, asyncio.TimeoutError):
-                    del stream_to_async_tasks[iterator]  # removes exhausted iterator
+                    del stream_to_async_tasks[stream]  # removes exhausted stream
                 except Exception as error:
-                    del stream_to_async_tasks[iterator]  # removes failed iterator
+                    del stream_to_async_tasks[stream]  # removes failed stream
                     logger.exception(error)
                 else:
-                    stream_to_async_tasks[iterator] = _create_task_with_timeout(iterator)
-                if results_queue.qsize() >= batch_size:
-                    result_iterator = _chat_completion_result_payloads(
-                        db=info.context.db, results=_drain_no_wait(results_queue)
+                    stream_to_async_tasks[stream] = _create_task_with_timeout(stream)
+                if results_queue.qsize() >= max_results_batch_size:
+                    result_payloads_task_already_exists = any(
+                        stream.ag_code == _chat_completion_result_payloads.__code__
+                        for stream in stream_to_async_tasks
                     )
-                    stream_to_async_tasks[result_iterator] = _create_task_with_timeout(
-                        result_iterator
-                    )
+                    if not result_payloads_task_already_exists:
+                        result_payloads_stream = _chat_completion_result_payloads(
+                            db=info.context.db, results=_drain_no_wait(results_queue)
+                        )
+                        stream_to_async_tasks[result_payloads_stream] = _create_task_with_timeout(
+                            result_payloads_stream
+                        )
         if remaining_results := await _drain(results_queue):
             async for result_payload in _chat_completion_result_payloads(
                 db=info.context.db, results=remaining_results
@@ -312,17 +344,13 @@ class Subscription:
 async def _stream_chat_completion_over_dataset_example(
     *,
     input: ChatCompletionOverDatasetInput,
-    llm_client_class: type["PlaygroundStreamingClient"],
+    llm_client: PlaygroundStreamingClient,
     revision: models.DatasetExampleRevision,
     results_queue: Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
-) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+) -> AsyncGenerator[ChatCompletionSubscriptionPayload, None]:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    llm_client = llm_client_class(
-        model=input.model,
-        api_key=input.api_key,
-    )
     invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
     messages = [
         (
@@ -391,7 +419,7 @@ async def _chat_completion_result_payloads(
     *,
     db: DbSessionFactory,
     results: Sequence[ChatCompletionResult],
-) -> AsyncIterator[ChatCompletionSubscriptionResult]:
+) -> AsyncGenerator[ChatCompletionSubscriptionResult, None]:
     if not results:
         return
     async with db() as session:

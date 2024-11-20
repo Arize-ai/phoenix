@@ -3,6 +3,8 @@ import zodToJsonSchema from "zod-to-json-schema";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
+
 const jsonSchemaZodSchema = z
   .object({
     type: z.literal("object"),
@@ -164,6 +166,7 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
+  jsonLiteralSchema,
 ]);
 
 export type LlmProviderToolDefinition = z.infer<
@@ -178,6 +181,10 @@ type ToolDefinitionWithProvider =
   | {
       provider: Extract<ModelProvider, "ANTHROPIC">;
       validatedToolDefinition: AnthropicToolDefinition;
+    }
+  | {
+      provider: "UNKNOWN";
+      validatedToolDefinition: null;
     };
 
 /**
@@ -190,6 +197,7 @@ export const detectToolDefinitionProvider = (
     openAIToolDefinitionSchema.safeParse(toolDefinition);
   if (openaiSuccess) {
     return {
+      // we cannot disambiguate between azure openai and openai here
       provider: "OPENAI",
       validatedToolDefinition: openaiData,
     };
@@ -202,22 +210,23 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: anthropicData,
     };
   }
-  throw new Error("Unknown tool call format");
+  return { provider: "UNKNOWN", validatedToolDefinition: null };
 };
 
 type ProviderToToolDefinitionMap = {
   OPENAI: OpenAIToolDefinition;
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
-  GEMINI: OpenAIToolDefinition;
+  // Use generic JSON type for unknown tool formats / new providers
+  GEMINI: JSONLiteral;
 };
 
 /**
- * Convert from any tool call format to OpenAI format
+ * Convert from any tool call format to OpenAI format if possible
  */
 export const toOpenAIToolDefinition = (
   toolDefinition: LlmProviderToolDefinition
-): OpenAIToolDefinition => {
+): OpenAIToolDefinition | null => {
   const { provider, validatedToolDefinition } =
     detectToolDefinitionProvider(toolDefinition);
   switch (provider) {
@@ -226,6 +235,8 @@ export const toOpenAIToolDefinition = (
       return validatedToolDefinition;
     case "ANTHROPIC":
       return anthropicToolToOpenAI.parse(validatedToolDefinition);
+    case "UNKNOWN":
+      return null;
     default:
       assertUnreachable(provider);
   }
@@ -249,7 +260,7 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAnthropic.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Gemini tool calls schema
+    // TODO(apowell): #5348 Add Gemini tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
     case "GEMINI":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     default:

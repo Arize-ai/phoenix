@@ -4,9 +4,11 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
+  useMemo,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import debounce from "lodash/debounce";
 
 import {
   Button,
@@ -72,16 +74,24 @@ function AzureOpenAiModelConfigFormField({
     [instance.id, instance.model, modelConfigByProvider, updateModel]
   );
 
+  const debouncedUpdateModelName = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "modelName",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
   return (
     <>
       <TextField
         label="Deployment Name"
-        value={instance.model.modelName ?? ""}
+        defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
-          updateModelConfig({
-            configKey: "modelName",
-            value,
-          });
+          debouncedUpdateModelName(value);
         }}
       />
       <TextField
@@ -263,11 +273,19 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const updateProvider = useCallback(
     (provider: ModelProvider) => {
+      if (provider === instance.model.provider) {
+        return;
+      }
+      const savedProviderConfig = modelConfigByProvider[provider];
       const patch: Partial<PlaygroundInstance> = {
         model: {
           ...instance.model,
+          // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
+          // Only update the model name
+          modelName: savedProviderConfig?.modelName ?? null,
+          apiVersion: savedProviderConfig?.apiVersion ?? null,
+          endpoint: savedProviderConfig?.endpoint ?? null,
           provider,
-          modelName: null,
         },
         tools: convertInstanceToolsToProvider({
           instanceTools: instance.tools,
@@ -297,6 +315,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       instance.model,
       instance.template,
       instance.tools,
+      modelConfigByProvider,
       playgroundInstanceId,
       updateInstance,
     ]
@@ -321,11 +340,9 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
               onChange={onModelNameChange}
             />
           )}
-          {instance.model.modelName ? (
+          <Suspense>
             <InvocationParametersForm instanceId={playgroundInstanceId} />
-          ) : (
-            <></>
-          )}
+          </Suspense>
         </Flex>
       </Form>
     </View>

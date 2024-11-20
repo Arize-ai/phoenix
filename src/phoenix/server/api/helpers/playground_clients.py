@@ -9,7 +9,11 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
 
 from openinference.instrumentation import safe_json_dumps
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import (
+    OpenInferenceLLMProviderValues,
+    OpenInferenceLLMSystemValues,
+    SpanAttributes,
+)
 from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
@@ -44,7 +48,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
-    from anthropic.types import MessageParam
+    from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
@@ -255,6 +259,8 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai import RateLimitError as OpenAIRateLimitError
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         self.client = AsyncOpenAI(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
@@ -346,6 +352,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         ):
             if (usage := chunk.usage) is not None:
                 token_usage = usage
+                continue
+            if not chunk.choices:
+                # for Azure, initial chunk contains the content filter
                 continue
             choice = chunk.choices[0]
             delta = choice.delta
@@ -607,6 +616,8 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         from openai import AsyncAzureOpenAI
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         if model.endpoint is None or model.api_version is None:
             raise ValueError("endpoint and api_version are required for Azure OpenAI models")
         self.client = AsyncAzureOpenAI(
@@ -635,6 +646,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -690,7 +703,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
-
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
@@ -748,18 +760,43 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         anthropic_messages: list["MessageParam"] = []
         system_prompt = ""
         for role, content, _tool_call_id, _tool_calls in messages:
+            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
             if role == ChatCompletionMessageRole.USER:
-                anthropic_messages.append({"role": "user", "content": content})
+                anthropic_messages.append({"role": "user", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": content})
+                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
-                raise NotImplementedError
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": _tool_call_id or "",
+                                "content": content or "",
+                            }
+                        ],
+                    }
+                )
             else:
                 assert_never(role)
 
         return anthropic_messages, system_prompt
+
+    def _anthropic_message_content(
+        self, content: str, tool_calls: Optional[list[JSONScalarType]]
+    ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
+        if tool_calls:
+            # Anthropic combines tool calls and the reasoning text into a single message object
+            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = []
+            if content:
+                tool_use_content.append({"type": "text", "text": content})
+            tool_use_content.extend(tool_calls)
+            return tool_use_content
+
+        return content
 
 
 @register_llm_client(
@@ -781,6 +818,8 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         import google.generativeai as google_genai
 
         super().__init__(model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
@@ -902,6 +941,8 @@ def initialize_playground_clients() -> None:
     pass
 
 
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL

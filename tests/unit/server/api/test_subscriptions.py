@@ -228,6 +228,8 @@ class TestChatCompletionSubscription:
                 }
             }
         ]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
@@ -347,6 +349,8 @@ class TestChatCompletionSubscription:
                 }
             }
         ]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
@@ -499,6 +503,8 @@ class TestChatCompletionSubscription:
         assert json.loads(function["arguments"]) == {"location": "San Francisco"}
         assert (llm_tools := attributes.pop(LLM_TOOLS))
         assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
@@ -649,7 +655,11 @@ class TestChatCompletionSubscription:
             }
         ]
         llm_input_message = llm_input_messages[2]["message"]
-        assert llm_input_message == {"content": "sunny", "role": "tool"}
+        assert llm_input_message == {
+            "content": "sunny",
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+        }
         assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
             {
                 "message": {
@@ -658,6 +668,8 @@ class TestChatCompletionSubscription:
                 }
             }
         ]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
@@ -788,6 +800,8 @@ class TestChatCompletionSubscription:
                 }
             }
         ]
+        assert attributes.pop(LLM_PROVIDER) == "anthropic"
+        assert attributes.pop(LLM_SYSTEM) == "anthropic"
         assert not attributes
 
 
@@ -1084,6 +1098,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
             {"message": {"role": "assistant", "content": "France"}}
         ]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
         # check example 2 span
@@ -1166,6 +1182,8 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(LLM_OUTPUT_MESSAGES) == [
             {"message": {"role": "assistant", "content": "Japan"}}
         ]
+        assert attributes.pop(LLM_PROVIDER) == "openai"
+        assert attributes.pop(LLM_SYSTEM) == "openai"
         assert not attributes
 
         # check that example 3 has no span
@@ -1375,12 +1393,14 @@ TEXT = OpenInferenceMimeTypeValues.TEXT.value
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE

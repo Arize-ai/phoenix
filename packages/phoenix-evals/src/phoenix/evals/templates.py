@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from string import Formatter
-from typing import Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 
@@ -19,6 +19,13 @@ class PromptOptions:
 
 class InvalidClassificationTemplateError(PhoenixException):
     pass
+
+
+class DotKeyFormatter(Formatter):
+    def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
+        # Treat the entire field_name as a single key without splitting at dots
+        obj = self.get_value(field_name, args, kwargs)
+        return obj, field_name
 
 
 class PromptTemplate:
@@ -44,7 +51,8 @@ class PromptTemplate:
     ) -> str:
         prompt = self.prompt(options)
         if self._start_delim == "{" and self._end_delim == "}":
-            prompt = prompt.format(**variable_values)
+            self.formatter = DotKeyFormatter()
+            prompt = self.formatter.format(prompt, **variable_values)
         else:
             for variable_name in self.variables:
                 prompt = prompt.replace(
@@ -54,16 +62,11 @@ class PromptTemplate:
         return prompt
 
     def _parse_variables(self, text: str) -> List[str]:
-        if self._start_delim == "{" and self._end_delim == "}":
-            formatter = Formatter()
-            variables = [field_name for _, field_name, _, _ in formatter.parse(text) if field_name]
-            return variables
-        else:
-            start = re.escape(self._start_delim)
-            end = re.escape(self._end_delim)
-            pattern = rf"{start}(.*?){end}"
-            variables = re.findall(pattern, text)
-            return variables
+        start = re.escape(self._start_delim)
+        end = re.escape(self._end_delim)
+        pattern = rf"{start}(.*?){end}"
+        variables = re.findall(pattern, text)
+        return variables
 
 
 class ClassificationTemplate(PromptTemplate):

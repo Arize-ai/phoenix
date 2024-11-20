@@ -19,6 +19,7 @@ import {
 import { useNotifyError } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const layoutCSS = css`
   display: flex;
@@ -84,7 +85,7 @@ function SideNav() {
   const { authenticationEnabled } = useFunctionality();
   const navigate = useNavigate();
   const onLogout = useCallback(async () => {
-    const response = await fetch("/auth/logout", {
+    const response = await fetch(prependBasename("/auth/logout"), {
       method: "POST",
     });
     if (response.ok) {

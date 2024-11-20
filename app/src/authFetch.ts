@@ -1,6 +1,6 @@
 import { BASE_URL } from "@phoenix/config";
 
-import { createReturnUrlQueryParam } from "./utils/routingUtils";
+import { createLoginRedirectUrl } from "./utils/routingUtils";
 
 const REFRESH_URL = BASE_URL + "/auth/refresh";
 
@@ -50,7 +50,7 @@ async function refreshTokens(): Promise<Response> {
     if (!response.ok) {
       // for now force redirect to login page. This could re-throw with a custom error
       // But for now, we'll just redirect
-      window.location.href = `/login?${createReturnUrlQueryParam()}`;
+      window.location.href = createLoginRedirectUrl();
     }
     // Clear the refreshPromise so that future requests will trigger a new refresh
     refreshPromise = null;

@@ -30,7 +30,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
     }
   );
   return (
-    <Flex direction={"column"}>
+    <Flex direction={"column"} height={"100%"}>
       <View
         backgroundColor={"dark"}
         paddingX={"size-200"}

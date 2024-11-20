@@ -48,7 +48,6 @@ import { JSONText } from "@phoenix/components/code/JSONText";
 import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useNotifyError } from "@phoenix/contexts";
@@ -58,7 +57,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
@@ -71,14 +70,18 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import {
   PartialOutputToolCall,
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
-import { getChatCompletionOverDatasetInput } from "./playgroundUtils";
+import {
+  extractVariablesFromInstance,
+  getChatCompletionOverDatasetInput,
+} from "./playgroundUtils";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 type InstanceId = number;
 type ExampleId = string;
@@ -97,6 +100,9 @@ type ChatCompletionSubscriptionError = Extract<
 >;
 
 type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
+type ExperimentRun = NonNullable<
+  ChatCompletionSubscriptionResult["experimentRun"]
+>;
 type ToolCallChunk = Extract<
   PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
   { __typename: "ToolCallChunk" }
@@ -111,6 +117,7 @@ type ExampleRunData = {
   toolCalls?: Record<string, PartialOutputToolCall | undefined>;
   span?: Span | null;
   errorMessage?: string | null;
+  experimentRun?: ExperimentRun | null;
 };
 
 type InstanceToExampleResponsesMap = Record<
@@ -156,6 +163,7 @@ const updateExampleResponsesMap = ({
         [exampleId]: {
           ...existingExampleResponse,
           span: response.span,
+          experimentRun: response.experimentRun,
         },
       };
       return {
@@ -297,70 +305,101 @@ function JSONCell<TData extends object, TValue>({
   );
 }
 
+function CellErrorWrap({ children }: { children: ReactNode }) {
+  return (
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Text color="danger">{children}</Text>
+    </Flex>
+  );
+}
+
 function ExampleOutputCell({
   exampleData,
   isRunning,
   setDialog,
+  instanceVariables,
+  datasetExampleInput,
 }: {
   exampleData: ExampleRunData | null;
   isRunning: boolean;
   setDialog(dialog: ReactNode): void;
+  instanceVariables: string[];
+  datasetExampleInput: Record<string, unknown>;
 }) {
   if (exampleData == null && isRunning) {
     return <Loading />;
   }
   if (exampleData == null) {
-    return null;
+    const missingVariables = instanceVariables.filter((variable) => {
+      return datasetExampleInput[variable] == null;
+    });
+    if (missingVariables.length === 0) {
+      return null;
+    }
+    return (
+      <CellErrorWrap>
+        {`Missing output for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+          ", "
+        )}`}
+      </CellErrorWrap>
+    );
   }
-  const { span, content, toolCalls, errorMessage } = exampleData;
+  const { span, content, toolCalls, errorMessage, experimentRun } = exampleData;
   const hasSpan = span != null;
+  const hasExperimentRun = experimentRun != null;
   let spanControls: ReactNode = null;
-  if (hasSpan) {
+  if (hasSpan || hasExperimentRun) {
     spanControls = (
       <>
-        <TooltipTrigger>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label="View run trace"
-            icon={<Icon svg={<Icons.Trace />} />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              startTransition(() => {
-                setDialog(
-                  <PlaygroundRunTraceDetailsDialog
-                    traceId={span.context.traceId}
-                    projectId={span.project.id}
-                    title={`Experiment Run Trace`}
-                  />
-                );
-              });
-            }}
-          />
-          <Tooltip>View Trace</Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label="Annotate span"
-            icon={<Icon svg={<Icons.EditOutline />} />}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              startTransition(() => {
-                setDialog(
-                  <EditSpanAnnotationsDialog
-                    spanNodeId={span.id}
-                    projectId={span.project.id}
-                  />
-                );
-              });
-            }}
-          />
-          <Tooltip>Annotate</Tooltip>
-        </TooltipTrigger>
+        {hasExperimentRun && (
+          <TooltipTrigger>
+            <Button
+              variant="default"
+              size="compact"
+              aria-label="View experiment run details"
+              icon={<Icon svg={<Icons.ExpandOutline />} />}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startTransition(() => {
+                  setDialog(
+                    <PlaygroundExperimentRunDetailsDialog
+                      runId={experimentRun.id}
+                    />
+                  );
+                });
+              }}
+            />
+            <Tooltip>View run details</Tooltip>
+          </TooltipTrigger>
+        )}
+        {hasSpan && (
+          <>
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                size="compact"
+                aria-label="View run trace"
+                icon={<Icon svg={<Icons.Trace />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <PlaygroundRunTraceDetailsDialog
+                        traceId={span.context.traceId}
+                        projectId={span.project.id}
+                        title={`Experiment Run Trace`}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>View Trace</Tooltip>
+            </TooltipTrigger>
+          </>
+        )}
       </>
     );
   }
@@ -368,10 +407,7 @@ function ExampleOutputCell({
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
         {errorMessage != null ? (
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-            <Text color="danger">{errorMessage}</Text>
-          </Flex>
+          <CellErrorWrap>{errorMessage}</CellErrorWrap>
         ) : null}
         <Text>{content}</Text>
         {toolCalls != null
@@ -436,6 +472,9 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
   const setExperimentId = usePlaygroundContext(
     (state) => state.setExperimentId
   );
@@ -633,7 +672,7 @@ export function PlaygroundDatasetExamplesTable({
       @argumentDefinitions(
         datasetVersionId: { type: "GlobalID" }
         after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
+        first: { type: "Int", defaultValue: 20 }
       ) {
         examples(
           datasetVersionId: $datasetVersionId
@@ -684,17 +723,25 @@ export function PlaygroundDatasetExamplesTable({
       cell: ({ row }) => {
         const exampleData =
           exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
+        const instanceVariables = extractVariablesFromInstance({
+          instance,
+          templateLanguage,
+        });
         return (
           <ExampleOutputCell
             exampleData={exampleData}
             isRunning={hasSomeRunIds}
             setDialog={setDialog}
+            instanceVariables={instanceVariables}
+            datasetExampleInput={
+              isStringKeyedObject(row.original.input) ? row.original.input : {}
+            }
           />
         );
       },
       size: 500,
     }));
-  }, [exampleResponsesMap, hasSomeRunIds, instances]);
+  }, [exampleResponsesMap, hasSomeRunIds, instances, templateLanguage]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -799,6 +846,7 @@ export function PlaygroundDatasetExamplesTable({
       css={css`
         flex: 1 1 auto;
         overflow: auto;
+        height: 100%;
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
@@ -899,6 +947,9 @@ graphql`
           context {
             traceId
           }
+        }
+        experimentRun {
+          id
         }
       }
       ... on ChatCompletionSubscriptionError {

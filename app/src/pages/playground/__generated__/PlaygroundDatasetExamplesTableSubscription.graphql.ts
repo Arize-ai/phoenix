@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72e9c4791ba06dcba603fc2412049648>>
+ * @generated SignedSource<<5b5100290b04fe214f49cd65238e64bc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -65,6 +65,9 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
   } | {
     readonly __typename: "ChatCompletionSubscriptionResult";
     readonly datasetExampleId: string | null;
+    readonly experimentRun: {
+      readonly id: string;
+    } | null;
     readonly span: {
       readonly context: {
         readonly traceId: string;
@@ -285,6 +288,16 @@ v4 = [
               }
             ],
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "ExperimentRun",
+            "kind": "LinkedField",
+            "name": "experimentRun",
+            "plural": false,
+            "selections": (v3/*: any*/),
+            "storageKey": null
           }
         ],
         "type": "ChatCompletionSubscriptionResult",
@@ -327,16 +340,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "b55d69e7e814bd7ad8803012b3417497",
+    "cacheID": "3759bfb17a93aa0cf227c4ef7fa6cd30",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountCompletion\n        tokenCountPrompt\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountCompletion\n        tokenCountPrompt\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fe9812f39342e8e8cbb85b05f9443428";
+(node as any).hash = "f1df5c75f1a62acde69f3f5d676f9213";
 
 export default node;

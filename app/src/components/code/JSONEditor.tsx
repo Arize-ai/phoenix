@@ -23,7 +23,7 @@ export type JSONEditorProps = Omit<
   /**
    * JSON Schema to use for validation, if provided will enable JSON Schema validation with tooltips in the editor
    */
-  jsonSchema?: JSONSchema7;
+  jsonSchema?: JSONSchema7 | null;
   /**
    * If true, will not lint the content if it is empty
    */

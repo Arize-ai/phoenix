@@ -36,6 +36,7 @@ from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 from phoenix.utilities.client import VersionedClient
+from phoenix.utilities.json import decode_df_from_json_string
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ class Client(TraceDataExtractor):
             end_time = end_time or stop_time
         try:
             response = self._client.post(
+                headers={"accept": "application/json"},
                 url=urljoin(self._base_url, "v1/spans"),
                 params={
                     "project_name": project_name,
@@ -180,14 +182,32 @@ class Client(TraceDataExtractor):
         elif response.status_code == 422:
             raise ValueError(response.content.decode())
         response.raise_for_status()
-        source = BytesIO(response.content)
         results = []
-        while True:
-            try:
-                with pa.ipc.open_stream(source) as reader:
-                    results.append(reader.read_pandas())
-            except ArrowInvalid:
-                break
+        content_type = response.headers.get("Content-Type")
+        if isinstance(content_type, str) and "multipart/mixed" in content_type:
+            if "boundary=" in content_type:
+                boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
+            else:
+                raise ValueError(
+                    "Boundary not found in Content-Type header for multipart/mixed response"
+                )
+            boundary = f"--{boundary_token}"
+            text = response.text
+            while boundary in text:
+                part, text = text.split(boundary, 1)
+                if "Content-Type: application/json" in part:
+                    json_string = part.split("\r\n\r\n", 1)[1].strip()
+                    df = decode_df_from_json_string(json_string)
+                    results.append(df)
+        else:
+            # For backward compatibility
+            source = BytesIO(response.content)
+            while True:
+                try:
+                    with pa.ipc.open_stream(source) as reader:
+                        results.append(reader.read_pandas())
+                except ArrowInvalid:
+                    break
         if len(results) == 1:
             df = results[0]
             return None if df.shape == (0, 0) else df

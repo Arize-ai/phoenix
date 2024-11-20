@@ -1,5 +1,60 @@
 # Changelog
 
+## [5.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.1...arize-phoenix-v5.10.0) (2024-11-20)
+
+
+### Features
+
+* Display playground chat completion errors within output card ([#5439](https://github.com/Arize-ai/phoenix/issues/5439)) ([3200245](https://github.com/Arize-ai/phoenix/commit/32002459acacef0882b54c495b1b1f155daf0735))
+* Implement "tool" message support for Anthropic ([#5334](https://github.com/Arize-ai/phoenix/issues/5334)) ([b7a9a6c](https://github.com/Arize-ai/phoenix/commit/b7a9a6cf4380b01c5d9dd21443b2b31fff8f40bd))
+
+
+### Bug Fixes
+
+* **auth:** enable non-https OpenID Connect config URLs for development with local IDPs ([#5418](https://github.com/Arize-ai/phoenix/issues/5418)) ([d78de07](https://github.com/Arize-ai/phoenix/commit/d78de071a3caf2ac83050569ede3155ed6f7bbbb))
+* **playground:** add llm provider and llm system attributes to playground spans ([#5429](https://github.com/Arize-ai/phoenix/issues/5429)) ([09fff27](https://github.com/Arize-ai/phoenix/commit/09fff27a8685a62c79b4391837f8e5d786d496f0))
+* **playground:** compare invocationName and canonical name in all places where we try to find invocation params ([#5428](https://github.com/Arize-ai/phoenix/issues/5428)) ([3850edd](https://github.com/Arize-ai/phoenix/commit/3850edd36f6eb1584d91651bfa30be27f256e907))
+
+## [5.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.0...arize-phoenix-v5.9.1) (2024-11-19)
+
+
+### Bug Fixes
+
+* **auth:** ensure auth works behind a proxy ([#5374](https://github.com/Arize-ai/phoenix/issues/5374)) ([b029532](https://github.com/Arize-ai/phoenix/commit/b029532f39113af60a14cde73079bf918e6a2c97))
+* Hide Output Schema (response format) button on unsupported provider instances ([#5425](https://github.com/Arize-ai/phoenix/issues/5425)) ([6224363](https://github.com/Arize-ai/phoenix/commit/622436375dc09173ca78326b4ff35c065e88df12))
+* **playground:** use saved model config for default model when switching providers ([#5426](https://github.com/Arize-ai/phoenix/issues/5426)) ([afc7d6f](https://github.com/Arize-ai/phoenix/commit/afc7d6f54c90602b31bec791a14c9e82e78771f7))
+
+## [5.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.8.0...arize-phoenix-v5.9.0) (2024-11-18)
+
+
+### Features
+
+* Add Google AI Studio support (for Gemini models w/ an API key) ([#5359](https://github.com/Arize-ai/phoenix/issues/5359)) ([cf9e7f4](https://github.com/Arize-ai/phoenix/commit/cf9e7f43810fd51f4a4e2127ef7c494dd43ba229))
+* **playground:** add playground dataset example slideover ([#5324](https://github.com/Arize-ai/phoenix/issues/5324)) ([18333b6](https://github.com/Arize-ai/phoenix/commit/18333b665acc797b7874c5be8b095c6ccf69cbf7))
+* **playground:** display streaming outputs for playground runs on datasets ([#5318](https://github.com/Arize-ai/phoenix/issues/5318)) ([ee1d259](https://github.com/Arize-ai/phoenix/commit/ee1d259b932535628484c47b903f5926381a4ac5))
+* **playground:** example run slideover ([#5361](https://github.com/Arize-ai/phoenix/issues/5361)) ([fc858e6](https://github.com/Arize-ai/phoenix/commit/fc858e625bddbd315871c9790a4063920acc4279))
+* **playground:** graphql mutation for chat completion over dataset ([#5325](https://github.com/Arize-ai/phoenix/issues/5325)) ([d5e133c](https://github.com/Arize-ai/phoenix/commit/d5e133cc0123e8891df3991c41255f5eb24609c7))
+* **playground:** pre-emptively show dataset example template application errors in playground dataset table ([#5372](https://github.com/Arize-ai/phoenix/issues/5372)) ([cff0375](https://github.com/Arize-ai/phoenix/commit/cff03750a75a380eb4c176904ee9a031a4493bc5))
+* **playground:** support unknown tool / tool call format ([#5401](https://github.com/Arize-ai/phoenix/issues/5401)) ([9309747](https://github.com/Arize-ai/phoenix/commit/930974786496d0430be403e00c62384769c84042))
+* **playground:** update PlaygroundDatasetExamplesTable to support mutation (in addition to subscription) ([#5342](https://github.com/Arize-ai/phoenix/issues/5342)) ([78e8a5b](https://github.com/Arize-ai/phoenix/commit/78e8a5b148c568008946e0026c61f0bcc9a2b11e))
+* Render field for JSON invocation params ([#5336](https://github.com/Arize-ai/phoenix/issues/5336)) ([b741fc5](https://github.com/Arize-ai/phoenix/commit/b741fc5d37f0824e9a06dece315f055b46d1ed51))
+
+
+### Bug Fixes
+
+* **auth:** allow login form scroll ([#5366](https://github.com/Arize-ai/phoenix/issues/5366)) ([f801c27](https://github.com/Arize-ai/phoenix/commit/f801c2772c042f76168c84a3488ad04986ba95c1))
+* copy output contents on run example ([#5415](https://github.com/Arize-ai/phoenix/issues/5415)) ([e3b6f47](https://github.com/Arize-ai/phoenix/commit/e3b6f47bf6e4165c7ee12dc64a29b608ec399f6c))
+* **playground:** add tooltip for dataset examples ([#5352](https://github.com/Arize-ai/phoenix/issues/5352)) ([9a6d16a](https://github.com/Arize-ai/phoenix/commit/9a6d16ab25a87295d719194e4d84ffd2dd2feee8))
+* **playground:** fix dataset picker styles and error handling ([#5338](https://github.com/Arize-ai/phoenix/issues/5338)) ([4fdf32e](https://github.com/Arize-ai/phoenix/commit/4fdf32e4fb880a29b2fb772cff83cef35af7cad9))
+* **playground:** fix pagination on playground dataset examples table ([#5404](https://github.com/Arize-ai/phoenix/issues/5404)) ([233a27c](https://github.com/Arize-ai/phoenix/commit/233a27c9a5841fb33fdd178f55f5e46511b4dcc9))
+* **playground:** for Azure, handle initial chunk with no choices ([#5423](https://github.com/Arize-ai/phoenix/issues/5423)) ([04721ed](https://github.com/Arize-ai/phoenix/commit/04721ed7b34044e242232fa977dcd2e89354c13c))
+* **playground:** get token count from streaming client ([#5344](https://github.com/Arize-ai/phoenix/issues/5344)) ([c45e558](https://github.com/Arize-ai/phoenix/commit/c45e558250a217d58c8ea7b2e1e3d5c22b7a92df))
+* **playground:** remove extra quotes from tool call function arguments json string ([#5403](https://github.com/Arize-ai/phoenix/issues/5403)) ([60eefec](https://github.com/Arize-ai/phoenix/commit/60eefec057f7c20ff0dc108258a2299c7cd2dd70))
+* **playground:** update experiment run for chat completion over dataset mutation ([#5345](https://github.com/Arize-ai/phoenix/issues/5345)) ([8060d24](https://github.com/Arize-ai/phoenix/commit/8060d24884c25edfeea90dcdc22fbe6230148636))
+* Prevent over-fetching when typing azure deployment name ([#5421](https://github.com/Arize-ai/phoenix/issues/5421)) ([ecef524](https://github.com/Arize-ai/phoenix/commit/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944))
+* replace pyarrow with json for dataframe transfer ([#5375](https://github.com/Arize-ai/phoenix/issues/5375)) ([ab886fc](https://github.com/Arize-ai/phoenix/commit/ab886fca7161637e7e394afcf3fe299ea6b1872d))
+* Starlette middleware initialization ([#5424](https://github.com/Arize-ai/phoenix/issues/5424)) ([7e5a92c](https://github.com/Arize-ai/phoenix/commit/7e5a92ca9af70336527772d504b4388c019fdb4f))
+
 ## [5.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.7.0...arize-phoenix-v5.8.0) (2024-11-11)
 
 

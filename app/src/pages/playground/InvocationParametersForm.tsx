@@ -14,6 +14,7 @@ import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscr
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import {
+  areInvocationParamsEqual,
   constrainInvocationParameterInputsToDefinition,
   toCamelCase,
 } from "./playgroundUtils";
@@ -75,6 +76,7 @@ const InvocationParameterFormField = ({
           isRequired={field.required}
           defaultValue={value?.join(", ") || ""}
           onChange={(value) => onChange(value.split(/, */g))}
+          description={"A comma separated list of strings"}
         />
       );
     case "StringInvocationParameter":
@@ -188,6 +190,13 @@ export const InvocationParametersForm = ({
   const filterInstanceModelInvocationParameters = usePlaygroundContext(
     (state) => state.filterInstanceModelInvocationParameters
   );
+  /**
+   * Azure openai has user defined model names but our invocation parameters query will never know
+   * what they are. We will just pass in an empty model name and the query will fallback to the set
+   * of invocation parameters that are defaults to our azure client.
+   */
+  const modelNameToQuery =
+    model.provider !== "AZURE_OPENAI" ? model.modelName : null;
   const { modelInvocationParameters } =
     useLazyLoadQuery<InvocationParametersFormQuery>(
       graphql`
@@ -233,31 +242,13 @@ export const InvocationParametersForm = ({
           }
         }
       `,
-      { input: { providerKey: model.provider, modelName: model.modelName } }
+      { input: { providerKey: model.provider, modelName: modelNameToQuery } }
     );
-
-  useEffect(() => {
-    // filter invocation parameters to only include those that are supported by the model
-    if (modelInvocationParameters) {
-      filterInstanceModelInvocationParameters({
-        instanceId: instance.id,
-        modelSupportedInvocationParameters:
-          modelInvocationParameters as Mutable<
-            typeof modelInvocationParameters
-          >,
-        filter: constrainInvocationParameterInputsToDefinition,
-      });
-    }
-  }, [
-    filterInstanceModelInvocationParameters,
-    instance.id,
-    modelInvocationParameters,
-  ]);
 
   const onChange = useCallback(
     (field: InvocationParameter, value: unknown) => {
-      const existingParameter = instance.model.invocationParameters.find(
-        (p) => p.invocationName === field.invocationName
+      const existingParameter = instance.model.invocationParameters.find((p) =>
+        areInvocationParamsEqual(p, field)
       );
 
       if (existingParameter) {
@@ -266,7 +257,7 @@ export const InvocationParametersForm = ({
           updateInstanceModelInvocationParameters({
             instanceId: instance.id,
             invocationParameters: instance.model.invocationParameters.map(
-              (p) => (p.invocationName === field.invocationName ? input : p)
+              (p) => (areInvocationParamsEqual(p, field) ? input : p)
             ),
           });
         }
@@ -286,6 +277,33 @@ export const InvocationParametersForm = ({
     [instance, updateInstanceModelInvocationParameters]
   );
 
+  useEffect(() => {
+    // filter invocation parameters to only include those that are supported by the model
+    // This will remove configured values that are not supported by the newly selected model
+    // Including invocation parameters managed outside of this form, like response_format
+    if (modelInvocationParameters) {
+      filterInstanceModelInvocationParameters({
+        instanceId: instance.id,
+        modelSupportedInvocationParameters:
+          modelInvocationParameters as Mutable<
+            typeof modelInvocationParameters
+          >,
+        filter: constrainInvocationParameterInputsToDefinition,
+      });
+    }
+  }, [
+    filterInstanceModelInvocationParameters,
+    instance.id,
+    modelInvocationParameters,
+  ]);
+
+  // It is safe to render this component if the model name is not set for non-azure models
+  // Hooks will still run to filter invocation parameters to only include those supported by the model
+  // but no form fields will be rendered if the model name is not set
+  if (model.modelName === null && model.provider !== "AZURE_OPENAI") {
+    return null;
+  }
+
   const fieldsForSchema = modelInvocationParameters
     .filter(
       (field) =>
@@ -295,12 +313,13 @@ export const InvocationParametersForm = ({
         )
     )
     .map((field) => {
-      const existingParameter = instance.model.invocationParameters.find(
-        (p) => p.invocationName === field.invocationName
+      const existingParameter = instance.model.invocationParameters.find((p) =>
+        areInvocationParamsEqual(p, field)
       );
       const value = existingParameter
         ? getInvocationParameterValue(field, existingParameter)
         : undefined;
+
       return (
         <InvocationParameterFormField
           key={field.invocationName}
