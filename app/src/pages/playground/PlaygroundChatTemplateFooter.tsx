@@ -15,8 +15,13 @@ import { PlaygroundChatTemplateFooterResponseFormatQuery } from "./__generated__
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
 } from "./constants";
-import { createToolForProvider } from "./playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  createToolForProvider,
+} from "./playgroundUtils";
 
 type PlaygroundChatTemplateFooterProps = {
   instanceId: number;
@@ -73,10 +78,17 @@ export function PlaygroundChatTemplateFooter({
       }
     );
 
-  const supportsResponseFormat = modelInvocationParameters?.some(
-    (p) =>
-      p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-      p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+  const supportsResponseFormat = modelInvocationParameters?.some((p) =>
+    areInvocationParamsEqual(p, {
+      canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+      invocationName: RESPONSE_FORMAT_PARAM_NAME,
+    })
+  );
+  const supportsToolChoice = modelInvocationParameters?.some((p) =>
+    areInvocationParamsEqual(p, {
+      canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+    })
   );
   return (
     <Flex
@@ -106,27 +118,14 @@ export function PlaygroundChatTemplateFooter({
           Output Schema
         </Button>
       ) : null}
-      <Button
-        variant="default"
-        aria-label="add tool"
-        size="compact"
-        icon={<Icon svg={<Icons.PlusOutline />} />}
-        onClick={() => {
-          const patch: Partial<PlaygroundInstance> = {
-            tools: [
-              ...playgroundInstance.tools,
-              createToolForProvider({
-                provider: playgroundInstance.model.provider,
-                toolNumber: playgroundInstance.tools.length + 1,
-              }),
-            ],
-          };
-          if (playgroundInstance.tools.length === 0) {
-            patch.toolChoice = "auto";
-          }
-          updateInstance({
-            instanceId,
-            patch: {
+      {supportsToolChoice ? (
+        <Button
+          variant="default"
+          aria-label="add tool"
+          size="compact"
+          icon={<Icon svg={<Icons.PlusOutline />} />}
+          onClick={() => {
+            const patch: Partial<PlaygroundInstance> = {
               tools: [
                 ...playgroundInstance.tools,
                 createToolForProvider({
@@ -134,12 +133,27 @@ export function PlaygroundChatTemplateFooter({
                   toolNumber: playgroundInstance.tools.length + 1,
                 }),
               ],
-            },
-          });
-        }}
-      >
-        Tool
-      </Button>
+            };
+            if (playgroundInstance.tools.length === 0) {
+              patch.toolChoice = "auto";
+            }
+            updateInstance({
+              instanceId,
+              patch: {
+                tools: [
+                  ...playgroundInstance.tools,
+                  createToolForProvider({
+                    provider: playgroundInstance.model.provider,
+                    toolNumber: playgroundInstance.tools.length + 1,
+                  }),
+                ],
+              },
+            });
+          }}
+        >
+          Tool
+        </Button>
+      ) : null}
       <Button
         variant="default"
         aria-label="add message"

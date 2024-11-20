@@ -48,7 +48,10 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
-import { RESPONSE_FORMAT_PARAM_CANONICAL_NAME } from "./constants";
+import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+} from "./constants";
 import {
   AIMessageContentRadioGroup,
   AIMessageMode,
@@ -62,6 +65,7 @@ import {
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
+  areInvocationParamsEqual,
   convertMessageToolCallsToProvider,
   createToolCallForProvider,
   normalizeMessageAttributeValue,
@@ -94,8 +98,11 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
 
   const hasTools = playgroundInstance.tools.length > 0;
   const hasResponseFormat =
-    playgroundInstance.model.invocationParameters.find(
-      (p) => p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    playgroundInstance.model.invocationParameters.find((p) =>
+      areInvocationParamsEqual(p, {
+        canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+        invocationName: RESPONSE_FORMAT_PARAM_NAME,
+      })
     ) != null;
   const { template } = playgroundInstance;
   if (template.__type !== "chat") {
