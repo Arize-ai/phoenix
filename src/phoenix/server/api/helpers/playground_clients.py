@@ -99,9 +99,9 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
         super().__init__(
             rate_limit_error=rate_limit_error,
             max_rate_limit_retries=3,
-            initial_per_second_request_rate=2.0,
-            maximum_per_second_request_rate=10.0,
-            enforcement_window_minutes=1,
+            initial_per_second_request_rate=1.0,
+            maximum_per_second_request_rate=3.0,
+            enforcement_window_minutes=0.05,
             rate_reduction_factor=0.5,
             rate_increase_factor=0.01,
             cooldown_seconds=5,
