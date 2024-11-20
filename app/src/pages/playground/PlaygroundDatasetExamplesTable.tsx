@@ -58,6 +58,10 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import {
+  getErrorMessagesFromRelayMutationError,
+  getErrorMessagesFromRelaySubscriptionError,
+} from "@phoenix/utils/errorUtils";
 
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
 import PlaygroundDatasetExamplesTableMutation, {
@@ -586,12 +590,22 @@ export function PlaygroundDatasetExamplesTable({
               markPlaygroundInstanceComplete(instance.id);
             },
             onError: (error) => {
-              notifyError({
-                title: "Chat completion failed",
-                message: error.message,
-                expireMs: 10000,
-              });
               markPlaygroundInstanceComplete(instance.id);
+              const errorMessages =
+                getErrorMessagesFromRelaySubscriptionError(error);
+              if (errorMessages != null && errorMessages.length > 0) {
+                notifyError({
+                  title: "Failed to get output",
+                  message: errorMessages.join("\n"),
+                  expireMs: 10000,
+                });
+              } else {
+                notifyError({
+                  title: "Failed to get output",
+                  message: error.message,
+                  expireMs: 10000,
+                });
+              }
             },
           };
         const subscription = requestSubscription(environment, config);
@@ -621,10 +635,20 @@ export function PlaygroundDatasetExamplesTable({
           onCompleted: onCompleted(instance.id),
           onError(error) {
             markPlaygroundInstanceComplete(instance.id);
-            notifyError({
-              title: "Failed to get output",
-              message: error.message,
-            });
+            const errorMessages = getErrorMessagesFromRelayMutationError(error);
+            if (errorMessages != null && errorMessages.length > 0) {
+              notifyError({
+                title: "Failed to get output",
+                message: errorMessages.join("\n"),
+                expireMs: 10000,
+              });
+            } else {
+              notifyError({
+                title: "Failed to get output",
+                message: error.message,
+                expireMs: 10000,
+              });
+            }
           },
         });
       }

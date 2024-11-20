@@ -1,12 +1,21 @@
+const isErrorWithMessage = (error: unknown): error is { message: string } => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as { message: unknown }).message === "string"
+  );
+};
+
 /**
  * Regex to match an error message in a Relay mutation error.
  * See example below where "Actual Error Message" is the error message.
+ * Matches the string after the first occurrence of "message": " and before the next occurrence of " with double or single quotes.
  * @example
  * ```
  * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```*
  */
-const mutationErrorRegex = /"message":"([^"]+)"/g;
+const mutationErrorRegex = /['"']message['"']:\s*['"']([^'"']+)['"']/g;
 /**
  * Extracts the error messages from a Relay mutation error.
  * A relay mutation error contains a message property which is a large string with various information.
@@ -19,16 +28,19 @@ const mutationErrorRegex = /"message":"([^"]+)"/g;
  * @returns a list of string error messages or null if no error messages are found
  */
 export const getErrorMessagesFromRelayMutationError = (
-  error: Error
+  error: unknown
 ): string[] | null => {
+  if (!isErrorWithMessage(error)) {
+    return null;
+  }
   const rawErrorMessage = error.message;
   if (typeof rawErrorMessage !== "string") {
-    return [];
+    return null;
   }
   const messages = [...rawErrorMessage.matchAll(mutationErrorRegex)].map(
     (match) => match[1]
   );
-  return messages;
+  return messages.length > 0 ? messages : null;
 };
 
 interface ErrorWithSource extends Error {
@@ -43,7 +55,7 @@ interface ErrorWithSource extends Error {
  * @param error
  * @returns true if the error has a source property with an errors array, false otherwise
  */
-const isErrorWithSource = (error: Error): error is ErrorWithSource => {
+const isErrorWithSource = (error: unknown): error is ErrorWithSource => {
   const errorWithSource = error as ErrorWithSource;
   return (
     typeof errorWithSource === "object" &&
@@ -79,7 +91,7 @@ const isErrorWithSource = (error: Error): error is ErrorWithSource => {
  * @returns a list of string error messages or null if no error messages are found
  */
 export const getErrorMessagesFromRelaySubscriptionError = (
-  error: Error
+  error: unknown
 ): string[] | null => {
   if (isErrorWithSource(error)) {
     return error.source.errors.map((error) => error.message);
