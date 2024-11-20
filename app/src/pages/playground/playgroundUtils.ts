@@ -972,7 +972,7 @@ const getBaseChatCompletionInput = ({
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
-    apiKey: credentials[instance.model.provider],
+    apiKey: credentials[instance.model.provider] || null,
   } as const;
 };
 
