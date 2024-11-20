@@ -379,6 +379,11 @@ def _llm_output_messages(
     if content := "".join(chunk.content for chunk in text_chunks):
         yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
     for tool_call_index, (_tool_call_id, tool_call_chunks_) in enumerate(tool_call_chunks.items()):
+        if _tool_call_id:
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                _tool_call_id,
+            )
         if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
             yield (
                 f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
@@ -441,6 +446,7 @@ MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
 
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
