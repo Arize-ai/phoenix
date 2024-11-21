@@ -329,11 +329,18 @@ class Subscription:
                     yield completed_task.result()
                 except StopAsyncIteration:
                     del in_progress[idx]  # removes exhausted stream
+                except asyncio.TimeoutError:
+                    del in_progress[idx]  # removes timed-out stream
+                    if example_id is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="Timed out", dataset_example_id=example_id
+                        )
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
-                    yield ChatCompletionSubscriptionError(
-                        message="An unexpected error occurred", dataset_example_id=example_id
-                    )
+                    if example_id is not None:
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred", dataset_example_id=example_id
+                        )
                     logger.exception(error)
                 else:
                     task = _create_task_with_timeout(stream)
