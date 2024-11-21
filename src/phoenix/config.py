@@ -102,7 +102,7 @@ ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASS
 The initial password for the default admin account, which defaults to ‘admin’ if not
 explicitly set. Note that changing this value will have no effect if the default admin
 record already exists in the database. In such cases, the default admin password must
-be updated manually.
+be updated manually in the application.
 """
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
