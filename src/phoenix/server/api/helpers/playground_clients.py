@@ -648,9 +648,10 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-latest",
         "claude-3-opus-latest",
-        "claude-3-sonnet-latest",
-        "claude-3-haiku-latest",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307",
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient):
