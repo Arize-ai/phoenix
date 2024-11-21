@@ -1327,11 +1327,7 @@ type ProjectSession implements Node {
   sessionId: String!
   sessionUser: String
   startTime: DateTime!
-  endTime: DateTime!
   projectId: GlobalID!
-
-  """Duration of the session in seconds"""
-  durationS: Float!
   numTraces: Int!
   numTracesWithError: Int!
   firstInput: SpanIOValue
@@ -1344,7 +1340,6 @@ type ProjectSession implements Node {
 
 enum ProjectSessionColumn {
   startTime
-  endTime
   tokenCountTotal
   numTraces
 }
