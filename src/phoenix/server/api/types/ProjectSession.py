@@ -26,17 +26,12 @@ class ProjectSession(Node):
     session_id: str
     session_user: Optional[str]
     start_time: datetime
-    end_time: datetime
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
         from phoenix.server.api.types.Project import Project
 
         return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
-
-    @strawberry.field(description="Duration of the session in seconds")  # type: ignore
-    async def duration_s(self) -> float:
-        return (self.end_time - self.start_time).total_seconds()
 
     @strawberry.field
     async def num_traces(
@@ -141,7 +136,6 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
         session_id=project_session.session_id,
         session_user=project_session.session_user,
         start_time=project_session.start_time,
-        end_time=project_session.end_time,
         project_rowid=project_session.project_id,
     )
 
