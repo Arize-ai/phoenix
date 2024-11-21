@@ -233,8 +233,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
           </Button>
           <Tooltip>
             Saves the current configuration as the default for{" "}
-            {ModelProviders[instance.model.provider] ?? "this provider"} for
-            later use.
+            {ModelProviders[instance.model.provider] ?? "this provider"}.
           </Tooltip>
         </TooltipTrigger>
       }
@@ -347,12 +346,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   );
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-      }}
-      css={modelConfigFormCSS}
-    >
+    <form css={modelConfigFormCSS}>
       <ModelProviderPicker
         provider={instance.model.provider}
         query={query}
