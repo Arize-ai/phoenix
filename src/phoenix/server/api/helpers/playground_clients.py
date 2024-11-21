@@ -99,9 +99,9 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
         super().__init__(
             rate_limit_error=rate_limit_error,
             max_rate_limit_retries=3,
-            initial_per_second_request_rate=2.0,
-            maximum_per_second_request_rate=10.0,
-            enforcement_window_minutes=1,
+            initial_per_second_request_rate=1.0,
+            maximum_per_second_request_rate=3.0,
+            enforcement_window_minutes=0.05,
             rate_reduction_factor=0.5,
             rate_increase_factor=0.01,
             cooldown_seconds=5,
@@ -128,10 +128,11 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                     self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
-                if inspect.iscoroutinefunction(fn):
-                    return await fn(*args, **kwargs)  # type: ignore
+                maybe_coroutine = fn(*args, **kwargs)
+                if inspect.iscoroutine(maybe_coroutine):
+                    return await maybe_coroutine  # type: ignore
                 else:
-                    return fn(*args, **kwargs)
+                    return maybe_coroutine
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
@@ -341,7 +342,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
         async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
@@ -510,7 +511,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
 
         tool_call_ids: dict[int, str] = {}
 
-        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
         response = await throttled_create(
             messages=openai_messages,
             model=self.model_name,

@@ -300,7 +300,7 @@ class Subscription:
         in_progress: list[
             tuple[Optional[DatasetExampleID], ChatStream, Task[ChatCompletionSubscriptionPayload]]
         ] = []
-        max_in_progress = 10
+        max_in_progress = 3
         write_batch_size = 10
         write_interval = timedelta(seconds=10)
         last_write_time = datetime.now()
