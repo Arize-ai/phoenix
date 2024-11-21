@@ -545,10 +545,7 @@ def _get_batches(
 ) -> Iterator[list[_AnyT]]:
     """Splits an iterable into batches not exceeding a specified size."""
     iterator = iter(iterable)
-    while True:
-        batch = list(islice(iterator, batch_size))
-        if not batch:
-            break
+    while batch := list(islice(iterator, batch_size)):
         yield batch
 
 
