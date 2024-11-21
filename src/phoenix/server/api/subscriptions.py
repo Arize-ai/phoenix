@@ -495,8 +495,7 @@ async def _wait_for(
     try:
         return await task
     except asyncio.CancelledError:
-        pass
-    raise asyncio.TimeoutError()
+        raise asyncio.TimeoutError()
 
 
 async def _drain(queue: asyncio.Queue[GenericType]) -> list[GenericType]:
