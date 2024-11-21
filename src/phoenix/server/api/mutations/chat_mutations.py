@@ -193,29 +193,28 @@ class ChatCompletionMutationMixin:
         batch_size = 10
         start_time = datetime.now(timezone.utc)
         for batch in _get_batches(revisions, batch_size):
-            results.extend(
-                await asyncio.gather(
-                    *(
-                        cls._chat_completion(
-                            info,
-                            llm_client,
-                            ChatCompletionInput(
-                                model=input.model,
-                                api_key=input.api_key,
-                                messages=input.messages,
-                                tools=input.tools,
-                                invocation_parameters=input.invocation_parameters,
-                                template=TemplateOptions(
-                                    language=input.template_language,
-                                    variables=revision.input,
-                                ),
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info,
+                        llm_client,
+                        ChatCompletionInput(
+                            model=input.model,
+                            api_key=input.api_key,
+                            messages=input.messages,
+                            tools=input.tools,
+                            invocation_parameters=input.invocation_parameters,
+                            template=TemplateOptions(
+                                language=input.template_language,
+                                variables=revision.input,
                             ),
-                        )
-                        for revision in batch
-                    ),
-                    return_exceptions=True,
-                )
+                        ),
+                    )
+                    for revision in batch
+                ),
+                return_exceptions=True,
             )
+            results.extend(batch_results)
 
         payload = ChatCompletionOverDatasetMutationPayload(
             dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
