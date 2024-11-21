@@ -282,19 +282,22 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 max_value=2.0,
             ),
             IntInvocationParameter(
-                invocation_name="max_tokens",
+                invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
+                default_value=1024,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
+                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
+                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
@@ -307,12 +310,14 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
+                default_value=0,
                 label="Seed",
             ),
             JSONInvocationParameter(
@@ -476,11 +481,13 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Completion Tokens",
+                default_value=1024,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
+                default_value=0,
             ),
             JSONInvocationParameter(
                 invocation_name="tool_choice",
@@ -632,10 +639,10 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-5-sonnet-20240620",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
+        "claude-3-5-sonnet-latest",
+        "claude-3-opus-latest",
+        "claude-3-sonnet-latest",
+        "claude-3-haiku-latest",
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient):
@@ -664,12 +671,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
+                default_value=1024,
                 required=True,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
+                default_value=0.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -682,6 +691,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -851,21 +861,25 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             FloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
+                default_value=0.0,
             ),
             FloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
+                default_value=0.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_k",
                 label="Top K",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -873,6 +887,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
+                default_value=0,
             ),
         ]
 
