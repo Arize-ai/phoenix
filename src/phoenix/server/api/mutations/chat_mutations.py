@@ -1,9 +1,9 @@
 import asyncio
 from dataclasses import asdict, field
 from datetime import datetime, timezone
-from itertools import chain
+from itertools import chain, islice
 from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional, Union
+from typing import Any, Iterable, Iterator, List, Optional, TypeVar, Union
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -164,7 +164,9 @@ class ChatCompletionMutationMixin:
             revisions = [
                 revision
                 async for revision in await session.stream_scalars(
-                    get_dataset_example_revisions(resolved_version_id)
+                    get_dataset_example_revisions(resolved_version_id).order_by(
+                        models.DatasetExampleRevision.id
+                    )
                 )
             ]
             if not revisions:
@@ -187,28 +189,32 @@ class ChatCompletionMutationMixin:
             session.add(experiment)
             await session.flush()
 
+        results = []
+        batch_size = 3
         start_time = datetime.now(timezone.utc)
-        results = await asyncio.gather(
-            *(
-                cls._chat_completion(
-                    info,
-                    llm_client,
-                    ChatCompletionInput(
-                        model=input.model,
-                        api_key=input.api_key,
-                        messages=input.messages,
-                        tools=input.tools,
-                        invocation_parameters=input.invocation_parameters,
-                        template=TemplateOptions(
-                            language=input.template_language,
-                            variables=revision.input,
+        for batch in _get_batches(revisions, batch_size):
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info,
+                        llm_client,
+                        ChatCompletionInput(
+                            model=input.model,
+                            api_key=input.api_key,
+                            messages=input.messages,
+                            tools=input.tools,
+                            invocation_parameters=input.invocation_parameters,
+                            template=TemplateOptions(
+                                language=input.template_language,
+                                variables=revision.input,
+                            ),
                         ),
-                    ),
-                )
-                for revision in revisions
-            ),
-            return_exceptions=True,
-        )
+                    )
+                    for revision in batch
+                ),
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
 
         payload = ChatCompletionOverDatasetMutationPayload(
             dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
@@ -528,6 +534,19 @@ def _hex(number: int) -> str:
 
 def _serialize_event(event: SpanException) -> dict[str, Any]:
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
+
+
+_AnyT = TypeVar("_AnyT")
+
+
+def _get_batches(
+    iterable: Iterable[_AnyT],
+    batch_size: int,
+) -> Iterator[list[_AnyT]]:
+    """Splits an iterable into batches not exceeding a specified size."""
+    iterator = iter(iterable)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value
