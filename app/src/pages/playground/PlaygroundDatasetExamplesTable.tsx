@@ -476,9 +476,8 @@ export function PlaygroundDatasetExamplesTable({
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-  const setExperimentId = usePlaygroundContext(
-    (state) => state.setExperimentId
-  );
+
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const [dialog, setDialog] = useState<ReactNode>(null);
   const navigate = useNavigate();
   const hasSomeRunIds = instances.some(
@@ -506,7 +505,10 @@ export function PlaygroundDatasetExamplesTable({
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
-            setExperimentId(chatCompletion.experiment.id);
+            updateInstance({
+              instanceId,
+              patch: { experimentId: chatCompletion.experiment.id },
+            });
             break;
           case "ChatCompletionSubscriptionResult":
           case "TextChunk":
@@ -529,7 +531,7 @@ export function PlaygroundDatasetExamplesTable({
             return assertUnreachable(chatCompletion);
         }
       },
-    [setExperimentId]
+    [updateInstance]
   );
 
   const [generateChatCompletion] =
@@ -551,7 +553,6 @@ export function PlaygroundDatasetExamplesTable({
           });
           return;
         }
-        setExperimentId(response.chatCompletionOverDataset.experimentId);
         setExampleResponsesMap((exampleResponsesMap) => {
           return updateExampleResponsesMapFromMutationResponse({
             instanceId,
@@ -560,21 +561,23 @@ export function PlaygroundDatasetExamplesTable({
           });
         });
       },
-    [markPlaygroundInstanceComplete, notifyError, setExperimentId]
+    [markPlaygroundInstanceComplete, notifyError]
   );
 
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, setExperimentId } =
-      playgroundStore.getState();
-    setExperimentId(null);
+    const { instances, streaming, updateInstance } = playgroundStore.getState();
     setExampleResponsesMap(getInitialExampleResponsesMap(instances));
     if (streaming) {
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
+        updateInstance({
+          instanceId: instance.id,
+          patch: { experimentId: null },
+        });
         if (activeRunId === null) {
           continue;
         }
