@@ -54,6 +54,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               </div>
             }
           >
+            {/* As long as this component mounts, it will sync the supported
+            invocation parameters for the model to the instance in the store */}
             <ModelSupportedParamsFetcher instanceId={instanceId} />
           </Suspense>
           <ModelConfigButton {...props} />

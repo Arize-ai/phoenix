@@ -6,6 +6,10 @@ import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 
+/**
+ * Fetches the supported invocation parameters for a model and syncs them to the
+ * playground store instance.
+ */
 export const ModelSupportedParamsFetcher = ({
   instanceId,
 }: {
