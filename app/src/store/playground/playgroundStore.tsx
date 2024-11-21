@@ -205,6 +205,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             ...firstInstance,
             id: generateInstanceId(),
             activeRunId: null,
+            experimentId: null,
             spanId: null,
           },
         ],
@@ -468,9 +469,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           return instance;
         }),
       });
-    },
-    setExperimentId: (experimentId: string | null) => {
-      set({ experimentId });
     },
     ...initialProps,
   });

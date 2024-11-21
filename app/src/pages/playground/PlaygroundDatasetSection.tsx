@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
@@ -51,9 +51,13 @@ function RunInProgressText() {
 }
 
 export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
-  const experimentId = usePlaygroundContext((state) => state.experimentId);
   const instances = usePlaygroundContext((state) => state.instances);
   const isRunning = instances.some((instance) => instance.activeRunId != null);
+  const experimentIds = useMemo(() => {
+    return instances
+      .map((instance) => instance.experimentId)
+      .filter((id) => id != null);
+  }, [instances]);
   const navigate = useNavigate();
 
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
@@ -91,7 +95,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
           </Flex>
           <Flex gap={"size-100"} alignItems={"center"}>
             {isRunning && <RunInProgressText />}
-            {experimentId != null && (
+            {experimentIds.length > 0 && (
               <Button
                 size={"compact"}
                 variant="default"
@@ -100,11 +104,13 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
                 icon={<Icon svg={<Icons.ExperimentOutline />} />}
                 onClick={() => {
                   navigate(
-                    `/datasets/${datasetId}/compare?experimentId=${experimentId}`
+                    `/datasets/${datasetId}/compare?experimentId=${experimentIds.join("&experimentId=")}`
                   );
                 }}
               >
-                View Experiment
+                <Flex gap={"size-100"} alignItems={"center"}>
+                  View Experiment{instances.length > 1 ? "s" : ""}
+                </Flex>
               </Button>
             )}
           </Flex>
