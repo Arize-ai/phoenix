@@ -288,49 +288,61 @@ class Subscription:
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
         results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: list[ChatStream] = [
-            _stream_chat_completion_over_dataset_example(
-                input=input,
-                llm_client=llm_client,
-                revision=revision,
-                results=results,
-                experiment_id=experiment.id,
-                project_id=playground_project_id,
+        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
+            (
+                GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
+                _stream_chat_completion_over_dataset_example(
+                    input=input,
+                    llm_client=llm_client,
+                    revision=revision,
+                    results=results,
+                    experiment_id=experiment.id,
+                    project_id=playground_project_id,
+                ),
             )
             for revision in revisions
         ]
-        in_progress: list[tuple[ChatStream, asyncio.Task[ChatCompletionSubscriptionPayload]]] = []
+        in_progress: list[
+            tuple[
+                Optional[DatasetExampleID],
+                ChatStream,
+                asyncio.Task[ChatCompletionSubscriptionPayload],
+            ]
+        ] = []
         max_in_progress = 3
         write_batch_size = 10
         write_interval = timedelta(seconds=10)
         last_write_time = datetime.now()
         while not_started or in_progress:
             while not_started and len(in_progress) < max_in_progress:
-                stream = not_started.pop()
+                ex_id, stream = not_started.pop()
                 task = _create_task_with_timeout(stream)
-                in_progress.append((stream, task))
-            async_tasks_to_run = [task for _, task in in_progress]
+                in_progress.append((ex_id, stream, task))
+            async_tasks_to_run = [task for _, _, task in in_progress]
             completed_tasks, _ = await asyncio.wait(
                 async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
             )
             for completed_task in completed_tasks:
-                idx = [task for _, task in in_progress].index(completed_task)
-                stream, _ = in_progress[idx]
+                idx = [task for _, _, task in in_progress].index(completed_task)
+                example_id, stream, _ = in_progress[idx]
                 try:
                     yield completed_task.result()
-                except (StopAsyncIteration, TimeoutError):
-                    del in_progress[idx]  # removes exhausted / timed-out stream
+                except StopAsyncIteration:
+                    del in_progress[idx]  # removes exhausted stream
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
+                    yield ChatCompletionSubscriptionError(
+                        message="An unexpected error occurred", dataset_example_id=example_id
+                    )
                     logger.exception(error)
                 else:
                     task = _create_task_with_timeout(stream)
-                    in_progress[idx] = (stream, task)
+                    in_progress[idx] = (example_id, stream, task)
 
                 exceeded_write_batch_size = results.qsize() >= write_batch_size
                 exceeded_write_interval = datetime.now() - last_write_time > write_interval
                 write_already_in_progress = any(
-                    _is_result_payloads_stream(stream) for stream, _ in in_progress
+                    _is_result_payloads_stream(stream) for _, stream, _ in in_progress
                 )
                 if (
                     not results.empty()
@@ -341,7 +353,7 @@ class Subscription:
                         db=info.context.db, results=_drain_no_wait(results)
                     )
                     task = _create_task_with_timeout(result_payloads_stream)
-                    in_progress.append((result_payloads_stream, task))
+                    in_progress.append((None, result_payloads_stream, task))
                     last_write_time = datetime.now()
         if remaining_results := await _drain(results):
             async for result_payload in _chat_completion_result_payloads(
