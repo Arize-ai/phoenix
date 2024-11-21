@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c8435262691e589c039d8052a312930>>
+ * @generated SignedSource<<fadfae4fd345704382afb0820cdff3a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,10 +16,10 @@ export type ModelsInput = {
   modelName?: string | null;
   providerKey?: GenerativeProviderKey | null;
 };
-export type InvocationParametersFormQuery$variables = {
+export type InvocationParametersFormFieldsQuery$variables = {
   input: ModelsInput;
 };
-export type InvocationParametersFormQuery$data = {
+export type InvocationParametersFormFieldsQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
     readonly booleanDefaultValue?: boolean | null;
@@ -37,9 +37,9 @@ export type InvocationParametersFormQuery$data = {
     readonly stringListDefaultValue?: ReadonlyArray<string> | null;
   }>;
 };
-export type InvocationParametersFormQuery = {
-  response: InvocationParametersFormQuery$data;
-  variables: InvocationParametersFormQuery$variables;
+export type InvocationParametersFormFieldsQuery = {
+  response: InvocationParametersFormFieldsQuery$data;
+  variables: InvocationParametersFormFieldsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -237,7 +237,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "InvocationParametersFormQuery",
+    "name": "InvocationParametersFormFieldsQuery",
     "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -246,20 +246,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "InvocationParametersFormQuery",
+    "name": "InvocationParametersFormFieldsQuery",
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "56e31957e89e73349ff41fc66455df1f",
+    "cacheID": "4a9a1e8947463e43020c173fb6ca0418",
     "id": null,
     "metadata": {},
-    "name": "InvocationParametersFormQuery",
+    "name": "InvocationParametersFormFieldsQuery",
     "operationKind": "query",
-    "text": "query InvocationParametersFormQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on FloatInvocationParameter {\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n    ... on JSONInvocationParameter {\n      invocationInputField\n      jsonDefaultValue: defaultValue\n    }\n  }\n}\n"
+    "text": "query InvocationParametersFormFieldsQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      label\n      required\n      canonicalName\n    }\n    ... on BoundedFloatInvocationParameter {\n      minValue\n      maxValue\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on FloatInvocationParameter {\n      invocationInputField\n      floatDefaultValue: defaultValue\n    }\n    ... on IntInvocationParameter {\n      invocationInputField\n      intDefaultValue: defaultValue\n    }\n    ... on StringInvocationParameter {\n      invocationInputField\n      stringDefaultValue: defaultValue\n    }\n    ... on StringListInvocationParameter {\n      invocationInputField\n      stringListDefaultValue: defaultValue\n    }\n    ... on BooleanInvocationParameter {\n      invocationInputField\n      booleanDefaultValue: defaultValue\n    }\n    ... on JSONInvocationParameter {\n      invocationInputField\n      jsonDefaultValue: defaultValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "583498af6dd9d28f63d53bcece9f2b7d";
+(node as any).hash = "7114c972ca9a2449585281bdd7e6211c";
 
 export default node;

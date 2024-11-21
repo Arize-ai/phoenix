@@ -61,7 +61,7 @@ import {
   TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import { InvocationParameter } from "./InvocationParametersForm";
+import { InvocationParameter } from "./InvocationParametersFormFields";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
