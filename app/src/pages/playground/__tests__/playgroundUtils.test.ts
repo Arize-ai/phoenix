@@ -135,6 +135,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           provider: "OPENAI",
           modelName: "gpt-4o",
           invocationParameters: [],
+          supportedInvocationParameters: [],
         },
         template: defaultTemplate,
         output: undefined,
@@ -619,6 +620,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
@@ -856,6 +858,7 @@ describe("getModelConfigFromAttributes", () => {
         provider: "OPENAI",
         // getBaseModelConfigFromAttributes does not parse invocation parameters
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     });
@@ -885,6 +888,7 @@ describe("getModelConfigFromAttributes", () => {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
