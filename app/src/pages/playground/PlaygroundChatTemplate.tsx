@@ -58,10 +58,7 @@ import {
   MessageMode,
 } from "./MessageContentRadioGroup";
 import { MessageRolePicker } from "./MessageRolePicker";
-import {
-  PlaygroundChatTemplateFooter,
-  PlaygroundChatTemplateFooterFallback,
-} from "./PlaygroundChatTemplateFooter";
+import { PlaygroundChatTemplateFooter } from "./PlaygroundChatTemplateFooter";
 import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
@@ -178,12 +175,10 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         borderTopWidth="thin"
         borderBottomWidth={hasTools || hasResponseFormat ? "thin" : undefined}
       >
-        <Suspense fallback={<PlaygroundChatTemplateFooterFallback />}>
-          <PlaygroundChatTemplateFooter
-            instanceId={id}
-            hasResponseFormat={hasResponseFormat}
-          />
-        </Suspense>
+        <PlaygroundChatTemplateFooter
+          instanceId={id}
+          hasResponseFormat={hasResponseFormat}
+        />
       </View>
       {hasTools ? <PlaygroundTools {...props} /> : null}
       {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
