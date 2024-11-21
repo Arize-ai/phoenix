@@ -1,9 +1,4 @@
-import React, {
-  PropsWithChildren,
-  Suspense,
-  useCallback,
-  useState,
-} from "react";
+import React, { PropsWithChildren, useCallback, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
