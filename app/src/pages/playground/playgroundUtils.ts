@@ -321,6 +321,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     };
@@ -924,6 +925,9 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
+  const supportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+
   let invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
   ];
@@ -951,6 +955,17 @@ const getBaseChatCompletionInput = ({
         param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
     );
   }
+  // Filter invocation parameters to only include those that are supported by the model
+  // This will remove configured values that are not supported by the newly selected model
+  // If we don't have the list of supported invocation parameters in the store yet, we will just send
+  // them all
+  invocationParameters = supportedInvocationParameters.length
+    ? constrainInvocationParameterInputsToDefinition(
+        invocationParameters,
+        supportedInvocationParameters
+      )
+    : invocationParameters;
+
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
       ? {

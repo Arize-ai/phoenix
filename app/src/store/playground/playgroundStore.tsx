@@ -102,6 +102,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
+      supportedInvocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -209,6 +210,26 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             spanId: null,
           },
         ],
+      });
+    },
+    updateModelSupportedInvocationParameters: ({
+      instanceId,
+      supportedInvocationParameters,
+    }) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                supportedInvocationParameters,
+              },
+            };
+          }
+          return instance;
+        }),
       });
     },
     updateModel: ({ instanceId, model, modelConfigByProvider }) => {
@@ -345,29 +366,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
-    },
-    filterInstanceModelInvocationParameters: ({
-      instanceId,
-      modelSupportedInvocationParameters,
-      filter,
-    }) => {
-      set({
-        instances: get().instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              model: {
-                ...instance.model,
-                invocationParameters: filter(
-                  instance.model.invocationParameters,
-                  modelSupportedInvocationParameters
-                ),
-              },
-            };
-          }
-          return instance;
-        }),
-      });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,
