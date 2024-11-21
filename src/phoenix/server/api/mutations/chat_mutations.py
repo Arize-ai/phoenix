@@ -190,7 +190,7 @@ class ChatCompletionMutationMixin:
             await session.flush()
 
         results = []
-        batch_size = 10
+        batch_size = 3
         start_time = datetime.now(timezone.utc)
         for batch in _get_batches(revisions, batch_size):
             batch_results = await asyncio.gather(
@@ -541,8 +541,8 @@ _AnyT = TypeVar("_AnyT")
 
 def _get_batches(
     iterable: Iterable[_AnyT],
-    batch_size: int = 10,
-) -> Iterator[List[_AnyT]]:
+    batch_size: int,
+) -> Iterator[list[_AnyT]]:
     """Splits an iterable into batches not exceeding a specified size."""
     iterator = iter(iterable)
     while True:
