@@ -471,8 +471,8 @@ async def _wait_for(
     A function that imitates asyncio.wait_for, but allows the task to be
     cancelled with a custom message.
     """
-    future = asyncio.ensure_future(coro)
-    done, pending = await asyncio.wait([future], timeout=timeout)
+    task = create_task(coro)
+    done, pending = await asyncio.wait([task], timeout=timeout)
     assert len(done) + len(pending) == 1
     if done:
         task = done.pop()
