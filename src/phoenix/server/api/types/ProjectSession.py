@@ -79,6 +79,13 @@ class ProjectSession(Node):
         )
 
     @strawberry.field
+    async def last_start_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        return await info.context.data_loaders.session_last_start_times.load(self.id_attr)
+
+    @strawberry.field
     async def token_usage(
         self,
         info: Info[Context, None],

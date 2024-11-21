@@ -20,6 +20,7 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .project_by_name import ProjectByNameDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .session_io import SessionIODataLoader
+from .session_last_start_times import SessionLastStartTimeDataLoader
 from .session_num_traces import SessionNumTracesDataLoader
 from .session_num_traces_with_error import SessionNumTracesWithErrorDataLoader
 from .session_token_usages import SessionTokenUsagesDataLoader
@@ -52,6 +53,7 @@ __all__ = [
     "MinStartOrMaxEndTimeDataLoader",
     "RecordCountDataLoader",
     "SessionIODataLoader",
+    "SessionLastStartTimeDataLoader",
     "SessionNumTracesDataLoader",
     "SessionNumTracesWithErrorDataLoader",
     "SessionTokenUsagesDataLoader",

@@ -89,6 +89,7 @@ export function SessionsTable(props: SessionsTableProps) {
                 lastOutput {
                   value
                 }
+                lastStartTime
                 tokenUsage {
                   prompt
                   completion
@@ -139,6 +140,12 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "end time",
       accessorKey: "endTime",
       enableSorting: true,
+      cell: TimestampCell,
+    },
+    {
+      header: "last start time",
+      accessorKey: "lastStartTime",
+      enableSorting: false,
       cell: TimestampCell,
     },
     {
