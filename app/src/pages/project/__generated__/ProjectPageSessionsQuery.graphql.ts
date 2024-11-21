@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<969ee44487bd64eaf665475b2f27f1cb>>
+ * @generated SignedSource<<88088ce7fccc988a26173aa449d9be03>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -252,6 +252,32 @@ return {
                               }
                             ],
                             "storageKey": null
+                          },
+                          {
+                            "alias": "traceLatencyMsP50",
+                            "args": [
+                              {
+                                "kind": "Literal",
+                                "name": "probability",
+                                "value": 0.5
+                              }
+                            ],
+                            "kind": "ScalarField",
+                            "name": "traceLatencyMsQuantile",
+                            "storageKey": "traceLatencyMsQuantile(probability:0.5)"
+                          },
+                          {
+                            "alias": "traceLatencyMsP99",
+                            "args": [
+                              {
+                                "kind": "Literal",
+                                "name": "probability",
+                                "value": 0.99
+                              }
+                            ],
+                            "kind": "ScalarField",
+                            "name": "traceLatencyMsQuantile",
+                            "storageKey": "traceLatencyMsQuantile(probability:0.99)"
                           }
                         ],
                         "storageKey": null
@@ -329,12 +355,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d262d8ac081cdc966e9771dba45ab1c6",
+    "cacheID": "bea6d52a2d550bcdcc441e8ea3c6fdfc",
     "id": null,
     "metadata": {},
     "name": "ProjectPageSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

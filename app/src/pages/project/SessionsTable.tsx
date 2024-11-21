@@ -24,6 +24,7 @@ import { Icon, Icons, View } from "@arizeai/components";
 
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -93,6 +94,8 @@ export function SessionsTable(props: SessionsTableProps) {
                   completion
                   total
                 }
+                traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
+                traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
               }
             }
           }
@@ -137,6 +140,30 @@ export function SessionsTable(props: SessionsTableProps) {
       accessorKey: "endTime",
       enableSorting: true,
       cell: TimestampCell,
+    },
+    {
+      header: "p50 latency",
+      accessorKey: "traceLatencyMsP50",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return null;
+        }
+        return <LatencyText latencyMs={value} />;
+      },
+    },
+    {
+      header: "p99 latency",
+      accessorKey: "traceLatencyMsP99",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return null;
+        }
+        return <LatencyText latencyMs={value} />;
+      },
     },
     {
       header: "total tokens",
