@@ -1069,3 +1069,16 @@ export function normalizeMessageAttributeValue(
     ? content
     : JSON.stringify(content, null, 2);
 }
+
+export function areRequiredInvocationParametersConfigured(
+  configuredInvocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  return supportedInvocationParameters
+    .filter((param) => param.required)
+    .every((param) =>
+      configuredInvocationParameters.some((ip) =>
+        areInvocationParamsEqual(ip, param)
+      )
+    );
+}

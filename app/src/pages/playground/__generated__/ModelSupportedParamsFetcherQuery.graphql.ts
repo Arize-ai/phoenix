@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<60db1c23212f89e78daca28ecec0ed28>>
+ * @generated SignedSource<<1b6e9d3f7c360c6eeaa1ecc8d06aed31>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type ModelSupportedParamsFetcherQuery$data = {
     readonly __typename: string;
     readonly canonicalName?: CanonicalParameterName | null;
     readonly invocationName?: string;
+    readonly required?: boolean;
   }>;
 };
 export type ModelSupportedParamsFetcherQuery = {
@@ -76,6 +77,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "canonicalName",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "required",
+            "storageKey": null
           }
         ],
         "type": "InvocationParameterBase",
@@ -103,16 +111,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "df900d350850d48ff6b9f8f8ccef4165",
+    "cacheID": "6973f13a11ca1940b005e1c0dd17c0e3",
     "id": null,
     "metadata": {},
     "name": "ModelSupportedParamsFetcherQuery",
     "operationKind": "query",
-    "text": "query ModelSupportedParamsFetcherQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n    }\n  }\n}\n"
+    "text": "query ModelSupportedParamsFetcherQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e45c0b600dc244f7595b66ad7dad2f21";
+(node as any).hash = "b18043ce6ef1ed2ae451463564bece2f";
 
 export default node;

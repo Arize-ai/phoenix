@@ -33,6 +33,7 @@ export const ModelSupportedParamsFetcher = ({
             ... on InvocationParameterBase {
               invocationName
               canonicalName
+              required
             }
           }
         }
