@@ -9,6 +9,7 @@ from uuid import uuid4
 import pandas as pd
 import pyarrow
 import pytest
+from pandas.core.dtypes.common import is_numeric_dtype
 from pandas.testing import assert_frame_equal
 from pyarrow import parquet
 
@@ -40,6 +41,20 @@ def test_span_evaluations_construction() -> None:
     assert "context.span_id" not in eval_ds.dataframe.columns
     assert "random_column" not in eval_ds.dataframe.columns
     assert "score" in eval_ds.dataframe.columns
+
+
+def test_span_evaluations_construction_allows_all_null_column() -> None:
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    df = pd.DataFrame(
+        {
+            "context.span_id": span_ids,
+            "label": [str(index) for index in range(num_records)],
+            "score": [None] * num_records,
+        }
+    ).set_index("context.span_id")
+    assert not is_numeric_dtype(df.loc[:, "score"])
+    SpanEvaluations(eval_name="my_eval", dataframe=df)
 
 
 def power_set(s: list[tuple[str, Any]]) -> Iterator[dict[str, Any]]:
