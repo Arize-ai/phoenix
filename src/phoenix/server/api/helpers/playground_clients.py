@@ -290,8 +290,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
-                default_value=1024,
+                label="Max Completion Tokens",
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
@@ -350,7 +349,11 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai.types.chat import ChatCompletionStreamOptionsParam
 
         # Convert standard messages to OpenAI messages
-        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+        openai_messages = []
+        for message in messages:
+            openai_message = self.to_openai_chat_completion_param(*message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
         throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
@@ -400,7 +403,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         content: JSONScalarType,
         tool_call_id: Optional[str] = None,
         tool_calls: Optional[list[JSONScalarType]] = None,
-    ) -> "ChatCompletionMessageParam":
+    ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionSystemMessageParam,
@@ -487,7 +490,6 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Completion Tokens",
-                default_value=1024,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
@@ -502,65 +504,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
             ),
         ]
 
-    async def chat_completion_create(
-        self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-
-        # Convert standard messages to OpenAI messages
-        unfiltered_openai_messages = [
-            self.to_openai_o1_chat_completion_param(*message) for message in messages
-        ]
-
-        # filter out unsupported messages
-        openai_messages: list[ChatCompletionMessageParam] = [
-            message for message in unfiltered_openai_messages if message is not None
-        ]
-
-        tool_call_ids: dict[int, str] = {}
-
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        )
-
-        choice = response.choices[0]
-        message = choice.message
-        content = message.content
-
-        text_chunk = TextChunk(content=content)
-        yield text_chunk
-
-        if (tool_calls := message.tool_calls) is not None:
-            for tool_call_index, tool_call in enumerate(tool_calls):
-                tool_call_id = (
-                    tool_call.id
-                    if tool_call.id is not None
-                    else tool_call_ids.get(tool_call_index, f"tool_call_{tool_call_index}")
-                )
-                tool_call_ids[tool_call_index] = tool_call_id
-                if (function := tool_call.function) is not None:
-                    tool_call_chunk = ToolCallChunk(
-                        id=tool_call_id,
-                        function=FunctionCallChunk(
-                            name=function.name or "",
-                            arguments=function.arguments or "",
-                        ),
-                    )
-                    yield tool_call_chunk
-
-        if (usage := response.usage) is not None:
-            self._attributes.update(dict(self._llm_token_counts(usage)))
-
-    def to_openai_o1_chat_completion_param(
+    def to_openai_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
         content: JSONScalarType,
