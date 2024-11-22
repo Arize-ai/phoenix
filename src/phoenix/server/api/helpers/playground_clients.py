@@ -288,9 +288,9 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 max_value=2.0,
             ),
             IntInvocationParameter(
-                invocation_name="max_completion_tokens",
+                invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Completion Tokens",
+                label="Max Tokens",
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
