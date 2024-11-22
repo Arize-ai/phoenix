@@ -132,7 +132,7 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                 request_start_time = time.time()
                 maybe_coroutine = fn(*args, **kwargs)
                 if inspect.isawaitable(maybe_coroutine):
-                    return await maybe_coroutine  # type: ignore
+                    return await maybe_coroutine  # type: ignore[no-any-return]
                 else:
                     return maybe_coroutine
             except self._rate_limit_error:
@@ -144,10 +144,11 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                             try:
                                 request_start_time = time.time()
                                 await self._throttler.async_wait_until_ready()
-                                if inspect.iscoroutinefunction(fn):
-                                    return await fn(*args, **kwargs)  # type: ignore
+                                maybe_coroutine = fn(*args, **kwargs)
+                                if inspect.isawaitable(maybe_coroutine):
+                                    return await maybe_coroutine  # type: ignore[no-any-return]
                                 else:
-                                    return fn(*args, **kwargs)
+                                    return maybe_coroutine
                             except self._rate_limit_error:
                                 self._throttler.on_rate_limit_error(
                                     request_start_time, verbose=self._verbose

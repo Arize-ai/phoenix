@@ -333,7 +333,7 @@ class Subscription:
                     del in_progress[idx]  # removes timed-out stream
                     if example_id is not None:
                         yield ChatCompletionSubscriptionError(
-                            message="Timed out", dataset_example_id=example_id
+                            message="Playground task timed out", dataset_example_id=example_id
                         )
                 except Exception as error:
                     del in_progress[idx]  # removes failed stream
@@ -478,7 +478,11 @@ def _create_task_with_timeout(
     iterable: AsyncIterator[GenericType], timeout_in_seconds: int = 90
 ) -> asyncio.Task[GenericType]:
     return asyncio.create_task(
-        _wait_for(_as_coroutine(iterable), timeout=timeout_in_seconds, timeout_message="Timed out")
+        _wait_for(
+            _as_coroutine(iterable),
+            timeout=timeout_in_seconds,
+            timeout_message="Playground task timed out",
+        )
     )
 
 
