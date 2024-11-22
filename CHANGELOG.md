@@ -1,5 +1,32 @@
 # Changelog
 
+## [5.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.10.0...arize-phoenix-v5.11.0) (2024-11-22)
+
+
+### Features
+
+* add environment variable for default admin initial password ([#5487](https://github.com/Arize-ai/phoenix/issues/5487)) ([748556e](https://github.com/Arize-ai/phoenix/commit/748556e9836466d13d152b742454f5c2759b8086))
+* **playground:** block navigation when runs are in progress ([#5476](https://github.com/Arize-ai/phoenix/issues/5476)) ([930576f](https://github.com/Arize-ai/phoenix/commit/930576ff868cbb96f5c75c63c2306af552f68ef6))
+
+
+### Bug Fixes
+
+* add backup import for ujson_dumps from pandas.io.json ([#5496](https://github.com/Arize-ai/phoenix/issues/5496)) ([c463d57](https://github.com/Arize-ai/phoenix/commit/c463d5744bf293736f22f25fe67036601af6d2b1))
+* Allow arbitrary column resizing without tail cell ([#5468](https://github.com/Arize-ai/phoenix/issues/5468)) ([5320343](https://github.com/Arize-ai/phoenix/commit/5320343628398d5b6838caee0bdfd65c957be39d)), closes [#5455](https://github.com/Arize-ai/phoenix/issues/5455)
+* Allow shrinking of playground dataset table cells that have long text ([#5450](https://github.com/Arize-ai/phoenix/issues/5450)) ([59ab037](https://github.com/Arize-ai/phoenix/commit/59ab037b3b6ca3be7409b8e66063d6f7866d620d)), closes [#5444](https://github.com/Arize-ai/phoenix/issues/5444)
+* deselect dataset when selecting active dataset from dropdown ([#5453](https://github.com/Arize-ai/phoenix/issues/5453)) ([d1b1ccc](https://github.com/Arize-ai/phoenix/commit/d1b1ccc943dc21e1a370919bc3d27cd62e5bae0e))
+* eval dataframe should allow a column to be all null if type doesn't match expected ([#5495](https://github.com/Arize-ai/phoenix/issues/5495)) ([69b6594](https://github.com/Arize-ai/phoenix/commit/69b65945a0a23eeb2762a2d90a23a4fb04e15e9c))
+* Parse instrumented tool result messages as tool role messages ([#5471](https://github.com/Arize-ai/phoenix/issues/5471)) ([9933521](https://github.com/Arize-ai/phoenix/commit/9933521be4175c14964ab34aede5b12f28b709b8))
+* **playground:** add limit on the number of concurrent streams for streaming chat completions over a dataset ([#5440](https://github.com/Arize-ai/phoenix/issues/5440)) ([46ea8e4](https://github.com/Arize-ai/phoenix/commit/46ea8e449583886bb65adaf4dbccf82fc0776c68))
+* **playground:** add tool call id to input and output messages ([#5400](https://github.com/Arize-ai/phoenix/issues/5400)) ([283c3e9](https://github.com/Arize-ai/phoenix/commit/283c3e995d80f7fb5697955f50781140919d62f2))
+* **playground:** allow serverside api keys ([#5445](https://github.com/Arize-ai/phoenix/issues/5445)) ([dd6a830](https://github.com/Arize-ai/phoenix/commit/dd6a83050aef56ec8f213075f8a443e88a6071c5))
+* **playground:** batch chat completion requests for mutation ([#5477](https://github.com/Arize-ai/phoenix/issues/5477)) ([d8189ba](https://github.com/Arize-ai/phoenix/commit/d8189bad220158a407494b62552857fd070e0a7e))
+* **playground:** fix tool call ui ([#5467](https://github.com/Arize-ai/phoenix/issues/5467)) ([5c29240](https://github.com/Arize-ai/phoenix/commit/5c2924054c6309cef66089c8f62e61e61561992e))
+* **playground:** link to all experiments not just one when running multiple prompts on a dataset ([#5492](https://github.com/Arize-ai/phoenix/issues/5492)) ([91d94a1](https://github.com/Arize-ai/phoenix/commit/91d94a1fdcc197ae996fd0d9af4881e65044c5a3))
+* **playground:** return error messages for timeouts and unexpected errors during chat completion over dataset subscription ([#5447](https://github.com/Arize-ai/phoenix/issues/5447)) ([5f6a521](https://github.com/Arize-ai/phoenix/commit/5f6a52130619657aa33e3268319d5073c51771de))
+* **playground:** update error handling to show unhandled errors in playground ([#5442](https://github.com/Arize-ai/phoenix/issues/5442)) ([cf24912](https://github.com/Arize-ai/phoenix/commit/cf2491290a23b788df73d53eb4b594dfde913f3a))
+* tighten up playground throttling ([#5488](https://github.com/Arize-ai/phoenix/issues/5488)) ([2a3e60e](https://github.com/Arize-ai/phoenix/commit/2a3e60e38e51823868bdc6e1d44a2963d8a38056))
+
 ## [5.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.9.1...arize-phoenix-v5.10.0) (2024-11-20)
 
 
