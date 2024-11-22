@@ -47,6 +47,11 @@ export const getTemplateLanguageUtils = (
         format: formatMustacheLike,
         extractVariables: extractVariablesFromMustacheLike,
       };
+    case TemplateLanguages.NONE:
+      return {
+        format: ({ text }) => text,
+        extractVariables: () => [],
+      };
     default:
       assertUnreachable(templateLanguage);
   }

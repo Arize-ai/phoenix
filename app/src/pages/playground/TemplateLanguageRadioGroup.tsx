@@ -23,6 +23,9 @@ export function TemplateLanguageRadioGroup() {
         }
       }}
     >
+      <Radio label="None" value={TemplateLanguages.NONE}>
+        None
+      </Radio>
       <Radio label="Mustache" value={TemplateLanguages.Mustache}>
         Mustache
       </Radio>

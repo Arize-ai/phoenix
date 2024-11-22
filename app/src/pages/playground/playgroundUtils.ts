@@ -38,6 +38,8 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import { TemplateLanguages } from "../../components/templateEditor/constants";
+
 import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ChatCompletionInput,
@@ -543,6 +545,9 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateLanguage: TemplateLanguage;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return [];
+  }
   const variables = new Set<string>();
   const instanceType = instance.template.__type;
   const utils = getTemplateLanguageUtils(templateLanguage);
@@ -586,6 +591,9 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateLanguage: TemplateLanguage;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return [];
+  }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
@@ -604,6 +612,9 @@ export const getVariablesMapFromInstances = ({
   templateLanguage: TemplateLanguage;
   input: PlaygroundInput;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return { variablesMap: {}, variableKeys: [] };
+  }
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateLanguage,
