@@ -27,6 +27,9 @@ export function PlaygroundInput() {
         templateSyntax = "{{input name}}";
         break;
       }
+      case "NONE": {
+        return null;
+      }
       default:
         assertUnreachable(templateLanguage);
     }

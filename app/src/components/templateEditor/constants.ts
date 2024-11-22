@@ -10,6 +10,7 @@
  * ```
  */
 export const TemplateLanguages = {
+  NONE: "NONE", // No templating
   FString: "F_STRING", // {variable}
   Mustache: "MUSTACHE", // {{variable}}
 } as const;

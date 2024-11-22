@@ -29,6 +29,24 @@ class TemplateFormatter(ABC):
         raise NotImplementedError
 
 
+class NoOpFormatter(TemplateFormatter):
+    """
+    No-op template formatter.
+
+    Examples:
+
+    >>> formatter = NoOpFormatter()
+    >>> formatter.format("hello")
+    'hello'
+    """
+
+    def parse(self, template: str) -> set[str]:
+        return set()
+
+    def _format(self, template: str, *args: Any, **variables: Any) -> str:
+        return template
+
+
 class FStringTemplateFormatter(TemplateFormatter):
     """
     Regular f-string template formatter.

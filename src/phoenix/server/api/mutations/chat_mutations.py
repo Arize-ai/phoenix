@@ -67,6 +67,7 @@ from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
+    NoOpFormatter,
     TemplateFormatter,
 )
 
@@ -481,6 +482,8 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
         return MustacheTemplateFormatter()
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
+    if template_language is TemplateLanguage.NONE:
+        return NoOpFormatter()
     assert_never(template_language)
 
 
