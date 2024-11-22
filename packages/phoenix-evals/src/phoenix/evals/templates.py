@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from enum import Enum
 from string import Formatter
 from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -28,8 +29,23 @@ class DotKeyFormatter(Formatter):
         return obj, field_name
 
 
-class PromptTemplate:
+class PromptMessageContentType(str, Enum):
+    TEXT = "text"
+    AUDIO_URL = "audio_url"
+
+
+class PromptMessage:
+    content_type: PromptMessageContentType
+    content: str
+
+
+class PromptMessageTemplate:
+    content_type: PromptMessageContentType
     template: str
+
+
+class PromptTemplate:
+    template: str | List[PromptMessageTemplate]
     variables: List[str]
 
     def __init__(
@@ -37,7 +53,7 @@ class PromptTemplate:
         template: str,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.template = template
+        self.template = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.template)
 
@@ -48,33 +64,49 @@ class PromptTemplate:
         self,
         variable_values: Mapping[str, Union[bool, int, float, str]],
         options: Optional[PromptOptions] = None,
-    ) -> str:
+    ) -> List[PromptMessage]:
         prompt = self.prompt(options)
-        if self._start_delim == "{" and self._end_delim == "}":
-            self.formatter = DotKeyFormatter()
-            prompt = self.formatter.format(prompt, **variable_values)
-        else:
-            for variable_name in self.variables:
-                prompt = prompt.replace(
-                    self._start_delim + variable_name + self._end_delim,
-                    str(variable_values[variable_name]),
-                )
-        return prompt
+        prompt_messages = []
+        for template_message in self.template:
+            if self._start_delim == "{" and self._end_delim == "}":
+                self.formatter = DotKeyFormatter()
+                prompt = self.formatter.format(prompt, **variable_values)
+            else:
+                for variable_name in self.variables:
+                    prompt = prompt.replace(
+                        self._start_delim + variable_name + self._end_delim,
+                        str(variable_values[variable_name]),
+                    )
+            prompt_messages.append(
+                PromptMessage(content_type=template_message.content_type, content=prompt)
+            )
+        return prompt_messages
 
-    def _parse_variables(self, text: str) -> List[str]:
+    def _parse_variables(self, template: List[PromptMessageTemplate]) -> List[str]:
         start = re.escape(self._start_delim)
         end = re.escape(self._end_delim)
         pattern = rf"{start}(.*?){end}"
-        variables = re.findall(pattern, text)
+        variables = []
+        for template_message in template:
+            variables += re.findall(pattern, template_message.template)
         return variables
+
+    def _normalize_template(
+        self, template: str | List[PromptMessageTemplate]
+    ) -> List[PromptMessageTemplate]:
+        if isinstance(template, str):
+            return [
+                PromptMessageTemplate(content_type=PromptMessageContentType.TEXT, template=template)
+            ]
+        return template
 
 
 class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
-        template: str,
-        explanation_template: Optional[str] = None,
+        template: str | List[PromptMessageTemplate],
+        explanation_template: Optional[str | List[PromptMessageTemplate]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
         scores: Optional[List[float]] = None,
@@ -85,18 +117,18 @@ class ClassificationTemplate(PromptTemplate):
                 "(i.e., the length of both lists must be the same)."
             )
         self.rails = rails
-        self.template = template
-        self.explanation_template = explanation_template
+        self.template = self._normalize_template(template)
+        self.explanation_template = self._normalize_template(explanation_template)
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
-        for text in [template, explanation_template]:
-            if text is not None:
-                self.variables += self._parse_variables(text)
+        for _template in [template, explanation_template]:
+            if _template:
+                self.variables += self._parse_variables(template=_template)
         self._scores = scores
 
     def __repr__(self) -> str:
-        return self.template
+        return "\n".join([template.template for template in self.template])
 
     def prompt(self, options: Optional[PromptOptions] = None) -> str:
         if options is None:
@@ -178,7 +210,7 @@ def map_template(
     dataframe: pd.DataFrame,
     template: PromptTemplate,
     options: Optional[PromptOptions] = None,
-) -> "pd.Series[str]":
+) -> "pd.Series[List[PromptMessage]]":
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
