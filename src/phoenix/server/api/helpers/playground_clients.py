@@ -131,7 +131,7 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
                 maybe_coroutine = fn(*args, **kwargs)
-                if inspect.iscoroutine(maybe_coroutine):
+                if inspect.isawaitable(maybe_coroutine):
                     return await maybe_coroutine  # type: ignore
                 else:
                     return maybe_coroutine
