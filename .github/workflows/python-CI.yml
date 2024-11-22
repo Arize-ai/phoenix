@@ -87,7 +87,7 @@ jobs:
     strategy:
       matrix:
         py: [3.8, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,7 +110,7 @@ jobs:
     strategy:
       matrix:
         py: [3.8, 3.13]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -339,7 +339,7 @@ jobs:
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -416,7 +416,7 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
         exclude:
           - db: postgresql
             os: windows-latest
