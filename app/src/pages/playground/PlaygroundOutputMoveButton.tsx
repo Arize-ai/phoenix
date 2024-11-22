@@ -17,7 +17,10 @@ import {
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
-import { getChatRole } from "./playgroundUtils";
+import {
+  convertMessageToolCallsToProvider,
+  getChatRole,
+} from "./playgroundUtils";
 
 export const PlaygroundOutputMoveButton = ({
   instance,
@@ -58,15 +61,18 @@ export const PlaygroundOutputMoveButton = ({
             messages.push({
               id: generateMessageId(),
               role: getChatRole("ai"),
-              toolCalls: toolCalls.map((tc) => ({
-                ...tc,
-                function: {
-                  ...tc.function,
-                  arguments:
-                    safelyParseJSON(tc.function.arguments)?.json ??
-                    tc.function.arguments,
-                },
-              })),
+              toolCalls: convertMessageToolCallsToProvider({
+                provider: instance.model.provider,
+                toolCalls: toolCalls.map((tc) => ({
+                  ...tc,
+                  function: {
+                    ...tc.function,
+                    arguments:
+                      safelyParseJSON(tc.function.arguments)?.json ??
+                      tc.function.arguments,
+                  },
+                })),
+              }),
             });
           }
           updateInstance({
