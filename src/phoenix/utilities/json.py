@@ -8,10 +8,16 @@ from typing import Any, Union, cast, get_args, get_origin
 
 import numpy as np
 import pandas as pd
-from pandas.io.json import build_table_schema, ujson_dumps  # type: ignore
+from pandas.io.json import build_table_schema
 from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 from strawberry import UNSET
 from strawberry.types.base import StrawberryObjectDefinition
+
+try:
+    from pandas.io.json import ujson_dumps  # type: ignore
+except ImportError:
+    # https://github.com/pandas-dev/pandas/pull/54581
+    from pandas.io.json import dumps as ujson_dumps  # type: ignore
 
 
 def jsonify(obj: Any) -> Any:
