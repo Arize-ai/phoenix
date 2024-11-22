@@ -121,6 +121,7 @@ pg = [
 ]
 container = [
   "anthropic",
+  "google-generativeai",
   "prometheus-client",
   "openai>=1.0.0",
   "opentelemetry-sdk",

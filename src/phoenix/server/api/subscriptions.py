@@ -25,7 +25,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     initialize_playground_clients,
@@ -93,16 +93,18 @@ class Subscription:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
-            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
             llm_client = llm_client_class(
                 model=input.model,
                 api_key=input.api_key,
             )
-        except Exception:
+        except CustomGraphQLError:
+            raise
+        except Exception as error:
             raise BadRequest(
-                f"Failed to initialize the LLM client for {provider_key.value} "
-                f"{input.model.name}. Have you set a valid API key?"
+                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
+                f"{str(error)}"
             )
 
         messages = [
@@ -166,16 +168,18 @@ class Subscription:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
-            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
             llm_client = llm_client_class(
                 model=input.model,
                 api_key=input.api_key,
             )
-        except Exception:
+        except CustomGraphQLError:
+            raise
+        except Exception as error:
             raise BadRequest(
-                f"Failed to initialize the LLM client for {provider_key.value} "
-                f"{input.model.name}. Have you set a valid API key?"
+                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
+                f"{str(error)}"
             )
 
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)

@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 import inspect
 import json
+import os
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -25,6 +26,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimiter,
     RateLimitError,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
@@ -259,6 +261,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai import AsyncOpenAI
         from openai import RateLimitError as OpenAIRateLimitError
 
+        # todo: check if custom base url is set before raising error to allow
+        # for custom endpoints that don't require an API key
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+            raise BadRequest("An API key is required for OpenAI models")
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
@@ -619,12 +625,14 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
-        if model.endpoint is None or model.api_version is None:
-            raise ValueError("endpoint and api_version are required for Azure OpenAI models")
+        if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
+            raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
+        if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
+            raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
         self.client = AsyncAzureOpenAI(
             api_key=api_key,
-            azure_endpoint=model.endpoint,
-            api_version=model.api_version,
+            azure_endpoint=endpoint,
+            api_version=api_version,
         )
 
 
@@ -649,6 +657,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
+        if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
+            raise BadRequest("An API key is required for Anthropic models")
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -820,6 +830,12 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
+        if not (
+            api_key := api_key
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+        ):
+            raise BadRequest("An API key is required for Gemini models")
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
