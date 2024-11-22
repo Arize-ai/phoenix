@@ -883,6 +883,13 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         chat = client.start_chat(history=gemini_message_history)
         stream = await chat.send_message_async(**gemini_params)
         async for event in stream:
+            self._attributes.update(
+                {
+                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                }
+            )
             yield TextChunk(content=event.text)
 
     def _build_gemini_messages(
