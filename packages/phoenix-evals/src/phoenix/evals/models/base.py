@@ -7,6 +7,7 @@ from typing import Any, Generator, Optional, Sequence
 from typing_extensions import TypeVar
 
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 T = TypeVar("T", bound=type)
 
@@ -74,7 +75,10 @@ class BaseModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
+        prompt_messages = [
+            PromptMessage(content_type=PromptMessageContentType.TEXT, content=prompt)
+        ]
+        return self._generate(prompt=prompt_messages, instruction=instruction, **kwargs)
 
     def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
@@ -82,11 +86,11 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @staticmethod
