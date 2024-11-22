@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1b6e9d3f7c360c6eeaa1ecc8d06aed31>>
+ * @generated SignedSource<<53cb616cfffa8a84e9c4869d398bb559>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
+export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type ModelsInput = {
   modelName?: string | null;
   providerKey?: GenerativeProviderKey | null;
@@ -21,9 +22,16 @@ export type ModelSupportedParamsFetcherQuery$variables = {
 export type ModelSupportedParamsFetcherQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
+    readonly booleanDefaultValue?: boolean | null;
     readonly canonicalName?: CanonicalParameterName | null;
+    readonly floatDefaultValue?: number | null;
+    readonly intDefaultValue?: number | null;
+    readonly invocationInputField?: InvocationInputField;
     readonly invocationName?: string;
+    readonly jsonDefaultValue?: any | null;
     readonly required?: boolean;
+    readonly stringDefaultValue?: string | null;
+    readonly stringListDefaultValue?: ReadonlyArray<string> | null;
   }>;
 };
 export type ModelSupportedParamsFetcherQuery = {
@@ -39,7 +47,24 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "invocationInputField",
+  "storageKey": null
+},
+v2 = [
+  {
+    "alias": "floatDefaultValue",
+    "args": null,
+    "kind": "ScalarField",
+    "name": "defaultValue",
+    "storageKey": null
+  },
+  (v1/*: any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": [
@@ -88,6 +113,93 @@ v1 = [
         ],
         "type": "InvocationParameterBase",
         "abstractKey": "__isInvocationParameterBase"
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": "booleanDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "type": "BooleanInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "BoundedFloatInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": (v2/*: any*/),
+        "type": "FloatInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": "intDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "type": "IntInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": "jsonDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "type": "JSONInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": "stringDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "type": "StringInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": "stringListDefaultValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "defaultValue",
+            "storageKey": null
+          },
+          (v1/*: any*/)
+        ],
+        "type": "StringListInvocationParameter",
+        "abstractKey": null
       }
     ],
     "storageKey": null
@@ -99,7 +211,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ModelSupportedParamsFetcherQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -108,19 +220,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ModelSupportedParamsFetcherQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "6973f13a11ca1940b005e1c0dd17c0e3",
+    "cacheID": "9ff45da068ba0b4c48484169553c0559",
     "id": null,
     "metadata": {},
     "name": "ModelSupportedParamsFetcherQuery",
     "operationKind": "query",
-    "text": "query ModelSupportedParamsFetcherQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n    }\n  }\n}\n"
+    "text": "query ModelSupportedParamsFetcherQuery(\n  $input: ModelsInput!\n) {\n  modelInvocationParameters(input: $input) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n    }\n    ... on BooleanInvocationParameter {\n      booleanDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedFloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on FloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on JSONInvocationParameter {\n      jsonDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      stringDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      stringListDefaultValue: defaultValue\n      invocationInputField\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b18043ce6ef1ed2ae451463564bece2f";
+(node as any).hash = "ccbde0a11b8cdea1ef5533c3756a0f75";
 
 export default node;

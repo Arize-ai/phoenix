@@ -39,6 +39,34 @@ export const ModelSupportedParamsFetcher = ({
               canonicalName
               required
             }
+            ... on BooleanInvocationParameter {
+              booleanDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on BoundedFloatInvocationParameter {
+              floatDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on FloatInvocationParameter {
+              floatDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on IntInvocationParameter {
+              intDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on JSONInvocationParameter {
+              jsonDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on StringInvocationParameter {
+              stringDefaultValue: defaultValue
+              invocationInputField
+            }
+            ... on StringListInvocationParameter {
+              stringListDefaultValue: defaultValue
+              invocationInputField
+            }
           }
         }
       `,

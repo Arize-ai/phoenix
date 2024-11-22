@@ -1082,3 +1082,85 @@ export function areRequiredInvocationParametersConfigured(
       )
     );
 }
+
+/**
+ * Extracts the default value for the invocation parameter definition
+ * And the key name that should be used in the invocation parameter input if we need to make a new one
+ *
+ * This logic is necessary because the default value is mapped to different key name based on its type
+ * within the InvocationParameterInput queries in the playground
+ */
+const getInvocationParamDefaultValue = (
+  param: InvocationParameter
+): {
+  invocationInputField: string | undefined;
+  defaultValue: unknown;
+} => {
+  let defaultValueKeyName: string | undefined;
+  Object.entries(param).find(([key, value]) => {
+    if (key.endsWith("DefaultValue") && value != null) {
+      defaultValueKeyName = key;
+      return true;
+    }
+    return false;
+  });
+  return {
+    invocationInputField: param.invocationInputField,
+    defaultValue:
+      defaultValueKeyName != null
+        ? param[defaultValueKeyName as keyof InvocationParameter]
+        : undefined,
+  };
+};
+
+/**
+ * Merges the current invocation parameters with the default values for the supported invocation parameters,
+ * only adding values for invocation parameters that don't already have a value
+ */
+export function mergeInvocationParametersWithDefaults(
+  invocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  // Convert the current invocation parameters to a map for quick lookup
+  const currentInvocationParametersMap = new Map(
+    invocationParameters.map((param) => [
+      param.canonicalName || param.invocationName,
+      param,
+    ])
+  );
+  supportedInvocationParameters.forEach((param) => {
+    const paramKeyName = param.canonicalName || param.invocationName;
+    // Extract the default value for the invocation parameter definition
+    // And the key name that should be used in the invocation parameter input if we need to make a new one
+    const { invocationInputField, defaultValue } =
+      getInvocationParamDefaultValue(param);
+    // Skip if we don't have required fields
+    // or, if the current invocation parameter map already has a value for the key
+    // so that we don't overwrite a user provided value, or a value saved to preferences
+    if (
+      !param.invocationName ||
+      !paramKeyName ||
+      defaultValue == null ||
+      currentInvocationParametersMap.get(paramKeyName)?.[
+        toCamelCase(
+          param.invocationInputField || ""
+        ) as keyof InvocationParameterInput
+      ] != null ||
+      !invocationInputField
+    ) {
+      return;
+    }
+    // Create the new invocation parameter input, using the default value for the parameter
+    const newInvocationParameter: InvocationParameterInput = {
+      canonicalName: param.canonicalName,
+      invocationName: param.invocationName,
+      [toCamelCase(invocationInputField)]: defaultValue,
+    };
+
+    // Add the new invocation parameter input to the map
+    currentInvocationParametersMap.set(paramKeyName, newInvocationParameter);
+  });
+
+  // Return the new invocation parameter inputs as an array
+  return Array.from(currentInvocationParametersMap.values());
+}

@@ -8,7 +8,10 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { areInvocationParamsEqual } from "@phoenix/pages/playground/playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  mergeInvocationParametersWithDefaults,
+} from "@phoenix/pages/playground/playgroundUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
@@ -225,6 +228,11 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               model: {
                 ...instance.model,
                 supportedInvocationParameters,
+                // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
+                invocationParameters: mergeInvocationParametersWithDefaults(
+                  instance.model.invocationParameters,
+                  supportedInvocationParameters
+                ),
               },
             };
           }
@@ -249,6 +257,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         if (savedProviderConfig != null) {
           newModel = {
             ...savedProviderConfig,
+            // we don't want to use persisted supportedInvocationParameters
+            supportedInvocationParameters:
+              currentModel.supportedInvocationParameters,
             provider: model.provider,
             // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
             invocationParameters: [
