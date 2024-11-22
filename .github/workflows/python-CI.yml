@@ -5,6 +5,7 @@ on:
     branches: [main, sessions]
   pull_request:
     paths:
+      - ".github/workflows/python-CI.yml"
       - "**/*.py"
       - "src/**"
       - "tests/**"
