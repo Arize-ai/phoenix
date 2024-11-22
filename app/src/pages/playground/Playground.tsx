@@ -136,7 +136,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
 
 function AddPromptButton() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
-  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
   return (
     <div
       onClick={(e) => {
@@ -149,7 +151,7 @@ function AddPromptButton() {
         size="compact"
         aria-label="add prompt"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES}
+        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
         onClick={() => {
           addInstance();
         }}
