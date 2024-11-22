@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import logging
 from collections import defaultdict
 from enum import Enum
@@ -18,6 +19,7 @@ from typing import (
 )
 
 import pandas as pd
+import requests
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
@@ -60,7 +62,55 @@ class ClassificationStatus(Enum):
     COMPLETED_WITH_RETRIES = ExecutionStatus.COMPLETED_WITH_RETRIES.value
     FAILED = ExecutionStatus.FAILED.value
     MISSING_INPUT = "MISSING INPUT"
+    
 
+def audio_classify(
+    dataframe: pd.DataFrame,
+    model: OpenAIModel,
+    template: str,
+    rails: List[str],
+) -> pd.DataFrame:
+    """
+    Classifies each input row of the dataframe using an audio model.
+    """
+    # early example; just assumes template variables exist within dataframe
+
+    for index, row in dataframe.iterrows():
+        audio_url = row["audio_url"]
+        response = requests.get(audio_url)
+        response.raise_for_status()
+        wav_data = response.content
+        encoded_string = base64.b64encode(wav_data).decode('utf-8')
+
+        completion = model._client.chat.completions.create(
+            model="gpt-4o-audio-preview",
+            #modalities=["text"],
+            messages=[
+                {
+                    "role": "system",
+                    "content": template.format(
+                        rails=rails
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": encoded_string,
+                                "format": "wav"
+                            }
+                        }
+                    ],
+                }
+
+            ]
+        )
+
+        dataframe.at[index, "label"] = completion.choices[0].message.content
+
+    return dataframe
 
 def llm_classify(
     dataframe: pd.DataFrame,
@@ -202,7 +252,7 @@ def llm_classify(
                 printif(
                     verbose and unrailed_label == NOT_PARSABLE,
                     f"- Could not parse {repr(response)}",
-                )
+                    )
             else:
                 unrailed_label = response
                 explanation = None
