@@ -178,14 +178,23 @@ const playgroundPromptPanelContentCSS = css`
       overflow-x: hidden;
       overflow-y: auto;
       flex: 1 1 auto;
-      & > [role="button"] {
-        flex: unset;
+      // prevent the accordion item header from growing to fill the accordion item
+      // using two selectors as fallback just incase the component lib changes subtly
+      & > [role="button"],
+      & > #prompts-heading {
+        flex: 0 0 auto;
       }
       .ac-accordion-itemContent {
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;
         & > .ac-view {
+          // add scrollbar gutter to the right of the accordion item
+          scrollbar-gutter: stable;
+          // if scrollbar-gutter is not supported, add padding to the right of the accordion item
+          @supports not (scrollbar-gutter: stable) {
+            padding-right: 16px;
+          }
           height: 100%;
           flex: 1 1 auto;
           overflow: auto;
@@ -256,7 +265,8 @@ function PlaygroundContent() {
                   </Flex>
                 }
               >
-                <View height="100%" padding="size-200">
+                {/* No padding on the right of the accordion item, it is handled by the stable scrollbar gutter */}
+                <View height="100%" paddingY="size-200" paddingStart="size-200">
                   <Flex direction="row" gap="size-200">
                     {instances.map((instance) => (
                       <View key={instance.id} flex="1 1 0px">
