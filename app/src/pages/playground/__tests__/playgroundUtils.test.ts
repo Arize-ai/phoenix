@@ -159,8 +159,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       },
       parsingErrors: [
         INPUT_MESSAGES_PARSING_ERROR,
-        OUTPUT_MESSAGES_PARSING_ERROR,
-        OUTPUT_VALUE_PARSING_ERROR,
         MODEL_CONFIG_PARSING_ERROR,
         MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
         MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
@@ -184,10 +182,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         ...expectedPlaygroundInstanceWithIO,
         output: undefined,
       },
-      parsingErrors: [
-        OUTPUT_MESSAGES_PARSING_ERROR,
-        OUTPUT_VALUE_PARSING_ERROR,
-      ],
+      parsingErrors: [],
     });
   });
 
@@ -212,7 +207,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
 
         output: "This is an AI Answer",
       },
-      parsingErrors: [OUTPUT_MESSAGES_PARSING_ERROR],
+      parsingErrors: [],
     });
   });
 
