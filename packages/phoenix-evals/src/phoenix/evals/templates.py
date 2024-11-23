@@ -34,31 +34,33 @@ class PromptMessageContentType(str, Enum):
     AUDIO_URL = "audio_url"
 
 
+@dataclass
 class PromptMessage:
     content_type: PromptMessageContentType
     content: str
 
 
+@dataclass
 class PromptMessageTemplate:
     content_type: PromptMessageContentType
     template: str
 
 
 class PromptTemplate:
-    template: str | list[PromptMessageTemplate]
+    template: list[PromptMessageTemplate]
     variables: list[str]
 
     def __init__(
         self,
-        template: str,
+        template: Union[str, list[PromptMessageTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.template = self._normalize_template(template)
+        self.template: list[PromptMessageTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.template)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> str:
-        return self.template
+        return "\n\n".join([template_message.template for template_message in self.template])
 
     def format(
         self,
@@ -92,7 +94,7 @@ class PromptTemplate:
         return variables
 
     def _normalize_template(
-        self, template: str | list[PromptMessageTemplate]
+        self, template: Union[str, list[PromptMessageTemplate]]
     ) -> list[PromptMessageTemplate]:
         if isinstance(template, str):
             return [
@@ -105,8 +107,8 @@ class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: list[str],
-        template: str | list[PromptMessageTemplate],
-        explanation_template: Optional[str | list[PromptMessageTemplate]] = None,
+        template: Union[str, list[PromptMessageTemplate]],
+        explanation_template: Optional[Union[str, list[PromptMessageTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
         scores: Optional[list[float]] = None,

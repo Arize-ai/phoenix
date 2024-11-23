@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from phoenix.evals.models.base import BaseModel
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -152,10 +153,13 @@ class VertexAIModel(BaseModel):
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+        prompt_str = "\n\n".join(
+            [msg.content for msg in prompt if msg.content_type == PromptMessageContentType.TEXT]
+        )
         invoke_params = self.invocation_params
         response = self._model.predict(
-            prompt=prompt,
+            prompt=prompt_str,
             **invoke_params,
         )
         return str(response.text)

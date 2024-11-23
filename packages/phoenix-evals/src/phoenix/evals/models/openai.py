@@ -17,6 +17,7 @@ from typing import (
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -278,9 +279,14 @@ class OpenAIModel(BaseModel):
         )
 
     def _build_messages(
-        self, prompt: str, system_instruction: Optional[str] = None
+        self, prompt: list[PromptMessage], system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        messages = [{"role": "system", "content": prompt}]
+        messages = []
+        for msg in prompt:
+            if msg.content_type == PromptMessageContentType.TEXT:
+                messages.append({"role": "system", "content": msg.content})
+            else:
+                raise ValueError(f"Unsupported content type: {msg.content_type}")
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -288,7 +294,7 @@ class OpenAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -307,7 +313,7 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 if TYPE_CHECKING:
     from mistralai.models.chat_completion import ChatMessage
@@ -106,7 +107,7 @@ class MistralAIModel(BaseModel):
         # Mistral is strict about not passing None values to the API
         return {k: v for k, v in params.items() if v is not None}
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -134,7 +135,7 @@ class MistralAIModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -163,6 +164,12 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: str) -> List["ChatMessage"]:
+    def _format_prompt(self, prompt: list[PromptMessage]) -> List["ChatMessage"]:
         ChatMessage = self._ChatMessage
-        return [ChatMessage(role="user", content=prompt)]
+        messages = []
+        for msg in prompt:
+            if msg.content_type == PromptMessageContentType.TEXT:
+                messages.append(ChatMessage(role="user", content=msg.content))
+            else:
+                raise ValueError(f"Unsupported content type: {msg.content_type}")
+        return messages

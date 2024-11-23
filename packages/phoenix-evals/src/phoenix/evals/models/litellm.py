@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from phoenix.evals.models.base import BaseModel
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +104,10 @@ class LiteLLMModel(BaseModel):
                 package_name="litellm",
             )
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
             model=self.model,
@@ -120,7 +121,12 @@ class LiteLLMModel(BaseModel):
         )
         return str(response.choices[0].message.content)
 
-    def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
+    def _get_messages_from_prompt(self, prompt: list[PromptMessage]) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
-        # messages=[{"content": "ABC?","role": "user"}]
-        return [{"content": prompt, "role": "user"}]
+        messages = []
+        for msg in prompt:
+            if msg.content_type == PromptMessageContentType.TEXT:
+                messages.append({"content": msg.content, "role": "user"})
+            else:
+                raise ValueError(f"Unsupported content type: {msg.content_type}")
+        return messages
