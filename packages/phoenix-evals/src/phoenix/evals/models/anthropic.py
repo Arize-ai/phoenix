@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType
 
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
@@ -110,7 +111,7 @@ class AnthropicModel(BaseModel):
             "top_k": self.top_k,
         }
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -138,7 +139,7 @@ class AnthropicModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
@@ -166,8 +167,12 @@ class AnthropicModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
+    def _format_prompt_for_claude(self, prompt: list[PromptMessage]) -> List[Dict[str, str]]:
         # the Anthropic messages API expects a list of messages
-        return [
-            {"role": "user", "content": prompt},
-        ]
+        messages = []
+        for msg in prompt:
+            if msg.content_type == PromptMessageContentType.TEXT:
+                messages.append({"role": "user", "content": msg.content})
+            else:
+                raise ValueError(f"Unsupported content type: {msg.content_type}")
+        return messages

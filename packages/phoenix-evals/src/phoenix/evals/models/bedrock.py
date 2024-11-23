@@ -155,14 +155,14 @@ class BedrockModel(BaseModel):
 
         # TODO: Migrate to using the bedrock `converse` API
         # https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html
-        prompt = "\n\n".join(
+        prompt_str = "\n\n".join(
             [msg.content for msg in prompt if msg.content_type == PromptMessageContentType.TEXT]
         )
 
         if self.model_id.startswith("ai21"):
             return {
                 **{
-                    "prompt": prompt,
+                    "prompt": prompt_str,
                     "temperature": self.temperature,
                     "topP": self.top_p,
                     "maxTokens": self.max_tokens,
@@ -174,7 +174,7 @@ class BedrockModel(BaseModel):
             return {
                 **{
                     "anthropic_version": "bedrock-2023-05-31",
-                    "messages": self._format_prompt_for_claude(prompt),
+                    "messages": self._format_prompt_for_claude(prompt_str),
                     "temperature": self.temperature,
                     "top_p": self.top_p,
                     "top_k": self.top_k,
@@ -186,7 +186,7 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("mistral"):
             return {
                 **{
-                    "prompt": prompt,
+                    "prompt": prompt_str,
                     "max_tokens": self.max_tokens,
                     "temperature": self.temperature,
                     "stop": self.stop_sequences,
@@ -200,7 +200,7 @@ class BedrockModel(BaseModel):
                 logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
             return {
                 **{
-                    "inputText": prompt,
+                    "inputText": prompt_str,
                     "textGenerationConfig": {
                         "temperature": self.temperature,
                         "topP": self.top_p,
