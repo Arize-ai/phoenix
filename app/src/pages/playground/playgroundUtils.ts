@@ -464,7 +464,7 @@ export function transformSpanAttributesToPlaygroundInstance(
     provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
     parsedAttributes,
   });
-  const { output, outputParsingErrors } = getOutputFromAttributes({
+  const { output } = getOutputFromAttributes({
     provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
     parsedAttributes,
   });
@@ -520,7 +520,6 @@ export function transformSpanAttributesToPlaygroundInstance(
     },
     parsingErrors: [
       ...messageParsingErrors,
-      ...outputParsingErrors,
       ...modelConfigParsingErrors,
       ...toolsParsingErrors,
       ...invocationParametersParsingErrors,
