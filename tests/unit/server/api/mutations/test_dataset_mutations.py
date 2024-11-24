@@ -237,10 +237,8 @@ async def test_add_span_to_dataset(
                                     "output": {
                                         "documents": [
                                             {
-                                                "document": {
-                                                    "content": "retrieved-document-content",
-                                                    "score": 1,
-                                                }
+                                                "content": "retrieved-document-content",
+                                                "score": 1,
                                             }
                                         ]
                                     },
