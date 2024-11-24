@@ -132,18 +132,20 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
             id="llm-span-with-input-messages-and-prompt-template-variables",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, "text/plain"),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, "text/plain"),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {
                 "messages": [{"content": "user-message", "role": "user"}],
@@ -151,18 +153,18 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
             id="llm-span-with-input-messages-and-no-prompt-template-variables",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, "text/plain"),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, "text/plain"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {"input": "plain-text-input"},
             id="llm-span-with-no-input-messages-and-plain-text-input",
