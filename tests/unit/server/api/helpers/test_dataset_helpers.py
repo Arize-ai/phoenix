@@ -138,9 +138,9 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
                 attributes=unflatten(
                     (
                         (INPUT_VALUE, "plain-text-input"),
-                        (INPUT_MIME_TYPE, "text/plain"),
+                        (INPUT_MIME_TYPE, TEXT),
                         (OUTPUT_VALUE, "plain-text-output"),
-                        (OUTPUT_MIME_TYPE, "text/plain"),
+                        (OUTPUT_MIME_TYPE, TEXT),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
                         (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
@@ -159,9 +159,9 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
                 attributes=unflatten(
                     (
                         (INPUT_VALUE, "plain-text-input"),
-                        (INPUT_MIME_TYPE, "text/plain"),
+                        (INPUT_MIME_TYPE, TEXT),
                         (OUTPUT_VALUE, "plain-text-output"),
-                        (OUTPUT_MIME_TYPE, "text/plain"),
+                        (OUTPUT_MIME_TYPE, TEXT),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
                         (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
                     )
@@ -256,37 +256,43 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
     "span, expected_output_value",
     [
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables={"variable_name": "variable-value"},
-                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (
+                            LLM_PROMPT_TEMPLATE_VARIABLES,
+                            json.dumps({"variable_name": "variable-value"}),
+                        ),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {"messages": [{"content": "assistant-message", "role": "assistant"}]},
             id="llm-span-with-output-messages",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "user-message"),
+                        (f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}", "user"),
+                    )
+                ),
             ),
-            {
-                "output": "plain-text-output",
-            },
+            {"output": "plain-text-output"},
             id="llm-span-with-no-output-messages-but-with-plain-text-output",
         ),
         pytest.param(
@@ -381,6 +387,6 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
         ),
     ],
 )
-def test_get_dataset_example_output(span: MockSpan, expected_output_value: dict[str, Any]) -> None:
+def test_get_dataset_example_output(span: Span, expected_output_value: dict[str, Any]) -> None:
     output_value = get_dataset_example_output(span)
     assert expected_output_value == output_value
