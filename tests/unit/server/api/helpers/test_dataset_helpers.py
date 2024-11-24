@@ -1,6 +1,5 @@
 import json
-from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from openinference.semconv.trace import (
@@ -19,20 +18,6 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_output,
 )
 from phoenix.trace.attributes import unflatten
-
-
-@dataclass
-class MockSpan:
-    span_kind: Optional[str]
-    input_value: Any
-    input_mime_type: Optional[str]
-    output_value: Any
-    output_mime_type: Optional[str]
-    llm_prompt_template_variables: Any
-    llm_input_messages: Any
-    llm_output_messages: Any
-    retrieval_documents: Any
-
 
 CHAIN = OpenInferenceSpanKindValues.CHAIN.value
 LLM = OpenInferenceSpanKindValues.LLM.value
