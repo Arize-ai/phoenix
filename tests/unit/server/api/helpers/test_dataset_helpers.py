@@ -34,6 +34,7 @@ class MockSpan:
     retrieval_documents: Any
 
 
+CHAIN = OpenInferenceSpanKindValues.CHAIN.value
 LLM = OpenInferenceSpanKindValues.LLM.value
 RETRIEVER = OpenInferenceSpanKindValues.RETRIEVER.value
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
@@ -335,61 +336,61 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             id="retriever-span-with-retrieval-documents",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="RETRIEVER",
-                input_value={"retriever-input": "retriever-input"},
-                input_mime_type=JSON,
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=RETRIEVER,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                    )
+                ),
             ),
             {"output": "plain-text-output"},
             id="retriever-span-with-plain-text-output-and-no-retrieval-documents",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="RETRIEVER",
-                input_value=json.dumps({"retriever-input": "retriever-input"}),
-                input_mime_type=JSON,
-                output_value=json.dumps({"retriever_output": "retriever-output"}),
-                output_mime_type=JSON,
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=RETRIEVER,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, json.dumps({"retriever_output": "retriever-output"})),
+                        (OUTPUT_MIME_TYPE, JSON),
+                    )
+                ),
             ),
             {"retriever_output": "retriever-output"},
             id="retriever-span-with-json-output-and-no-retrieval-documents",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="CHAIN",
-                input_value={"chain_input": "chain-input"},
-                input_mime_type=JSON,
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=CHAIN,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"chain_input": "chain-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                    )
+                ),
             ),
             {"output": "plain-text-output"},
             id="chain-span-with-plain-text-output",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="CHAIN",
-                input_value=json.dumps({"chain_input": "chain-input"}),
-                input_mime_type=JSON,
-                output_value=json.dumps({"chain_output": "chain-output"}),
-                output_mime_type=JSON,
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=CHAIN,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"chain_input": "chain-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, json.dumps({"chain_output": "chain-output"})),
+                        (OUTPUT_MIME_TYPE, JSON),
+                    )
+                ),
             ),
             {"chain_output": "chain-output"},
             id="chain-span-with-json-output",
