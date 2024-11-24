@@ -25,9 +25,7 @@ def get_dataset_example_input(span: Span) -> dict[str, Any]:
     attributes = span.attributes
     input_value = get_attribute_value(attributes, INPUT_VALUE)
     input_mime_type = get_attribute_value(attributes, INPUT_MIME_TYPE)
-    prompt_template_variables = _safely_json_decode(
-        get_attribute_value(attributes, LLM_PROMPT_TEMPLATE_VARIABLES)
-    )
+    prompt_template_variables = get_attribute_value(attributes, LLM_PROMPT_TEMPLATE_VARIABLES)
     input_messages = get_attribute_value(attributes, LLM_INPUT_MESSAGES)
     if span_kind == LLM:
         return _get_llm_span_input(
@@ -84,10 +82,10 @@ def _get_llm_span_input(
         input["messages"] = messages
     if not input:
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
-    if prompt_template_variables:
+    if prompt_template_variables_data := _safely_json_decode(prompt_template_variables):
         input = {
             **input,
-            "prompt_template_variables": prompt_template_variables,
+            "prompt_template_variables": prompt_template_variables_data,
         }
     return input
 
@@ -127,12 +125,14 @@ def _get_generic_io_value(
     Makes a best-effort attempt to extract the input or output value from a span
     and returns it as a dictionary.
     """
-    if mime_type == OpenInferenceMimeTypeValues.JSON.value:
-        parsed_value = json.loads(io_value)
-        if isinstance(parsed_value, dict):
-            return parsed_value
+    if (
+        mime_type == OpenInferenceMimeTypeValues.JSON.value
+        and (io_value_data := _safely_json_decode(io_value)) is not None
+    ):
+        if isinstance(io_value_data, dict):
+            return io_value_data
         else:
-            return {kind: parsed_value}
+            return {kind: io_value_data}
     if isinstance(io_value, str):
         return {kind: io_value}
     return {}
