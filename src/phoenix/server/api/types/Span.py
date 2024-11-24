@@ -239,7 +239,7 @@ class Span(Node):
         # Merge annotations into the metadata
         metadata = {
             "span_kind": span.span_kind,
-            "annotations": annotations,
+            **({"annotations": annotations} if annotations else {}),
         }
 
         return SpanAsExampleRevision(
