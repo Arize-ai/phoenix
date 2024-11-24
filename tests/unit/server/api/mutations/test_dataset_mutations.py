@@ -199,7 +199,6 @@ async def test_add_span_to_dataset(
                                     },
                                     "metadata": {
                                         "span_kind": "LLM",
-                                        "annotations": {},
                                     },
                                     "output": {
                                         "messages": [
@@ -226,7 +225,6 @@ async def test_add_span_to_dataset(
                                     },
                                     "metadata": {
                                         "span_kind": "RETRIEVER",
-                                        "annotations": {},
                                     },
                                 }
                             }
