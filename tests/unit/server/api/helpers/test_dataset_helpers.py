@@ -65,10 +65,10 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
                 attributes=unflatten(
                     (
                         (OPENINFERENCE_SPAN_KIND, LLM),
-                        (INPUT_MIME_TYPE, TEXT),
                         (INPUT_VALUE, "plain-text-input"),
-                        (OUTPUT_MIME_TYPE, TEXT),
+                        (INPUT_MIME_TYPE, TEXT),
                         (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
                         (
                             LLM_PROMPT_TEMPLATE_VARIABLES,
                             json.dumps({"variable_name": "variable-value"}),
