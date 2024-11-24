@@ -40,6 +40,7 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 TEXT = OpenInferenceMimeTypeValues.TEXT.value
+JSON = OpenInferenceMimeTypeValues.JSON.value
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
@@ -170,18 +171,22 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
             id="llm-span-with-no-input-messages-and-plain-text-input",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables={"variable_name": "variable-value"},
-                llm_input_messages=None,
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (
+                            LLM_PROMPT_TEMPLATE_VARIABLES,
+                            json.dumps({"variable_name": "variable-value"}),
+                        ),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {
                 "input": "plain-text-input",
@@ -190,52 +195,52 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
             id="llm-span-with-no-input-messages-and-plain-text-input-with-prompt-template-variables",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value=json.dumps({"llm-span-input": "llm-input"}),
-                input_mime_type="application/json",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"llm-span-input": "llm-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {"llm-span-input": "llm-input"},
             id="llm-span-with-no-input-messages-and-json-input",
         ),
         pytest.param(
-            MockSpan(
+            Span(
                 span_kind="CHAIN",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {"input": "plain-text-input"},
             id="chain-span-with-plain-text-input",
         ),
         pytest.param(
-            MockSpan(
+            Span(
                 span_kind="CHAIN",
-                input_value=json.dumps({"chain_input": "chain-input"}),
-                input_mime_type="application/json",
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=[
-                    {"message": {"content": "assistant-message", "role": "assistant"}}
-                ],
-                retrieval_documents=None,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"chain_input": "chain-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", "assistant-message"),
+                        (f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"),
+                    )
+                ),
             ),
             {"chain_input": "chain-input"},
             id="chain-span-with-json-input",
@@ -290,7 +295,7 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
                 input_value="plain-text-input",
                 input_mime_type="text/plain",
                 output_value=json.dumps({"llm-span-output": "value"}),
-                output_mime_type="application/json",
+                output_mime_type=JSON,
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
                 llm_output_messages=None,
@@ -303,7 +308,7 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             MockSpan(
                 span_kind="RETRIEVER",
                 input_value={"retriever-input": "retriever-input"},
-                input_mime_type="application/json",
+                input_mime_type=JSON,
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
@@ -318,7 +323,7 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             MockSpan(
                 span_kind="RETRIEVER",
                 input_value={"retriever-input": "retriever-input"},
-                input_mime_type="application/json",
+                input_mime_type=JSON,
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
@@ -333,9 +338,9 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             MockSpan(
                 span_kind="RETRIEVER",
                 input_value=json.dumps({"retriever-input": "retriever-input"}),
-                input_mime_type="application/json",
+                input_mime_type=JSON,
                 output_value=json.dumps({"retriever_output": "retriever-output"}),
-                output_mime_type="application/json",
+                output_mime_type=JSON,
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
                 llm_output_messages=None,
@@ -348,7 +353,7 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             MockSpan(
                 span_kind="CHAIN",
                 input_value={"chain_input": "chain-input"},
-                input_mime_type="application/json",
+                input_mime_type=JSON,
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
@@ -363,9 +368,9 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             MockSpan(
                 span_kind="CHAIN",
                 input_value=json.dumps({"chain_input": "chain-input"}),
-                input_mime_type="application/json",
+                input_mime_type=JSON,
                 output_value=json.dumps({"chain_output": "chain-output"}),
-                output_mime_type="application/json",
+                output_mime_type=JSON,
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
                 llm_output_messages=None,
