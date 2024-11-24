@@ -28,6 +28,7 @@ from phoenix.db.helpers import get_dataset_example_revisions
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     initialize_playground_clients,
@@ -62,7 +63,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
-from phoenix.trace.attributes import get_attribute_value, unflatten
+from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
@@ -244,7 +245,7 @@ class ChatCompletionMutationMixin:
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=str(result.span.context.trace_id),
                     output=models.ExperimentRunOutput(
-                        task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                        task_output=get_dataset_example_output(db_span),
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
