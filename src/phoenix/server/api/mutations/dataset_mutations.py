@@ -190,7 +190,7 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
                         DatasetExampleRevision.metadata_.key: {
-                            **span.attributes,
+                            "span_kind": span.span_kind,
                             "annotations": span_annotations_by_span[span.id],
                         },
                         DatasetExampleRevision.revision_kind.key: "CREATE",

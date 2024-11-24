@@ -224,7 +224,6 @@ class Span(Node):
     )  # type: ignore
     async def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
         span = self.db_span
-        attributes = span.attributes
 
         # Fetch annotations associated with this span
         span_annotations = await self.span_annotations(info)
@@ -239,7 +238,7 @@ class Span(Node):
             }
         # Merge annotations into the metadata
         metadata = {
-            **attributes,
+            "span_kind": span.span_kind,
             "annotations": annotations,
         }
 
