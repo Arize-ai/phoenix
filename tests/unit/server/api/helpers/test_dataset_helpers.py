@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 import pytest
 from openinference.semconv.trace import (
+    DocumentAttributes,
     MessageAttributes,
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -34,6 +35,7 @@ class MockSpan:
 
 
 LLM = OpenInferenceSpanKindValues.LLM.value
+RETRIEVER = OpenInferenceSpanKindValues.RETRIEVER.value
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
@@ -53,6 +55,10 @@ MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+DOCUMENT_ID = DocumentAttributes.DOCUMENT_ID
+DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
 
 
 @pytest.mark.parametrize(
@@ -311,16 +317,19 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             id="llm-span-with-no-output-messages-and-json-output",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="RETRIEVER",
-                input_value={"retriever-input": "retriever-input"},
-                input_mime_type=JSON,
-                output_value="plain-text-output",
-                output_mime_type="text/plain",
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=[{"id": "1", "score": 0.5, "content": "document-content"}],
+            Span(
+                span_kind=RETRIEVER,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, json.dumps({"retriever-input": "retriever-input"})),
+                        (INPUT_MIME_TYPE, JSON),
+                        (OUTPUT_VALUE, "plain-text-output"),
+                        (OUTPUT_MIME_TYPE, TEXT),
+                        (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_ID}", "1"),
+                        (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_SCORE}", 0.5),
+                        (f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_CONTENT}", "document-content"),
+                    )
+                ),
             ),
             {"documents": [{"id": "1", "score": 0.5, "content": "document-content"}]},
             id="retriever-span-with-retrieval-documents",

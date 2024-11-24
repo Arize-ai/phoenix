@@ -115,7 +115,7 @@ def _get_retriever_span_output(
     Extracts the output value from a retriever span and returns it as a dictionary.
     The output is extracted from the retrieval documents (if present).
     """
-    if retrieval_documents is not None:
+    if (retrieval_documents := _parse_retrieval_documents(retrieval_documents)) is not None:
         return {"documents": retrieval_documents}
     return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
@@ -164,6 +164,22 @@ def _get_message(message: Mapping[str, Any]) -> dict[str, Any]:
         **({"function_call": function_call} if function_call is not None else {}),
         **({"tool_calls": tool_calls} if tool_calls else {}),
     }
+
+
+def _parse_retrieval_documents(retrieval_documents: Any) -> Optional[list[dict[str, Any]]]:
+    """
+    Safely un-nests a list of retrieval documents.
+
+    Example: [{"document": {"content": "..."}}] -> [{"content": "..."}]
+    """
+    if not isinstance(retrieval_documents, list):
+        return None
+    docs = []
+    for retrieval_doc in retrieval_documents:
+        if not isinstance(retrieval_doc, dict) or not (doc := retrieval_doc.get("document")):
+            return None
+        docs.append(doc)
+    return docs
 
 
 def _safely_json_decode(value: Any) -> Any:
