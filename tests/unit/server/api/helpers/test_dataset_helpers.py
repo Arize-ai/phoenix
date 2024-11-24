@@ -296,16 +296,16 @@ def test_get_dataset_example_input(span: Span, expected_input_value: dict[str, A
             id="llm-span-with-no-output-messages-but-with-plain-text-output",
         ),
         pytest.param(
-            MockSpan(
-                span_kind="LLM",
-                input_value="plain-text-input",
-                input_mime_type="text/plain",
-                output_value=json.dumps({"llm-span-output": "value"}),
-                output_mime_type=JSON,
-                llm_prompt_template_variables=None,
-                llm_input_messages=None,
-                llm_output_messages=None,
-                retrieval_documents=None,
+            Span(
+                span_kind=LLM,
+                attributes=unflatten(
+                    (
+                        (INPUT_VALUE, "plain-text-input"),
+                        (INPUT_MIME_TYPE, TEXT),
+                        (OUTPUT_VALUE, json.dumps({"llm-span-output": "value"})),
+                        (OUTPUT_MIME_TYPE, JSON),
+                    )
+                ),
             ),
             {"llm-span-output": "value"},
             id="llm-span-with-no-output-messages-and-json-output",
