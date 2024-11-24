@@ -83,10 +83,7 @@ def _get_llm_span_input(
     if not input:
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
     if prompt_template_variables_data := _safely_json_decode(prompt_template_variables):
-        input = {
-            **input,
-            "prompt_template_variables": prompt_template_variables_data,
-        }
+        input["prompt_template_variables"] = prompt_template_variables_data
     return input
 
 
