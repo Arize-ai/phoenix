@@ -1,6 +1,4 @@
 import React from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { css, keyframes } from "@emotion/react";
 
 import { Button, Flex, Icon, Icons } from "@arizeai/components";
 
@@ -11,12 +9,16 @@ import {
   PlaygroundInstance,
 } from "@phoenix/store";
 
-import { PlaygroundChatTemplateFooterResponseFormatQuery } from "./__generated__/PlaygroundChatTemplateFooterResponseFormatQuery.graphql";
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
 } from "./constants";
-import { createToolForProvider } from "./playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  createToolForProvider,
+} from "./playgroundUtils";
 
 type PlaygroundChatTemplateFooterProps = {
   instanceId: number;
@@ -45,38 +47,20 @@ export function PlaygroundChatTemplateFooter({
     throw new Error(`Invalid template type ${template.__type}`);
   }
 
-  // We don't care about the model name for Azure OpenAI
-  const modelNameQueryInput =
-    playgroundInstance.model.provider !== "AZURE_OPENAI"
-      ? (playgroundInstance.model?.modelName ?? null)
-      : null;
-  const { modelInvocationParameters } =
-    useLazyLoadQuery<PlaygroundChatTemplateFooterResponseFormatQuery>(
-      graphql`
-        query PlaygroundChatTemplateFooterResponseFormatQuery(
-          $input: ModelsInput!
-        ) {
-          modelInvocationParameters(input: $input) {
-            __typename
-            ... on InvocationParameterBase {
-              invocationName
-              canonicalName
-            }
-          }
-        }
-      `,
-      {
-        input: {
-          providerKey: playgroundInstance.model.provider,
-          modelName: modelNameQueryInput,
-        },
-      }
-    );
+  const supportedModelInvocationParameters =
+    playgroundInstance.model.supportedInvocationParameters;
 
-  const supportsResponseFormat = modelInvocationParameters?.some(
-    (p) =>
-      p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
-      p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+  const supportsResponseFormat = supportedModelInvocationParameters?.some((p) =>
+    areInvocationParamsEqual(p, {
+      canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+      invocationName: RESPONSE_FORMAT_PARAM_NAME,
+    })
+  );
+  const supportsToolChoice = supportedModelInvocationParameters?.some((p) =>
+    areInvocationParamsEqual(p, {
+      canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+      invocationName: TOOL_CHOICE_PARAM_NAME,
+    })
   );
   return (
     <Flex
@@ -106,27 +90,14 @@ export function PlaygroundChatTemplateFooter({
           Output Schema
         </Button>
       ) : null}
-      <Button
-        variant="default"
-        aria-label="add tool"
-        size="compact"
-        icon={<Icon svg={<Icons.PlusOutline />} />}
-        onClick={() => {
-          const patch: Partial<PlaygroundInstance> = {
-            tools: [
-              ...playgroundInstance.tools,
-              createToolForProvider({
-                provider: playgroundInstance.model.provider,
-                toolNumber: playgroundInstance.tools.length + 1,
-              }),
-            ],
-          };
-          if (playgroundInstance.tools.length === 0) {
-            patch.toolChoice = "auto";
-          }
-          updateInstance({
-            instanceId,
-            patch: {
+      {supportsToolChoice ? (
+        <Button
+          variant="default"
+          aria-label="add tool"
+          size="compact"
+          icon={<Icon svg={<Icons.PlusOutline />} />}
+          onClick={() => {
+            const patch: Partial<PlaygroundInstance> = {
               tools: [
                 ...playgroundInstance.tools,
                 createToolForProvider({
@@ -134,12 +105,27 @@ export function PlaygroundChatTemplateFooter({
                   toolNumber: playgroundInstance.tools.length + 1,
                 }),
               ],
-            },
-          });
-        }}
-      >
-        Tool
-      </Button>
+            };
+            if (playgroundInstance.tools.length === 0) {
+              patch.toolChoice = "auto";
+            }
+            updateInstance({
+              instanceId,
+              patch: {
+                tools: [
+                  ...playgroundInstance.tools,
+                  createToolForProvider({
+                    provider: playgroundInstance.model.provider,
+                    toolNumber: playgroundInstance.tools.length + 1,
+                  }),
+                ],
+              },
+            });
+          }}
+        >
+          Tool
+        </Button>
+      ) : null}
       <Button
         variant="default"
         aria-label="add message"
@@ -166,34 +152,6 @@ export function PlaygroundChatTemplateFooter({
       >
         Message
       </Button>
-    </Flex>
-  );
-}
-
-const pulse = keyframes`
-  0% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 0.1;
-  }
-  100% {
-    opacity: 0;
-  }
-`;
-
-const loadingStyles = css`
-  background-color: var(--ac-global-color-gray-100);
-  animation: ${pulse} 1.7s infinite ease-in-out;
-  width: 100%;
-  height: 100%;
-  border-radius: 4px;
-`;
-
-export function PlaygroundChatTemplateFooterFallback() {
-  return (
-    <Flex minHeight={FOOTER_MIN_HEIGHT} width="100%" height={FOOTER_MIN_HEIGHT}>
-      <div css={loadingStyles}></div>
     </Flex>
   );
 }

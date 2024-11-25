@@ -282,9 +282,9 @@ function PlaygroundContent() {
                   <Flex direction="row" gap="size-200" maxWidth="100%">
                     {instances.map((instance) => (
                       <View
+                        flex="1 1 0px"
                         key={instance.id}
                         minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
-                        flex="1 1 0px"
                       >
                         <PlaygroundTemplate
                           key={instance.id}

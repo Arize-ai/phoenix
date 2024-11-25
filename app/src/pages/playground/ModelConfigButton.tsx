@@ -24,6 +24,7 @@ import {
   TextField,
   Tooltip,
   TooltipTrigger,
+  TriggerWrap,
 } from "@arizeai/components";
 
 import {
@@ -40,6 +41,7 @@ import { InvocationParametersFormFields } from "./InvocationParametersFormFields
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import {
+  areRequiredInvocationParametersConfigured,
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "./playgroundUtils";
@@ -165,6 +167,16 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
+
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
+
   return (
     <Fragment>
       <Button
@@ -191,6 +203,18 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           >
             <Text>{instance.model.modelName || "--"}</Text>
           </div>
+          {!requiredInvocationParametersConfigured ? (
+            <TooltipTrigger delay={0} offset={5}>
+              <span>
+                <TriggerWrap>
+                  <Icon color="danger" svg={<Icons.InfoOutline />} />
+                </TriggerWrap>
+              </span>
+              <Tooltip>
+                Some required invocation parameters are not configured.
+              </Tooltip>
+            </TooltipTrigger>
+          ) : null}
         </Flex>
       </Button>
       <DialogContainer
@@ -282,6 +306,15 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
 
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
+
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
@@ -365,6 +398,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   return (
     <form css={modelConfigFormCSS}>
+      {!requiredInvocationParametersConfigured ? (
+        <Flex direction="row" gap="size-100">
+          <Icon color="danger" svg={<Icons.InfoOutline />} />
+          <Text color="danger">
+            Some required invocation parameters are not configured.
+          </Text>
+        </Flex>
+      ) : null}
       <ModelProviderPicker
         provider={instance.model.provider}
         query={query}

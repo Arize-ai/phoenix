@@ -73,6 +73,7 @@ export type ModelConfig = {
   endpoint?: string | null;
   apiVersion?: string | null;
   invocationParameters: InvocationParameterInput[];
+  supportedInvocationParameters: InvocationParameter[];
 };
 
 /**
@@ -212,15 +213,11 @@ export interface PlaygroundState extends PlaygroundProps {
     invocationParameterInputInvocationName: string;
   }) => void;
   /**
-   * Filter the invocation parameters for a model based on the model's supported parameters
+   * Update the supported invocation parameters for a model
    */
-  filterInstanceModelInvocationParameters: (params: {
+  updateModelSupportedInvocationParameters: (params: {
     instanceId: number;
-    modelSupportedInvocationParameters: InvocationParameter[];
-    filter: (
-      invocationParameterInputs: InvocationParameterInput[],
-      definitions: InvocationParameter[]
-    ) => InvocationParameterInput[];
+    supportedInvocationParameters: InvocationParameter[];
   }) => void;
   /**
    * Update an instance's model configuration
