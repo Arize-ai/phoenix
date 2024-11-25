@@ -15,8 +15,8 @@ importers:
         specifier: ^1.8.11
         version: 1.8.11(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^0.12.0
-        version: 0.12.0
+        specifier: ^0.13.0
+        version: 0.13.0
       '@arizeai/point-cloud':
         specifier: ^3.0.6
         version: 3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)
@@ -290,8 +290,8 @@ packages:
       react: '>=18'
       react-dom: '>=18'
 
-  '@arizeai/openinference-semantic-conventions@0.12.0':
-    resolution: {integrity: sha512-lplj9yJSCJo0JD7VrOf1J2PEnC6B/y6t9fJUqD1dDkPoexBojk5kQQBjPJ0Claa/IMO3xuojEsXsuCheQ5ki9g==}
+  '@arizeai/openinference-semantic-conventions@0.13.0':
+    resolution: {integrity: sha512-WlpMl6eVSdngM0zb+zdtsyXdIyytIVYElQNe4/NQ4KMsMRfZedlkW0qwHJhpVQuwDzMIg/kZ11JunOWo7mDKSg==}
 
   '@arizeai/point-cloud@3.0.6':
     resolution: {integrity: sha512-hatFoGJsHAHwZqzZokKqBcHhvyxGyyy9g/CEWpChOckcUkQktgKRT00rrrmiSE7XXHHeUVdkjYruS1R7y16KZg==}
@@ -4041,7 +4041,7 @@ snapshots:
       - eslint
       - supports-color
 
-  '@arizeai/openinference-semantic-conventions@0.12.0': {}
+  '@arizeai/openinference-semantic-conventions@0.13.0': {}
 
   '@arizeai/point-cloud@3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)':
     dependencies:

@@ -1,3 +1,5 @@
+import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
+
 import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
@@ -285,6 +287,32 @@ export function getOutputFromAttributes({
 }
 
 /**
+ * Converts an OpenInference model provider to a Phoenix model provider.
+ * @param provider the OpenInference model provider
+ * @returns the Phoenix model provider or null if the provider is not supported / defined
+ */
+export function openInferenceModelProviderToPhoenixModelProvider(
+  provider: string | undefined | null
+): ModelProvider | null {
+  if (provider == null) {
+    return null;
+  }
+  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  switch (maybeProvider) {
+    case "openai":
+      return "OPENAI";
+    case "anthropic":
+      return "ANTHROPIC";
+    case "google":
+      return "GEMINI";
+    case "azure":
+      return "AZURE_OPENAI";
+    default:
+      return null;
+  }
+}
+
+/**
  * Attempts to infer the provider of the model from the model name.
  * @param modelName the model name to get the provider from
  * @returns the provider of the model defaulting to {@link DEFAULT_MODEL_PROVIDER} if the provider cannot be inferred
@@ -317,7 +345,8 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
     const provider =
-      data.llm.provider || getModelProviderFromModelName(data.llm.model_name);
+      openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
+      getModelProviderFromModelName(data.llm.model_name);
     return {
       modelConfig: {
         modelName: data.llm.model_name,
