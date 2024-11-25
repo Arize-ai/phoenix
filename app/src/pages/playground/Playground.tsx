@@ -211,6 +211,12 @@ const playgroundInputOutputPanelContentCSS = css`
   overflow: auto;
 `;
 
+/**
+ * This width accomodates the model config button min-width, as well as chat message accordion
+ * header contents such as the chat message mode radio group for AI messages
+ */
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 475;
+
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
   const templateLanguage = usePlaygroundContext(
@@ -275,9 +281,7 @@ function PlaygroundContent() {
                     {instances.map((instance) => (
                       <View
                         key={instance.id}
-                        // This width accomodates the model config button min-width, as well as chat message accordion
-                        // header contents such as the chat message mode radio group for AI messages
-                        minWidth="475px"
+                        minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                         flex="1 1 0px"
                       >
                         <PlaygroundTemplate

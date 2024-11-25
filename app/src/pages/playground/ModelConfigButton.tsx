@@ -45,6 +45,12 @@ import {
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
+/**
+ * This is the maximum width of the model config button model name text.
+ * This is used to ensure that the model name text does not overflow the model config button.
+ */
+const MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH = 150;
+
 const modelConfigFormCSS = css`
   display: flex;
   flex-direction: column;
@@ -177,7 +183,7 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
           <div
             css={css`
-              max-width: 150px;
+              max-width: ${MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}px;
               text-overflow: ellipsis;
               overflow: hidden;
               white-space: nowrap;
