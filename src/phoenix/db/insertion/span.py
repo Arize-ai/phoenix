@@ -50,11 +50,11 @@ async def insert_span(
                 select(models.ProjectSession).filter_by(session_id=session_id)
             )
             if project_session:
-                if project_session.start_time < span.end_time:
-                    project_session.project_id = project_rowid
                 if span.start_time < project_session.start_time:
                     project_session.start_time = span.start_time
-                    if session_user and project_session.session_user != session_user:
+                    if project_session.project_id != project_rowid:
+                        project_session.project_id = project_rowid
+                    if project_session.session_user != session_user:
                         project_session.session_user = session_user
             else:
                 project_session = models.ProjectSession(
