@@ -76,7 +76,6 @@ export function SessionDetails(props: SessionDetailsProps) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces
-            durationS
             tokenUsage {
               total
               completion

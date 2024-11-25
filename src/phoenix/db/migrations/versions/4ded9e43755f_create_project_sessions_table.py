@@ -32,7 +32,6 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), index=True, nullable=False),
-        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
     )
     with op.batch_alter_table("traces") as batch_op:
         batch_op.add_column(
