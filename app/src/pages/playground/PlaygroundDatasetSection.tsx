@@ -9,6 +9,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
+import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
 
 function RunInProgressText() {
   return (
@@ -116,7 +117,9 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
           </Flex>
         </Flex>
       </View>
-      <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+      <PlaygroundDatasetExamplesTableProvider>
+        <PlaygroundDatasetExamplesTable datasetId={datasetId} />
+      </PlaygroundDatasetExamplesTableProvider>
     </Flex>
   );
 }
