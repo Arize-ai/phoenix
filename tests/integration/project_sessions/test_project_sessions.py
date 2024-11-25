@@ -6,7 +6,7 @@ from typing import List
 
 import pytest
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry.trace import Span, use_span
+from opentelemetry.trace import Span, format_span_id, use_span
 from opentelemetry.util.types import AttributeValue
 from pytest import param
 
@@ -39,7 +39,7 @@ class TestProjectSessions:
         str_session_id = str(session_id).strip()
         num_traces, num_spans_per_trace = 2, 3
         assert num_traces > 1 and num_spans_per_trace > 2
-        project_names = [token_hex(8)]
+        project_names = []
         spans: List[Span] = []
         wrong_session_id = token_hex(32)
         for _ in range(num_traces):
@@ -68,7 +68,7 @@ class TestProjectSessions:
             "traces(first: 1000){edges{node{"
             "spans(first: 1000){edges{node{context{spanId}}}}}}}}}}}}}}"
         )
-        project_name = project_names[-1]
+        project_name = project_names[0]
         sessions_by_project = {
             edge["node"]["name"]: {
                 session["node"]["sessionId"]: session
@@ -88,7 +88,5 @@ class TestProjectSessions:
         assert len(traces) == num_traces
         gql_spans = [edge["node"] for trace in traces for edge in trace["spans"]["edges"]]
         assert len(gql_spans) == len(spans)
-        expected_span_ids = {
-            span.get_span_context().span_id.to_bytes(8, "big").hex() for span in spans
-        }
+        expected_span_ids = {format_span_id(span.get_span_context().span_id) for span in spans}
         assert {span["context"]["spanId"] for span in gql_spans} == expected_span_ids
