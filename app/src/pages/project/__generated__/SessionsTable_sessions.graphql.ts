@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a1d48f88c8f7c76a01177103a7c11658>>
+ * @generated SignedSource<<ec0e7f2b0274fd7ef774424abbbfc78f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,7 @@ export type SessionsTable_sessions$data = {
         readonly lastOutput: {
           readonly value: string;
         } | null;
+        readonly lastTraceStartTime: string | null;
         readonly numTraces: number;
         readonly sessionId: string;
         readonly startTime: string;
@@ -226,6 +227,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "lastTraceStartTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "TokenUsage",
                   "kind": "LinkedField",
                   "name": "tokenUsage",
@@ -347,6 +355,6 @@ return {
 };
 })();
 
-(node as any).hash = "73d205acbb256ea1f2cf68875634a21b";
+(node as any).hash = "dc4a3ba4422ee61ecd9d4142063517b5";
 
 export default node;
