@@ -72,6 +72,18 @@ const isErrorWithSource = (error: unknown): error is ErrorWithSource => {
   );
 };
 
+const isErrorsArray = (errors: unknown): errors is { message: string }[] => {
+  return (
+    Array.isArray(errors) &&
+    errors.every(
+      (error) =>
+        typeof error === "object" &&
+        error !== null &&
+        typeof error.message === "string"
+    )
+  );
+};
+
 /**
  * Extracts the error messages from a Relay subscription error.
  * A relay subscription error contains a source property with an errors array.
@@ -95,6 +107,9 @@ export const getErrorMessagesFromRelaySubscriptionError = (
 ): string[] | null => {
   if (isErrorWithSource(error)) {
     return error.source.errors.map((error) => error.message);
+  }
+  if (isErrorsArray(error)) {
+    return error.map((error) => error.message);
   }
   return null;
 };
