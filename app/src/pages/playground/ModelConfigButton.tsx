@@ -169,10 +169,22 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
+        title={`${ModelProviders[instance.model.provider]} ${
+          instance.model.modelName || "--"
+        }`}
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
-          <Text>{instance.model.modelName || "--"}</Text>
+          <div
+            css={css`
+              max-width: 150px;
+              text-overflow: ellipsis;
+              overflow: hidden;
+              white-space: nowrap;
+            `}
+          >
+            <Text>{instance.model.modelName || "--"}</Text>
+          </div>
         </Flex>
       </Button>
       <DialogContainer
