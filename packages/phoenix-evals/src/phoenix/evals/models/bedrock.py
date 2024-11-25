@@ -3,12 +3,12 @@ import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptMessage, PromptMessageContentType
+from phoenix.evals.templates import PromptMessage, PromptMessageContentType, PromptMessages
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,10 @@ class BedrockModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]) -> str:
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
         body = json.dumps(self._create_request_body(prompt))
         accept = "application/json"
         contentType = "application/json"
@@ -114,7 +117,12 @@ class BedrockModel(BaseModel):
 
         return self._parse_output(response) or ""
 
-    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]
+    ) -> str:
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
 
@@ -149,15 +157,14 @@ class BedrockModel(BaseModel):
             {"role": "user", "content": prompt},
         ]
 
-    def _create_request_body(self, prompt: list[PromptMessage]) -> Dict[str, Any]:
+    def _create_request_body(self, prompt: PromptMessages) -> Dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
 
         # TODO: Migrate to using the bedrock `converse` API
         # https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html
-        prompt_str = "\n\n".join(
-            [msg.content for msg in prompt if msg.content_type == PromptMessageContentType.TEXT]
-        )
+
+        prompt_str = prompt.to_prompt_string()
 
         if self.model_id.startswith("ai21"):
             return {

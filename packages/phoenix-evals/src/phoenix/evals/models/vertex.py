@@ -1,10 +1,10 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptMessage, PromptMessageContentType
+from phoenix.evals.templates import PromptMessages
 from phoenix.evals.utils import printif
 
 if TYPE_CHECKING:
@@ -136,14 +136,17 @@ class GeminiModel(BaseModel):
             "credentials": self.credentials,
         }
 
-    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
         @self._rate_limiter.limit
         def _rate_limited_completion(
-            prompt: list[PromptMessage], generation_config: Dict[str, Any], **kwargs: Any
+            prompt: PromptMessages, generation_config: Dict[str, Any], **kwargs: Any
         ) -> Any:
             prompt_str = self._construct_prompt(prompt)
             response = self._model.generate_content(
@@ -159,14 +162,19 @@ class GeminiModel(BaseModel):
 
         return str(response)
 
-    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]
+    ) -> str:
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
 
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
         @self._rate_limiter.alimit
         async def _rate_limited_completion(
-            prompt: list[PromptMessage], generation_config: Dict[str, Any], **kwargs: Any
+            prompt: PromptMessages, generation_config: Dict[str, Any], **kwargs: Any
         ) -> Any:
             prompt_str = self._construct_prompt(prompt)
             response = await self._model.generate_content_async(
@@ -205,7 +213,5 @@ class GeminiModel(BaseModel):
             candidate = ""
         return candidate
 
-    def _construct_prompt(self, prompt: list[PromptMessage]) -> str:
-        return "\n\n".join(
-            [msg.content for msg in prompt if msg.content_type == PromptMessageContentType.TEXT]
-        )
+    def _construct_prompt(self, prompt: PromptMessages) -> str:
+        return prompt.to_prompt_string()

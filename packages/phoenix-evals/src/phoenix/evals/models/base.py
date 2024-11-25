@@ -4,10 +4,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Generator, Optional, Sequence
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Union
 
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptMessage, PromptMessageContentType
+from phoenix.evals.templates import PromptMessages
 
 T = TypeVar("T", bound=type)
 
@@ -62,7 +62,9 @@ class BaseModel(ABC):
     def reload_client(self) -> None:
         pass
 
-    def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
+    def __call__(
+        self, prompt: Union[str, PromptMessages], instruction: Optional[str] = None, **kwargs: Any
+    ) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
             raise TypeError(
@@ -75,10 +77,8 @@ class BaseModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        prompt_messages = [
-            PromptMessage(content_type=PromptMessageContentType.TEXT, content=prompt)
-        ]
-        return self._generate(prompt=prompt_messages, instruction=instruction, **kwargs)
+
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
@@ -86,11 +86,11 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, PromptMessages], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: list[PromptMessage], **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @staticmethod

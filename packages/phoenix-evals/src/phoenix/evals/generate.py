@@ -8,7 +8,7 @@ from phoenix.evals.executors import (
 )
 from phoenix.evals.models import BaseModel, set_verbosity
 from phoenix.evals.templates import (
-    PromptMessage,
+    PromptMessages,
     PromptTemplate,
     map_template,
     normalize_prompt_template,
@@ -92,7 +92,7 @@ def llm_generate(
     prompts = map_template(dataframe, template)
 
     async def _run_llm_generation_async(
-        enumerated_prompt: Tuple[int, list[PromptMessage]],
+        enumerated_prompt: Tuple[int, PromptMessages],
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
@@ -102,13 +102,13 @@ def llm_generate(
             )
         parsed_response = output_parser(response, index)
         if include_prompt:
-            parsed_response["prompt"] = "\n\n".join([msg.content for msg in prompt])
+            parsed_response["prompt"] = str(prompt)
         if include_response:
             parsed_response["response"] = response
         return parsed_response
 
     def _run_llm_generation_sync(
-        enumerated_prompt: Tuple[int, list[PromptMessage]],
+        enumerated_prompt: Tuple[int, PromptMessages],
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
@@ -118,7 +118,7 @@ def llm_generate(
             )
         parsed_response = output_parser(response, index)
         if include_prompt:
-            parsed_response["prompt"] = "\n\n".join([msg.content for msg in prompt])
+            parsed_response["prompt"] = str(prompt)
         if include_response:
             parsed_response["response"] = response
         return parsed_response

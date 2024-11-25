@@ -46,6 +46,31 @@ class PromptMessageTemplate:
     template: str
 
 
+@dataclass
+class PromptMessages:
+    messages: list[PromptMessage]
+
+    @staticmethod
+    def from_string(string_prompt: str) -> "PromptMessages":
+        return PromptMessages(
+            messages=[
+                PromptMessage(content_type=PromptMessageContentType.TEXT, content=string_prompt)
+            ]
+        )
+
+    def to_prompt_string(self) -> str:
+        return "\n\n".join(
+            [
+                msg.content
+                for msg in self.messages
+                if msg.content_type == PromptMessageContentType.TEXT
+            ]
+        )
+
+    def __str__(self) -> str:
+        return "\n\n".join([msg.content for msg in self.messages])
+
+
 class PromptTemplate:
     template: list[PromptMessageTemplate]
     variables: list[str]
@@ -66,7 +91,7 @@ class PromptTemplate:
         self,
         variable_values: Mapping[str, Union[bool, int, float, str]],
         options: Optional[PromptOptions] = None,
-    ) -> list[PromptMessage]:
+    ) -> PromptMessages:
         prompt = self.prompt(options)
         prompt_messages = []
         for template_message in prompt:
@@ -82,7 +107,7 @@ class PromptTemplate:
             prompt_messages.append(
                 PromptMessage(content_type=template_message.content_type, content=prompt_message)
             )
-        return prompt_messages
+        return PromptMessages(messages=prompt_messages)
 
     def _parse_variables(self, template: list[PromptMessageTemplate]) -> list[str]:
         start = re.escape(self._start_delim)
@@ -213,7 +238,7 @@ def map_template(
     dataframe: pd.DataFrame,
     template: PromptTemplate,
     options: Optional[PromptOptions] = None,
-) -> list[list[PromptMessage]]:
+) -> list[PromptMessages]:
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """

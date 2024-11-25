@@ -1,10 +1,10 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
-from phoenix.evals.templates import PromptMessage, PromptMessageContentType
+from phoenix.evals.templates import PromptMessages
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -150,13 +150,19 @@ class VertexAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
-    async def _async_generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]
+    ) -> str:
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: list[PromptMessage], **kwargs: Dict[str, Any]) -> str:
-        prompt_str = "\n\n".join(
-            [msg.content for msg in prompt if msg.content_type == PromptMessageContentType.TEXT]
-        )
+    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]) -> str:
+        if isinstance(prompt, str):
+            prompt = PromptMessages.from_string(prompt)
+
+        prompt_str = prompt.to_prompt_string()
         invoke_params = self.invocation_params
         response = self._model.predict(
             prompt=prompt_str,
