@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28282f75d4f26db4127e9335922e5241>>
+ * @generated SignedSource<<2936a595788abc904b28a90301ba78fc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,6 @@ export type SessionDetailsQuery$variables = {
 };
 export type SessionDetailsQuery$data = {
   readonly session: {
-    readonly durationS?: number;
     readonly latencyP50?: number | null;
     readonly numTraces?: number;
     readonly sessionId?: string;
@@ -105,13 +104,6 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "numTraces",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "durationS",
       "storageKey": null
     },
     {
@@ -416,16 +408,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e55d7e6a04298907a625a98adc9a7fb0",
+    "cacheID": "44f2433d50767bdcd9eb7c62d1f2cbb7",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      durationS\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n              }\n              output {\n                value\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n              }\n              output {\n                value\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "97585857fc11e3e32278d27c935f2017";
+(node as any).hash = "4cf37bedf6f6d9f7b373d019055a89f4";
 
 export default node;
