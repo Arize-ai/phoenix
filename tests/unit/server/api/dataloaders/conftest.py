@@ -26,14 +26,12 @@ async def data_for_testing_dataloaders(
             for l in range(num_sessions_per_project):  # noqa: E741
                 seconds = randint(1, 1000)
                 start_time = orig_time + timedelta(seconds=seconds)
-                end_time = orig_time + timedelta(seconds=seconds * l * 2)
                 session_row_id = await session.scalar(
                     insert(models.ProjectSession)
                     .values(
                         session_id=f"proj{i}_sess{l}",
                         project_id=project_row_id,
                         start_time=start_time,
-                        end_time=end_time,
                     )
                     .returning(models.ProjectSession.id)
                 )
