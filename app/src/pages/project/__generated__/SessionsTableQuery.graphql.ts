@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f4ded448557b111838cca75d7cd2c6e>>
+ * @generated SignedSource<<6337a5efca223566f1627d6d85941459>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -313,6 +313,32 @@ return {
                               }
                             ],
                             "storageKey": null
+                          },
+                          {
+                            "alias": "traceLatencyMsP50",
+                            "args": [
+                              {
+                                "kind": "Literal",
+                                "name": "probability",
+                                "value": 0.5
+                              }
+                            ],
+                            "kind": "ScalarField",
+                            "name": "traceLatencyMsQuantile",
+                            "storageKey": "traceLatencyMsQuantile(probability:0.5)"
+                          },
+                          {
+                            "alias": "traceLatencyMsP99",
+                            "args": [
+                              {
+                                "kind": "Literal",
+                                "name": "probability",
+                                "value": 0.99
+                              }
+                            ],
+                            "kind": "ScalarField",
+                            "name": "traceLatencyMsQuantile",
+                            "storageKey": "traceLatencyMsQuantile(probability:0.99)"
                           }
                         ],
                         "storageKey": null
@@ -390,16 +416,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e695304712f4fc10c2fd4c3642e1d916",
+    "cacheID": "07b07c6e6b2088166d9ae2faf0847ef8",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2MhLSo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2MhLSo on Project {\n  name\n  sessions(first: $first, after: $after, sort: $sort, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2MhLSo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2MhLSo on Project {\n  name\n  sessions(first: $first, after: $after, sort: $sort, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4f4397dc1c7b5c9054b5a1d4e9c041b8";
+(node as any).hash = "73d205acbb256ea1f2cf68875634a21b";
 
 export default node;

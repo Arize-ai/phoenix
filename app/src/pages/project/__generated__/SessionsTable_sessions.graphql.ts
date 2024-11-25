@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a44479bd6b0369d467f9c73922931de7>>
+ * @generated SignedSource<<a1d48f88c8f7c76a01177103a7c11658>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,8 @@ export type SessionsTable_sessions$data = {
           readonly prompt: number;
           readonly total: number;
         };
+        readonly traceLatencyMsP50: number | null;
+        readonly traceLatencyMsP99: number | null;
       };
     }>;
   };
@@ -252,6 +254,32 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": "traceLatencyMsP50",
+                  "args": [
+                    {
+                      "kind": "Literal",
+                      "name": "probability",
+                      "value": 0.5
+                    }
+                  ],
+                  "kind": "ScalarField",
+                  "name": "traceLatencyMsQuantile",
+                  "storageKey": "traceLatencyMsQuantile(probability:0.5)"
+                },
+                {
+                  "alias": "traceLatencyMsP99",
+                  "args": [
+                    {
+                      "kind": "Literal",
+                      "name": "probability",
+                      "value": 0.99
+                    }
+                  ],
+                  "kind": "ScalarField",
+                  "name": "traceLatencyMsQuantile",
+                  "storageKey": "traceLatencyMsQuantile(probability:0.99)"
                 }
               ],
               "storageKey": null
@@ -319,6 +347,6 @@ return {
 };
 })();
 
-(node as any).hash = "4f4397dc1c7b5c9054b5a1d4e9c041b8";
+(node as any).hash = "73d205acbb256ea1f2cf68875634a21b";
 
 export default node;
