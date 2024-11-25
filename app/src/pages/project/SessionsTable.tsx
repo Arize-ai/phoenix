@@ -82,7 +82,6 @@ export function SessionsTable(props: SessionsTableProps) {
                 sessionId
                 numTraces
                 startTime
-                endTime
                 firstInput {
                   value
                 }
@@ -133,12 +132,6 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "start time",
       accessorKey: "startTime",
-      enableSorting: true,
-      cell: TimestampCell,
-    },
-    {
-      header: "end time",
-      accessorKey: "endTime",
       enableSorting: true,
       cell: TimestampCell,
     },
