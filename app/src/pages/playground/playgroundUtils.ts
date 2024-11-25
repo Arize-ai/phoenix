@@ -1088,29 +1088,17 @@ export function areRequiredInvocationParametersConfigured(
  * And the key name that should be used in the invocation parameter input if we need to make a new one
  *
  * This logic is necessary because the default value is mapped to different key name based on its type
- * within the InvocationParameterInput queries in the playground
+ * within the InvocationParameterInput queries in the playground e.g. floatDefaultValue or stringListDefaultValue
  */
 const getInvocationParamDefaultValue = (
   param: InvocationParameter
-): {
-  invocationInputField: string | undefined;
-  defaultValue: unknown;
-} => {
-  let defaultValueKeyName: string | undefined;
-  Object.entries(param).find(([key, value]) => {
+): unknown => {
+  for (const [key, value] of Object.entries(param)) {
     if (key.endsWith("DefaultValue") && value != null) {
-      defaultValueKeyName = key;
-      return true;
+      return param[key as keyof InvocationParameter];
     }
-    return false;
-  });
-  return {
-    invocationInputField: param.invocationInputField,
-    defaultValue:
-      defaultValueKeyName != null
-        ? param[defaultValueKeyName as keyof InvocationParameter]
-        : undefined,
-  };
+  }
+  return undefined;
 };
 
 /**
@@ -1132,21 +1120,22 @@ export function mergeInvocationParametersWithDefaults(
     const paramKeyName = param.canonicalName || param.invocationName;
     // Extract the default value for the invocation parameter definition
     // And the key name that should be used in the invocation parameter input if we need to make a new one
-    const { invocationInputField, defaultValue } =
-      getInvocationParamDefaultValue(param);
+    const defaultValue = getInvocationParamDefaultValue(param);
+    // Convert the invocation input field to a key name that can be used in the invocation parameter input
+    const invocationInputFieldKeyName = toCamelCase(
+      param.invocationInputField || ""
+    ) as keyof InvocationParameterInput;
     // Skip if we don't have required fields
     // or, if the current invocation parameter map already has a value for the key
     // so that we don't overwrite a user provided value, or a value saved to preferences
     if (
       !param.invocationName ||
+      !param.invocationInputField ||
       !paramKeyName ||
       defaultValue == null ||
       currentInvocationParametersMap.get(paramKeyName)?.[
-        toCamelCase(
-          param.invocationInputField || ""
-        ) as keyof InvocationParameterInput
-      ] != null ||
-      !invocationInputField
+        invocationInputFieldKeyName
+      ] != null
     ) {
       return;
     }
@@ -1154,7 +1143,7 @@ export function mergeInvocationParametersWithDefaults(
     const newInvocationParameter: InvocationParameterInput = {
       canonicalName: param.canonicalName,
       invocationName: param.invocationName,
-      [toCamelCase(invocationInputField)]: defaultValue,
+      [invocationInputFieldKeyName]: defaultValue,
     };
 
     // Add the new invocation parameter input to the map
