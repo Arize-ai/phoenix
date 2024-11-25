@@ -316,10 +316,12 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
+    const provider =
+      data.llm.provider || getModelProviderFromModelName(data.llm.model_name);
     return {
       modelConfig: {
         modelName: data.llm.model_name,
-        provider: getModelProviderFromModelName(data.llm.model_name),
+        provider,
         invocationParameters: [],
       },
       parsingErrors: [],

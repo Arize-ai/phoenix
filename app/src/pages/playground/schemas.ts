@@ -165,6 +165,7 @@ const stringToInvocationParametersSchema = z
  */
 export const modelConfigSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
+    [LLMAttributePostfixes.provider]: z.string().optional(),
     [LLMAttributePostfixes.model_name]: z.string(),
   }),
 });
