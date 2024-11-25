@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.11.0...arize-phoenix-v5.12.0) (2024-11-25)
+
+
+### Features
+
+* Implement "Move Output" button on Playground Output ([#5509](https://github.com/Arize-ai/phoenix/issues/5509)) ([aa8c283](https://github.com/Arize-ai/phoenix/commit/aa8c283ceded7ea4333b74fb02824ba2fade2d55))
+* **playground:** add `None` as a template formatter option for messages ([#5500](https://github.com/Arize-ai/phoenix/issues/5500)) ([c439257](https://github.com/Arize-ai/phoenix/commit/c439257144e5de4ca8ec7230fb8731fc70a31b94))
+
+
+### Bug Fixes
+
+* Add numeric playground defaults ([#5494](https://github.com/Arize-ai/phoenix/issues/5494)) ([2a14933](https://github.com/Arize-ai/phoenix/commit/2a1493377dfccc8f7c2b6ed2aaee7ffc20d0192e))
+* Ensure prompt accordion interactables are always visible ([#5536](https://github.com/Arize-ai/phoenix/issues/5536)) ([4cee860](https://github.com/Arize-ai/phoenix/commit/4cee8607e927683f04c542425f6b8abfd0628501))
+* **playground:** additional model names for anthropic claude ([#5520](https://github.com/Arize-ai/phoenix/issues/5520)) ([2d67b31](https://github.com/Arize-ai/phoenix/commit/2d67b3108f66dc5a19f2f50c416ac392791a6853))
+* **playground:** block playground runs when app is readonly ([#5538](https://github.com/Arize-ai/phoenix/issues/5538)) ([7463069](https://github.com/Arize-ai/phoenix/commit/7463069e3822572fea4047c15a5752eae548e59c))
+* **playground:** capture gemini token count for playground spans ([#5518](https://github.com/Arize-ai/phoenix/issues/5518)) ([cb9b1ce](https://github.com/Arize-ai/phoenix/commit/cb9b1ceea34797caca7265aabe5e5b70ca25ab98))
+* **playground:** ensure playground timeout errors are displayed ([#5486](https://github.com/Arize-ai/phoenix/issues/5486)) ([38f8f56](https://github.com/Arize-ai/phoenix/commit/38f8f56699de31bc5f525d2f0d33eb7c49563fb2))
+* **playground:** improve performance of playground dataset columns ([#5519](https://github.com/Arize-ai/phoenix/issues/5519)) ([3a9c8e0](https://github.com/Arize-ai/phoenix/commit/3a9c8e04fc8509f10b55ecdb57546a2178897aa3))
+* Prevent layout shift when scrollbars are introduced ([#5493](https://github.com/Arize-ai/phoenix/issues/5493)) ([bd78a94](https://github.com/Arize-ai/phoenix/commit/bd78a948da3b9265d2417ff5740d3fd9257fc1b7))
+* Use more generic `isawaitable` check ([#5508](https://github.com/Arize-ai/phoenix/issues/5508)) ([73d8287](https://github.com/Arize-ai/phoenix/commit/73d828754813630bdeed28bf3b53c4e6bb77223b))
+
 ## [5.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.10.0...arize-phoenix-v5.11.0) (2024-11-22)
 
 
