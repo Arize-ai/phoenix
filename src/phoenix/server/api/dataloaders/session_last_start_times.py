@@ -13,7 +13,7 @@ Key: TypeAlias = int
 Result: TypeAlias = Optional[datetime]
 
 
-class SessionLastStartTimeDataLoader(DataLoader[Key, Result]):
+class SessionLastTraceStartTimeDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

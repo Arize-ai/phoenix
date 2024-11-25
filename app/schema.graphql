@@ -1336,7 +1336,7 @@ type ProjectSession implements Node {
   numTracesWithError: Int!
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
-  lastStartTime: DateTime
+  lastTraceStartTime: DateTime
   tokenUsage: TokenUsage!
   traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float

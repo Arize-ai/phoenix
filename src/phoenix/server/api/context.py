@@ -32,7 +32,7 @@ from phoenix.server.api.dataloaders import (
     ProjectByNameDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
-    SessionLastStartTimeDataLoader,
+    SessionLastTraceStartTimeDataLoader,
     SessionNumTracesDataLoader,
     SessionNumTracesWithErrorDataLoader,
     SessionTokenUsagesDataLoader,
@@ -77,7 +77,7 @@ class DataLoaders:
     record_counts: RecordCountDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
-    session_last_start_times: SessionLastStartTimeDataLoader
+    session_last_trace_start_times: SessionLastTraceStartTimeDataLoader
     session_num_traces: SessionNumTracesDataLoader
     session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
     session_token_usages: SessionTokenUsagesDataLoader

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2e27662872c0e1bf326d8a8727b5490>>
+ * @generated SignedSource<<6f50df0e22d0d7d12ce22c208b022aba>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -286,7 +286,7 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "lastStartTime",
+                            "name": "lastTraceStartTime",
                             "storageKey": null
                           },
                           {
@@ -423,16 +423,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dd72ca8002782c0acf35fe8904368ecc",
+    "cacheID": "3f39f279542f03c04c50a1e7fc42e302",
     "id": null,
     "metadata": {},
     "name": "SessionsTableQuery",
     "operationKind": "query",
-    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2MhLSo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2MhLSo on Project {\n  name\n  sessions(first: $first, after: $after, sort: $sort, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        lastStartTime\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionsTableQuery(\n  $after: String = null\n  $filterIoSubstring: String = null\n  $first: Int = 50\n  $sort: ProjectSessionSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionsTable_sessions_2MhLSo\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions_2MhLSo on Project {\n  name\n  sessions(first: $first, after: $after, sort: $sort, filterIoSubstring: $filterIoSubstring, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        lastTraceStartTime\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3e47678bb88b2e2455b6b228ae5e6c70";
+(node as any).hash = "dc4a3ba4422ee61ecd9d4142063517b5";
 
 export default node;
