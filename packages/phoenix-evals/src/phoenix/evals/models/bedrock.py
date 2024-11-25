@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptMessage, PromptMessageContentType, PromptMessages
+from phoenix.evals.templates import PromptMessages
 
 logger = logging.getLogger(__name__)
 

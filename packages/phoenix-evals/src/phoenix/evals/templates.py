@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from string import Formatter
-from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 
@@ -48,7 +48,7 @@ class PromptMessageTemplate:
 
 @dataclass
 class PromptMessages:
-    messages: list[PromptMessage]
+    messages: List[PromptMessage]
 
     @staticmethod
     def from_string(string_prompt: str) -> "PromptMessages":
@@ -72,19 +72,19 @@ class PromptMessages:
 
 
 class PromptTemplate:
-    template: list[PromptMessageTemplate]
-    variables: list[str]
+    template: List[PromptMessageTemplate]
+    variables: List[str]
 
     def __init__(
         self,
-        template: Union[str, list[PromptMessageTemplate]],
+        template: Union[str, List[PromptMessageTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.template: list[PromptMessageTemplate] = self._normalize_template(template)
+        self.template: List[PromptMessageTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.template)
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> list[PromptMessageTemplate]:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptMessageTemplate]:
         return self.template
 
     def format(
@@ -109,7 +109,7 @@ class PromptTemplate:
             )
         return PromptMessages(messages=prompt_messages)
 
-    def _parse_variables(self, template: list[PromptMessageTemplate]) -> list[str]:
+    def _parse_variables(self, template: List[PromptMessageTemplate]) -> List[str]:
         start = re.escape(self._start_delim)
         end = re.escape(self._end_delim)
         pattern = rf"{start}(.*?){end}"
@@ -119,8 +119,8 @@ class PromptTemplate:
         return variables
 
     def _normalize_template(
-        self, template: Union[str, list[PromptMessageTemplate]]
-    ) -> list[PromptMessageTemplate]:
+        self, template: Union[str, List[PromptMessageTemplate]]
+    ) -> List[PromptMessageTemplate]:
         if isinstance(template, str):
             return [
                 PromptMessageTemplate(content_type=PromptMessageContentType.TEXT, template=template)
@@ -131,12 +131,12 @@ class PromptTemplate:
 class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
-        rails: list[str],
-        template: Union[str, list[PromptMessageTemplate]],
-        explanation_template: Optional[Union[str, list[PromptMessageTemplate]]] = None,
+        rails: List[str],
+        template: Union[str, List[PromptMessageTemplate]],
+        explanation_template: Optional[Union[str, List[PromptMessageTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
-        scores: Optional[list[float]] = None,
+        scores: Optional[List[float]] = None,
     ):
         if scores is not None and len(rails) != len(scores):
             raise InvalidClassificationTemplateError(
@@ -149,7 +149,7 @@ class ClassificationTemplate(PromptTemplate):
             self.explanation_template = self._normalize_template(explanation_template)
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
-        self.variables: list[str] = []
+        self.variables: List[str] = []
         for _template in [self.template, self.explanation_template]:
             if _template:
                 self.variables.extend(self._parse_variables(template=_template))
@@ -158,7 +158,7 @@ class ClassificationTemplate(PromptTemplate):
     def __repr__(self) -> str:
         return "\n\n".join([template.template for template in self.template])
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> list[PromptMessageTemplate]:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptMessageTemplate]:
         if options is None:
             return self.template
 
@@ -190,7 +190,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
 
 
 def normalize_classification_template(
-    rails: list[str], template: Union[PromptTemplate, ClassificationTemplate, str]
+    rails: List[str], template: Union[PromptTemplate, ClassificationTemplate, str]
 ) -> ClassificationTemplate:
     """
     Normalizes a template to a ClassificationTemplate object.
@@ -238,7 +238,7 @@ def map_template(
     dataframe: pd.DataFrame,
     template: PromptTemplate,
     options: Optional[PromptOptions] = None,
-) -> list[PromptMessages]:
+) -> List[PromptMessages]:
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
