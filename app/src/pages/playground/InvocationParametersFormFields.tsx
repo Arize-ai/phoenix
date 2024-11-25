@@ -221,6 +221,10 @@ export const InvocationParametersFormFields = ({
               required
               canonicalName
             }
+            # defaultValue must be aliased because Relay will not create a union type for fields with the same name
+            # follow the naming convention of the field type e.g. floatDefaultValue for FloatInvocationParameter
+            # default value mapping elsewhere in playground code relies on this naming convention
+            # https://github.com/facebook/relay/issues/3776
             ... on BoundedFloatInvocationParameter {
               minValue
               maxValue
