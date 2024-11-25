@@ -66,9 +66,9 @@ class BaseModel(ABC):
         self, prompt: Union[str, PromptMessages], instruction: Optional[str] = None, **kwargs: Any
     ) -> str:
         """Run the LLM on the given prompt."""
-        if not isinstance(prompt, str):
+        if not isinstance(prompt, (str, PromptMessages)):
             raise TypeError(
-                "Invalid type for argument `prompt`. Expected a string but found "
+                "Invalid type for argument `prompt`. Expected a string or PromptMessages but found "
                 f"{type(prompt)}. If you want to run the LLM on multiple prompts, use "
                 "`generate` instead."
             )
