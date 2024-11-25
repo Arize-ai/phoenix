@@ -86,12 +86,6 @@ def test_up_and_down_migrations(
         assert isinstance(column.type, TIMESTAMP)
         del column
 
-        column = columns.pop("end_time", None)
-        assert column is not None
-        assert not column.nullable
-        assert isinstance(column.type, TIMESTAMP)
-        del column
-
         assert not columns
         del columns
 
