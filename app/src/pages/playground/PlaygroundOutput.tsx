@@ -292,6 +292,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         },
       });
       if (errors) {
+        console.log("test--", errors);
         notifyError({
           title: "Chat completion failed",
           message: errors[0].message,
@@ -358,6 +359,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
           },
           onError: (error) => {
+            console.log("test--", error);
             setLoading(false);
             markPlaygroundInstanceComplete(props.playgroundInstanceId);
             const errorMessages =
@@ -386,6 +388,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       onError(error) {
         setLoading(false);
         markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        console.log("test--", error);
         const errorMessages = getErrorMessagesFromRelayMutationError(error);
         if (errorMessages != null && errorMessages.length > 0) {
           notifyError({
