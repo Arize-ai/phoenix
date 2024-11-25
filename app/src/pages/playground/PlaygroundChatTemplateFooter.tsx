@@ -47,16 +47,16 @@ export function PlaygroundChatTemplateFooter({
     throw new Error(`Invalid template type ${template.__type}`);
   }
 
-  const modelInvocationParameters =
+  const supportedModelInvocationParameters =
     playgroundInstance.model.supportedInvocationParameters;
 
-  const supportsResponseFormat = modelInvocationParameters?.some((p) =>
+  const supportsResponseFormat = supportedModelInvocationParameters?.some((p) =>
     areInvocationParamsEqual(p, {
       canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
       invocationName: RESPONSE_FORMAT_PARAM_NAME,
     })
   );
-  const supportsToolChoice = modelInvocationParameters?.some((p) =>
+  const supportsToolChoice = supportedModelInvocationParameters?.some((p) =>
     areInvocationParamsEqual(p, {
       canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
       invocationName: TOOL_CHOICE_PARAM_NAME,
