@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88088ce7fccc988a26173aa449d9be03>>
+ * @generated SignedSource<<4cc33a6a642aad726483755c2fef32d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -224,6 +224,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "lastTraceStartTime",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "TokenUsage",
                             "kind": "LinkedField",
                             "name": "tokenUsage",
@@ -355,12 +362,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bea6d52a2d550bcdcc441e8ea3c6fdfc",
+    "cacheID": "491cbda957aeb7d4ca55f4beb61bed44",
     "id": null,
     "metadata": {},
     "name": "ProjectPageSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        lastTraceStartTime\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
