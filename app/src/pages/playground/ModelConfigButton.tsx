@@ -207,7 +207,7 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             <TooltipTrigger delay={0} offset={5}>
               <span>
                 <TriggerWrap>
-                  <Icon color="red-700" svg={<Icons.InfoOutline />} />
+                  <Icon color="danger" svg={<Icons.InfoOutline />} />
                 </TriggerWrap>
               </span>
               <Tooltip>
@@ -400,8 +400,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     <form css={modelConfigFormCSS}>
       {!requiredInvocationParametersConfigured ? (
         <Flex direction="row" gap="size-100">
-          <Icon color="red-700" svg={<Icons.InfoOutline />} />
-          <Text color="red-700">
+          <Icon color="danger" svg={<Icons.InfoOutline />} />
+          <Text color="danger">
             Some required invocation parameters are not configured.
           </Text>
         </Flex>
