@@ -226,7 +226,26 @@ export function getTemplateMessagesFromAttributes({
       messages: null,
     };
   }
-
+  if (provider === "ANTHROPIC") {
+    const { success, data } =
+      modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+    if (success) {
+      const messages = inputMessages.data.llm.input_messages;
+      const systemPrompt = data.llm.invocation_parameters?.system;
+      if (
+        typeof systemPrompt === "string" &&
+        systemPrompt &&
+        (!messages || messages[0].message.role !== "system")
+      ) {
+        inputMessages.data.llm.input_messages.unshift({
+          message: {
+            role: "system",
+            content: systemPrompt,
+          },
+        });
+      }
+    }
+  }
   return {
     messageParsingErrors: [],
     messages: processAttributeMessagesToChatMessage({
