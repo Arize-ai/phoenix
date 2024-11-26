@@ -843,11 +843,6 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_k",
                 label="Top K",
             ),
-            IntInvocationParameter(
-                invocation_name="seed",
-                canonical_name=CanonicalParameterName.RANDOM_SEED,
-                label="Seed",
-            ),
         ]
 
     async def chat_completion_create(
