@@ -85,7 +85,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
         borderBottomColor={"light"}
         borderBottomWidth={"thin"}
       >
-        <Flex justifyContent={"space-between"}>
+        <Flex justifyContent={"space-between"} alignItems="center">
           <Flex gap={"size-100"}>
             <Text>{data.dataset.name ?? "Dataset"} results</Text>
             {data.dataset.exampleCount != null ? (
