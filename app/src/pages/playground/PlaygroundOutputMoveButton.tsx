@@ -84,8 +84,10 @@ export const PlaygroundOutputMoveButton = ({
           });
           cleanupOutput();
         }}
-      />
-      <Tooltip>Move Output message to the end of Prompt</Tooltip>
+      >
+        Prompt
+      </Button>
+      <Tooltip>Move the output message to the end of the prompt</Tooltip>
     </TooltipTrigger>
   );
 };

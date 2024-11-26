@@ -420,7 +420,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
-      titleExtra={
+      extra={
         outputContent != null || toolCalls?.length > 0 ? (
           <PlaygroundOutputMoveButton
             outputContent={outputContent}
