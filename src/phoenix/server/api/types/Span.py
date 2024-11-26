@@ -1,13 +1,12 @@
 import json
 from collections.abc import Mapping, Sized
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 import strawberry
-from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
+from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
@@ -38,18 +37,6 @@ from .SpanAnnotation import SpanAnnotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
-
-EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
-EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
-LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-METADATA = SpanAttributes.METADATA
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 @strawberry.enum
@@ -236,21 +223,7 @@ class Span(Node):
         description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
     async def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
-        db_span = self.db_span
-        attributes = db_span.attributes
-        span_io = _SpanIO(
-            span_kind=db_span.span_kind,
-            input_value=get_attribute_value(attributes, INPUT_VALUE),
-            input_mime_type=get_attribute_value(attributes, INPUT_MIME_TYPE),
-            output_value=get_attribute_value(attributes, OUTPUT_VALUE),
-            output_mime_type=get_attribute_value(attributes, OUTPUT_MIME_TYPE),
-            llm_prompt_template_variables=get_attribute_value(
-                attributes, LLM_PROMPT_TEMPLATE_VARIABLES
-            ),
-            llm_input_messages=get_attribute_value(attributes, LLM_INPUT_MESSAGES),
-            llm_output_messages=get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
-            retrieval_documents=get_attribute_value(attributes, RETRIEVAL_DOCUMENTS),
-        )
+        span = self.db_span
 
         # Fetch annotations associated with this span
         span_annotations = await self.span_annotations(info)
@@ -265,13 +238,13 @@ class Span(Node):
             }
         # Merge annotations into the metadata
         metadata = {
-            **attributes,
-            "annotations": annotations,
+            "span_kind": span.span_kind,
+            **({"annotations": annotations} if annotations else {}),
         }
 
         return SpanAsExampleRevision(
-            input=get_dataset_example_input(span_io),
-            output=get_dataset_example_output(span_io),
+            input=get_dataset_example_input(span),
+            output=get_dataset_example_output(span),
             metadata=metadata,
         )
 
@@ -435,19 +408,9 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
         return str(metadata)
 
 
-@dataclass
-class _SpanIO:
-    """
-    An class that contains the information needed to extract dataset example
-    input and output values from a span.
-    """
-
-    span_kind: Optional[str]
-    input_value: Any
-    input_mime_type: Optional[str]
-    output_value: Any
-    output_mime_type: Optional[str]
-    llm_prompt_template_variables: Any
-    llm_input_messages: Any
-    llm_output_messages: Any
-    retrieval_documents: Any
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+METADATA = SpanAttributes.METADATA
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS

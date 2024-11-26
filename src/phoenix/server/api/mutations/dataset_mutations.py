@@ -136,23 +136,7 @@ class DatasetMutationMixin:
                 .returning(models.DatasetVersion.id)
             )
             spans = (
-                await session.execute(
-                    select(
-                        models.Span.id,
-                        models.Span.span_kind,
-                        models.Span.attributes,
-                        _span_attribute(INPUT_MIME_TYPE),
-                        _span_attribute(INPUT_VALUE),
-                        _span_attribute(OUTPUT_MIME_TYPE),
-                        _span_attribute(OUTPUT_VALUE),
-                        _span_attribute(LLM_PROMPT_TEMPLATE_VARIABLES),
-                        _span_attribute(LLM_INPUT_MESSAGES),
-                        _span_attribute(LLM_OUTPUT_MESSAGES),
-                        _span_attribute(RETRIEVAL_DOCUMENTS),
-                    )
-                    .select_from(models.Span)
-                    .where(models.Span.id.in_(span_rowids))
-                )
+                await session.scalars(select(models.Span).where(models.Span.id.in_(span_rowids)))
             ).all()
             if missing_span_rowids := span_rowids - {span.id for span in spans}:
                 raise ValueError(
@@ -160,18 +144,10 @@ class DatasetMutationMixin:
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
 
             span_annotations = (
-                await session.execute(
-                    select(
-                        models.SpanAnnotation.span_rowid,
-                        models.SpanAnnotation.name,
-                        models.SpanAnnotation.label,
-                        models.SpanAnnotation.score,
-                        models.SpanAnnotation.explanation,
-                        models.SpanAnnotation.metadata_,
-                        models.SpanAnnotation.annotator_kind,
+                await session.scalars(
+                    select(models.SpanAnnotation).where(
+                        models.SpanAnnotation.span_rowid.in_(span_rowids)
                     )
-                    .select_from(models.SpanAnnotation)
-                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
                 )
             ).all()
 
@@ -214,8 +190,12 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
                         DatasetExampleRevision.metadata_.key: {
-                            **span.attributes,
-                            "annotations": span_annotations_by_span[span.id],
+                            "span_kind": span.span_kind,
+                            **(
+                                {"annotations": annotations}
+                                if (annotations := span_annotations_by_span[span.id])
+                                else {}
+                            ),
                         },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
