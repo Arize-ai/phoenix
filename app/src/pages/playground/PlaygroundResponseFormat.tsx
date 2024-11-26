@@ -9,7 +9,6 @@ import {
   Flex,
   Icon,
   Icons,
-  Text,
   View,
 } from "@arizeai/components";
 
@@ -92,11 +91,7 @@ export function PlaygroundResponseFormat({
         <View padding="size-200">
           <Card
             variant="compact"
-            title={
-              <Flex direction="row" gap="size-100">
-                <Text>Schema</Text>
-              </Flex>
-            }
+            title="Schema"
             bodyStyle={{ padding: 0 }}
             extra={
               <Flex direction="row" gap="size-100">
