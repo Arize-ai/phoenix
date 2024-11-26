@@ -679,7 +679,7 @@ export const constrainInvocationParameterInputsToDefinition = (
       // modelSupportedInvocationParameters.
       ...ip,
       invocationName:
-        definitions.find((mp) => mp.canonicalName === ip.canonicalName)
+        definitions.find((mp) => areInvocationParamsEqual(mp, ip))
           ?.invocationName ?? ip.invocationName,
     }));
 };
