@@ -39,6 +39,7 @@ export const PlaygroundOutputMoveButton = ({
         variant="default"
         size="compact"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        aria-label="Move the output message to the end of the prompt"
         onClick={(e) => {
           e.stopPropagation();
           if (instance.template.__type !== "chat") {
@@ -84,8 +85,10 @@ export const PlaygroundOutputMoveButton = ({
           });
           cleanupOutput();
         }}
-      />
-      <Tooltip>Move Output message to the end of Prompt</Tooltip>
+      >
+        Prompt
+      </Button>
+      <Tooltip>Move the output message to the end of the prompt</Tooltip>
     </TooltipTrigger>
   );
 };
