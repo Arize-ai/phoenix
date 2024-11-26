@@ -7,7 +7,9 @@ import { ModelConfig } from "./playground";
 
 export type MarkdownDisplayMode = "text" | "markdown";
 
-export type ModelConfigByProvider = Partial<Record<ModelProvider, ModelConfig>>;
+export type ModelConfigByProvider = Partial<
+  Record<ModelProvider, Omit<ModelConfig, "supportedInvocationParameters">>
+>;
 
 export interface PreferencesProps {
   /**
@@ -87,7 +89,7 @@ export interface PreferencesState extends PreferencesProps {
     modelConfig,
   }: {
     provider: ModelProvider;
-    modelConfig: ModelConfig;
+    modelConfig: Omit<ModelConfig, "supportedInvocationParameters">;
   }) => void;
   /**
    * Setter for enabling/disabling playground streaming

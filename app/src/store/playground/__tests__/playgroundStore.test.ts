@@ -53,7 +53,6 @@ describe("getInitialInstances", () => {
           modelName: "test-model",
           provider: "OPENAI",
           invocationParameters: [],
-          supportedInvocationParameters: [],
         },
       },
     };
@@ -72,13 +71,11 @@ describe("getInitialInstances", () => {
           modelName: "test-model-openai",
           provider: "OPENAI",
           invocationParameters: [],
-          supportedInvocationParameters: [],
         },
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
           invocationParameters: [],
-          supportedInvocationParameters: [],
         },
       },
     };
@@ -97,7 +94,6 @@ describe("getInitialInstances", () => {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
           invocationParameters: [],
-          supportedInvocationParameters: [],
         },
       },
     };

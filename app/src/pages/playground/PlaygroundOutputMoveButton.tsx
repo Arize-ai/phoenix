@@ -14,13 +14,11 @@ import {
   generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
+import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { PartialOutputToolCall } from "./PlaygroundToolCall";
-import {
-  convertMessageToolCallsToProvider,
-  getChatRole,
-} from "./playgroundUtils";
+import { getChatRole } from "./playgroundUtils";
 
 export const PlaygroundOutputMoveButton = ({
   instance,

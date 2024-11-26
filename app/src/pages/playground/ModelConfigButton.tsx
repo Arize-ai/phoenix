@@ -40,11 +40,7 @@ import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonD
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
-import {
-  areRequiredInvocationParametersConfigured,
-  convertInstanceToolsToProvider,
-  convertMessageToolCallsToProvider,
-} from "./playgroundUtils";
+import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -77,10 +73,6 @@ function AzureOpenAiModelConfigFormField({
   instance: PlaygroundInstance;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const modelConfigByProvider = usePreferencesContext(
-    (state) => state.modelConfigByProvider
-  );
-
   const updateModelConfig = useCallback(
     ({
       configKey,
@@ -91,14 +83,13 @@ function AzureOpenAiModelConfigFormField({
     }) => {
       updateModel({
         instanceId: instance.id,
-        model: {
+        patch: {
           ...instance.model,
           [configKey]: value,
         },
-        modelConfigByProvider,
       });
     },
-    [instance.id, instance.model, modelConfigByProvider, updateModel]
+    [instance.id, instance.model, updateModel]
   );
 
   const debouncedUpdateModelName = useMemo(
@@ -249,9 +240,15 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
 
   const notifySuccess = useNotifySuccess();
   const onSaveConfig = useCallback(() => {
+    const {
+      // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      supportedInvocationParameters: _,
+      ...modelConfigWithoutSupportedParams
+    } = instance.model;
     setModelConfigForProvider({
       provider: instance.model.provider,
-      modelConfig: instance.model,
+      modelConfig: modelConfigWithoutSupportedParams,
     });
     notifySuccess({
       title: "Model Configuration Saved",
@@ -303,7 +300,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     (state) => state.modelConfigByProvider
   );
 
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
 
   const modelSupportedInvocationParameters =
@@ -331,69 +328,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     (modelName: string) => {
       updateModel({
         instanceId: playgroundInstanceId,
-        model: {
-          provider: instance.model.provider,
+        patch: {
           modelName,
         },
-        modelConfigByProvider,
       });
     },
-    [
-      instance.model.provider,
-      modelConfigByProvider,
-      playgroundInstanceId,
-      updateModel,
-    ]
-  );
-
-  const updateProvider = useCallback(
-    (provider: ModelProvider) => {
-      if (provider === instance.model.provider) {
-        return;
-      }
-      const savedProviderConfig = modelConfigByProvider[provider];
-      const patch: Partial<PlaygroundInstance> = {
-        model: {
-          ...instance.model,
-          // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
-          // Only update the model name
-          modelName: savedProviderConfig?.modelName ?? null,
-          apiVersion: savedProviderConfig?.apiVersion ?? null,
-          endpoint: savedProviderConfig?.endpoint ?? null,
-          provider,
-        },
-        tools: convertInstanceToolsToProvider({
-          instanceTools: instance.tools,
-          provider,
-        }),
-      };
-      if (instance.template.__type === "chat") {
-        patch.template = {
-          __type: "chat",
-          messages: instance.template.messages.map((message) => {
-            return {
-              ...message,
-              toolCalls: convertMessageToolCallsToProvider({
-                toolCalls: message.toolCalls,
-                provider,
-              }),
-            };
-          }),
-        };
-      }
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch,
-      });
-    },
-    [
-      instance.model,
-      instance.template,
-      instance.tools,
-      modelConfigByProvider,
-      playgroundInstanceId,
-      updateInstance,
-    ]
+    [playgroundInstanceId, updateModel]
   );
 
   return (
@@ -409,7 +349,13 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       <ModelProviderPicker
         provider={instance.model.provider}
         query={query}
-        onChange={updateProvider}
+        onChange={(provider) => {
+          updateProvider({
+            instanceId: playgroundInstanceId,
+            provider,
+            modelConfigByProvider,
+          });
+        }}
       />
       {instance.model.provider === "AZURE_OPENAI" ? (
         <AzureOpenAiModelConfigFormField instance={instance} />

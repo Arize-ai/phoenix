@@ -39,6 +39,7 @@ import {
   PlaygroundChatTemplate as PlaygroundChatTemplateType,
   PlaygroundInstance,
 } from "@phoenix/store";
+import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -58,7 +59,6 @@ import { PlaygroundResponseFormat } from "./PlaygroundResponseFormat";
 import { PlaygroundTools } from "./PlaygroundTools";
 import {
   areInvocationParamsEqual,
-  convertMessageToolCallsToProvider,
   createToolCallForProvider,
   normalizeMessageAttributeValue,
 } from "./playgroundUtils";

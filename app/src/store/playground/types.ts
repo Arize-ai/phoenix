@@ -220,15 +220,23 @@ export interface PlaygroundState extends PlaygroundProps {
     supportedInvocationParameters: InvocationParameter[];
   }) => void;
   /**
-   * Update an instance's model configuration
+   * Update an instances model provider, transforming various aspects about the instance to fit the new provider if possible
+   * Also attempts to use the saved model configurations for providers as the default parameters for the new provider
+   */
+  updateProvider: (params: {
+    instanceId: number;
+    provider: ModelProvider;
+    /**
+     * The saved model configurations for providers. These will be used as the default parameters for the new provider if the provider is changed
+     */
+    modelConfigByProvider: ModelConfigByProvider;
+  }) => void;
+  /**
+   * Update an instance's model configuration excluding the provider and invocation parameters
    */
   updateModel: (params: {
     instanceId: number;
-    model: Partial<ModelConfig>;
-    /**
-     * The saved model configurations for providers will be used as the default parameters for the new provider if the provider is changed
-     */
-    modelConfigByProvider: Partial<Record<ModelProvider, ModelConfig>>;
+    patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
    * Run all the active playground Instances

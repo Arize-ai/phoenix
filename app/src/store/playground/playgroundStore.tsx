@@ -15,6 +15,10 @@ import {
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
+  convertInstanceToolsToProvider,
+  convertMessageToolCallsToProvider,
+} from "./playgroundStoreUtils";
+import {
   GenAIOperationType,
   InitialPlaygroundState,
   PlaygroundChatTemplate,
@@ -240,43 +244,75 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
-    updateModel: ({ instanceId, model, modelConfigByProvider }) => {
+    updateProvider: ({ instanceId, provider, modelConfigByProvider }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
       if (!instance) {
         return;
       }
-      let newModel = model;
-      const currentModel = instance.model;
-      const savedProviderConfig =
-        model.provider != null
-          ? modelConfigByProvider[model.provider]
-          : undefined;
-
-      if (model.provider !== currentModel.provider) {
-        if (savedProviderConfig != null) {
-          newModel = {
-            ...savedProviderConfig,
-            // we don't want to use persisted supportedInvocationParameters
-            supportedInvocationParameters:
-              currentModel.supportedInvocationParameters,
-            provider: model.provider,
-            // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
-            invocationParameters: [
-              ...instance.model.invocationParameters,
-              // These should never be changing at the same time as the provider but spread here to be safe
-              ...(model.invocationParameters ?? []),
-            ],
-          };
-        } else {
-          // Force clear the model name if the provider changes
-          newModel = {
-            ...newModel,
-            modelName: undefined,
-          };
-        }
+      if (instance.model.provider === provider) {
+        return;
       }
 
+      const savedProviderConfig = modelConfigByProvider[provider];
+
+      const patch: Partial<PlaygroundInstance> = {
+        // If we have a saved config for the provider, use it as the default otherwise reset the model config entirely to defaults / unset which will be controlled by invocation params coming from the server
+        model: savedProviderConfig
+          ? {
+              ...savedProviderConfig,
+              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
+              // These are not be saved in the model config as they are controlled exclusively by the server
+              supportedInvocationParameters: [],
+              provider,
+            }
+          : {
+              modelName: null,
+              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
+              invocationParameters: [],
+              // Reset supported invocation parameters to unset, these will be subsequently fetched and updated from the server
+              supportedInvocationParameters: [],
+              apiVersion: null,
+              endpoint: null,
+              provider,
+            },
+        tools: convertInstanceToolsToProvider({
+          instanceTools: instance.tools,
+          provider,
+        }),
+      };
+      if (instance.template.__type === "chat") {
+        patch.template = {
+          __type: "chat",
+          messages: instance.template.messages.map((message) => {
+            return {
+              ...message,
+              toolCalls: convertMessageToolCallsToProvider({
+                toolCalls: message.toolCalls,
+                provider,
+              }),
+            };
+          }),
+        };
+      }
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              ...patch,
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateModel: ({ instanceId, patch }) => {
+      const instances = get().instances;
+      const instance = instances.find((instance) => instance.id === instanceId);
+      if (!instance) {
+        return;
+      }
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -284,11 +320,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               ...instance,
               model: {
                 ...instance.model,
-                ...newModel,
-                invocationParameters: [
-                  ...(instance.model.invocationParameters ?? []),
-                  ...(model.invocationParameters ?? []),
-                ],
+                ...patch,
               },
             };
           }

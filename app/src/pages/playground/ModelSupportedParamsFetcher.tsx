@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
@@ -24,6 +25,9 @@ export const ModelSupportedParamsFetcher = ({
     (state) =>
       state.instances.find((instance) => instance.id === instanceId)?.model
         .modelName
+  );
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
   );
   const updateModelSupportedInvocationParameters = usePlaygroundContext(
     (state) => state.updateModelSupportedInvocationParameters
@@ -92,6 +96,7 @@ export const ModelSupportedParamsFetcher = ({
     modelInvocationParameters,
     instanceId,
     updateModelSupportedInvocationParameters,
+    modelConfigByProvider,
   ]);
   return null;
 };
