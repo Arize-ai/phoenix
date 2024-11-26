@@ -85,21 +85,15 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   messages: [
     {
       id: generateMessageId(),
-      role: "system",
-      content: "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.",
-    },
-    {
-      id: generateMessageId(),
       role: "user",
-      content: "Answer the question: {{question}}",
+      content: `How many r's in "{{fruit}}"?`,
     },
   ],
 });
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
-  prompt:
-    "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.\n\nAnswer the question: {{question}}",
+  prompt: `How many r's in "{{fruit}}"?`,
 };
 
 export function createPlaygroundInstance(): PlaygroundInstance {
@@ -177,7 +171,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       // manual input mode. It is indexed by the variable key. It keeps old
       // values when variables are removed or when switching to dataset input so that they can be restored.
       variablesValueCache: {
-        question: `How many r's in "strawberry"?`,
+        fruit: "strawberry",
       },
     },
     templateLanguage: TemplateLanguages.Mustache,
