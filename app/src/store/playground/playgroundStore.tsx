@@ -86,19 +86,20 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
     {
       id: generateMessageId(),
       role: "system",
-      content: "You are a chatbot",
+      content: "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.",
     },
     {
       id: generateMessageId(),
       role: "user",
-      content: "{{question}}",
+      content: "Answer the question: {{question}}",
     },
   ],
 });
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
-  prompt: "{{question}}",
+  prompt:
+    "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.\n\nAnswer the question: {{question}}",
 };
 
 export function createPlaygroundInstance(): PlaygroundInstance {
@@ -175,7 +176,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       // variablesValueCache is used to store the values of variables for the
       // manual input mode. It is indexed by the variable key. It keeps old
       // values when variables are removed or when switching to dataset input so that they can be restored.
-      variablesValueCache: {},
+      variablesValueCache: {
+        question: `How many r's in "strawberry"?`,
+      },
     },
     templateLanguage: TemplateLanguages.Mustache,
     instances: getInitialInstances(initialProps),
