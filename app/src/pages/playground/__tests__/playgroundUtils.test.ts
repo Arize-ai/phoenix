@@ -98,12 +98,12 @@ const defaultTemplate = {
     {
       id: 0,
       role: "system",
-      content: "You are a chatbot",
+      content: "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.",
     },
     {
       id: 1,
       role: "user",
-      content: "{{question}}",
+      content: "Answer the question: {{question}}",
     },
   ],
 };
