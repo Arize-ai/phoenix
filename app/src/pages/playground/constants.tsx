@@ -1,4 +1,4 @@
-import { CanonicalParameterName } from "./__generated__/InvocationParametersFormFieldsQuery.graphql";
+import { CanonicalParameterName } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 
 export const NUM_MAX_PLAYGROUND_INSTANCES = 4;
 
