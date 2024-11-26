@@ -277,8 +277,7 @@ function PlaygroundContent() {
                   </Flex>
                 }
               >
-                {/* No padding on the right of the accordion item, it is handled by the stable scrollbar gutter */}
-                <View height="100%" paddingY="size-200" paddingStart="size-200">
+                <View height="100%" padding="size-200">
                   <Flex direction="row" gap="size-200" maxWidth="100%">
                     {instances.map((instance) => (
                       <View
