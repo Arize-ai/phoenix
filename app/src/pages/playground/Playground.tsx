@@ -199,6 +199,10 @@ const playgroundPromptPanelContentCSS = css`
 const promptsWrapCSS = css`
   padding: var(--ac-global-dimension-size-200);
   scrollbar-gutter: stable;
+
+  @supports not (scrollbar-gutter: stable) {
+    padding: var(--ac-global-dimension-size-200);
+  }
   height: 100%;
   flex: 1 1 auto;
   overflow: auto;
