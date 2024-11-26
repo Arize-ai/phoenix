@@ -191,21 +191,25 @@ const playgroundPromptPanelContentCSS = css`
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;
-        & > .ac-view {
-          // add scrollbar gutter to the right of the accordion item
-          scrollbar-gutter: stable;
-          // if scrollbar-gutter is not supported, add padding to the right of the accordion item
-          @supports not (scrollbar-gutter: stable) {
-            padding-right: 16px;
-          }
-          height: 100%;
-          flex: 1 1 auto;
-          overflow: auto;
-          box-sizing: border-box;
-        }
       }
     }
   }
+`;
+
+const promptsWrapCSS = css`
+  padding: var(--ac-global-dimension-size-200)
+    var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-200)
+    var(--ac-global-dimension-size-200);
+  // add scrollbar gutter to the right of the accordion item
+  scrollbar-gutter: stable;
+  // if scrollbar-gutter is not supported, add padding to the right of the accordion item
+  @supports not (scrollbar-gutter: stable) {
+    padding-right: var(--ac-global-dimension-size-200);
+  }
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: auto;
+  box-sizing: border-box;
 `;
 
 const playgroundInputOutputPanelContentCSS = css`
@@ -277,7 +281,7 @@ function PlaygroundContent() {
                   </Flex>
                 }
               >
-                <View height="100%" padding="size-200">
+                <div css={promptsWrapCSS}>
                   <Flex direction="row" gap="size-200" maxWidth="100%">
                     {instances.map((instance) => (
                       <View
@@ -292,7 +296,7 @@ function PlaygroundContent() {
                       </View>
                     ))}
                   </Flex>
-                </View>
+                </div>
               </AccordionItem>
             </Accordion>
           </div>
