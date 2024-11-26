@@ -198,7 +198,7 @@ function EmptyExampleOutput({
   }
   return (
     <PlaygroundErrorWrap>
-      {`Missing output for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+      {`Missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
         ", "
       )}`}
     </PlaygroundErrorWrap>
