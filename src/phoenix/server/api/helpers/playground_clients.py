@@ -284,7 +284,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=0.0,
+                default_value=1.0,
                 min_value=0.0,
                 max_value=2.0,
             ),
@@ -323,7 +323,6 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
-                default_value=0,
                 label="Seed",
             ),
             JSONInvocationParameter(
@@ -496,7 +495,6 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
-                default_value=0,
             ),
             JSONInvocationParameter(
                 invocation_name="tool_choice",
@@ -637,7 +635,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=0.0,
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -809,7 +807,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=0.0,
+                default_value=1.0,
                 min_value=0.0,
                 max_value=2.0,
             ),
@@ -819,7 +817,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 label="Max Output Tokens",
             ),
             StringListInvocationParameter(
-                invocation_name="stop",
+                invocation_name="stop_sequences",
                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
                 label="Stop Sequences",
             ),
@@ -841,18 +839,14 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 min_value=0.0,
                 max_value=1.0,
             ),
-            BoundedFloatInvocationParameter(
+            IntInvocationParameter(
                 invocation_name="top_k",
                 label="Top K",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
             ),
             IntInvocationParameter(
                 invocation_name="seed",
                 canonical_name=CanonicalParameterName.RANDOM_SEED,
                 label="Seed",
-                default_value=0,
             ),
         ]
 
