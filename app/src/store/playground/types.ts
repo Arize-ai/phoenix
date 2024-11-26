@@ -232,11 +232,11 @@ export interface PlaygroundState extends PlaygroundProps {
     modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**
-   * Update an instance's model configuration excluding the provider
+   * Update an instance's model configuration excluding the provider and invocation parameters
    */
   updateModel: (params: {
     instanceId: number;
-    model: Partial<Omit<ModelConfig, "provider">>;
+    patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
    * Run all the active playground Instances

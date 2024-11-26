@@ -307,13 +307,12 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
-    updateModel: ({ instanceId, model }) => {
+    updateModel: ({ instanceId, patch }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
       if (!instance) {
         return;
       }
-      const newModel = model;
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
@@ -321,11 +320,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
               ...instance,
               model: {
                 ...instance.model,
-                ...newModel,
-                invocationParameters: [
-                  ...(instance.model.invocationParameters ?? []),
-                  ...(model.invocationParameters ?? []),
-                ],
+                ...patch,
               },
             };
           }

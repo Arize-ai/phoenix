@@ -83,7 +83,7 @@ function AzureOpenAiModelConfigFormField({
     }) => {
       updateModel({
         instanceId: instance.id,
-        model: {
+        patch: {
           ...instance.model,
           [configKey]: value,
         },
@@ -328,7 +328,7 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     (modelName: string) => {
       updateModel({
         instanceId: playgroundInstanceId,
-        model: {
+        patch: {
           modelName,
         },
       });
