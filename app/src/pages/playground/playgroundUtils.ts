@@ -235,7 +235,7 @@ export function getTemplateMessagesFromAttributes({
       modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
     if (success) {
       const messages = inputMessages.data.llm.input_messages;
-      const systemPrompt = data.llm.invocation_parameters["system"];
+      const systemPrompt = data.llm.invocation_parameters?.system;
       if (
         typeof systemPrompt === "string" &&
         systemPrompt &&
