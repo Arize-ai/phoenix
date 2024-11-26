@@ -1,22 +1,19 @@
-import React, { useCallback } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import React, { useCallback, useLayoutEffect, useMemo } from "react";
+import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 
 import { Slider, Switch, TextField } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
 
-import {
-  InvocationParametersFormFieldsQuery,
-  InvocationParametersFormFieldsQuery$data,
-} from "./__generated__/InvocationParametersFormFieldsQuery.graphql";
+import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
-  InvocationParametersFormFieldsQuery$data["modelInvocationParameters"]
+  ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]
 >[number];
 
 export type HandleInvocationParameterChange = (
@@ -31,11 +28,29 @@ const InvocationParameterFormField = ({
   field,
   value,
   onChange,
+  errors,
+  control,
 }: {
   field: InvocationParameter;
   value: unknown;
   onChange: (value: unknown) => void;
+  errors: FieldErrors<Record<string, unknown>>;
+  control: Control<Record<string, unknown>>;
 }) => {
+  const invocationName = field.invocationName;
+  if (!invocationName) {
+    throw new Error("Invocation name is required");
+  }
+  const errorMessage = errors[invocationName]?.message;
+  const required = field.required
+    ? `${field.label || invocationName} is required`
+    : undefined;
+  const min = field.minValue
+    ? `${field.label || invocationName} must be at least ${field.minValue}`
+    : undefined;
+  const max = field.maxValue
+    ? `${field.label || invocationName} must be at most ${field.maxValue}`
+    : undefined;
   const { __typename } = field;
   switch (__typename) {
     case "InvocationParameterBase":
@@ -46,7 +61,7 @@ const InvocationParameterFormField = ({
         <Slider
           label={field.label}
           isRequired={field.required}
-          value={value}
+          defaultValue={value}
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
@@ -56,51 +71,85 @@ const InvocationParameterFormField = ({
     case "FloatInvocationParameter":
     case "IntInvocationParameter":
       return (
-        <TextField
-          label={field.label}
-          isRequired={field.required}
-          value={value?.toString() || ""}
-          type="number"
-          onChange={(value) => {
-            if (value === "") {
-              onChange(undefined);
-              return;
-            }
-            onChange(Number(value));
+        <Controller
+          control={control}
+          name={invocationName}
+          rules={{
+            required,
+            min,
+            max,
           }}
+          render={({ field: { onBlur } }) => (
+            <TextField
+              label={field.label}
+              isRequired={field.required}
+              defaultValue={value?.toString() || ""}
+              type="number"
+              onBlur={onBlur}
+              onChange={(value) => {
+                if (value === "") {
+                  onChange(undefined);
+                  return;
+                }
+                onChange(Number(value));
+              }}
+              errorMessage={errorMessage}
+              validationState={errorMessage ? "invalid" : "valid"}
+            />
+          )}
         />
       );
     case "StringListInvocationParameter":
       if (!Array.isArray(value) && value !== undefined) return null;
       return (
-        <TextField
-          label={field.label}
-          isRequired={field.required}
-          defaultValue={value?.join(", ")}
-          onChange={(value) => {
-            if (value === "") {
-              onChange(undefined);
-              return;
-            }
-            onChange(value.split(/, */g));
+        <Controller
+          control={control}
+          name={invocationName}
+          rules={{
+            required,
           }}
-          description={"A comma separated list of strings"}
+          render={() => (
+            <TextField
+              label={field.label}
+              isRequired={field.required}
+              defaultValue={value?.join(", ") ?? ""}
+              onChange={(value) => {
+                if (value === "") {
+                  onChange(undefined);
+                  return;
+                }
+                onChange(value.split(/, */g));
+              }}
+              description={"A comma separated list of strings"}
+              errorMessage={errorMessage}
+            />
+          )}
         />
       );
     case "StringInvocationParameter":
       return (
-        <TextField
-          label={field.label}
-          isRequired={field.required}
-          value={value?.toString() || ""}
-          type="text"
-          onChange={(value) => {
-            if (value === "") {
-              onChange(undefined);
-              return;
-            }
-            onChange(value);
+        <Controller
+          control={control}
+          name={invocationName}
+          rules={{
+            required,
           }}
+          render={() => (
+            <TextField
+              label={field.label}
+              isRequired={field.required}
+              defaultValue={value?.toString() || ""}
+              type="text"
+              onChange={(value) => {
+                if (value === "") {
+                  onChange(undefined);
+                  return;
+                }
+                onChange(value);
+              }}
+              errorMessage={errorMessage}
+            />
+          )}
         />
       );
     case "BooleanInvocationParameter":
@@ -111,10 +160,20 @@ const InvocationParameterFormField = ({
       );
     case "JSONInvocationParameter": {
       return (
-        <InvocationParameterJsonEditor
-          initialValue={value}
-          onChange={onChange}
-          label={field.label ?? field.invocationName ?? ""}
+        <Controller
+          control={control}
+          name={invocationName}
+          rules={{
+            required,
+          }}
+          render={() => (
+            <InvocationParameterJsonEditor
+              defaultValue={value}
+              onChange={onChange}
+              label={field.label ?? field.invocationName ?? ""}
+              errorMessage={errorMessage}
+            />
+          )}
         />
       );
     }
@@ -142,35 +201,13 @@ const getInvocationParameterValue = (
     parameterInput[
       toCamelCase(field.invocationInputField) as keyof InvocationParameterInput
     ];
-  if (maybeValue != null) {
-    return maybeValue;
-  }
-  switch (field.__typename) {
-    case "InvocationParameterBase":
-      return null;
-    case "FloatInvocationParameter":
-    case "BoundedFloatInvocationParameter":
-      return field.floatDefaultValue;
-    case "IntInvocationParameter":
-      return field.intDefaultValue;
-    case "StringListInvocationParameter":
-      return field.stringListDefaultValue;
-    case "StringInvocationParameter":
-      return field.stringDefaultValue;
-    case "BooleanInvocationParameter":
-      return field.booleanDefaultValue;
-    case "JSONInvocationParameter":
-      return field.jsonDefaultValue;
-    default: {
-      return null;
-    }
-  }
+  return maybeValue;
 };
 
 const makeInvocationParameterInput = (
   field: InvocationParameter,
   value: unknown
-): InvocationParameterInput | null => {
+): InvocationParameterInput => {
   if (field.invocationName === undefined) {
     throw new Error("Invocation name is required");
   }
@@ -198,144 +235,109 @@ export const InvocationParametersFormFields = ({
     throw new Error("Instance not found");
   }
   const { model } = instance;
-  const updateInstanceModelInvocationParameters = usePlaygroundContext(
-    (state) => state.updateInstanceModelInvocationParameters
+  const upsertInvocationParameterInput = usePlaygroundContext(
+    (state) => state.upsertInvocationParameterInput
+  );
+  const deleteInvocationParameterInput = usePlaygroundContext(
+    (state) => state.deleteInvocationParameterInput
   );
 
-  /**
-   * Azure openai has user defined model names but our invocation parameters query will never know
-   * what they are. We will just pass in an empty model name and the query will fallback to the set
-   * of invocation parameters that are defaults to our azure client.
-   */
-  const modelNameToQuery =
-    model.provider !== "AZURE_OPENAI" ? model.modelName : null;
-  const { modelInvocationParameters } =
-    useLazyLoadQuery<InvocationParametersFormFieldsQuery>(
-      graphql`
-        query InvocationParametersFormFieldsQuery($input: ModelsInput!) {
-          modelInvocationParameters(input: $input) {
-            __typename
-            ... on InvocationParameterBase {
-              invocationName
-              label
-              required
-              canonicalName
-            }
-            # defaultValue must be aliased because Relay will not create a union type for fields with the same name
-            # follow the naming convention of the field type e.g. floatDefaultValue for FloatInvocationParameter
-            # default value mapping elsewhere in playground code relies on this naming convention
-            # https://github.com/facebook/relay/issues/3776
-            ... on BoundedFloatInvocationParameter {
-              minValue
-              maxValue
-              invocationInputField
-              floatDefaultValue: defaultValue
-            }
-            ... on FloatInvocationParameter {
-              invocationInputField
-              floatDefaultValue: defaultValue
-            }
-            ... on IntInvocationParameter {
-              invocationInputField
-              intDefaultValue: defaultValue
-            }
-            ... on StringInvocationParameter {
-              invocationInputField
-              stringDefaultValue: defaultValue
-            }
-            ... on StringListInvocationParameter {
-              invocationInputField
-              stringListDefaultValue: defaultValue
-            }
-            ... on BooleanInvocationParameter {
-              invocationInputField
-              booleanDefaultValue: defaultValue
-            }
-            ... on JSONInvocationParameter {
-              invocationInputField
-              jsonDefaultValue: defaultValue
-            }
-          }
-        }
-      `,
-      { input: { providerKey: model.provider, modelName: modelNameToQuery } }
-    );
+  const supportedInvocationParameterDefinitions =
+    instance.model.supportedInvocationParameters;
+  const instanceInvocationParameters = instance.model.invocationParameters;
 
+  // Handle changes to the form state, either deleting or upserting an invocation parameter
   const onChange = useCallback(
     (field: InvocationParameter, value: unknown) => {
-      const existingParameter = instance.model.invocationParameters.find((p) =>
-        areInvocationParamsEqual(p, field)
-      );
-      if (value === undefined) {
-        if (existingParameter) {
-          updateInstanceModelInvocationParameters({
-            instanceId: instance.id,
-            invocationParameters: instance.model.invocationParameters.filter(
-              (p) => !areInvocationParamsEqual(p, field)
-            ),
-          });
-        }
-        return;
+      if (!field.invocationName) {
+        throw new Error("Invocation name is required");
       }
-
-      if (existingParameter) {
-        const input = makeInvocationParameterInput(field, value);
-        if (input) {
-          updateInstanceModelInvocationParameters({
-            instanceId: instance.id,
-            invocationParameters: instance.model.invocationParameters.map(
-              (p) => (areInvocationParamsEqual(p, field) ? input : p)
-            ),
-          });
-        }
+      if (value === undefined) {
+        deleteInvocationParameterInput({
+          instanceId,
+          invocationParameterInputInvocationName: field.invocationName,
+        });
       } else {
-        const input = makeInvocationParameterInput(field, value);
-        if (input) {
-          updateInstanceModelInvocationParameters({
-            instanceId: instance.id,
-            invocationParameters: [
-              ...instance.model.invocationParameters,
-              input,
-            ],
-          });
-        }
+        upsertInvocationParameterInput({
+          instanceId,
+          invocationParameterInput: makeInvocationParameterInput(field, value),
+        });
       }
     },
-    [instance, updateInstanceModelInvocationParameters]
+    [instanceId, upsertInvocationParameterInput, deleteInvocationParameterInput]
   );
 
-  // It is safe to render this component if the model name is not set for non-azure models
-  // Hooks will still run to filter invocation parameters to only include those supported by the model
-  // but no form fields will be rendered if the model name is not set
-  if (model.modelName === null && model.provider !== "AZURE_OPENAI") {
+  // Reduce our invocation parameters array into a form state object
+  const values = useMemo(() => {
+    return supportedInvocationParameterDefinitions
+      .filter(
+        (field) =>
+          // remove parameters that we want to ignore in the form
+          !(
+            field.canonicalName != null &&
+            paramsToIgnoreInInvocationParametersForm.includes(
+              field.canonicalName
+            )
+          )
+      )
+      .map((field) => {
+        const existingParameter = instanceInvocationParameters.find((p) =>
+          areInvocationParamsEqual(p, field)
+        );
+        const value = existingParameter
+          ? getInvocationParameterValue(field, existingParameter)
+          : undefined;
+        return {
+          [field.invocationName!]: value ?? null,
+        };
+      })
+      .reduce(
+        (acc, param) => {
+          return { ...acc, ...param };
+        },
+        {} as Record<string, unknown>
+      );
+  }, [instanceInvocationParameters, supportedInvocationParameterDefinitions]);
+
+  // Mirror the form state in react-hook-form so that we can use the validation and error state
+  const form = useForm({
+    values,
+    mode: "onBlur",
+  });
+
+  // Trigger validation on mount, but after the initial render commits and controls have been
+  // attached in fieldsForSchema
+  useLayoutEffect(() => {
+    form.trigger();
+  }, [form]);
+
+  // Don't bother rendering the form if the model name is not set
+  if (model.modelName === null) {
     return null;
   }
 
-  const fieldsForSchema = modelInvocationParameters
-    .filter(
-      (field) =>
-        !(
-          field.canonicalName != null &&
-          paramsToIgnoreInInvocationParametersForm.includes(field.canonicalName)
-        )
-    )
-    .map((field) => {
-      const existingParameter = instance.model.invocationParameters.find((p) =>
-        areInvocationParamsEqual(p, field)
+  const fieldsForSchema = Object.entries(values).map(
+    ([invocationName, value]) => {
+      const field = supportedInvocationParameterDefinitions.find(
+        (p) => p.invocationName === invocationName
       );
-      const value = existingParameter
-        ? getInvocationParameterValue(field, existingParameter)
-        : undefined;
+
+      if (!field) {
+        return null;
+      }
 
       return (
         <InvocationParameterFormField
           key={field.invocationName}
           field={field}
-          value={value === null ? undefined : value}
+          value={value}
           onChange={(value) => onChange(field, value)}
+          control={form.control}
+          errors={form.formState.errors}
         />
       );
-    });
+    }
+  );
 
   return fieldsForSchema;
 };

@@ -42,6 +42,7 @@ export const ModelSupportedParamsFetcher = ({
               invocationName
               canonicalName
               required
+              label
             }
             # defaultValue must be aliased because Relay will not create a union type for fields with the same name
             # follow the naming convention of the field type e.g. floatDefaultValue for FloatInvocationParameter
@@ -54,6 +55,8 @@ export const ModelSupportedParamsFetcher = ({
             ... on BoundedFloatInvocationParameter {
               floatDefaultValue: defaultValue
               invocationInputField
+              minValue
+              maxValue
             }
             ... on FloatInvocationParameter {
               floatDefaultValue: defaultValue

@@ -10,18 +10,20 @@ import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
  * Editor for message tool calls
  */
 export function InvocationParameterJsonEditor({
-  initialValue,
+  defaultValue,
   onChange: handleChange,
   label,
+  errorMessage,
 }: {
-  initialValue: unknown;
+  defaultValue: unknown;
   // jsonValue is typed as any on the gql side to allow any json value to be set
   // we can mostly assume this any is safe because we are safely parsing and stringifying incoming and outgoing json
   onChange: (value: unknown) => void;
   label: string;
+  errorMessage?: string;
 }) {
   const [editorValue, setEditorValue] = useState(
-    initialValue == null ? "" : (safelyStringifyJSON(initialValue).json ?? "")
+    defaultValue == null ? "" : (safelyStringifyJSON(defaultValue).json ?? "")
   );
 
   const onChange = useCallback(
@@ -44,7 +46,11 @@ export function InvocationParameterJsonEditor({
         }
       `}
     >
-      <Field label={label}>
+      <Field
+        label={label}
+        errorMessage={errorMessage}
+        validationState={errorMessage ? "invalid" : undefined}
+      >
         <CodeWrap>
           <JSONEditor value={editorValue} onChange={onChange} optionalLint />
         </CodeWrap>
