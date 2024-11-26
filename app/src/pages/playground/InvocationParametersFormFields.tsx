@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Slider, Switch, TextField } from "@arizeai/components";
@@ -13,11 +13,7 @@ import {
 import { InvocationParameterInput } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { paramsToIgnoreInInvocationParametersForm } from "./constants";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
-import {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  toCamelCase,
-} from "./playgroundUtils";
+import { areInvocationParamsEqual, toCamelCase } from "./playgroundUtils";
 
 export type InvocationParameter = Mutable<
   InvocationParametersFormFieldsQuery$data["modelInvocationParameters"]
@@ -205,9 +201,7 @@ export const InvocationParametersFormFields = ({
   const updateInstanceModelInvocationParameters = usePlaygroundContext(
     (state) => state.updateInstanceModelInvocationParameters
   );
-  const filterInstanceModelInvocationParameters = usePlaygroundContext(
-    (state) => state.filterInstanceModelInvocationParameters
-  );
+
   /**
    * Azure openai has user defined model names but our invocation parameters query will never know
    * what they are. We will just pass in an empty model name and the query will fallback to the set
@@ -227,6 +221,10 @@ export const InvocationParametersFormFields = ({
               required
               canonicalName
             }
+            # defaultValue must be aliased because Relay will not create a union type for fields with the same name
+            # follow the naming convention of the field type e.g. floatDefaultValue for FloatInvocationParameter
+            # default value mapping elsewhere in playground code relies on this naming convention
+            # https://github.com/facebook/relay/issues/3776
             ... on BoundedFloatInvocationParameter {
               minValue
               maxValue
@@ -305,26 +303,6 @@ export const InvocationParametersFormFields = ({
     },
     [instance, updateInstanceModelInvocationParameters]
   );
-
-  useEffect(() => {
-    // filter invocation parameters to only include those that are supported by the model
-    // This will remove configured values that are not supported by the newly selected model
-    // Including invocation parameters managed outside of this form, like response_format
-    if (modelInvocationParameters) {
-      filterInstanceModelInvocationParameters({
-        instanceId: instance.id,
-        modelSupportedInvocationParameters:
-          modelInvocationParameters as Mutable<
-            typeof modelInvocationParameters
-          >,
-        filter: constrainInvocationParameterInputsToDefinition,
-      });
-    }
-  }, [
-    filterInstanceModelInvocationParameters,
-    instance.id,
-    modelInvocationParameters,
-  ]);
 
   // It is safe to render this component if the model name is not set for non-azure models
   // Hooks will still run to filter invocation parameters to only include those supported by the model

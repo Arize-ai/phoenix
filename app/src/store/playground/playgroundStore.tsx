@@ -8,7 +8,10 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { areInvocationParamsEqual } from "@phoenix/pages/playground/playgroundUtils";
+import {
+  areInvocationParamsEqual,
+  mergeInvocationParametersWithDefaults,
+} from "@phoenix/pages/playground/playgroundUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
 
 import {
@@ -102,6 +105,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
+      supportedInvocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -211,6 +215,31 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         ],
       });
     },
+    updateModelSupportedInvocationParameters: ({
+      instanceId,
+      supportedInvocationParameters,
+    }) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              model: {
+                ...instance.model,
+                supportedInvocationParameters,
+                // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
+                invocationParameters: mergeInvocationParametersWithDefaults(
+                  instance.model.invocationParameters,
+                  supportedInvocationParameters
+                ),
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
     updateModel: ({ instanceId, model, modelConfigByProvider }) => {
       const instances = get().instances;
       const instance = instances.find((instance) => instance.id === instanceId);
@@ -228,6 +257,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         if (savedProviderConfig != null) {
           newModel = {
             ...savedProviderConfig,
+            // we don't want to use persisted supportedInvocationParameters
+            supportedInvocationParameters:
+              currentModel.supportedInvocationParameters,
             provider: model.provider,
             // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
             invocationParameters: [
@@ -345,29 +377,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     setStreaming: (streaming: boolean) => {
       set({ streaming });
-    },
-    filterInstanceModelInvocationParameters: ({
-      instanceId,
-      modelSupportedInvocationParameters,
-      filter,
-    }) => {
-      set({
-        instances: get().instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              model: {
-                ...instance.model,
-                invocationParameters: filter(
-                  instance.model.invocationParameters,
-                  modelSupportedInvocationParameters
-                ),
-              },
-            };
-          }
-          return instance;
-        }),
-      });
     },
     updateInstanceModelInvocationParameters: ({
       instanceId,

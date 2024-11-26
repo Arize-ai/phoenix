@@ -24,6 +24,7 @@ import {
 import { Loading } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
@@ -136,7 +137,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
 
 function AddPromptButton() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
-  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
   return (
     <div
       onClick={(e) => {
@@ -149,7 +152,7 @@ function AddPromptButton() {
         size="compact"
         aria-label="add prompt"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES}
+        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
         onClick={() => {
           addInstance();
         }}
@@ -210,8 +213,17 @@ const playgroundInputOutputPanelContentCSS = css`
   overflow: auto;
 `;
 
+/**
+ * This width accomodates the model config button min-width, as well as chat message accordion
+ * header contents such as the chat message mode radio group for AI messages
+ */
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 475;
+
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
   const { datasetId } = useParams<{ datasetId: string }>();
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
@@ -267,9 +279,13 @@ function PlaygroundContent() {
               >
                 {/* No padding on the right of the accordion item, it is handled by the stable scrollbar gutter */}
                 <View height="100%" paddingY="size-200" paddingStart="size-200">
-                  <Flex direction="row" gap="size-200">
+                  <Flex direction="row" gap="size-200" maxWidth="100%">
                     {instances.map((instance) => (
-                      <View key={instance.id} flex="1 1 0px">
+                      <View
+                        flex="1 1 0px"
+                        key={instance.id}
+                        minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
+                      >
                         <PlaygroundTemplate
                           key={instance.id}
                           playgroundInstanceId={instance.id}
@@ -291,11 +307,13 @@ function PlaygroundContent() {
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
               <Accordion arrowPosition="start" size="L">
-                <AccordionItem title="Inputs" id="input">
-                  <View padding="size-200" height={"100%"}>
-                    <PlaygroundInput />
-                  </View>
-                </AccordionItem>
+                {templateLanguage !== TemplateLanguages.NONE ? (
+                  <AccordionItem title="Inputs" id="input">
+                    <View padding="size-200" height={"100%"}>
+                      <PlaygroundInput />
+                    </View>
+                  </AccordionItem>
+                ) : null}
                 <AccordionItem title="Output" id="output">
                   <View padding="size-200" height="100%">
                     <Flex direction="row" gap="size-200">

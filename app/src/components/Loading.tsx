@@ -1,10 +1,13 @@
-import React from "react";
+import React, { ComponentProps } from "react";
 import { css } from "@emotion/react";
 
 import { ProgressCircle, Text } from "@arizeai/components";
 
-type LoadingProps = { message?: string };
-export const Loading = ({ message }: LoadingProps) => {
+type LoadingProps = {
+  message?: string;
+  size?: ComponentProps<typeof ProgressCircle>["size"];
+};
+export const Loading = ({ message, size }: LoadingProps) => {
   return (
     <div
       css={css`
@@ -17,7 +20,7 @@ export const Loading = ({ message }: LoadingProps) => {
         gap: var(--px-spacing-med);
       `}
     >
-      <ProgressCircle isIndeterminate aria-label="loading" />
+      <ProgressCircle isIndeterminate aria-label="loading" size={size} />
       {message != null ? <Text>{message}</Text> : null}
     </div>
   );

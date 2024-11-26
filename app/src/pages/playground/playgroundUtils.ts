@@ -340,6 +340,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         modelName: data.llm.model_name,
         provider: getModelProviderFromModelName(data.llm.model_name),
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     };
@@ -943,6 +944,9 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
+  const supportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+
   let invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
   ];
@@ -970,6 +974,17 @@ const getBaseChatCompletionInput = ({
         param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
     );
   }
+  // Filter invocation parameters to only include those that are supported by the model
+  // This will remove configured values that are not supported by the newly selected model
+  // If we don't have the list of supported invocation parameters in the store yet, we will just send
+  // them all
+  invocationParameters = supportedInvocationParameters.length
+    ? constrainInvocationParameterInputsToDefinition(
+        invocationParameters,
+        supportedInvocationParameters
+      )
+    : invocationParameters;
+
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
       ? {
@@ -1072,4 +1087,88 @@ export function normalizeMessageAttributeValue(
   return typeof content === "string"
     ? content
     : JSON.stringify(content, null, 2);
+}
+
+export function areRequiredInvocationParametersConfigured(
+  configuredInvocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  return supportedInvocationParameters
+    .filter((param) => param.required)
+    .every((param) =>
+      configuredInvocationParameters.some((ip) =>
+        areInvocationParamsEqual(ip, param)
+      )
+    );
+}
+
+/**
+ * Extracts the default value for the invocation parameter definition
+ * And the key name that should be used in the invocation parameter input if we need to make a new one
+ *
+ * This logic is necessary because the default value is mapped to different key name based on its type
+ * within the InvocationParameterInput queries in the playground e.g. floatDefaultValue or stringListDefaultValue
+ */
+const getInvocationParamDefaultValue = (
+  param: InvocationParameter
+): unknown => {
+  for (const [key, value] of Object.entries(param)) {
+    if (key.endsWith("DefaultValue") && value != null) {
+      return param[key as keyof InvocationParameter];
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Merges the current invocation parameters with the default values for the supported invocation parameters,
+ * only adding values for invocation parameters that don't already have a value
+ */
+export function mergeInvocationParametersWithDefaults(
+  invocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  // Convert the current invocation parameters to a map for quick lookup
+  const currentInvocationParametersMap = new Map(
+    invocationParameters.map((param) => [
+      param.canonicalName || param.invocationName,
+      param,
+    ])
+  );
+  supportedInvocationParameters.forEach((param) => {
+    const paramKeyName = param.canonicalName || param.invocationName;
+    // Extract the default value for the invocation parameter definition
+    // And the key name that should be used in the invocation parameter input if we need to make a new one
+    const defaultValue = getInvocationParamDefaultValue(param);
+    // Convert the invocation input field to a key name that can be used in the invocation parameter input
+    const invocationInputFieldKeyName = toCamelCase(
+      param.invocationInputField || ""
+    ) as keyof InvocationParameterInput;
+    // Skip if we don't have required fields
+    // or, if the current invocation parameter map already has a value for the key
+    // so that we don't overwrite a user provided value, or a value saved to preferences
+    if (
+      !param.invocationName ||
+      !param.invocationInputField ||
+      !paramKeyName ||
+      defaultValue == null ||
+      currentInvocationParametersMap.get(paramKeyName)?.[
+        invocationInputFieldKeyName
+      ] != null
+    ) {
+      return;
+    }
+    // Create the new invocation parameter input, using the default value for the parameter
+    const newInvocationParameter: InvocationParameterInput = {
+      canonicalName: param.canonicalName,
+      invocationName: param.invocationName,
+      [invocationInputFieldKeyName]: defaultValue,
+    };
+
+    // Add the new invocation parameter input to the map
+    currentInvocationParametersMap.set(paramKeyName, newInvocationParameter);
+  });
+
+  // Return the new invocation parameter inputs as an array
+  return Array.from(currentInvocationParametersMap.values());
 }

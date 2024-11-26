@@ -24,6 +24,7 @@ import {
   TextField,
   Tooltip,
   TooltipTrigger,
+  TriggerWrap,
 } from "@arizeai/components";
 
 import {
@@ -40,10 +41,17 @@ import { InvocationParametersFormFields } from "./InvocationParametersFormFields
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import {
+  areRequiredInvocationParametersConfigured,
   convertInstanceToolsToProvider,
   convertMessageToolCallsToProvider,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
+
+/**
+ * This is the maximum width of the model config button model name text.
+ * This is used to ensure that the model name text does not overflow the model config button.
+ */
+const MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH = 150;
 
 const modelConfigFormCSS = css`
   display: flex;
@@ -159,6 +167,16 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
+
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
+
   return (
     <Fragment>
       <Button
@@ -169,10 +187,34 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
+        title={`${ModelProviders[instance.model.provider]} ${
+          instance.model.modelName || "--"
+        }`}
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
-          <Text>{instance.model.modelName || "--"}</Text>
+          <div
+            css={css`
+              max-width: ${MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}px;
+              text-overflow: ellipsis;
+              overflow: hidden;
+              white-space: nowrap;
+            `}
+          >
+            <Text>{instance.model.modelName || "--"}</Text>
+          </div>
+          {!requiredInvocationParametersConfigured ? (
+            <TooltipTrigger delay={0} offset={5}>
+              <span>
+                <TriggerWrap>
+                  <Icon color="danger" svg={<Icons.InfoOutline />} />
+                </TriggerWrap>
+              </span>
+              <Tooltip>
+                Some required invocation parameters are not configured.
+              </Tooltip>
+            </TooltipTrigger>
+          ) : null}
         </Flex>
       </Button>
       <DialogContainer
@@ -264,6 +306,15 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
 
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
+
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
       query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
@@ -347,6 +398,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   return (
     <form css={modelConfigFormCSS}>
+      {!requiredInvocationParametersConfigured ? (
+        <Flex direction="row" gap="size-100">
+          <Icon color="danger" svg={<Icons.InfoOutline />} />
+          <Text color="danger">
+            Some required invocation parameters are not configured.
+          </Text>
+        </Flex>
+      ) : null}
       <ModelProviderPicker
         provider={instance.model.provider}
         query={query}
