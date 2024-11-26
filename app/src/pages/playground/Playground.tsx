@@ -197,15 +197,8 @@ const playgroundPromptPanelContentCSS = css`
 `;
 
 const promptsWrapCSS = css`
-  padding: var(--ac-global-dimension-size-200)
-    var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-200)
-    var(--ac-global-dimension-size-200);
-  // add scrollbar gutter to the right of the accordion item
+  padding: var(--ac-global-dimension-size-200);
   scrollbar-gutter: stable;
-  // if scrollbar-gutter is not supported, add padding to the right of the accordion item
-  @supports not (scrollbar-gutter: stable) {
-    padding-right: var(--ac-global-dimension-size-200);
-  }
   height: 100%;
   flex: 1 1 auto;
   overflow: auto;
