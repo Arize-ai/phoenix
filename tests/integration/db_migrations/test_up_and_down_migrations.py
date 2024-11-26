@@ -1,10 +1,5 @@
-import os
-from typing import Optional
-
 import pytest
-from alembic import command
 from alembic.config import Config
-from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA
 from sqlalchemy import (
     INTEGER,
     TIMESTAMP,
@@ -13,10 +8,10 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     MetaData,
     PrimaryKeyConstraint,
-    Row,
     UniqueConstraint,
-    text,
 )
+
+from . import _down, _up, _version_num
 
 
 def test_up_and_down_migrations(
@@ -293,30 +288,3 @@ def test_up_and_down_migrations(
         assert not constraints
         del constraints
     _up(_engine, _alembic_config, "4ded9e43755f")
-
-
-def _up(_engine: Engine, _alembic_config: Config, revision: str) -> None:
-    with _engine.connect() as conn:
-        _alembic_config.attributes["connection"] = conn
-        command.upgrade(_alembic_config, revision)
-    _engine.dispose()
-    assert _version_num(_engine) == (revision,)
-
-
-def _down(_engine: Engine, _alembic_config: Config, revision: str) -> None:
-    with _engine.connect() as conn:
-        _alembic_config.attributes["connection"] = conn
-        command.downgrade(_alembic_config, revision)
-    _engine.dispose()
-    assert _version_num(_engine) == (None if revision == "base" else (revision,))
-
-
-def _version_num(_engine: Engine) -> Optional[Row[tuple[str]]]:
-    schema_prefix = ""
-    if _engine.url.get_backend_name().startswith("postgresql"):
-        assert (schema := os.environ[ENV_PHOENIX_SQL_DATABASE_SCHEMA])
-        schema_prefix = f"{schema}."
-    table, column = "alembic_version", "version_num"
-    stmt = text(f"SELECT {column} FROM {schema_prefix}{table}")
-    with _engine.connect() as conn:
-        return conn.execute(stmt).first()
