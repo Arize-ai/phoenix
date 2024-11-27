@@ -82,14 +82,14 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   spanId: "fake-id",
   template: {
     __type: "chat",
-    // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
+    // These id's are not 0 because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
     // Doing so increments the message id counter
     messages: [
-      { id: 2, content: "You are a chatbot", role: "system" },
-      { id: 3, content: "hello?", role: "user" },
+      { id: 1, content: "You are a chatbot", role: "system" },
+      { id: 2, content: "hello?", role: "user" },
     ],
   },
-  output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+  output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
 };
 
 const defaultTemplate = {
@@ -97,13 +97,8 @@ const defaultTemplate = {
   messages: [
     {
       id: 0,
-      role: "system",
-      content: "Welcome to Phoenix Playground!\n\nYou are a helpful assistant.",
-    },
-    {
-      id: 1,
       role: "user",
-      content: "Answer the question: {{question}}",
+      content: `How many r's in "{{fruit}}"?`,
     },
   ],
 };
@@ -258,14 +253,14 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           __type: "chat",
           messages: [
             {
-              id: 2,
+              id: 1,
               role: "user",
               content: "You are a chatbot",
               toolCalls: [expectedTestOpenAIToolCall],
             },
           ],
         },
-        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+        output: [{ id: 2, content: "This is an AI Answer", role: "ai" }],
       },
       parsingErrors: [],
     });
@@ -309,14 +304,14 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           __type: "chat",
           messages: [
             {
-              id: 2,
+              id: 1,
               role: "user",
               content: "You are a chatbot",
               toolCalls: [expectedAnthropicToolCall],
             },
           ],
         },
-        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
+        output: [{ id: 2, content: "This is an AI Answer", role: "ai" }],
       },
       parsingErrors: [],
     });
@@ -363,7 +358,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
             definition: testSpanOpenAIToolJsonSchema,
           },
         ],
-        output: [{ id: 4, content: "This is an AI Answer", role: "ai" }],
+        output: [{ id: 3, content: "This is an AI Answer", role: "ai" }],
       },
       parsingErrors: [],
     });
