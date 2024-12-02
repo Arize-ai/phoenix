@@ -22,7 +22,7 @@ respx # For OpenAI testing
 tenacity
 tiktoken
 types-pytz
-typing-extensions==4.7.0
+typing-extensions
 vcrpy
 aiohttp>=3.0; python_version < "3.10"
 urllib3<2.0; python_version < "3.10"
