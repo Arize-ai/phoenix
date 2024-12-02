@@ -310,7 +310,8 @@ export const InvocationParametersFormFields = ({
   }, [form]);
 
   // Don't bother rendering the form if the model name is not set
-  if (model.modelName === null) {
+  // Except for Azure OpenAI, where the model name does not influence the invocation parameters
+  if (model.provider !== "AZURE_OPENAI" && model.modelName === null) {
     return null;
   }
 
