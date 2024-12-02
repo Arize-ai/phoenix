@@ -17,7 +17,7 @@ from typing import (
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptPartContentType, MultimodalPrompt
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {

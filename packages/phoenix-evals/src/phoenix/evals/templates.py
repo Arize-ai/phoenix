@@ -53,18 +53,12 @@ class MultimodalPrompt:
     @staticmethod
     def from_string(string_prompt: str) -> "MultimodalPrompt":
         return MultimodalPrompt(
-            parts=[
-                PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)
-            ]
+            parts=[PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)]
         )
 
     def to_text_only_prompt(self) -> str:
         return "\n\n".join(
-            [
-                part.content
-                for part in self.parts
-                if part.content_type == PromptPartContentType.TEXT
-            ]
+            [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
         )
 
     def __str__(self) -> str:
@@ -122,9 +116,7 @@ class PromptTemplate:
         self, template: Union[str, List[PromptPartTemplate]]
     ) -> List[PromptPartTemplate]:
         if isinstance(template, str):
-            return [
-                PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)
-            ]
+            return [PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)]
         return template
 
 

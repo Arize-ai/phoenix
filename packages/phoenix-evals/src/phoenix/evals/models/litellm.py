@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
-from phoenix.evals.templates import PromptPartContentType, MultimodalPrompt
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 logger = logging.getLogger(__name__)
 

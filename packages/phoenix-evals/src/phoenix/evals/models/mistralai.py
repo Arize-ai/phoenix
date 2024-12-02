@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptPartContentType, MultimodalPrompt
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 if TYPE_CHECKING:
     from mistralai.models.chat_completion import ChatMessage

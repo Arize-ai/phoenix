@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptPartContentType, MultimodalPrompt
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
