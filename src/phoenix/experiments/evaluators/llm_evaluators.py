@@ -367,7 +367,7 @@ class LLMRelationalEvaluator(LLMEvaluator):
         "First, explain step-by-step why you think the response '{relation}' the reference. "
         "Then provide a single word label; 'true' if the response '{relation}' the reference or "
         "'false' if the text is not '{relation}' to the reference. "
-        "Here is an example template for your reponse:\n\n"
+        "Here is an example template for your response:\n\n"
         "CRITERIA: the response '{relation}' the reference\n"
         "REFERENCE: *text that contains a reference*\n"
         "RESPONSE: *a response that may or may not be '{relation}' to the reference*\n"
