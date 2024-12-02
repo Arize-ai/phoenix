@@ -73,8 +73,8 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 | Projects                                                                                                         | ✅             |
 | [Self-Hosting](https://docs.arize.com/phoenix/deployment)                                                        | ✅             |
 | Jupyter Notebooks                                                                                                | ✅             |
+| [Prompt Playground](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅             |
 | [Sessions](https://github.com/Arize-ai/phoenix/issues/2619)                                                      | In Progress 🚧 |
-| [Prompt Playground](https://github.com/Arize-ai/phoenix/issues/3435)                                             | In Progress 🚧 |
 | Prompt Management                                                                                                | Coming soon ⏱️ |
 
 ## Tracing Integrations
