@@ -7,7 +7,7 @@ from typing import Any, Generator, Optional, Sequence
 from typing_extensions import TypeVar, Union
 
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.templates import PromptMessages
+from phoenix.evals.templates import MultimodalPrompt
 
 T = TypeVar("T", bound=type)
 
@@ -63,10 +63,10 @@ class BaseModel(ABC):
         pass
 
     def __call__(
-        self, prompt: Union[str, PromptMessages], instruction: Optional[str] = None, **kwargs: Any
+        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
     ) -> str:
         """Run the LLM on the given prompt."""
-        if not isinstance(prompt, (str, PromptMessages)):
+        if not isinstance(prompt, (str, MultimodalPrompt)):
             raise TypeError(
                 "Invalid type for argument `prompt`. Expected a string or PromptMessages but found "
                 f"{type(prompt)}. If you want to run the LLM on multiple prompts, use "
@@ -86,11 +86,11 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(self, prompt: Union[str, PromptMessages], **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @staticmethod

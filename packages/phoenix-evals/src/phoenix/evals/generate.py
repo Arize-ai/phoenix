@@ -8,7 +8,7 @@ from phoenix.evals.executors import (
 )
 from phoenix.evals.models import BaseModel, set_verbosity
 from phoenix.evals.templates import (
-    PromptMessages,
+    MultimodalPrompt,
     PromptTemplate,
     map_template,
     normalize_prompt_template,
@@ -92,7 +92,7 @@ def llm_generate(
     prompts = map_template(dataframe, template)
 
     async def _run_llm_generation_async(
-        enumerated_prompt: Tuple[int, PromptMessages],
+        enumerated_prompt: Tuple[int, MultimodalPrompt],
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
@@ -108,7 +108,7 @@ def llm_generate(
         return parsed_response
 
     def _run_llm_generation_sync(
-        enumerated_prompt: Tuple[int, PromptMessages],
+        enumerated_prompt: Tuple[int, MultimodalPrompt],
     ) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:

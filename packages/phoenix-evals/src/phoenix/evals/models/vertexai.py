@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
-from phoenix.evals.templates import PromptMessages
+from phoenix.evals.templates import MultimodalPrompt
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -151,18 +151,18 @@ class VertexAIModel(BaseModel):
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
     async def _async_generate(
-        self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> str:
         if isinstance(prompt, str):
-            prompt = PromptMessages.from_string(prompt)
+            prompt = MultimodalPrompt.from_string(prompt)
 
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         if isinstance(prompt, str):
-            prompt = PromptMessages.from_string(prompt)
+            prompt = MultimodalPrompt.from_string(prompt)
 
-        prompt_str = prompt.to_prompt_string()
+        prompt_str = prompt.to_text_only_prompt()
         invoke_params = self.invocation_params
         response = self._model.predict(
             prompt=prompt_str,

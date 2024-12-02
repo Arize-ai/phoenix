@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
-from phoenix.evals.templates import PromptMessageContentType, PromptMessages
+from phoenix.evals.templates import PromptPartContentType, MultimodalPrompt
 
 logger = logging.getLogger(__name__)
 
@@ -105,16 +105,16 @@ class LiteLLMModel(BaseModel):
             )
 
     async def _async_generate(
-        self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
     ) -> str:
         if isinstance(prompt, str):
-            prompt = PromptMessages.from_string(prompt)
+            prompt = MultimodalPrompt.from_string(prompt)
 
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: Union[str, PromptMessages], **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         if isinstance(prompt, str):
-            prompt = PromptMessages.from_string(prompt)
+            prompt = MultimodalPrompt.from_string(prompt)
 
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
@@ -129,12 +129,12 @@ class LiteLLMModel(BaseModel):
         )
         return str(response.choices[0].message.content)
 
-    def _get_messages_from_prompt(self, prompt: PromptMessages) -> List[Dict[str, str]]:
+    def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
         messages = []
-        for msg in prompt.messages:
-            if msg.content_type == PromptMessageContentType.TEXT:
-                messages.append({"content": msg.content, "role": "user"})
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"content": part.content, "role": "user"})
             else:
-                raise ValueError(f"Unsupported content type: {msg.content_type}")
+                raise ValueError(f"Unsupported content type: {part.content_type}")
         return messages

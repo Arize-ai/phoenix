@@ -29,69 +29,69 @@ class DotKeyFormatter(Formatter):
         return obj, field_name
 
 
-class PromptMessageContentType(str, Enum):
+class PromptPartContentType(str, Enum):
     TEXT = "text"
     AUDIO_URL = "audio_url"
 
 
 @dataclass
-class PromptMessage:
-    content_type: PromptMessageContentType
+class PromptPart:
+    content_type: PromptPartContentType
     content: str
 
 
 @dataclass
-class PromptMessageTemplate:
-    content_type: PromptMessageContentType
+class PromptPartTemplate:
+    content_type: PromptPartContentType
     template: str
 
 
 @dataclass
-class PromptMessages:
-    messages: List[PromptMessage]
+class MultimodalPrompt:
+    parts: List[PromptPart]
 
     @staticmethod
-    def from_string(string_prompt: str) -> "PromptMessages":
-        return PromptMessages(
-            messages=[
-                PromptMessage(content_type=PromptMessageContentType.TEXT, content=string_prompt)
+    def from_string(string_prompt: str) -> "MultimodalPrompt":
+        return MultimodalPrompt(
+            parts=[
+                PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)
             ]
         )
 
-    def to_prompt_string(self) -> str:
+    def to_text_only_prompt(self) -> str:
         return "\n\n".join(
             [
-                msg.content
-                for msg in self.messages
-                if msg.content_type == PromptMessageContentType.TEXT
+                part.content
+                for part in self.parts
+                if part.content_type == PromptPartContentType.TEXT
             ]
         )
 
     def __str__(self) -> str:
-        return "\n\n".join([msg.content for msg in self.messages])
+        return "\n\n".join([part.content for part in self.parts])
 
 
 class PromptTemplate:
-    template: List[PromptMessageTemplate]
+    template: List[PromptPartTemplate]
     variables: List[str]
 
     def __init__(
         self,
-        template: Union[str, List[PromptMessageTemplate]],
+        template: Union[str, List[PromptPartTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.template: List[PromptMessageTemplate] = self._normalize_template(template)
+        self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.template)
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptMessageTemplate]:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
 
     def format(
         self,
         variable_values: Mapping[str, Union[bool, int, float, str]],
         options: Optional[PromptOptions] = None,
-    ) -> PromptMessages:
+    ) -> MultimodalPrompt:
         prompt = self.prompt(options)
         prompt_messages = []
         for template_message in prompt:
@@ -105,11 +105,11 @@ class PromptTemplate:
                         str(variable_values[variable_name]),
                     )
             prompt_messages.append(
-                PromptMessage(content_type=template_message.content_type, content=prompt_message)
+                PromptPart(content_type=template_message.content_type, content=prompt_message)
             )
-        return PromptMessages(messages=prompt_messages)
+        return MultimodalPrompt(parts=prompt_messages)
 
-    def _parse_variables(self, template: List[PromptMessageTemplate]) -> List[str]:
+    def _parse_variables(self, template: List[PromptPartTemplate]) -> List[str]:
         start = re.escape(self._start_delim)
         end = re.escape(self._end_delim)
         pattern = rf"{start}(.*?){end}"
@@ -119,11 +119,11 @@ class PromptTemplate:
         return variables
 
     def _normalize_template(
-        self, template: Union[str, List[PromptMessageTemplate]]
-    ) -> List[PromptMessageTemplate]:
+        self, template: Union[str, List[PromptPartTemplate]]
+    ) -> List[PromptPartTemplate]:
         if isinstance(template, str):
             return [
-                PromptMessageTemplate(content_type=PromptMessageContentType.TEXT, template=template)
+                PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)
             ]
         return template
 
@@ -132,8 +132,8 @@ class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
-        template: Union[str, List[PromptMessageTemplate]],
-        explanation_template: Optional[Union[str, List[PromptMessageTemplate]]] = None,
+        template: Union[str, List[PromptPartTemplate]],
+        explanation_template: Optional[Union[str, List[PromptPartTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
         scores: Optional[List[float]] = None,
@@ -158,7 +158,7 @@ class ClassificationTemplate(PromptTemplate):
     def __repr__(self) -> str:
         return "\n\n".join([template.template for template in self.template])
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptMessageTemplate]:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         if options is None:
             return self.template
 
@@ -238,7 +238,7 @@ def map_template(
     dataframe: pd.DataFrame,
     template: PromptTemplate,
     options: Optional[PromptOptions] = None,
-) -> List[PromptMessages]:
+) -> List[MultimodalPrompt]:
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
