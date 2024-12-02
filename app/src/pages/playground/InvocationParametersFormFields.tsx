@@ -42,15 +42,17 @@ const InvocationParameterFormField = ({
     throw new Error("Invocation name is required");
   }
   const errorMessage = errors[invocationName]?.message;
-  const required = field.required
+  const requiredRuleMessage = field.required
     ? `${field.label || invocationName} is required`
     : undefined;
-  const min = field.minValue
-    ? `${field.label || invocationName} must be at least ${field.minValue}`
-    : undefined;
-  const max = field.maxValue
-    ? `${field.label || invocationName} must be at most ${field.maxValue}`
-    : undefined;
+  const minRuleMessage =
+    field.minValue != null
+      ? `${field.label || invocationName} must be at least ${field.minValue}`
+      : undefined;
+  const maxRuleMessage =
+    field.maxValue != null
+      ? `${field.label || invocationName} must be at most ${field.maxValue}`
+      : undefined;
   const { __typename } = field;
   switch (__typename) {
     case "InvocationParameterBase":
@@ -75,9 +77,9 @@ const InvocationParameterFormField = ({
           control={control}
           name={invocationName}
           rules={{
-            required,
-            min,
-            max,
+            required: requiredRuleMessage,
+            min: minRuleMessage,
+            max: maxRuleMessage,
           }}
           render={({ field: { onBlur } }) => (
             <TextField
@@ -106,7 +108,7 @@ const InvocationParameterFormField = ({
           control={control}
           name={invocationName}
           rules={{
-            required,
+            required: requiredRuleMessage,
           }}
           render={() => (
             <TextField
@@ -132,7 +134,7 @@ const InvocationParameterFormField = ({
           control={control}
           name={invocationName}
           rules={{
-            required,
+            required: requiredRuleMessage,
           }}
           render={() => (
             <TextField
@@ -164,7 +166,7 @@ const InvocationParameterFormField = ({
           control={control}
           name={invocationName}
           rules={{
-            required,
+            required: requiredRuleMessage,
           }}
           render={() => (
             <InvocationParameterJsonEditor
