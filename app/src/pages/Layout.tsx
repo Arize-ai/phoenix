@@ -17,7 +17,6 @@ import {
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useNotifyError } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -97,7 +96,6 @@ function SideNav() {
       message: "Failed to log out: " + response.statusText,
     });
   }, [navigate, notifyError]);
-  const playgroundEnabled = useFeatureFlag("playground");
   return (
     <SideNavbar>
       <Brand />
@@ -126,15 +124,13 @@ function SideNav() {
               icon={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
-          {playgroundEnabled && (
-            <li>
-              <NavLink
-                to="/playground"
-                text="Playground"
-                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              />
-            </li>
-          )}
+          <li>
+            <NavLink
+              to="/playground"
+              text="Playground"
+              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+            />
+          </li>
           <li>
             <NavLink
               to="/apis"
