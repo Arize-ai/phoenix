@@ -575,6 +575,8 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
+            raise BadRequest("An Azure API key is required for Azure OpenAI models")
         if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
         if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
