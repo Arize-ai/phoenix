@@ -381,6 +381,15 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         })),
       });
     },
+    cancelPlaygroundInstances: () => {
+      set({
+        instances: get().instances.map((instance) => ({
+          ...instance,
+          activeRunId: null,
+          spanId: null,
+        })),
+      });
+    },
     markPlaygroundInstanceComplete: (instanceId: number) => {
       const instances = get().instances;
       set({
