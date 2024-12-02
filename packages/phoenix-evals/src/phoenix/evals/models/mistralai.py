@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 if TYPE_CHECKING:
     from mistralai.models.chat_completion import ChatMessage
@@ -106,9 +107,12 @@ class MistralAIModel(BaseModel):
         # Mistral is strict about not passing None values to the API
         return {k: v for k, v in params.items() if v is not None}
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
@@ -134,9 +138,14 @@ class MistralAIModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
         # instruction is an invalid input to Mistral models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
@@ -163,6 +172,12 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: str) -> List["ChatMessage"]:
+    def _format_prompt(self, prompt: MultimodalPrompt) -> List["ChatMessage"]:
         ChatMessage = self._ChatMessage
-        return [ChatMessage(role="user", content=prompt)]
+        messages = []
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append(ChatMessage(role="user", content=part.content))
+            else:
+                raise ValueError(f"Unsupported content type: {part.content_type}")
+        return messages

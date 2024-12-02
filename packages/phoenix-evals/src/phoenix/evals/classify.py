@@ -27,6 +27,7 @@ from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_contex
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
+    MultimodalPrompt,
     PromptOptions,
     PromptTemplate,
     normalize_classification_template,
@@ -177,7 +178,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _map_template(data: pd.Series[Any]) -> str:
+    def _map_template(data: pd.Series[Any]) -> MultimodalPrompt:
         try:
             variables = {var: data[var] for var in eval_template.variables}
             empty_keys = [k for k, v in variables.items() if v is None]
@@ -217,7 +218,7 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
     def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
@@ -226,7 +227,7 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
     fallback_return_value: ParsedLLMResponse = (None, None, "", "")
 
