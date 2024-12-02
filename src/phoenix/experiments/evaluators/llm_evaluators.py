@@ -232,7 +232,7 @@ class RelevanceEvaluator(LLMEvaluator):
         "query. First, explain step-by-step why you think the text is or is not relevant. "
         "Then provide a single word label; 'true' if the text is relevant or 'false' if the text "
         "is not relevant. "
-        "Here is an example template for your reponse:\n\n"
+        "Here is an example template for your response:\n\n"
         "CRITERIA: the response is 'relevant' to the query\n"
         "QUERY: *text that contains a query*\n"
         "RESPONSE: *a response that may or may not be relevant to the query*\n"
