@@ -331,6 +331,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
 
   useEffect(() => {
     if (!hasRunId) {
+      setLoading(false);
       return;
     }
     setLoading(true);
