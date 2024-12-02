@@ -378,7 +378,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       const subscription = requestSubscription(environment, config);
       return subscription.dispose;
     }
-    generateChatCompletion({
+
+    const disposable = generateChatCompletion({
       variables: {
         input,
       },
@@ -400,6 +401,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         }
       },
     });
+
+    return disposable.dispose;
   }, [
     cleanup,
     credentials,

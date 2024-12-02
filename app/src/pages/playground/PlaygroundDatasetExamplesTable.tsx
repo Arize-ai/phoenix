@@ -578,6 +578,7 @@ export function PlaygroundDatasetExamplesTable({
         }
       };
     } else {
+      const disposables: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
         if (activeRunId === null) {
@@ -591,7 +592,7 @@ export function PlaygroundDatasetExamplesTable({
             datasetId,
           }),
         };
-        generateChatCompletion({
+        const disposable = generateChatCompletion({
           variables,
           onCompleted: onCompleted(instance.id),
           onError(error) {
@@ -612,7 +613,13 @@ export function PlaygroundDatasetExamplesTable({
             }
           },
         });
+        disposables.push(disposable);
       }
+      return () => {
+        for (const disposable of disposables) {
+          disposable.dispose();
+        }
+      };
     }
   }, [
     credentials,
