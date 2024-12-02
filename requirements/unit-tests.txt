@@ -5,7 +5,7 @@ arize
 asgi-lifespan
 asyncpg
 grpc-interceptor[testing]
-httpx # For OpenAI testing
+httpx<0.28
 httpx-ws
 litellm>=1.0.3
 nest-asyncio # for executor testing
@@ -22,7 +22,7 @@ respx # For OpenAI testing
 tenacity
 tiktoken
 types-pytz
-typing-extensions==4.7.0
+typing-extensions
 vcrpy
 aiohttp>=3.0; python_version < "3.10"
 urllib3<2.0; python_version < "3.10"
