@@ -280,20 +280,18 @@ export const InvocationParametersFormFields = ({
             )
           )
       )
-      .map((field) => {
-        const existingParameter = instanceInvocationParameters.find((p) =>
-          areInvocationParamsEqual(p, field)
-        );
-        const value = existingParameter
-          ? getInvocationParameterValue(field, existingParameter)
-          : undefined;
-        return {
-          [field.invocationName!]: value ?? null,
-        };
-      })
       .reduce(
-        (acc, param) => {
-          return { ...acc, ...param };
+        (acc, field) => {
+          const existingParameter = instanceInvocationParameters.find((p) =>
+            areInvocationParamsEqual(p, field)
+          );
+          const value = existingParameter
+            ? getInvocationParameterValue(field, existingParameter)
+            : undefined;
+          return {
+            ...acc,
+            [field.invocationName!]: value ?? null,
+          };
         },
         {} as Record<string, unknown>
       );
