@@ -660,9 +660,9 @@ USER_FRUSTRATION_PROMPT_BASE_TEMPLATE = """
   [END DATA]
 
   Examine the conversation and determine whether or not the user got frustrated from the experience.
-  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
-  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
-  as frustrated. Focus on how the user left the conversation.
+  Frustration can range from mildly frustrated to extremely frustrated. If the user seemed
+  frustrated at the beginning of the conversation but seemed satisfied at the end, they should not
+  be deemed as frustrated. Focus on how the user left the conversation.
 
   Your response must be a single word, either "frustrated" or "ok", and should not
   contain any text or characters aside from that word. "frustrated" means the user was left
