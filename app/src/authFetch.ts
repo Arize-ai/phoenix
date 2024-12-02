@@ -32,6 +32,10 @@ export async function authFetch(
       // Retry the original request
       return fetch(input, init);
     }
+    if (error instanceof Error && error.name === "AbortError") {
+      // This is triggered when the controller is aborted
+      throw error;
+    }
   }
   throw new Error("An unexpected error occurred while fetching data");
 }
