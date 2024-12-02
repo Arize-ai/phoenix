@@ -1,5 +1,34 @@
 # Changelog
 
+## [6.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.12.0...arize-phoenix-v6.0.0) (2024-12-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **playground:** release playground feature ([#5576](https://github.com/Arize-ai/phoenix/issues/5576))
+
+### Features
+
+* Add evaluations to openapi schema ([#5505](https://github.com/Arize-ai/phoenix/issues/5505)) ([01d45f0](https://github.com/Arize-ai/phoenix/commit/01d45f0a19c09df991f50c77f98504adc287f6b5))
+* **playground:** release playground feature ([#5576](https://github.com/Arize-ai/phoenix/issues/5576)) ([d3f8370](https://github.com/Arize-ai/phoenix/commit/d3f8370393805535eb1208710f60dd03cc65e52c))
+
+
+### Bug Fixes
+
+* Detect provider from span attribute, fallback to model name heuristic ([#5535](https://github.com/Arize-ai/phoenix/issues/5535)) ([a479d62](https://github.com/Arize-ai/phoenix/commit/a479d62f3df710b51caa9e9d023ec857ae24223c))
+* ensure retrieval documents are unnested when converting from span to dataset example ([#5523](https://github.com/Arize-ai/phoenix/issues/5523)) ([2f6e22e](https://github.com/Arize-ai/phoenix/commit/2f6e22e6bc597669ec6ebdef1ceb5d81f8d41b8d))
+* Hide tool button on non-supported providers, Display errors for missing invocation params ([#5470](https://github.com/Arize-ai/phoenix/issues/5470)) ([baecc54](https://github.com/Arize-ai/phoenix/commit/baecc54a0e1608e514ee77506344be4f682079cf))
+* **playground:** add AZURE_OPENAI_API_KEY environment variable ([#5570](https://github.com/Arize-ai/phoenix/issues/5570)) ([32e4e64](https://github.com/Arize-ai/phoenix/commit/32e4e64ea35b558d76b858b91f14f7b9d05dc189))
+* **playground:** fix wording on missing input variable in playground over a dataset ([#5549](https://github.com/Arize-ai/phoenix/issues/5549)) ([b0ef597](https://github.com/Arize-ai/phoenix/commit/b0ef5974b7d4846d7fe5c10ebbf06eb6bb2740bb))
+* **playground:** improve playground default invocation parameters ([#5545](https://github.com/Arize-ai/phoenix/issues/5545)) ([4f95300](https://github.com/Arize-ai/phoenix/commit/4f953008627e9270b8860f74239bc371ea9be639))
+* **playground:** prepend `system` message from anthropic spans ([#5527](https://github.com/Arize-ai/phoenix/issues/5527)) ([838d348](https://github.com/Arize-ai/phoenix/commit/838d3480f3098ee9de08418973057cc41fd5e770))
+* **playground:** remove cascade of padding on prompts ([#5556](https://github.com/Arize-ai/phoenix/issues/5556)) ([0eb1277](https://github.com/Arize-ai/phoenix/commit/0eb1277749a79d8509a4181ddb6edaaf9ed2ac51))
+* **playground:** update saved model config to overwrite all model config if present ([#5544](https://github.com/Arize-ai/phoenix/issues/5544)) ([58dd310](https://github.com/Arize-ai/phoenix/commit/58dd31083605d51e08e2156ff2983e3c0cbe06e8))
+* **playground:** use consistent playground experiment run format ([#5524](https://github.com/Arize-ai/phoenix/issues/5524)) ([b770112](https://github.com/Arize-ai/phoenix/commit/b770112f9b0eb7c95a9019e2c5d43cffaafadf64))
+* Properly constrain/rename invocation params before submitting ([#5550](https://github.com/Arize-ai/phoenix/issues/5550)) ([b121fe2](https://github.com/Arize-ai/phoenix/commit/b121fe2bde520c5dd9c46599670900272c1f07b2))
+* Remove seed parameter (no longer accepted by server) ([#5547](https://github.com/Arize-ai/phoenix/issues/5547)) ([a279136](https://github.com/Arize-ai/phoenix/commit/a279136f6c458cceb30096413a93f9306716e47b))
+* spelling errors in prompt templates ([#5571](https://github.com/Arize-ai/phoenix/issues/5571)) ([9646c8e](https://github.com/Arize-ai/phoenix/commit/9646c8ebc7ba81043f4e1a678977a8c6a0fa50c1))
+
 ## [5.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.11.0...arize-phoenix-v5.12.0) (2024-11-25)
 
 
