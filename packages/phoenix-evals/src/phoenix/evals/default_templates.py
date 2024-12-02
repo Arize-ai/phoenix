@@ -681,9 +681,9 @@ USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
   [END DATA]
 
   Examine the conversation and determine whether or not the user got frustrated from the experience.
-  Frustration can range from mildly frustrated to extremely frustrated. If the user seemed frustrated
-  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
-  as frustrated. Focus on how the user left the conversation.
+  Frustration can range from mildly frustrated to extremely frustrated. If the user seemed
+  frustrated at the beginning of the conversation but seemed satisfied at the end, they should not
+  be deemed as frustrated. Focus on how the user left the conversation.
 
   You are going to respond with an EXPLANATION and LABEL.
   Please read the text carefully, then write out in a step by step manner an
@@ -695,7 +695,7 @@ USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 
 Example response:
 ************
-EXPLANATION: An explanation of your reasoning for why the user is frusterated
+EXPLANATION: An explanation of your reasoning for why the user is frustrated
 LABEL: "frustrated" or "ok"
 ************
 """
