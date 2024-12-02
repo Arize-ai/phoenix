@@ -535,7 +535,7 @@ Evaluation:
 -----------
 Your response should be an explanation and then a single word LABEL: either "correct" or
 "incorrect".
-You must assume that the db exists and that columns are appropiately named.
+You must assume that the db exists and that columns are appropriately named.
 You must take into account the response as additional information to determine the correctness.
 
 - "correct" indicates that the sql query correctly solves the instruction.
@@ -660,9 +660,9 @@ USER_FRUSTRATION_PROMPT_BASE_TEMPLATE = """
   [END DATA]
 
   Examine the conversation and determine whether or not the user got frustrated from the experience.
-  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
-  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
-  as frustrated. Focus on how the user left the conversation.
+  Frustration can range from mildly frustrated to extremely frustrated. If the user seemed
+  frustrated at the beginning of the conversation but seemed satisfied at the end, they should not
+  be deemed as frustrated. Focus on how the user left the conversation.
 
   Your response must be a single word, either "frustrated" or "ok", and should not
   contain any text or characters aside from that word. "frustrated" means the user was left
@@ -681,13 +681,13 @@ USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
   [END DATA]
 
   Examine the conversation and determine whether or not the user got frustrated from the experience.
-  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
-  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
-  as frustrated. Focus on how the user left the conversation.
+  Frustration can range from mildly frustrated to extremely frustrated. If the user seemed
+  frustrated at the beginning of the conversation but seemed satisfied at the end, they should not
+  be deemed as frustrated. Focus on how the user left the conversation.
 
   You are going to respond with an EXPLANATION and LABEL.
   Please read the text carefully, then write out in a step by step manner an
-  EXPLANATION as to why you think the user is frusterated.
+  EXPLANATION as to why you think the user is frustrated.
   Your LABEL response must be a single word, either "frustrated" or "ok", and should not
   contain any text or characters aside from that word. "frustrated" means the user was left
   frustrated as a result of the conversation. "ok" means that the user did not get frustrated
@@ -695,7 +695,7 @@ USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 
 Example response:
 ************
-EXPLANATION: An explanation of your reasoning for why the user is frusterated
+EXPLANATION: An explanation of your reasoning for why the user is frustrated
 LABEL: "frustrated" or "ok"
 ************
 """
