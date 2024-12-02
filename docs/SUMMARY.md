@@ -97,6 +97,12 @@
   * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
+## 📃 Prompt Engineering
+
+* [Overview: Prompts](prompt-engineering/overview-prompts.md)
+* [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
+* [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
+
 ## 🗄️ Datasets & Experiments
 
 * [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
