@@ -2,7 +2,7 @@
 
 ## Testing Multiple Prompts
 
-Prompt Playground supports testing multiple prompt variants side-by-side. Use the `+ Prompt` button to add a prompt variant. Whether you're using Span Replay or running your prompts over a Dataset, playground will run your inputs through each prompt variant and show the results side-by-side.
+Prompt Playground supports testing multiple prompt variants side-by-side. Use the `+ Compare` button to add a prompt variant. Whether you're using Span Replay or running your prompts over a Dataset, playground will run your inputs through each prompt variant and show the results side-by-side.
 
 <figure><img src="../.gitbook/assets/Screenshot 2024-12-02 at 9.55.26 AM.png" alt=""><figcaption><p>Testing multiple prompts simultaneously</p></figcaption></figure>
 
