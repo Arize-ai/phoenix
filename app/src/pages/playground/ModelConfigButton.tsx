@@ -27,6 +27,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { SearchableSelector } from "@phoenix/components/SearchableSelector";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
@@ -360,12 +361,14 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       {instance.model.provider === "AZURE_OPENAI" ? (
         <AzureOpenAiModelConfigFormField instance={instance} />
       ) : (
-        <ModelPicker
-          modelName={instance.model.modelName}
-          provider={instance.model.provider}
-          query={query}
-          onChange={onModelNameChange}
-        />
+        <Flex direction="column" gap="size-100">
+          <ModelPicker
+            modelName={instance.model.modelName}
+            provider={instance.model.provider}
+            query={query}
+            onChange={onModelNameChange}
+          />
+        </Flex>
       )}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />

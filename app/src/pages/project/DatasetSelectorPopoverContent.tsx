@@ -58,6 +58,7 @@ export function DatasetSelectorPopoverContent(
           onChange={(newSearch) => {
             setSearch(newSearch);
           }}
+          aria-label="Search datasets"
         />
       </View>
       <View borderTopWidth="thin" borderColor="light">
@@ -137,6 +138,7 @@ function DatasetsListBox(props: {
           onDatasetSelected(selectedDatasetIds[0] as string);
         }
       }}
+      aria-label="Select a dataset"
     >
       {datasets.map((ds) => (
         <Item key={ds.id}>{ds.name}</Item>

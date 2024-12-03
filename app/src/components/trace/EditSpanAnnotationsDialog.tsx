@@ -510,6 +510,7 @@ function NewAnnotationPopoverContent(props: {
               setNewName(name || "");
             }}
             disabledKeys={existingAnnotationNames}
+            aria-label="select from existing annotation names"
           >
             {availableNames.map((name) => (
               <Item key={name}>{name}</Item>
