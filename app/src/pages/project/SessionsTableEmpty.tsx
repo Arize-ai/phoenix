@@ -37,7 +37,7 @@ export function SessionsTableEmpty() {
   const [dialog, setDialog] = useState<ReactNode | null>(null);
 
   const onGettingStartedClick = () => {
-    setDialog(<SetupSessionsDialog projectName="projectName" />);
+    setDialog(<SetupSessionsDialog />);
   };
 
   return (
