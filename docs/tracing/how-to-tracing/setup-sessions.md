@@ -23,6 +23,14 @@ Below is an example of logging conversations:
 
 {% tabs %}
 {% tab title="Python" %}
+First make sure you have the required dependancies installed
+
+```sh
+pip install openinfernce-instrumentation
+```
+
+Below is an example of how to use `openinference.instrumentation` to the traces created.
+
 ```python
 import uuid
 
@@ -75,7 +83,76 @@ response = assistant(
 {% endtab %}
 
 {% tab title="TypeScript" %}
-Coming Soon
+The easiest way to add sessions to your application is to install `@arizeai/openinfernce-core`
+
+```sh
+npm install @arizeai/openinference-core --save
+```
+
+You now can use either the `session.id` semantic attribute or the `setSession` utility function from `openinference-core` to associate traces with a particular session:
+
+```typescript
+import { trace } from "@opentelemetry/api";
+import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+import { context } from "@opentelemetry/api";
+import { setSession } from "@arizeai/openinference-core";
+
+const tracer = trace.getTracer("agent");
+
+const client = new OpenAI({
+  apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
+});
+
+async function assistant(params: {
+  messages: { role: string; content: string }[];
+  sessionId: string;
+}) {
+  return tracer.startActiveSpan("agent", async (span: Span) => {
+    span.setAttribute(SemanticConventions.OPENINFERENCE_SPAN_KIND, "agent");
+    span.setAttribute(SemanticConventions.SESSION_ID, params.sessionId);
+    span.setAttribute(
+      SemanticConventions.INPUT_VALUE,
+      messages[messages.length - 1].content,
+    );
+    try {
+      // This is not strictly necessary but it helps propagate the session ID
+      // to all child spans
+      return context.with(
+        setSession(context.active(), { sessionId: params.sessionId }),
+        async () => {
+          // Calls within this block will generate spans with the session ID set
+          const chatCompletion = await client.chat.completions.create({
+            messages: params.messages,
+            model: "gpt-3.5-turbo",
+          });
+          const response = chatCompletion.choices[0].message;
+          span.setAttribute(SemanticConventions.OUTPUT_VALUE, response.content);
+          span.end();
+          return response;
+        },
+      );
+    } catch (e) {
+      span.error(e);
+    }
+  });
+}
+
+const sessionId = crypto.randomUUID();
+
+let messages = [{ role: "user", content: "hi! im Tim" }];
+
+const res = await assistant({
+  messages,
+  sessionId: sessionId,
+});
+
+messages = [res, { role: "assistant", content: "What is my name?" }];
+
+await assistant({
+  messages,
+  sessionId: sessionId,
+});
+```
 {% endtab %}
 {% endtabs %}
 
