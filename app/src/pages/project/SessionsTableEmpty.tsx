@@ -20,7 +20,7 @@ export function SessionsTableEmpty() {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   const onGettingStartedClick = () => {
     setDialog(
-      <Dialog title="Setup Sessions" size="M">
+      <Dialog title="Setup Sessions" size="L">
         <View padding="size-400" overflow="auto">
           <View paddingBottom="size-100">
             <CodeLanguageRadioGroup
