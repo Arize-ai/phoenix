@@ -1,5 +1,6 @@
-import React, { useCallback, useLayoutEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
+import { debounce } from "lodash";
 
 import { Slider, Switch, TextField } from "@arizeai/components";
 
@@ -85,7 +86,7 @@ const InvocationParameterFormField = ({
             <TextField
               label={field.label}
               isRequired={field.required}
-              defaultValue={value?.toString() || ""}
+              value={value?.toString() || ""}
               type="number"
               onBlur={onBlur}
               onChange={(value) => {
@@ -110,11 +111,12 @@ const InvocationParameterFormField = ({
           rules={{
             required: requiredRuleMessage,
           }}
-          render={() => (
+          render={({ field: { onBlur } }) => (
             <TextField
               label={field.label}
               isRequired={field.required}
               defaultValue={value?.join(", ") ?? ""}
+              onBlur={onBlur}
               onChange={(value) => {
                 if (value === "") {
                   onChange(undefined);
@@ -136,12 +138,13 @@ const InvocationParameterFormField = ({
           rules={{
             required: requiredRuleMessage,
           }}
-          render={() => (
+          render={({ field: { onBlur } }) => (
             <TextField
               label={field.label}
               isRequired={field.required}
               defaultValue={value?.toString() || ""}
               type="text"
+              onBlur={onBlur}
               onChange={(value) => {
                 if (value === "") {
                   onChange(undefined);
@@ -305,11 +308,14 @@ export const InvocationParametersFormFields = ({
     mode: "onBlur",
   });
 
-  // Trigger validation on mount, but after the initial render commits and controls have been
-  // attached in fieldsForSchema
-  useLayoutEffect(() => {
-    form.trigger();
-  }, [form]);
+  const trigger = form.trigger;
+  const debouncedTrigger = useMemo(() => debounce(trigger, 250), [trigger]);
+
+  useEffect(() => {
+    // revalidate the form when the values change
+    // debounce to trigger validation only after the user has stopped typing
+    debouncedTrigger();
+  }, [values, debouncedTrigger]);
 
   // Don't bother rendering the form if the model name is not set
   // Except for Azure OpenAI, where the model name does not influence the invocation parameters
@@ -327,9 +333,12 @@ export const InvocationParametersFormFields = ({
         return null;
       }
 
+      // Remount the field when the provider changes so that we don't hang on to stale values
+      const key = `${model.provider ?? "model"}-${field.invocationName}`;
+
       return (
         <InvocationParameterFormField
-          key={field.invocationName}
+          key={key}
           field={field}
           value={value}
           onChange={(value) => onChange(field, value)}
