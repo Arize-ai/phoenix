@@ -64,6 +64,7 @@
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Importing Existing Traces](tracing/how-to-tracing/importing-existing-traces.md)
   * [Save and Load Traces](tracing/how-to-tracing/save-and-load-traces.md)
+  * [Setup Sessions](tracing/how-to-tracing/setup-sessions.md)
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
