@@ -281,9 +281,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const sequenceNumber =
           experimentInfoById[experimentId]?.sequenceNumber || 0;
         return (
-          <Flex direction="row" gap="size-100" wrap>
+          <Flex direction="row" gap="size-100" wrap alignItems="center">
             <SequenceNumberLabel sequenceNumber={sequenceNumber} />
             <Text>{name}</Text>
+            <CopyToClipboardButton text={experimentId} />
           </Flex>
         );
       },
