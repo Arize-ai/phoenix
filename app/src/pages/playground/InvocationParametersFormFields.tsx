@@ -306,6 +306,11 @@ export const InvocationParametersFormFields = ({
   const form = useForm({
     values,
     mode: "onBlur",
+    delayError: 0,
+    shouldFocusError: false,
+    resetOptions: {
+      keepErrors: true,
+    },
   });
 
   const trigger = form.trigger;
