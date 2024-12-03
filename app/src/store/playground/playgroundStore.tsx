@@ -8,6 +8,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { TOOL_CHOICE_PARAM_CANONICAL_NAME } from "@phoenix/pages/playground/constants";
 import {
   areInvocationParamsEqual,
   mergeInvocationParametersWithDefaults,
@@ -238,6 +239,12 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
                   supportedInvocationParameters
                 ),
               },
+              // Delete tools if the model does not support tool choice
+              tools: supportedInvocationParameters.find(
+                (p) => p.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME
+              )
+                ? instance.tools
+                : [],
             };
           }
           return instance;

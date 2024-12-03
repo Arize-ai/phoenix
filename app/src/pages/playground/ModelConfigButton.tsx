@@ -114,7 +114,7 @@ function AzureOpenAiModelConfigFormField({
       />
       <TextField
         label="Endpoint"
-        value={instance.model.endpoint ?? ""}
+        defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
             configKey: "endpoint",
@@ -124,7 +124,7 @@ function AzureOpenAiModelConfigFormField({
       />
       <Picker
         label="API Version"
-        selectedKey={instance.model.apiVersion ?? undefined}
+        defaultSelectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
         placeholder="Select an AzureOpenAI API Version"
         onSelectionChange={(key) => {
