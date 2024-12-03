@@ -2,6 +2,7 @@ import React from "react";
 
 import { Heading, Text, View } from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 
 const INSTALL_OPENINFERENCE_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation`;
@@ -87,6 +88,14 @@ export function PythonSessionsGuide() {
       <CodeWrap>
         <PythonBlockWithCopy value={ADD_SESSION_ID_PYTHON} />
       </CodeWrap>
+      <View paddingBottom="size-100" paddingTop="size-100">
+        <Text>
+          For more information on how to use sessions, consult the{" "}
+          <ExternalLink href="https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions">
+            documentation
+          </ExternalLink>
+        </Text>
+      </View>
     </div>
   );
 }

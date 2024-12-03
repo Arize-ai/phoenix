@@ -14,24 +14,30 @@ import {
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
+import { TypeScriptSessionsGuide } from "./TypeScriptSessionsGuide";
 
+function SetupSessionsDialog() {
+  const [language, setLanguage] = useState<CodeLanguage>("Python");
+  return (
+    <Dialog title="Setup Sessions for this Project" size="L">
+      <View padding="size-400" overflow="auto">
+        <View paddingBottom="size-100">
+          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+        </View>
+        {language === "Python" ? (
+          <PythonSessionsGuide />
+        ) : (
+          <TypeScriptSessionsGuide />
+        )}
+      </View>
+    </Dialog>
+  );
+}
 export function SessionsTableEmpty() {
   const [dialog, setDialog] = useState<ReactNode | null>(null);
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
+
   const onGettingStartedClick = () => {
-    setDialog(
-      <Dialog title="Setup Sessions" size="L">
-        <View padding="size-400" overflow="auto">
-          <View paddingBottom="size-100">
-            <CodeLanguageRadioGroup
-              language={language}
-              onChange={setLanguage}
-            />
-          </View>
-          {language === "Python" ? <PythonSessionsGuide /> : "coming soon"}
-        </View>
-      </Dialog>
-    );
+    setDialog(<SetupSessionsDialog projectName="projectName" />);
   };
 
   return (
