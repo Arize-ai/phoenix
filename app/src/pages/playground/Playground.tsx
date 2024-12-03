@@ -157,7 +157,7 @@ function AddPromptButton() {
           addInstance();
         }}
       >
-        Prompt
+        Compare
       </Button>
     </div>
   );
