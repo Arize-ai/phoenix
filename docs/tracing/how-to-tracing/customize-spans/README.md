@@ -39,10 +39,6 @@ npm install --save @arizeai/openinference-core @opentelemetry/api
 
 ### Specifying a session
 
-{% hint style="warning" %}
-Sessions are not currently supported in Phoenix and only supported via the [Arize OTel collector](https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions). Support for sessions in Phoenix is coming in an upcoming release.
-{% endhint %}
-
 {% tabs %}
 {% tab title="Python" %}
 We provide a `using_session` context manager to add session a ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the session ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the session ID, must be a non-empty string.
@@ -340,7 +336,7 @@ context.with(
 )
 ```
 
-You can also use `setAttributes` in conjunction with the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md) to set OpenInference attributes manually.
+You can also use `setAttributes` in conjunction with the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) to set OpenInference attributes manually.
 
 ```typescript
 import { context } from "@opentelemetry/api"
