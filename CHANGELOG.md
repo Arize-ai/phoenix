@@ -1,5 +1,25 @@
 # Changelog
 
+## [6.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.0.0...arize-phoenix-v6.1.0) (2024-12-03)
+
+
+### Features
+
+* Add cancel button to playground runs ([#5566](https://github.com/Arize-ai/phoenix/issues/5566)) ([6bafa46](https://github.com/Arize-ai/phoenix/commit/6bafa463d344038af90fabb3e8ab06bbf6b77c12))
+* Show invocation param errors within form ([#5559](https://github.com/Arize-ai/phoenix/issues/5559)) ([eac071f](https://github.com/Arize-ai/phoenix/commit/eac071f492d17ad638b53b9c9aff029daa8131de))
+
+
+### Bug Fixes
+
+* add copy to clipboard icon for experiment ids on experiment compare page ([#5596](https://github.com/Arize-ai/phoenix/issues/5596)) ([6a62bd2](https://github.com/Arize-ai/phoenix/commit/6a62bd2a9050a31b9d0eeee49366fa8fe215ea4f))
+* **playground:** handle experiment id's for non streaming ([#5601](https://github.com/Arize-ai/phoenix/issues/5601)) ([1a51350](https://github.com/Arize-ai/phoenix/commit/1a513506921844bf56b5abda80e17b582d1ad9af))
+* Remove deadzone when hovering example table cells ([#5363](https://github.com/Arize-ai/phoenix/issues/5363)) ([03179f4](https://github.com/Arize-ai/phoenix/commit/03179f4f9b13e398a361dd5163cf8156408c9859))
+
+
+### Documentation
+
+* update feature table on README to include prompt playground ([#5579](https://github.com/Arize-ai/phoenix/issues/5579)) ([fc66650](https://github.com/Arize-ai/phoenix/commit/fc666502e4eaaf1614285698f36b64d5f3885d53))
+
 ## [6.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v5.12.0...arize-phoenix-v6.0.0) (2024-12-02)
 
 
