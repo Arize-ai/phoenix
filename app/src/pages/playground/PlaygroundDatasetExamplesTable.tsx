@@ -1,5 +1,6 @@
 import React, {
   memo,
+  PropsWithChildren,
   ReactNode,
   startTransition,
   useCallback,
@@ -46,7 +47,6 @@ import {
 import { Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -145,6 +145,55 @@ const createExampleResponsesForInstance = (
     {}
   );
 };
+
+const cellWithControlsWrapCSS = css`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  min-height: 75px;
+  padding: var(--ac-global-dimension-static-size-200);
+  .controls {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+    display: none;
+    z-index: 1;
+  }
+  &:hover .controls {
+    opacity: 1;
+    display: flex;
+    // make them stand out
+    .ac-button {
+      border-color: var(--ac-global-color-primary);
+    }
+  }
+`;
+
+const cellControlsCSS = css`
+  position: absolute;
+  top: -4px;
+  right: 0px;
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-static-size-100);
+`;
+
+/**
+ * Wraps a cell to provides space for controls that are shown on hover.
+ */
+export function CellWithControlsWrap(
+  props: PropsWithChildren<{ controls: ReactNode }>
+) {
+  return (
+    <div css={cellWithControlsWrapCSS}>
+      {props.children}
+      <div css={cellControlsCSS} className="controls">
+        {props.controls}
+      </div>
+    </div>
+  );
+}
 
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
@@ -349,6 +398,8 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
+                  // the cell still grows to fit, we just need some height declared
+                  // so that height: 100% works in children elements
                   padding: 0,
                   height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
