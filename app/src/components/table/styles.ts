@@ -52,7 +52,9 @@ export const tableCSS = (theme: Theme) => css`
         }
         // Style action menu buttons in the header
         .ac-button[data-size="compact"][data-childless="true"] {
-          padding: var(--ac-global-dimension-size-25);
+          padding: 0;
+          border: none;
+          background-color: transparent;
         }
       }
     }
