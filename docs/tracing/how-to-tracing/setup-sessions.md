@@ -1,5 +1,5 @@
 ---
-description: Hot to track sessions across multiple traces
+description: How to track sessions across multiple traces
 ---
 
 # Setup Sessions
@@ -15,7 +15,7 @@ See [https://docs.smith.langchain.com/old/monitoring/faq/threads](https://docs.s
 
 
 
-A `Session` is a sequence of traces representing a single session (e.g. a session or a thread). Each response is represented as it's own trace, but these traces are linked together by being part of the same session.
+A `Session` is a sequence of traces representing a single session (e.g. a session or a thread). Each response is represented as its own trace, but these traces are linked together by being part of the same session.
 
 To associate traces together, you need to pass in a special metadata key where the value is the unique identifier for that thread.
 
