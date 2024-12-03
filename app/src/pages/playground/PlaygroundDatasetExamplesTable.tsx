@@ -507,6 +507,12 @@ export function PlaygroundDatasetExamplesTable({
           });
           return;
         }
+        updateInstance({
+          instanceId,
+          patch: {
+            experimentId: response.chatCompletionOverDataset.experimentId,
+          },
+        });
         setExampleDataForInstance({
           instanceId,
           data: createExampleResponsesForInstance(
@@ -514,7 +520,12 @@ export function PlaygroundDatasetExamplesTable({
           ),
         });
       },
-    [markPlaygroundInstanceComplete, notifyError, setExampleDataForInstance]
+    [
+      markPlaygroundInstanceComplete,
+      notifyError,
+      setExampleDataForInstance,
+      updateInstance,
+    ]
   );
 
   useEffect(() => {
@@ -584,6 +595,10 @@ export function PlaygroundDatasetExamplesTable({
         if (activeRunId === null) {
           continue;
         }
+        updateInstance({
+          instanceId: instance.id,
+          patch: { experimentId: null },
+        });
         const variables = {
           input: getChatCompletionOverDatasetInput({
             credentials,
