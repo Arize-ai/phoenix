@@ -1,5 +1,57 @@
 # Migrations
 
+## v6.x to v7.0.0
+
+### Python Script to Populate Database Table For Sessions
+
+#### Option I. Run the script via the installed module
+
+This assumes the database up migration has been applied by the Phoenix application, i.e. the new table for sessions has been created. See Option II for how to manually apply the up migration.
+
+```shell
+python -m phoenix.db.migrations.data_migration_scripts.populate_project_sessions
+```
+
+#### Option II. Run the script from the repository (and apply the up migration manually).
+
+Step 1. Clone the Phoenix repository.
+
+```shell
+git clone git@github.com:Arize-ai/phoenix.git
+```
+
+Step 2. Change directory to where `alembic.ini` is located.
+
+```shell
+cd phoenix/src/phoenix/db/
+```
+
+Step 3. Run `alembic` for database `up` migration. This creates the new table for sessions.
+
+```shell
+alembic upgrade head
+```
+
+Step 4. Run script to populate sessions table from spans.
+
+```shell
+python migrations/data_migration_scripts/populate_project_sessions.py
+```
+
+#### Environment Variables Used by the Script
+
+SQLite example
+```shell
+export PHOENIX_SQL_DATABASE_URL=sqlite:////phoenix.db
+```
+
+PostgreSQL example
+```shell
+export PHOENIX_SQL_DATABASE_URL=postgresql://localhost:5432/postgres?username=postgres&password=postgres
+````
+
+Optionally for PostgreSQL, you can set the schema via the environment variable `PHOENIX_SQL_DATABASE_SCHEMA`.
+
 ## v4.x to v5.0.0
 
 Phoenix 5 introduces authentication. By default authentication is disabled and Phoenix will operate exactly as previous versions. Phoenix's authentication is designed to be as flexible as possible and can be adopted incrementally.
