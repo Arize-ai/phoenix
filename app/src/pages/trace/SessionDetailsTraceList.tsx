@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components/annotation";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -41,16 +42,18 @@ function RootSpanMessage({
   role: "HUMAN" | "AI";
   value: string;
 }) {
+  const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
   return (
     <View
       alignSelf={role === "HUMAN" ? "start" : "end"}
       borderRadius={"medium"}
       borderColor={"dark"}
       borderWidth={"thin"}
-      padding={"size-100"}
+      padding={"size-200"}
       maxWidth={"70%"}
+      {...styles}
     >
-      <Flex direction={"column"} gap={"size-100"}>
+      <Flex direction={"column"} gap={"size-50"}>
         <Text color="text-700" textSize="medium">
           {role}
         </Text>
@@ -70,7 +73,10 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-function RootSpanDetails({ rootSpan }: RootSpanProps) {
+function RootSpanDetails({
+  rootSpan,
+  index,
+}: RootSpanProps & { index: number }) {
   const startDate = useMemo(() => {
     return new Date(rootSpan.startTime);
   }, [rootSpan.startTime]);
@@ -88,7 +94,7 @@ function RootSpanDetails({ rootSpan }: RootSpanProps) {
       >
         <Flex direction={"column"} gap={"size-200"}>
           <Flex direction={"row"} justifyContent={"space-between"}>
-            <Text>Trace ID: {rootSpan.context.traceId}</Text>
+            <Text>Trace #{index + 1}</Text>
             <Link
               to={`/projects/${rootSpan.project.id}/traces/${rootSpan.context.traceId}?selectedSpanNodeId=${rootSpan.id}`}
             >
@@ -119,7 +125,11 @@ function RootSpanDetails({ rootSpan }: RootSpanProps) {
             )}
           </Flex>
         </Flex>
-        <Flex direction={"row"} justifyContent={"space-between"}>
+        <Flex
+          direction={"row"}
+          justifyContent={"space-between"}
+          alignItems="end"
+        >
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
             <Text textSize="medium">Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
@@ -176,7 +186,7 @@ export function SessionDetailsTraceList({
 
   return (
     <View height={"100%"} flex={"1 1 auto"} overflow={"auto"}>
-      {sessionRootSpans.map((rootSpan) => (
+      {sessionRootSpans.map((rootSpan, index) => (
         <View
           borderBottomColor={"dark"}
           borderBottomWidth={"thin"}
@@ -184,15 +194,15 @@ export function SessionDetailsTraceList({
         >
           <Flex direction={"row"}>
             <View
-              width={"67%"}
               borderRightWidth={"thin"}
               borderEndColor={"dark"}
               padding={"size-200"}
+              flex={"1 1 auto"}
             >
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
-            <View width={"33%"} padding={"size-200"}>
-              <RootSpanDetails rootSpan={rootSpan} />
+            <View width={350} padding={"size-200"} flex="none">
+              <RootSpanDetails rootSpan={rootSpan} index={index} />
             </View>
           </Flex>
         </View>
