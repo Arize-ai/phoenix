@@ -138,7 +138,7 @@ export function SessionsTable(props: SessionsTableProps) {
     {
       header: "last trace start time",
       accessorKey: "lastTraceStartTime",
-      enableSorting: false,
+      enableSorting: true,
       cell: TimestampCell,
     },
     {
