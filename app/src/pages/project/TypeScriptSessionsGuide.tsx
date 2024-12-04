@@ -8,10 +8,10 @@ import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBloc
 
 const INSTALL_OPENINFERENCE_CORE_TYPESCRIPT = `npm install @arizeai/openinference-core --save`;
 
-const ADD_SESSION_ID_TYPESCRIPT = `import { trace } from "npm:@opentelemetry/api";
-import { SemanticConventions } from "npm:@arizeai/openinference-semantic-conventions";
-import { context } from "npm:@opentelemetry/api";
-import { setSession } from "npm:@arizeai/openinference-core";
+const ADD_SESSION_ID_TYPESCRIPT = `import { trace } from "@opentelemetry/api";
+import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+import { context } from "@opentelemetry/api";
+import { setSession } from "@arizeai/openinference-core";
 
 const tracer = trace.getTracer("agent");
 
