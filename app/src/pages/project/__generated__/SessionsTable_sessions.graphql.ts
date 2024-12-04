@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67ff1a198341dfb472d4d063fdc8a590>>
+ * @generated SignedSource<<842f5fcd489299dcfa79e97cf4f743c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type SessionsTable_sessions$data = {
         readonly lastOutput: {
           readonly value: string;
         } | null;
-        readonly lastTraceStartTime: string | null;
+        readonly lastTraceStartTime: string;
         readonly numTraces: number;
         readonly sessionId: string;
         readonly startTime: string;
