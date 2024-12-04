@@ -14,9 +14,9 @@ import {
   ValidationResult,
 } from "react-aria-components";
 
-import { Icon, Icons } from "@arizeai/components";
+import { classNames, Icon, Icons } from "@arizeai/components";
 
-import { comboBoxCSS } from "./styles";
+import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children"> {
@@ -34,23 +34,41 @@ export function ComboBox<T extends object>({
   ...props
 }: ComboBoxProps<T>) {
   return (
-    <AriaComboBox {...props}>
-      <Label>{label}</Label>
-      <div className="my-combobox-container">
-        <Input />
-        <Button>
-          V{/* <Icon svg={<Icons.ArrowIosDownwardOutline />} /> */}
-        </Button>
-      </div>
-      {description && <Text slot="description">{description}</Text>}
-      <FieldError>{errorMessage}</FieldError>
-      <Popover>
-        <ListBox>{children}</ListBox>
-      </Popover>
-    </AriaComboBox>
+    <div css={comboBoxCSS}>
+      <AriaComboBox {...props}>
+        <Label>{label}</Label>
+        <div className="px-combobox-container">
+          <Input />
+          <Button>
+            <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+          </Button>
+        </div>
+        {description && <Text slot="description">{description}</Text>}
+        <FieldError>{errorMessage}</FieldError>
+        <Popover css={comboBoxPopoverCSS}>
+          <ListBox>{children}</ListBox>
+        </Popover>
+      </AriaComboBox>
+    </div>
   );
 }
 
 export function ComboBoxItem(props: ListBoxItemProps) {
-  return <ListBoxItem {...props} />;
+  return (
+    <ListBoxItem {...props} css={comboBoxItemCSS}>
+      {({ isSelected }) => {
+        return (
+          <>
+            {props.children}
+            {isSelected && (
+              <Icon
+                svg={<Icons.CheckmarkOutline />}
+                className="px-menu-item__selected-checkmark"
+              />
+            )}
+          </>
+        );
+      }}
+    </ListBoxItem>
+  );
 }
