@@ -187,7 +187,7 @@ if __name__ == "__main__":
             print(f"Using schema: {schema}")
         else:
             print("No schema set.")
-        ans = input("Is that that correct? [y]/n:")
+        ans = input("Is that correct? [y]/n: ")
         if ans.lower().startswith("n"):
             schema = input("Please enter the correct schema: ")
         engine = create_engine(
