@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from queue import Empty, SimpleQueue
 from threading import Thread
+from time import perf_counter
 from typing import Optional
 
 from alembic import command
