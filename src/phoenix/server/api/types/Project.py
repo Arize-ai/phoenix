@@ -298,6 +298,8 @@ class Project(Node):
             key: ColumnElement[Any]
             if sort.col is ProjectSessionColumn.startTime:
                 key = table.start_time.label("key")
+            elif sort.col is ProjectSessionColumn.lastTraceStartTime:
+                key = table.last_trace_start_time.label("key")
             elif (
                 sort.col is ProjectSessionColumn.tokenCountTotal
                 or sort.col is ProjectSessionColumn.numTraces

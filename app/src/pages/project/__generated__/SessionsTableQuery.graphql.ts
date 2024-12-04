@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15f426fc91f1e8e4e251f32ed446f684>>
+ * @generated SignedSource<<893092928cd943f6560b50f2039f1446>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectSessionColumn = "numTraces" | "startTime" | "tokenCountTotal";
+export type ProjectSessionColumn = "lastTraceStartTime" | "numTraces" | "startTime" | "tokenCountTotal";
 export type SortDir = "asc" | "desc";
 export type ProjectSessionSort = {
   col: ProjectSessionColumn;
