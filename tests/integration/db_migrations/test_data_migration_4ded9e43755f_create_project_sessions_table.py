@@ -7,6 +7,9 @@ from typing import Any, Iterable, Iterator, Sequence, Union, cast
 import pandas as pd
 import pytest
 from alembic.config import Config
+from phoenix.db.migrations.data_migration_scripts.populate_project_sessions import (
+    populate_project_sessions,
+)
 from phoenix.db.models import JSON_
 from sqlalchemy import Column, Engine, MetaData, Table, insert
 
@@ -121,6 +124,7 @@ def test_data_migration_for_project_sessions(
         metadata.reflect(bind=_engine)
         assert metadata.tables.get("project_sessions") is None
         _up(_engine, _alembic_config, "4ded9e43755f")
+        populate_project_sessions(_engine)
 
         with _engine.connect() as conn:
             df_spans = pd.read_sql_table("spans", conn, index_col="id")
