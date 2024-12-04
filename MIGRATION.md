@@ -4,7 +4,7 @@
 
 ### Python Script to Populate Database Table For Sessions
 
-### Step 1. Clone the phoenix repository.
+### Step 1. Clone the Phoenix repository.
 
 ```shell
 git clone git@github.com:Arize-ai/phoenix.git
