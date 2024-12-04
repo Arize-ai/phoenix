@@ -186,7 +186,7 @@ if __name__ == "__main__":
         if schema:
             print(f"Using schema: {schema}")
         else:
-            print("No schema set.")
+            print("No PostgreSQL schema set. (This is the default.)")
         ans = input("Is that correct? [y]/n: ")
         if ans.lower().startswith("n"):
             schema = input("Please enter the correct schema: ")
