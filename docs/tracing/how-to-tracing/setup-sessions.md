@@ -156,3 +156,23 @@ await assistant({
 {% endtab %}
 {% endtabs %}
 
+## Viewing Sessions
+
+You can view the sessions for a given project by clicking on the "Sessions" tab in the project. You will see a list of all the recent sessions as well as some analytics. You can search the content of the messages to narrow down the list.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/sessions.png" alt=""><figcaption><p>View all the sessions under a project</p></figcaption></figure>
+
+You can then click into a given session. This will open the history of a particular session. If the sessions contain input / output, you will see a chatbot-like UI where you can see the a history of inputs and outputs.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/session_details.png" alt=""><figcaption><p>Session details view</p></figcaption></figure>
+
+## How to track sessions with LangChain
+
+For LangChain, in order to log runs as part of the same thread you need to pass a special metadata key to the run. The key value is the unique identifier for that conversation. The key name should be one of:
+
+* `session_id`
+* `thread_id`
+* `conversation_id`.
+
+
+

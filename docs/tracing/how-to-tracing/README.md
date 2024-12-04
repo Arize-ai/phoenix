@@ -14,14 +14,15 @@ description: Guides on how to use traces
 How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
 
 * [How to log to a specific project](setup-tracing/setup-tracing-python/#log-to-a-specific-project)
+* [How to track sessions](setup-sessions.md)
 * [How to switch projects in a notebook](setup-tracing/setup-tracing-python/#switching-projects-in-a-notebook)
 * [How to add auto-instrumentation](instrumentation/)
 * [How to create custom spans](manual-instrumentation/custom-spans.md)
-* [Setting metadata](customize-spans/#using\_metadata)
+* [Setting metadata](customize-spans/#using_metadata)
 * [Setting tags](customize-spans/#specifying-tags)
-* [Setting a user](customize-spans/#using\_user)
+* [Setting a user](customize-spans/#using_user)
 * [Setting prompt template attributes](customize-spans/#specifying-the-prompt-template)
-* [How to read attributes from context](customize-spans/#using\_attributes)
+* [How to read attributes from context](customize-spans/#using_attributes)
 * [Masking attributes on spans](customize-spans/masking-span-attributes.md)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
