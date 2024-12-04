@@ -186,6 +186,11 @@ def test_data_migration_for_project_sessions(
             df_project_sessions_joined_spans.session_id
             == df_project_sessions_joined_spans.session_id_span
         ).all()
+        assert (
+            df_project_sessions_joined_spans.groupby("session_id")
+            .apply(lambda s: s.last_trace_start_time.min() == s.start_time_trace.max())  # type: ignore
+            .all()
+        )
 
         is_first = df_project_sessions_joined_spans.groupby("session_id").cumcount() == 0
 

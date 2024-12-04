@@ -32,6 +32,7 @@ async def data_for_testing_dataloaders(
                         session_id=f"proj{i}_sess{l}",
                         project_id=project_row_id,
                         start_time=start_time,
+                        last_trace_start_time=start_time,
                     )
                     .returning(models.ProjectSession.id)
                 )
