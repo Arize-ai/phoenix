@@ -58,6 +58,7 @@ class ProjectSession(Base):
     session_user: Mapped[Optional[str]]
     project_id: Mapped[int]
     start_time: Mapped[datetime]
+    last_trace_start_time: Mapped[datetime]
 
 
 class Trace(Base):
@@ -96,6 +97,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), index=True, nullable=False),
+        sa.Column("last_trace_start_time", sa.TIMESTAMP(timezone=True), index=True, nullable=False),
     )
     with op.batch_alter_table("traces") as batch_op:
         batch_op.add_column(
@@ -123,6 +125,9 @@ def upgrade() -> None:
                 order_by=[Trace.start_time, Trace.id, Span.id],
             )
             .label("rank"),
+            func.max(Trace.start_time)
+            .over(partition_by=Span.attributes[SESSION_ID])
+            .label("last_trace_start_time"),
         )
         .join_from(Span, Trace, Span.trace_rowid == Trace.id)
         .where(Span.parent_id.is_(None))
@@ -136,12 +141,14 @@ def upgrade() -> None:
                 "session_user",
                 "project_id",
                 "start_time",
+                "last_trace_start_time",
             ],
             select(
                 sessions_from_span.c.session_id,
                 sessions_from_span.c.session_user,
                 sessions_from_span.c.project_id,
                 sessions_from_span.c.start_time,
+                sessions_from_span.c.last_trace_start_time,
             ).where(sessions_from_span.c.rank == 1),
         )
     )

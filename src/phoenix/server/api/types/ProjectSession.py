@@ -26,6 +26,7 @@ class ProjectSession(Node):
     session_id: str
     session_user: Optional[str]
     start_time: datetime
+    last_trace_start_time: datetime
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
@@ -72,13 +73,6 @@ class ProjectSession(Node):
             mime_type=MimeType(record.mime_type.value),
             value=record.value,
         )
-
-    @strawberry.field
-    async def last_trace_start_time(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[datetime]:
-        return await info.context.data_loaders.session_last_trace_start_times.load(self.id_attr)
 
     @strawberry.field
     async def token_usage(
@@ -137,6 +131,7 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
         session_user=project_session.session_user,
         start_time=project_session.start_time,
         project_rowid=project_session.project_id,
+        last_trace_start_time=project_session.last_trace_start_time,
     )
 
 

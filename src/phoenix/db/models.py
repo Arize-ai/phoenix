@@ -166,7 +166,10 @@ class ProjectSession(Base):
         nullable=False,
         index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    last_trace_start_time: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, index=True, nullable=False
+    )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
