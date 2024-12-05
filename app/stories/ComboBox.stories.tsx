@@ -5,9 +5,10 @@ import {
   ComboBox,
   ComboBoxItem,
   ComboBoxProps,
-} from "@phoenix/components/comobox/ComboBox";
+} from "@phoenix/components/combobox/ComboBox";
 
 import { ThemeWrapper } from "./components/ThemeWrapper";
+import { Flex } from "@arizeai/components";
 
 const meta: Meta = {
   title: "ComboBox",
@@ -52,15 +53,53 @@ Default.args = {
   label: "Ice cream flavor",
 };
 
-export const Disabled = Template.bind({});
-Disabled.args = {
-  label: "Ice cream flavor",
-  isDisabled: true,
-};
-
-export const Invalid = Template.bind({});
-Invalid.args = {
-  label: "Ice cream flavor",
-  isInvalid: true,
-  errorMessage: "Please select a valid flavor",
-};
+export function Gallery() {
+  return (
+    <ThemeWrapper>
+      <Flex direction="column" gap="size-200">
+        <ComboBox label="Ice cream flavor">
+          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+            Chocolate
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Mint" key={"mint"}>
+            Mint
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+            Strawberry
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+            Vanilla
+          </ComboBoxItem>
+        </ComboBox>
+        <ComboBox label="Ice cream flavor (Invalid)" isInvalid>
+          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+            Chocolate
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Mint" key={"mint"}>
+            Mint
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+            Strawberry
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+            Vanilla
+          </ComboBoxItem>
+        </ComboBox>
+        <ComboBox label="Ice cream flavor (Disabled)" isDisabled>
+          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+            Chocolate
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Mint" key={"mint"}>
+            Mint
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+            Strawberry
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+            Vanilla
+          </ComboBoxItem>
+        </ComboBox>
+      </Flex>
+    </ThemeWrapper>
+  );
+}
