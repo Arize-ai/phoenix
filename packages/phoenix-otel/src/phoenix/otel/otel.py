@@ -5,6 +5,12 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
+from openinference.instrumentation import (
+    OITracerProvider as _OITracerProvider,
+)
+from openinference.instrumentation import (
+    TraceConfig as _TraceConfig,
+)
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
@@ -40,7 +46,7 @@ def register(
     set_global_tracer_provider: bool = True,
     headers: Optional[Dict[str, str]] = None,
     verbose: bool = True,
-) -> _TracerProvider:
+) -> _OITracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
 
@@ -66,7 +72,9 @@ def register(
 
     project_name = project_name or get_env_project_name()
     resource = Resource.create({PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource, verbose=False)
+    tracer_provider = _OITracerProvider(
+        TracerProvider(resource=resource, verbose=False), _TraceConfig()
+    )
     span_processor: SpanProcessor
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers)
