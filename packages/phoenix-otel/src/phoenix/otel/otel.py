@@ -5,7 +5,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
-from openinference.instrumentation import (
+from openinference.instrumentation import (  # type: ignore[import-untyped]
     OITracerProvider as _OITracerProvider,
 )
 from openinference.instrumentation import (
