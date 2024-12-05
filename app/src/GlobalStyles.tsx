@@ -106,9 +106,6 @@ export function GlobalStyles() {
           --px-corpus-color: #92969c;
           --px-corpus-color--transparent: #92969c63;
         }
-
-        // Derived colors
-        --px-input-field-label-font-size: 12px;
       `}
     />
   );
