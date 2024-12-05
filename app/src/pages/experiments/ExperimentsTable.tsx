@@ -172,7 +172,7 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
         return (
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberLabel sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
