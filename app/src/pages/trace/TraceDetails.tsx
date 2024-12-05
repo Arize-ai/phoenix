@@ -91,6 +91,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                   }
                 }
               }
+              latencyMs
             }
           }
         }
@@ -101,6 +102,8 @@ export function TraceDetails(props: TraceDetailsProps) {
       fetchPolicy: "store-and-network",
     }
   );
+  const traceLatencyMs =
+    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const spansList: Span[] = useMemo(() => {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
@@ -134,6 +137,7 @@ export function TraceDetails(props: TraceDetailsProps) {
     >
       <TraceHeader
         rootSpan={rootSpan}
+        latencyMs={traceLatencyMs}
         sessionId={data.project.trace?.projectSessionId}
       />
       <PanelGroup
@@ -181,14 +185,15 @@ export function TraceDetails(props: TraceDetailsProps) {
 
 function TraceHeader({
   rootSpan,
+  latencyMs,
   sessionId,
 }: {
   rootSpan: Span | null;
+  latencyMs: number | null;
   sessionId?: string | null;
 }) {
   const { projectId } = useParams();
-  const { latencyMs, statusCode, spanAnnotations } = rootSpan ?? {
-    latencyMs: null,
+  const { statusCode, spanAnnotations } = rootSpan ?? {
     statusCode: "UNSET",
     spanAnnotations: [],
   };

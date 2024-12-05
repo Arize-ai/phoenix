@@ -1746,6 +1746,7 @@ type Trace implements Node {
   traceId: String!
   startTime: DateTime!
   endTime: DateTime!
+  latencyMs: Float
   projectId: GlobalID!
   projectSessionId: GlobalID
   session: ProjectSession

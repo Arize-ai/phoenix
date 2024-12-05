@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -35,6 +35,27 @@ class Trace(Node):
     trace_id: str
     start_time: datetime
     end_time: datetime
+
+    @strawberry.field
+    async def latency_ms(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        async with info.context.db() as session:
+            result = (
+                await session.execute(
+                    select(
+                        func.max(models.Span.end_time).label("last_end_time"),
+                        func.min(models.Span.start_time).label("first_start_time"),
+                    ).where(models.Span.trace_rowid == self.id_attr)
+                )
+            ).first()
+        if result is None:
+            return None
+        last_end_time, first_start_time = result
+        if not isinstance(last_end_time, datetime) or not isinstance(first_start_time, datetime):
+            return None
+        return (last_end_time - first_start_time).total_seconds() * 1000
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
