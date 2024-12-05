@@ -8,6 +8,9 @@
 
 This assumes the database up migration has been applied by the Phoenix application, i.e. the new table for sessions has been created. See Option II for how to manually apply the up migration.
 
+> [!NOTE]
+> If you are using a PostgreSQL database, you will have to have the postgres extras installed via `pip install arize-phoenix[pg]`.
+
 ```shell
 python -m phoenix.db.migrations.data_migration_scripts.populate_project_sessions
 ```
@@ -41,14 +44,16 @@ python migrations/data_migration_scripts/populate_project_sessions.py
 #### Environment Variables Used by the Script
 
 SQLite example
+
 ```shell
 export PHOENIX_SQL_DATABASE_URL=sqlite:////phoenix.db
 ```
 
 PostgreSQL example
+
 ```shell
 export PHOENIX_SQL_DATABASE_URL=postgresql://localhost:5432/postgres?username=postgres&password=postgres
-````
+```
 
 Optionally for PostgreSQL, you can set the schema via the environment variable `PHOENIX_SQL_DATABASE_SCHEMA`.
 
