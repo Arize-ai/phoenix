@@ -20,11 +20,7 @@ import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children"> {
-  /**
-   * The label for the ComboBox. If this is omitted, an aria-label must be provided.
-   * TODO: enforce this
-   */
-  label?: string;
+  label: string;
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
   children: React.ReactNode | ((item: T) => React.ReactNode);
@@ -57,7 +53,9 @@ export function ComboBox<T extends object>({
 
 export interface ListBoxItemProps<T = object>
   extends Omit<AriaListBoxItemProps<T>, "textValue"> {
-  /** A string representation of the item's contents, used for features like typeahead. */
+  /**
+   * A string representation of the item's contents, used for features like typeahead.
+   **/
   textValue: string;
 }
 

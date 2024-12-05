@@ -82,6 +82,8 @@ export function GlobalStyles() {
           --px-font-size-med: ${theme.typography.sizes.medium.fontSize}px;
           --px-font-size-lg: ${theme.typography.sizes.large.fontSize}px;
 
+          --px-font-weight-heavy: 600;
+
           --px-gradient-bar-height: 8px;
 
           --px-nav-collapsed-width: 45px;
@@ -104,6 +106,9 @@ export function GlobalStyles() {
           --px-corpus-color: #92969c;
           --px-corpus-color--transparent: #92969c63;
         }
+
+        // Derived colors
+        --px-input-field-label-font-size: 12px;
       `}
     />
   );
