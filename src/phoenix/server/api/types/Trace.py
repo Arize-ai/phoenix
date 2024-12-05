@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -45,17 +45,17 @@ class Trace(Node):
             result = (
                 await session.execute(
                     select(
-                        func.max(models.Span.end_time).label("last_end_time"),
-                        func.min(models.Span.start_time).label("first_start_time"),
-                    ).where(models.Span.trace_rowid == self.id_attr)
+                        models.Trace.start_time,
+                        models.Trace.end_time,
+                    ).where(models.Trace.id == self.id_attr)
                 )
             ).first()
         if result is None:
             return None
-        last_end_time, first_start_time = result
-        if not isinstance(last_end_time, datetime) or not isinstance(first_start_time, datetime):
+        start_time, end_time = result
+        if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
             return None
-        return (last_end_time - first_start_time).total_seconds() * 1000
+        return (end_time - start_time).total_seconds() * 1000
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
