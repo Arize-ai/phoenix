@@ -87,7 +87,6 @@ export const comboBoxItemCSS = css`
   padding: var(--ac-global-dimension-static-size-100)
     var(--ac-global-dimension-static-size-200);
   font-size: var(--px-font-size-med);
-  min-width: 80px;
   cursor: pointer;
   position: relative;
   & > .ac-icon-wrap.px-menu-item__selected-checkmark {

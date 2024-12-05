@@ -44,6 +44,28 @@ const Template: StoryFn<ComboBoxProps<object>> = (args) => (
         <Item key="vanilla">Vanilla</Item>
       </Picker>
     </Flex>
+    <Flex direction="column" gap="size-200">
+      <ComboBox label="Ice cream flavor">
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <Picker label="Toppings" size="compact">
+        <Item key="chocolate">Chocolate</Item>
+        <Item key="mint">Mint</Item>
+        <Item key="strawberry">Strawberry</Item>
+        <Item key="vanilla">Vanilla</Item>
+      </Picker>
+    </Flex>
   </ThemeWrapper>
 );
 

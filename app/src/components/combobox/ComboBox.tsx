@@ -20,6 +20,10 @@ import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children"> {
+  /**
+   * The label for the ComboBox. If this is omitted, an aria-label must be provided.
+   * TODO: enforce this
+   */
   label?: string;
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
