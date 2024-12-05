@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc6484b0ac55d58aecbf8501bb3721ba>>
+ * @generated SignedSource<<7c4e3c9d28842a753be3755fa25b8f07>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type TraceDetailsQuery$variables = {
 export type TraceDetailsQuery$data = {
   readonly project: {
     readonly trace?: {
+      readonly latencyMs: number | null;
       readonly spans: {
         readonly edges: ReadonlyArray<{
           readonly span: {
@@ -86,6 +87,13 @@ v4 = {
   "storageKey": null
 },
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -187,13 +195,7 @@ v5 = {
                       "name": "parentId",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "latencyMs",
-                      "storageKey": null
-                    },
+                    (v5/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -256,7 +258,8 @@ v5 = {
             }
           ],
           "storageKey": "spans(first:1000)"
-        }
+        },
+        (v5/*: any*/)
       ],
       "storageKey": null
     }
@@ -282,7 +285,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -314,7 +317,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*: any*/),
+          (v6/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -326,16 +329,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "22103e9bb1f983529081ca93d60e76ef",
+    "cacheID": "c92274e0002edbba5625ac36c939aa61",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotations {\n                name\n                label\n                score\n                annotatorKind\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotations {\n                name\n                label\n                score\n                annotatorKind\n              }\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8b568616f23f7d349cac5a31807463fb";
+(node as any).hash = "8d29cd9ac2ec84b0fb7990a810368372";
 
 export default node;

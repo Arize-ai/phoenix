@@ -1690,6 +1690,7 @@ type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   traceId: String!
+  latencyMs: Float
   projectId: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
