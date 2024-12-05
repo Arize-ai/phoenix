@@ -8,8 +8,8 @@
 
 This assumes the database up migration has been applied by the Phoenix application, i.e. the new table for sessions has been created. See Option II for how to manually apply the up migration.
 
-NOTE:
-If you are using a PostgreSQL database, you will have to have the postgres extras installed via `pip install arize-phoenix[pg]`.
+> [!NOTE]
+> If you are using a PostgreSQL database, you will have to have the postgres extras installed via `pip install arize-phoenix[pg]`.
 
 ```shell
 python -m phoenix.db.migrations.data_migration_scripts.populate_project_sessions
