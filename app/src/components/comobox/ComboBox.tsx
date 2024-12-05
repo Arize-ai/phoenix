@@ -8,13 +8,13 @@ import {
   Label,
   ListBox,
   ListBoxItem,
-  ListBoxItemProps,
+  ListBoxItemProps as AriaListBoxItemProps,
   Popover,
   Text,
   ValidationResult,
 } from "react-aria-components";
 
-import { classNames, Icon, Icons } from "@arizeai/components";
+import { Icon, Icons } from "@arizeai/components";
 
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
@@ -34,23 +34,28 @@ export function ComboBox<T extends object>({
   ...props
 }: ComboBoxProps<T>) {
   return (
-    <div css={comboBoxCSS}>
-      <AriaComboBox {...props}>
-        <Label>{label}</Label>
-        <div className="px-combobox-container">
-          <Input />
-          <Button>
-            <Icon svg={<Icons.ArrowIosDownwardOutline />} />
-          </Button>
-        </div>
-        {description && <Text slot="description">{description}</Text>}
-        <FieldError>{errorMessage}</FieldError>
-        <Popover css={comboBoxPopoverCSS}>
-          <ListBox>{children}</ListBox>
-        </Popover>
-      </AriaComboBox>
-    </div>
+    // <AriaComboBox {...props}>
+    <AriaComboBox {...props} css={comboBoxCSS}>
+      <Label>{label}</Label>
+      <div className="px-combobox-container">
+        <Input />
+        <Button>
+          <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+        </Button>
+      </div>
+      {description && <Text slot="description">{description}</Text>}
+      <FieldError>{errorMessage}</FieldError>
+      <Popover css={comboBoxPopoverCSS}>
+        <ListBox>{children}</ListBox>
+      </Popover>
+    </AriaComboBox>
   );
+}
+
+export interface ListBoxItemProps<T = object>
+  extends Omit<AriaListBoxItemProps<T>, "textValue"> {
+  /** A string representation of the item's contents, used for features like typeahead. */
+  textValue: string;
 }
 
 export function ComboBoxItem(props: ListBoxItemProps) {
