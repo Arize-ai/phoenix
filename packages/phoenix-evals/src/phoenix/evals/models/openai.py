@@ -278,9 +278,29 @@ class OpenAIModel(BaseModel):
         )
 
     def _build_messages(
-        self, prompt: str, system_instruction: Optional[str] = None
+        self, prompt: str | Audio, audio_format: AudioFormat = None, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        messages = [{"role": "system", "content": prompt}]
+        if audio_format:
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_instruction
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": prompt,
+                                "format": "wav"
+                            }
+                        }
+                    ],
+                }
+            ]
+        else:
+            messages = [{"role": "system", "content": prompt}]
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -307,15 +327,21 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: str | Audio, **kwargs: Any) -> str:
+        audio_format = prompt.format if isinstance(prompt, Audio) else None
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        messages = self._build_messages(
+            prompt=prompt,
+            audio_format=audio_format,
+            system_instruction=kwargs.get("instruction")
+        )
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
         response = self._rate_limited_completion(
             messages=messages,
+            audio_format=audio_format,
             **invoke_params,
         )
         choice = response["choices"][0]
@@ -344,13 +370,13 @@ class OpenAIModel(BaseModel):
                 return res.model_dump()
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
-                if exception_message and "maximum context length" in exception_message:
+                if exception_messaige and "maximum context length" in exception_message:
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, audio_format: AudioFormat, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
@@ -362,6 +388,7 @@ class OpenAIModel(BaseModel):
                         )
                     # OpenAI 1.0.0 API responses are pydantic objects, not dicts
                     # We must dump the model to get the dict
+                    # TODO consider if there are additional changes + consider 'modalities' parameter
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.BadRequestError as e:

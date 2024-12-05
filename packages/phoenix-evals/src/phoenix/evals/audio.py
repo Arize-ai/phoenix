@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import base64
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from itertools import product
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -19,16 +20,15 @@ from typing import (
 )
 
 import pandas as pd
-import requests
+import subprocess
 from pandas import DataFrame
-from typing_extensions import TypeAlias
-
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
 from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
+    MultimodalPrompt,
     PromptOptions,
     PromptTemplate,
     normalize_classification_template,
@@ -41,6 +41,7 @@ from phoenix.evals.utils import (
     printif,
     snap_to_rail,
 )
+from typing_extensions import TypeAlias
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,28 @@ Index: TypeAlias = int
 ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
 
 
+class AudioFormat(Enum):
+    WAV = "WAV"
+
+
+class GcloudFetcher:
+    def __init__(self):
+        self.token = subprocess.check_output(["gcloud", "auth", "print-access-token"])
+
+    def fetch_audio(self, url: str) -> Audio:
+        pass
+
+
+@dataclass
+class Audio:
+    content: bytes
+    format: AudioFormat
+
+
+LIST_OF_AUDIO_SUPPORTED_MODELS = [
+    "gpt-4o-audio-preview"
+]
+
 class ClassificationStatus(Enum):
     DID_NOT_RUN = ExecutionStatus.DID_NOT_RUN.value
     COMPLETED = ExecutionStatus.COMPLETED.value
@@ -66,54 +89,7 @@ class ClassificationStatus(Enum):
 
 def audio_classify(
     dataframe: pd.DataFrame,
-    model: OpenAIModel,
-    template: str,
-    rails: List[str],
-) -> pd.DataFrame:
-    """
-    Classifies each input row of the dataframe using an audio model.
-    """
-    # early example; just assumes template variables exist within dataframe
-
-    for index, row in dataframe.iterrows():
-        audio_url = row["audio_url"]
-        response = requests.get(audio_url)
-        response.raise_for_status()
-        wav_data = response.content
-        encoded_string = base64.b64encode(wav_data).decode('utf-8')
-
-        completion = model._client.chat.completions.create(
-            model="gpt-4o-audio-preview",
-            modalities=["text"],
-            messages=[
-                {
-                    "role": "system",
-                    "content": template.format(
-                        rails=rails
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_audio",
-                            "input_audio": {
-                                "data": encoded_string,
-                                "format": "wav"
-                            }
-                        }
-                    ],
-                }
-
-            ]
-        )
-
-        dataframe.at[index, "label"] = completion.choices[0].message.content
-
-    return dataframe
-
-def llm_classify(
-    dataframe: pd.DataFrame,
+    file_fetcher: Callable[[str], Audio],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -202,6 +178,16 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
+    # Validate that model has audio capabilities
+    if model not in LIST_OF_AUDIO_SUPPORTED_MODELS:
+        raise ValueError(f"Model {model} does not support audio classification")
+
+    # First get files:
+    list_of_audio: List[Audio] = []
+    for i, row in dataframe.iterrows():
+        url = row["url"]
+        list_of_audio.append(file_fetcher(url))
+
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -227,7 +213,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _map_template(data: pd.Series[Any]) -> str:
+    def _map_template(data: pd.Series[Any]) -> MultimodalPrompt:
         try:
             variables = {var: data[var] for var in eval_template.variables}
             empty_keys = [k for k, v in variables.items() if v is None]
@@ -267,16 +253,16 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
-    def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(input_data: Audio) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = verbose_model._generate(
-                prompt, instruction=system_instruction, **model_kwargs
+            prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
     fallback_return_value: ParsedLLMResponse = (None, None, "", "")
 
@@ -291,7 +277,7 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    results, execution_details = executor.run([list_of_audio])
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
