@@ -34,7 +34,6 @@ export function ComboBox<T extends object>({
   ...props
 }: ComboBoxProps<T>) {
   return (
-    // <AriaComboBox {...props}>
     <AriaComboBox {...props} css={comboBoxCSS}>
       <Label>{label}</Label>
       <div className="px-combobox-container">
