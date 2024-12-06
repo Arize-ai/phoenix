@@ -27,11 +27,13 @@ export const SPAN_ATTRIBUTES_PARSING_ERROR =
 export const MODEL_CONFIG_PARSING_ERROR =
   "Unable to parse model config, expected llm.model_name to be present.";
 export const MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR =
-  "Unable to parse model config, expected llm.invocation_parameters json string to be present.";
+  "Unable to parse model config, expected llm.invocation_parameters JSON string to be present.";
 export const MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR =
   "Unable to parse invocation parameters response_format, expected llm.invocation_parameters.response_format to be a well formed json object or undefined.";
 export const TOOLS_PARSING_ERROR =
   "Unable to parse tools, expected tools to be an array of valid tools.";
+export const PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR =
+  "Unable to parse prompt template variables, expected prompt template variables to be a valid JSON object string.";
 
 export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],

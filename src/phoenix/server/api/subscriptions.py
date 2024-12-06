@@ -15,6 +15,7 @@ from typing import (
 )
 
 import strawberry
+from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, func, insert, select
 from sqlalchemy.orm import load_only
@@ -118,6 +119,7 @@ class Subscription:
             )
             for message in input.messages
         ]
+        attributes = None
         if template_options := input.template:
             messages = list(
                 _formatted_messages(
@@ -126,6 +128,7 @@ class Subscription:
                     template_variables=template_options.variables,
                 )
             )
+            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
         )
@@ -133,6 +136,7 @@ class Subscription:
             input=input,
             messages=messages,
             invocation_parameters=invocation_parameters,
+            attributes=attributes,
         ) as span:
             async for chunk in llm_client.chat_completion_create(
                 messages=messages, tools=input.tools or [], **invocation_parameters
@@ -424,6 +428,7 @@ async def _stream_chat_completion_over_dataset_example(
         input=input,
         messages=messages,
         invocation_parameters=invocation_parameters,
+        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(revision.input)},
     ) as span:
         async for chunk in llm_client.chat_completion_create(
             messages=messages, tools=input.tools or [], **invocation_parameters
@@ -589,3 +594,4 @@ def _default_playground_experiment_metadata(
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES

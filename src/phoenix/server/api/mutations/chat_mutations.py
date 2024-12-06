@@ -318,6 +318,9 @@ class ChatCompletionMutationMixin:
         ]
         if template_options := input.template:
             messages = list(_formatted_messages(messages, template_options))
+            attributes.update(
+                {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
+            )
 
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
@@ -584,5 +587,7 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+
 
 PLAYGROUND_PROJECT_NAME = "playground"

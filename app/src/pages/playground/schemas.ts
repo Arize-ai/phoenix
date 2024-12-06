@@ -15,8 +15,12 @@ import {
 } from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
 import { ChatMessage } from "@phoenix/store";
-import { isObject, schemaForType } from "@phoenix/typeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  isObject,
+  isStringKeyedObject,
+  schemaForType,
+} from "@phoenix/typeUtils";
+import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * The zod schema for llm tool calls in an input message
@@ -270,3 +274,43 @@ export const openAIResponseFormatJSONSchema = zodToJsonSchema(
     removeAdditionalStrategy: "passthrough",
   }
 );
+
+const promptTemplateVariablesSchema = z.string().transform((s, ctx) => {
+  const { json } = safelyParseJSON(s);
+  if (!isStringKeyedObject(json)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "The prompt template variables must be a valid JSON object",
+    });
+    return z.NEVER;
+  }
+  const parsedVariables = Object.entries(json).reduce(
+    (acc, [key, value]) => {
+      if (typeof value === "string") {
+        acc[key] = value;
+      } else {
+        const { json } = safelyStringifyJSON(value);
+        if (json != null) {
+          acc[key] = json;
+        }
+      }
+      return acc;
+    },
+    {} as Record<string, string | undefined>
+  );
+  return parsedVariables;
+});
+
+export const promptTemplateSchema = z
+  .object({
+    [SemanticAttributePrefixes.llm]: z
+      .object({
+        [LLMAttributePostfixes.prompt_template]: z
+          .object({
+            variables: promptTemplateVariablesSchema,
+          })
+          .optional(),
+      })
+      .optional(),
+  })
+  .optional();
