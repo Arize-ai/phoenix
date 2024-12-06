@@ -73,8 +73,6 @@ def audio_classify(
     """
     Classifies each input row of the dataframe using an audio model.
     """
-    # early example; just assumes template variables exist within dataframe
-
     for index, row in dataframe.iterrows():
         audio_url = row["audio_url"]
         response = requests.get(audio_url)
