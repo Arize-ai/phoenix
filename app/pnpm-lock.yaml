@@ -255,6 +255,9 @@ importers:
       babel-plugin-relay:
         specifier: ^18.1.0
         version: 18.1.0
+      chromatic:
+        specifier: ^11.20.0
+        version: 11.20.0
       cpy-cli:
         specifier: ^5.0.0
         version: 5.0.0

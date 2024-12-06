@@ -89,6 +89,7 @@
     "@typescript-eslint/parser": "^7.16.1",
     "@vitejs/plugin-react": "^4.3.1",
     "babel-plugin-relay": "^18.1.0",
+    "chromatic": "^11.20.0",
     "cpy-cli": "^5.0.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.4",
@@ -128,7 +129,8 @@
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'",
     "storybook": "storybook dev -p 6007",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "chromatic": "source .env && npx chromatic"
   },
   "packageManager": "pnpm@9.8.0",
   "pnpm": {
