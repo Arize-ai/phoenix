@@ -1,7 +1,8 @@
+export type Size = "S" | "M" | "L";
 export type SizingProps = {
   /**
    * The size of the component
-   * @default 'default'
+   * @default 'M'
    */
-  size?: "default" | "compact";
+  size?: Size;
 };
