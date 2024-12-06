@@ -2,7 +2,9 @@
 
 ## Dependencies
 
-In order to use the Phoenix Prompt Playground with specific providers, you must install optional dependencies on the machine that is running the Phoenix server.
+if you are using Phoenix as a container, there is no additional steps required.\
+\
+If runnining Phoenix via Python, you must install optional dependencies on the machine that is running the Phoenix server.
 
 Phoenix needs to be restarted before new providers will be available.
 
