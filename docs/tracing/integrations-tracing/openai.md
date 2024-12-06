@@ -144,7 +144,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-openai openai
+pip install openinference-instrumentation-openai openai 'httpx<0.28'
 ```
 
 ## Setup
@@ -182,6 +182,6 @@ Now that you have tracing setup, all invocations of OpenAI (completions, chat co
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai\_tracing\_tutorial.ipynb)
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb)
 * [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)
 * [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai/examples)
