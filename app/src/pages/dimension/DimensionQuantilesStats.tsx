@@ -30,7 +30,7 @@ export function DimensionQuantilesStats(props: {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--px-spacing-sm);
+        gap: var(--ac-global-dimension-static-size-50);
       `}
     >
       {Object.keys(data).map((statName) => {
