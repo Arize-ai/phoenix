@@ -11,7 +11,7 @@
         <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
     <a target="_blank" href="https://twitter.com/ArizePhoenix">
-        <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=twitter">
+        <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=x">
     </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
