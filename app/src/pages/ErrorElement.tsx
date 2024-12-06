@@ -75,7 +75,7 @@ function ErrorContent({ error }: { error: unknown }) {
           display: flex;
           flex-direction: row;
           justify-content: flex-end;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
         `}
       >
         <span
@@ -98,7 +98,7 @@ function ErrorContent({ error }: { error: unknown }) {
           flex-direction: row;
           justify-content: flex-end;
           align-items: center;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
         `}
       >
         <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">

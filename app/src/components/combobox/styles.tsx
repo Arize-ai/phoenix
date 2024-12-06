@@ -4,13 +4,17 @@ export const comboBoxCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
 
   .px-combobox-container {
-    position: relative;
+    display: flex;
+    flex-direction: row;
     width: fit-content;
+    min-width: 200px;
+    position: relative;
 
     .react-aria-Input {
       transition: all 0.2s ease-in-out;
       margin: 0;
-      font-size: var(--px-font-size-med);
+      flex: 1 1 auto;
+      font-size: var(--ac-global-dimension-static-font-size-100);
       background-color: var(--ac-global-input-field-background-color);
       padding: 6px var(--ac-global-dimension-static-size-100);
       color: var(--ac-global-text-color-900);
@@ -38,19 +42,22 @@ export const comboBoxCSS = (theme: Theme) => css`
       forced-color-adjust: none;
       position: absolute;
       top: 50%;
-      transform: translateY(-50%);
       right: 0;
       border: none;
+      transform: translateY(-50%);
       cursor: pointer;
       &[data-disabled] {
         opacity: ${theme.opacity.disabled};
+      }
+      i {
+        font-size: var(--ac-global-dimension-static-font-size-200);
       }
     }
   }
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
-    font-size: var(--px-font-size-sm);
+    font-size: var(--ac-global-dimension-static-font-size-75);
     font-weight: var(--px-font-weight-heavy);
   }
 
@@ -88,7 +95,7 @@ export const comboBoxItemCSS = css`
   color: var(--ac-global-text-color-900);
   padding: var(--ac-global-dimension-static-size-100)
     var(--ac-global-dimension-static-size-200);
-  font-size: var(--px-font-size-med);
+  font-size: var(--ac-global-dimension-static-font-size-100);
   cursor: pointer;
   position: relative;
   & > .ac-icon-wrap.px-menu-item__selected-checkmark {

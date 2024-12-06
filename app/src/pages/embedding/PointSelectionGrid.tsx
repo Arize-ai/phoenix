@@ -51,7 +51,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
             --grid-item-min-width: 300px;
             --grid-item-height: 200px;
           }
-          padding: var(--px-spacing-lg);
+          padding: var(--ac-global-dimension-static-size-200);
           transition: all 0.2s ease-in-out;
           display: grid;
           grid-template-columns: repeat(
@@ -59,7 +59,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
             minmax(var(--grid-item-min-width), 1fr)
           );
           flex-wrap: wrap;
-          gap: var(--px-spacing-lg);
+          gap: var(--ac-global-dimension-static-size-200);
           & > li {
             min-width: var(--grid-item-min-width);
             height: var(--grid-item-height);

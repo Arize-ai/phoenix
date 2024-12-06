@@ -5,3 +5,4 @@ export * from "./LoadingMask";
 export * from "./Loading";
 export * from "./ViewSummaryAside";
 export * from "./CopyToClipboardButton";
+export * from "./combobox";
