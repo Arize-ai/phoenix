@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from openinference.semconv.trace import SpanAttributes
 
 # revision identifiers, used by Alembic.
 revision: str = "4ded9e43755f"
@@ -24,7 +23,6 @@ def upgrade() -> None:
         "project_sessions",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("session_id", sa.String, unique=True, nullable=False),
-        sa.Column("session_user", sa.String, index=True),
         sa.Column(
             "project_id",
             sa.Integer,
@@ -56,7 +54,3 @@ def downgrade() -> None:
     with op.batch_alter_table("traces") as batch_op:
         batch_op.drop_column("project_session_rowid")
     op.drop_table("project_sessions")
-
-
-SESSION_ID = SpanAttributes.SESSION_ID.split(".")
-USER_ID = SpanAttributes.USER_ID.split(".")

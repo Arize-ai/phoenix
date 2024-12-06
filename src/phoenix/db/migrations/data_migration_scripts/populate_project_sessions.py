@@ -70,7 +70,6 @@ class ProjectSession(Base):
     __tablename__ = "project_sessions"
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[str]
-    session_user: Mapped[Optional[str]]
     project_id: Mapped[int]
     start_time: Mapped[datetime]
     last_trace_start_time: Mapped[datetime]
@@ -102,7 +101,6 @@ def populate_project_sessions(
     sessions_from_span = (
         select(
             Span.attributes[SESSION_ID].as_string().label("session_id"),
-            Span.attributes[USER_ID].as_string().label("session_user"),
             Trace.project_rowid.label("project_id"),
             Trace.start_time.label("start_time"),
             func.row_number()
@@ -140,14 +138,12 @@ def populate_project_sessions(
             insert(ProjectSession).from_select(
                 [
                     "session_id",
-                    "session_user",
                     "project_id",
                     "start_time",
                     "last_trace_start_time",
                 ],
                 select(
                     sessions_from_span.c.session_id,
-                    sessions_from_span.c.session_user,
                     sessions_from_span.c.project_id,
                     sessions_from_span.c.start_time,
                     sessions_from_span.c.last_trace_start_time,

@@ -58,9 +58,6 @@ async def insert_span(
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
     assert isinstance(session_id, str)
-    session_user = get_attribute_value(span.attributes, SpanAttributes.USER_ID)
-    session_user = str(session_user).strip() if session_user is not None else ""
-    assert isinstance(session_user, str)
 
     project_session: Optional[models.ProjectSession] = None
     if trace.project_session_rowid is not None:
@@ -75,15 +72,11 @@ async def insert_span(
     elif session_id:
         project_session = await session.scalar(
             select(models.ProjectSession).filter_by(session_id=session_id)
-        ) or models.ProjectSession(session_id=session_id, session_user=session_user)
+        ) or models.ProjectSession(session_id=session_id)
 
     if project_session is not None:
         if project_session.id is None:
             # ProjectSession record needs to be persisted for the first time.
-            if session_user is not None:
-                session_user = str(session_user).strip()
-                assert isinstance(session_user, str)
-                project_session.session_user = session_user
             project_session.start_time = trace.start_time
             project_session.last_trace_start_time = trace.start_time
             project_session.project_id = project_rowid
@@ -97,8 +90,6 @@ async def insert_span(
                 trace.project_session_rowid = project_session.id
             if trace.start_time < project_session.start_time:
                 project_session.start_time = trace.start_time
-                if session_user and project_session.session_user != session_user:
-                    project_session.session_user = session_user
             if project_session.last_trace_start_time < trace.start_time:
                 project_session.last_trace_start_time = trace.start_time
 
