@@ -50,6 +50,12 @@ export const tableCSS = (theme: Theme) => css`
             background: var(--ac-global-color-primary);
           }
         }
+        // Style action menu buttons in the header
+        .ac-button[data-size="compact"][data-childless="true"] {
+          padding: 0;
+          border: none;
+          background-color: transparent;
+        }
       }
     }
   }

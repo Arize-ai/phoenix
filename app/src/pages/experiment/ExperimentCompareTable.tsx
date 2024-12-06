@@ -43,6 +43,7 @@ import {
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
@@ -73,7 +74,13 @@ type ExampleCompareTableProps = {
 
 type ExperimentInfoMap = Record<
   string,
-  { name: string; sequenceNumber: number } | undefined
+  | {
+      name: string;
+      sequenceNumber: number;
+      metadata: object;
+      projectId: string | null;
+    }
+  | undefined
 >;
 
 type TableRow = ExperimentCompareTableQuery$data["comparisons"][number] & {
@@ -174,6 +181,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   id
                   name
                   sequenceNumber
+                  metadata
+                  project {
+                    id
+                  }
                 }
               }
             }
@@ -189,7 +200,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const experimentInfoById = useMemo(() => {
     return (
       data.dataset?.experiments?.edges.reduce((acc, edge) => {
-        acc[edge.experiment.id] = { ...edge.experiment };
+        acc[edge.experiment.id] = {
+          ...edge.experiment,
+          projectId: edge.experiment?.project?.id || null,
+        };
         return acc;
       }, {} as ExperimentInfoMap) || {}
     );
@@ -278,12 +292,28 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return experimentIds.map((experimentId) => ({
       header: () => {
         const name = experimentInfoById[experimentId]?.name;
+        const metadata = experimentInfoById[experimentId]?.metadata;
+        const projectId = experimentInfoById[experimentId]?.projectId;
         const sequenceNumber =
           experimentInfoById[experimentId]?.sequenceNumber || 0;
         return (
-          <Flex direction="row" gap="size-100" wrap>
-            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
-            <Text>{name}</Text>
+          <Flex
+            direction="row"
+            gap="size-100"
+            wrap
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Flex direction="row" gap="size-100" wrap alignItems="center">
+              <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+              <Text>{name}</Text>
+            </Flex>
+            <ExperimentActionMenu
+              experimentId={experimentId}
+              metadata={metadata}
+              isQuiet={true}
+              projectId={projectId}
+            />
           </Flex>
         );
       },

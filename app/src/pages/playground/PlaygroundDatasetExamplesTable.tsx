@@ -1,4 +1,6 @@
 import React, {
+  memo,
+  PropsWithChildren,
   ReactNode,
   startTransition,
   useCallback,
@@ -45,7 +47,6 @@ import {
 import { Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { CellWithControlsWrap } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -56,7 +57,6 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundInstance } from "@phoenix/store";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
@@ -74,6 +74,12 @@ import PlaygroundDatasetExamplesTableSubscription, {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
   PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  ExampleRunData,
+  InstanceResponses,
+  Span,
+  usePlaygroundDatasetExamplesTableContext,
+} from "./PlaygroundDatasetExamplesTableContext";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExperimentRunDetailsDialog } from "./PlaygroundExperimentRunDetailsDialog";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
@@ -88,202 +94,106 @@ import {
 
 const PAGE_SIZE = 10;
 
-type InstanceId = number;
-type ExampleId = string;
-type ChatCompletionSubscriptionResult = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-  { __typename: "ChatCompletionSubscriptionResult" }
->;
 type ChatCompletionOverDatasetMutationPayload = Extract<
   PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
   { __typename: "ChatCompletionOverDatasetMutationPayload" }
 >;
 
-type ChatCompletionSubscriptionError = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-  { __typename: "ChatCompletionSubscriptionError" }
->;
-
-type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
-type ExperimentRun = NonNullable<
-  ChatCompletionSubscriptionResult["experimentRun"]
->;
-type ToolCallChunk = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-  { __typename: "ToolCallChunk" }
->;
-type TextChunk = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
-  { __typename: "TextChunk" }
->;
-
-type ExampleRunData = {
-  content?: string | null;
-  toolCalls?: Record<string, PartialOutputToolCall | undefined>;
-  span?: Span | null;
-  errorMessage?: string | null;
-  experimentRun?: ExperimentRun | null;
+const createExampleResponsesForInstance = (
+  response: ChatCompletionOverDatasetMutationPayload
+): InstanceResponses => {
+  return response.examples.reduce<InstanceResponses>(
+    (instanceResponses, example) => {
+      const { datasetExampleId, result, experimentRunId } = example;
+      const baseExampleResponseData: ExampleRunData = {
+        experimentRunId,
+      };
+      switch (result.__typename) {
+        case "ChatCompletionMutationError": {
+          return {
+            ...instanceResponses,
+            [datasetExampleId]: {
+              ...baseExampleResponseData,
+              errorMessage: result.message,
+            },
+          };
+        }
+        case "ChatCompletionMutationPayload": {
+          const { errorMessage, content, span, toolCalls } = result;
+          return {
+            ...instanceResponses,
+            [datasetExampleId]: {
+              ...baseExampleResponseData,
+              span,
+              content,
+              errorMessage,
+              toolCalls: toolCalls.reduce<
+                Record<string, PartialOutputToolCall>
+              >((map, toolCall) => {
+                map[toolCall.id] = toolCall;
+                return map;
+              }, {}),
+            },
+          };
+        }
+        case "%other":
+          return instanceResponses;
+        default:
+          assertUnreachable(result);
+      }
+    },
+    {}
+  );
 };
 
-type InstanceToExampleResponsesMap = Record<
-  InstanceId,
-  Record<ExampleId, ExampleRunData | undefined> | undefined
->;
+const cellWithControlsWrapCSS = css`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  min-height: 75px;
+  padding: var(--ac-global-dimension-static-size-200);
+  .controls {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+    display: none;
+    z-index: 1;
+  }
+  &:hover .controls {
+    opacity: 1;
+    display: flex;
+    // make them stand out
+    .ac-button {
+      border-color: var(--ac-global-color-primary);
+    }
+  }
+`;
 
-const getInitialExampleResponsesMap = (instances: PlaygroundInstance[]) => {
-  return instances.reduce((acc, instance) => {
-    return {
-      ...acc,
-      [instance.id]: {},
-    };
-  }, {});
-};
+const cellControlsCSS = css`
+  position: absolute;
+  top: -4px;
+  right: var(--ac-global-dimension-static-size-100);
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-static-size-100);
+`;
 
 /**
- * Updates an examples response for a particular instance. Takes in the current map and applies the chunk to it returning a new map.
+ * Wraps a cell to provides space for controls that are shown on hover.
  */
-const updateExampleResponsesMap = ({
-  instanceId,
-  response,
-  currentMap,
-}: {
-  instanceId: number;
-  response:
-    | ChatCompletionSubscriptionResult
-    | TextChunk
-    | ToolCallChunk
-    | ChatCompletionSubscriptionError;
-  currentMap: InstanceToExampleResponsesMap;
-}): InstanceToExampleResponsesMap => {
-  const exampleId = response.datasetExampleId;
-  if (exampleId == null) {
-    return currentMap;
-  }
-  const existingInstanceResponses = currentMap[instanceId];
-  const existingExampleResponse = existingInstanceResponses?.[exampleId] ?? {};
-  switch (response.__typename) {
-    case "ChatCompletionSubscriptionResult": {
-      const newInstanceExampleResponseMap = {
-        ...existingInstanceResponses,
-        [exampleId]: {
-          ...existingExampleResponse,
-          span: response.span,
-          experimentRun: response.experimentRun,
-        },
-      };
-      return {
-        ...currentMap,
-        [instanceId]: newInstanceExampleResponseMap,
-      };
-    }
-    case "TextChunk": {
-      const newInstanceExampleResponseMap = {
-        ...existingInstanceResponses,
-        [exampleId]: {
-          ...existingExampleResponse,
-          content: (existingExampleResponse?.content ?? "") + response.content,
-        },
-      };
-      return {
-        ...currentMap,
-        [instanceId]: newInstanceExampleResponseMap,
-      };
-    }
-    case "ToolCallChunk": {
-      const { id, function: toolFunction } = response;
-      const existingToolCalls = existingExampleResponse.toolCalls ?? {};
-      const existingToolCall = existingToolCalls[id];
-      const updatedToolCall: PartialOutputToolCall = {
-        ...existingToolCall,
-        id,
-        function: {
-          name: existingToolCall?.function?.name ?? toolFunction.name,
-          arguments:
-            existingToolCall?.function.arguments != null
-              ? existingToolCall.function.arguments + toolFunction.arguments
-              : toolFunction.arguments,
-        },
-      };
-      const newInstanceExampleResponseMap = {
-        ...existingInstanceResponses,
-        [exampleId]: {
-          ...existingExampleResponse,
-          toolCalls: {
-            ...existingToolCalls,
-            [id]: updatedToolCall,
-          },
-        },
-      };
-      return {
-        ...currentMap,
-        [instanceId]: newInstanceExampleResponseMap,
-      };
-    }
-    case "ChatCompletionSubscriptionError": {
-      const { message } = response;
-      const newInstanceExampleResponseMap = {
-        ...existingInstanceResponses,
-        [exampleId]: {
-          ...existingExampleResponse,
-          errorMessage: message,
-        },
-      };
-      return {
-        ...currentMap,
-        [instanceId]: newInstanceExampleResponseMap,
-      };
-    }
-    default:
-      return assertUnreachable(response);
-  }
-};
-
-const updateExampleResponsesMapFromMutationResponse = ({
-  instanceId,
-  response,
-  currentMap,
-}: {
-  instanceId: number;
-  response: ChatCompletionOverDatasetMutationPayload;
-  currentMap: InstanceToExampleResponsesMap;
-}): InstanceToExampleResponsesMap => {
-  const instanceResponses: Record<string, ExampleRunData | undefined> = {};
-  for (const example of response.examples) {
-    const { datasetExampleId, result } = example;
-    switch (result.__typename) {
-      case "ChatCompletionMutationError": {
-        instanceResponses[datasetExampleId] = {
-          errorMessage: result.message,
-        };
-        break;
-      }
-      case "ChatCompletionMutationPayload": {
-        const { errorMessage, content, span, toolCalls } = result;
-        instanceResponses[datasetExampleId] = {
-          span,
-          content,
-          errorMessage,
-          toolCalls: toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-            (map, toolCall) => {
-              map[toolCall.id] = toolCall;
-              return map;
-            },
-            {}
-          ),
-        };
-        break;
-      }
-      case "%other":
-        break;
-      default:
-        assertUnreachable(result);
-    }
-  }
-  return {
-    ...currentMap,
-    [instanceId]: instanceResponses,
-  };
-};
+export function CellWithControlsWrap(
+  props: PropsWithChildren<{ controls: ReactNode }>
+) {
+  return (
+    <div css={cellWithControlsWrapCSS}>
+      {props.children}
+      <div css={cellControlsCSS} className="controls">
+        {props.controls}
+      </div>
+    </div>
+  );
+}
 
 function LargeTextWrap({ children }: { children: ReactNode }) {
   return (
@@ -291,6 +201,8 @@ function LargeTextWrap({ children }: { children: ReactNode }) {
       css={css`
         max-height: 300px;
         overflow-y: auto;
+        padding: var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-200);
       `}
     >
       {children}
@@ -310,95 +222,108 @@ function JSONCell<TData extends object, TValue>({
   );
 }
 
-function ExampleOutputCell({
-  exampleData,
+function EmptyExampleOutput({
   isRunning,
-  setDialog,
   instanceVariables,
   datasetExampleInput,
 }: {
-  exampleData: ExampleRunData | null;
   isRunning: boolean;
-  setDialog(dialog: ReactNode): void;
   instanceVariables: string[];
-  datasetExampleInput: Record<string, unknown>;
+  datasetExampleInput: unknown;
 }) {
-  if (exampleData == null && isRunning) {
+  const missingVariables = useMemo(() => {
+    const parsedDatasetExampleInput = isStringKeyedObject(datasetExampleInput)
+      ? datasetExampleInput
+      : {};
+
+    return instanceVariables.filter((variable) => {
+      return parsedDatasetExampleInput[variable] == null;
+    });
+  }, [datasetExampleInput, instanceVariables]);
+  if (isRunning) {
     return <Loading />;
   }
-  if (exampleData == null) {
-    const missingVariables = instanceVariables.filter((variable) => {
-      return datasetExampleInput[variable] == null;
-    });
-    if (missingVariables.length === 0) {
-      return null;
-    }
-    return (
-      <PlaygroundErrorWrap>
-        {`Missing output for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
-          ", "
-        )}`}
-      </PlaygroundErrorWrap>
-    );
+
+  if (missingVariables.length === 0) {
+    return null;
   }
-  const { span, content, toolCalls, errorMessage, experimentRun } = exampleData;
+  return (
+    <PlaygroundErrorWrap>
+      {`Missing input for variable${missingVariables.length > 1 ? "s" : ""}: ${missingVariables.join(
+        ", "
+      )}`}
+    </PlaygroundErrorWrap>
+  );
+}
+
+function ExampleOutputContent({
+  exampleData,
+  setDialog,
+}: {
+  exampleData: ExampleRunData;
+  setDialog(dialog: ReactNode): void;
+}) {
+  const { span, content, toolCalls, errorMessage, experimentRunId } =
+    exampleData;
   const hasSpan = span != null;
-  const hasExperimentRun = experimentRun != null;
-  let spanControls: ReactNode = null;
-  if (hasSpan || hasExperimentRun) {
-    spanControls = (
-      <>
-        {hasExperimentRun && (
-          <TooltipTrigger>
-            <Button
-              variant="default"
-              size="compact"
-              aria-label="View experiment run details"
-              icon={<Icon svg={<Icons.ExpandOutline />} />}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                startTransition(() => {
-                  setDialog(
-                    <PlaygroundExperimentRunDetailsDialog
-                      runId={experimentRun.id}
-                    />
-                  );
-                });
-              }}
-            />
-            <Tooltip>View run details</Tooltip>
-          </TooltipTrigger>
-        )}
-        {hasSpan && (
-          <>
+  const hasExperimentRun = experimentRunId != null;
+  const spanControls = useMemo(() => {
+    if (hasSpan || hasExperimentRun) {
+      return (
+        <>
+          {hasExperimentRun && (
             <TooltipTrigger>
               <Button
                 variant="default"
                 size="compact"
-                aria-label="View run trace"
-                icon={<Icon svg={<Icons.Trace />} />}
+                aria-label="View experiment run details"
+                icon={<Icon svg={<Icons.ExpandOutline />} />}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   startTransition(() => {
                     setDialog(
-                      <PlaygroundRunTraceDetailsDialog
-                        traceId={span.context.traceId}
-                        projectId={span.project.id}
-                        title={`Experiment Run Trace`}
+                      <PlaygroundExperimentRunDetailsDialog
+                        runId={experimentRunId}
                       />
                     );
                   });
                 }}
               />
-              <Tooltip>View Trace</Tooltip>
+              <Tooltip>View run details</Tooltip>
             </TooltipTrigger>
-          </>
-        )}
-      </>
-    );
-  }
+          )}
+          {hasSpan && (
+            <>
+              <TooltipTrigger>
+                <Button
+                  variant="default"
+                  size="compact"
+                  aria-label="View run trace"
+                  icon={<Icon svg={<Icons.Trace />} />}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startTransition(() => {
+                      setDialog(
+                        <PlaygroundRunTraceDetailsDialog
+                          traceId={span.context.traceId}
+                          projectId={span.project.id}
+                          title={`Experiment Run Trace`}
+                        />
+                      );
+                    });
+                  }}
+                />
+                <Tooltip>View Trace</Tooltip>
+              </TooltipTrigger>
+            </>
+          )}
+        </>
+      );
+    }
+  }, [experimentRunId, hasExperimentRun, hasSpan, setDialog, span]);
+
   return (
     <CellWithControlsWrap controls={spanControls}>
       <Flex direction={"column"} gap={"size-200"}>
@@ -418,6 +343,36 @@ function ExampleOutputCell({
     </CellWithControlsWrap>
   );
 }
+
+const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
+  isRunning,
+  instanceId,
+  exampleId,
+  setDialog,
+  instanceVariables,
+  datasetExampleInput,
+}: {
+  instanceId: number;
+  exampleId: string;
+  isRunning: boolean;
+  setDialog(dialog: ReactNode): void;
+  instanceVariables: string[];
+  datasetExampleInput: unknown;
+}) {
+  const exampleData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.exampleResponsesMap[instanceId]?.[exampleId]
+  );
+
+  return exampleData == null ? (
+    <EmptyExampleOutput
+      isRunning={isRunning}
+      instanceVariables={instanceVariables}
+      datasetExampleInput={datasetExampleInput}
+    />
+  ) : (
+    <ExampleOutputContent exampleData={exampleData} setDialog={setDialog} />
+  );
+});
 
 function SpanMetadata({ span }: { span: Span }) {
   return (
@@ -443,6 +398,10 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
+                  // the cell still grows to fit, we just need some height declared
+                  // so that height: 100% works in children elements
+                  padding: 0,
+                  height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                   // allow long text with no symbols or spaces to wrap
                   // otherwise, it will prevent the cell from shrinking
@@ -476,9 +435,25 @@ export function PlaygroundDatasetExamplesTable({
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-  const setExperimentId = usePlaygroundContext(
-    (state) => state.setExperimentId
+
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const updateExampleData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.updateExampleData
   );
+  const setExampleDataForInstance = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setExampleDataForInstance
+  );
+  const resetExampleData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetExampleData
+  );
+  const appendExampleDataToolCallChunk =
+    usePlaygroundDatasetExamplesTableContext(
+      (state) => state.appendExampleDataToolCallChunk
+    );
+  const appendExampleDataTextChunk = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.appendExampleDataTextChunk
+  );
+
   const [dialog, setDialog] = useState<ReactNode>(null);
   const navigate = useNavigate();
   const hasSomeRunIds = instances.some(
@@ -491,10 +466,6 @@ export function PlaygroundDatasetExamplesTable({
   );
   const playgroundStore = usePlaygroundStore();
 
-  const [exampleResponsesMap, setExampleResponsesMap] =
-    useState<InstanceToExampleResponsesMap>(
-      getInitialExampleResponsesMap(instances)
-    );
   const notifyError = useNotifyError();
 
   const onNext = useCallback(
@@ -506,19 +477,54 @@ export function PlaygroundDatasetExamplesTable({
         const chatCompletion = response.chatCompletionOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
-            setExperimentId(chatCompletion.experiment.id);
+            updateInstance({
+              instanceId,
+              patch: { experimentId: chatCompletion.experiment.id },
+            });
             break;
           case "ChatCompletionSubscriptionResult":
-          case "TextChunk":
-          case "ChatCompletionSubscriptionError":
-          case "ToolCallChunk": {
-            setExampleResponsesMap((exampleResponsesMap) => {
-              return updateExampleResponsesMap({
-                instanceId,
-                response: chatCompletion,
-                currentMap: exampleResponsesMap,
-              });
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            updateExampleData({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              patch: {
+                span: chatCompletion.span,
+                experimentRunId: chatCompletion.experimentRun?.id,
+              },
             });
+            break;
+          case "ChatCompletionSubscriptionError":
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            updateExampleData({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              patch: { errorMessage: chatCompletion.message },
+            });
+            break;
+          case "TextChunk":
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            appendExampleDataTextChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              textChunk: chatCompletion.content,
+            });
+            break;
+          case "ToolCallChunk": {
+            if (chatCompletion.datasetExampleId == null) {
+              return;
+            }
+            appendExampleDataToolCallChunk({
+              instanceId,
+              exampleId: chatCompletion.datasetExampleId,
+              toolCallChunk: chatCompletion,
+            });
+
             break;
           }
           // This should never happen
@@ -529,7 +535,12 @@ export function PlaygroundDatasetExamplesTable({
             return assertUnreachable(chatCompletion);
         }
       },
-    [setExperimentId]
+    [
+      appendExampleDataTextChunk,
+      appendExampleDataToolCallChunk,
+      updateExampleData,
+      updateInstance,
+    ]
   );
 
   const [generateChatCompletion] =
@@ -551,30 +562,41 @@ export function PlaygroundDatasetExamplesTable({
           });
           return;
         }
-        setExperimentId(response.chatCompletionOverDataset.experimentId);
-        setExampleResponsesMap((exampleResponsesMap) => {
-          return updateExampleResponsesMapFromMutationResponse({
-            instanceId,
-            response: response.chatCompletionOverDataset,
-            currentMap: exampleResponsesMap,
-          });
+        updateInstance({
+          instanceId,
+          patch: {
+            experimentId: response.chatCompletionOverDataset.experimentId,
+          },
+        });
+        setExampleDataForInstance({
+          instanceId,
+          data: createExampleResponsesForInstance(
+            response.chatCompletionOverDataset
+          ),
         });
       },
-    [markPlaygroundInstanceComplete, notifyError, setExperimentId]
+    [
+      markPlaygroundInstanceComplete,
+      notifyError,
+      setExampleDataForInstance,
+      updateInstance,
+    ]
   );
 
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, setExperimentId } =
-      playgroundStore.getState();
-    setExperimentId(null);
-    setExampleResponsesMap(getInitialExampleResponsesMap(instances));
+    const { instances, streaming, updateInstance } = playgroundStore.getState();
+    resetExampleData();
     if (streaming) {
       const subscriptions: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
+        updateInstance({
+          instanceId: instance.id,
+          patch: { experimentId: null },
+        });
         if (activeRunId === null) {
           continue;
         }
@@ -622,11 +644,16 @@ export function PlaygroundDatasetExamplesTable({
         }
       };
     } else {
+      const disposables: Disposable[] = [];
       for (const instance of instances) {
         const { activeRunId } = instance;
         if (activeRunId === null) {
           continue;
         }
+        updateInstance({
+          instanceId: instance.id,
+          patch: { experimentId: null },
+        });
         const variables = {
           input: getChatCompletionOverDatasetInput({
             credentials,
@@ -635,7 +662,7 @@ export function PlaygroundDatasetExamplesTable({
             datasetId,
           }),
         };
-        generateChatCompletion({
+        const disposable = generateChatCompletion({
           variables,
           onCompleted: onCompleted(instance.id),
           onError(error) {
@@ -656,7 +683,13 @@ export function PlaygroundDatasetExamplesTable({
             }
           },
         });
+        disposables.push(disposable);
       }
+      return () => {
+        for (const disposable of disposables) {
+          disposable.dispose();
+        }
+      };
     }
   }, [
     credentials,
@@ -669,6 +702,7 @@ export function PlaygroundDatasetExamplesTable({
     onCompleted,
     onNext,
     playgroundStore,
+    resetExampleData,
   ]);
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
@@ -732,37 +766,36 @@ export function PlaygroundDatasetExamplesTable({
   type TableRow = (typeof tableData)[number];
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
-    return instances.map((instance, index) => ({
-      id: `instance-${instance.id}`,
-      header: () => (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <AlphabeticIndexIcon index={index} />
-          <span>Output</span>
-        </Flex>
-      ),
+    return instances.map((instance, index) => {
+      const instanceVariables = extractVariablesFromInstance({
+        instance,
+        templateLanguage,
+      });
+      return {
+        id: `instance-${instance.id}`,
+        header: () => (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <AlphabeticIndexIcon index={index} />
+            <span>Output</span>
+          </Flex>
+        ),
 
-      cell: ({ row }) => {
-        const exampleData =
-          exampleResponsesMap[instance.id]?.[row.original.id] ?? null;
-        const instanceVariables = extractVariablesFromInstance({
-          instance,
-          templateLanguage,
-        });
-        return (
-          <ExampleOutputCell
-            exampleData={exampleData}
-            isRunning={hasSomeRunIds}
-            setDialog={setDialog}
-            instanceVariables={instanceVariables}
-            datasetExampleInput={
-              isStringKeyedObject(row.original.input) ? row.original.input : {}
-            }
-          />
-        );
-      },
-      size: 500,
-    }));
-  }, [exampleResponsesMap, hasSomeRunIds, instances, templateLanguage]);
+        cell: ({ row }) => {
+          return (
+            <MemoizedExampleOutputCell
+              instanceId={instance.id}
+              exampleId={row.original.id}
+              isRunning={hasSomeRunIds}
+              setDialog={setDialog}
+              instanceVariables={instanceVariables}
+              datasetExampleInput={row.original.input}
+            />
+          );
+        },
+        size: 500,
+      };
+    });
+  }, [hasSomeRunIds, instances, templateLanguage]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -990,6 +1023,7 @@ graphql`
       experimentId
       examples {
         datasetExampleId
+        experimentRunId
         result {
           __typename
           ... on ChatCompletionMutationError {

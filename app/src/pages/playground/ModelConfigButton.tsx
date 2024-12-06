@@ -9,20 +9,22 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import debounce from "lodash/debounce";
+import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
   DialogContainer,
   Flex,
-  Form,
+  Icon,
+  Icons,
   Item,
   Picker,
   Text,
   TextField,
   Tooltip,
   TooltipTrigger,
-  View,
+  TriggerWrap,
 } from "@arizeai/components";
 
 import {
@@ -35,14 +37,35 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
-import { InvocationParametersForm } from "./InvocationParametersForm";
+import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 import { ModelPicker } from "./ModelPicker";
 import { ModelProviderPicker } from "./ModelProviderPicker";
-import {
-  convertInstanceToolsToProvider,
-  convertMessageToolCallsToProvider,
-} from "./playgroundUtils";
+import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
+
+/**
+ * This is the maximum width of the model config button model name text.
+ * This is used to ensure that the model name text does not overflow the model config button.
+ */
+const MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH = 150;
+
+const modelConfigFormCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-200);
+  .ac-field,
+  .ac-dropdown,
+  .ac-dropdown-button,
+  .ac-slider {
+    width: 100%;
+  }
+  // Makes the filled slider track blue
+  .ac-slider-controls > .ac-slider-track:first-child::before {
+    background: var(--ac-global-color-primary);
+  }
+  padding: var(--ac-global-dimension-size-200);
+  overflow: auto;
+`;
 
 function AzureOpenAiModelConfigFormField({
   instance,
@@ -50,10 +73,6 @@ function AzureOpenAiModelConfigFormField({
   instance: PlaygroundInstance;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const modelConfigByProvider = usePreferencesContext(
-    (state) => state.modelConfigByProvider
-  );
-
   const updateModelConfig = useCallback(
     ({
       configKey,
@@ -64,14 +83,13 @@ function AzureOpenAiModelConfigFormField({
     }) => {
       updateModel({
         instanceId: instance.id,
-        model: {
+        patch: {
           ...instance.model,
           [configKey]: value,
         },
-        modelConfigByProvider,
       });
     },
-    [instance.id, instance.model, modelConfigByProvider, updateModel]
+    [instance.id, instance.model, updateModel]
   );
 
   const debouncedUpdateModelName = useMemo(
@@ -96,7 +114,7 @@ function AzureOpenAiModelConfigFormField({
       />
       <TextField
         label="Endpoint"
-        value={instance.model.endpoint ?? ""}
+        defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
             configKey: "endpoint",
@@ -106,7 +124,7 @@ function AzureOpenAiModelConfigFormField({
       />
       <Picker
         label="API Version"
-        selectedKey={instance.model.apiVersion ?? undefined}
+        defaultSelectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
         placeholder="Select an AzureOpenAI API Version"
         onSelectionChange={(key) => {
@@ -140,6 +158,16 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
       `Playground instance ${props.playgroundInstanceId} not found`
     );
   }
+
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
+
   return (
     <Fragment>
       <Button
@@ -150,10 +178,34 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
+        title={`${ModelProviders[instance.model.provider]} ${
+          instance.model.modelName || "--"
+        }`}
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
-          <Text>{instance.model.modelName || "--"}</Text>
+          <div
+            css={css`
+              max-width: ${MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}px;
+              text-overflow: ellipsis;
+              overflow: hidden;
+              white-space: nowrap;
+            `}
+          >
+            <Text>{instance.model.modelName || "--"}</Text>
+          </div>
+          {!requiredInvocationParametersConfigured ? (
+            <TooltipTrigger delay={0} offset={5}>
+              <span>
+                <TriggerWrap>
+                  <Icon color="danger" svg={<Icons.InfoOutline />} />
+                </TriggerWrap>
+              </span>
+              <Tooltip>
+                Some required invocation parameters are not configured.
+              </Tooltip>
+            </TooltipTrigger>
+          ) : null}
         </Flex>
       </Button>
       <DialogContainer
@@ -188,13 +240,19 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
 
   const notifySuccess = useNotifySuccess();
   const onSaveConfig = useCallback(() => {
+    const {
+      // Strip out the supported invocation parameters from the model config before saving it as the default these are used for validation and should not be saved
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      supportedInvocationParameters: _,
+      ...modelConfigWithoutSupportedParams
+    } = instance.model;
     setModelConfigForProvider({
       provider: instance.model.provider,
-      modelConfig: instance.model,
+      modelConfig: modelConfigWithoutSupportedParams,
     });
     notifySuccess({
       title: "Model Configuration Saved",
-      message: `${ModelProviders[instance.model.provider]} model configuration saved`,
+      message: `${ModelProviders[instance.model.provider]} model configuration saved as default for later use.`,
       expireMs: 3000,
     });
   }, [instance.model, notifySuccess, setModelConfigForProvider]);
@@ -204,11 +262,16 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
       size="M"
       extra={
         <TooltipTrigger delay={0} offset={5}>
-          <Button size={"compact"} variant="default" onClick={onSaveConfig}>
-            Save Config
+          <Button
+            size={"compact"}
+            variant="default"
+            onClick={onSaveConfig}
+            icon={<Icon svg={<Icons.SaveOutline />} />}
+          >
+            Save as Default
           </Button>
           <Tooltip>
-            Remember configuration for{" "}
+            Saves the current configuration as the default for{" "}
             {ModelProviders[instance.model.provider] ?? "this provider"}.
           </Tooltip>
         </TooltipTrigger>
@@ -237,8 +300,17 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     (state) => state.modelConfigByProvider
   );
 
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const updateProvider = usePlaygroundContext((state) => state.updateProvider);
   const updateModel = usePlaygroundContext((state) => state.updateModel);
+
+  const modelSupportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+  const configuredInvocationParameters = instance.model.invocationParameters;
+  const requiredInvocationParametersConfigured =
+    areRequiredInvocationParametersConfigured(
+      configuredInvocationParameters,
+      modelSupportedInvocationParameters
+    );
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
@@ -256,95 +328,48 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     (modelName: string) => {
       updateModel({
         instanceId: playgroundInstanceId,
-        model: {
-          provider: instance.model.provider,
+        patch: {
           modelName,
         },
-        modelConfigByProvider,
       });
     },
-    [
-      instance.model.provider,
-      modelConfigByProvider,
-      playgroundInstanceId,
-      updateModel,
-    ]
-  );
-
-  const updateProvider = useCallback(
-    (provider: ModelProvider) => {
-      if (provider === instance.model.provider) {
-        return;
-      }
-      const savedProviderConfig = modelConfigByProvider[provider];
-      const patch: Partial<PlaygroundInstance> = {
-        model: {
-          ...instance.model,
-          // Don't update the invocation parameters with the saved config, because the user may want to retain those params across provider changes
-          // Only update the model name
-          modelName: savedProviderConfig?.modelName ?? null,
-          apiVersion: savedProviderConfig?.apiVersion ?? null,
-          endpoint: savedProviderConfig?.endpoint ?? null,
-          provider,
-        },
-        tools: convertInstanceToolsToProvider({
-          instanceTools: instance.tools,
-          provider,
-        }),
-      };
-      if (instance.template.__type === "chat") {
-        patch.template = {
-          __type: "chat",
-          messages: instance.template.messages.map((message) => {
-            return {
-              ...message,
-              toolCalls: convertMessageToolCallsToProvider({
-                toolCalls: message.toolCalls,
-                provider,
-              }),
-            };
-          }),
-        };
-      }
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch,
-      });
-    },
-    [
-      instance.model,
-      instance.template,
-      instance.tools,
-      modelConfigByProvider,
-      playgroundInstanceId,
-      updateInstance,
-    ]
+    [playgroundInstanceId, updateModel]
   );
 
   return (
-    <View padding="size-200" overflow="auto">
-      <Form>
-        <Flex direction="column" gap="size-200">
-          <ModelProviderPicker
-            provider={instance.model.provider}
-            query={query}
-            onChange={updateProvider}
-          />
-          {instance.model.provider === "AZURE_OPENAI" ? (
-            <AzureOpenAiModelConfigFormField instance={instance} />
-          ) : (
-            <ModelPicker
-              modelName={instance.model.modelName}
-              provider={instance.model.provider}
-              query={query}
-              onChange={onModelNameChange}
-            />
-          )}
-          <Suspense>
-            <InvocationParametersForm instanceId={playgroundInstanceId} />
-          </Suspense>
+    <form css={modelConfigFormCSS}>
+      {!requiredInvocationParametersConfigured ? (
+        <Flex direction="row" gap="size-100">
+          <Icon color="danger" svg={<Icons.InfoOutline />} />
+          <Text color="danger">
+            Some required invocation parameters are not configured.
+          </Text>
         </Flex>
-      </Form>
-    </View>
+      ) : null}
+      <ModelProviderPicker
+        provider={instance.model.provider}
+        query={query}
+        onChange={(provider) => {
+          updateProvider({
+            instanceId: playgroundInstanceId,
+            provider,
+            modelConfigByProvider,
+          });
+        }}
+      />
+      {instance.model.provider === "AZURE_OPENAI" ? (
+        <AzureOpenAiModelConfigFormField instance={instance} />
+      ) : (
+        <ModelPicker
+          modelName={instance.model.modelName}
+          provider={instance.model.provider}
+          query={query}
+          onChange={onModelNameChange}
+        />
+      )}
+      <Suspense>
+        <InvocationParametersFormFields instanceId={playgroundInstanceId} />
+      </Suspense>
+    </form>
   );
 }

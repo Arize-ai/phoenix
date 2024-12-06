@@ -12,11 +12,11 @@ importers:
   .:
     dependencies:
       '@arizeai/components':
-        specifier: ^1.8.9
-        version: 1.8.9(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^1.8.11
+        version: 1.8.11(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@arizeai/openinference-semantic-conventions':
-        specifier: ^0.12.0
-        version: 0.12.0
+        specifier: ^0.13.0
+        version: 0.13.0
       '@arizeai/point-cloud':
         specifier: ^3.0.6
         version: 3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)
@@ -283,15 +283,15 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@arizeai/components@1.8.9':
-    resolution: {integrity: sha512-K3SgaLuDoAYVOC+4gsETCEewmN7ni2LLrvUyWYqzm9xXR68EXkJs544cPOrEJ6dNWV0ES96H72NRjvGzZGMBsA==}
+  '@arizeai/components@1.8.11':
+    resolution: {integrity: sha512-PhiP7odjdtXB/9y0oODWpaWP60BbQ8bDoUATovY2Ip3nq4W3xz9Oadwc4nsOnspFdxxkMatyuqAMfZFnIb4U6A==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
 
-  '@arizeai/openinference-semantic-conventions@0.12.0':
-    resolution: {integrity: sha512-lplj9yJSCJo0JD7VrOf1J2PEnC6B/y6t9fJUqD1dDkPoexBojk5kQQBjPJ0Claa/IMO3xuojEsXsuCheQ5ki9g==}
+  '@arizeai/openinference-semantic-conventions@0.13.0':
+    resolution: {integrity: sha512-WlpMl6eVSdngM0zb+zdtsyXdIyytIVYElQNe4/NQ4KMsMRfZedlkW0qwHJhpVQuwDzMIg/kZ11JunOWo7mDKSg==}
 
   '@arizeai/point-cloud@3.0.6':
     resolution: {integrity: sha512-hatFoGJsHAHwZqzZokKqBcHhvyxGyyy9g/CEWpChOckcUkQktgKRT00rrrmiSE7XXHHeUVdkjYruS1R7y16KZg==}
@@ -1894,8 +1894,8 @@ packages:
   cross-fetch@3.1.8:
     resolution: {integrity: sha512-cvA+JwZoU0Xq+h6WkMvAUqPEYy92Obet6UdKLfW60qn99ftItKjB5T+BkyWOFWe2pUyfQ+IJHmpOTznqk1M6Kg==}
 
-  cross-spawn@7.0.3:
-    resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
+  cross-spawn@7.0.6:
+    resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
 
   cssfontparser@1.2.1:
@@ -3999,7 +3999,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.5
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@arizeai/components@1.8.9(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@arizeai/components@1.8.11(@types/react@18.3.10)(eslint@8.57.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@emotion/react': 11.11.4(@types/react@18.3.10)(react@18.3.1)
       '@react-aria/breadcrumbs': 3.5.13(react@18.3.1)
@@ -4041,7 +4041,7 @@ snapshots:
       - eslint
       - supports-color
 
-  '@arizeai/openinference-semantic-conventions@0.12.0': {}
+  '@arizeai/openinference-semantic-conventions@0.13.0': {}
 
   '@arizeai/point-cloud@3.0.6(@react-three/drei@9.108.4(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@types/react@18.3.10)(@types/three@0.149.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(@react-three/fiber@8.0.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.139.2))(react@18.3.1)(three-stdlib@2.30.4(three@0.139.2))(three@0.139.2)':
     dependencies:
@@ -6080,7 +6080,7 @@ snapshots:
 
   cross-env@7.0.3:
     dependencies:
-      cross-spawn: 7.0.3
+      cross-spawn: 7.0.6
 
   cross-fetch@3.1.8:
     dependencies:
@@ -6088,7 +6088,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  cross-spawn@7.0.3:
+  cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
       shebang-command: 2.0.0
@@ -6445,7 +6445,7 @@ snapshots:
       '@ungap/structured-clone': 1.2.0
       ajv: 6.12.6
       chalk: 4.1.2
-      cross-spawn: 7.0.3
+      cross-spawn: 7.0.6
       debug: 4.3.7
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0

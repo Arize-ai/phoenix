@@ -21,6 +21,7 @@ describe("getInitialInstances", () => {
         modelName: "test-model",
         provider: "OPENAI" as const,
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
     };
     const initialProps: InitialPlaygroundState = {

@@ -1,4 +1,5 @@
 import React from "react";
+import { css } from "@emotion/react";
 
 import { Radio, RadioGroup } from "@arizeai/components";
 
@@ -12,23 +13,34 @@ export function TemplateLanguageRadioGroup() {
     (state) => state.setTemplateLanguage
   );
   return (
-    <RadioGroup
-      value={language}
-      variant="inline-button"
-      aria-label="Template Language"
-      size="compact"
-      onChange={(v) => {
-        if (isTemplateLanguage(v)) {
-          setLanguage(v);
+    <div
+      css={css`
+        & * {
+          white-space: nowrap;
         }
-      }}
+      `}
     >
-      <Radio label="Mustache" value={TemplateLanguages.Mustache}>
-        Mustache
-      </Radio>
-      <Radio label="F-String" value={TemplateLanguages.FString}>
-        F-String
-      </Radio>
-    </RadioGroup>
+      <RadioGroup
+        value={language}
+        variant="inline-button"
+        aria-label="Template Language"
+        size="compact"
+        onChange={(v) => {
+          if (isTemplateLanguage(v)) {
+            setLanguage(v);
+          }
+        }}
+      >
+        <Radio label="None" value={TemplateLanguages.NONE}>
+          None
+        </Radio>
+        <Radio label="Mustache" value={TemplateLanguages.Mustache}>
+          Mustache
+        </Radio>
+        <Radio label="F-String" value={TemplateLanguages.FString}>
+          F-String
+        </Radio>
+      </RadioGroup>
+    </div>
   );
 }

@@ -66,14 +66,15 @@ class NeedsResultColumns(ABC):
     )
 
     @classmethod
-    def is_valid_result_columns(cls, dtypes: "pd.Series[Any]") -> bool:
+    def is_valid_result_columns(cls, df: pd.DataFrame) -> bool:
+        dtypes = df.dtypes
         names = cls.result_column_names.keys()
         intersection = dtypes.index.intersection(names)  # type: ignore
         if not len(intersection):
             return False
         for name in intersection:
             check_type = cls.result_column_names[name]
-            if not check_type(dtypes[name]):
+            if not check_type(dtypes[name]) and not df.loc[:, name].isna().all():
                 return False
         return True
 
@@ -138,7 +139,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             )
 
         # Validate that the dataframe contains result columns of appropriate types.
-        if not self.is_valid_result_columns(dataframe.dtypes):
+        if not self.is_valid_result_columns(dataframe):
             raise ValueError(
                 f"The dataframe must contain one of these columns with appropriate "
                 f"value types: {self.result_column_names.keys()} "

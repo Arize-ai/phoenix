@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
@@ -110,9 +111,12 @@ class AnthropicModel(BaseModel):
             "top_k": self.top_k,
         }
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
@@ -138,9 +142,14 @@ class AnthropicModel(BaseModel):
 
         return _completion(**kwargs)
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
@@ -166,8 +175,12 @@ class AnthropicModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
+    def _format_prompt_for_claude(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # the Anthropic messages API expects a list of messages
-        return [
-            {"role": "user", "content": prompt},
-        ]
+        messages = []
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": "user", "content": part.content})
+            else:
+                raise ValueError(f"Unsupported content type: {part.content_type}")
+        return messages

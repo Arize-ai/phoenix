@@ -1,3 +1,5 @@
+import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
+
 import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
@@ -8,15 +10,11 @@ import {
   createAnthropicToolDefinition,
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
-  fromOpenAIToolDefinition,
-  toOpenAIToolDefinition,
 } from "@phoenix/schemas";
 import {
   createAnthropicToolCall,
   createOpenAIToolCall,
-  fromOpenAIToolCall,
   LlmProviderToolCall,
-  toOpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
@@ -37,6 +35,8 @@ import {
   Mutable,
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+
+import { TemplateLanguages } from "../../components/templateEditor/constants";
 
 import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
@@ -61,7 +61,7 @@ import {
   TOOL_CHOICE_PARAM_NAME,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import { InvocationParameter } from "./InvocationParametersForm";
+import { InvocationParameter } from "./InvocationParametersFormFields";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
@@ -228,7 +228,26 @@ export function getTemplateMessagesFromAttributes({
       messages: null,
     };
   }
-
+  if (provider === "ANTHROPIC") {
+    const { success, data } =
+      modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+    if (success) {
+      const messages = inputMessages.data.llm.input_messages;
+      const systemPrompt = data.llm.invocation_parameters?.system;
+      if (
+        typeof systemPrompt === "string" &&
+        systemPrompt &&
+        (!messages || messages[0].message.role !== "system")
+      ) {
+        inputMessages.data.llm.input_messages.unshift({
+          message: {
+            role: "system",
+            content: systemPrompt,
+          },
+        });
+      }
+    }
+  }
   return {
     messageParsingErrors: [],
     messages: processAttributeMessagesToChatMessage({
@@ -283,6 +302,32 @@ export function getOutputFromAttributes({
 }
 
 /**
+ * Converts an OpenInference model provider to a Phoenix model provider.
+ * @param provider the OpenInference model provider
+ * @returns the Phoenix model provider or null if the provider is not supported / defined
+ */
+export function openInferenceModelProviderToPhoenixModelProvider(
+  provider: string | undefined | null
+): ModelProvider | null {
+  if (provider == null) {
+    return null;
+  }
+  const maybeProvider = provider.toLowerCase() as LLMProvider;
+  switch (maybeProvider) {
+    case "openai":
+      return "OPENAI";
+    case "anthropic":
+      return "ANTHROPIC";
+    case "google":
+      return "GEMINI";
+    case "azure":
+      return "AZURE_OPENAI";
+    default:
+      return null;
+  }
+}
+
+/**
  * Attempts to infer the provider of the model from the model name.
  * @param modelName the model name to get the provider from
  * @returns the provider of the model defaulting to {@link DEFAULT_MODEL_PROVIDER} if the provider cannot be inferred
@@ -314,11 +359,15 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
 } {
   const { success, data } = modelConfigSchema.safeParse(parsedAttributes);
   if (success) {
+    const provider =
+      openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
+      getModelProviderFromModelName(data.llm.model_name);
     return {
       modelConfig: {
         modelName: data.llm.model_name,
-        provider: getModelProviderFromModelName(data.llm.model_name),
+        provider,
         invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     };
@@ -543,6 +592,9 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateLanguage: TemplateLanguage;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return [];
+  }
   const variables = new Set<string>();
   const instanceType = instance.template.__type;
   const utils = getTemplateLanguageUtils(templateLanguage);
@@ -586,6 +638,9 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateLanguage: TemplateLanguage;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return [];
+  }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
@@ -604,6 +659,9 @@ export const getVariablesMapFromInstances = ({
   templateLanguage: TemplateLanguage;
   input: PlaygroundInput;
 }) => {
+  if (templateLanguage == TemplateLanguages.NONE) {
+    return { variablesMap: {}, variableKeys: [] };
+  }
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateLanguage,
@@ -652,7 +710,7 @@ export const constrainInvocationParameterInputsToDefinition = (
       // modelSupportedInvocationParameters.
       ...ip,
       invocationName:
-        definitions.find((mp) => mp.canonicalName === ip.canonicalName)
+        definitions.find((mp) => areInvocationParamsEqual(mp, ip))
           ?.invocationName ?? ip.invocationName,
     }));
 };
@@ -710,93 +768,6 @@ export const getToolName = (tool: Tool): string | null => {
     default:
       assertUnreachable(provider);
   }
-};
-
-/**
- * Best effort attempts to convert instance tools to the providers schema
- * If the tool definition cannot be converted, it will be returned as is
- * @returns A list of playground {@link Tool|Tools}
- */
-export const convertInstanceToolsToProvider = ({
-  instanceTools,
-  provider,
-}: {
-  instanceTools: Tool[];
-  provider: ModelProvider;
-}): Tool[] => {
-  return instanceTools.map((tool) => {
-    switch (provider) {
-      case "OPENAI":
-      case "AZURE_OPENAI": {
-        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
-          tool.definition
-        );
-        return {
-          ...tool,
-          definition: maybeOpenAIToolDefinition ?? tool.definition,
-        };
-      }
-      case "ANTHROPIC": {
-        const maybeOpenAIToolDefinition = toOpenAIToolDefinition(
-          tool.definition
-        );
-        const definition = maybeOpenAIToolDefinition
-          ? fromOpenAIToolDefinition({
-              toolDefinition: maybeOpenAIToolDefinition,
-              targetProvider: provider,
-            })
-          : tool.definition;
-        return {
-          ...tool,
-          definition,
-        };
-      }
-      // TODO(apowell): #5348 Add Gemini tool definition
-      case "GEMINI":
-        return tool;
-      default:
-        assertUnreachable(provider);
-    }
-  });
-};
-
-/**
- * Best effort attempts to convert message tool calls to the providers schema
- * If the tool definition cannot be converted, it will be returned as is
- * @returns A list of {@link ChatMessage} tool calls
- */
-export const convertMessageToolCallsToProvider = ({
-  toolCalls,
-  provider,
-}: {
-  toolCalls: ChatMessage["toolCalls"];
-  provider: ModelProvider;
-}): ChatMessage["toolCalls"] => {
-  if (toolCalls == null) {
-    return;
-  }
-  return toolCalls.map((toolCall) => {
-    switch (provider) {
-      case "OPENAI":
-      case "AZURE_OPENAI": {
-        return toOpenAIToolCall(toolCall) ?? toolCall;
-      }
-      case "ANTHROPIC": {
-        const maybeOpenAIToolCall = toOpenAIToolCall(toolCall);
-        return maybeOpenAIToolCall != null
-          ? fromOpenAIToolCall({
-              toolCall: maybeOpenAIToolCall,
-              targetProvider: provider,
-            })
-          : toolCall;
-      }
-      // TODO(apowell): #5348 Add Gemini tool call
-      case "GEMINI":
-        return toolCall;
-      default:
-        assertUnreachable(provider);
-    }
-  });
 };
 
 /**
@@ -913,6 +884,9 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
+  const supportedInvocationParameters =
+    instance.model.supportedInvocationParameters;
+
   let invocationParameters: InvocationParameterInput[] = [
     ...instance.model.invocationParameters,
   ];
@@ -940,6 +914,17 @@ const getBaseChatCompletionInput = ({
         param.canonicalName !== TOOL_CHOICE_PARAM_CANONICAL_NAME
     );
   }
+  // Filter invocation parameters to only include those that are supported by the model
+  // This will remove configured values that are not supported by the newly selected model
+  // If we don't have the list of supported invocation parameters in the store yet, we will just send
+  // them all
+  invocationParameters = supportedInvocationParameters.length
+    ? constrainInvocationParameterInputsToDefinition(
+        invocationParameters,
+        supportedInvocationParameters
+      )
+    : invocationParameters;
+
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
       ? {
@@ -1042,4 +1027,88 @@ export function normalizeMessageAttributeValue(
   return typeof content === "string"
     ? content
     : JSON.stringify(content, null, 2);
+}
+
+export function areRequiredInvocationParametersConfigured(
+  configuredInvocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  return supportedInvocationParameters
+    .filter((param) => param.required)
+    .every((param) =>
+      configuredInvocationParameters.some((ip) =>
+        areInvocationParamsEqual(ip, param)
+      )
+    );
+}
+
+/**
+ * Extracts the default value for the invocation parameter definition
+ * And the key name that should be used in the invocation parameter input if we need to make a new one
+ *
+ * This logic is necessary because the default value is mapped to different key name based on its type
+ * within the InvocationParameterInput queries in the playground e.g. floatDefaultValue or stringListDefaultValue
+ */
+const getInvocationParamDefaultValue = (
+  param: InvocationParameter
+): unknown => {
+  for (const [key, value] of Object.entries(param)) {
+    if (key.endsWith("DefaultValue") && value != null) {
+      return param[key as keyof InvocationParameter];
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Merges the current invocation parameters with the default values for the supported invocation parameters,
+ * only adding values for invocation parameters that don't already have a value
+ */
+export function mergeInvocationParametersWithDefaults(
+  invocationParameters: InvocationParameterInput[],
+  supportedInvocationParameters: InvocationParameter[]
+) {
+  // Convert the current invocation parameters to a map for quick lookup
+  const currentInvocationParametersMap = new Map(
+    invocationParameters.map((param) => [
+      param.canonicalName || param.invocationName,
+      param,
+    ])
+  );
+  supportedInvocationParameters.forEach((param) => {
+    const paramKeyName = param.canonicalName || param.invocationName;
+    // Extract the default value for the invocation parameter definition
+    // And the key name that should be used in the invocation parameter input if we need to make a new one
+    const defaultValue = getInvocationParamDefaultValue(param);
+    // Convert the invocation input field to a key name that can be used in the invocation parameter input
+    const invocationInputFieldKeyName = toCamelCase(
+      param.invocationInputField || ""
+    ) as keyof InvocationParameterInput;
+    // Skip if we don't have required fields
+    // or, if the current invocation parameter map already has a value for the key
+    // so that we don't overwrite a user provided value, or a value saved to preferences
+    if (
+      !param.invocationName ||
+      !param.invocationInputField ||
+      !paramKeyName ||
+      defaultValue == null ||
+      currentInvocationParametersMap.get(paramKeyName)?.[
+        invocationInputFieldKeyName
+      ] != null
+    ) {
+      return;
+    }
+    // Create the new invocation parameter input, using the default value for the parameter
+    const newInvocationParameter: InvocationParameterInput = {
+      canonicalName: param.canonicalName,
+      invocationName: param.invocationName,
+      [invocationInputFieldKeyName]: defaultValue,
+    };
+
+    // Add the new invocation parameter input to the map
+    currentInvocationParametersMap.set(paramKeyName, newInvocationParameter);
+  });
+
+  // Return the new invocation parameter inputs as an array
+  return Array.from(currentInvocationParametersMap.values());
 }

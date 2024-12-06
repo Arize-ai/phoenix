@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 import inspect
 import json
+import os
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -25,6 +26,7 @@ from phoenix.evals.models.rate_limiters import (
     RateLimiter,
     RateLimitError,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
@@ -99,9 +101,9 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
         super().__init__(
             rate_limit_error=rate_limit_error,
             max_rate_limit_retries=3,
-            initial_per_second_request_rate=2.0,
-            maximum_per_second_request_rate=10.0,
-            enforcement_window_minutes=1,
+            initial_per_second_request_rate=1.0,
+            maximum_per_second_request_rate=3.0,
+            enforcement_window_minutes=0.05,
             rate_reduction_factor=0.5,
             rate_increase_factor=0.01,
             cooldown_seconds=5,
@@ -128,10 +130,11 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                     self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
-                if inspect.iscoroutinefunction(fn):
-                    return await fn(*args, **kwargs)  # type: ignore
+                maybe_coroutine = fn(*args, **kwargs)
+                if inspect.isawaitable(maybe_coroutine):
+                    return await maybe_coroutine  # type: ignore[no-any-return]
                 else:
-                    return fn(*args, **kwargs)
+                    return maybe_coroutine
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
@@ -141,10 +144,11 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
                             try:
                                 request_start_time = time.time()
                                 await self._throttler.async_wait_until_ready()
-                                if inspect.iscoroutinefunction(fn):
-                                    return await fn(*args, **kwargs)  # type: ignore
+                                maybe_coroutine = fn(*args, **kwargs)
+                                if inspect.isawaitable(maybe_coroutine):
+                                    return await maybe_coroutine  # type: ignore[no-any-return]
                                 else:
-                                    return fn(*args, **kwargs)
+                                    return maybe_coroutine
                             except self._rate_limit_error:
                                 self._throttler.on_rate_limit_error(
                                     request_start_time, verbose=self._verbose
@@ -258,6 +262,10 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai import AsyncOpenAI
         from openai import RateLimitError as OpenAIRateLimitError
 
+        # todo: check if custom base url is set before raising error to allow
+        # for custom endpoints that don't require an API key
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+            raise BadRequest("An API key is required for OpenAI models")
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
@@ -276,7 +284,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=0.0,
+                default_value=1.0,
                 min_value=0.0,
                 max_value=2.0,
             ),
@@ -288,12 +296,14 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
             BoundedFloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
+                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
+                default_value=0.0,
                 min_value=-2.0,
                 max_value=2.0,
             ),
@@ -306,6 +316,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -338,10 +349,14 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         from openai.types.chat import ChatCompletionStreamOptionsParam
 
         # Convert standard messages to OpenAI messages
-        openai_messages = [self.to_openai_chat_completion_param(*message) for message in messages]
+        openai_messages = []
+        for message in messages:
+            openai_message = self.to_openai_chat_completion_param(*message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
         tool_call_ids: dict[int, str] = {}
         token_usage: Optional["CompletionUsage"] = None
-        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
         async for chunk in await throttled_create(
             messages=openai_messages,
             model=self.model_name,
@@ -388,7 +403,7 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
         content: JSONScalarType,
         tool_call_id: Optional[str] = None,
         tool_calls: Optional[list[JSONScalarType]] = None,
-    ) -> "ChatCompletionMessageParam":
+    ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
             ChatCompletionSystemMessageParam,
@@ -488,65 +503,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
             ),
         ]
 
-    async def chat_completion_create(
-        self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-
-        # Convert standard messages to OpenAI messages
-        unfiltered_openai_messages = [
-            self.to_openai_o1_chat_completion_param(*message) for message in messages
-        ]
-
-        # filter out unsupported messages
-        openai_messages: list[ChatCompletionMessageParam] = [
-            message for message in unfiltered_openai_messages if message is not None
-        ]
-
-        tool_call_ids: dict[int, str] = {}
-
-        throttled_create = self.rate_limiter.alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        )
-
-        choice = response.choices[0]
-        message = choice.message
-        content = message.content
-
-        text_chunk = TextChunk(content=content)
-        yield text_chunk
-
-        if (tool_calls := message.tool_calls) is not None:
-            for tool_call_index, tool_call in enumerate(tool_calls):
-                tool_call_id = (
-                    tool_call.id
-                    if tool_call.id is not None
-                    else tool_call_ids.get(tool_call_index, f"tool_call_{tool_call_index}")
-                )
-                tool_call_ids[tool_call_index] = tool_call_id
-                if (function := tool_call.function) is not None:
-                    tool_call_chunk = ToolCallChunk(
-                        id=tool_call_id,
-                        function=FunctionCallChunk(
-                            name=function.name or "",
-                            arguments=function.arguments or "",
-                        ),
-                    )
-                    yield tool_call_chunk
-
-        if (usage := response.usage) is not None:
-            self._attributes.update(dict(self._llm_token_counts(usage)))
-
-    def to_openai_o1_chat_completion_param(
+    def to_openai_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
         content: JSONScalarType,
@@ -618,12 +575,16 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
-        if model.endpoint is None or model.api_version is None:
-            raise ValueError("endpoint and api_version are required for Azure OpenAI models")
+        if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
+            raise BadRequest("An Azure API key is required for Azure OpenAI models")
+        if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
+            raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
+        if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
+            raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
         self.client = AsyncAzureOpenAI(
             api_key=api_key,
-            azure_endpoint=model.endpoint,
-            api_version=model.api_version,
+            azure_endpoint=endpoint,
+            api_version=api_version,
         )
 
 
@@ -631,8 +592,12 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
+        "claude-3-5-sonnet-latest",
+        "claude-3-5-haiku-latest",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
         "claude-3-5-sonnet-20240620",
-        "claude-3-opus-20240229",
+        "claude-3-opus-latest",
         "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
     ],
@@ -648,6 +613,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
+        if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
+            raise BadRequest("An API key is required for Anthropic models")
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -663,12 +630,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
+                default_value=1024,
                 required=True,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -681,6 +650,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
@@ -819,6 +789,12 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
+        if not (
+            api_key := api_key
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+        ):
+            raise BadRequest("An API key is required for Gemini models")
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
@@ -833,7 +809,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 invocation_name="temperature",
                 canonical_name=CanonicalParameterName.TEMPERATURE,
                 label="Temperature",
-                default_value=0.0,
+                default_value=1.0,
                 min_value=0.0,
                 max_value=2.0,
             ),
@@ -843,35 +819,31 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
                 label="Max Output Tokens",
             ),
             StringListInvocationParameter(
-                invocation_name="stop",
+                invocation_name="stop_sequences",
                 canonical_name=CanonicalParameterName.STOP_SEQUENCES,
                 label="Stop Sequences",
             ),
             FloatInvocationParameter(
                 invocation_name="presence_penalty",
                 label="Presence Penalty",
+                default_value=0.0,
             ),
             FloatInvocationParameter(
                 invocation_name="frequency_penalty",
                 label="Frequency Penalty",
+                default_value=0.0,
             ),
             BoundedFloatInvocationParameter(
                 invocation_name="top_p",
                 canonical_name=CanonicalParameterName.TOP_P,
                 label="Top P",
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_k",
-                label="Top K",
+                default_value=1.0,
                 min_value=0.0,
                 max_value=1.0,
             ),
             IntInvocationParameter(
-                invocation_name="seed",
-                canonical_name=CanonicalParameterName.RANDOM_SEED,
-                label="Seed",
+                invocation_name="top_k",
+                label="Top K",
             ),
         ]
 
@@ -906,6 +878,13 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         chat = client.start_chat(history=gemini_message_history)
         stream = await chat.send_message_async(**gemini_params)
         async for event in stream:
+            self._attributes.update(
+                {
+                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
+                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
+                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
+                }
+            )
             yield TextChunk(content=event.text)
 
     def _build_gemini_messages(

@@ -86,8 +86,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
     strategy:
       matrix:
-        py: [3.8, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,7 +99,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
       - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -109,8 +109,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: [3.8, 3.13]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,7 +122,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
       - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
 
   #  clean-jupyter-notebooks:
@@ -144,7 +144,7 @@ jobs:
   #      - name: Set up `uv`
   #        uses: astral-sh/setup-uv@v3
   #        with:
-  #          version: 0.4.25
+  #          version: 0.5.5
   #          enable-cache: true
   #          cache-dependency-glob: |
   #            pyproject.toml
@@ -173,7 +173,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -202,7 +202,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -231,7 +231,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -258,7 +258,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
       - name: Run `ruff`
         run: uvx --with tox-uv tox run -e ruff
       - run: git diff --exit-code
@@ -287,7 +287,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -321,7 +321,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -339,7 +339,7 @@ jobs:
     strategy:
       matrix:
         py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -356,7 +356,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -397,7 +397,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -416,7 +416,7 @@ jobs:
       matrix:
         py: [3.9, 3.12]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest]
         exclude:
           - db: postgresql
             os: windows-latest
@@ -452,7 +452,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v3
         with:
-          version: 0.4.25
+          version: 0.5.5
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml

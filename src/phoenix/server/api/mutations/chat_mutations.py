@@ -1,9 +1,9 @@
 import asyncio
 from dataclasses import asdict, field
 from datetime import datetime, timezone
-from itertools import chain
+from itertools import chain, islice
 from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional, Union
+from typing import Any, Iterable, Iterator, List, Optional, TypeVar, Union
 
 import strawberry
 from openinference.instrumentation import safe_json_dumps
@@ -25,8 +25,10 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundStreamingClient,
     initialize_playground_clients,
@@ -61,12 +63,13 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
-from phoenix.trace.attributes import get_attribute_value, unflatten
+from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
 from phoenix.utilities.json import jsonify
 from phoenix.utilities.template_formatters import (
     FStringTemplateFormatter,
     MustacheTemplateFormatter,
+    NoOpFormatter,
     TemplateFormatter,
 )
 
@@ -117,7 +120,7 @@ class ChatCompletionOverDatasetMutationPayload:
 
 @strawberry.type
 class ChatCompletionMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     @classmethod
     async def chat_completion_over_dataset(
         cls,
@@ -127,16 +130,18 @@ class ChatCompletionMutationMixin:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
-            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
             llm_client = llm_client_class(
                 model=input.model,
                 api_key=input.api_key,
             )
-        except Exception:
+        except CustomGraphQLError:
+            raise
+        except Exception as error:
             raise BadRequest(
-                f"Failed to initialize the LLM client for {provider_key.value} "
-                f"{input.model.name}. Have you set a valid API key?"
+                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
+                f"{str(error)}"
             )
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         dataset_version_id = (
@@ -164,7 +169,9 @@ class ChatCompletionMutationMixin:
             revisions = [
                 revision
                 async for revision in await session.stream_scalars(
-                    get_dataset_example_revisions(resolved_version_id)
+                    get_dataset_example_revisions(resolved_version_id).order_by(
+                        models.DatasetExampleRevision.id
+                    )
                 )
             ]
             if not revisions:
@@ -187,28 +194,32 @@ class ChatCompletionMutationMixin:
             session.add(experiment)
             await session.flush()
 
+        results = []
+        batch_size = 3
         start_time = datetime.now(timezone.utc)
-        results = await asyncio.gather(
-            *(
-                cls._chat_completion(
-                    info,
-                    llm_client,
-                    ChatCompletionInput(
-                        model=input.model,
-                        api_key=input.api_key,
-                        messages=input.messages,
-                        tools=input.tools,
-                        invocation_parameters=input.invocation_parameters,
-                        template=TemplateOptions(
-                            language=input.template_language,
-                            variables=revision.input,
+        for batch in _get_batches(revisions, batch_size):
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info,
+                        llm_client,
+                        ChatCompletionInput(
+                            model=input.model,
+                            api_key=input.api_key,
+                            messages=input.messages,
+                            tools=input.tools,
+                            invocation_parameters=input.invocation_parameters,
+                            template=TemplateOptions(
+                                language=input.template_language,
+                                variables=revision.input,
+                            ),
                         ),
-                    ),
-                )
-                for revision in revisions
-            ),
-            return_exceptions=True,
-        )
+                    )
+                    for revision in batch
+                ),
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
 
         payload = ChatCompletionOverDatasetMutationPayload(
             dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
@@ -234,7 +245,7 @@ class ChatCompletionMutationMixin:
                     dataset_example_id=revision.dataset_example_id,
                     trace_id=str(result.span.context.trace_id),
                     output=models.ExperimentRunOutput(
-                        task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                        task_output=get_dataset_example_output(db_span),
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
@@ -264,7 +275,7 @@ class ChatCompletionMutationMixin:
             payload.examples.append(example_payload)
         return payload
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     @classmethod
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
@@ -272,16 +283,18 @@ class ChatCompletionMutationMixin:
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
-            raise BadRequest(f"No LLM client registered for provider '{provider_key}'")
+            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
         try:
             llm_client = llm_client_class(
                 model=input.model,
                 api_key=input.api_key,
             )
-        except Exception:
+        except CustomGraphQLError:
+            raise
+        except Exception as error:
             raise BadRequest(
-                f"Failed to initialize the LLM client for {provider_key.value} "
-                f"{input.model.name}. Have you set a valid API key?"
+                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
+                f"{str(error)}"
             )
         return await cls._chat_completion(info, llm_client, input)
 
@@ -471,6 +484,8 @@ def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatte
         return MustacheTemplateFormatter()
     if template_language is TemplateLanguage.F_STRING:
         return FStringTemplateFormatter()
+    if template_language is TemplateLanguage.NONE:
+        return NoOpFormatter()
     assert_never(template_language)
 
 
@@ -528,6 +543,19 @@ def _hex(number: int) -> str:
 
 def _serialize_event(event: SpanException) -> dict[str, Any]:
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
+
+
+_AnyT = TypeVar("_AnyT")
+
+
+def _get_batches(
+    iterable: Iterable[_AnyT],
+    batch_size: int,
+) -> Iterator[list[_AnyT]]:
+    """Splits an iterable into batches not exceeding a specified size."""
+    iterator = iter(iterable)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch
 
 
 JSON = OpenInferenceMimeTypeValues.JSON.value

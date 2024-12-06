@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b2d394334da9b3ce4738fcdcea985036>>
+ * @generated SignedSource<<fb8767ca8940fd71d617146eb52b1292>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE";
+export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   apiKey?: string | null;
   datasetId: string;
@@ -57,6 +57,7 @@ export type PlaygroundDatasetExamplesTableMutation$data = {
     readonly __typename: "ChatCompletionOverDatasetMutationPayload";
     readonly examples: ReadonlyArray<{
       readonly datasetExampleId: string;
+      readonly experimentRunId: string;
       readonly result: {
         readonly __typename: "ChatCompletionMutationError";
         readonly message: string;
@@ -156,6 +157,13 @@ v3 = [
             "args": null,
             "kind": "ScalarField",
             "name": "datasetExampleId",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "experimentRunId",
             "storageKey": null
           },
           {
@@ -337,16 +345,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "5545ba76d6e030f32efac014aec91639",
+    "cacheID": "4697f7aaa22729dbf83970ce9ae6475b",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bc4fd259c609ba1bda148c079b26b0d3";
+(node as any).hash = "c15f93fe1380986536971620c3bf3a11";
 
 export default node;

@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from queue import Empty, SimpleQueue
 from threading import Thread
+from time import perf_counter
 from typing import Optional
 
 from alembic import command
@@ -47,12 +48,14 @@ def migrate(
         alembic_cfg.set_main_option("script_location", scripts_location)
         url = str(engine.url).replace("%", "%%")
         alembic_cfg.set_main_option("sqlalchemy.url", url)
+        start_time = perf_counter()
         with engine.connect() as conn:
             alembic_cfg.attributes["connection"] = conn
             command.upgrade(alembic_cfg, "head")
+        elapsed_time = perf_counter() - start_time
         engine.dispose()
         printif(log_migrations, "---------------------------")
-        printif(log_migrations, "✅ Migrations complete.")
+        printif(log_migrations, f"✅ Migrations completed in {elapsed_time:.3f} seconds.")
     except BaseException as e:
         if error_queue:
             error_queue.put(e)

@@ -17,6 +17,7 @@ from typing import (
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -278,29 +279,35 @@ class OpenAIModel(BaseModel):
         )
 
     def _build_messages(
-        self, prompt: str | Audio, audio_format: AudioFormat = None, system_instruction: Optional[str] = None
+        self, prompt: MultimodalPrompt, audio_format: str = None, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        if audio_format:
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_instruction
-                },
-                {
-                    "role": "user",
-                    "content": [
+        messages = []
+        for parts in prompt.parts:
+            if parts.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": "system", "content": parts.content})
+            elif parts.content_type == PromptPartContentType.AUDIO_URL:
+                messages.extend(
+                    [
                         {
-                            "type": "input_audio",
-                            "input_audio": {
-                                "data": prompt,
-                                "format": "wav"
-                            }
+                            "role": "system",
+                            "content": system_instruction
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": prompt,
+                                        "format": "wav"
+                                    }
+                                }
+                            ],
                         }
-                    ],
-                }
-            ]
-        else:
-            messages = [{"role": "system", "content": prompt}]
+                    ]
+                )
+            else:
+                raise ValueError(f"Unsupported content type: {parts.content_type}")
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -308,7 +315,10 @@ class OpenAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -327,12 +337,14 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: str | Audio, **kwargs: Any) -> str:
-        audio_format = prompt.format if isinstance(prompt, Audio) else None
+    def _generate(self, prompt: Union[str | MultimodalPrompt], **kwargs: Any) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         invoke_params = self.invocation_params
         messages = self._build_messages(
             prompt=prompt,
-            audio_format=audio_format,
+            audio_format="WAV",
             system_instruction=kwargs.get("instruction")
         )
         if functions := kwargs.get("functions"):
@@ -341,7 +353,7 @@ class OpenAIModel(BaseModel):
             invoke_params["function_call"] = function_call
         response = self._rate_limited_completion(
             messages=messages,
-            audio_format=audio_format,
+            audio_format="WAV",
             **invoke_params,
         )
         choice = response["choices"][0]
@@ -370,13 +382,13 @@ class OpenAIModel(BaseModel):
                 return res.model_dump()
             except self._openai._exceptions.BadRequestError as e:
                 exception_message = e.args[0]
-                if exception_messaige and "maximum context length" in exception_message:
+                if exception_message and "maximum context length" in exception_message:
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, audio_format: AudioFormat, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, audio_format: str, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:

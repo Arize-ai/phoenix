@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5496aa01511684dacbbf9339c68f1593>>
+ * @generated SignedSource<<56f7ed5ad02bc5e59f842e1861f0aa83>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,7 +58,11 @@ export type ExperimentCompareTableQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly experiment: {
           readonly id: string;
+          readonly metadata: any;
           readonly name: string;
+          readonly project: {
+            readonly id: string;
+          } | null;
           readonly sequenceNumber: number;
         };
       }>;
@@ -339,6 +343,25 @@ v7 = {
                   "kind": "ScalarField",
                   "name": "sequenceNumber",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Project",
+                  "kind": "LinkedField",
+                  "name": "project",
+                  "plural": false,
+                  "selections": [
+                    (v2/*: any*/)
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -414,16 +437,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "97e80c617426f75b81affa68e276b3d8",
+    "cacheID": "e8b3f1f7011d0059ded7076b4d83afea",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        startTime\n        endTime\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              annotatorKind\n              explanation\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        startTime\n        endTime\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              annotatorKind\n              explanation\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e6132b301f6d80be7f5c5b0653e25178";
+(node as any).hash = "7e1c83a2fa6f2f46532902b526017663";
 
 export default node;

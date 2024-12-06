@@ -198,26 +198,7 @@ async def test_add_span_to_dataset(
                                         ]
                                     },
                                     "metadata": {
-                                        "llm": {
-                                            "input_messages": [
-                                                {
-                                                    "message": {
-                                                        "content": "user-message-content",
-                                                        "role": "user",
-                                                    }
-                                                }
-                                            ],
-                                            "invocation_parameters": {"temperature": 1},
-                                            "output_messages": [
-                                                {
-                                                    "message": {
-                                                        "content": "assistant-message-content",
-                                                        "role": "assistant",
-                                                    }
-                                                }
-                                            ],
-                                        },
-                                        "annotations": {},
+                                        "span_kind": "LLM",
                                     },
                                     "output": {
                                         "messages": [
@@ -237,29 +218,13 @@ async def test_add_span_to_dataset(
                                     "output": {
                                         "documents": [
                                             {
-                                                "document": {
-                                                    "content": "retrieved-document-content",
-                                                    "score": 1,
-                                                }
+                                                "content": "retrieved-document-content",
+                                                "score": 1,
                                             }
                                         ]
                                     },
                                     "metadata": {
-                                        "input": {
-                                            "value": "retriever-span-input",
-                                            "mime_type": "text/plain",
-                                        },
-                                        "retrieval": {
-                                            "documents": [
-                                                {
-                                                    "document": {
-                                                        "content": "retrieved-document-content",
-                                                        "score": 1,
-                                                    }
-                                                }
-                                            ]
-                                        },
-                                        "annotations": {},
+                                        "span_kind": "RETRIEVER",
                                     },
                                 }
                             }
@@ -270,14 +235,7 @@ async def test_add_span_to_dataset(
                                     "input": {"input": "chain-span-input-value"},
                                     "output": {"output": "chain-span-output-value"},
                                     "metadata": {
-                                        "input": {
-                                            "value": "chain-span-input-value",
-                                            "mime_type": "text/plain",
-                                        },
-                                        "output": {
-                                            "value": "chain-span-output-value",
-                                            "mime_type": "text/plain",
-                                        },
+                                        "span_kind": "CHAIN",
                                         "annotations": {
                                             "test annotation": {
                                                 "label": "ambiguous",

@@ -28,7 +28,7 @@ import {
   generateMessageId,
   PlaygroundInstance,
 } from "@phoenix/store";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { isStringKeyedObject, Mutable } from "@phoenix/typeUtils";
 import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
@@ -44,6 +44,7 @@ import {
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
+import { PlaygroundOutputMoveButton } from "./PlaygroundOutputMoveButton";
 import {
   PartialOutputToolCall,
   PlaygroundToolCall,
@@ -316,14 +317,25 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ]
   );
 
-  useEffect(() => {
-    if (!hasRunId) {
-      return;
-    }
-    setLoading(true);
+  const cleanup = useCallback(() => {
     setOutputContent(undefined);
     setToolCalls([]);
     setOutputError(null);
+    updateInstance({
+      instanceId,
+      patch: {
+        spanId: null,
+      },
+    });
+  }, [instanceId, updateInstance]);
+
+  useEffect(() => {
+    if (!hasRunId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    cleanup();
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -367,7 +379,8 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       const subscription = requestSubscription(environment, config);
       return subscription.dispose;
     }
-    generateChatCompletion({
+
+    const disposable = generateChatCompletion({
       variables: {
         input,
       },
@@ -389,7 +402,10 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         }
       },
     });
+
+    return disposable.dispose;
   }, [
+    cleanup,
     credentials,
     environment,
     generateChatCompletion,
@@ -408,6 +424,17 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   return (
     <Card
       title={<TitleWithAlphabeticIndex index={index} title="Output" />}
+      extra={
+        outputContent != null || toolCalls?.length > 0 ? (
+          <PlaygroundOutputMoveButton
+            outputContent={outputContent}
+            toolCalls={toolCalls as Mutable<typeof toolCalls>}
+            instance={instance}
+            cleanupOutput={cleanup}
+          />
+        ) : null
+      }
+      titleSeparator
       collapsible
       variant="compact"
       bodyStyle={{ padding: 0 }}

@@ -41,6 +41,8 @@ export const TemplateEditor = ({
       case TemplateLanguages.Mustache:
         ext.push(MustacheLikeTemplating());
         break;
+      case TemplateLanguages.NONE:
+        break;
       default:
         assertUnreachable(templateLanguage);
     }

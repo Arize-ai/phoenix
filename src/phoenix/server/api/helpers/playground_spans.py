@@ -31,6 +31,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
+from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -220,7 +221,7 @@ def get_db_experiment_run(
         dataset_example_id=example_id,
         trace_id=db_trace.trace_id,
         output=models.ExperimentRunOutput(
-            task_output=get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+            task_output=get_dataset_example_output(db_span),
         ),
         repetition_number=1,
         start_time=db_span.start_time,

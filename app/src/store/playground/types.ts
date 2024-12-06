@@ -1,6 +1,6 @@
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
-import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersForm";
+import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 import {
   LlmProviderToolCall,
   LlmProviderToolDefinition,
@@ -73,6 +73,7 @@ export type ModelConfig = {
   endpoint?: string | null;
   apiVersion?: string | null;
   invocationParameters: InvocationParameterInput[];
+  supportedInvocationParameters: InvocationParameter[];
 };
 
 /**
@@ -106,6 +107,10 @@ export interface PlaygroundInstance {
   output?: ChatMessage[] | string;
   spanId: string | null;
   activeRunId: number | null;
+  /**
+   * The id of the experiment associated with the last playground run on the instance if any
+   */
+  experimentId?: string | null;
 }
 
 /**
@@ -208,31 +213,39 @@ export interface PlaygroundState extends PlaygroundProps {
     invocationParameterInputInvocationName: string;
   }) => void;
   /**
-   * Filter the invocation parameters for a model based on the model's supported parameters
+   * Update the supported invocation parameters for a model
    */
-  filterInstanceModelInvocationParameters: (params: {
+  updateModelSupportedInvocationParameters: (params: {
     instanceId: number;
-    modelSupportedInvocationParameters: InvocationParameter[];
-    filter: (
-      invocationParameterInputs: InvocationParameterInput[],
-      definitions: InvocationParameter[]
-    ) => InvocationParameterInput[];
+    supportedInvocationParameters: InvocationParameter[];
   }) => void;
   /**
-   * Update an instance's model configuration
+   * Update an instances model provider, transforming various aspects about the instance to fit the new provider if possible
+   * Also attempts to use the saved model configurations for providers as the default parameters for the new provider
+   */
+  updateProvider: (params: {
+    instanceId: number;
+    provider: ModelProvider;
+    /**
+     * The saved model configurations for providers. These will be used as the default parameters for the new provider if the provider is changed
+     */
+    modelConfigByProvider: ModelConfigByProvider;
+  }) => void;
+  /**
+   * Update an instance's model configuration excluding the provider and invocation parameters
    */
   updateModel: (params: {
     instanceId: number;
-    model: Partial<ModelConfig>;
-    /**
-     * The saved model configurations for providers will be used as the default parameters for the new provider if the provider is changed
-     */
-    modelConfigByProvider: Partial<Record<ModelProvider, ModelConfig>>;
+    patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
    * Run all the active playground Instances
    */
   runPlaygroundInstances: () => void;
+  /**
+   * Cancel all the active playground Instances
+   */
+  cancelPlaygroundInstances: () => void;
   /**
    * Mark a given playground instance as completed
    */
@@ -249,12 +262,4 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
-  /**
-   * The id of the experiment associated with the last playground run if any
-   */
-  experimentId?: string | null;
-  /**
-   * Set the value of the experiment id
-   */
-  setExperimentId: (experimentId: string | null) => void;
 }

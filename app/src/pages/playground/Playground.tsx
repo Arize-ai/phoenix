@@ -1,7 +1,13 @@
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { Outlet, useParams, useSearchParams } from "react-router-dom";
+import {
+  BlockerFunction,
+  Outlet,
+  useBlocker,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -16,7 +22,9 @@ import {
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
@@ -60,6 +68,10 @@ export function Playground(props: Partial<PlaygroundProps>) {
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+
+  const playgroundStreamingEnabled = usePreferencesContext(
+    (state) => state.playgroundStreamingEnabled
+  );
   const [, setSearchParams] = useSearchParams();
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
@@ -77,7 +89,11 @@ export function Playground(props: Partial<PlaygroundProps>) {
     );
   }, [setSearchParams]);
 
-  const enableStreaming = window.Config.websocketsEnabled;
+  const streaming = window.Config.websocketsEnabled
+    ? playgroundStreamingEnabled
+    : false;
+
+  const showStreamingToggle = window.Config.websocketsEnabled;
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
@@ -86,7 +102,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   return (
     <PlaygroundProvider
       {...props}
-      streaming={enableStreaming}
+      streaming={streaming}
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
@@ -103,7 +119,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {enableStreaming ? <PlaygroundStreamToggle /> : null}
+              {showStreamingToggle ? <PlaygroundStreamToggle /> : null}
               <PlaygroundDatasetPicker />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />
@@ -121,7 +137,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
 
 function AddPromptButton() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
-  const numInstances = usePlaygroundContext((state) => state.instances.length);
+  const instances = usePlaygroundContext((state) => state.instances);
+  const numInstances = instances.length;
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
   return (
     <div
       onClick={(e) => {
@@ -134,12 +152,12 @@ function AddPromptButton() {
         size="compact"
         aria-label="add prompt"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES}
+        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
         onClick={() => {
           addInstance();
         }}
       >
-        Prompt
+        Compare
       </Button>
     </div>
   );
@@ -163,22 +181,28 @@ const playgroundPromptPanelContentCSS = css`
       overflow-x: hidden;
       overflow-y: auto;
       flex: 1 1 auto;
-      & > [role="button"] {
-        flex: unset;
+      // prevent the accordion item header from growing to fill the accordion item
+      // using two selectors as fallback just incase the component lib changes subtly
+      & > [role="button"],
+      & > #prompts-heading {
+        flex: 0 0 auto;
       }
       .ac-accordion-itemContent {
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;
-        & > .ac-view {
-          height: 100%;
-          flex: 1 1 auto;
-          overflow: auto;
-          box-sizing: border-box;
-        }
       }
     }
   }
+`;
+
+const promptsWrapCSS = css`
+  padding: var(--ac-global-dimension-size-200);
+  scrollbar-gutter: stable;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow: auto;
+  box-sizing: border-box;
 `;
 
 const playgroundInputOutputPanelContentCSS = css`
@@ -186,81 +210,131 @@ const playgroundInputOutputPanelContentCSS = css`
   overflow: auto;
 `;
 
+/**
+ * This width accomodates the model config button min-width, as well as chat message accordion
+ * header contents such as the chat message mode radio group for AI messages
+ */
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 475;
+
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
+  const templateLanguage = usePlaygroundContext(
+    (state) => state.templateLanguage
+  );
   const { datasetId } = useParams<{ datasetId: string }>();
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
+  const isRunning = instances.some((instance) => instance.activeRunId != null);
+
+  // Handles blocking navigation when a run is in progress
+  const shouldBlockUnload = useCallback(
+    ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
+      return isRunning && currentLocation.pathname !== nextLocation.pathname;
+    },
+    [isRunning]
+  );
+  const blocker = useBlocker(shouldBlockUnload);
+
+  // Handles blocking page reloads when a run is in progress
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRunning) {
+        e.preventDefault();
+        // This is deprecated but still necessary for cross-browser compatibility
+        e.returnValue = true;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isRunning]);
 
   return (
-    <PanelGroup
-      direction={isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"}
-      autoSaveId={
-        isSingleInstance ? "playground-horizontal" : "playground-vertical"
-      }
-    >
-      <Panel>
-        <div css={playgroundPromptPanelContentCSS}>
-          <Accordion arrowPosition="start" size="L">
-            <AccordionItem
-              title="Prompts"
-              id="prompts"
-              extra={
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <TemplateLanguageRadioGroup />
-                  <AddPromptButton />
-                </Flex>
-              }
-            >
-              <View height="100%" padding="size-200">
-                <Flex direction="row" gap="size-200">
-                  {instances.map((instance) => (
-                    <View key={instance.id} flex="1 1 0px">
-                      <PlaygroundTemplate
-                        key={instance.id}
-                        playgroundInstanceId={instance.id}
-                      />
-                    </View>
-                  ))}
-                </Flex>
-              </View>
-            </AccordionItem>
-          </Accordion>
-        </div>
-      </Panel>
-      <PanelResizeHandle css={resizeHandleCSS} />
-      <Panel>
-        {isDatasetMode ? (
-          <Suspense fallback={<Loading />}>
-            <PlaygroundDatasetSection datasetId={datasetId} />
-          </Suspense>
-        ) : (
-          <div css={playgroundInputOutputPanelContentCSS}>
+    <>
+      <PanelGroup
+        direction={
+          isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"
+        }
+        autoSaveId={
+          isSingleInstance ? "playground-horizontal" : "playground-vertical"
+        }
+      >
+        <Panel>
+          <div css={playgroundPromptPanelContentCSS}>
             <Accordion arrowPosition="start" size="L">
-              <AccordionItem title="Inputs" id="input">
-                <View padding="size-200" height={"100%"}>
-                  <PlaygroundInput />
-                </View>
-              </AccordionItem>
-              <AccordionItem title="Output" id="output">
-                <View padding="size-200" height="100%">
-                  <Flex direction="row" gap="size-200">
-                    {instances.map((instance, i) => (
-                      <View key={i} flex="1 1 0px">
-                        <PlaygroundOutput
-                          key={i}
+              <AccordionItem
+                title="Prompts"
+                id="prompts"
+                extra={
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <TemplateLanguageRadioGroup />
+                    <AddPromptButton />
+                  </Flex>
+                }
+              >
+                <div css={promptsWrapCSS}>
+                  <Flex direction="row" gap="size-200" maxWidth="100%">
+                    {instances.map((instance) => (
+                      <View
+                        flex="1 1 0px"
+                        key={instance.id}
+                        minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
+                      >
+                        <PlaygroundTemplate
+                          key={instance.id}
                           playgroundInstanceId={instance.id}
                         />
                       </View>
                     ))}
                   </Flex>
-                </View>
+                </div>
               </AccordionItem>
             </Accordion>
           </div>
-        )}
-      </Panel>
-    </PanelGroup>
+        </Panel>
+        <PanelResizeHandle css={resizeHandleCSS} />
+        <Panel>
+          {isDatasetMode ? (
+            <Suspense fallback={<Loading />}>
+              <PlaygroundDatasetSection datasetId={datasetId} />
+            </Suspense>
+          ) : (
+            <div css={playgroundInputOutputPanelContentCSS}>
+              <Accordion arrowPosition="start" size="L">
+                {templateLanguage !== TemplateLanguages.NONE ? (
+                  <AccordionItem title="Inputs" id="input">
+                    <View padding="size-200" height={"100%"}>
+                      <PlaygroundInput />
+                    </View>
+                  </AccordionItem>
+                ) : null}
+                <AccordionItem title="Output" id="output">
+                  <View padding="size-200" height="100%">
+                    <Flex direction="row" gap="size-200">
+                      {instances.map((instance, i) => (
+                        <View key={i} flex="1 1 0px">
+                          <PlaygroundOutput
+                            key={i}
+                            playgroundInstanceId={instance.id}
+                          />
+                        </View>
+                      ))}
+                    </Flex>
+                  </View>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          )}
+        </Panel>
+      </PanelGroup>
+      {blocker != null && (
+        <ConfirmNavigationDialog
+          blocker={blocker}
+          message="Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+        />
+      )}
+    </>
   );
 }

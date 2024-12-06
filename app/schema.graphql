@@ -1648,6 +1648,7 @@ type SystemApiKey implements ApiKey & Node {
 }
 
 enum TemplateLanguage {
+  NONE
   MUSTACHE
   F_STRING
 }

@@ -1,10 +1,4 @@
-import React, {
-  ReactNode,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -13,19 +7,12 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 
 import {
-  ActionMenu,
-  Dialog,
-  DialogContainer,
   Flex,
   Heading,
   HelpTooltip,
-  Icon,
-  Icons,
-  Item,
   ProgressBar,
   Text,
   TooltipTrigger,
@@ -34,8 +21,8 @@ import {
 } from "@arizeai/components";
 
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { JSONBlock } from "@phoenix/components/code";
 import { SequenceNumberLabel } from "@phoenix/components/experiment";
+import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell, IntCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -43,9 +30,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { useNotifySuccess } from "@phoenix/contexts";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   floatFormatter,
   formatPercent,
@@ -187,7 +172,7 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
         return (
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberLabel sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
@@ -493,110 +478,5 @@ function AnnotationAggregationCell({
         </View>
       </HelpTooltip>
     </TooltipTrigger>
-  );
-}
-
-export enum ExperimentAction {
-  GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
-  COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
-  VIEW_METADATA = "VIEW_METADATA",
-}
-
-function ExperimentActionMenu(props: {
-  projectId: string | null;
-  experimentId: string;
-  metadata: unknown;
-}) {
-  const { projectId } = props;
-  const navigate = useNavigate();
-  const [dialog, setDialog] = useState<ReactNode>(null);
-  const notifySuccess = useNotifySuccess();
-  return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        buttonSize="compact"
-        align="end"
-        disabledKeys={
-          projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
-        }
-        onAction={(firedAction) => {
-          const action = firedAction as ExperimentAction;
-          switch (action) {
-            case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
-              return navigate(`/projects/${projectId}`);
-            }
-            case ExperimentAction.VIEW_METADATA: {
-              setDialog(
-                <Dialog title="Metadata" onDismiss={() => setDialog(null)}>
-                  <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
-                </Dialog>
-              );
-              break;
-            }
-            case ExperimentAction.COPY_EXPERIMENT_ID: {
-              copy(props.experimentId);
-              notifySuccess({
-                title: "Copied",
-                message: "The experiment ID has been copied to your clipboard",
-              });
-              break;
-            }
-            default: {
-              assertUnreachable(action);
-            }
-          }
-        }}
-      >
-        <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.Trace />} />
-            <Text>View run traces</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.VIEW_METADATA}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.InfoOutline />} />
-            <Text>View metadata</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.ClipboardCopy />} />
-            <Text>Copy experiment ID</Text>
-          </Flex>
-        </Item>
-      </ActionMenu>
-      <DialogContainer
-        type="modal"
-        isDismissable
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </div>
   );
 }
