@@ -49,11 +49,11 @@ async def insert_span(
         trace.project_rowid = project_rowid
     else:
         # Trace record may need to be updated.
-        if span.start_time < trace.start_time:
-            trace.start_time = span.start_time
         if trace.end_time < span.end_time:
             trace.end_time = span.end_time
             trace.project_rowid = project_rowid
+        if span.start_time < trace.start_time:
+            trace.start_time = span.start_time
 
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
