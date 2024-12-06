@@ -1,6 +1,8 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
+import { Flex } from "@arizeai/components";
+
 import {
   ComboBox,
   ComboBoxItem,
@@ -8,16 +10,21 @@ import {
 } from "@phoenix/components/combobox/ComboBox";
 
 import { ThemeWrapper } from "./components/ThemeWrapper";
-import { Flex } from "@arizeai/components";
 
 const meta: Meta = {
   title: "ComboBox",
   component: ComboBox,
   argTypes: {
-    children: {
+    label: {
       control: {
         type: "text",
         default: "Label",
+      },
+    },
+    isDisabled: {
+      options: [true, false],
+      control: {
+        type: "radio",
       },
     },
   },

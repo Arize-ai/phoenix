@@ -1,6 +1,8 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
+import { Flex, Item,Picker } from "@arizeai/components";
+
 import {
   ComboBox,
   ComboBoxItem,
@@ -8,7 +10,6 @@ import {
 } from "@phoenix/components/combobox/ComboBox";
 
 import { ThemeWrapper } from "./components/ThemeWrapper";
-import { Flex, Picker, Item } from "@arizeai/components";
 
 const meta: Meta = {
   title: "Gallery",
@@ -20,7 +21,7 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<ComboBoxProps<object>> = (args) => (
+const Template: StoryFn<ComboBoxProps<object>> = () => (
   <ThemeWrapper>
     <Flex direction="row" gap="size-200">
       <ComboBox label="Ice cream flavor">
