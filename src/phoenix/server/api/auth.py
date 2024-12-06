@@ -20,6 +20,17 @@ class IsNotReadOnly(Authorization):
         return not info.context.read_only
 
 
+class WriteDisabled(Authorization):
+    """
+    Disables create and update mutations but allows delete mutations.
+    """
+
+    message = "Application is in write-disabled mode"
+
+    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+        return not info.context.write_disabled
+
+
 MSG_ADMIN_ONLY = "Only admin can perform this action"
 
 
