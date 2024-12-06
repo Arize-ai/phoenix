@@ -145,6 +145,7 @@ def test_data_migration_for_project_sessions(
                     "span_id": row["span_id"],
                     "parent_id": row["parent_id"],
                     "start_time": row["start_time"],
+                    "end_time": row["end_time"],
                     "session_id": str(
                         (
                             json.loads(row["attributes"])  # type: ignore
@@ -159,7 +160,7 @@ def test_data_migration_for_project_sessions(
         assert sum(df_span_session_attrs.session_id.isna()) == 0
 
         df_traces_joined_spans = pd.merge(
-            df_traces.loc[:, ["project_session_rowid", "start_time", "project_rowid"]],
+            df_traces.loc[:, ["project_session_rowid", "start_time", "end_time", "project_rowid"]],
             df_span_session_attrs.loc[df_span_session_attrs.parent_id.isna()],
             how="left",
             left_index=True,
@@ -184,7 +185,7 @@ def test_data_migration_for_project_sessions(
         ).all()
         assert (
             df_project_sessions_joined_spans.groupby("session_id")
-            .apply(lambda s: s.last_trace_start_time.min() == s.start_time_trace.max())  # type: ignore
+            .apply(lambda s: s.end_time.min() == s.end_time_trace.max())  # type: ignore
             .all()
         )
 
