@@ -10,6 +10,7 @@ import {
   PlaygroundInstance,
 } from "@phoenix/store";
 
+import { InvocationParameterInput } from "../__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
@@ -17,20 +18,25 @@ import {
   MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
+  PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR,
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
+import { InvocationParameter } from "../InvocationParametersFormFields";
 import {
   areInvocationParamsEqual,
+  areRequiredInvocationParametersConfigured,
   extractVariablesFromInstances,
   getBaseModelConfigFromAttributes,
   getChatRole,
   getModelInvocationParametersFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
+  getPromptTemplateVariablesFromAttributes,
   getTemplateMessagesFromAttributes,
   getToolsFromAttributes,
   getVariablesMapFromInstances,
+  mergeInvocationParametersWithDefaults,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -1240,5 +1246,190 @@ describe("areInvocationParamsEqual", () => {
       valueFloat: 0.9,
     };
     expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
+  });
+});
+describe("getPromptTemplateVariablesFromAttributes", () => {
+  it("should return parsing errors if prompt template variables are invalid", () => {
+    const parsedAttributes = { llm: { prompt_template: "invalid" } };
+    expect(getPromptTemplateVariablesFromAttributes(parsedAttributes)).toEqual({
+      variables: null,
+      parsingErrors: [PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR],
+    });
+  });
+
+  it("should return parsed variables if prompt template variables are valid", () => {
+    const parsedAttributes = {
+      llm: {
+        prompt_template: {
+          variables: JSON.stringify({
+            name: "John",
+            age: 30,
+          }),
+        },
+      },
+    };
+    expect(getPromptTemplateVariablesFromAttributes(parsedAttributes)).toEqual({
+      variables: {
+        name: "John",
+        age: "30",
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return null variables and no parsing errors if prompt template is not present", () => {
+    const parsedAttributes = { llm: {} };
+    expect(getPromptTemplateVariablesFromAttributes(parsedAttributes)).toEqual({
+      variables: null,
+      parsingErrors: [],
+    });
+  });
+});
+
+describe("areRequiredInvocationParametersConfigured", () => {
+  it("should return true if all required parameters are configured", () => {
+    const configuredInvocationParameters: InvocationParameterInput[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        valueInt: 1,
+      },
+      { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
+    ];
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        required: true,
+        __typename: "IntInvocationParameter",
+      },
+      {
+        invocationName: "random seed",
+        canonicalName: "RANDOM_SEED",
+        required: true,
+        __typename: "IntInvocationParameter",
+      },
+    ];
+    expect(
+      areRequiredInvocationParametersConfigured(
+        configuredInvocationParameters,
+        supportedInvocationParameters
+      )
+    ).toBe(true);
+  });
+
+  it("should return false if not all required parameters are configured", () => {
+    const configuredInvocationParameters: InvocationParameterInput[] = [
+      { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
+    ];
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        required: true,
+        __typename: "IntInvocationParameter",
+      },
+      {
+        invocationName: "random seed",
+        canonicalName: "RANDOM_SEED",
+        required: true,
+        __typename: "IntInvocationParameter",
+      },
+    ];
+    expect(
+      areRequiredInvocationParametersConfigured(
+        configuredInvocationParameters,
+        supportedInvocationParameters
+      )
+    ).toBe(false);
+  });
+});
+
+describe("mergeInvocationParametersWithDefaults", () => {
+  it("should merge invocation parameters with default values", () => {
+    const invocationParameters: InvocationParameterInput[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        valueInt: 1,
+      },
+    ];
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        required: true,
+        __typename: "IntInvocationParameter",
+        intDefaultValue: 5,
+        invocationInputField: "value_int",
+      },
+      {
+        invocationName: "random seed",
+        canonicalName: "RANDOM_SEED",
+        required: true,
+        intDefaultValue: 1000,
+        __typename: "IntInvocationParameter",
+        invocationInputField: "value_int",
+      },
+    ];
+    expect(
+      mergeInvocationParametersWithDefaults(
+        invocationParameters,
+        supportedInvocationParameters
+      )
+    ).toEqual([
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        valueInt: 1,
+      },
+      {
+        invocationName: "random seed",
+        canonicalName: "RANDOM_SEED",
+        valueInt: 1000,
+      },
+    ]);
+  });
+
+  it("should not overwrite existing values with defaults", () => {
+    const invocationParameters: InvocationParameterInput[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        valueInt: 1,
+      },
+      { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
+    ];
+    const supportedInvocationParameters: InvocationParameter[] = [
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        required: true,
+        __typename: "IntInvocationParameter",
+        intDefaultValue: 5,
+        invocationInputField: "value_int",
+      },
+      {
+        invocationName: "random seed",
+        canonicalName: "RANDOM_SEED",
+        required: true,
+        intDefaultValue: 1000,
+        __typename: "IntInvocationParameter",
+        invocationInputField: "value_int",
+      },
+    ];
+    expect(
+      mergeInvocationParametersWithDefaults(
+        invocationParameters,
+        supportedInvocationParameters
+      )
+    ).toEqual([
+      {
+        invocationName: "max_tokens",
+        canonicalName: "MAX_COMPLETION_TOKENS",
+        valueInt: 1,
+      },
+      { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
+    ]);
   });
 });
