@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2cbe00f6b9fca8a859d9ee8049998cff>>
+ * @generated SignedSource<<a1d48f88c8f7c76a01177103a7c11658>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -199,6 +199,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "endTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "SpanIOValue",
                   "kind": "LinkedField",
                   "name": "firstInput",
@@ -214,13 +221,6 @@ return {
                   "name": "lastOutput",
                   "plural": false,
                   "selections": (v2/*: any*/),
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "endTime",
                   "storageKey": null
                 },
                 {
@@ -347,6 +347,6 @@ return {
 };
 })();
 
-(node as any).hash = "8aeb64779e8ae4603eb2b761fadff256";
+(node as any).hash = "73d205acbb256ea1f2cf68875634a21b";
 
 export default node;

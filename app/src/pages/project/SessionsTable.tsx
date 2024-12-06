@@ -82,13 +82,13 @@ export function SessionsTable(props: SessionsTableProps) {
                 sessionId
                 numTraces
                 startTime
+                endTime
                 firstInput {
                   value
                 }
                 lastOutput {
                   value
                 }
-                endTime
                 tokenUsage {
                   prompt
                   completion
