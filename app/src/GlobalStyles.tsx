@@ -65,6 +65,9 @@ export function GlobalStyles() {
 
           --px-section-background-color: ${theme.colors.gray500};
 
+          /** The color of shadows on menus etc. */
+          --px-overlay-shadow-color: rgba(0, 0, 0, 0.4);
+
           /* An item is a typically something in a list */
           --px-item-background-color: ${theme.colors.gray800};
           --px-item-border-color: ${theme.colors.gray600};

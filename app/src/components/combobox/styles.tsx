@@ -53,6 +53,7 @@ export const comboBoxCSS = (theme: Theme) => css`
       border: none;
       transform: translateY(-50%);
       cursor: pointer;
+      padding: 0 10px;
       &[data-disabled] {
         opacity: ${theme.opacity.disabled};
       }
@@ -87,7 +88,7 @@ export const comboBoxPopoverCSS = css`
   background-color: var(--ac-global-menu-background-color);
   border-radius: var(--ac-global-rounding-small);
   color: var(--ac-global-text-color-900);
-  box-shadow: 0px 4px 10px var(--ac-global-color-grey-300);
+  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
   border: 1px solid var(--ac-global-menu-border-color);
   max-height: inherit;
   .react-aria-ListBox {
