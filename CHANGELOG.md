@@ -1,5 +1,20 @@
 # Changelog
 
+## [6.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.1.0...arize-phoenix-v6.2.0) (2024-12-06)
+
+
+### Features
+
+* **components:** add story book and ComboBox ([#5609](https://github.com/Arize-ai/phoenix/issues/5609)) ([4981f41](https://github.com/Arize-ai/phoenix/commit/4981f41f313fcf7e809e371043bb92096b16f217))
+
+
+### Bug Fixes
+
+* fixing other slack link in readme ([#5643](https://github.com/Arize-ai/phoenix/issues/5643)) ([94cd150](https://github.com/Arize-ai/phoenix/commit/94cd150db0df83076e049bb9902876588bdd6290))
+* slack link ([df503fa](https://github.com/Arize-ai/phoenix/commit/df503fa6a47839fb0f73a78cd5b0931bd309bace))
+* styling of experiment sequence numbers ([#5622](https://github.com/Arize-ai/phoenix/issues/5622)) ([42a67d4](https://github.com/Arize-ai/phoenix/commit/42a67d40b0b6cb8f7e6d5d3795f4fa67073d3799))
+* Update README.md ([#5644](https://github.com/Arize-ai/phoenix/issues/5644)) ([016ca63](https://github.com/Arize-ai/phoenix/commit/016ca637a3162890f06688742483ec7aa749ec87))
+
 ## [6.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.0.0...arize-phoenix-v6.1.0) (2024-12-03)
 
 
