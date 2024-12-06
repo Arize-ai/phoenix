@@ -90,6 +90,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                   }
                 }
               }
+              latencyMs
             }
           }
         }
@@ -100,6 +101,8 @@ export function TraceDetails(props: TraceDetailsProps) {
       fetchPolicy: "store-and-network",
     }
   );
+  const traceLatencyMs =
+    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const spansList: Span[] = useMemo(() => {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
@@ -131,7 +134,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         flex-direction: column;
       `}
     >
-      <TraceHeader rootSpan={rootSpan} />
+      <TraceHeader latencyMs={traceLatencyMs} rootSpan={rootSpan} />
       <PanelGroup
         direction="horizontal"
         autoSaveId="trace-panel-group"
@@ -175,9 +178,14 @@ export function TraceDetails(props: TraceDetailsProps) {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
-  const { latencyMs, statusCode, spanAnnotations } = rootSpan ?? {
-    latencyMs: null,
+function TraceHeader({
+  latencyMs,
+  rootSpan,
+}: {
+  latencyMs: number | null;
+  rootSpan: Span | null;
+}) {
+  const { statusCode, spanAnnotations } = rootSpan ?? {
     statusCode: "UNSET",
     spanAnnotations: [],
   };

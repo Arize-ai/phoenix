@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -27,6 +28,27 @@ class Trace(Node):
     id_attr: NodeID[int]
     project_rowid: Private[int]
     trace_id: str
+
+    @strawberry.field
+    async def latency_ms(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        async with info.context.db() as session:
+            result = (
+                await session.execute(
+                    select(
+                        models.Trace.start_time,
+                        models.Trace.end_time,
+                    ).where(models.Trace.id == self.id_attr)
+                )
+            ).first()
+        if result is None:
+            return None
+        start_time, end_time = result
+        if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
+            return None
+        return (end_time - start_time).total_seconds() * 1000
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
