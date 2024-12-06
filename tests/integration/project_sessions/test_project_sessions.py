@@ -41,16 +41,15 @@ class TestProjectSessions:
         assert num_traces > 1 and num_spans_per_trace > 2
         project_names = []
         spans: List[Span] = []
-        wrong_session_id = token_hex(32)
         for _ in range(num_traces):
             project_names.append(token_hex(8))
             with ExitStack() as stack:
                 for i in range(num_spans_per_trace):
                     if i == 0:
-                        attributes = {SpanAttributes.SESSION_ID: session_id}
+                        # Session ID doesn't have to be on the root span.
+                        attributes = {}
                     else:
-                        # Session ID on non-root spans will be ignored.
-                        attributes = {SpanAttributes.SESSION_ID: wrong_session_id}
+                        attributes = {SpanAttributes.SESSION_ID: session_id}
                     span = _start_span(
                         project_name=project_names[-1],
                         exporter=_grpc_span_exporter(),
@@ -82,7 +81,6 @@ class TestProjectSessions:
             assert not sessions_by_id
             return
         assert sessions_by_id
-        assert wrong_session_id not in sessions_by_id
         assert (session := sessions_by_id.get(str_session_id))
         assert (traces := [edge["node"] for edge in session["node"]["traces"]["edges"]])
         assert len(traces) == num_traces
