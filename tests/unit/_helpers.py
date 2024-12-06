@@ -140,7 +140,7 @@ async def _add_project_session(
         session_id=session_id or token_hex(4),
         project_id=project.id,
         start_time=start_time,
-        last_trace_start_time=start_time,
+        end_time=start_time,
     )
     session.add(project_session)
     await session.flush()
