@@ -24,7 +24,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly, WriteDisabled
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.playground_clients import (
@@ -88,7 +88,7 @@ PLAYGROUND_PROJECT_NAME = "playground"
 
 @strawberry.type
 class Subscription:
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
@@ -163,7 +163,7 @@ class Subscription:
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
         yield ChatCompletionSubscriptionResult(span=to_gql_span(db_span))
 
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:

@@ -20,12 +20,13 @@ class IsNotReadOnly(Authorization):
         return not info.context.read_only
 
 
-class WriteDisabled(Authorization):
+class IsLocked(Authorization):
     """
-    Disables create and update mutations but allows delete mutations.
+    Disables mutations and subscriptions that create or update data but allows
+    queries and delete mutations.
     """
 
-    message = "Application is in write-disabled mode"
+    message = "Application is locked"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         return not info.context.write_disabled

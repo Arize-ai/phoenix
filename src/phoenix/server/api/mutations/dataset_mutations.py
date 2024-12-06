@@ -12,7 +12,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
-from phoenix.server.api.auth import IsNotReadOnly, WriteDisabled
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
@@ -44,7 +44,7 @@ class DatasetMutationPayload:
 
 @strawberry.type
 class DatasetMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_dataset(
         self,
         info: Info[Context, None],
@@ -67,7 +67,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_dataset(
         self,
         info: Info[Context, None],
@@ -96,7 +96,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
@@ -205,7 +205,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_examples_to_dataset(
         self, info: Info[Context, None], input: AddExamplesToDatasetInput
     ) -> DatasetMutationPayload:
@@ -331,7 +331,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def delete_dataset(
         self,
         info: Info[Context, None],
@@ -362,7 +362,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_dataset_examples(
         self,
         info: Info[Context, None],
@@ -454,7 +454,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
