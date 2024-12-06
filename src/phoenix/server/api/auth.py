@@ -26,10 +26,10 @@ class IsLocked(Authorization):
     queries and delete mutations.
     """
 
-    message = "Application is locked"
+    message = "Operations that write or modify data are locked"
 
     def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
-        return not info.context.write_disabled
+        return not info.context.locked
 
 
 MSG_ADMIN_ONLY = "Only admin can perform this action"
