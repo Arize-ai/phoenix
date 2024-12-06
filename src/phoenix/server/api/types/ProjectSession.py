@@ -25,7 +25,7 @@ class ProjectSession(Node):
     project_rowid: Private[int]
     session_id: str
     start_time: datetime
-    last_trace_start_time: datetime
+    end_time: datetime
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
@@ -129,7 +129,7 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
         session_id=project_session.session_id,
         start_time=project_session.start_time,
         project_rowid=project_session.project_id,
-        last_trace_start_time=project_session.last_trace_start_time,
+        end_time=project_session.end_time,
     )
 
 

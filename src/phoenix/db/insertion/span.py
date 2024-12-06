@@ -78,7 +78,7 @@ async def insert_span(
         if project_session.id is None:
             # ProjectSession record needs to be persisted for the first time.
             project_session.start_time = trace.start_time
-            project_session.last_trace_start_time = trace.start_time
+            project_session.end_time = trace.start_time
             project_session.project_id = project_rowid
             session.add(project_session)
             await session.flush()
@@ -90,8 +90,8 @@ async def insert_span(
                 trace.project_session_rowid = project_session.id
             if trace.start_time < project_session.start_time:
                 project_session.start_time = trace.start_time
-            if project_session.last_trace_start_time < trace.start_time:
-                project_session.last_trace_start_time = trace.start_time
+            if project_session.end_time < trace.end_time:
+                project_session.end_time = trace.end_time
 
     await session.flush()
     assert trace.id is not None

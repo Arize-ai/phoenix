@@ -72,7 +72,7 @@ class ProjectSession(Base):
     session_id: Mapped[str]
     project_id: Mapped[int]
     start_time: Mapped[datetime]
-    last_trace_start_time: Mapped[datetime]
+    end_time: Mapped[datetime]
 
 
 class Trace(Base):
@@ -81,6 +81,7 @@ class Trace(Base):
     project_session_rowid: Mapped[Union[int, None]]
     project_rowid: Mapped[int]
     start_time: Mapped[datetime]
+    end_time: Mapped[datetime]
 
 
 class Span(Base):
@@ -102,16 +103,18 @@ def populate_project_sessions(
         select(
             Span.attributes[SESSION_ID].as_string().label("session_id"),
             Trace.project_rowid.label("project_id"),
-            Trace.start_time.label("start_time"),
             func.row_number()
             .over(
                 partition_by=Span.attributes[SESSION_ID],
                 order_by=[Trace.start_time, Trace.id, Span.id],
             )
             .label("rank"),
-            func.max(Trace.start_time)
+            func.min(Trace.start_time)
             .over(partition_by=Span.attributes[SESSION_ID])
-            .label("last_trace_start_time"),
+            .label("start_time"),
+            func.max(Trace.end_time)
+            .over(partition_by=Span.attributes[SESSION_ID])
+            .label("end_time"),
         )
         .join_from(Span, Trace, Span.trace_rowid == Trace.id)
         .where(Span.parent_id.is_(None))
@@ -140,13 +143,13 @@ def populate_project_sessions(
                     "session_id",
                     "project_id",
                     "start_time",
-                    "last_trace_start_time",
+                    "end_time",
                 ],
                 select(
                     sessions_from_span.c.session_id,
                     sessions_from_span.c.project_id,
                     sessions_from_span.c.start_time,
-                    sessions_from_span.c.last_trace_start_time,
+                    sessions_from_span.c.end_time,
                 ).where(sessions_from_span.c.rank == 1),
             )
         )

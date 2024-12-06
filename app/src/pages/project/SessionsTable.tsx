@@ -88,7 +88,7 @@ export function SessionsTable(props: SessionsTableProps) {
                 lastOutput {
                   value
                 }
-                lastTraceStartTime
+                endTime
                 tokenUsage {
                   prompt
                   completion
@@ -136,8 +136,8 @@ export function SessionsTable(props: SessionsTableProps) {
       cell: TimestampCell,
     },
     {
-      header: "last trace start time",
-      accessorKey: "lastTraceStartTime",
+      header: "end time",
+      accessorKey: "endTime",
       enableSorting: true,
       cell: TimestampCell,
     },
