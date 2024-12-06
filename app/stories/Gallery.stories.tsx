@@ -1,7 +1,7 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex, Item,Picker } from "@arizeai/components";
+import { Flex, Item, Picker } from "@arizeai/components";
 
 import {
   ComboBox,
@@ -24,7 +24,7 @@ export default meta;
 const Template: StoryFn<ComboBoxProps<object>> = () => (
   <ThemeWrapper>
     <Flex direction="row" gap="size-200">
-      <ComboBox label="Ice cream flavor">
+      <ComboBox label="Ice cream flavor" description={"pick a flavor"}>
         <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
           Chocolate
         </ComboBoxItem>
@@ -38,7 +38,7 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
           Vanilla
         </ComboBoxItem>
       </ComboBox>
-      <Picker label="Toppings" size="compact">
+      <Picker label="Toppings" size="compact" description={"pick a flavor"}>
         <Item key="chocolate">Chocolate</Item>
         <Item key="mint">Mint</Item>
         <Item key="strawberry">Strawberry</Item>

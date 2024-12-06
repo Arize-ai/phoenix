@@ -2,6 +2,13 @@ import { css, Theme } from "@emotion/react";
 
 export const comboBoxCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
+  &[data-required] {
+    .react-aria-Label {
+      &::after {
+        content: " *";
+      }
+    }
+  }
 
   .px-combobox-container {
     display: flex;
@@ -62,11 +69,16 @@ export const comboBoxCSS = (theme: Theme) => css`
   }
 
   .react-aria-FieldError {
+    font-size: var(--ac-global-dimension-static-font-size-75);
     font-size: 12px;
     color: var(--ac-global-color-danger);
   }
   [slot="description"] {
-    font-size: 12px;
+    font-size: var(--ac-global-dimension-static-font-size-75);
+    padding-top: var(--ac-global-dimension-static-size-50);
+    display: inline-block;
+    color: var(--ac-global-text-color-500);
+    line-height: var(--ac-global-dimension-static-font-size-200);
   }
 `;
 

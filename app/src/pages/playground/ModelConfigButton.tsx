@@ -27,7 +27,6 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { ComboBox, ComboBoxItem } from "@phoenix/components/combobox/ComboBox";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
@@ -369,20 +368,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         />
       )}
       <Suspense>
-        <ComboBox label={"hello"}>
-          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-            Chocolate
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Mint" key={"mint"}>
-            Mint
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-            Strawberry
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-            Vanilla
-          </ComboBoxItem>
-        </ComboBox>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
     </form>

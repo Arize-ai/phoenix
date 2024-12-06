@@ -22,12 +22,38 @@ const meta: Meta = {
       },
     },
     isDisabled: {
-      options: [true, false],
+      type: "boolean",
+    },
+    description: {
+      type: "string",
+      control: {
+        type: "text",
+      },
+    },
+    errorMessage: {
+      type: "string",
+      control: {
+        type: "text",
+      },
+    },
+    isInvalid: {
+      control: {
+        type: "boolean",
+      },
+    },
+    isRequired: {
+      control: {
+        type: "boolean",
+      },
+    },
+    menuTrigger: {
+      options: ["manual", "input", "focus"],
       control: {
         type: "radio",
       },
     },
   },
+
   parameters: {
     controls: { expanded: true },
   },
