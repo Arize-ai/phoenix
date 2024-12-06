@@ -1,17 +1,15 @@
+import os
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
-if TYPE_CHECKING:
-    from mistralai.models.chat_completion import ChatMessage
-
 DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 """Use the latest large mistral model by default."""
 
-MINIMUM_MISTRAL_VERSION = "0.0.11"
+MINIMUM_MISTRAL_VERSION = "1.0.0"
 
 
 class MistralRateLimitError(Exception):
@@ -38,7 +36,6 @@ class MistralAIModel(BaseModel):
         random_seed (int, optional): Random seed to use for sampling. Defaults to None.
         response_format (Dict[str, str], optional): A dictionary specifying the format of the
             response. Defaults to None.
-        safe_mode (bool, optional): Whether to use safe mode. Defaults to False.
         safe_prompt (bool, optional): Whether to use safe prompt. Defaults to False.
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
@@ -59,7 +56,6 @@ class MistralAIModel(BaseModel):
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
     response_format: Optional[Dict[str, str]] = None
-    safe_mode: bool = False
     safe_prompt: bool = False
     initial_rate_limit: int = 5
 
@@ -73,19 +69,14 @@ class MistralAIModel(BaseModel):
 
     def _init_client(self) -> None:
         try:
-            from mistralai.async_client import MistralAsyncClient
-            from mistralai.client import MistralClient
-            from mistralai.exceptions import MistralAPIException
-            from mistralai.models.chat_completion import ChatMessage
+            from mistralai import Mistral
         except ImportError:
             self._raise_import_error(
                 package_name="mistralai",
                 package_min_version=MINIMUM_MISTRAL_VERSION,
             )
-        self._client = MistralClient()
-        self._async_client = MistralAsyncClient()
-        self._ChatMessage = ChatMessage
-        self._MistralAPIException = MistralAPIException
+
+        self._client = Mistral(os.getenv("MISTRAL_API_KEY"))
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
@@ -100,7 +91,6 @@ class MistralAIModel(BaseModel):
             "temperature": self.temperature,
             "top_p": self.top_p,
             "random_seed": self.random_seed,
-            "safe_mode": self.safe_mode,
             "safe_prompt": self.safe_prompt,
             "response_format": self.response_format,
         }
@@ -128,8 +118,8 @@ class MistralAIModel(BaseModel):
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
-                response = self._client.chat(**kwargs)
-            except self._MistralAPIException as exc:
+                response = self._client.chat.complete(**kwargs)
+            except Exception as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
@@ -161,8 +151,8 @@ class MistralAIModel(BaseModel):
         @self._rate_limiter.alimit
         async def _async_completion(**kwargs: Any) -> Any:
             try:
-                response = await self._async_client.chat(**kwargs)
-            except self._MistralAPIException as exc:
+                response = await self._client.chat.complete_async(**kwargs)
+            except Exception as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
@@ -172,12 +162,11 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: MultimodalPrompt) -> List["ChatMessage"]:
-        ChatMessage = self._ChatMessage
+    def _format_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         messages = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
-                messages.append(ChatMessage(role="user", content=part.content))
+                messages.append({"role": "user", "content": part.content})
             else:
                 raise ValueError(f"Unsupported content type: {part.content_type}")
         return messages
