@@ -103,15 +103,13 @@ def populate_project_sessions(
         select(
             Span.attributes[SESSION_ID].as_string().label("session_id"),
             Trace.project_rowid.label("project_id"),
+            Trace.start_time.label("start_time"),
             func.row_number()
             .over(
                 partition_by=Span.attributes[SESSION_ID],
                 order_by=[Trace.start_time, Trace.id, Span.id],
             )
             .label("rank"),
-            func.min(Trace.start_time)
-            .over(partition_by=Span.attributes[SESSION_ID])
-            .label("start_time"),
             func.max(Trace.end_time)
             .over(partition_by=Span.attributes[SESSION_ID])
             .label("end_time"),
