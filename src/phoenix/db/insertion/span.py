@@ -42,18 +42,18 @@ async def insert_span(
     ) or models.Trace(trace_id=trace_id)
     session.add(trace)
 
-    if trace.id is None:
-        # Trace record needs to be persisted for the first time.
-        trace.start_time = span.start_time
-        trace.end_time = span.end_time
-        trace.project_rowid = project_rowid
-    else:
+    if trace.id is not None:
         # Trace record may need to be updated.
         if trace.end_time < span.end_time:
             trace.end_time = span.end_time
             trace.project_rowid = project_rowid
         if span.start_time < trace.start_time:
             trace.start_time = span.start_time
+    else:
+        # Trace record needs to be persisted for the first time.
+        trace.start_time = span.start_time
+        trace.end_time = span.end_time
+        trace.project_rowid = project_rowid
 
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
