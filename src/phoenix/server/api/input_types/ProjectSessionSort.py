@@ -10,7 +10,7 @@ from phoenix.server.api.types.SortDir import SortDir
 @strawberry.enum
 class ProjectSessionColumn(Enum):
     startTime = auto()
-    lastTraceStartTime = auto()
+    endTime = auto()
     tokenCountTotal = auto()
     numTraces = auto()
 
@@ -18,10 +18,7 @@ class ProjectSessionColumn(Enum):
     def data_type(self) -> CursorSortColumnDataType:
         if self is ProjectSessionColumn.tokenCountTotal or self is ProjectSessionColumn.numTraces:
             return CursorSortColumnDataType.INT
-        if (
-            self is ProjectSessionColumn.startTime
-            or self is ProjectSessionColumn.lastTraceStartTime
-        ):
+        if self is ProjectSessionColumn.startTime or self is ProjectSessionColumn.endTime:
             return CursorSortColumnDataType.DATETIME
         assert_never(self)
 

@@ -1326,7 +1326,7 @@ type ProjectSession implements Node {
   id: GlobalID!
   sessionId: String!
   startTime: DateTime!
-  lastTraceStartTime: DateTime!
+  endTime: DateTime!
   projectId: GlobalID!
   numTraces: Int!
   numTracesWithError: Int!
@@ -1339,7 +1339,7 @@ type ProjectSession implements Node {
 
 enum ProjectSessionColumn {
   startTime
-  lastTraceStartTime
+  endTime
   tokenCountTotal
   numTraces
 }
