@@ -156,6 +156,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         template: defaultTemplate,
         output: undefined,
       },
+      playgroundInput: undefined,
       parsingErrors: [
         INPUT_MESSAGES_PARSING_ERROR,
         OUTPUT_MESSAGES_PARSING_ERROR,
