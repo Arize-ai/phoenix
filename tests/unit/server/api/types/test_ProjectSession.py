@@ -49,7 +49,6 @@ class TestProjectSession:
                 await _add_project_session(
                     session,
                     project,
-                    session_user="xyz",
                     start_time=start_time,
                 )
             )
@@ -95,16 +94,6 @@ class TestProjectSession:
             project_sessions=project_sessions,
             projects=[project],
         )
-
-    async def test_session_user(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project_sessions = _data.project_sessions
-        field = "sessionUser"
-        assert await self._node(field, project_sessions[0], httpx_client) == "xyz"
-        assert await self._node(field, project_sessions[1], httpx_client) is None
 
     async def test_num_traces(
         self,

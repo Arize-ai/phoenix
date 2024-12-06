@@ -63,12 +63,6 @@ def test_up_and_down_migrations(
         assert isinstance(column.type, VARCHAR)
         del column
 
-        column = columns.pop("session_user", None)
-        assert column is not None
-        assert column.nullable
-        assert isinstance(column.type, VARCHAR)
-        del column
-
         column = columns.pop("project_id", None)
         assert column is not None
         assert not column.nullable
@@ -98,11 +92,6 @@ def test_up_and_down_migrations(
         del index
 
         index = indexes.pop("ix_project_sessions_last_trace_start_time", None)
-        assert index is not None
-        assert not index.unique
-        del index
-
-        index = indexes.pop("ix_project_sessions_session_user", None)
         assert index is not None
         assert not index.unique
         del index

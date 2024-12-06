@@ -24,7 +24,6 @@ class ProjectSession(Node):
     id_attr: NodeID[int]
     project_rowid: Private[int]
     session_id: str
-    session_user: Optional[str]
     start_time: datetime
     last_trace_start_time: datetime
 
@@ -128,7 +127,6 @@ def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSes
     return ProjectSession(
         id_attr=project_session.id,
         session_id=project_session.session_id,
-        session_user=project_session.session_user,
         start_time=project_session.start_time,
         project_rowid=project_session.project_id,
         last_trace_start_time=project_session.last_trace_start_time,

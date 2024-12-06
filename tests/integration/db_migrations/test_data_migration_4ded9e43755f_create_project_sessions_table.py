@@ -152,19 +152,11 @@ def test_data_migration_for_project_sessions(
                             else row["attributes"]
                         )["session"]["id"]
                     ),
-                    "session_user": str(
-                        (
-                            json.loads(row["attributes"])  # type: ignore
-                            if _engine.dialect.name == "sqlite"
-                            else row["attributes"]
-                        )["user"]["id"]
-                    ),
                 },
             ),
             axis=1,
         )
         assert sum(df_span_session_attrs.session_id.isna()) == 0
-        assert sum(df_span_session_attrs.session_user.isna()) == 0
 
         df_traces_joined_spans = pd.merge(
             df_traces.loc[:, ["project_session_rowid", "start_time", "project_rowid"]],
@@ -198,11 +190,6 @@ def test_data_migration_for_project_sessions(
 
         is_first = df_project_sessions_joined_spans.groupby("session_id").cumcount() == 0
 
-        assert (
-            df_project_sessions_joined_spans.loc[is_first]
-            .apply(lambda row: row.session_user == row.session_user_span, axis=1)
-            .all()
-        )
         assert (
             df_project_sessions_joined_spans.loc[is_first]
             .apply(lambda row: row.start_time == row.start_time_trace, axis=1)
