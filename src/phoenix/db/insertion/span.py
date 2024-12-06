@@ -76,7 +76,6 @@ async def insert_span(
         project_session = await session.scalar(
             select(models.ProjectSession).filter_by(session_id=session_id)
         ) or models.ProjectSession(session_id=session_id, session_user=session_user)
-        session.add(project_session)
 
     if project_session is not None:
         if project_session.id is None:
@@ -88,6 +87,7 @@ async def insert_span(
             project_session.start_time = trace.start_time
             project_session.last_trace_start_time = trace.start_time
             project_session.project_id = project_rowid
+            session.add(project_session)
             await session.flush()
             assert project_session.id is not None
             trace.project_session_rowid = project_session.id
