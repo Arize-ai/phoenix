@@ -25,7 +25,7 @@ from typing_extensions import assert_never
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsNotReadOnly, WriteDisabled
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
@@ -120,7 +120,7 @@ class ChatCompletionOverDatasetMutationPayload:
 
 @strawberry.type
 class ChatCompletionMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
     @classmethod
     async def chat_completion_over_dataset(
         cls,
@@ -275,7 +275,7 @@ class ChatCompletionMutationMixin:
             payload.examples.append(example_payload)
         return payload
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, WriteDisabled])  # type: ignore
     @classmethod
     async def chat_completion(
         cls, info: Info[Context, None], input: ChatCompletionInput
