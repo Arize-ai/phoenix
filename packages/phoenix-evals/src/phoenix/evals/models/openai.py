@@ -286,12 +286,9 @@ class OpenAIModel(BaseModel):
             if parts.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": parts.content})
             elif parts.content_type == PromptPartContentType.AUDIO_URL:
+                # potentially raise warning
                 messages.extend(
                     [
-                        {
-                            "role": "system",
-                            "content": system_instruction
-                        },
                         {
                             "role": "user",
                             "content": [
@@ -337,7 +334,7 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: Union[str | MultimodalPrompt], **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 

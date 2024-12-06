@@ -58,10 +58,6 @@ Index: TypeAlias = int
 # snapped_response, explanation, response
 ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
 
-LIST_OF_AUDIO_SUPPORTED_MODELS = [
-    "gpt-4o-audio-preview"
-]
-
 
 class AudioFormat(Enum):
     WAV = "WAV"
@@ -73,45 +69,68 @@ class Audio:
     format: AudioFormat
 
 
-class GCloudFetcher:
-    def __init__(self):
-        try:
-            # Execute the gcloud command to fetch the access token
-            output = subprocess.check_output(["gcloud", "auth", "print-access-token"], stderr=subprocess.STDOUT)
-            token = output.decode("UTF-8").strip()
+# class GCloudFetcher:
+#     def __init__(self):
+#         try:
+#             # Execute the gcloud command to fetch the access token
+#             output = subprocess.check_output(["gcloud", "auth", "print-access-token"], stderr=subprocess.STDOUT)
+#             token = output.decode("UTF-8").strip()
+#
+#             # Ensure the token is not empty or None
+#             if not token:
+#                 raise ValueError("Failed to retrieve a valid access token. Token is empty.")
+#
+#             # Set token
+#             self.token = token
+#
+#         except subprocess.CalledProcessError as e:
+#             # Handle errors in the subprocess call
+#             if e.returncode == 1:
+#                 print(f"Error executing gcloud command: {e.output.decode('UTF-8').strip()}")
+#                 raise RuntimeError("Failed to execute gcloud auth command. You may not be logged in.")
+#         except Exception as e:
+#             # Catch any other exceptions and re-raise them with additional context
+#             raise RuntimeError(f"An unexpected error occurred: {str(e)}")
 
-            # Ensure the token is not empty or None
-            if not token:
-                raise ValueError("Failed to retrieve a valid access token. Token is empty.")
+def fetch_gcloud_audio_bytes(url: str) -> str:
+    token = None
+    try:
+        # Execute the gcloud command to fetch the access token
+        output = subprocess.check_output(["gcloud", "auth", "print-access-token"], stderr=subprocess.STDOUT)
+        token = output.decode("UTF-8").strip()
 
-            # Set token
-            self.token = token
+        # Ensure the token is not empty or None
+        if not token:
+            raise ValueError("Failed to retrieve a valid access token. Token is empty.")
 
-        except subprocess.CalledProcessError as e:
-            # Handle errors in the subprocess call
-            if e.returncode == 1:
-                print(f"Error executing gcloud command: {e.output.decode('UTF-8').strip()}")
-                raise RuntimeError("Failed to execute gcloud auth command. You may not be logged in.")
-        except Exception as e:
-            # Catch any other exceptions and re-raise them with additional context
-            raise RuntimeError(f"An unexpected error occurred: {str(e)}")
+        print(token)
 
-    def fetch_audio(self, url: str) -> Audio:
-        header = {"Authorization": f"Bearer {self.token}"}
+    except subprocess.CalledProcessError as e:
+        # Handle errors in the subprocess call
+        if e.returncode == 1:
+            print(f"Error executing gcloud command: {e.output.decode('UTF-8').strip()}")
+            raise RuntimeError("Failed to execute gcloud auth command. You may not be logged in.")
+    except Exception as e:
+        # Catch any other exceptions and re-raise them with additional context
+        raise RuntimeError(f"An unexpected error occurred: {str(e)}")
 
-        # Must ensure that the url begins with storage.googleapis..., rather than store.cloud.google...
-        G_API_HOST = "https://storage.googleapis.com/"
-        is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith("gs://") or url.startswith(G_API_HOST)
-        g_api_url = url.replace("https://storage.cloud.google.com/", G_API_HOST) if is_gcloud else url
+    # Set the token in the header
+    gcloud_header = {"Authorization": f"Bearer {token}"}
 
-        # Get a response back, present the status
-        response = requests.get(g_api_url, headers=header)
-        response.raise_for_status()
+    # Must ensure that the url begins with storage.googleapis..., rather than store.cloud.google...
+    G_API_HOST = "https://storage.googleapis.com/"
+    is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith("gs://") or url.startswith(G_API_HOST)
+    g_api_url = url.replace("https://storage.cloud.google.com/", G_API_HOST) if is_gcloud else url
 
-        # Convert the audio byte data to a base64-encoded string, then decodes to usable UTF-8 format
-        encoded_string = base64.b64encode(response.content).decode('utf-8')
+    # Get a response back, present the status
+    response = requests.get(g_api_url, headers=gcloud_header)
+    response.raise_for_status()
 
-        return Audio(content=encoded_string, format=AudioFormat.WAV)
+    # Convert the audio byte data to a base64-encoded string, then decodes to usable UTF-8 format
+    encoded_string = base64.b64encode(response.content).decode('utf-8')
+
+    return encoded_string
+    #return Audio(content=encoded_string, format=AudioFormat.WAV)
 
 
 class ClassificationStatus(Enum):
@@ -124,7 +143,7 @@ class ClassificationStatus(Enum):
 
 def audio_classify(
     dataframe: pd.DataFrame,
-    file_fetcher: Callable[[str], Audio],
+    file_fetcher: Callable[[str], str],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -213,15 +232,11 @@ def audio_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    # Validate that model has audio capabilities
-    if model not in LIST_OF_AUDIO_SUPPORTED_MODELS:
-        raise ValueError(f"Model {model} does not support audio classification")
-
     # First get files:
-    list_of_audio: List[Audio] = []
+    list_of_byte_strings: List[str] = []
     for i, row in dataframe.iterrows():
-        url = row["url"]
-        list_of_audio.append(file_fetcher(url))
+        url = row["audio_url"]
+        list_of_byte_strings.append(file_fetcher(url))
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -290,7 +305,7 @@ def audio_classify(
         inference, explanation = _process_response(response)
         return inference, explanation, response, str(prompt)
 
-    def _run_llm_classification_sync(input_data: Audio) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = verbose_model._generate(
@@ -312,7 +327,7 @@ def audio_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([list_of_audio])
+    results, execution_details = executor.run([list_of_byte_strings])
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
