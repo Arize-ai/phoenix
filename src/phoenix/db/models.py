@@ -160,7 +160,6 @@ class ProjectSession(Base):
     __tablename__ = "project_sessions"
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    session_user: Mapped[Optional[str]] = mapped_column(index=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
