@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from email.message import Message
 from functools import cached_property
 from io import BytesIO
-from secrets import token_hex
+from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
@@ -31,6 +31,7 @@ from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer
 from opentelemetry.util.types import AttributeValue
 from phoenix.auth import (
@@ -394,13 +395,25 @@ def _grpc_span_exporter(
     return OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
 
 
+class _RandomIdGenerator(IdGenerator):
+    """
+    Generate random trace and span IDs without being influenced by the current seed.
+    """
+
+    def generate_span_id(self) -> int:
+        return randbits(64)
+
+    def generate_trace_id(self) -> int:
+        return randbits(128)
+
+
 def _get_tracer(
     *,
     project_name: _ProjectName,
     exporter: SpanExporter,
 ) -> Tracer:
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider = TracerProvider(resource=resource, id_generator=_RandomIdGenerator())
     tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
     return tracer_provider.get_tracer(__name__)
 

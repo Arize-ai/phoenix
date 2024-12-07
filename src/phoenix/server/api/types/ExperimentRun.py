@@ -20,7 +20,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import Trace, to_gql_trace
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -61,11 +61,10 @@ class ExperimentRun(Node):
     async def trace(self, info: Info) -> Optional[Trace]:
         if not self.trace_id:
             return None
-        dataloader = info.context.data_loaders.trace_row_ids
+        dataloader = info.context.data_loaders.trace_by_trace_ids
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
-        trace_rowid, project_rowid = trace
-        return Trace(id_attr=trace_rowid, trace_id=self.trace_id, project_rowid=project_rowid)
+        return to_gql_trace(trace)
 
     @strawberry.field
     async def example(

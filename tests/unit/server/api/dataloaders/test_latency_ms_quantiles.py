@@ -25,7 +25,7 @@ async def test_latency_ms_quantiles_p25_p50_p75(
             lambda s: pd.read_sql_query(
                 select(pid, models.Span.latency_ms.label("latency_ms"))
                 .join_from(models.Trace, models.Span)
-                .where(models.Span.name.contains("_5_"))
+                .where(models.Span.name.contains("_trace4_"))
                 .where(start_time <= models.Span.start_time)
                 .where(models.Span.start_time < end_time),
                 s.connection(),
@@ -55,7 +55,7 @@ async def test_latency_ms_quantiles_p25_p50_p75(
             kind,
             id_ + 1,
             TimeRange(start=start_time, end=end_time),
-            "'_5_' in name" if kind == "span" else None,
+            "'_trace4_' in name" if kind == "span" else None,
             probability,
         )
         for kind in kinds

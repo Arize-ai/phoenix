@@ -187,6 +187,22 @@ class MimeType(Enum):
         return None if v else cls.TEXT
 
 
+@dataclass(frozen=True)
+class SpanIOValue:
+    value: str
+    mime_type: MimeType = MimeType.TEXT
+
+
+@dataclass(frozen=True)
+class TokenUsage:
+    prompt: int = 0
+    completion: int = 0
+
+    def __post_init__(self) -> None:
+        assert self.prompt >= 0, "prompt must be non-negative"
+        assert self.completion >= 0, "completion must be non-negative"
+
+
 ATTRIBUTE_PREFIX = "attributes."
 CONTEXT_PREFIX = "context."
 COMPUTED_PREFIX = "__computed__."

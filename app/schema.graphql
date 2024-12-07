@@ -1282,6 +1282,7 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 50, after: String, sort: ProjectSessionSort, filterIoSubstring: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -1318,6 +1319,53 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+type ProjectSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sessionId: String!
+  startTime: DateTime!
+  endTime: DateTime!
+  projectId: GlobalID!
+  numTraces: Int!
+  numTracesWithError: Int!
+  firstInput: SpanIOValue
+  lastOutput: SpanIOValue
+  tokenUsage: TokenUsage!
+  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
+  traceLatencyMsQuantile(probability: Float!): Float
+}
+
+enum ProjectSessionColumn {
+  startTime
+  endTime
+  tokenCountTotal
+  numTraces
+}
+
+"""A connection to a list of items."""
+type ProjectSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectSession!
+}
+
+"""The sort key and direction for ProjectSession connections."""
+input ProjectSessionSort {
+  col: ProjectSessionColumn!
+  dir: SortDir!
 }
 
 type PromptResponse {
@@ -1680,6 +1728,12 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+type TokenUsage {
+  prompt: Int!
+  completion: Int!
+  total: Int!
+}
+
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   id: String!
@@ -1690,7 +1744,12 @@ type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   traceId: String!
+  startTime: DateTime!
+  endTime: DateTime!
   projectId: GlobalID!
+  projectSessionId: GlobalID
+  session: ProjectSession
+  rootSpan: Span
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""
@@ -1723,6 +1782,24 @@ type TraceAnnotationMutationPayload {
 input TraceAnnotationSort {
   col: TraceAnnotationColumn!
   dir: SortDir!
+}
+
+"""A connection to a list of items."""
+type TraceConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [TraceEdge!]!
+}
+
+"""An edge in a connection."""
+type TraceEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Trace!
 }
 
 type UMAPPoint {
