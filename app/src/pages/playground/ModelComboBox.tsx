@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { PickerProps } from "@arizeai/components";
-
-import { ComboBox, ComboBoxItem } from "@phoenix/components";
+import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
 
 import { ModelComboBoxFragment$key } from "./__generated__/ModelComboBoxFragment.graphql";
 
@@ -14,7 +12,7 @@ type ModelComboBoxProps = {
   modelName: string | null;
   container?: HTMLElement;
 } & Omit<
-  PickerProps<string>,
+  ComboBoxProps<{ name: string }>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
 >;
 
@@ -72,7 +70,6 @@ export function ModelComboBox({
       // It can't distinguish between undefined and intentionally null
       selectedKey={props.modelName ?? ""}
       aria-label="model picker"
-      placeholder="Select a model"
       // inputValue={modelInput}
       onInputChange={setModelInput}
       onSelectionChange={(key) => {
