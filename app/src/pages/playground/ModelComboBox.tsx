@@ -60,6 +60,7 @@ export function ModelComboBox({
   return (
     <ComboBox
       label={"Model"}
+      size="L"
       data-testid="model-picker"
       // Fallback to empty string here otherwise the picker will complain about switching from a controlled to uncontrolled component
       // It can't distinguish between undefined and intentionally null
