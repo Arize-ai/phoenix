@@ -132,6 +132,20 @@ export function Gallery() {
             Vanilla
           </ComboBoxItem>
         </ComboBox>
+        <ComboBox label="Ice cream flavor (L)" size="L">
+          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+            Chocolate
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Mint" key={"mint"}>
+            Mint
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+            Strawberry
+          </ComboBoxItem>
+          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+            Vanilla
+          </ComboBoxItem>
+        </ComboBox>
       </Flex>
     </ThemeWrapper>
   );
