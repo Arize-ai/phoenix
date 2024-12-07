@@ -217,6 +217,7 @@ class Client(TraceDataExtractor):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[Evaluations]:
         """
         Retrieves evaluations for a given project from the Phoenix server or active session.
@@ -225,6 +226,7 @@ class Client(TraceDataExtractor):
             project_name (str, optional): The name of the project to retrieve evaluations for.
                 This can be set using environment variables. If not provided, falls back to the
                 default project.
+            timeout (int, optional): The number of seconds to wait for the server to respond.
 
         Returns:
             list[Evaluations]:
@@ -238,6 +240,7 @@ class Client(TraceDataExtractor):
                 "project_name": project_name,
                 "project-name": project_name,  # for backward-compatibility
             },
+            timeout=timeout,
         )
         if response.status_code == 404:
             logger.info("No evaluations found.")
