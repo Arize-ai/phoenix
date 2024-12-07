@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b2e9cdb73d732f72169cf02e0b5f87d5>>
+ * @generated SignedSource<<1fc5d404ed071722545c5fd9be003a9e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,15 @@
 
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ModelPickerFragment$data = {
+export type ModelComboBoxFragment$data = {
   readonly models: ReadonlyArray<{
     readonly name: string;
   }>;
-  readonly " $fragmentType": "ModelPickerFragment";
+  readonly " $fragmentType": "ModelComboBoxFragment";
 };
-export type ModelPickerFragment$key = {
-  readonly " $data"?: ModelPickerFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment">;
+export type ModelComboBoxFragment$key = {
+  readonly " $data"?: ModelComboBoxFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelComboBoxFragment">;
 };
 
 const node: ReaderFragment = {
@@ -31,7 +31,7 @@ const node: ReaderFragment = {
   ],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ModelPickerFragment",
+  "name": "ModelComboBoxFragment",
   "selections": [
     {
       "alias": null,
@@ -68,6 +68,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "1e660ad77ce19db1c1bbe8698a661b4f";
+(node as any).hash = "4d750697cdf7a1f73778a9e36a765e80";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<16ff5bed2bd91b23b7055365ced74c8d>>
+ * @generated SignedSource<<0bee2c9001d3d5aa25d4bffb2c797002>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type ModelConfigButtonDialogQuery$variables = {
   providerKey: GenerativeProviderKey;
 };
 export type ModelConfigButtonDialogQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment" | "ModelProviderPickerFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelComboBoxFragment" | "ModelProviderPickerFragment">;
 };
 export type ModelConfigButtonDialogQuery = {
   response: ModelConfigButtonDialogQuery$data;
@@ -59,7 +59,7 @@ return {
       {
         "args": (v1/*: any*/),
         "kind": "FragmentSpread",
-        "name": "ModelPickerFragment"
+        "name": "ModelComboBoxFragment"
       }
     ],
     "type": "Query",
@@ -125,16 +125,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "312c7daf378370f2936ee987869d155d",
+    "cacheID": "bdb684f5a15c4708a04e07bb53c8b016",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelComboBoxFragment_3rERSq\n}\n\nfragment ModelComboBoxFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c9b38e766093b2378047d22b01ef0fbf";
+(node as any).hash = "7203a9b14b3d128fdec37b0e7169f6e3";
 
 export default node;

@@ -13,6 +13,7 @@ import {
   Text,
   ValidationResult,
 } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
@@ -24,6 +25,7 @@ export interface ComboBoxProps<T extends object>
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
   children: React.ReactNode | ((item: T) => React.ReactNode);
+  container?: HTMLElement;
 }
 
 export function ComboBox<T extends object>({
@@ -31,6 +33,7 @@ export function ComboBox<T extends object>({
   description,
   errorMessage,
   children,
+  container,
   ...props
 }: ComboBoxProps<T>) {
   return (
@@ -44,9 +47,15 @@ export function ComboBox<T extends object>({
       </div>
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
-      <Popover css={comboBoxPopoverCSS}>
+      <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
         <ListBox>{children}</ListBox>
       </Popover>
+      <div
+        id="popover-container"
+        css={css`
+          display: hidden;
+        `}
+      />
     </AriaComboBox>
   );
 }
@@ -61,6 +70,7 @@ export interface ListBoxItemProps<T = object>
 
 export function ComboBoxItem(props: ListBoxItemProps) {
   return (
+    // <div onClick={(e) => e.stopPropagation()}>
     <ListBoxItem {...props} css={comboBoxItemCSS}>
       {({ isSelected }) => {
         return (
@@ -76,5 +86,6 @@ export function ComboBoxItem(props: ListBoxItemProps) {
         );
       }}
     </ListBoxItem>
+    // </div>
   );
 }
