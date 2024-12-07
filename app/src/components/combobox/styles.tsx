@@ -1,6 +1,6 @@
 import { css, Theme } from "@emotion/react";
 
-export const comboBoxCSS = (theme: Theme) => css`
+export const comboBoxCSS = (width?: string) => (theme: Theme) => css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
     --combobox-horizontal-padding: 6px;
@@ -21,7 +21,7 @@ export const comboBoxCSS = (theme: Theme) => css`
   .px-combobox-container {
     display: flex;
     flex-direction: row;
-    width: fit-content;
+    width: ${width != null ? width : "fit-content"};
     min-width: 200px;
     position: relative;
 

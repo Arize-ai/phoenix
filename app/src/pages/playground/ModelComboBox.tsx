@@ -55,8 +55,14 @@ export function ModelComboBox({
     ) {
       items.push({ name: modelInput, id: modelInput });
     }
+    if (
+      props.modelName &&
+      !items.some((model) => model.name === props.modelName)
+    ) {
+      items.push({ name: props.modelName, id: props.modelName });
+    }
     return items;
-  }, [data.models, modelInput]);
+  }, [data.models, modelInput, props.modelName]);
   return (
     <ComboBox
       label={"Model"}
@@ -80,7 +86,11 @@ export function ModelComboBox({
       menuTrigger="focus"
       container={container}
     >
-      {(item) => <ComboBoxItem key={item.name}>{item.name}</ComboBoxItem>}
+      {(item) => (
+        <ComboBoxItem key={item.name} textValue={item.name}>
+          {item.name}
+        </ComboBoxItem>
+      )}
     </ComboBox>
   );
 }

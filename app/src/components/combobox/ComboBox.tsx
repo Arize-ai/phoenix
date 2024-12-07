@@ -28,7 +28,15 @@ export interface ComboBoxProps<T extends object>
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
   children: React.ReactNode | ((item: T) => React.ReactNode);
+  /**
+   * The container to render the popover into. If not provided, the popover will be rendered in the body.
+   * @default document.body
+   */
   container?: HTMLElement;
+  /**
+   * The width of the combobox. If not provided, the combobox will be sized to fit its contents. with a minimum width of 200px.
+   */
+  width?: string;
 }
 
 export function ComboBox<T extends object>({
@@ -41,7 +49,7 @@ export function ComboBox<T extends object>({
   ...props
 }: ComboBoxProps<T>) {
   return (
-    <AriaComboBox {...props} css={comboBoxCSS} data-size={size}>
+    <AriaComboBox {...props} css={comboBoxCSS(props.width)} data-size={size}>
       <Label>{label}</Label>
       <div className="px-combobox-container">
         <Input />
