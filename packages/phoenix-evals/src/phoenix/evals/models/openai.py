@@ -279,12 +279,30 @@ class OpenAIModel(BaseModel):
         )
 
     def _build_messages(
-        self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
+        self, prompt: MultimodalPrompt, audio_format: str = None, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
         messages = []
         for parts in prompt.parts:
             if parts.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": parts.content})
+            elif parts.content_type == PromptPartContentType.AUDIO_URL:
+                # potentially raise warning
+                messages.extend(
+                    [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": prompt,
+                                        "format": "wav"
+                                    }
+                                }
+                            ],
+                        }
+                    ]
+                )
             else:
                 raise ValueError(f"Unsupported content type: {parts.content_type}")
         if system_instruction:
@@ -321,13 +339,18 @@ class OpenAIModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        messages = self._build_messages(
+            prompt=prompt,
+            audio_format="WAV",
+            system_instruction=kwargs.get("instruction")
+        )
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
         response = self._rate_limited_completion(
             messages=messages,
+            audio_format="WAV",
             **invoke_params,
         )
         choice = response["choices"][0]
@@ -362,7 +385,7 @@ class OpenAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, audio_format: str, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
@@ -374,6 +397,7 @@ class OpenAIModel(BaseModel):
                         )
                     # OpenAI 1.0.0 API responses are pydantic objects, not dicts
                     # We must dump the model to get the dict
+                    # TODO consider if there are additional changes + consider 'modalities' parameter
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.BadRequestError as e:
