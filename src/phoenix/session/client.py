@@ -129,6 +129,7 @@ class Client(TraceDataExtractor):
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
             project_name (str, optional): The project name to query spans for. This can be set
                 using environment variables. If not provided, falls back to the default project.
+           timeout (int, optional): The number of seconds to wait for the server to respond.
 
         Returns:
             Union[pd.DataFrame, list[pd.DataFrame]]:
@@ -263,15 +264,18 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
-    def log_evaluations(self, *evals: Evaluations, **kwargs: Any) -> None:
+    def log_evaluations(
+        self,
+        *evals: Evaluations,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        **kwargs: Any,
+    ) -> None:
         """
         Logs evaluation data to the Phoenix server.
 
         Args:
             evals (Evaluations): One or more Evaluations objects containing the data to log.
-            project_name (str, optional): The project name under which to log the evaluations.
-                This can be set using environment variables. If not provided, falls back to the
-                default project.
+            timeout (int, optional): The number of seconds to wait for the server to respond.
 
         Returns:
             None
@@ -290,6 +294,7 @@ class Client(TraceDataExtractor):
                 url=urljoin(self._base_url, "v1/evaluations"),
                 content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
+                timeout=timeout,
             ).raise_for_status()
 
     def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
