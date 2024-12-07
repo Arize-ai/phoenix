@@ -70,7 +70,6 @@ export function ModelComboBox({
       // It can't distinguish between undefined and intentionally null
       selectedKey={props.modelName ?? ""}
       aria-label="model picker"
-      // inputValue={modelInput}
       onInputChange={setModelInput}
       onSelectionChange={(key) => {
         if (typeof key === "string") {

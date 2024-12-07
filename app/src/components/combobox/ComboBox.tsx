@@ -62,12 +62,6 @@ export function ComboBox<T extends object>({
       <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
         <ListBox>{children}</ListBox>
       </Popover>
-      <div
-        id="popover-container"
-        css={css`
-          display: hidden;
-        `}
-      />
     </AriaComboBox>
   );
 }
@@ -82,7 +76,6 @@ export interface ListBoxItemProps<T = object>
 
 export function ComboBoxItem(props: ListBoxItemProps) {
   return (
-    // <div onClick={(e) => e.stopPropagation()}>
     <ListBoxItem {...props} css={comboBoxItemCSS}>
       {({ isSelected }) => {
         return (
@@ -98,6 +91,5 @@ export function ComboBoxItem(props: ListBoxItemProps) {
         );
       }}
     </ListBoxItem>
-    // </div>
   );
 }
