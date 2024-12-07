@@ -1,6 +1,14 @@
 import { css, Theme } from "@emotion/react";
 
 export const comboBoxCSS = (theme: Theme) => css`
+  &[data-size="M"] {
+    --combobox-vertical-padding: 6px;
+    --combobox-horizontal-padding: 6px;
+  }
+  &[data-size="L"] {
+    --combobox-vertical-padding: 10px;
+    --combobox-horizontal-padding: var(--ac-global-dimension-static-size-200);
+  }
   color: var(--ac-global-text-color-900);
   &[data-required] {
     .react-aria-Label {
@@ -23,7 +31,8 @@ export const comboBoxCSS = (theme: Theme) => css`
       flex: 1 1 auto;
       font-size: var(--ac-global-dimension-static-font-size-100);
       background-color: var(--ac-global-input-field-background-color);
-      padding: 6px var(--ac-global-dimension-static-size-100);
+      padding: var(--combobox-vertical-padding)
+        var(--combobox-horizontal-padding);
       color: var(--ac-global-text-color-900);
       border: var(--ac-global-border-size-thin) solid
         var(--ac-global-input-field-border-color);

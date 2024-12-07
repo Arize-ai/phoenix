@@ -44,6 +44,26 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
         <Item key="strawberry">Strawberry</Item>
         <Item key="vanilla">Vanilla</Item>
       </Picker>
+      <ComboBox label="Ice cream flavor" description={"pick a flavor"} size="L">
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <Picker label="Toppings" size="default" description={"pick a flavor"}>
+        <Item key="chocolate">Chocolate</Item>
+        <Item key="mint">Mint</Item>
+        <Item key="strawberry">Strawberry</Item>
+        <Item key="vanilla">Vanilla</Item>
+      </Picker>
     </Flex>
     <Flex direction="column" gap="size-200">
       <ComboBox label="Ice cream flavor">
@@ -61,6 +81,26 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
         </ComboBoxItem>
       </ComboBox>
       <Picker label="Toppings" size="compact">
+        <Item key="chocolate">Chocolate</Item>
+        <Item key="mint">Mint</Item>
+        <Item key="strawberry">Strawberry</Item>
+        <Item key="vanilla">Vanilla</Item>
+      </Picker>
+      <ComboBox label="Ice cream flavor" size="L">
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <Picker label="Toppings" size="default">
         <Item key="chocolate">Chocolate</Item>
         <Item key="mint">Mint</Item>
         <Item key="strawberry">Strawberry</Item>

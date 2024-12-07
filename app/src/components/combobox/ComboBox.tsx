@@ -17,10 +17,13 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
+import { SizingProps } from "@phoenix/components/types";
+
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
 export interface ComboBoxProps<T extends object>
-  extends Omit<AriaComboBoxProps<T>, "children"> {
+  extends Omit<AriaComboBoxProps<T>, "children">,
+    SizingProps {
   label: string;
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
@@ -34,10 +37,11 @@ export function ComboBox<T extends object>({
   errorMessage,
   children,
   container,
+  size = "M",
   ...props
 }: ComboBoxProps<T>) {
   return (
-    <AriaComboBox {...props} css={comboBoxCSS}>
+    <AriaComboBox {...props} css={comboBoxCSS} data-size={size}>
       <Label>{label}</Label>
       <div className="px-combobox-container">
         <Input />
