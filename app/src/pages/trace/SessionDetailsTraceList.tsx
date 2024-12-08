@@ -12,6 +12,7 @@ import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
+import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -19,7 +20,10 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import { SessionDetailsQuery$data } from "./__generated__/SessionDetailsQuery.graphql";
+import {
+  MimeType,
+  SessionDetailsQuery$data,
+} from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
@@ -38,10 +42,22 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
 function RootSpanMessage({
   role,
   value,
+  mimeType,
 }: {
   role: "HUMAN" | "AI";
-  value: string;
+  value: unknown;
+  mimeType?: MimeType | null;
 }) {
+  const valueString = useMemo(() => {
+    if (mimeType !== "json") {
+      return String(value);
+    }
+    const parsed = safelyParseJSON(value as string);
+    if (parsed.json == null) {
+      return "--";
+    }
+    return JSON.stringify(parsed.json, null, 2);
+  }, [value, mimeType]);
   const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
   return (
     <View
@@ -57,7 +73,11 @@ function RootSpanMessage({
         <Text color="text-700" textSize="medium">
           {role}
         </Text>
-        <Text>{value}</Text>
+        {mimeType === "json" ? (
+          <JSONBlock value={valueString} />
+        ) : (
+          <Text>{valueString}</Text>
+        )}
       </Flex>
     </View>
   );
@@ -164,8 +184,16 @@ function RootSpanDetails({
 function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
   return (
     <Flex direction={"column"} gap={"size-100"}>
-      <RootSpanMessage role={"HUMAN"} value={rootSpan.input?.value ?? "--"} />
-      <RootSpanMessage role={"AI"} value={rootSpan.output?.value ?? "--"} />
+      <RootSpanMessage
+        role={"HUMAN"}
+        value={rootSpan.input?.value}
+        mimeType={rootSpan.input?.mimeType}
+      />
+      <RootSpanMessage
+        role={"AI"}
+        value={rootSpan.output?.value}
+        mimeType={rootSpan.output?.mimeType}
+      />
     </Flex>
   );
 }
