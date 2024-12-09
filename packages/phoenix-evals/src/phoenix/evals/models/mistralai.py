@@ -70,6 +70,7 @@ class MistralAIModel(BaseModel):
     def _init_client(self) -> None:
         try:
             from mistralai import Mistral
+            from mistralai.models import SDKError
         except ImportError:
             self._raise_import_error(
                 package_name="mistralai",
@@ -77,6 +78,7 @@ class MistralAIModel(BaseModel):
             )
 
         self._client = Mistral(os.getenv("MISTRAL_API_KEY"))
+        self._mistral_sdk_error = SDKError
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
@@ -119,12 +121,16 @@ class MistralAIModel(BaseModel):
         def _completion(**kwargs: Any) -> Any:
             try:
                 response = self._client.chat.complete(**kwargs)
-            except Exception as exc:
+            # if an SDKError is raised, check that it's a rate limit error:
+            except self._mistral_sdk_error as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
                 raise exc
-            return response.choices[0].message.content
+
+            if response and (choices := response.choices):
+                if first_response := choices[0]:
+                    return first_response.message.content
 
         return _completion(**kwargs)
 
@@ -152,13 +158,15 @@ class MistralAIModel(BaseModel):
         async def _async_completion(**kwargs: Any) -> Any:
             try:
                 response = await self._client.chat.complete_async(**kwargs)
-            except Exception as exc:
+            except self._mistral_sdk_error as exc:
                 http_status = getattr(exc, "http_status", None)
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
                 raise exc
 
-            return response.choices[0].message.content
+            if response and (choices := response.choices):
+                if first_response := choices[0]:
+                    return first_response.message.content
 
         return await _async_completion(**kwargs)
 
