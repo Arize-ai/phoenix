@@ -29,6 +29,19 @@ class Trace(Node):
     trace_id: str
 
     @strawberry.field
+    async def latency_ms(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        async with info.context.db() as session:
+            latency = await session.scalar(
+                select(
+                    models.Trace.latency_ms,
+                ).where(models.Trace.id == self.id_attr)
+            )
+        return latency
+
+    @strawberry.field
     async def project_id(self) -> GlobalID:
         from phoenix.server.api.types.Project import Project
 
