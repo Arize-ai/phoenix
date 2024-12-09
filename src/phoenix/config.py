@@ -5,8 +5,9 @@ import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
+from importlib.metadata import version
 from pathlib import Path
-from typing import Optional, overload
+from typing import Optional, cast, overload
 from urllib.parse import urlparse
 
 from phoenix.utilities.logging import log_a_list
@@ -784,3 +785,5 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
+
+SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2))))

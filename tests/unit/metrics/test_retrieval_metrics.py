@@ -20,7 +20,7 @@ def test_ranking_metrics_ndcg(k: Optional[int], scores: list[float]) -> None:
             _scores = np.zeros(2)
             _scores[: len(scores)] = scores
         else:
-            _scores = np.array(scores)
+            _scores = np.array(scores)  # type: ignore[assignment]
         y_true, y_score = [_scores], [list(reversed(range(len(_scores))))]
         desired = ndcg_score(y_true, y_score, k=k, ignore_ties=True)
     assert np.isclose(actual, desired, equal_nan=True)
