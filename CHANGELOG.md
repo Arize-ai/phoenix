@@ -1,5 +1,24 @@
 # Changelog
 
+## [6.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.1.0...arize-phoenix-v6.2.0) (2024-12-09)
+
+
+### Features
+
+* **client:** add timeout parameters to log_evaluations, get_evaluations ([#5646](https://github.com/Arize-ai/phoenix/issues/5646)) ([c388a9b](https://github.com/Arize-ai/phoenix/commit/c388a9b935e6aa15d3bbf341f3f3ce3b00dc7762))
+* **components:** add story book and ComboBox ([#5609](https://github.com/Arize-ai/phoenix/issues/5609)) ([4981f41](https://github.com/Arize-ai/phoenix/commit/4981f41f313fcf7e809e371043bb92096b16f217))
+* **playground:** pull prompt template variables from span and capture on playground spans ([#5642](https://github.com/Arize-ai/phoenix/issues/5642)) ([d6382dc](https://github.com/Arize-ai/phoenix/commit/d6382dc68b0a0f23e8ef02f431d5885b1e0420b4))
+
+
+### Bug Fixes
+
+* fixing other slack link in readme ([#5643](https://github.com/Arize-ai/phoenix/issues/5643)) ([94cd150](https://github.com/Arize-ai/phoenix/commit/94cd150db0df83076e049bb9902876588bdd6290))
+* Intel x86_64 macOS issue with wrapt 1.17 ([#5657](https://github.com/Arize-ai/phoenix/issues/5657)) ([c1aa93d](https://github.com/Arize-ai/phoenix/commit/c1aa93d7554b2028081e36b4ec3ece0668899dce))
+* postgresql url query param ([#5659](https://github.com/Arize-ai/phoenix/issues/5659)) ([5f51386](https://github.com/Arize-ai/phoenix/commit/5f513860fc7bc617866e4e1e928d0f24386ef905))
+* slack link ([df503fa](https://github.com/Arize-ai/phoenix/commit/df503fa6a47839fb0f73a78cd5b0931bd309bace))
+* styling of experiment sequence numbers ([#5622](https://github.com/Arize-ai/phoenix/issues/5622)) ([42a67d4](https://github.com/Arize-ai/phoenix/commit/42a67d40b0b6cb8f7e6d5d3795f4fa67073d3799))
+* Update README.md ([#5644](https://github.com/Arize-ai/phoenix/issues/5644)) ([016ca63](https://github.com/Arize-ai/phoenix/commit/016ca637a3162890f06688742483ec7aa749ec87))
+
 ## [6.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.0.0...arize-phoenix-v6.1.0) (2024-12-03)
 
 
