@@ -163,11 +163,23 @@ def aio_postgresql_engine(
     log_to_stdout: bool = False,
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    engine = create_async_engine(url=url, echo=log_to_stdout, json_serializer=_dumps)
+    url_query = dict(url.query)
+    sslmode = url_query.pop("sslmode", None) or url_query.pop("ssl", None)
+    engine = create_async_engine(
+        url=url.set(
+            # https://github.com/MagicStack/asyncpg/issues/737
+            query={**url_query, "ssl": sslmode} if sslmode else url_query,
+        ),
+        echo=log_to_stdout,
+        json_serializer=_dumps,
+    )
     if not migrate:
         return engine
     sync_engine = sqlalchemy.create_engine(
-        url=url.set(drivername="postgresql+psycopg"),
+        url=url.set(
+            drivername="postgresql+psycopg",
+            query={**url_query, "sslmode": sslmode} if sslmode else url_query,
+        ),
         echo=log_migrations_to_stdout,
         json_serializer=_dumps,
     )
