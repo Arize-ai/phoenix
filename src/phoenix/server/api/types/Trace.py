@@ -42,20 +42,12 @@ class Trace(Node):
         info: Info[Context, None],
     ) -> Optional[float]:
         async with info.context.db() as session:
-            result = (
-                await session.execute(
-                    select(
-                        models.Trace.start_time,
-                        models.Trace.end_time,
-                    ).where(models.Trace.id == self.id_attr)
-                )
-            ).first()
-        if result is None:
-            return None
-        start_time, end_time = result
-        if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
-            return None
-        return (end_time - start_time).total_seconds() * 1000
+            latency = await session.scalar(
+                select(
+                    models.Trace.latency_ms,
+                ).where(models.Trace.id == self.id_attr)
+            )
+        return latency
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
