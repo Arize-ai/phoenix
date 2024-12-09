@@ -53,7 +53,7 @@ def get_async_db_url(connection_str: str) -> URL:
         # So we need to parse them out manually
         if url.username and url.password:
             url = url.set(
-                query={"user": url.username, "password": url.password},
+                query={**url.query, "user": url.username, "password": url.password},
                 password=None,
                 username=None,
             )
