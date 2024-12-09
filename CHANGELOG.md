@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.0.0...arize-phoenix-v7.0.1) (2024-12-09)
+
+
+### Bug Fixes
+
+* sslmode query parameter in postgresql database url for asyncpg ([#5679](https://github.com/Arize-ai/phoenix/issues/5679)) ([824d295](https://github.com/Arize-ai/phoenix/commit/824d295f45eb6d4b85b652f98675c7865c5694e8))
+
 ## [7.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.2.0...arize-phoenix-v7.0.0) (2024-12-09)
 
 
