@@ -100,7 +100,7 @@ PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 
 # configure the Phoenix tracer
-register(
+tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="https://app.phoenix.arize.com/v1/traces",
 )
@@ -120,7 +120,7 @@ Connect your application to your instance using:
 from phoenix.otel import register
 
 # defaults to endpoint="http://localhost:4317"
-register(
+tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="http://localhost:4317",  # Sends traces using gRPC
 )  
@@ -140,7 +140,7 @@ Connect your notebook to Phoenix:
 from phoenix.otel import register
 
 # defaults to endpoint="http://localhost:4317"
-register(
+tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
   endpoint="http://localhost:4317",  # Sends traces using gRPC
 ) 
@@ -155,7 +155,7 @@ Now we need to indicate which methods and attributes we want to trace. Phoenix h
 Here we're using OpenAI, so we'll install the built-in OpenAI instrumentor we provide.
 
 ```bash
-pip install -q openinference-instrumentation-openai openai getpass 'httpx<0.28'
+pip install -q openinference-instrumentation-openai openai 'httpx<0.28'
 ```
 
 Initialize the OpenAIInstrumentor before your application code:
@@ -173,12 +173,8 @@ From here we can use OpenAI as normal. All of our requests will be traced and re
 ```python
 # Add OpenAI API Key
 import os
-from getpass import getpass
 
-if not (openai_api_key := os.getenv("OPENAI_API_KEY")):
-    openai_api_key = getpass("🔑 Enter your OpenAI API key: ")
-
-os.environ["OPENAI_API_KEY"] = openai_api_key
+os.environ["OPENAI_API_KEY"] = "ADD YOUR OPENAI API KEY"
 ```
 
 ```python
