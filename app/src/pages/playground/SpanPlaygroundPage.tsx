@@ -20,10 +20,13 @@ export function SpanPlaygroundPage() {
     throw new Error("Span not found");
   }
 
-  const { playgroundInstance, parsingErrors } = useMemo(
+  const { playgroundInstance, parsingErrors, playgroundInput } = useMemo(
     () => transformSpanAttributesToPlaygroundInstance(span),
     [span]
   );
+
+  const additionalProps =
+    playgroundInput != null ? { input: playgroundInput } : {};
 
   return (
     <Flex direction="column" height={"100%"}>
@@ -32,6 +35,7 @@ export function SpanPlaygroundPage() {
         // remount the playground when the span changes, resetting all local state, closing dialogs, etc.
         key={span.id}
         instances={[playgroundInstance]}
+        {...additionalProps}
       />
     </Flex>
   );
