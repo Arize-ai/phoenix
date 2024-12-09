@@ -31,7 +31,7 @@ class DotKeyFormatter(Formatter):
 
 class PromptPartContentType(str, Enum):
     TEXT = "text"
-    AUDIO_URL = "audio_url"
+    AUDIO_BYTES = "audio_bytes"
 
 
 @dataclass

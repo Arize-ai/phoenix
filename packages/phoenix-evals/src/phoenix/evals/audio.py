@@ -47,7 +47,6 @@ from typing_extensions import TypeAlias
 
 logger = logging.getLogger(__name__)
 
-
 ColumnName: TypeAlias = str
 Label: TypeAlias = str
 Score: TypeAlias = Optional[float]
@@ -96,7 +95,8 @@ def fetch_gcloud_audio_bytes(url: str) -> str:
     token = None
     try:
         # Execute the gcloud command to fetch the access token
-        output = subprocess.check_output(["gcloud", "auth", "print-access-token"], stderr=subprocess.STDOUT)
+        output = subprocess.check_output(["gcloud", "auth", "print-access-token"],
+                                         stderr=subprocess.STDOUT)
         token = output.decode("UTF-8").strip()
 
         # Ensure the token is not empty or None
@@ -117,7 +117,8 @@ def fetch_gcloud_audio_bytes(url: str) -> str:
 
     # Must ensure that the url begins with storage.googleapis..., rather than store.cloud.google...
     G_API_HOST = "https://storage.googleapis.com/"
-    is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith("gs://") or url.startswith(G_API_HOST)
+    is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith(
+        "gs://") or url.startswith(G_API_HOST)
     g_api_url = url.replace("https://storage.cloud.google.com/", G_API_HOST) if is_gcloud else url
 
     # Get a response back, present the status
@@ -236,6 +237,12 @@ def audio_classify(
         url = row["audio_url"]
         list_of_byte_strings.append(file_fetcher(url))
 
+    audio_byte_series = pd.Series(
+        {
+            'audio_bytes': list_of_byte_strings
+        }
+    )
+
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -286,7 +293,7 @@ def audio_classify(
                 printif(
                     verbose and unrailed_label == NOT_PARSABLE,
                     f"- Could not parse {repr(response)}",
-                    )
+                )
             else:
                 unrailed_label = response
                 explanation = None
@@ -307,7 +314,7 @@ def audio_classify(
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = verbose_model._generate(
-            prompt, instruction=system_instruction, **model_kwargs
+                prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response, str(prompt)
@@ -325,7 +332,7 @@ def audio_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([list_of_byte_strings])
+    results, execution_details = executor.run([audio_byte_series])
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]

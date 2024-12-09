@@ -282,29 +282,28 @@ class OpenAIModel(BaseModel):
         self, prompt: MultimodalPrompt, audio_format: str = None, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
         messages = []
-        for parts in prompt.parts:
-            if parts.content_type == PromptPartContentType.TEXT:
-                messages.append({"role": "system", "content": parts.content})
-            elif parts.content_type == PromptPartContentType.AUDIO_URL:
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": "system", "content": part.content})
+            # TODO change audio *url* to bytestring
+            elif part.content_type == PromptPartContentType.AUDIO_BYTES:
                 # potentially raise warning
-                messages.extend(
-                    [
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_audio",
-                                    "input_audio": {
-                                        "data": prompt,
-                                        "format": "wav"
-                                    }
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": part.content,
+                                    "format": "wav"
                                 }
-                            ],
-                        }
-                    ]
+                            }
+                        ],
+                    }
                 )
             else:
-                raise ValueError(f"Unsupported content type: {parts.content_type}")
+                raise ValueError(f"Unsupported content type: {part.content_type}")
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
