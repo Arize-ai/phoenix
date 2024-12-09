@@ -132,8 +132,9 @@ export default function ClusteringSettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--px-spacing-med) var(--px-spacing-med) 0
-            var(--px-spacing-med);
+          padding: var(--ac-global-dimension-static-size-100)
+            var(--ac-global-dimension-static-size-100) 0
+            var(--ac-global-dimension-static-size-100);
         }
       `}
     >
@@ -236,7 +237,7 @@ export default function ClusteringSettings() {
             display: flex;
             flex-direction: row;
             justify-content: flex-end;
-            margin-top: var(--px-spacing-med);
+            margin-top: var(--ac-global-dimension-static-size-100);
           `}
         >
           <Button

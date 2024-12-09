@@ -11,6 +11,7 @@ from numpy.testing import assert_almost_equal
 from pandas.core.dtypes.common import is_object_dtype
 from sklearn import metrics as sk
 
+from phoenix.config import SKLEARN_VERSION
 from phoenix.core.model_schema import Column
 from phoenix.metrics.mixins import EvaluationMetric, EvaluationMetricKeywordParameters
 from phoenix.metrics.wrappers import Eval
@@ -99,7 +100,9 @@ def gen_df(
         (ev.mean_tweedie_deviance, sk.mean_tweedie_deviance, {}),
         (ev.median_absolute_error, sk.median_absolute_error, {}),
         (ev.r2_score, sk.r2_score, {}),
-        (ev.root_mean_squared_error, sk.mean_squared_error, {"squared": False}),
+        (ev.root_mean_squared_error, sk.mean_squared_error, {"squared": False})
+        if SKLEARN_VERSION < (1, 6)
+        else (ev.root_mean_squared_error, sk.root_mean_squared_error, {}),
     ],
 )
 def test_regression(

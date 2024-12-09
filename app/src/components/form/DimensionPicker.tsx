@@ -108,7 +108,7 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
           <div
             css={css`
               .ac-label {
-                margin-right: var(--px-spacing-med);
+                margin-right: var(--ac-global-dimension-static-size-100);
               }
             `}
           >
