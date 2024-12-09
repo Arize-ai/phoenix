@@ -103,8 +103,6 @@ def fetch_gcloud_audio_bytes(url: str) -> str:
         if not token:
             raise ValueError("Failed to retrieve a valid access token. Token is empty.")
 
-        print(token)
-
     except subprocess.CalledProcessError as e:
         # Handle errors in the subprocess call
         if e.returncode == 1:

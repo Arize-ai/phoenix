@@ -40,6 +40,7 @@ class PromptPart:
     content: str
 
 
+# TODO: ask about rename to PromptTemplatePart
 @dataclass
 class PromptPartTemplate:
     content_type: PromptPartContentType
@@ -125,6 +126,7 @@ class ClassificationTemplate(PromptTemplate):
         self,
         rails: List[str],
         template: Union[str, List[PromptPartTemplate]],
+        # TODO: ask about this being optional but is called in line 145
         explanation_template: Optional[Union[str, List[PromptPartTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
