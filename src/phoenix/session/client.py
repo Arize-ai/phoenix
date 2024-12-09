@@ -217,6 +217,7 @@ class Client(TraceDataExtractor):
     def get_evaluations(
         self,
         project_name: Optional[str] = None,
+        *,  # Only support kwargs from now on
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[Evaluations]:
         """
