@@ -1,30 +1,75 @@
 # Quickstart: Prompts
 
-## Dependencies
+## Getting Started
 
-if you are using Phoenix as a container, there is no additional steps required.\
-\
-If runnining Phoenix via Python, you must install optional dependencies on the machine that is running the Phoenix server.
+Prompt playground can be accessed from the left navbar of Phoenix.&#x20;
 
-Phoenix needs to be restarted before new providers will be available.
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.39.41 AM.png" alt=""><figcaption></figcaption></figure>
 
-If you try to select a model provider and the corresponding dependencies have not been installed, we will show you which dependencies need to be installed for that provider.
+Start by entering your API key for whichever model provider you'd like to use.
 
-<table><thead><tr><th width="196">Provider</th><th>Required Dependency</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li><code>pip install openai</code></li></ul></td></tr><tr><td>Azure OpenAI</td><td><ul><li><code>pip install openai</code></li></ul></td></tr><tr><td>Anthropic</td><td><ul><li><code>pip install anthropic</code></li></ul></td></tr><tr><td>Gemini</td><td><ul><li><code>pip install google-generativeai</code></li></ul></td></tr></tbody></table>
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.42.07 AM.png" alt=""><figcaption><p>Enter your model provider API key</p></figcaption></figure>
 
-## Credentials
+From here, you can directly prompt your model by modifying either the system or user prompt, and pressing the Run button on the top right.
 
-To securely provide your API keys, you have two options. One is to store them in your browser in local storage. Alternatively, you can set them as environment variables on the server side. If both are set at the same time, the credential set in the browser will take precedence.
+## Basic Example Use Case
 
-### Optional 1: Store API Keys in the Browser
+Let's start by comparing a few different prompt variations. Add two additional prompts using the +Prompt button, and update the system and user prompts like so:
 
-API keys can be entered in the playground application via the API Keys dropdown menu. This option stores API keys in the browser. Which API key is displayed in the menu depends on which provider is set in the model config. For example, to enter the API key for Anthropic, first select Anthropic as the provider in the model config.
+System prompt #1:
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/store_playground_api_keys_in_browser.png" alt=""><figcaption></figcaption></figure>
+```
+You are a summarization tool. Summarize the provided paragraph.
+```
 
-### Option 2: Set Environment Variables on Server Side
+System prompt #2:&#x20;
 
-If the following variables are set in the server environment, they'll be used at API invocation time.
+```
+You are a summarization tool. Summarize the provided paragraph in 2 sentences or less.
+```
 
-<table><thead><tr><th width="196">Provider</th><th>Environment Variable</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li>OPENAI_API_KEY</li></ul></td></tr><tr><td>Azure OpenAI</td><td><ul><li>AZURE_OPENAI_API_KEY</li><li>AZURE_OPENAI_ENDPOINT</li><li>OPENAI_API_VERSION</li></ul></td></tr><tr><td>Anthropic</td><td><ul><li>ANTHROPIC_API_KEY</li></ul></td></tr><tr><td>Gemini</td><td><ul><li>GEMINI_API_KEY or GOOGLE_API_KEY</li></ul></td></tr></tbody></table>
+System prompt #3:
 
+```
+You are a summarization tool. Summarize the provided paragraph. Make sure not to leave out any key points.
+```
+
+User prompt (use this for all three):
+
+```
+In software engineering, more specifically in distributed computing, observability is the ability to collect data about programs' execution, modules' internal states, and the communication among components.[1][2] To improve observability, software engineers use a wide range of logging and tracing techniques to gather telemetry information, and tools to analyze and use it. Observability is foundational to site reliability engineering, as it is the first step in triaging a service outage. One of the goals of observability is to minimize the amount of prior knowledge needed to debug an issue.
+```
+
+Your playground should look something like this:
+
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.49.57 AM.png" alt=""><figcaption><p>Example playground</p></figcaption></figure>
+
+Let's run it and compare results:
+
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.51.07 AM.png" alt=""><figcaption></figcaption></figure>
+
+This is just a basic example of prompt playground. The real power of the tool lies in replaying spans, or running over a dataset. Let's look at a dataset example. If you're interested in replaying spans, see [#span-replay](overview-prompts.md#span-replay "mention").
+
+## Running over a dataset
+
+Prompt playground can be used to run a series of dataset rows through your prompts. To start off, we'll need a dataset. Phoenix has many options to [upload a dataset](../datasets-and-experiments/how-to-datasets/), to keep things simple here, we'll directly upload a CSV. Download the articles summaries file linked below:
+
+{% file src="../.gitbook/assets/news-article-summaries-2024-11-04 11_08_10.csv" %}
+
+Next, create a new dataset from the Datasets tab in Phoenix, and specify the input and output columns like so:
+
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.29.18 AM.png" alt=""><figcaption><p>Uploading a CSV dataset</p></figcaption></figure>
+
+Now we can return to Prompt Playground, and this time choose our new dataset from the "Test over dataset" dropdown.
+
+We'll also need to update our prompt to look for the `{{input_article}}` column in our dataset.
+
+Now if we run our prompt(s), each row of the dataset will be run through each variation of our prompt.
+
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.34.54 AM.png" alt=""><figcaption></figcaption></figure>
+
+And if you return to view your dataset, you'll see the details of that run saved as an experiment.&#x20;
+
+<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 11.37.34 AM.png" alt=""><figcaption></figcaption></figure>
+
+From here, you could [evaluate that experiment](../datasets-and-experiments/how-to-experiments/#how-to-use-evaluators) to test its performance, or add complexity to your prompts by including different tools, output schemas, and models to test against.
