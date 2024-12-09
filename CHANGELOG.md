@@ -1,5 +1,46 @@
 # Changelog
 
+## [7.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.2.0...arize-phoenix-v7.0.0) (2024-12-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* release `sessions` feature ([#5674](https://github.com/Arize-ai/phoenix/issues/5674))
+
+### Features
+
+* release `sessions` feature ([#5674](https://github.com/Arize-ai/phoenix/issues/5674)) ([71ba01b](https://github.com/Arize-ai/phoenix/commit/71ba01b40e83f520d3f9225167e6bbc55e2a8be4))
+* **sesions:** add session details page ([#5225](https://github.com/Arize-ai/phoenix/issues/5225)) ([311c670](https://github.com/Arize-ai/phoenix/commit/311c6707f26eab38c36b296fdfff639f6452a0eb))
+* **sessions:** add ability to navigate from trace to session ([#5229](https://github.com/Arize-ai/phoenix/issues/5229)) ([640c1a8](https://github.com/Arize-ai/phoenix/commit/640c1a8fd42fb8982a1cec8806e6495e5192252d))
+* **sessions:** add db table for sessions ([#4961](https://github.com/Arize-ai/phoenix/issues/4961)) ([ab29149](https://github.com/Arize-ai/phoenix/commit/ab29149b7edef474558b5d5039e1ea2bfce1143d))
+* **sessions:** add last trace start time column to UI table for sessions ([#5481](https://github.com/Arize-ai/phoenix/issues/5481)) ([567c901](https://github.com/Arize-ai/phoenix/commit/567c90199b4180f31d51430d17b6a854dcdb5832))
+* **sessions:** add trace latency p50 to session details ([#5236](https://github.com/Arize-ai/phoenix/issues/5236)) ([4c07ec3](https://github.com/Arize-ai/phoenix/commit/4c07ec388007b4c590fbaa4fead748c6ee3358b4))
+* **sessions:** add trace latency percentiles to ui table ([#5482](https://github.com/Arize-ai/phoenix/issues/5482)) ([ed15bfc](https://github.com/Arize-ai/phoenix/commit/ed15bfc4c9874ebbc4a85820c589393e7c76dd45))
+* **sessions:** alembic data migration queries for populating the project sessions table ([#5539](https://github.com/Arize-ai/phoenix/issues/5539)) ([50f5794](https://github.com/Arize-ai/phoenix/commit/50f57948bb4e2f9c9a943870a8b034f703f0499f))
+* **sessions:** enable sorting on sessions table ([#5292](https://github.com/Arize-ai/phoenix/issues/5292)) ([09c4589](https://github.com/Arize-ai/phoenix/commit/09c458973a637704755558f48b71021809dfc4a3))
+* **sessions:** filter sessions via substring search on root span input output values ([#5257](https://github.com/Arize-ai/phoenix/issues/5257)) ([1cc985d](https://github.com/Arize-ai/phoenix/commit/1cc985d68991e346dfb9bff10e7e9f56dfa0bbfe))
+* **sessions:** getting started guide ([#5592](https://github.com/Arize-ai/phoenix/issues/5592)) ([5fa9bc5](https://github.com/Arize-ai/phoenix/commit/5fa9bc53fadb1ea6028b0402e5d9f45092df3fc0))
+* **sessions:** only recognize session id and user id on root spans ([#5351](https://github.com/Arize-ai/phoenix/issues/5351)) ([9786cf3](https://github.com/Arize-ai/phoenix/commit/9786cf37f502d02856f9cfb0925d6e091f4a5337))
+* **sessions:** session trace error count ([#5244](https://github.com/Arize-ai/phoenix/issues/5244)) ([13596d9](https://github.com/Arize-ai/phoenix/commit/13596d91c20c488421891e9036b322788a39ac45))
+* **sessions:** sessions table on project page ([#5204](https://github.com/Arize-ai/phoenix/issues/5204)) ([e495619](https://github.com/Arize-ai/phoenix/commit/e4956192355d31a5da867e4d85a3dde74dbd1ec9))
+
+
+### Bug Fixes
+
+* **sessions:** for each session record first user by earliest span start time ([#5227](https://github.com/Arize-ai/phoenix/issues/5227)) ([eb772bd](https://github.com/Arize-ai/phoenix/commit/eb772bd6878bb5d514ef412be9ab660baffa97f3))
+* **sessions:** remove deno style imports ([#5611](https://github.com/Arize-ai/phoenix/issues/5611)) ([846adfc](https://github.com/Arize-ai/phoenix/commit/846adfc8f3ed52a0687cac36648763ba4d3544f1))
+* **sessions:** remove end_time from db and ui table ([#5479](https://github.com/Arize-ai/phoenix/issues/5479)) ([16d9edd](https://github.com/Arize-ai/phoenix/commit/16d9eddb9a50e7b71068245adf269434fc36de5d))
+* **sessions:** remove requirement that session_id has to be on root span ([#5630](https://github.com/Arize-ai/phoenix/issues/5630)) ([21d6ddc](https://github.com/Arize-ai/phoenix/commit/21d6ddc41348115f4b966cb0ae17abfcdbeca290))
+* **sessions:** remove session_user from database table ([#5638](https://github.com/Arize-ai/phoenix/issues/5638)) ([923a198](https://github.com/Arize-ai/phoenix/commit/923a19875ed6b6465596f7c177d113d64cc60efe))
+* **sessions:** replace last_trace_start_time with end_time in database table ([#5640](https://github.com/Arize-ai/phoenix/issues/5640)) ([7b718b5](https://github.com/Arize-ai/phoenix/commit/7b718b5d859a44c4025f20a936b6dcd822c106a0))
+* **sessions:** separate migration script for populating the project sessions table ([#5612](https://github.com/Arize-ai/phoenix/issues/5612)) ([4beee16](https://github.com/Arize-ai/phoenix/commit/4beee1625252bfc8b94a3f9111ff13188d951d8b))
+* **sessions:** sortable last trace start time ([#5606](https://github.com/Arize-ai/phoenix/issues/5606)) ([0af00e5](https://github.com/Arize-ai/phoenix/commit/0af00e5bfbb8aa0b902c07aaa94fa243e07ae0a1))
+
+
+### Documentation
+
+* **sessions:** add note about pg extra ([#5620](https://github.com/Arize-ai/phoenix/issues/5620)) ([a292041](https://github.com/Arize-ai/phoenix/commit/a2920416cff31ed79650330c3b38efc0ea79b807))
+
 ## [6.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v6.1.0...arize-phoenix-v6.2.0) (2024-12-09)
 
 
