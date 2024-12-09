@@ -54,6 +54,7 @@ import {
   modelProviderToModelPrefixMap,
   OUTPUT_MESSAGES_PARSING_ERROR,
   OUTPUT_VALUE_PARSING_ERROR,
+  PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR,
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
   SPAN_ATTRIBUTES_PARSING_ERROR,
@@ -75,6 +76,7 @@ import {
   modelConfigWithInvocationParametersSchema,
   modelConfigWithResponseFormatSchema,
   outputSchema,
+  promptTemplateSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -469,6 +471,32 @@ export function getToolsFromAttributes(
   return { tools: processAttributeTools(data), parsingErrors: [] };
 }
 
+export function getPromptTemplateVariablesFromAttributes(
+  parsedAttributes: unknown
+):
+  | { variables: Record<string, string | undefined>; parsingErrors: never[] }
+  | { variables: null; parsingErrors: string[] } {
+  const { success, data } = promptTemplateSchema.safeParse(parsedAttributes);
+  if (!success) {
+    return {
+      variables: null,
+      parsingErrors: [PROMPT_TEMPLATE_VARIABLES_PARSING_ERROR],
+    };
+  }
+
+  // If there is no template or llm attributes, we don't want to return parsing errors, it just means the span didn't have a prompt template
+  if (data?.llm?.prompt_template == null) {
+    return {
+      variables: null,
+      parsingErrors: [],
+    };
+  }
+  return {
+    variables: data.llm.prompt_template.variables,
+    parsingErrors: [],
+  };
+}
+
 /**
  * Takes a  {@link PlaygroundSpan|Span} and attempts to transform it's attributes into various fields on a {@link PlaygroundInstance}.
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
@@ -485,6 +513,7 @@ export function transformSpanAttributesToPlaygroundInstance(
    * This field is used to store any issues encountered when parsing to display in the playground.
    */
   parsingErrors: string[];
+  playgroundInput?: PlaygroundInput;
 } {
   const basePlaygroundInstance = createPlaygroundInstance();
   const { json: parsedAttributes, parseError } = safelyParseJSON(
@@ -523,6 +552,8 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
     modelSupportedInvocationParameters
   );
+  const { variables, parsingErrors: promptTemplateVariablesParsingErrors } =
+    getPromptTemplateVariablesFromAttributes(parsedAttributes);
   // parse response format separately so that we can get distinct errors messages from the rest of
   // the invocation parameters
   const { parsingErrors: responseFormatParsingErrors } =
@@ -565,6 +596,8 @@ export function transformSpanAttributesToPlaygroundInstance(
       spanId: span.id,
       tools: tools ?? basePlaygroundInstance.tools,
     },
+    playgroundInput:
+      variables != null ? { variablesValueCache: variables } : undefined,
     parsingErrors: [
       ...messageParsingErrors,
       ...outputParsingErrors,
@@ -572,6 +605,7 @@ export function transformSpanAttributesToPlaygroundInstance(
       ...toolsParsingErrors,
       ...invocationParametersParsingErrors,
       ...responseFormatParsingErrors,
+      ...promptTemplateVariablesParsingErrors,
     ],
   };
 }
@@ -674,7 +708,7 @@ export const getVariablesMapFromInstances = ({
       acc[key] = variableValueCache[key] || "";
       return acc;
     },
-    {} as Record<string, string>
+    {} as NonNullable<PlaygroundInput["variablesValueCache"]>
   );
   return { variablesMap, variableKeys };
 };
