@@ -66,11 +66,7 @@ export function ComboBox<T extends object>({
       </div>
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
-      <Popover
-        css={comboBoxPopoverCSS}
-        UNSTABLE_portalContainer={container}
-        // isOpen
-      >
+      <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
         <ListBox>{children}</ListBox>
       </Popover>
     </AriaComboBox>
