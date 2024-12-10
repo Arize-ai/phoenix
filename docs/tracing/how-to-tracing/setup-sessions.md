@@ -13,7 +13,7 @@ If you are using LangChain, you can use LangChain's native threads to track sess
 See [https://docs.smith.langchain.com/old/monitoring/faq/threads](https://docs.smith.langchain.com/old/monitoring/faq/threads)
 {% endhint %}
 
-
+{% embed url="https://youtu.be/dzS6x0BE-EU?feature=shared" %}
 
 A `Session` is a sequence of traces representing a single session (e.g. a session or a thread). Each response is represented as its own trace, but these traces are linked together by being part of the same session.
 
