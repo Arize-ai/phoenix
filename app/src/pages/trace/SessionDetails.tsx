@@ -94,9 +94,11 @@ export function SessionDetails(props: SessionDetailsProps) {
                     }
                     input {
                       value
+                      mimeType
                     }
                     output {
                       value
+                      mimeType
                     }
                     cumulativeTokenCountTotal
                     cumulativeTokenCountCompletion
