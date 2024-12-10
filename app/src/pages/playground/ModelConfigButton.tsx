@@ -4,6 +4,7 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -314,14 +315,11 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
-      query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
+      query ModelConfigButtonDialogQuery {
         ...ModelProviderPickerFragment
-        ...ModelComboBoxFragment @arguments(providerKey: $providerKey)
       }
     `,
-    {
-      providerKey: instance.model.provider,
-    }
+    {}
   );
 
   const onModelNameChange = useCallback(
@@ -365,7 +363,6 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
         <ModelComboBox
           modelName={instance.model.modelName}
           provider={instance.model.provider}
-          query={query}
           onChange={onModelNameChange}
           container={container ?? undefined}
         />

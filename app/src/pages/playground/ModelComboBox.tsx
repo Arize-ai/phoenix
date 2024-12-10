@@ -1,92 +1,131 @@
-import React, { useMemo, useState } from "react";
-import { graphql, useFragment } from "react-relay";
+import React, { useEffect, useMemo, useState } from "react";
+import { Key } from "react-aria-components";
+import {
+  graphql,
+  PreloadedQuery,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 
 import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
 
-import { ModelComboBoxFragment$key } from "./__generated__/ModelComboBoxFragment.graphql";
+import modelsQuery, {
+  ModelComboBoxQuery,
+} from "./__generated__/ModelComboBoxQuery.graphql";
+type ModelItem = {
+  name: string;
+  id: string;
+};
 
 type ModelComboBoxProps = {
-  query: ModelComboBoxFragment$key;
   onChange: (model: string) => void;
   provider: ModelProvider;
   modelName: string | null;
   container?: HTMLElement;
 } & Omit<
-  ComboBoxProps<{ name: string }>,
+  ComboBoxProps<ModelItem>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
 >;
 
-export function ModelComboBox({
-  query,
+export function ModelComboBoxLoader({
   onChange,
   container,
-  ...props
-}: ModelComboBoxProps) {
-  const data = useFragment<ModelComboBoxFragment$key>(
-    graphql`
-      fragment ModelComboBoxFragment on Query
-      @argumentDefinitions(
-        providerKey: { type: "GenerativeProviderKey!", defaultValue: OPENAI }
-      ) {
-        models(input: { providerKey: $providerKey }) {
-          name
-        }
-      }
-    `,
-    query
-  );
-
-  const [modelInput, setModelInput] = useState("");
-
-  const items = useMemo(() => {
-    const items = data.models.map((model) => ({
+  modelName,
+  queryReference,
+  ...comboBoxProps
+}: ModelComboBoxProps & {
+  queryReference: PreloadedQuery<ModelComboBoxQuery>;
+}) {
+  const data = usePreloadedQuery(modelsQuery, queryReference);
+  const items = useMemo((): ModelItem[] => {
+    return data.models.map((model) => ({
       name: model.name,
       id: model.name,
     }));
+  }, [data.models]);
 
-    if (
-      modelInput !== "" &&
-      !items.some(
-        (model) =>
-          model.name.toLocaleLowerCase() === modelInput.toLocaleLowerCase()
-      )
-    ) {
-      items.push({ name: modelInput, id: modelInput });
+  const [fieldState, setFieldState] = useState({
+    selectedKey: modelName ?? null,
+    inputValue: modelName ?? "",
+  });
+
+  const onSelectionChange = (key: Key | null) => {
+    if (typeof key === "string") {
+      const item = items.find((item) => item.id === key);
+      item?.name != null && onChange(item.name);
     }
-    if (
-      props.modelName &&
-      !items.some((model) => model.name === props.modelName)
-    ) {
-      items.push({ name: props.modelName, id: props.modelName });
-    }
-    return items;
-  }, [data.models, modelInput, props.modelName]);
+  };
+
+  const onInputChange = (value: string) => {
+    setFieldState((prevState) => ({
+      inputValue: value,
+      selectedKey: prevState.selectedKey,
+    }));
+  };
+
+  useEffect(() => {
+    setFieldState({
+      selectedKey: modelName ?? null,
+      inputValue: modelName ?? "",
+    });
+  }, [modelName]);
+
   return (
     <ComboBox
-      label={"Model"}
       size="L"
       data-testid="model-picker"
-      // Fallback to empty string here otherwise the picker will complain about switching from a controlled to uncontrolled component
-      // It can't distinguish between undefined and intentionally null
-      selectedKey={props.modelName ?? ""}
+      selectedKey={fieldState.selectedKey}
       aria-label="model picker"
-      onInputChange={setModelInput}
-      onSelectionChange={(key) => {
-        if (typeof key === "string") {
-          onChange(key);
+      onInputChange={onInputChange}
+      inputValue={fieldState.inputValue}
+      onSelectionChange={onSelectionChange}
+      width={"100%"}
+      allowsCustomValue
+      onBlur={() => {
+        if (fieldState.inputValue !== "") {
+          onChange(fieldState.inputValue);
         }
       }}
-      width={"100%"}
-      {...props}
-      defaultItems={items}
+      onKeyUp={(e) => {
+        if (e.key === "Enter") {
+          onChange(fieldState.inputValue);
+        }
+      }}
       menuTrigger="focus"
       container={container}
+      description={"Select a model or type one in and hit enter"}
+      defaultItems={items}
+      {...comboBoxProps}
     >
-      {(item) => (
-        <ComboBoxItem key={item.name} textValue={item.name}>
-          {item.name}
-        </ComboBoxItem>
-      )}
+      {(item) => {
+        return (
+          <ComboBoxItem key={item.id} textValue={item.name} id={item.id}>
+            {item.name}
+          </ComboBoxItem>
+        );
+      }}
     </ComboBox>
   );
 }
+
+export function ModelComboBox(props: ModelComboBoxProps) {
+  const [queryReference, loadQuery, disposeQuery] =
+    useQueryLoader<ModelComboBoxQuery>(modelsQuery);
+
+  useEffect(() => {
+    loadQuery({ providerKey: props.provider });
+    return () => disposeQuery();
+  }, [disposeQuery, loadQuery, props.provider]);
+
+  return queryReference != null ? (
+    <ModelComboBoxLoader queryReference={queryReference} {...props} />
+  ) : null;
+}
+
+graphql`
+  query ModelComboBoxQuery($providerKey: GenerativeProviderKey!) {
+    models(input: { providerKey: $providerKey }) {
+      name
+    }
+  }
+`;

@@ -13,7 +13,6 @@ import {
   Text,
   ValidationResult,
 } from "react-aria-components";
-import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
@@ -59,7 +58,11 @@ export function ComboBox<T extends object>({
       </div>
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
-      <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
+      <Popover
+        css={comboBoxPopoverCSS}
+        UNSTABLE_portalContainer={container}
+        // isOpen
+      >
         <ListBox>{children}</ListBox>
       </Popover>
     </AriaComboBox>
@@ -75,12 +78,13 @@ export interface ListBoxItemProps<T = object>
 }
 
 export function ComboBoxItem(props: ListBoxItemProps) {
+  const { children, ...rest } = props;
   return (
-    <ListBoxItem {...props} css={comboBoxItemCSS}>
+    <ListBoxItem {...rest} key={rest.id} css={comboBoxItemCSS}>
       {({ isSelected }) => {
         return (
           <>
-            {props.children}
+            {children}
             {isSelected && (
               <Icon
                 svg={<Icons.CheckmarkOutline />}
