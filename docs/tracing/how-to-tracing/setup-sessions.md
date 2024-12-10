@@ -4,8 +4,8 @@ description: How to track sessions across multiple traces
 
 # Setup Sessions
 
-{% hint style="warning" %}
-Sessions will be available in Phoenix 7.0
+{% hint style="success" %}
+Sessions UI is available in Phoenix 7.0 and requires an upgrade
 {% endhint %}
 
 {% hint style="info" %}
