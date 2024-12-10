@@ -1,0 +1,23 @@
+{
+  "name": "@arizeai/phoenix-evals",
+  "version": "0.0.0",
+  "description": "An evaluation library for LLM applications",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "esnext": "dist/esnext/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json tsconfig.esnext.json",
+    "type:check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ELv2"
+}
