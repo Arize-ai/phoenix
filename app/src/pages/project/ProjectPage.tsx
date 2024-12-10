@@ -175,7 +175,7 @@ export function ProjectPageContent({
             );
           }}
         </TabPane>
-        <TabPane name="Spans" title="Spans">
+        <TabPane name="Spans">
           {({ isSelected }) => {
             return (
               isSelected &&
@@ -189,7 +189,7 @@ export function ProjectPageContent({
             );
           }}
         </TabPane>
-        <TabPane name="Sessions" title="Sessions">
+        <TabPane name="Sessions">
           {({ isSelected }) => {
             return (
               isSelected &&
