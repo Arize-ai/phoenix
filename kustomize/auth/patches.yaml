@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: phoenix
+spec:
+  template:
+    spec:
+      containers:
+      - name: phoenix
+        env:
+        - name: PHOENIX_ENABLE_AUTH
+          value: "true"
+        # When enabling Auth, you must provide a secret
+        # In this example, first set a Kubernetes Secret with:
+        # kubectl create secret generic phoenix-secret --from-literal=secret-key='[YOUR-SECRET]'
+        - name: PHOENIX_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: phoenix-secret
+              key: secret-key
