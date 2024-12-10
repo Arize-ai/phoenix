@@ -56,6 +56,7 @@ class MistralAIModel(BaseModel):
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
     response_format: Optional[Dict[str, str]] = None
+    api_key: Optional[str] = os.getenv("MISTRAL_API_KEY")
     safe_prompt: bool = False
     initial_rate_limit: int = 5
 
@@ -77,7 +78,7 @@ class MistralAIModel(BaseModel):
                 package_min_version=MINIMUM_MISTRAL_VERSION,
             )
 
-        self._client = Mistral(os.getenv("MISTRAL_API_KEY"))
+        self._client = Mistral(api_key=self.api_key)
         self._mistral_sdk_error = SDKError
 
     def _init_rate_limiter(self) -> None:
