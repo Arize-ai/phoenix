@@ -4,7 +4,6 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";

@@ -48,7 +48,14 @@ export function ComboBox<T extends object>({
   ...props
 }: ComboBoxProps<T>) {
   return (
-    <AriaComboBox {...props} css={comboBoxCSS(props.width)} data-size={size}>
+    <AriaComboBox
+      {...props}
+      css={comboBoxCSS}
+      data-size={size}
+      style={{
+        width: props.width,
+      }}
+    >
       <Label>{label}</Label>
       <div className="px-combobox-container">
         <Input />
