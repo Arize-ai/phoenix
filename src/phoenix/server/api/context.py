@@ -108,6 +108,7 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    locked: bool = False
     auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None
