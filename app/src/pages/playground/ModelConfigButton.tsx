@@ -38,7 +38,7 @@ import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
-import { ModelPicker } from "./ModelPicker";
+import { ModelComboBox } from "./ModelComboBox";
 import { ModelProviderPicker } from "./ModelProviderPicker";
 import { areRequiredInvocationParametersConfigured } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -314,14 +314,11 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
 
   const query = useLazyLoadQuery<ModelConfigButtonDialogQuery>(
     graphql`
-      query ModelConfigButtonDialogQuery($providerKey: GenerativeProviderKey!) {
+      query ModelConfigButtonDialogQuery {
         ...ModelProviderPickerFragment
-        ...ModelPickerFragment @arguments(providerKey: $providerKey)
       }
     `,
-    {
-      providerKey: instance.model.provider,
-    }
+    {}
   );
 
   const onModelNameChange = useCallback(
@@ -335,6 +332,8 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
     },
     [playgroundInstanceId, updateModel]
   );
+
+  const [container, setContainer] = useState<HTMLElement | null>();
 
   return (
     <form css={modelConfigFormCSS}>
@@ -360,16 +359,17 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
       {instance.model.provider === "AZURE_OPENAI" ? (
         <AzureOpenAiModelConfigFormField instance={instance} />
       ) : (
-        <ModelPicker
+        <ModelComboBox
           modelName={instance.model.modelName}
           provider={instance.model.provider}
-          query={query}
           onChange={onModelNameChange}
+          container={container ?? undefined}
         />
       )}
       <Suspense>
         <InvocationParametersFormFields instanceId={playgroundInstanceId} />
       </Suspense>
+      <div ref={setContainer} />
     </form>
   );
 }
