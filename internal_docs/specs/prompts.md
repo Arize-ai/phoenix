@@ -104,3 +104,19 @@ Every time you save a new version of a prompt, it is saved with a new commit. Yo
 ### Tags
 
 You may want to tag prompt version with a human-readable tag so that you can refer to it even as new versions are added. Common use cases include tagging a prompt with dev or prod tags. This allows you to track which versions of prompts are used where.
+
+It might be worth considering having pre-configured tags when a prompt template is created (e.g. heads/main)
+
+## Analytics
+
+One of the benefits of using Phoenix as a source of prompts is that analytics about a given prompt can be tracked over time. This includes:
+
+- The number of times a prompt has been used
+- first used
+- last used
+- linking of traces to a prompt
+- ...
+
+This can be useful for tracking the effectiveness of a prompt over time.
+
+This could mean that when a prompt is used, context attributes can be set.
