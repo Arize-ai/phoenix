@@ -73,6 +73,8 @@ export function ModelComboBoxLoader({
   return (
     <ComboBox
       size="L"
+      label="Model"
+      isRequired
       data-testid="model-picker"
       selectedKey={fieldState.selectedKey}
       aria-label="model picker"
@@ -93,7 +95,7 @@ export function ModelComboBoxLoader({
       }}
       menuTrigger="focus"
       container={container}
-      description={"Select a model or type one in and hit enter"}
+      description={"Choose a model from the list, or enter a custom model name"}
       defaultItems={items}
       {...comboBoxProps}
     >
