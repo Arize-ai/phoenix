@@ -45,6 +45,7 @@ export function ComboBox<T extends object>({
   children,
   container,
   size = "M",
+  width,
   ...props
 }: ComboBoxProps<T>) {
   return (
@@ -53,7 +54,7 @@ export function ComboBox<T extends object>({
       css={comboBoxCSS}
       data-size={size}
       style={{
-        width: props.width,
+        width,
       }}
     >
       <Label>{label}</Label>
@@ -87,7 +88,7 @@ export interface ListBoxItemProps<T = object>
 export function ComboBoxItem(props: ListBoxItemProps) {
   const { children, ...rest } = props;
   return (
-    <ListBoxItem {...rest} key={rest.id} css={comboBoxItemCSS}>
+    <ListBoxItem {...rest} css={comboBoxItemCSS}>
       {({ isSelected }) => {
         return (
           <>
