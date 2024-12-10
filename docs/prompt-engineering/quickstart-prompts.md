@@ -1,12 +1,10 @@
 # Quickstart: Prompts
 
+{% embed url="https://youtu.be/wLK5RwHNLUM?feature=shared" %}
+
 ## Getting Started
 
-Prompt playground can be accessed from the left navbar of Phoenix.&#x20;
-
-<figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.39.41 AM.png" alt=""><figcaption></figcaption></figure>
-
-Start by entering your API key for whichever model provider you'd like to use.
+Prompt playground can be accessed from the left navbar of Phoenix. Start by entering your API key for whichever model provider you'd like to use.
 
 <figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.42.07 AM.png" alt=""><figcaption><p>Enter your model provider API key</p></figcaption></figure>
 
