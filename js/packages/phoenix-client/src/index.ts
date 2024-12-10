@@ -43,6 +43,7 @@ export const createClient = ({
     ...environmentOptions,
     ...options,
   };
+  // eslint-disable-next-line no-console
   console.dir(mergedOptions, { depth: null });
   return createOpenApiClient<pathsV1>(mergedOptions);
 };
