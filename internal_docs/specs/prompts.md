@@ -142,9 +142,25 @@ There might come a time when you want to create your own copy of a prompt templa
 
 If prompts are collaborative, versioned entities, I might want to pick up from a given snapshot of a prompt in my IDE.
 
-1a. I use `phoenix.client` to pull down a prompt template (maybe a specific tag or version is specified)
-1b. I go to the Phoenix UI and copy the prompt template into my code. 2. Run experiments or run the application using the updated prompt. 3. Modify the prompt locally in my IDE. I can then push the prompt back to Phoenix as a new candidate version.
+1. I use `phoenix.client` to pull down a prompt template (maybe a specific tag or version is specified)
+2. Alternatively, I go to the Phoenix UI and copy the prompt template into my code. 2. Run experiments or run the application using the updated prompt. 3. Modify the prompt locally in my IDE. I can then push the prompt back to Phoenix as a new candidate version.
 
 ### Using a prompt in production
 
 If I am managing prompts in Phoenix, I might want to know which traces are associated with a given prompt. This can be useful as you can track the effectiveness of a prompt over time and see if certain tweaks result in better performance under real-world conditions.
+
+### Testing an alternative prompt template on an LLM Span
+
+Say I used a prompt template to invoke an LLM, I then want to re-use the data stored on the span to test an alternative prompt template.
+
+1. I export the span to a dataset
+2. I load the dataset in step 1 into the prompt playground
+3. I load the prompt template into the playground
+4. I iterate on alternatives to the prompt template
+
+## Technical Considerations
+
+Prompt templates are really an artifact that should live as close as possible to the source code. For that reason if you are relying on Phoenix to be a source of truth of the template, there should be mechanisms to reduce this risk. Some options include:
+
+- caching
+- syncing
