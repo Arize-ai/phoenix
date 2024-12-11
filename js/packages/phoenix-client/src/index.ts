@@ -22,28 +22,40 @@ export type Types = {
 };
 
 /**
+ * Merge all configuration options according to priority:
+ * defaults < environment < explicit options
+ *
+ * Headers are simply replaced, not merged.
+ */
+export const getMergedOptions = ({
+  options = {},
+  getEnvironmentOptions = defaultGetEnvironmentOptions,
+}: {
+  options?: Partial<ClientOptions>;
+  getEnvironmentOptions?: () => Partial<ClientOptions>;
+} = {}): ClientOptions => {
+  const defaultOptions = makeDefaultClientOptions();
+  const environmentOptions = getEnvironmentOptions();
+  return {
+    ...defaultOptions,
+    ...environmentOptions,
+    ...options,
+  };
+};
+
+/**
  * Create a Phoenix client.
  *
  * @param configuration - The configuration to use for the client.
  * @param configuration.options - The options to use for the client's OpenAPI Fetch wrapper.
  * @returns The Phoenix client.
  */
-export const createClient = ({
-  options = {},
-}: {
-  options?: Partial<ClientOptions>;
-  getEnvironmentOptions?: () => Partial<ClientOptions>;
-} = {}) => {
-  const defaultOptions = makeDefaultClientOptions();
-  // we could potentially inject an "environment" object from configuration here
-  // in the future, but for now, we'll just use process.env if it exists
-  const environmentOptions = defaultGetEnvironmentOptions();
-  const mergedOptions = {
-    ...defaultOptions,
-    ...environmentOptions,
-    ...options,
-  };
-  // eslint-disable-next-line no-console
-  console.dir(mergedOptions, { depth: null });
+export const createClient = (
+  config: {
+    options?: Partial<ClientOptions>;
+    getEnvironmentOptions?: () => Partial<ClientOptions>;
+  } = {},
+) => {
+  const mergedOptions = getMergedOptions(config);
   return createOpenApiClient<pathsV1>(mergedOptions);
 };
