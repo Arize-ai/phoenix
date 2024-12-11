@@ -2,7 +2,7 @@
 
 This package provides a client for the Phoenix API.
 
-It utililizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
+It utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
 
 ## Installation
 
