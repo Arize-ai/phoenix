@@ -1,5 +1,22 @@
 # Changelog
 
+## [7.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.0.1...arize-phoenix-v7.1.0) (2024-12-11)
+
+
+### Features
+
+* **playground:** support arbitrary string model names ([#5645](https://github.com/Arize-ai/phoenix/issues/5645)) ([c4999fe](https://github.com/Arize-ai/phoenix/commit/c4999fea0009f62b8a9f6404bfa3c20c885358c0))
+* **playground:** Support gemini-2.0-flash-exp model ([#5708](https://github.com/Arize-ai/phoenix/issues/5708)) ([77a3583](https://github.com/Arize-ai/phoenix/commit/77a3583058853e22adc06a909979c00f2058432e))
+* Prettify rendered json mimeType inputs/outputs in session details pane ([#5648](https://github.com/Arize-ai/phoenix/issues/5648)) ([f8ff082](https://github.com/Arize-ai/phoenix/commit/f8ff082c614f151e2447d13631fe9702abf2944a))
+
+
+### Bug Fixes
+
+* add locked mode ([#5636](https://github.com/Arize-ai/phoenix/issues/5636)) ([7d4b3b8](https://github.com/Arize-ai/phoenix/commit/7d4b3b830600d1683382955428d1f2699b812600))
+* compute trace latency rather than relying on root span latency ([#5615](https://github.com/Arize-ai/phoenix/issues/5615)) ([7bd7274](https://github.com/Arize-ai/phoenix/commit/7bd727470694833ee18efc1d5006340833ca46e4))
+* prevent useless tooltips from appearing in projects ([#5692](https://github.com/Arize-ai/phoenix/issues/5692)) ([e4d754c](https://github.com/Arize-ai/phoenix/commit/e4d754c59202b922db0e996c374f89a461822b64))
+* **ui:** support light mode for tool coice picker ([#5693](https://github.com/Arize-ai/phoenix/issues/5693)) ([6c5b43d](https://github.com/Arize-ai/phoenix/commit/6c5b43d2d613d9d10d71dec748189c3948379751))
+
 ## [7.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.0.0...arize-phoenix-v7.0.1) (2024-12-09)
 
 
