@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.0...arize-phoenix-v7.1.1) (2024-12-11)
+
+
+### Bug Fixes
+
+* increase python upper bound to include python 3.13 ([#5706](https://github.com/Arize-ai/phoenix/issues/5706)) ([4431a0e](https://github.com/Arize-ai/phoenix/commit/4431a0e62470e501d75a5b2c9377c2e0f70a6404))
+
 ## [7.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.0.1...arize-phoenix-v7.1.0) (2024-12-11)
 
 
