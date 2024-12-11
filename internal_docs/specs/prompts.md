@@ -7,7 +7,6 @@ As a user of Phoenix, I want to be able to create, store, and modify the prompts
 ## Terminology
 
 - **Prompts** refer to the message(s) that are passed into the language model.
-
 - **Prompt Templates** refer a way of formatting information to get the prompt to hold the information you want (such as context and examples) Prompt templates can include placeholders (variables) for things such as examples (e.x. few-shot), outside context (RAG), or any other external data that is needed.
 - **Prompt Type** refer to the different types of prompts that can be used with the language model. For example, Chat, String. The primary prompt type will be Chat as it is the most common.
 
@@ -120,3 +119,32 @@ One of the benefits of using Phoenix as a source of prompts is that analytics ab
 This can be useful for tracking the effectiveness of a prompt over time.
 
 This could mean that when a prompt is used, context attributes can be set.
+
+## User Journeys
+
+### First time creating a prompt
+
+1. Create a new prompt template in the prompt playground, test it out until you are happy with it. Maybe create a small dataset that tracks the input and expected output of the prompt.
+2. Save the prompt template and optionally mark it as the version to use in "production" (YOLO)
+3. Continue to iterate on the prompt template, marking possible candidates for the next version.
+4. Run experiments, continuously comparing the new experiments with the experiment that was run on the last production version of the prompt.
+5. When you've created an experiment that results in a better evaluation, you mark the new version as the production version.
+
+### Forking a prompt
+
+There might come a time when you want to create your own copy of a prompt template. This might be because you want to try out a new model or you want to make destructive changes to a prompt.
+
+1. Fork the prompt template. The prompt template carries over the history of the prompt.
+2. Make changes to the prompt template. You can make as many changes as you want, including the model
+3. When I look at the experiments that have been run, I can filter by the prompt template "name" and "version" so that I can just analyze the experiments that have been run on the forked template.
+
+### Using a prompt in my IDE or code
+
+If prompts are collaborative, versioned entities, I might want to pick up from a given snapshot of a prompt in my IDE.
+
+1a. I use `phoenix.client` to pull down a prompt template (maybe a specific tag or version is specified)
+1b. I go to the Phoenix UI and copy the prompt template into my code. 2. Run experiments or run the application using the updated prompt. 3. Modify the prompt locally in my IDE. I can then push the prompt back to Phoenix as a new candidate version.
+
+### Using a prompt in production
+
+If I am managing prompts in Phoenix, I might want to know which traces are associated with a given prompt. This can be useful as you can track the effectiveness of a prompt over time and see if certain tweaks result in better performance under real-world conditions.
