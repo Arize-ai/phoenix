@@ -6,7 +6,6 @@ import { Example } from "./datasets";
  * An experiment is a set of task runs on a dataset version
  */
 export interface Experiment extends Node {
-  id: string;
   datasetId: string;
   datasetVersionId: string;
   repetitions: number;
@@ -20,7 +19,6 @@ export interface Experiment extends Node {
  * The result of running an experiment on a single example
  */
 export interface ExperimentRun extends Node {
-  id: string;
   startTime: Date;
   endTime: Date;
   /**
