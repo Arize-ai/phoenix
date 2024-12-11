@@ -447,7 +447,6 @@ def audio_classify(
     async def _run_llm_classification_async(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
-            print(prompt)
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
