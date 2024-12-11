@@ -55,10 +55,6 @@ importers:
         specifier: ^4.19.1
         version: 4.19.2
 
-  packages/phoenix-evals: {}
-
-  packages/phoenix-types: {}
-
 packages:
 
   '@babel/code-frame@7.26.2':
