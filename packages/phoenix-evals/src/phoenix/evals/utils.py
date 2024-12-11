@@ -1,4 +1,6 @@
+import base64
 import json
+import subprocess
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.error import HTTPError
@@ -6,6 +8,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
+import requests
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
@@ -174,3 +177,43 @@ def _default_openai_function(
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
         tqdm.write(*args, **kwargs)
+
+def fetch_gcloud_audio_bytes(url: str) -> str:
+    token = None
+    try:
+        # Execute the gcloud command to fetch the access token
+        output = subprocess.check_output(["gcloud", "auth", "print-access-token"],
+                                         stderr=subprocess.STDOUT)
+        token = output.decode("UTF-8").strip()
+
+        # Ensure the token is not empty or None
+        if not token:
+            raise ValueError("Failed to retrieve a valid access token. Token is empty.")
+
+    except subprocess.CalledProcessError as e:
+        # Handle errors in the subprocess call
+        if e.returncode == 1:
+            print(f"Error executing gcloud command: {e.output.decode('UTF-8').strip()}")
+            raise RuntimeError("Failed to execute gcloud auth command. You may not be logged in.")
+    except Exception as e:
+        # Catch any other exceptions and re-raise them with additional context
+        raise RuntimeError(f"An unexpected error occurred: {str(e)}")
+
+    # Set the token in the header
+    gcloud_header = {"Authorization": f"Bearer {token}"}
+
+    # Must ensure that the url begins with storage.googleapis..., rather than store.cloud.google...
+    G_API_HOST = "https://storage.googleapis.com/"
+    is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith(
+        "gs://") or url.startswith(G_API_HOST)
+    g_api_url = url.replace("https://storage.cloud.google.com/", G_API_HOST) if is_gcloud else url
+
+    # Get a response back, present the status
+    response = requests.get(g_api_url, headers=gcloud_header)
+    response.raise_for_status()
+
+    # Convert the audio byte data to a base64-encoded string, then decodes to usable UTF-8 format
+    encoded_string = base64.b64encode(response.content).decode('utf-8')
+
+    return encoded_string
+    #return Audio(content=encoded_string, format=AudioFormat.WAV)
