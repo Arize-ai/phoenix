@@ -27,7 +27,7 @@ export interface ExperimentRun extends Node {
   experimentId: string;
   datasetExampleId: string;
   repetitionNumber: number;
-  output?: string | {} | null;
+  output?: string | Record<string, unknown> | null;
   error: string | null;
   traceId: string | null;
 }
