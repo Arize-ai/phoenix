@@ -5,8 +5,6 @@
     "rootDir": ".",
     "types": ["node"],
     "baseUrl": "./src",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "noUncheckedIndexedAccess": true
   },
   "files": [],

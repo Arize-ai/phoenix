@@ -1,7 +1,9 @@
 {
-  "extends": "./tsconfig.base.es5.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "module": "ES6",
-    "moduleResolution": "node"
+    "target": "ES2020",
+    "moduleResolution": "node10",
+    "module": "ES2020",
+    "lib": ["ES2020"]
   }
 }
