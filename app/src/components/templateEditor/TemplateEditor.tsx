@@ -20,7 +20,7 @@ type TemplateEditorProps = ReactCodeMirrorProps & {
 };
 
 const basicSetupOptions: BasicSetupOptions = {
-  lineNumbers: false,
+  lineNumbers: true,
   highlightActiveLine: false,
   foldGutter: false,
   highlightActiveLineGutter: false,
