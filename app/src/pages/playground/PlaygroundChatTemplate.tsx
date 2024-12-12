@@ -265,8 +265,8 @@ function MessageEditor({
     <div
       css={css`
         & .cm-content {
-          padding-left: var(--ac-global-dimension-size-250);
-          padding-right: var(--ac-global-dimension-size-250);
+          padding: var(--ac-global-dimension-size-100)
+            var(--ac-global-dimension-size-250);
         }
         & .cm-gutter,
         & .cm-content {
