@@ -135,7 +135,7 @@ function SideNav() {
             <NavLink
               to="/prompts"
               text="Prompts"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              icon={<Icon svg={<Icons.MessageSquareOutline />} />}
             />
           </li>
           <li>

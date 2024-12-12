@@ -40,6 +40,7 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  PromptsPage,
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
