@@ -268,6 +268,10 @@ function MessageEditor({
           padding-left: var(--ac-global-dimension-size-250);
           padding-right: var(--ac-global-dimension-size-250);
         }
+        & .cm-gutter,
+        & .cm-content {
+          min-height: 75px;
+        }
         & .cm-line {
           padding-left: 0;
           padding-right: 0;
@@ -284,6 +288,13 @@ function MessageEditor({
         aria-label="Message content"
         templateLanguage={templateLanguage}
         onChange={(val) => updateMessage({ content: val })}
+        placeholder={
+          message.role === "system"
+            ? "You are a helpful assistant"
+            : message.role === "ai"
+              ? "Hello, how can I help you today?"
+              : "What is the weather in San Francisco?"
+        }
       />
     </div>
   );
