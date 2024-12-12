@@ -5,7 +5,7 @@ description: How to track sessions across multiple traces
 # Setup Sessions
 
 {% hint style="success" %}
-Sessions UI is available in Phoenix 7.0 and requires an upgrade
+Sessions UI is available in Phoenix 7.0 and requires a db migration if you're coming from an older version of Phoenix.
 {% endhint %}
 
 {% hint style="info" %}
@@ -18,6 +18,16 @@ See [https://docs.smith.langchain.com/old/monitoring/faq/threads](https://docs.s
 A `Session` is a sequence of traces representing a single session (e.g. a session or a thread). Each response is represented as its own trace, but these traces are linked together by being part of the same session.
 
 To associate traces together, you need to pass in a special metadata key where the value is the unique identifier for that thread.
+
+## Example Notebooks
+
+| Use Case                         | Language | Links                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OpenAI tracing with Sessions     | Python   | <p><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a><br><a href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20GitHub&#x26;logo=github&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=white&#x26;label=%20" alt="Open in GitHub"></a></p>                  |
+| LlamaIndex tracing with Sessions | Python   | <p><a href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20Colab&#x26;logo=googlecolab&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=orange&#x26;label=%20" alt="Open in Colab"></a><br><a href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb"><img src="https://img.shields.io/static/v1?message=Open%20in%20GitHub&#x26;logo=github&#x26;labelColor=grey&#x26;color=blue&#x26;logoColor=white&#x26;label=%20" alt="Open in GitHub"></a></p> |
+| OpenAI tracing with Sessions     | TS/JS    | [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb)                                                                                                                                                                                                                                                                                                                                                                                           |
+
+## Logging Conversations
 
 Below is an example of logging conversations:
 
@@ -173,6 +183,4 @@ For LangChain, in order to log runs as part of the same thread you need to pass 
 * `session_id`
 * `thread_id`
 * `conversation_id`.
-
-
 
