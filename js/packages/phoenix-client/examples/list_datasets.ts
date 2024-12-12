@@ -17,6 +17,7 @@ type Dataset = Types["V1"]["components"]["schemas"]["Dataset"];
 // Process each dataset, using TypeScript types
 function listDatasets(datasets: Dataset[]) {
   datasets.forEach((dataset, index) => {
+    // eslint-disable-next-line no-console
     console.log(`${index + 1}. ${dataset.name} (${dataset.id})`);
   });
 }

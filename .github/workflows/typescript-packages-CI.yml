@@ -1,0 +1,51 @@
+name: Typescript Packages CI
+
+on:
+  push:
+    branches: [main, js]
+  pull_request:
+    paths:
+      - "js/**"
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: test-typescript-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI Typescript
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Set up Nodejs
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - name: Install Dependencies
+        working-directory: ./js
+        run: pnpm install --frozen-lockfile -r
+      - name: Build
+        working-directory: ./js
+        run: pnpm run -r build
+      - name: Test
+        working-directory: ./js
+        run: pnpm run -r test
+      - name: Formatting
+        working-directory: ./js
+        run: |
+          pnpm run prettier:check
+      - name: Type Checking
+        working-directory: ./js
+        run: |
+          pnpm run type:check
+      - name: Linting
+        working-directory: ./js
+        run: |
+          pnpm run lint
