@@ -159,9 +159,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -189,12 +188,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.9]
         os: [ubuntu-latest]
-        exclude:
-          - py: 3.13
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -221,8 +217,7 @@ jobs:
     if: ${{ needs.changes.outputs.proto == 'true' }}
     strategy:
       matrix:
-        # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
-        py: [3.11]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
