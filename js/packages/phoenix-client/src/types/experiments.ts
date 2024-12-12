@@ -32,6 +32,14 @@ export interface ExperimentRun extends Node {
   traceId: string | null;
 }
 
+export type Evaluator = {
+  name: string;
+  evaluate: (args: {
+    output: TaskOutput;
+    expected?: TaskOutput;
+  }) => Promise<EvaluationResult> | EvaluationResult;
+};
+
 export type EvaluationResult = {
   score: number | null;
   label: string | null;
@@ -59,9 +67,9 @@ export interface ExperimentEvaluationRun extends Node {
 
 export type TaskOutput = string | boolean | number | object | null;
 
-export type ExperimentTask =
-  | ((example: Example) => Promise<TaskOutput>)
-  | ((example: Example) => TaskOutput);
+export type ExperimentTask = (
+  example: Example,
+) => Promise<TaskOutput> | TaskOutput;
 
 export interface ExperimentParameters {
   /**

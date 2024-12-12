@@ -59,3 +59,5 @@ export const createClient = (
   const mergedOptions = getMergedOptions(config);
   return createOpenApiClient<pathsV1>(mergedOptions);
 };
+
+export type PhoenixClient = ReturnType<typeof createClient>;
