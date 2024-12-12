@@ -3,6 +3,7 @@ import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, {
   BasicSetupOptions,
+  EditorView,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 
@@ -33,7 +34,7 @@ export const TemplateEditor = ({
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
-    const ext: TemplateEditorProps["extensions"] = [];
+    const ext: TemplateEditorProps["extensions"] = [EditorView.lineWrapping];
     switch (templateLanguage) {
       case TemplateLanguages.FString:
         ext.push(FStringTemplating());
