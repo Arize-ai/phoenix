@@ -28,42 +28,77 @@ async def insert_span(
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     if (
         project_rowid := await session.scalar(
-            select(models.Project.id).where(models.Project.name == project_name)
+            select(models.Project.id).filter_by(name=project_name)
         )
     ) is None:
         project_rowid = await session.scalar(
-            insert(models.Project).values(dict(name=project_name)).returning(models.Project.id)
+            insert(models.Project).values(name=project_name).returning(models.Project.id)
         )
     assert project_rowid is not None
-    if trace := await session.scalar(
-        select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
-    ):
-        trace_rowid = trace.id
-        if span.start_time < trace.start_time or trace.end_time < span.end_time:
-            trace_start_time = min(trace.start_time, span.start_time)
-            trace_end_time = max(trace.end_time, span.end_time)
-            await session.execute(
-                update(models.Trace)
-                .where(models.Trace.id == trace_rowid)
-                .values(
-                    start_time=trace_start_time,
-                    end_time=trace_end_time,
-                )
-            )
+
+    trace_id = span.context.trace_id
+    trace: models.Trace = await session.scalar(
+        select(models.Trace).filter_by(trace_id=trace_id)
+    ) or models.Trace(trace_id=trace_id)
+
+    if trace.id is not None:
+        # Trace record may need to be updated.
+        if trace.end_time < span.end_time:
+            trace.end_time = span.end_time
+            trace.project_rowid = project_rowid
+        if span.start_time < trace.start_time:
+            trace.start_time = span.start_time
     else:
-        trace_rowid = cast(
-            int,
-            await session.scalar(
-                insert(models.Trace)
-                .values(
-                    project_rowid=project_rowid,
-                    trace_id=span.context.trace_id,
-                    start_time=span.start_time,
-                    end_time=span.end_time,
-                )
-                .returning(models.Trace.id)
-            ),
+        # Trace record needs to be persisted for the first time.
+        trace.start_time = span.start_time
+        trace.end_time = span.end_time
+        trace.project_rowid = project_rowid
+        session.add(trace)
+
+    session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
+    session_id = str(session_id).strip() if session_id is not None else ""
+    assert isinstance(session_id, str)
+
+    project_session: Optional[models.ProjectSession] = None
+    if trace.project_session_rowid is not None:
+        # ProjectSession record already exists in database for this Trace record, so we fetch
+        # it because it may need to be updated. However, the session_id on the span, if exists,
+        # will be ignored at this point. Otherwise, if session_id is different, we will need
+        # to create a new ProjectSession record, as well as to determine whether the old record
+        # needs to be deleted if this is the last Trace associated with it.
+        project_session = await session.scalar(
+            select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
         )
+    elif session_id:
+        project_session = await session.scalar(
+            select(models.ProjectSession).filter_by(session_id=session_id)
+        ) or models.ProjectSession(session_id=session_id)
+
+    if project_session is not None:
+        if project_session.id is None:
+            # ProjectSession record needs to be persisted for the first time.
+            project_session.start_time = trace.start_time
+            project_session.end_time = trace.end_time
+            project_session.project_id = project_rowid
+            session.add(project_session)
+            await session.flush()
+            assert project_session.id is not None
+            trace.project_session_rowid = project_session.id
+        else:
+            # ProjectSession record may need to be updated.
+            if trace.project_session_rowid is None:
+                trace.project_session_rowid = project_session.id
+            if trace.start_time < project_session.start_time:
+                project_session.start_time = trace.start_time
+            if project_session.end_time < trace.end_time:
+                project_session.end_time = trace.end_time
+
+    await session.flush()
+    assert trace.id is not None
+    assert project_session is None or (
+        project_session.id is not None and project_session.id == trace.project_session_rowid
+    )
+
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(
         int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
@@ -94,7 +129,7 @@ async def insert_span(
         insert_on_conflict(
             dict(
                 span_id=span.context.span_id,
-                trace_rowid=trace_rowid,
+                trace_rowid=trace.id,
                 parent_id=span.parent_id,
                 span_kind=span.span_kind.value,
                 name=span.name,

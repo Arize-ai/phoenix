@@ -59,7 +59,7 @@ export function ModelPage(_props: ModelPageProps) {
       </Toolbar>
       <section
         css={css`
-          margin: var(--px-spacing-lg);
+          margin: var(--ac-global-dimension-static-size-200);
         `}
       >
         <TabbedCard

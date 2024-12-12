@@ -17,7 +17,7 @@ export const Loading = ({ message, size }: LoadingProps) => {
         align-items: center;
         width: 100%;
         height: 100%;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
       `}
     >
       <ProgressCircle isIndeterminate aria-label="loading" size={size} />

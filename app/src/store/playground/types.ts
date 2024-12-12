@@ -88,7 +88,6 @@ export type Tool = {
  * A single instance of the playground that has
  * - a template
  * - tools
- * - input (dataset or manual)
  * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {

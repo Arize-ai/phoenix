@@ -99,7 +99,7 @@ export function ClusterSortPicker() {
             aria-hidden
             data-testid="dropdown-caret"
             css={css`
-              margin-left: var(--px-spacing-sm);
+              margin-left: var(--ac-global-dimension-static-size-50);
               border-bottom-color: #0000;
               border-left-color: #0000;
               border-right-color: #0000;

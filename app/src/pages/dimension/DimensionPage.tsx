@@ -85,7 +85,7 @@ export function DimensionPage() {
         <Dialog size="L" title={loaderData.dimension.name}>
           <main
             css={css`
-              padding: var(--px-spacing-med);
+              padding: var(--ac-global-dimension-static-size-100);
               display: flex;
               flex-direction: column;
               min-height: 400px;

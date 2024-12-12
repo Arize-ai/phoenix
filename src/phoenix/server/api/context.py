@@ -31,12 +31,18 @@ from phoenix.server.api.dataloaders import (
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
     RecordCountDataLoader,
+    SessionIODataLoader,
+    SessionNumTracesDataLoader,
+    SessionNumTracesWithErrorDataLoader,
+    SessionTokenUsagesDataLoader,
+    SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
-    TraceRowIdsDataLoader,
+    TraceByTraceIdsDataLoader,
+    TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -68,12 +74,19 @@ class DataLoaders:
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     record_counts: RecordCountDataLoader
+    session_first_inputs: SessionIODataLoader
+    session_last_outputs: SessionIODataLoader
+    session_num_traces: SessionNumTracesDataLoader
+    session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
+    session_token_usages: SessionTokenUsagesDataLoader
+    session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
-    trace_row_ids: TraceRowIdsDataLoader
+    trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_root_spans: TraceRootSpansDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader
     user_roles: UserRolesDataLoader
@@ -95,6 +108,7 @@ class Context(BaseContext):
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     corpus: Optional[Model] = None
     read_only: bool = False
+    locked: bool = False
     auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None

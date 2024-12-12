@@ -63,24 +63,16 @@ export function GlobalStyles() {
         :root {
           --px-blue-color: ${theme.colors.arizeBlue};
 
-          --px-flex-gap-sm: ${theme.spacing.margin4}px;
-          --px-flex-gap-sm: ${theme.spacing.margin8}px;
-
           --px-section-background-color: ${theme.colors.gray500};
+
+          /** The color of shadows on menus etc. */
+          --px-overlay-shadow-color: rgba(0, 0, 0, 0.4);
 
           /* An item is a typically something in a list */
           --px-item-background-color: ${theme.colors.gray800};
           --px-item-border-color: ${theme.colors.gray600};
 
-          --px-spacing-sm: ${theme.spacing.padding4}px;
-          --px-spacing-med: ${theme.spacing.padding8}px;
-          --px-spacing-lg: ${theme.spacing.padding16}px;
-
-          --px-border-radius-med: ${theme.borderRadius.medium}px;
-
-          --px-font-size-sm: ${theme.typography.sizes.small.fontSize}px;
-          --px-font-size-med: ${theme.typography.sizes.medium.fontSize}px;
-          --px-font-size-lg: ${theme.typography.sizes.large.fontSize}px;
+          --px-font-weight-heavy: 600;
 
           --px-gradient-bar-height: 8px;
 

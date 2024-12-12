@@ -11,7 +11,7 @@ export function TimestampCell<TData extends object, TValue>({
 }: CellContext<TData, TValue>) {
   const value = getValue();
   if (!isStringOrNull(value)) {
-    throw new Error("TimestampCell only supports number or null values.");
+    throw new Error("TimestampCell only supports string or null values.");
   }
   const timestamp =
     value != null

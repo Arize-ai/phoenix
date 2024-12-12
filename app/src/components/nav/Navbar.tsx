@@ -9,8 +9,9 @@ import { useTheme } from "@phoenix/contexts";
 import { Logo } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--px-spacing-med) var(--px-spacing-med) var(--px-spacing-med)
-    12px;
+  padding: var(--ac-global-dimension-static-size-100)
+    var(--ac-global-dimension-static-size-100)
+    var(--ac-global-dimension-static-size-100) 12px;
   border-bottom: 1px solid var(--ac-global-color-grey-200);
   flex: none;
   display: flex;
@@ -20,7 +21,8 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--px-spacing-lg) var(--px-spacing-med);
+  padding: var(--ac-global-dimension-static-size-200)
+    var(--ac-global-dimension-static-size-100);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -75,7 +77,7 @@ const brandCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
-  margin: 0 0 var(--px-spacing-lg) 0;
+  margin: 0 0 var(--ac-global-dimension-static-size-200) 0;
 `;
 
 const GitHubSVG = () => (

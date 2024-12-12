@@ -1,8 +1,9 @@
 # ruff: noqa: E501
-
+import base64
 from datetime import datetime
-from typing import Any
+from typing import Any, NamedTuple
 
+import httpx
 import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
@@ -10,8 +11,11 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
+from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _gid, _node
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
@@ -1132,3 +1136,279 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                 },
             ],
         )
+
+
+class _Data(NamedTuple):
+    spans: list[models.Span]
+    traces: list[models.Trace]
+    project_sessions: list[models.ProjectSession]
+    projects: list[models.Project]
+
+
+class TestProject:
+    @staticmethod
+    async def _node(
+        field: str,
+        project: models.Project,
+        httpx_client: httpx.AsyncClient,
+    ) -> Any:
+        return await _node(field, Project.__name__, project.id, httpx_client)
+
+    @pytest.fixture
+    async def _data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        projects, project_sessions, traces, spans = [], [], [], []
+        async with db() as session:
+            projects.append(await _add_project(session))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "a\"'b"}, "output": {"value": "c\"'d"}}
+            spans.append(await _add_span(session, traces[-1], attributes=attributes))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "e\"'f"}, "output": {"value": "g\"'h"}}
+            spans.append(
+                await _add_span(
+                    session,
+                    traces[-1],
+                    attributes=attributes,
+                    cumulative_llm_token_count_prompt=1,
+                )
+            )
+            attributes = {"input": {"value": "i\"'j"}, "output": {"value": "k\"'l"}}
+            spans.append(await _add_span(session, parent_span=spans[-1], attributes=attributes))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            spans.append(
+                await _add_span(
+                    session,
+                    traces[-1],
+                    cumulative_llm_token_count_completion=2,
+                )
+            )
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            spans.append(await _add_span(session, traces[-1]))
+
+            project_sessions.append(await _add_project_session(session, projects[-1]))
+            traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
+            attributes = {"input": {"value": "g\"'h"}, "output": {"value": "e\"'f"}}
+            spans.append(
+                await _add_span(
+                    session,
+                    traces[-1],
+                    attributes=attributes,
+                    cumulative_llm_token_count_completion=1,
+                )
+            )
+            spans.append(await _add_span(session, traces[-1]))
+
+        return _Data(
+            spans=spans,
+            traces=traces,
+            project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    async def test_sessions_sort_token_count_total(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        column = "tokenCountTotal"
+        project = _data.projects[0]
+        result: list[str] = [
+            _gid(_data.project_sessions[2]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[0]),
+        ]
+
+        for direction, expected in {"desc": result, "asc": result[::-1]}.items():
+            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == expected
+
+        # Test pagination
+        first = 2
+        cursors = [b"3:INT:2", b"4:INT:1", b"2:INT:1", b"1:INT:0"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
+        }.items():
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
+                field = (
+                    "sessions(sort:{col:"
+                    + column
+                    + ",dir:"
+                    + direction
+                    + "},first:"
+                    + str(first)
+                    + ',after:"'
+                    + base64.b64encode(after).decode()
+                    + '"){edges{node{id}}}'
+                )
+                res = await self._node(field, project, httpx_client)
+                assert [e["node"]["id"] for e in res["edges"]] == expected
+
+    async def test_sessions_sort_token_count_total_plus_substring_filter(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        column = "tokenCountTotal"
+        project = _data.projects[0]
+        result: list[str] = [
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+        ]
+
+        for direction, expected in {"desc": result, "asc": result[::-1]}.items():
+            field = (
+                "sessions(sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+            )
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == expected
+
+        # Test pagination
+        first = 2
+        cursors = [b"4:INT:1", b"2:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
+        }.items():
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
+                field = (
+                    "sessions(sort:{col:"
+                    + column
+                    + ",dir:"
+                    + direction
+                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + str(first)
+                    + ',after:"'
+                    + base64.b64encode(after).decode()
+                    + '"){edges{node{id}}}'
+                )
+                res = await self._node(field, project, httpx_client)
+                assert [e["node"]["id"] for e in res["edges"]] == expected
+
+    async def test_sessions_sort_num_traces(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        column = "numTraces"
+        project = _data.projects[0]
+        result: list[str] = [
+            _gid(_data.project_sessions[2]),
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[0]),
+        ]
+
+        for direction, expected in {"desc": result, "asc": result[::-1]}.items():
+            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == expected
+
+        # Test pagination
+        first = 2
+        cursors = [b"3:INT:2", b"4:INT:1", b"2:INT:1", b"1:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
+        }.items():
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
+                field = (
+                    "sessions(sort:{col:"
+                    + column
+                    + ",dir:"
+                    + direction
+                    + "},first:"
+                    + str(first)
+                    + ',after:"'
+                    + base64.b64encode(after).decode()
+                    + '"){edges{node{id}}}'
+                )
+                res = await self._node(field, project, httpx_client)
+                assert [e["node"]["id"] for e in res["edges"]] == expected
+
+    async def test_sessions_sort_num_traces_plus_substring_filter(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        column = "numTraces"
+        project = _data.projects[0]
+        result: list[str] = [
+            _gid(_data.project_sessions[3]),
+            _gid(_data.project_sessions[1]),
+        ]
+
+        for direction, expected in {"desc": result, "asc": result[::-1]}.items():
+            field = (
+                "sessions(sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+            )
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == expected
+
+        # Test pagination
+        first = 2
+        cursors = [b"4:INT:1", b"2:INT:1"]
+        for direction, (afters, ids) in {
+            "desc": ([b""] + cursors, result),
+            "asc": ([b""] + cursors[::-1], result[::-1]),
+        }.items():
+            for i, after in enumerate(afters):
+                expected = ids[i : i + first]
+                field = (
+                    "sessions(sort:{col:"
+                    + column
+                    + ",dir:"
+                    + direction
+                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + str(first)
+                    + ',after:"'
+                    + base64.b64encode(after).decode()
+                    + '"){edges{node{id}}}'
+                )
+                res = await self._node(field, project, httpx_client)
+                assert [e["node"]["id"] for e in res["edges"]] == expected
+
+    async def test_sessions_substring_search_looks_at_both_input_and_output(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+        res = await self._node(field, project, httpx_client)
+        assert {e["node"]["id"] for e in res["edges"]} == {
+            _gid(_data.project_sessions[1]),
+            _gid(_data.project_sessions[3]),
+        }
+
+    async def test_sessions_substring_search_looks_at_only_root_spans(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
+        res = await self._node(field, project, httpx_client)
+        assert {e["node"]["id"] for e in res["edges"]} == set()

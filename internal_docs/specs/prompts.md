@@ -143,7 +143,9 @@ There might come a time when you want to create your own copy of a prompt templa
 If prompts are collaborative, versioned entities, I might want to pick up from a given snapshot of a prompt in my IDE.
 
 1. I use `phoenix.client` to pull down a prompt template (maybe a specific tag or version is specified)
-2. Alternatively, I go to the Phoenix UI and copy the prompt template into my code. 2. Run experiments or run the application using the updated prompt. 3. Modify the prompt locally in my IDE. I can then push the prompt back to Phoenix as a new candidate version.
+2. Alternatively, I go to the Phoenix UI and copy the prompt template into my code.
+3. Run experiments or run the application using the updated prompt.
+4. Modify the prompt locally in my IDE. I can then push the prompt back to Phoenix as a new candidate version.
 
 ### Using a prompt in production
 
@@ -164,3 +166,11 @@ Prompt templates are really an artifact that should live as close as possible to
 
 - caching
 - syncing
+
+### Server-Side Catching
+
+A solution to server-side caching would be to carefully structure the URL of the REST APIs so that caching occurs at the network level. In addition to this, the server could also cache certain versions of the prompt template (notably a tagged version).
+
+### Client-Side Caching
+
+We will leverage the SDK to cache the prompt templates locally after pull. This will allow for faster access to the prompt templates and will reduce the number of requests to the server. The client should operate to always try to pull off the network (unless using a version specifier). In the case of a network failure, the client should use a cached version of the prompt template. If there is no cache, we might want to consider a graceful fallback.
