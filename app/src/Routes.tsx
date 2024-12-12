@@ -180,7 +180,7 @@ const router = createBrowserRouter(
               />
             </Route>
             <Route
-              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              path="spans/:spanId"
               element={<SpanPlaygroundPage />}
               loader={spanPlaygroundPageLoader}
               handle={{
@@ -192,6 +192,14 @@ const router = createBrowserRouter(
                 },
               }}
             />
+          </Route>
+          <Route
+            path="/prompts"
+            handle={{
+              crumb: () => "Prompts",
+            }}
+          >
+            <Route index element={<PromptsPage />} />
           </Route>
           <Route
             path="/apis"
