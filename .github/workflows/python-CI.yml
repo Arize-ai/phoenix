@@ -159,9 +159,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -189,12 +188,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
-      fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.9]
         os: [ubuntu-latest]
-        exclude:
-          - py: 3.13
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
