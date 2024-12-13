@@ -54,36 +54,22 @@ export async function runExperiment({
   // TODO: Summarize repetitions
   type ExperimentRunId = string;
   const runs: Record<ExperimentRunId, ExperimentRun> = {};
-  const run = async ({ repetition }: { repetition: number }) => {
-    for (const example of dataset.examples) {
-      const thisRun: ExperimentRun = {
-        id: id(),
-        traceId: id(),
-        experimentId: experiment.id,
-        datasetExampleId: example.id,
-        startTime: new Date(),
-        repetitionNumber: repetition,
-        endTime: new Date(), // will get replaced with actual end time
-        output: null,
-        error: null,
-      };
-      try {
-        const taskOutput = await promisifyResult(task(example));
-        thisRun.output = JSON.stringify(taskOutput);
-      } catch (error) {
-        thisRun.error =
-          error instanceof Error ? error.message : "Unknown error";
-      }
-      thisRun.endTime = new Date();
-      runs[thisRun.id] = thisRun;
-    }
-  };
   await Promise.all(
-    Array.from({ length: repetitions }, (_, i) => run({ repetition: i + 1 })),
+    Array.from({ length: repetitions }, (_, i) =>
+      runTask({
+        repetition: i + 1,
+        experimentId: experiment.id,
+        task,
+        dataset,
+        onComplete: (run) => {
+          runs[run.id] = run;
+        },
+      }),
+    ),
   );
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
-  console.info(`✅ Task completed`);
+  console.info(`✅ Task runs completed`);
 
   // TODO: Evaluate runs
 
@@ -92,6 +78,51 @@ export async function runExperiment({
     params: experimentParams,
     runs,
   };
+}
+
+/**
+ * Run a task against all examples in a dataset.
+ */
+function runTask({
+  experimentId,
+  task,
+  dataset,
+  repetition,
+  onComplete,
+}: {
+  /** The id of the experiment */
+  experimentId: string;
+  /** The task to run */
+  task: ExperimentTask;
+  /** The dataset to run the task on */
+  dataset: Dataset;
+  /** The repetition number */
+  repetition: number;
+  /** A callback to call when the task is complete */
+  onComplete: (run: ExperimentRun) => void;
+}) {
+  const run = async (example: Example) => {
+    const thisRun: ExperimentRun = {
+      id: id(),
+      traceId: id(),
+      experimentId,
+      datasetExampleId: example.id,
+      startTime: new Date(),
+      repetitionNumber: repetition,
+      endTime: new Date(), // will get replaced with actual end time
+      output: null,
+      error: null,
+    };
+    try {
+      const taskOutput = await promisifyResult(task(example));
+      thisRun.output = JSON.stringify(taskOutput);
+    } catch (error) {
+      thisRun.error = error instanceof Error ? error.message : "Unknown error";
+    }
+    thisRun.endTime = new Date();
+    onComplete(thisRun);
+  };
+  return Promise.all(dataset.examples.map(run));
 }
 
 /**
