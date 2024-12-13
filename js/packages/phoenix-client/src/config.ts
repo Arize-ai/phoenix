@@ -29,7 +29,7 @@ const fromEnvironment = (environment: unknown) => {
  * @returns The converted ClientOptions object.
  */
 const phoenixEnvironmentToClientOptions = (
-  environment: PhoenixEnvironment,
+  environment: PhoenixEnvironment
 ): Partial<ClientOptions> => {
   const options: Partial<ClientOptions> = {
     baseUrl: environment.PHOENIX_HOST,
@@ -39,7 +39,7 @@ const phoenixEnvironmentToClientOptions = (
   // filter out undefined values
   // this will prevent clobbering over default values when merging
   return Object.fromEntries(
-    Object.entries(options).filter(([_, v]) => v !== undefined),
+    Object.entries(options).filter(([_, v]) => v !== undefined)
   );
 };
 

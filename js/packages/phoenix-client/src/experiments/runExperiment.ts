@@ -54,8 +54,8 @@ export async function runExperiment({
   console.info(
     `🧪 Starting experiment ${experimentName} on ${dataset.id} with ${task.name} and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
-      evaluators?.length ?? 0,
-    )}`,
+      evaluators?.length ?? 0
+    )}`
   );
 
   // Run task against all examples, for each repetition
@@ -72,8 +72,8 @@ export async function runExperiment({
         onComplete: (run) => {
           runs[run.id] = run;
         },
-      }),
-    ),
+      })
+    )
   );
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
@@ -172,7 +172,7 @@ export async function evaluateExperiment({
   invariant(dataset, `Dataset ${experiment.datasetId} not found`);
   invariant(
     dataset.examples.length > 0,
-    `Dataset ${experiment.datasetId} has no examples`,
+    `Dataset ${experiment.datasetId} has no examples`
   );
   invariant(experiment.runs, `Experiment ${experiment.id} has no runs`);
   // TODO: logger w/ verbosity
@@ -180,8 +180,8 @@ export async function evaluateExperiment({
   console.info(
     `🧠 Evaluating experiment ${experiment.id} with ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
-      evaluators?.length ?? 0,
-    )}`,
+      evaluators?.length ?? 0
+    )}`
   );
   type EvaluationId = string;
   const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
@@ -205,10 +205,10 @@ export async function evaluateExperiment({
             run,
             exampleCache: examplesById,
             onComplete: onEvaluationComplete,
-          }),
-        ),
-      ),
-    ),
+          })
+        )
+      )
+    )
   );
 
   return {
@@ -295,7 +295,7 @@ async function getDataset({
  */
 export function asEvaluator(
   name: string,
-  evaluate: Evaluator["evaluate"],
+  evaluate: Evaluator["evaluate"]
 ): Evaluator {
   return {
     name,

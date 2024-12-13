@@ -54,7 +54,7 @@ export const createClient = (
   config: {
     options?: Partial<ClientOptions>;
     getEnvironmentOptions?: () => Partial<ClientOptions>;
-  } = {},
+  } = {}
 ) => {
   const mergedOptions = getMergedOptions(config);
   return createOpenApiClient<pathsV1>(mergedOptions);
