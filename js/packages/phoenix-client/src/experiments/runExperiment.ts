@@ -23,6 +23,9 @@ export type RunExperimentParams = {
   projectName?: string;
 };
 
+/**
+ * Run an experiment.
+ */
 export async function runExperiment({
   experimentName,
   client: _client,
@@ -46,7 +49,7 @@ export async function runExperiment({
     datasetId: dataset.id,
     datasetVersionId: dataset.versionId,
     repetitions,
-    projectName: projectName,
+    projectName,
   };
 
   // TODO: logger w/ verbosity
@@ -91,10 +94,6 @@ export async function runExperiment({
     client,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
-
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(`✅ Evaluation runs completed`);
 
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
@@ -175,6 +174,14 @@ export async function evaluateExperiment({
     `Dataset ${experiment.datasetId} has no examples`
   );
   invariant(experiment.runs, `Experiment ${experiment.id} has no runs`);
+
+  if (evaluators?.length === 0) {
+    return {
+      ...experiment,
+      evaluationRuns: [],
+    };
+  }
+
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
   console.info(
@@ -210,6 +217,10 @@ export async function evaluateExperiment({
       )
     )
   );
+
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(`✅ Evaluation runs completed`);
 
   return {
     ...experiment,
@@ -273,12 +284,29 @@ async function runEvaluator({
  */
 async function getDataset({
   dataset,
+  client,
 }: {
   dataset: Dataset | string | Example[];
   client: PhoenixClient;
 }): Promise<Dataset> {
   if (typeof dataset === "string") {
-    throw new Error("TODO: implement dataset fetching by id");
+    const datasetResponse = await client
+      .GET(`/v1/datasets/{id}`, { params: { path: { id: dataset } } })
+      .then((d) => d.data?.data);
+    invariant(datasetResponse, `Dataset ${dataset} not found`);
+    const examples = await client
+      .GET(`/v1/datasets/{id}/examples`, { params: { path: { id: dataset } } })
+      .then((e) => e.data?.data);
+    invariant(examples, `Examples for dataset ${dataset} not found`);
+    const datasetWithExamples: Dataset = {
+      ...datasetResponse,
+      examples: examples.examples.map((example) => ({
+        ...example,
+        updatedAt: new Date(example.updated_at),
+      })),
+      versionId: examples.version_id,
+    };
+    return datasetWithExamples;
   }
   if (Array.isArray(dataset)) {
     throw new Error("TODO: implement dataset creation from examples");
@@ -310,7 +338,7 @@ export function asEvaluator(
  * @returns A unique id.
  */
 export function id(): string {
-  let id = 0;
+  let id = 1000;
   return (() => {
     id++;
     return id.toString();

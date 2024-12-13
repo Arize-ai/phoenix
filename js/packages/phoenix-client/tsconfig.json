@@ -8,6 +8,6 @@
     "noUncheckedIndexedAccess": true
   },
   "files": [],
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "examples/**/*.ts", "test/**/*.ts"],
   "references": []
 }
