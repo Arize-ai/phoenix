@@ -331,6 +331,8 @@ export function asEvaluator(
   };
 }
 
+let _id = 1000;
+
 /**
  * Generate a unique id.
  *
@@ -338,9 +340,8 @@ export function asEvaluator(
  * @returns A unique id.
  */
 export function id(): string {
-  let id = 1000;
   return (() => {
-    id++;
-    return id.toString();
+    _id++;
+    return _id.toString();
   })();
 }
