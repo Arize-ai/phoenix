@@ -3,19 +3,22 @@ import { createClient, type PhoenixClient } from "../client";
 import type {
   Evaluator,
   Experiment,
+  ExperimentEvaluationRun,
   ExperimentParameters,
   ExperimentRun,
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
 import { promisifyResult } from "utils/promisifyResult";
+import invariant from "tiny-invariant";
+import { pluralize } from "utils/pluralize";
 
 export type RunExperimentParams = {
   experimentName: string;
   client?: PhoenixClient;
   dataset: Dataset | string | Example[];
   task: ExperimentTask;
-  evaluators: Evaluator[];
+  evaluators?: Evaluator[];
   repetitions?: number;
   projectName?: string;
 };
@@ -31,6 +34,8 @@ export async function runExperiment({
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDataset({ dataset: _dataset, client });
+  invariant(dataset, `Dataset not found`);
+  invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const experimentParams: ExperimentParameters = {
     nRepetitions: repetitions,
     // TODO: Make configurable?
@@ -47,7 +52,10 @@ export async function runExperiment({
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
   console.info(
-    `🧪 Running experiment ${experimentName} on ${dataset.id} with ${task} and ${evaluators.length} evaluators`,
+    `🧪 Starting experiment ${experimentName} on ${dataset.id} with ${task.name} and ${evaluators?.length ?? 0} ${pluralize(
+      "evaluator",
+      evaluators?.length ?? 0,
+    )}`,
   );
 
   // Run task against all examples, for each repetition
@@ -71,13 +79,28 @@ export async function runExperiment({
   // eslint-disable-next-line no-console
   console.info(`✅ Task runs completed`);
 
-  // TODO: Evaluate runs
-
-  return {
+  const ranExperiment: RanExperiment = {
     ...experiment,
     params: experimentParams,
     runs,
   };
+
+  const { evaluationRuns } = await evaluateExperiment({
+    experiment: ranExperiment,
+    evaluators: evaluators ?? [],
+    client,
+  });
+  ranExperiment.evaluationRuns = evaluationRuns;
+
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(`✅ Evaluation runs completed`);
+
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(`✅ Experiment ${experiment.id} completed`);
+
+  return ranExperiment;
 }
 
 /**
@@ -101,6 +124,9 @@ function runTask({
   /** A callback to call when the task is complete */
   onComplete: (run: ExperimentRun) => void;
 }) {
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(`🔧 Running task ${task.name} on dataset ${dataset.id}`);
   const run = async (example: Example) => {
     const thisRun: ExperimentRun = {
       id: id(),
@@ -115,6 +141,7 @@ function runTask({
     };
     try {
       const taskOutput = await promisifyResult(task(example));
+      // TODO: why doesn't run output type match task output type?
       thisRun.output = JSON.stringify(taskOutput);
     } catch (error) {
       thisRun.error = error instanceof Error ? error.message : "Unknown error";
@@ -123,6 +150,115 @@ function runTask({
     onComplete(thisRun);
   };
   return Promise.all(dataset.examples.map(run));
+}
+
+export async function evaluateExperiment({
+  experiment,
+  evaluators,
+  client: _client,
+}: {
+  /**
+   * The experiment to evaluate
+   * @todo also accept Experiment, and attempt to fetch the runs from the server
+   **/
+  experiment: RanExperiment;
+  /** The evaluators to use */
+  evaluators: Evaluator[];
+  /** The client to use */
+  client?: PhoenixClient;
+}): Promise<RanExperiment> {
+  const client = _client ?? createClient();
+  const dataset = await getDataset({ dataset: experiment.datasetId, client });
+  invariant(dataset, `Dataset ${experiment.datasetId} not found`);
+  invariant(
+    dataset.examples.length > 0,
+    `Dataset ${experiment.datasetId} has no examples`,
+  );
+  invariant(experiment.runs, `Experiment ${experiment.id} has no runs`);
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(
+    `🧠 Evaluating experiment ${experiment.id} with ${evaluators?.length ?? 0} ${pluralize(
+      "evaluator",
+      evaluators?.length ?? 0,
+    )}`,
+  );
+  type EvaluationId = string;
+  const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
+
+  const examplesById: Record<string, Example> = {};
+  for (const example of dataset.examples) {
+    examplesById[example.id] = example;
+  }
+
+  const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
+    evaluationRuns[run.id] = run;
+  };
+
+  // Run evaluators against all runs
+  await Promise.all(
+    evaluators.map((evaluator) =>
+      Promise.all(
+        Object.values(experiment.runs).map((run) =>
+          runEvaluator({
+            evaluator,
+            run,
+            exampleCache: examplesById,
+            onComplete: onEvaluationComplete,
+          }),
+        ),
+      ),
+    ),
+  );
+
+  return {
+    ...experiment,
+    evaluationRuns: Object.values(evaluationRuns),
+  };
+}
+
+/**
+ * Run an evaluator against a run.
+ */
+async function runEvaluator({
+  evaluator,
+  run,
+  exampleCache,
+  onComplete,
+}: {
+  evaluator: Evaluator;
+  run: ExperimentRun;
+  exampleCache: Record<string, Example>;
+  onComplete: (run: ExperimentEvaluationRun) => void;
+}) {
+  const example = exampleCache[run.datasetExampleId];
+  invariant(example, `Example ${run.datasetExampleId} not found`);
+  const evaluate = async () => {
+    const thisEval: ExperimentEvaluationRun = {
+      id: id(),
+      traceId: id(),
+      experimentRunId: run.id,
+      startTime: new Date(),
+      endTime: new Date(), // will get replaced with actual end time
+      name: evaluator.name,
+      result: null,
+      error: null,
+      annotatorKind: "LLM", // TODO: make configurable via evaluator def
+    };
+    try {
+      const result = await evaluator.evaluate({
+        output: run.output ?? null,
+        expected: example.output,
+      });
+      thisEval.result = result;
+    } catch (error) {
+      thisEval.error = error instanceof Error ? error.message : "Unknown error";
+    }
+    thisEval.endTime = new Date();
+    onComplete(thisEval);
+  };
+
+  return evaluate();
 }
 
 /**

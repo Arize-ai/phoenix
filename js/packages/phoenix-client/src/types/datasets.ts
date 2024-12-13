@@ -7,7 +7,7 @@ export interface Example extends Node {
   id: string;
   updatedAt: Date;
   input: Record<string, unknown>;
-  output: Record<string, unknown>;
+  output: Record<string, unknown> | null;
   metadata: Record<string, unknown>;
 }
 

@@ -18,6 +18,7 @@ export interface Experiment extends Node {
 export interface RanExperiment extends Experiment {
   params: ExperimentParameters;
   runs: Record<string, ExperimentRun>;
+  evaluationRuns?: ExperimentEvaluationRun[];
 }
 
 /**
@@ -67,7 +68,7 @@ export interface ExperimentEvaluationRun extends Node {
    * The trace id of the evaluation
    * This is null if the trace is deleted or never recorded
    */
-  trace_id: string | null;
+  traceId: string | null;
 }
 
 export type TaskOutput = string | boolean | number | object | null;
