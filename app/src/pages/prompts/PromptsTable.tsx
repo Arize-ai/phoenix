@@ -1,10 +1,9 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -15,45 +14,37 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import { PromptsTable_datasets$key } from "./__generated__/PromptsTable_datasets.graphql";
+import { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
 
 const PAGE_SIZE = 100;
 
 type PromptsTableProps = {
-  query: PromptsTable_datasets$key;
+  query: PromptsTable_prompts$key;
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     PromptsTablePromptsQuery,
-    PromptsTable_datasets$key
+    PromptsTable_prompts$key
   >(
     graphql`
-      fragment PromptsTable_datasets on Query
+      fragment PromptsTable_prompts on Query
       @refetchable(queryName: "PromptsTablePromptsQuery")
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
-        sort: {
-          type: "DatasetSort"
-          defaultValue: { col: createdAt, dir: desc }
-        }
       ) {
-        datasets(first: $first, after: $after, sort: $sort)
-          @connection(key: "PromptsTable_datasets") {
+        prompts(first: $first, after: $after)
+          @connection(key: "PromptsTable_prompts") {
           edges {
-            node {
+            prompt: node {
               id
               name
               description
-              metadata
               createdAt
-              exampleCount
-              experimentCount
             }
           }
         }
@@ -61,8 +52,9 @@ export function PromptsTable(props: PromptsTableProps) {
     `,
     props.query
   );
+
   const tableData = useMemo(
-    () => data.datasets.edges.map((edge) => edge.node),
+    () => data.prompts.edges.map((edge) => edge.prompt),
     [data]
   );
   const fetchMoreOnBottomReached = React.useCallback(
@@ -94,12 +86,8 @@ export function PromptsTable(props: PromptsTableProps) {
       },
     ],
     data: tableData,
-    state: {
-      sorting,
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
     manualSorting: true,
   });
 

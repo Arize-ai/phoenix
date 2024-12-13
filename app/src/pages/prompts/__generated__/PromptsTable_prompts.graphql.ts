@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<38dc69229eba228c19dba71256351314>>
+ * @generated SignedSource<<f7686fdeef366152805439b413538dfe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,10 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptsTable_datasets$data = {
+export type PromptsTable_prompts$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
-      readonly node: {
+      readonly prompt: {
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
@@ -21,11 +21,11 @@ export type PromptsTable_datasets$data = {
       };
     }>;
   };
-  readonly " $fragmentType": "PromptsTable_datasets";
+  readonly " $fragmentType": "PromptsTable_prompts";
 };
-export type PromptsTable_datasets$key = {
-  readonly " $data"?: PromptsTable_datasets$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_datasets">;
+export type PromptsTable_prompts$key = {
+  readonly " $data"?: PromptsTable_prompts$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptsTable_prompts">;
 };
 
 import PromptsTablePromptsQuery_graphql from './PromptsTablePromptsQuery.graphql';
@@ -70,7 +70,7 @@ return {
       "operation": PromptsTablePromptsQuery_graphql
     }
   },
-  "name": "PromptsTable_datasets",
+  "name": "PromptsTable_prompts",
   "selections": [
     {
       "alias": "prompts",
@@ -89,7 +89,7 @@ return {
           "plural": true,
           "selections": [
             {
-              "alias": null,
+              "alias": "prompt",
               "args": null,
               "concreteType": "Prompt",
               "kind": "LinkedField",
@@ -123,13 +123,6 @@ return {
                   "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -139,6 +132,24 @@ return {
               "args": null,
               "kind": "ScalarField",
               "name": "cursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "Prompt",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             }
           ],
@@ -178,6 +189,6 @@ return {
 };
 })();
 
-(node as any).hash = "1e8e93aca29806102e8ad65cd86a74f1";
+(node as any).hash = "f45963308cb8415358b3f423364b8ca4";
 
 export default node;

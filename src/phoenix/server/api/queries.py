@@ -590,13 +590,13 @@ class Query:
         return connection_from_list(
             data=[
                 Prompt(
-                    id_attr=0,
+                    id_attr=1,
                     name="prompt-1",
                     description="The first prompt",
                     created_at=datetime.now(),
                 ),
                 Prompt(
-                    id_attr=0,
+                    id_attr=2,
                     name="prompt-2",
                     description="The second prompt",
                     created_at=datetime.now(),
