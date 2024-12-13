@@ -15,6 +15,11 @@ export interface Experiment extends Node {
   projectName: string;
 }
 
+export interface RanExperiment extends Experiment {
+  params: ExperimentParameters;
+  runs: Record<string, ExperimentRun>;
+}
+
 /**
  * The result of running an experiment on a single example
  */

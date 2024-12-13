@@ -1,11 +1,12 @@
 import { Dataset, Example } from "types/datasets";
 import { createClient, type PhoenixClient } from "../client";
 import type {
-  EvaluationResult,
   Evaluator,
-  ExperimentEvaluationRun,
+  Experiment,
+  ExperimentParameters,
   ExperimentRun,
   ExperimentTask,
+  RanExperiment,
 } from "../types/experiments";
 import { promisifyResult } from "utils/promisifyResult";
 
@@ -16,6 +17,7 @@ export type RunExperimentParams = {
   task: ExperimentTask;
   evaluators: Evaluator[];
   repetitions?: number;
+  projectName?: string;
 };
 
 export async function runExperiment({
@@ -25,84 +27,70 @@ export async function runExperiment({
   task,
   evaluators,
   repetitions = 1,
-}: RunExperimentParams): Promise<ExperimentRun> {
-  const startTime = new Date();
+  projectName = "default",
+}: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDataset({ dataset: _dataset, client });
+  const experimentParams: ExperimentParameters = {
+    nRepetitions: repetitions,
+    // TODO: Make configurable?
+    nExamples: dataset.examples.length,
+  };
+  const experiment: Experiment = {
+    id: id(),
+    datasetId: dataset.id,
+    datasetVersionId: dataset.versionId,
+    repetitions,
+    projectName: projectName,
+  };
 
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
   console.info(
-    `Running experiment ${experimentName} on ${dataset.id} with ${task} and ${evaluators.length} evaluators`,
+    `🧪 Running experiment ${experimentName} on ${dataset.id} with ${task} and ${evaluators.length} evaluators`,
   );
 
+  // Run task against all examples, for each repetition
+  // TODO: Summarize repetitions
+  type ExperimentRunId = string;
+  const runs: Record<ExperimentRunId, ExperimentRun> = {};
   const run = async ({ repetition }: { repetition: number }) => {
-    // accumulate results of each evaluator for each example
-    const experimentEvaluationRunsByExampleId: Record<
-      string,
-      Record<string, ExperimentEvaluationRun[]>
-    > = {};
-
     for (const example of dataset.examples) {
-      // accumulate results of each evaluator for this example
-      const experimentEvaluationRunsByName: Record<string, EvaluationResult[]> =
-        {};
-      const taskOutput = await promisifyResult(task(example));
-      const evaluationRunPromises = evaluators.map((evaluator) =>
-        promisifyResult(
-          evaluator.evaluate({
-            output: taskOutput,
-            expected: example.output,
-          }),
-        ).then((result) => {
-          if (experimentEvaluationRunsByName[evaluator.name]) {
-            experimentEvaluationRunsByName?.[evaluator.name]?.push(result);
-          } else {
-            experimentEvaluationRunsByName[evaluator.name] = [result];
-          }
-          return result;
-        }),
-      );
-
-      const evaluationRuns = await Promise.all(evaluationRunPromises);
-      evaluationRuns.forEach((evaluationRun) =>
-        // TODO: Where does repetition go? Is EvaluationResult the right type?
-        experimentEvaluationRuns.push({
-          id: "TODO",
-          experimentRunId: "TODO",
-          annotatorKind: "HUMAN",
-          startTime: new Date(),
-          endTime: new Date(),
-          error: null,
-          result: evaluationRun,
-          trace_id: null,
-          name: "TODO",
-        }),
-      );
+      const thisRun: ExperimentRun = {
+        id: id(),
+        traceId: id(),
+        experimentId: experiment.id,
+        datasetExampleId: example.id,
+        startTime: new Date(),
+        repetitionNumber: repetition,
+        endTime: new Date(), // will get replaced with actual end time
+        output: null,
+        error: null,
+      };
+      try {
+        const taskOutput = await promisifyResult(task(example));
+        thisRun.output = JSON.stringify(taskOutput);
+      } catch (error) {
+        thisRun.error =
+          error instanceof Error ? error.message : "Unknown error";
+      }
+      thisRun.endTime = new Date();
+      runs[thisRun.id] = thisRun;
     }
-
-    return experimentEvaluationRunsByExampleId;
   };
-
-  const runs = await Promise.all(
+  await Promise.all(
     Array.from({ length: repetitions }, (_, i) => run({ repetition: i + 1 })),
   );
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(`✅ Task completed`);
 
-  // TODO: aggregate run results
+  // TODO: Evaluate runs
 
-  const endTime = new Date();
-
-  // pretty sure this is the wrong type
   return {
-    id: "TODO",
-    traceId: "TODO",
-    startTime,
-    endTime,
-    experimentId: experimentName,
-    datasetExampleId: dataset.id,
-    repetitionNumber: 0,
-    output: null,
-    error: null,
+    ...experiment,
+    params: experimentParams,
+    runs,
   };
 }
 
@@ -146,4 +134,18 @@ export function asEvaluator(
     name,
     evaluate,
   };
+}
+
+/**
+ * Generate a unique id.
+ *
+ * @deprecated Use id generated by phoenix instead.
+ * @returns A unique id.
+ */
+export function id(): string {
+  let id = 0;
+  return (() => {
+    id++;
+    return id.toString();
+  })();
 }
