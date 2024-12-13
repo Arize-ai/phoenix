@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -9,3 +10,4 @@ class Prompt(Node):
     id_attr: NodeID[int]
     name: str
     description: Optional[str]
+    created_at: datetime

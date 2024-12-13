@@ -79,6 +79,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -570,6 +571,39 @@ class Query:
             ) is None:
                 return None
         return to_gql_user(user)
+
+    @strawberry.field
+    def prompts(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Prompt]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        return connection_from_list(
+            data=[
+                Prompt(
+                    id_attr=0,
+                    name="prompt-1",
+                    description="The first prompt",
+                    created_at=datetime.now(),
+                ),
+                Prompt(
+                    id_attr=0,
+                    name="prompt-2",
+                    description="The second prompt",
+                    created_at=datetime.now(),
+                ),
+            ],
+            args=args,
+        )
 
     @strawberry.field
     def clusters(
