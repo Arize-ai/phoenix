@@ -27,6 +27,7 @@ from phoenix.db.models import (
     Experiment as OrmExperiment,
 )
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
+from phoenix.db.models import ExperimentRunAnnotation as OrmExperimentRunAnnotation
 from phoenix.db.models import (
     Trace as OrmTrace,
 )
@@ -349,18 +350,27 @@ class Query:
             )
             examples_query = (
                 select(OrmExample)
-                .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                # .join(OrmExperimentRun, OrmExperimentRun.dataset_example_id == OrmExample.id)
-                # .join(
-                #     OrmExperimentRunAnnotation,
-                #     OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
-                #     isouter=True,
-                # )
-                .where(
-                    and_(
+                .distinct(OrmExample.id)
+                .join(
+                    OrmRevision,
+                    onclause=and_(
+                        OrmExample.id == OrmRevision.dataset_example_id,
                         OrmRevision.id.in_(revision_ids),
                         OrmRevision.revision_kind != "DELETE",
-                    )
+                    ),
+                )
+                .join(
+                    OrmExperimentRun,
+                    onclause=and_(
+                        OrmExperimentRun.dataset_example_id == OrmExample.id,
+                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
+                    ),
+                    isouter=True,
+                )
+                .join(
+                    OrmExperimentRunAnnotation,
+                    onclause=OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
+                    isouter=True,
                 )
                 .order_by(OrmRevision.dataset_example_id.desc())
             )
