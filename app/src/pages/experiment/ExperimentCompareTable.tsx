@@ -65,6 +65,7 @@ import {
   ExperimentCompareTableQuery,
   ExperimentCompareTableQuery$data,
 } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
   datasetId: string;
@@ -131,13 +132,25 @@ const annotationTooltipExtraCSS = css`
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
+  const [queryKey, setQueryKey] = useState(0);
+  const [filterCondition, setFilterCondition] = useState("");
+
+  const handleFilterChange = (newFilter: string) => {
+    setFilterCondition(newFilter);
+    setQueryKey((prev) => prev + 1);
+  };
+
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
         $experimentIds: [GlobalID!]!
         $datasetId: GlobalID!
+        $filterCondition: String
       ) {
-        comparisons: compareExperiments(experimentIds: $experimentIds) {
+        comparisons: compareExperiments(
+          experimentIds: $experimentIds
+          filterCondition: $filterCondition
+        ) {
           example {
             id
             revision {
@@ -198,7 +211,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     {
       experimentIds,
       datasetId,
-    }
+      filterCondition,
+    },
+    { fetchKey: queryKey }
   );
   const experimentInfoById = useMemo(() => {
     return (
@@ -441,6 +456,19 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
   return (
     <div css={tableWrapCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
+        flex="none"
+      >
+        <ExperimentRunFilterConditionField
+          onValidCondition={handleFilterChange}
+        />
+      </View>
       <table
         css={css(tableCSS, borderedTableCSS)}
         style={{
