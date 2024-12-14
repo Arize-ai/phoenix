@@ -86,17 +86,20 @@ class ExperimentRunAttribute(HasExperimentIdMixin, Attribute):
         object.__setattr__(self, "experiment_id", self.experiment_run.experiment_id)
 
     def compile(self) -> Any:
-        table: type[models.Base]
         attribute_name = self.attribute_name
         if attribute_name == "evals":
-            raise NotImplementedError("Can't compile 'experiment[<index>].evals' alone")
-        elif attribute_name in ("input", "output"):
-            table = models.DatasetExampleRevision
-        elif attribute_name in ("reference_output", "error", "latency_ms"):
-            table = models.ExperimentRun
-        else:
-            raise ValueError(f"Experiment runs have no attribute '{attribute_name}'")
-        return getattr(table, self.attribute_name)
+            raise SyntaxError("Can't compile 'experiment[<index>].evals' alone")
+        elif attribute_name == "input":
+            return models.DatasetExampleRevision.input
+        elif attribute_name == "reference_output":
+            return models.DatasetExampleRevision.output
+        elif attribute_name == "output":
+            return models.ExperimentRun.output
+        elif attribute_name == "error":
+            return models.ExperimentRun.error
+        elif attribute_name == "latency_ms":
+            return models.ExperimentRun.latency_ms
+        raise ValueError(f"Experiment runs have no attribute '{attribute_name}'")
 
     @property
     def is_eval_attribute(self) -> bool:
@@ -312,6 +315,7 @@ if __name__ == "__main__":
     expressions = [
         "input",
         "output",
+        "reference_output",
         "error",
         "latency_ms",
         "error is None",
@@ -323,8 +327,9 @@ if __name__ == "__main__":
         "experiments[0].error is not None",
         "experiments[1].latency_ms > 10",
         "experiments[0].evals['Hallucination'].score > 0.5",
-        "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 10",
-        "not (experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 10)",
+        "experiments[0].evals['Hallucination'].label == 'hallucinated'",
+        "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000",
+        "not (experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000)",
     ]
     for expression in expressions:
         tree = ast.parse(expression, mode="eval")
