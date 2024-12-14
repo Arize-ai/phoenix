@@ -6,12 +6,22 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
 
 
 @pytest.mark.parametrize(
-    "filter_expression,expected_sql",
+    "filter_expression,expected_sql_expression",
     [
-        pytest.param("input", "dataset_example_revisions.input", id="basic_input"),
-        pytest.param("output", "experiment_runs.output", id="basic_output"),
         pytest.param(
-            "reference_output", "dataset_example_revisions.output", id="basic_reference_output"
+            "input",
+            "dataset_example_revisions.input",
+            id="basic_input",
+        ),
+        pytest.param(
+            "output",
+            "experiment_runs.output",
+            id="basic_output",
+        ),
+        pytest.param(
+            "reference_output",
+            "dataset_example_revisions.output",
+            id="basic_reference_output",
         ),
         pytest.param("error", "experiment_runs.error", id="basic_error"),
         pytest.param(
@@ -75,11 +85,11 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
     ],
 )
-def test_filter_expressions(filter_expression: str, expected_sql: str) -> None:
+def test_node_transformer(filter_expression: str, expected_sql_expression: str) -> None:
     tree = ast.parse(filter_expression, mode="eval")
     transformer = ExperimentRunFilterTransformer([0, 1, 2])
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
-    orm_filter_expression = node.compile()
-    actual_sql = str(orm_filter_expression.compile(compile_kwargs={"literal_binds": True}))
-    assert actual_sql == expected_sql
+    orm_expression = node.compile()
+    sql_expression = str(orm_expression.compile(compile_kwargs={"literal_binds": True}))
+    assert sql_expression == expected_sql_expression
