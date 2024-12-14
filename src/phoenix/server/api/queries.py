@@ -86,6 +86,7 @@ from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
+from phoenix.server.api.types.ValidationResult import ValidationResult
 
 initialize_playground_clients()
 
@@ -299,7 +300,7 @@ class Query:
         self,
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
-        filter_expression: Optional[str] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
@@ -375,10 +376,8 @@ class Query:
                 .order_by(OrmRevision.dataset_example_id.desc())
             )
 
-            if filter_expression:
-                orm_filter_expression = get_orm_filter_expression(
-                    filter_expression, experiment_ids_
-                )
+            if filter_condition:
+                orm_filter_expression = get_orm_filter_expression(filter_condition, experiment_ids_)
                 examples_query = examples_query.where(orm_filter_expression)
 
             examples = (await session.scalars(examples_query)).all()
@@ -426,6 +425,27 @@ class Query:
                 )
             )
         return experiment_comparisons
+
+    @strawberry.field
+    async def validate_experiment_run_filter_condition(
+        self,
+        condition: str,
+        experiment_ids: list[GlobalID],
+    ) -> ValidationResult:
+        try:
+            get_orm_filter_expression(
+                filter_expression=condition,
+                experiment_ids=[
+                    from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+                    for experiment_id in experiment_ids
+                ],
+            )
+            return ValidationResult(is_valid=True, error_message=None)
+        except Exception as error:
+            return ValidationResult(
+                is_valid=False,
+                error_message=str(error),
+            )
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
