@@ -612,6 +612,17 @@ class ExperimentRun(Base):
     completion_token_count: Mapped[Optional[int]]
     error: Mapped[Optional[str]]
 
+    @hybrid_property
+    def latency_ms(self) -> float:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
+        return (self.end_time - self.start_time).total_seconds() * 1000
+
+    @latency_ms.inplace.expression
+    @classmethod
+    def _latency_expression(cls) -> ColumnElement[float]:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
+        return LatencyMs(cls.start_time, cls.end_time)
+
     trace: Mapped["Trace"] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",
