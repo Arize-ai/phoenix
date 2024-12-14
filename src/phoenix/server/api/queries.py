@@ -26,8 +26,9 @@ from phoenix.db.models import (
 from phoenix.db.models import (
     Experiment as OrmExperiment,
 )
+from phoenix.db.models import ExperimentRun as OrmExperimentRun
 from phoenix.db.models import (
-    ExperimentRun as OrmRun,
+    ExperimentRunAnnotation as OrmExperimentRunAnnotation,
 )
 from phoenix.db.models import (
     Trace as OrmTrace,
@@ -37,6 +38,7 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.experiment_run_filters import get_orm_filter_expression
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -299,6 +301,7 @@ class Query:
         self,
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
+        filter_expression: Optional[str] = UNSET,
     ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
@@ -347,34 +350,46 @@ class Query:
                 .group_by(OrmRevision.dataset_example_id)
                 .scalar_subquery()
             )
-            examples = (
-                await session.scalars(
-                    select(OrmExample)
-                    .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                    .where(
-                        and_(
-                            OrmRevision.id.in_(revision_ids),
-                            OrmRevision.revision_kind != "DELETE",
-                        )
-                    )
-                    .order_by(OrmRevision.dataset_example_id.desc())
+            examples_query = (
+                select(OrmExample)
+                .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
+                .join(OrmExperimentRun, OrmExperimentRun.dataset_example_id == OrmExample.id)
+                .join(
+                    OrmExperimentRunAnnotation,
+                    OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
+                    isouter=True,
                 )
-            ).all()
+                .where(
+                    and_(
+                        OrmRevision.id.in_(revision_ids),
+                        OrmRevision.revision_kind != "DELETE",
+                    )
+                )
+                .order_by(OrmRevision.dataset_example_id.desc())
+            )
+
+            if filter_expression:
+                orm_filter_expression = get_orm_filter_expression(
+                    filter_expression, experiment_ids_
+                )
+                examples_query = examples_query.where(orm_filter_expression)
+
+            examples = await session.scalars(examples_query)
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmRun]]] = defaultdict(
-                lambda: defaultdict(list)
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmExperimentRun]]] = (
+                defaultdict(lambda: defaultdict(list))
             )
             async for run in await session.stream_scalars(
-                select(OrmRun)
+                select(OrmExperimentRun)
                 .where(
                     and_(
-                        OrmRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmRun.experiment_id.in_(experiment_ids_),
+                        OrmExperimentRun.dataset_example_id.in_(example.id for example in examples),
+                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
                     )
                 )
-                .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
+                .options(joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id))
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
