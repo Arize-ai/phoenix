@@ -1,14 +1,3 @@
-# evals["Hallucination"].score > 0.5
-# evals["Hallucination"].label == "hallucinated"
-# latency_seconds > 10
-# evals["Hallucination"].metadata["key"] == "value"
-# error is None
-# error is not None
-# input["key"] == "value"
-# input["key"] > 10
-# output["key"] == "value"
-# output["key"] > 10
-
 import ast
 import operator
 from abc import ABC, abstractmethod
@@ -20,10 +9,21 @@ from sqlalchemy import BinaryExpression
 from phoenix.db import models
 
 
+def get_orm_filter_expression(filter_expression: str, experiment_ids: list[int]) -> Any:
+    tree = ast.parse(filter_expression, mode="eval")
+    transformer = ExperimentRunFilterTransformer(experiment_ids)
+    transformed_tree = transformer.visit(tree)
+    node = transformed_tree.body
+    if not isinstance(node, BooleanExpression):
+        raise ValueError("Filter expression must be a boolean expression")
+    orm_filter_expression = node.compile()
+    return orm_filter_expression
+
+
 @dataclass(frozen=True)
 class FilterExpressionNode(ABC):
     """
-    A node in the syntax tree for a translated SQLAlchemy expression.
+    A node in a tree representing a SQLAlchemy expression.
     """
 
     @abstractmethod
