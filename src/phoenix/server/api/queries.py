@@ -28,9 +28,6 @@ from phoenix.db.models import (
 )
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
 from phoenix.db.models import (
-    ExperimentRunAnnotation as OrmExperimentRunAnnotation,
-)
-from phoenix.db.models import (
     Trace as OrmTrace,
 )
 from phoenix.pointcloud.clustering import Hdbscan
@@ -353,12 +350,12 @@ class Query:
             examples_query = (
                 select(OrmExample)
                 .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                .join(OrmExperimentRun, OrmExperimentRun.dataset_example_id == OrmExample.id)
-                .join(
-                    OrmExperimentRunAnnotation,
-                    OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
-                    isouter=True,
-                )
+                # .join(OrmExperimentRun, OrmExperimentRun.dataset_example_id == OrmExample.id)
+                # .join(
+                #     OrmExperimentRunAnnotation,
+                #     OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
+                #     isouter=True,
+                # )
                 .where(
                     and_(
                         OrmRevision.id.in_(revision_ids),
@@ -374,7 +371,7 @@ class Query:
                 )
                 examples_query = examples_query.where(orm_filter_expression)
 
-            examples = await session.scalars(examples_query)
+            examples = (await session.scalars(examples_query)).all()
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
