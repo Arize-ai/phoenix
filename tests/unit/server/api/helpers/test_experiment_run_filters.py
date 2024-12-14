@@ -44,9 +44,34 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="primitive-is-not-none-expression",
         ),
         pytest.param(
-            "latency_ms > 10",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 10 AND experiment_runs.experiment_id = 0",  # noqa: E501
-            id="primitive-inequality-expression",
+            "latency_ms > 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-gt-expression",
+        ),
+        pytest.param(
+            "latency_ms >= 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) >= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-gte-expression",
+        ),
+        pytest.param(
+            "latency_ms < 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) < 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-lt-expression",
+        ),
+        pytest.param(
+            "latency_ms <= 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) <= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-lte-expression",
+        ),
+        pytest.param(
+            "latency_ms == 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) = 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-eq-expression",
+        ),
+        pytest.param(
+            "latency_ms != 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) != 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-ne-expression",
         ),
         pytest.param(
             "experiments[0].input",
