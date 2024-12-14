@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from dataclasses import dataclass
 from enum import Enum
 from itertools import product
 from typing import (
@@ -35,6 +34,7 @@ from phoenix.evals.templates import (
     normalize_classification_template,
 )
 from phoenix.evals.utils import (
+    Audio,
     NOT_PARSABLE,
     get_tqdm_progress_bar_formatter,
     openai_function_call_kwargs,
@@ -270,22 +270,12 @@ def llm_classify(
     )
 
 
-class AudioFormat(Enum):
-    WAV = "WAV"
-
-
-@dataclass
-class Audio:
-    content: str  # base64-encoded audio content
-    format: AudioFormat
-
-
 def audio_classify(
-    dataframe: pd.DataFrame,
-    file_fetcher: Callable[[str], str],
+    dataframe: Union[List, pd.DataFrame],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
+    data_fetcher: Optional[Callable[[str], Audio]],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -306,12 +296,9 @@ def audio_classify(
     `provide_explanation=True`.
 
     Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents
+        dataframe (Union[List, pd.DataFrame]): A pandas dataframe in which each row represents
             a record to be classified. All template variable names must appear as column
             names in the dataframe (extra columns unrelated to the template are permitted).
-
-        file_fetcher (Callable[[str], str]): A callable which transforms an online cloud
-        storage audio url to a bytestring passable to an LLM.
 
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
@@ -322,6 +309,9 @@ def audio_classify(
 
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
+
+        data_fetcher (Optional[Callable[[str], str]]): A callable which transforms an online cloud
+        storage audio url to a bytestring passable to an LLM.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -374,17 +364,16 @@ def audio_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    # First get files:
-    list_of_byte_strings: List[str] = []
-    for i, row in dataframe.iterrows():
-        url = row["audio_url"]
-        list_of_byte_strings.append(file_fetcher(url))
+    # Transform the audio urls to Audio objects:
+    # processed_data = None
+    # if isinstance(dataframe, pd.DataFrame):
+    #     # processed_data = dataframe['audio_url'].apply(data_fetcher).tolist()
+    #     processed_data = dataframe['audio_url'].apply(lambda url: data_fetcher(url).data).tolist()
+    #     processed_format = dataframe['audio_url'].apply(lambda url: data_fetcher(url).format.value).to_list()
+    # elif isinstance(dataframe, list):
+    #     processed_data = [data_fetcher(url).data for url in dataframe]
 
-    audio_byte_series = pd.Series(
-        {
-            'audio_bytes': list_of_byte_strings
-        }
-    )
+    #audio_byte_series = pd.Series({'audio_bytes': processed_data, 'audio_format': processed_format})
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -448,7 +437,7 @@ def audio_classify(
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = await verbose_model._async_generate(
-                prompt, instruction=system_instruction, **model_kwargs
+                prompt, data_fetcher, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response, str(prompt)
@@ -475,7 +464,7 @@ def audio_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([audio_byte_series])
+    results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
