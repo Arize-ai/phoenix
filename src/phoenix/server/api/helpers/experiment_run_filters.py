@@ -2,10 +2,9 @@ import ast
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from functools import reduce
 from typing import Any, Callable, Literal, Union
 
-from sqlalchemy import BinaryExpression
+from sqlalchemy import BinaryExpression, and_, or_
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -243,16 +242,12 @@ class BooleanOperation(BooleanExpression):
 
     def compile(self) -> Any:
         ast_operator = self.operator
-        sqlalchemy_operator: Callable[
-            [BinaryExpression[Any], BinaryExpression[Any]], BinaryExpression[Any]
-        ]
+        operands = [operand.compile() for operand in self.operands]
         if isinstance(ast_operator, ast.And):
-            sqlalchemy_operator = operator.and_
+            return and_(*operands)
         elif isinstance(ast_operator, ast.Or):
-            sqlalchemy_operator = operator.or_
-        else:
-            raise SyntaxError(f"Unsupported boolean operator: {ast_operator}")
-        return reduce(sqlalchemy_operator, [operand.compile() for operand in self.operands])
+            return or_(*operands)
+        raise SyntaxError(f"Unsupported boolean operator: {ast_operator}")
 
 
 class ExperimentRunFilterTransformer(ast.NodeTransformer):
