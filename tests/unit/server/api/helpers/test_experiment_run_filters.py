@@ -34,6 +34,31 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="latency-ms-name",
         ),
         pytest.param(
+            "experiments[0].input",
+            "dataset_example_revisions.input",
+            id="experiment-input-name",
+        ),
+        pytest.param(
+            "experiments[0].reference_output",
+            "dataset_example_revisions.output",
+            id="experiment-reference-output-name",
+        ),
+        pytest.param(
+            "experiments[1].output",
+            "experiment_runs.output",
+            id="experiment-output-name",
+        ),
+        pytest.param(
+            "experiments[1].error",
+            "experiment_runs.error",
+            id="experiment-error-name",
+        ),
+        pytest.param(
+            "experiments[2].latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
+            id="experiment-latency-ms-name",
+        ),
+        pytest.param(
             "error is None",
             "experiment_runs.error IS NULL AND experiment_runs.experiment_id = 0",
             id="primitive-is-none-expression",
@@ -102,16 +127,6 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             "1000 != latency_ms",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) != 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="primitive-ne-expression-reversed",
-        ),
-        pytest.param(
-            "experiments[0].input",
-            "dataset_example_revisions.input",
-            id="experiment_0_input",
-        ),
-        pytest.param(
-            "experiments[1].output",
-            "experiment_runs.output",
-            id="experiment_1_output",
         ),
         pytest.param(
             "experiments[2].error is None",
