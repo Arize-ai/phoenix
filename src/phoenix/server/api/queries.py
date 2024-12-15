@@ -550,6 +550,13 @@ class Query:
                 ):
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_project_session(project_session)
+        elif type_name == Prompt.__name__:
+            return Prompt(
+                id_attr=node_id,
+                name="Prompt " + str(node_id),
+                description="description",
+                created_at=datetime.now(),
+            )
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
