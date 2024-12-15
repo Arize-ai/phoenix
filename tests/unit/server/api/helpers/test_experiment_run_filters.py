@@ -265,6 +265,11 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             "experiment_run_annotations.label = 'hallucinated' AND experiment_runs.experiment_id = 0 AND experiment_run_annotations.name = 'Hallucination'",  # noqa: E501
             id="experiment-hallucination-label-eq",
         ),
+        pytest.param(
+            "'search-term' in experiments[0].evals['Hallucination'].explanation",
+            "(experiment_run_annotations.explanation LIKE '%' || 'search-term' || '%') AND experiment_runs.experiment_id = 0 AND experiment_run_annotations.name = 'Hallucination'",  # noqa: E501
+            id="experiment-hallucination-explanation-in",
+        ),
         # compound expressions
         pytest.param(
             "not experiments[0].evals['Hallucination'].label == 'hallucinated'",

@@ -439,23 +439,7 @@ def _is_supported_comparison_operator(
 
 if __name__ == "__main__":
     expressions = [
-        'input["question"]',
-        "output[0]",
-        'reference_output[0]["question"]',
-        'experiments[0].input["question"]',
-        "experiments[1].output[0]",
-        'experiments[2].reference_output[0]["question"]',
-        "'search-term' not in input['questions'][0]",
-        'experiments[0].input["score"] > 0.5',
-        'experiments[0].output["confidence"] >= 0.8',
-        'experiments[0].input["length"] < 100',
-        'experiments[1].output["probability"] <= 0.3',
-        'experiments[1].reference_output["answer"] == "yes"',
-        'experiments[1].output["category"] != "unknown"',
-        'experiments[2].output["result"] is None',
-        'experiments[2].input["metadata"] is not None',
-        'experiments[2].reference_output["answer"] == None',
-        'experiments[0].output["category"] != None',
+        "'search-term' in experiments[0].evals['Hallucination'].explanation",
     ]
 
     for expression in expressions:
