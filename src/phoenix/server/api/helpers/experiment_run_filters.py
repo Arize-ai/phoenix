@@ -278,10 +278,26 @@ class ComparisonOperation(BooleanExpression):
 
     def _compile_operand(self, operand: Union[Attribute, Constant]) -> Any:
         compiled_operand = operand.compile()
+        operator = self._operator
         if isinstance(operand, ExperimentRunJSONAttribute):
-            cast_type = self._constant_operand.sqlalchemy_type
-            if cast_type is not None:
-                compiled_operand = cast(compiled_operand, cast_type)
+            # A cast is needed for comparisons between values in a JSON column
+            # and non-null constants. We don't know the true type of the value
+            # in the JSON column, so we use heuristics to cast to a reasonable
+            # type given the operator and constant being compared.
+            if isinstance(operator, (ast.Gt, ast.GtE, ast.Lt, ast.LtE)):
+                # Assume the value is a float. If it's actually an integer, this
+                # is probably okay.
+                compiled_operand = cast(compiled_operand, Float())
+            elif isinstance(operator, (ast.In, ast.NotIn)):
+                compiled_operand = cast(compiled_operand, String())
+            elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+                # For the remaining operators, infer the cast type from the type
+                # of the constant being compared. If the constant is None, no
+                # cast is needed.
+                if (constant_type := self._constant_operand.sqlalchemy_type) is not None:
+                    compiled_operand = cast(compiled_operand, constant_type)
+            else:
+                assert_never(operator)
         return compiled_operand
 
     @property
