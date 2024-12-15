@@ -27,7 +27,6 @@ from phoenix.db.models import (
     Experiment as OrmExperiment,
 )
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
-from phoenix.db.models import ExperimentRunAnnotation as OrmExperimentRunAnnotation
 from phoenix.db.models import (
     Trace as OrmTrace,
 )
@@ -36,7 +35,10 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
-from phoenix.server.api.helpers.experiment_run_filters import get_orm_filter_expression
+from phoenix.server.api.helpers.experiment_run_filters import (
+    get_orm_filter_condition,
+    update_examples_query_with_filter_condition,
+)
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -360,25 +362,15 @@ class Query:
                         OrmRevision.revision_kind != "DELETE",
                     ),
                 )
-                .join(
-                    OrmExperimentRun,
-                    onclause=and_(
-                        OrmExperimentRun.dataset_example_id == OrmExample.id,
-                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
-                    ),
-                    isouter=True,
-                )
-                .join(
-                    OrmExperimentRunAnnotation,
-                    onclause=OrmExperimentRunAnnotation.experiment_run_id == OrmExperimentRun.id,
-                    isouter=True,
-                )
                 .order_by(OrmRevision.dataset_example_id.desc())
             )
 
             if filter_condition:
-                orm_filter_expression = get_orm_filter_expression(filter_condition, experiment_ids_)
-                examples_query = examples_query.where(orm_filter_expression)
+                examples_query = update_examples_query_with_filter_condition(
+                    query=examples_query,
+                    filter_condition=filter_condition,
+                    experiment_ids=experiment_ids_,
+                )
 
             examples = (await session.scalars(examples_query)).all()
 
@@ -433,8 +425,8 @@ class Query:
         experiment_ids: list[GlobalID],
     ) -> ValidationResult:
         try:
-            get_orm_filter_expression(
-                filter_expression=condition,
+            get_orm_filter_condition(
+                filter_condition=condition,
                 experiment_ids=[
                     from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
                     for experiment_id in experiment_ids
