@@ -2,6 +2,7 @@ import ast
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import reduce
 from typing import Any, Callable, Literal, Union
 
 from sqlalchemy import BinaryExpression
@@ -232,10 +233,13 @@ class UnaryBooleanOperation(BooleanExpression):
 
 
 @dataclass(frozen=True)
-class BinaryBooleanOperation(BooleanExpression):
-    left_operand: BooleanExpression
-    right_operand: BooleanExpression
+class BooleanOperation(BooleanExpression):
     operator: ast.boolop
+    operands: list[BooleanExpression]
+
+    def __post_init__(self) -> None:
+        if len(self.operands) < 2:
+            raise SyntaxError("boolean operation requires at least 2 operands")
 
     def compile(self) -> Any:
         ast_operator = self.operator
@@ -247,10 +251,8 @@ class BinaryBooleanOperation(BooleanExpression):
         elif isinstance(ast_operator, ast.Or):
             sqlalchemy_operator = operator.or_
         else:
-            raise ValueError(f"Unsupported binary boolean operator: {ast_operator}")
-        compiled_left_operand = self.left_operand.compile()
-        compiled_right_operand = self.right_operand.compile()
-        return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
+            raise SyntaxError(f"Unsupported boolean operator: {ast_operator}")
+        return reduce(sqlalchemy_operator, [operand.compile() for operand in self.operands])
 
 
 class ExperimentRunFilterTransformer(ast.NodeTransformer):
@@ -281,17 +283,10 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         assert isinstance(operand, BooleanExpression)
         return UnaryBooleanOperation(operand=operand, operator=operation)
 
-    def visit_BoolOp(self, node: ast.BoolOp) -> BinaryBooleanOperation:
+    def visit_BoolOp(self, node: ast.BoolOp) -> BooleanOperation:
         operator = node.op
-        assert len(node.values) == 2
-        left_operand, right_operand = [self.visit(value) for value in node.values]
-        assert isinstance(left_operand, BooleanExpression)
-        assert isinstance(right_operand, BooleanExpression)
-        return BinaryBooleanOperation(
-            left_operand=left_operand,
-            right_operand=right_operand,
-            operator=operator,
-        )
+        operands = [self.visit(value) for value in node.values]
+        return BooleanOperation(operator=operator, operands=operands)
 
     def visit_Compare(self, node: ast.Compare) -> FilterExpressionNode:
         assert len(node.ops) == 1
@@ -337,31 +332,17 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
 
 if __name__ == "__main__":
     expressions = [
-        "input",
-        "output",
-        "reference_output",
-        "error",
-        "latency_ms",
-        "error is None",
-        "error is not None",
-        "latency_ms > 10",
-        "experiments[0].input",
-        "experiments[1].output",
-        "experiments[2].error is None",
-        "experiments[0].error is not None",
-        "experiments[1].latency_ms > 10",
-        "experiments[0].evals['Hallucination'].score > 0.5",
-        "experiments[0].evals['Hallucination'].label == 'hallucinated'",
-        "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000",
-        "not (experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000)",
+        "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000 and experiments[1].error is None"  # noqa: E501
     ]
+
     for expression in expressions:
         tree = ast.parse(expression, mode="eval")
         transformer = ExperimentRunFilterTransformer([0, 1, 2])
         transformed_tree = transformer.visit(tree)
         node = transformed_tree.body
         orm_filter_expression = node.compile()
-        sql_filter_expression = orm_filter_expression.compile(
-            compile_kwargs={"literal_binds": True}
+        sql_filter_expression = str(
+            orm_filter_expression.compile(compile_kwargs={"literal_binds": True})
         )
-        print(expression, sql_filter_expression)
+        print(f"{expression=}")
+        print(f"{sql_filter_expression=}")
