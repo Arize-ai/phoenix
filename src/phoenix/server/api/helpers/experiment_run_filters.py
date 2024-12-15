@@ -188,8 +188,7 @@ class ExperimentRunAttribute(AliasedTableMixin, Attribute):
         return column
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        experiment_runs = self.experiment_run_alias(self._experiment_id)
-        return expression & (experiment_runs.experiment_id == self._experiment_id)
+        return expression
 
     @property
     def is_eval_attribute(self) -> bool:
@@ -222,7 +221,7 @@ class ExperimentRunAttribute(AliasedTableMixin, Attribute):
 
 
 @dataclass(frozen=True)
-class ExperimentRunJSONAttribute(AliasedTableMixin, Attribute):
+class ExperimentRunJSONAttribute(Attribute):
     attribute: Union[ExperimentRunAttribute, "ExperimentRunJSONAttribute"]
     index_constant: Constant
     _experiment_id: int = field(init=False)
@@ -240,8 +239,7 @@ class ExperimentRunJSONAttribute(AliasedTableMixin, Attribute):
         return compiled_attribute[self._index_value]
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        experiment_runs = self.experiment_run_alias(self._experiment_id)
-        return expression & (experiment_runs.experiment_id == self._experiment_id)
+        return expression
 
 
 @dataclass(frozen=True)
@@ -276,13 +274,8 @@ class ExperimentRunEvalAttribute(AliasedTableMixin, Attribute):
 
     def update_comparison_expression(self, expression: Any) -> Any:
         experiment_id = self._experiment_id
-        experiment_runs = self.experiment_run_alias(experiment_id)
         experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id)
-        return (
-            expression
-            & (experiment_runs.experiment_id == experiment_id)
-            & (experiment_run_annotations.name == self._eval_name)
-        )
+        return expression & (experiment_run_annotations.name == self._eval_name)
 
 
 @dataclass(frozen=True)
@@ -502,13 +495,11 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
                 return ExperimentRunJSONAttribute(
                     attribute=container,
                     index_constant=key,
-                    transformer=self,
                 )
         if isinstance(container, ExperimentRunJSONAttribute):
             return ExperimentRunJSONAttribute(
                 attribute=container,
                 index_constant=key,
-                transformer=self,
             )
         raise SyntaxError
 
