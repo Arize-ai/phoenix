@@ -206,7 +206,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             'experiments[0].input["length"] < 100',
-            "CAST(dataset_example_revisions.input['length'] AS INTEGER) < 100 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            "CAST(dataset_example_revisions.input['length'] AS FLOAT) < 100 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="experiment-json-attribute-lt",
         ),
         pytest.param(
