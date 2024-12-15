@@ -4,7 +4,18 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Union, get_args
 
-from sqlalchemy import BinaryExpression, Boolean, Float, Integer, Select, String, and_, cast, or_
+from sqlalchemy import (
+    BinaryExpression,
+    Boolean,
+    Float,
+    Integer,
+    Select,
+    String,
+    and_,
+    cast,
+    or_,
+)
+from sqlalchemy.orm import aliased
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
@@ -23,37 +34,59 @@ SupportedComparisonOperator: TypeAlias = Union[
 ]
 SupportedConstantType: TypeAlias = Union[bool, int, float, str, None]
 SQLAlchemyType: TypeAlias = Union[Boolean, Integer, Float[float], String]
+ExperimentID: TypeAlias = int
 
 
 def update_examples_query_with_filter_condition(
     query: Select[Any], filter_condition: str, experiment_ids: list[int]
 ) -> Select[Any]:
-    query = query.join(
-        models.ExperimentRun,
-        onclause=and_(
-            models.ExperimentRun.dataset_example_id == models.DatasetExample.id,
-            models.ExperimentRun.experiment_id.in_(experiment_ids),
-        ),
-        isouter=True,
-    ).join(
-        models.ExperimentRunAnnotation,
-        onclause=models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
-        isouter=True,
-    )
-    orm_filter_expression = get_orm_filter_condition(filter_condition, experiment_ids)
-    query = query.where(orm_filter_expression)
-    return query
-
-
-def get_orm_filter_condition(filter_condition: str, experiment_ids: list[int]) -> Any:
     tree = ast.parse(filter_condition, mode="eval")
     transformer = ExperimentRunFilterTransformer(experiment_ids)
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
     if not isinstance(node, BooleanExpression):
-        raise ValueError("Filter expression must be a boolean expression")
+        raise SyntaxError("Filter expression must be a boolean expression")
     orm_filter_expression = node.compile()
-    return orm_filter_expression
+
+    for experiment_id in experiment_ids:
+        experiment_run_annotations = transformer.get_experiment_run_annotations_alias(experiment_id)
+        if experiment_run_annotations is not None:
+            # Ensure an experiment runs alias exists for each experiment runs
+            # annotations alias. This is needed because the experiment runs
+            # annotations table is joined on the experiment runs table.
+            experiment_runs = transformer.get_experiment_runs_alias(
+                experiment_id
+            ) or transformer.create_experiment_runs_alias(experiment_id)
+        else:
+            experiment_runs = transformer.get_experiment_runs_alias(experiment_id)
+        if experiment_runs is not None:
+            query = query.join(
+                experiment_runs,
+                onclause=and_(
+                    experiment_runs.dataset_example_id == models.DatasetExample.id,
+                    experiment_runs.experiment_id == experiment_id,
+                ),
+                isouter=True,
+            )
+            if experiment_run_annotations is not None:
+                query = query.join(
+                    experiment_run_annotations,
+                    onclause=experiment_run_annotations.experiment_run_id == experiment_runs.id,
+                    isouter=True,
+                )
+
+    query = query.where(orm_filter_expression)
+    return query
+
+
+def validate_filter_condition(filter_condition: str, experiment_ids: list[int]) -> None:
+    tree = ast.parse(filter_condition, mode="eval")
+    transformer = ExperimentRunFilterTransformer(experiment_ids)
+    transformed_tree = transformer.visit(tree)
+    node = transformed_tree.body
+    if not isinstance(node, BooleanExpression):
+        raise SyntaxError("Filter expression must be a boolean expression")
+    node.compile()
 
 
 @dataclass(frozen=True)
@@ -125,7 +158,22 @@ class Attribute(FilterExpressionNode, ABC):
 
 
 @dataclass(frozen=True)
-class ExperimentRunAttribute(Attribute):
+class AliasedTableMixin:
+    transformer: "ExperimentRunFilterTransformer"
+
+    def experiment_run_alias(self, experiment_id: ExperimentID) -> Any:
+        return self.transformer.get_experiment_runs_alias(
+            experiment_id
+        ) or self.transformer.create_experiment_runs_alias(experiment_id)
+
+    def experiment_run_annotation_alias(self, experiment_id: ExperimentID) -> Any:
+        return self.transformer.get_experiment_run_annotations_alias(
+            experiment_id
+        ) or self.transformer.create_experiment_run_annotations_alias(experiment_id)
+
+
+@dataclass(frozen=True)
+class ExperimentRunAttribute(AliasedTableMixin, Attribute):
     experiment_run: ExperimentRun
     attribute_name: str
     _experiment_id: int = field(init=False)
@@ -140,7 +188,8 @@ class ExperimentRunAttribute(Attribute):
         return column
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        return expression & (models.ExperimentRun.experiment_id == self._experiment_id)
+        experiment_runs = self.experiment_run_alias(self._experiment_id)
+        return expression & (experiment_runs.experiment_id == self._experiment_id)
 
     @property
     def is_eval_attribute(self) -> bool:
@@ -153,6 +202,7 @@ class ExperimentRunAttribute(Attribute):
     @property
     def _column(self) -> Any:
         attribute_name = self.attribute_name
+        experiment_id = self._experiment_id
         if attribute_name == "evals":
             return None
         elif attribute_name == "input":
@@ -160,16 +210,19 @@ class ExperimentRunAttribute(Attribute):
         elif attribute_name == "reference_output":
             return models.DatasetExampleRevision.output
         elif attribute_name == "output":
-            return models.ExperimentRun.output
+            aliased_experiment_run = self.experiment_run_alias(experiment_id)
+            return aliased_experiment_run.output
         elif attribute_name == "error":
-            return models.ExperimentRun.error
+            aliased_experiment_run = self.experiment_run_alias(experiment_id)
+            return aliased_experiment_run.error
         elif attribute_name == "latency_ms":
-            return models.ExperimentRun.latency_ms
+            aliased_experiment_run = self.experiment_run_alias(experiment_id)
+            return aliased_experiment_run.latency_ms
         raise ValueError(f"Experiment runs have no attribute '{attribute_name}'")
 
 
 @dataclass(frozen=True)
-class ExperimentRunJSONAttribute(Attribute):
+class ExperimentRunJSONAttribute(AliasedTableMixin, Attribute):
     attribute: Union[ExperimentRunAttribute, "ExperimentRunJSONAttribute"]
     index_constant: Constant
     _experiment_id: int = field(init=False)
@@ -187,7 +240,8 @@ class ExperimentRunJSONAttribute(Attribute):
         return compiled_attribute[self._index_value]
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        return expression & (models.ExperimentRun.experiment_id == self._experiment_id)
+        experiment_runs = self.experiment_run_alias(self._experiment_id)
+        return expression & (experiment_runs.experiment_id == self._experiment_id)
 
 
 @dataclass(frozen=True)
@@ -205,27 +259,29 @@ class ExperimentRunEval(FilterExpressionNode):
 
 
 @dataclass(frozen=True)
-class ExperimentRunEvalAttribute(Attribute):
+class ExperimentRunEvalAttribute(AliasedTableMixin, Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
     _experiment_id: int = field(init=False)
-    _table: type[models.Base] = field(init=False)
     _eval_name: str = field(init=False)
 
     def __post_init__(self) -> None:
         assert self.attribute_name in ("score", "explanation", "label")
         object.__setattr__(self, "_experiment_id", self.experiment_run_eval._experiment_id)
-        object.__setattr__(self, "_table", models.ExperimentRunAnnotation)
         object.__setattr__(self, "_eval_name", self.experiment_run_eval.eval_name)
 
     def compile(self) -> Any:
-        return getattr(self._table, self.attribute_name)
+        experiment_run_annotations = self.experiment_run_annotation_alias(self._experiment_id)
+        return getattr(experiment_run_annotations, self.attribute_name)
 
     def update_comparison_expression(self, expression: Any) -> Any:
+        experiment_id = self._experiment_id
+        experiment_runs = self.experiment_run_alias(experiment_id)
+        experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id)
         return (
             expression
-            & (models.ExperimentRun.experiment_id == self._experiment_id)
-            & (models.ExperimentRunAnnotation.name == self._eval_name)
+            & (experiment_runs.experiment_id == experiment_id)
+            & (experiment_run_annotations.name == self._eval_name)
         )
 
 
@@ -385,6 +441,8 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
     def __init__(self, experiment_ids: list[int]) -> None:
         assert len(experiment_ids) > 0
         self._experiment_ids = experiment_ids
+        self._aliased_experiment_runs: dict[ExperimentID, Any] = {}
+        self._aliased_experiment_run_annotations: dict[ExperimentID, Any] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
         return Constant(value=node.value)
@@ -401,6 +459,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         return ExperimentRunAttribute(
             attribute_name=name,
             experiment_run=baseline_experiment,
+            transformer=self,
         )
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> UnaryBooleanOperation:
@@ -443,11 +502,13 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
                 return ExperimentRunJSONAttribute(
                     attribute=container,
                     index_constant=key,
+                    transformer=self,
                 )
         if isinstance(container, ExperimentRunJSONAttribute):
             return ExperimentRunJSONAttribute(
                 attribute=container,
                 index_constant=key,
+                transformer=self,
             )
         raise SyntaxError
 
@@ -458,13 +519,42 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
             return ExperimentRunAttribute(
                 attribute_name=attribute_name,
                 experiment_run=parent,
+                transformer=self,
             )
         if isinstance(parent, ExperimentRunEval):
             return ExperimentRunEvalAttribute(
                 attribute_name=attribute_name,
                 experiment_run_eval=parent,
+                transformer=self,
             )
         raise ValueError
+
+    def create_experiment_runs_alias(self, experiment_id: ExperimentID) -> Any:
+        if self.get_experiment_runs_alias(experiment_id) is not None:
+            raise ValueError
+        experiment_index = self.get_experiment_index(experiment_id)
+        alias_name = f"experiment_runs_{experiment_index}"
+        aliased_table = aliased(models.ExperimentRun, name=alias_name)
+        self._aliased_experiment_runs[experiment_id] = aliased_table
+        return aliased_table
+
+    def get_experiment_runs_alias(self, experiment_id: ExperimentID) -> Any:
+        return self._aliased_experiment_runs.get(experiment_id)
+
+    def create_experiment_run_annotations_alias(self, experiment_id: ExperimentID) -> Any:
+        if self.get_experiment_run_annotations_alias(experiment_id) is not None:
+            raise ValueError
+        experiment_index = self.get_experiment_index(experiment_id)
+        alias_name = f"experiment_run_annotations_{experiment_index}"
+        aliased_table = aliased(models.ExperimentRunAnnotation, name=alias_name)
+        self._aliased_experiment_run_annotations[experiment_id] = aliased_table
+        return aliased_table
+
+    def get_experiment_run_annotations_alias(self, experiment_id: ExperimentID) -> Any:
+        return self._aliased_experiment_run_annotations.get(experiment_id)
+
+    def get_experiment_index(self, experiment_id: ExperimentID) -> int:
+        return self._experiment_ids.index(experiment_id)
 
 
 def _is_supported_comparison_operator(
