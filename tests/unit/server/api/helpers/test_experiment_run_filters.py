@@ -69,6 +69,16 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="is-not-none",
         ),
         pytest.param(
+            '"invalid" in error',
+            "(experiment_runs.error LIKE '%' || 'invalid' || '%') AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="contains",
+        ),
+        pytest.param(
+            '"invalid" not in error',
+            "(experiment_runs.error NOT LIKE '%' || 'invalid' || '%') AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="not-contains",
+        ),
+        pytest.param(
             "latency_ms > 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="gt",
