@@ -184,6 +184,11 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="mixed-conjunction-and-disjunction-without-parentheses",
         ),
         pytest.param(
+            "experiments[0].evals['Hallucination'].score > 0.5 or (latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
+            "experiment_run_annotations.score > 0.5 AND experiment_runs.experiment_id = 0 AND experiment_run_annotations.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs.experiment_id = 0 AND experiment_runs.error IS NULL AND experiment_runs.experiment_id = 1",  # noqa: E501
+            id="mixed-conjunction-and-disjunction-with-parentheses",
+        ),
+        pytest.param(
             "not (experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000)",
             "NOT (experiment_run_annotations.score > 0.5 AND experiment_runs.experiment_id = 0 AND experiment_run_annotations.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs.experiment_id = 0)",  # noqa: E501
             id="complex-negation",
