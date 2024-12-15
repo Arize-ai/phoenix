@@ -189,23 +189,23 @@ class ExperimentRunEvalAttribute(Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
     _experiment_id: int = field(init=False)
-    table: type[models.Base] = field(init=False)
-    eval_name: str = field(init=False)
+    _table: type[models.Base] = field(init=False)
+    _eval_name: str = field(init=False)
 
     def __post_init__(self) -> None:
         assert self.attribute_name in ("score", "explanation", "label")
         object.__setattr__(self, "_experiment_id", self.experiment_run_eval._experiment_id)
-        object.__setattr__(self, "table", models.ExperimentRunAnnotation)
-        object.__setattr__(self, "eval_name", self.experiment_run_eval.eval_name)
+        object.__setattr__(self, "_table", models.ExperimentRunAnnotation)
+        object.__setattr__(self, "_eval_name", self.experiment_run_eval.eval_name)
 
     def compile(self) -> Any:
-        return getattr(self.table, self.attribute_name)
+        return getattr(self._table, self.attribute_name)
 
     def update_comparison_expression(self, expression: Any) -> Any:
         return (
             expression
             & (models.ExperimentRun.experiment_id == self._experiment_id)
-            & (models.ExperimentRunAnnotation.name == self.eval_name)
+            & (models.ExperimentRunAnnotation.name == self._eval_name)
         )
 
 
