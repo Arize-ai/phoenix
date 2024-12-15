@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Union, get_args
 
-from sqlalchemy import BinaryExpression, Boolean, Float, Integer, String, and_, cast, or_
+from sqlalchemy import BinaryExpression, Boolean, Float, Integer, Select, String, and_, cast, or_
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
@@ -25,8 +25,28 @@ SupportedConstantType: TypeAlias = Union[bool, int, float, str, None]
 SQLAlchemyType: TypeAlias = Union[Boolean, Integer, Float[float], String]
 
 
-def get_orm_filter_expression(filter_expression: str, experiment_ids: list[int]) -> Any:
-    tree = ast.parse(filter_expression, mode="eval")
+def update_examples_query_with_filter_condition(
+    query: Select[Any], filter_condition: str, experiment_ids: list[int]
+) -> Select[Any]:
+    query = query.join(
+        models.ExperimentRun,
+        onclause=and_(
+            models.ExperimentRun.dataset_example_id == models.DatasetExample.id,
+            models.ExperimentRun.experiment_id.in_(experiment_ids),
+        ),
+        isouter=True,
+    ).join(
+        models.ExperimentRunAnnotation,
+        onclause=models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+        isouter=True,
+    )
+    orm_filter_expression = get_orm_filter_condition(filter_condition, experiment_ids)
+    query = query.where(orm_filter_expression)
+    return query
+
+
+def get_orm_filter_condition(filter_condition: str, experiment_ids: list[int]) -> Any:
+    tree = ast.parse(filter_condition, mode="eval")
     transformer = ExperimentRunFilterTransformer(experiment_ids)
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
