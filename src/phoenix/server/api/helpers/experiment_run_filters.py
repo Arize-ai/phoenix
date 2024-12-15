@@ -160,9 +160,7 @@ class ComparisonOperation(BooleanExpression):
 
     def compile(self) -> Any:
         ast_operator = self.operator
-        sqlalchemy_operator: Callable[
-            [BinaryExpression[Any], BinaryExpression[Any]], BinaryExpression[Any]
-        ]
+        sqlalchemy_operator: Callable[[Any, Any], Any]
         if isinstance(ast_operator, ast.Eq):
             sqlalchemy_operator = operator.eq
         elif isinstance(ast_operator, ast.NotEq):
@@ -179,6 +177,10 @@ class ComparisonOperation(BooleanExpression):
             sqlalchemy_operator = lambda left, right: left.is_(right)  # noqa: E731
         elif isinstance(ast_operator, ast.IsNot):
             sqlalchemy_operator = lambda left, right: ~(left.is_(right))  # noqa: E731
+        elif isinstance(ast_operator, ast.In):
+            sqlalchemy_operator = lambda left, right: right.contains(left)  # noqa: E731
+        elif isinstance(ast_operator, ast.NotIn):
+            sqlalchemy_operator = lambda left, right: ~(right.contains(left))  # noqa: E731
         else:
             raise SyntaxError(f"Unsupported comparison operator: {ast_operator}")
         attribute_operand = self._get_attribute_operand(ast_operator)
@@ -194,18 +196,23 @@ class ComparisonOperation(BooleanExpression):
         self,
         operator: ast.cmpop,
     ) -> Attribute:
-        expected_attribute_position: Literal["left", "left_or_right"]
+        expected_attribute_position: Literal["left", "right", "left_or_right"]
         if isinstance(operator, (ast.Is, ast.IsNot)):
             expected_attribute_position = "left"
+        elif isinstance(operator, (ast.In, ast.NotIn)):
+            expected_attribute_position = "right"
         elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
             expected_attribute_position = "left_or_right"
         else:
-            assert False
+            raise SyntaxError(f"Unsupported comparison operator: {operator}")
         left_operand = self.left_operand
         right_operand = self.right_operand
         if expected_attribute_position == "left":
             assert isinstance(left_operand, Attribute)
             return left_operand
+        elif expected_attribute_position == "right":
+            assert isinstance(right_operand, Attribute)
+            return right_operand
         if expected_attribute_position == "left_or_right":
             if isinstance(left_operand, Attribute) and isinstance(right_operand, Constant):
                 return left_operand
@@ -327,7 +334,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
 
 if __name__ == "__main__":
     expressions = [
-        "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000 and experiments[1].error is None"  # noqa: E501
+        '"invalid" not in error',
     ]
 
     for expression in expressions:
