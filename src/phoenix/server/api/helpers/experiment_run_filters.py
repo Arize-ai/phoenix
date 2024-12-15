@@ -80,20 +80,16 @@ class ExperimentsName(FilterExpressionNode):
 
 
 @dataclass(frozen=True)
-class HasExperimentIdMixin:
-    experiment_id: int = field(init=False)
-
-
-@dataclass(frozen=True)
-class ExperimentRun(HasExperimentIdMixin, FilterExpressionNode):
+class ExperimentRun(FilterExpressionNode):
     slice: Constant
     experiment_ids: list[int]
+    _experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         experiment_index = self.slice.value
         assert isinstance(experiment_index, int)
         assert 0 <= experiment_index < len(self.experiment_ids)
-        object.__setattr__(self, "experiment_id", self.experiment_ids[experiment_index])
+        object.__setattr__(self, "_experiment_id", self.experiment_ids[experiment_index])
 
     def compile(self) -> Any:
         raise NotImplementedError("Can't compile 'experiment[<index>]' alone")
@@ -109,12 +105,13 @@ class Attribute(FilterExpressionNode, ABC):
 
 
 @dataclass(frozen=True)
-class ExperimentRunAttribute(HasExperimentIdMixin, Attribute):
+class ExperimentRunAttribute(Attribute):
     experiment_run: ExperimentRun
     attribute_name: str
+    _experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "experiment_id", self.experiment_run.experiment_id)
+        object.__setattr__(self, "_experiment_id", self.experiment_run._experiment_id)
 
     def compile(self) -> Any:
         column = self._column
@@ -123,7 +120,7 @@ class ExperimentRunAttribute(HasExperimentIdMixin, Attribute):
         return column
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        return expression & (models.ExperimentRun.experiment_id == self.experiment_id)
+        return expression & (models.ExperimentRun.experiment_id == self._experiment_id)
 
     @property
     def is_eval_attribute(self) -> bool:
@@ -152,13 +149,14 @@ class ExperimentRunAttribute(HasExperimentIdMixin, Attribute):
 
 
 @dataclass(frozen=True)
-class ExperimentRunJSONAttribute(HasExperimentIdMixin, Attribute):
+class ExperimentRunJSONAttribute(Attribute):
     attribute: Union[ExperimentRunAttribute, "ExperimentRunJSONAttribute"]
     index_constant: Constant
+    _experiment_id: int = field(init=False)
     _index_value: Union[int, str] = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "experiment_id", self.attribute.experiment_id)
+        object.__setattr__(self, "_experiment_id", self.attribute._experiment_id)
         index_value = self.index_constant.value
         if not isinstance(index_value, (int, str)):
             raise SyntaxError
@@ -169,32 +167,34 @@ class ExperimentRunJSONAttribute(HasExperimentIdMixin, Attribute):
         return compiled_attribute[self._index_value]
 
     def update_comparison_expression(self, expression: Any) -> Any:
-        return expression & (models.ExperimentRun.experiment_id == self.experiment_id)
+        return expression & (models.ExperimentRun.experiment_id == self._experiment_id)
 
 
 @dataclass(frozen=True)
-class ExperimentRunEval(HasExperimentIdMixin, FilterExpressionNode):
+class ExperimentRunEval(FilterExpressionNode):
     experiment_run_attribute: ExperimentRunAttribute
     eval_name: str
+    _experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         assert isinstance(self.eval_name, str)
-        object.__setattr__(self, "experiment_id", self.experiment_run_attribute.experiment_id)
+        object.__setattr__(self, "_experiment_id", self.experiment_run_attribute._experiment_id)
 
     def compile(self) -> Any:
         raise NotImplementedError("Can't compile 'experiment[<index>].evals[<eval_name>]' alone")
 
 
 @dataclass(frozen=True)
-class ExperimentRunEvalAttribute(HasExperimentIdMixin, Attribute):
+class ExperimentRunEvalAttribute(Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
+    _experiment_id: int = field(init=False)
     table: type[models.Base] = field(init=False)
     eval_name: str = field(init=False)
 
     def __post_init__(self) -> None:
         assert self.attribute_name in ("score", "explanation", "label")
-        object.__setattr__(self, "experiment_id", self.experiment_run_eval.experiment_id)
+        object.__setattr__(self, "_experiment_id", self.experiment_run_eval._experiment_id)
         object.__setattr__(self, "table", models.ExperimentRunAnnotation)
         object.__setattr__(self, "eval_name", self.experiment_run_eval.eval_name)
 
@@ -204,7 +204,7 @@ class ExperimentRunEvalAttribute(HasExperimentIdMixin, Attribute):
     def update_comparison_expression(self, expression: Any) -> Any:
         return (
             expression
-            & (models.ExperimentRun.experiment_id == self.experiment_id)
+            & (models.ExperimentRun.experiment_id == self._experiment_id)
             & (models.ExperimentRunAnnotation.name == self.eval_name)
         )
 
