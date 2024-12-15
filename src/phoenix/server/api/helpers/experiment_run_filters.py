@@ -2,9 +2,10 @@ import ast
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Union
+from typing import Any, Callable, Literal, Union
 
 from sqlalchemy import BinaryExpression
+from typing_extensions import assert_never
 
 from phoenix.db import models
 
@@ -71,7 +72,7 @@ class ExperimentRun(HasExperimentIdMixin, FilterExpressionNode):
 @dataclass(frozen=True)
 class Attribute(FilterExpressionNode, ABC):
     @abstractmethod
-    def update_primitive_boolean_expression(
+    def update_comparison_expression(
         self, expression: BinaryExpression[Any]
     ) -> BinaryExpression[Any]:
         raise NotImplementedError
@@ -105,7 +106,7 @@ class ExperimentRunAttribute(HasExperimentIdMixin, Attribute):
     def is_eval_attribute(self) -> bool:
         return self.attribute_name == "evals"
 
-    def update_primitive_boolean_expression(self, expression: Any) -> Any:
+    def update_comparison_expression(self, expression: Any) -> Any:
         return expression & (models.ExperimentRun.experiment_id == self.experiment_id)
 
 
@@ -138,7 +139,7 @@ class ExperimentRunEvalAttribute(HasExperimentIdMixin, Attribute):
     def compile(self) -> Any:
         return getattr(self.table, self.attribute_name)
 
-    def update_primitive_boolean_expression(self, expression: Any) -> Any:
+    def update_comparison_expression(self, expression: Any) -> Any:
         return (
             expression
             & (models.ExperimentRun.experiment_id == self.experiment_id)
@@ -179,16 +180,39 @@ class ComparisonOperation(BooleanExpression):
         elif isinstance(ast_operator, ast.IsNot):
             sqlalchemy_operator = lambda left, right: ~(left.is_(right))  # noqa: E731
         else:
-            raise ValueError(f"Unsupported comparison operator: {ast_operator}")
-        assert isinstance(left_operand := self.left_operand, Attribute)
-        assert isinstance(right_operand := self.right_operand, Constant)
-        compiled_left_operand = left_operand.compile()
-        compiled_right_operand = right_operand.compile()
+            raise SyntaxError(f"Unsupported comparison operator: {ast_operator}")
+        attribute_operand = self._get_attribute_operand(ast_operator)
+        compiled_left_operand = self.left_operand.compile()
+        compiled_right_operand = self.right_operand.compile()
         comparison_expression = sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
-        comparison_expression = left_operand.update_primitive_boolean_expression(
+        comparison_expression = attribute_operand.update_comparison_expression(
             comparison_expression
         )
         return comparison_expression
+
+    def _get_attribute_operand(
+        self,
+        operator: ast.cmpop,
+    ) -> Attribute:
+        expected_attribute_position: Literal["left", "left_or_right"]
+        if isinstance(operator, (ast.Is, ast.IsNot)):
+            expected_attribute_position = "left"
+        elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+            expected_attribute_position = "left_or_right"
+        else:
+            assert False
+        left_operand = self.left_operand
+        right_operand = self.right_operand
+        if expected_attribute_position == "left":
+            assert isinstance(left_operand, Attribute)
+            return left_operand
+        if expected_attribute_position == "left_or_right":
+            if isinstance(left_operand, Attribute) and isinstance(right_operand, Constant):
+                return left_operand
+            elif isinstance(left_operand, Constant) and isinstance(right_operand, Attribute):
+                return right_operand
+            assert False
+        assert_never(expected_attribute_position)
 
 
 @dataclass(frozen=True)

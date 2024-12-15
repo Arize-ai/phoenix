@@ -49,9 +49,19 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="primitive-gt-expression",
         ),
         pytest.param(
+            "1000 < latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-gt-expression-reversed",
+        ),
+        pytest.param(
             "latency_ms >= 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) >= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="primitive-gte-expression",
+        ),
+        pytest.param(
+            "1000 <= latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) >= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-gte-expression-reversed",
         ),
         pytest.param(
             "latency_ms < 1000",
@@ -59,9 +69,19 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="primitive-lt-expression",
         ),
         pytest.param(
+            "1000 > latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) < 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-lt-expression-reversed",
+        ),
+        pytest.param(
             "latency_ms <= 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) <= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="primitive-lte-expression",
+        ),
+        pytest.param(
+            "1000 >= latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) <= 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-lte-expression-reversed",
         ),
         pytest.param(
             "latency_ms == 1000",
@@ -69,9 +89,19 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="primitive-eq-expression",
         ),
         pytest.param(
+            "1000 == latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) = 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-eq-expression-reversed",
+        ),
+        pytest.param(
             "latency_ms != 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) != 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
             id="primitive-ne-expression",
+        ),
+        pytest.param(
+            "1000 != latency_ms",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs.end_time) - EXTRACT(EPOCH FROM experiment_runs.start_time)) * 1000 AS NUMERIC), 1) != 1000 AND experiment_runs.experiment_id = 0",  # noqa: E501
+            id="primitive-ne-expression-reversed",
         ),
         pytest.param(
             "experiments[0].input",
@@ -120,7 +150,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
     ],
 )
-def test_node_transformer(
+def test_experiment_run_filter_transformer_correctly_compiles(
     filter_expression: str, expected_sqlite_expression: str, dialect: str
 ) -> None:
     if dialect == "postgres":
