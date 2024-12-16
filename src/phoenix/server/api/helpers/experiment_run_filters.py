@@ -48,14 +48,9 @@ SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanati
 def update_examples_query_with_filter_condition(
     query: Select[Any], filter_condition: str, experiment_ids: list[int]
 ) -> Select[Any]:
-    tree = ast.parse(filter_condition, mode="eval")
-    transformer = ExperimentRunFilterTransformer(experiment_ids)
-    transformed_tree = transformer.visit(tree)
-    node = transformed_tree.body
-    if not isinstance(node, BooleanExpression):
-        raise SyntaxError("Filter condition must be a boolean expression")
-    orm_filter_expression = node.compile()
-
+    orm_filter_condition, transformer = compile_orm_filter_condition(
+        filter_condition=filter_condition, experiment_ids=experiment_ids
+    )
     for experiment_id in experiment_ids:
         experiment_run_annotations = transformer.get_experiment_run_annotations_alias(experiment_id)
         if experiment_run_annotations is not None:
@@ -82,12 +77,13 @@ def update_examples_query_with_filter_condition(
                     onclause=experiment_run_annotations.experiment_run_id == experiment_runs.id,
                     isouter=True,
                 )
-
-    query = query.where(orm_filter_expression)
+    query = query.where(orm_filter_condition)
     return query
 
 
-def validate_filter_condition(filter_condition: str, experiment_ids: list[int]) -> None:
+def compile_orm_filter_condition(
+    filter_condition: str, experiment_ids: list[int]
+) -> tuple[Any, "ExperimentRunFilterTransformer"]:
     try:
         tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
@@ -102,7 +98,8 @@ def validate_filter_condition(filter_condition: str, experiment_ids: list[int]) 
             start_position=0,
             end_position=len(filter_condition),
         )
-    node.compile()
+    orm_filter_condition = node.compile()
+    return orm_filter_condition, transformer
 
 
 class ExperimentRunFilterConditionParseError(Exception):
