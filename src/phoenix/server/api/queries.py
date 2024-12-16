@@ -36,6 +36,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionParseError,
     compile_orm_filter_condition,
     update_examples_query_with_filter_condition,
 )
@@ -432,11 +433,16 @@ class Query:
                     for experiment_id in experiment_ids
                 ],
             )
-            return ValidationResult(is_valid=True, error_message=None)
-        except Exception as error:
+            return ValidationResult(
+                is_valid=True,
+                error_message=None,
+            )
+        except ExperimentRunFilterConditionParseError as error:
             return ValidationResult(
                 is_valid=False,
                 error_message=str(error),
+                error_start_offset=error.start_offset,
+                error_end_offset=error.end_offset,
             )
 
     @strawberry.field

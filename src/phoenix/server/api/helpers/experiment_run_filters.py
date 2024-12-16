@@ -95,8 +95,8 @@ def compile_orm_filter_condition(
         raise ExperimentRunFilterConditionParseError(
             message="Filter condition must be a boolean expression",
             source=filter_condition,
-            start_position=0,
-            end_position=len(filter_condition),
+            start_offset=0,
+            end_offset=len(filter_condition),
         )
     orm_filter_condition = node.compile()
     return orm_filter_condition, transformer
@@ -108,13 +108,13 @@ class ExperimentRunFilterConditionParseError(Exception):
         *,
         message: str,
         source: str,
-        start_position: int,
-        end_position: int,
+        start_offset: int,
+        end_offset: int,
     ) -> None:
         super().__init__(f"{message}: {source}")
         self.source = source
-        self.start_position = start_position
-        self.end_position = end_position
+        self.start_offset = start_offset
+        self.end_offset = end_offset
 
     @classmethod
     def from_ast_node(
@@ -123,13 +123,13 @@ class ExperimentRunFilterConditionParseError(Exception):
         node: ast.AST,
     ) -> "ExperimentRunFilterConditionParseError":
         source = ast.unparse(node)
-        start_position = getattr(node, "col_offset", 0)
-        end_position = getattr(node, "end_col_offset", len(source))
+        start_offset = getattr(node, "col_offset", 0)
+        end_offset = getattr(node, "end_col_offset", len(source))
         return cls(
             message=message,
             source=source,
-            start_position=start_position,
-            end_position=end_position,
+            start_offset=start_offset,
+            end_offset=end_offset,
         )
 
     @classmethod
@@ -138,13 +138,13 @@ class ExperimentRunFilterConditionParseError(Exception):
         syntax_error: SyntaxError,
     ) -> "ExperimentRunFilterConditionParseError":
         source = syntax_error.text or ""
-        start_position = syntax_error.offset or 0
-        end_position = syntax_error.end_offset or len(source)
+        start_offset = syntax_error.offset or 0
+        end_offset = syntax_error.end_offset or len(source)
         return cls(
             message=syntax_error.msg,
             source=source,
-            start_position=start_position,
-            end_position=end_position,
+            start_offset=start_offset,
+            end_offset=end_offset,
         )
 
 
@@ -789,8 +789,8 @@ def _is_supported_unary_term_operator(
 #         except ExperimentRunFilterConditionParseError as e:
 #             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
 #             print(f"{e.source=}")
-#             print(f"{e.start_position=}")
-#             print(f"{e.end_position=}")
+#             print(f"{e.start_offset=}")
+#             print(f"{e.end_offset=}")
 #         except Exception as e:
 #             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
 #         else:
