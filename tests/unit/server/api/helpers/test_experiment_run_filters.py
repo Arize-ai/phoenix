@@ -275,6 +275,36 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%'",  # noqa: E501
             id="experiment-json-attribute-not-in",
         ),
+        pytest.param(
+            "input['question'] in output['question']",
+            "CAST(experiment_runs_0.output['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",  # noqa: E501
+            id="json-attribute-in-json-attribute",
+        ),
+        pytest.param(
+            "output['question'] not in output['question']",
+            "CAST(experiment_runs_0.output['question'] AS VARCHAR) NOT LIKE '%' || CAST(experiment_runs_0.output['question'] AS VARCHAR) || '%'",  # noqa: E501
+            id="json-attribute-not-in-json-attribute",
+        ),
+        pytest.param(
+            "input['question'] == output['question']",
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) = CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            id="json-attribute-eq-json-attribute",
+        ),
+        pytest.param(
+            "input['question'] != output['question']",
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) != CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            id="json-attribute-ne-json-attribute",
+        ),
+        pytest.param(
+            "input['question'] is output['question']",
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            id="json-attribute-is-json-attribute",
+        ),
+        pytest.param(
+            "input['question'] is not output['question']",
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS NOT CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            id="json-attribute-is-not-json-attribute",
+        ),
         # eval attribute comparison expressions
         pytest.param(
             "experiments[0].evals['Hallucination'].score > 0.5",
