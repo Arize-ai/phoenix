@@ -900,8 +900,10 @@ class PromptVersion(Base):
     invocation_parameters: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JsonDict, default=dict, nullable=True
     )
-    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=dict, nulable=True)
-    output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=dict, nullable=True)
+    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=dict, nullable=True)
+    output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JsonDict, default=dict, nullable=True
+    )
     model_provider: Mapped[str]
     model_name: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
