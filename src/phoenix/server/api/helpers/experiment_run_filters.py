@@ -604,18 +604,12 @@ def _is_supported_experiment_run_eval_attribute_name(
 
 if __name__ == "__main__":
     expressions = [
-        # "1 < 1.0",
-        # "'a' == 'b'",
-        # 'input["score"] > 1',
-        # 'input["score"] >= 1',
-        # 'input["score"] < 1',
-        # 'input["score"] <= 1',
-        # "output['question'] in input['question']",
-        # "output['question'] not in input['question']",
-        # "input['question'] == output['question']",
-        # "input['question'] != output['question']",
-        # "input['question'] is output['question']",
-        # "input['question'] is not output['question']",
+        "input['question'] in output['question']",
+        "output['question'] not in output['question']",
+        "input['question'] == output['question']",
+        "input['question'] != output['question']",
+        "input['question'] is output['question']",
+        "input['question'] is not output['question']",
     ]
 
     for expression in expressions:
