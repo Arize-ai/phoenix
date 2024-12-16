@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1753091e2539d3cc24e130cb4f5b77ea>>
+ * @generated SignedSource<<d4e02cae69ff9b96b268be86c66b40ee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type promptLoaderQuery$variables = {
 };
 export type promptLoaderQuery$data = {
   readonly prompt: {
+    readonly __typename: string;
     readonly id: string;
     readonly name?: string;
   };
@@ -33,53 +34,58 @@ var v0 = [
 ],
 v1 = [
   {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "id"
+    "alias": "prompt",
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "id",
+        "variableName": "id"
+      }
+    ],
+    "concreteType": null,
+    "kind": "LinkedField",
+    "name": "node",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "__typename",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "id",
+        "storageKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          }
+        ],
+        "type": "Prompt",
+        "abstractKey": null
+      }
+    ],
+    "storageKey": null
   }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v3 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    }
-  ],
-  "type": "Prompt",
-  "abstractKey": null
-};
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "promptLoaderQuery",
-    "selections": [
-      {
-        "alias": "prompt",
-        "args": (v1/*: any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/)
-        ],
-        "storageKey": null
-      }
-    ],
+    "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -88,28 +94,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "promptLoaderQuery",
-    "selections": [
-      {
-        "alias": "prompt",
-        "args": (v1/*: any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
-          (v2/*: any*/),
-          (v3/*: any*/)
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*: any*/)
   },
   "params": {
     "cacheID": "a08f26b93468d63c0a76176105703d87",
@@ -122,6 +107,6 @@ return {
 };
 })();
 
-(node as any).hash = "4629ae55617ca50674a4e8a91b291aaf";
+(node as any).hash = "2be55248f208b8502c9abc178078a721";
 
 export default node;

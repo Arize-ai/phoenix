@@ -8,6 +8,7 @@ import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -208,6 +209,14 @@ const router = createBrowserRouter(
               path=":promptId"
               loader={promptLoader}
               element={<PromptPage />}
+              handle={{
+                crumb: (data: promptLoaderQuery$data) => {
+                  if (data.prompt.__typename === "Prompt") {
+                    return data.prompt.name;
+                  }
+                  return "unknown";
+                },
+              }}
             />
           </Route>
           <Route

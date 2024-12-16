@@ -15,6 +15,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     graphql`
       query promptLoaderQuery($id: GlobalID!) {
         prompt: node(id: $id) {
+          __typename
           id
           ... on Prompt {
             name

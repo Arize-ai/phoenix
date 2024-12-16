@@ -120,6 +120,9 @@ export function PromptsTable(props: PromptsTableProps) {
                         className: header.column.getCanSort()
                           ? "cursor-pointer"
                           : "",
+                        ["aria-role"]: header.column.getCanSort()
+                          ? "button"
+                          : null,
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
                           textAlign: header.column.columnDef.meta?.textAlign,
