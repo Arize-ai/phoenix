@@ -1,0 +1,184 @@
+"""Add prompt tables
+
+Revision ID: bc8fea3c2bc8
+Revises: 4ded9e43755f
+Create Date: 2024-12-16 15:45:01.090563
+
+"""
+
+from typing import Any, Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
+
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),  # type: ignore
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
+)
+
+revision: str = "bc8fea3c2bc8"
+down_revision: Union[str, None] = "4ded9e43755f"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "prompt_tag_configs",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("description", sa.String),
+        sa.UniqueConstraint("name", name="uq_prompt_tag_configs_name"),
+    )
+
+    op.create_table(
+        "prompts",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("name", sa.String, unique=True, nullable=False),
+        sa.Column("description", sa.String),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+        sa.UniqueConstraint("name", name="uq_prompts_name"),
+    )
+
+    op.create_table(
+        "prompt_tags",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "prompt_tag_config_rowid",
+            sa.Integer,
+            sa.ForeignKey("prompt_tag_configs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "prompt_id",
+            sa.Integer,
+            sa.ForeignKey("prompts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+
+    op.create_table(
+        "prompt_versions",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "prompt_id",
+            sa.Integer,
+            sa.ForeignKey("prompts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("description", sa.String, nullable=False),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "template_type",
+            sa.String,
+            sa.CheckConstraint(
+                "template_type IN ('chat', 'str')",
+                name="ck_template_type",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "template_format",
+            sa.String,
+            sa.CheckConstraint(
+                "template_format IN ('fstring', 'mustache', 'none')",
+                name="ck_template_format",
+            ),
+            nullable=False,
+        ),
+        sa.Column("template", JSON_, nullable=False),
+        sa.Column("invocation_parameters", JSON_, nullable=True),
+        sa.Column("tools", JSON_, nullable=True),
+        sa.Column("output_schema", JSON_, nullable=True),
+        sa.Column("model_provider", sa.String, nullable=False),
+        sa.Column("model_name", sa.String, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
+
+    op.create_table(
+        "prompt_template_version_tags",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("description", sa.String),
+        sa.Column(
+            "prompt_id",
+            sa.Integer,
+            sa.ForeignKey("prompts.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "prompt_version_id",
+            sa.Integer,
+            sa.ForeignKey("prompt_versions.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        sa.UniqueConstraint(
+            "name",
+            "prompt_id",
+            name="uq_prompt_template_version_tags_name_prompt_id",
+        ),
+    )
+
+
+def downgrade() -> None:
+    op.drop_table("prompt_template_version_tags")
+    op.drop_table("prompt_versions")
+    op.drop_table("prompt_tags")
+    op.drop_table("prompts")
+    op.drop_table("prompt_tag_configs")
