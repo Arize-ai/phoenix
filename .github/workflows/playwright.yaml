@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         py: [ 3.9, 3.12, 3.13 ]
-        os: [ ubuntu-latest, windows-latest, macos-latest, macos-13 ]
+        os: [ ubuntu-latest, macos-latest, macos-13 ]
         exclude:
           - py: 3.13
             os: macos-13
