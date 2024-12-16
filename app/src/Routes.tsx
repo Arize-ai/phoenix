@@ -8,6 +8,7 @@ import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -40,6 +41,10 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  promptLoader,
+  PromptPage,
+  promptsLoader,
+  PromptsPage,
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
@@ -181,7 +186,7 @@ const router = createBrowserRouter(
               />
             </Route>
             <Route
-              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              path="spans/:spanId"
               element={<SpanPlaygroundPage />}
               loader={spanPlaygroundPageLoader}
               handle={{
@@ -190,6 +195,27 @@ const router = createBrowserRouter(
                     return `span ${data.span.context.spanId}`;
                   }
                   return "span unknown";
+                },
+              }}
+            />
+          </Route>
+          <Route
+            path="/prompts"
+            handle={{
+              crumb: () => "Prompts",
+            }}
+          >
+            <Route index element={<PromptsPage />} loader={promptsLoader} />
+            <Route
+              path=":promptId"
+              loader={promptLoader}
+              element={<PromptPage />}
+              handle={{
+                crumb: (data: promptLoaderQuery$data) => {
+                  if (data.prompt.__typename === "Prompt") {
+                    return data.prompt.name;
+                  }
+                  return "unknown";
                 },
               }}
             />
