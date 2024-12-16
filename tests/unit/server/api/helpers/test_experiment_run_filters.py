@@ -1,4 +1,5 @@
 import ast
+import sys
 
 import pytest
 
@@ -409,7 +410,9 @@ def test_experiment_run_filter_transformer_correctly_compiles(
     [
         pytest.param(
             "input['question]",
-            "unterminated string literal (detected at line 1)",
+            "EOL while scanning string literal"
+            if sys.version_info <= (3, 9)
+            else "unterminated string literal (detected at line 1)",
             id="invalid-python-syntax",
         ),
         pytest.param(
