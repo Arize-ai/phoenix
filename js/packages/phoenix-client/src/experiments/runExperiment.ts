@@ -55,10 +55,16 @@ export async function runExperiment({
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
   console.info(
-    `🧪 Starting experiment ${experimentName} on ${dataset.id} with ${task.name} and ${evaluators?.length ?? 0} ${pluralize(
+    `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )}`
+  );
+
+  // TODO: logger w/ verbosity
+  // eslint-disable-next-line no-console
+  console.info(
+    `🔁 Running ${repetitions} ${pluralize("repetition", repetitions)} of task "${task.name}"`
   );
 
   // Run task against all examples, for each repetition
@@ -125,7 +131,9 @@ function runTask({
 }) {
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
-  console.info(`🔧 Running task ${task.name} on dataset ${dataset.id}`);
+  console.info(
+    `🔧 (${repetition}) Running task "${task.name}" on dataset "${dataset.id}"`
+  );
   const run = async (example: Example) => {
     const thisRun: ExperimentRun = {
       id: id(),
@@ -168,12 +176,12 @@ export async function evaluateExperiment({
 }): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDataset({ dataset: experiment.datasetId, client });
-  invariant(dataset, `Dataset ${experiment.datasetId} not found`);
+  invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
   invariant(
     dataset.examples.length > 0,
-    `Dataset ${experiment.datasetId} has no examples`
+    `Dataset "${experiment.datasetId}" has no examples`
   );
-  invariant(experiment.runs, `Experiment ${experiment.id} has no runs`);
+  invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
 
   if (evaluators?.length === 0) {
     return {
@@ -185,7 +193,7 @@ export async function evaluateExperiment({
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
   console.info(
-    `🧠 Evaluating experiment ${experiment.id} with ${evaluators?.length ?? 0} ${pluralize(
+    `🧠 Evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )}`
@@ -220,7 +228,7 @@ export async function evaluateExperiment({
 
   // TODO: logger w/ verbosity
   // eslint-disable-next-line no-console
-  console.info(`✅ Evaluation runs completed`);
+  console.info(`\n✅ Evaluation runs completed`);
 
   return {
     ...experiment,
@@ -243,7 +251,7 @@ async function runEvaluator({
   onComplete: (run: ExperimentEvaluationRun) => void;
 }) {
   const example = exampleCache[run.datasetExampleId];
-  invariant(example, `Example ${run.datasetExampleId} not found`);
+  invariant(example, `Example "${run.datasetExampleId}" not found`);
   const evaluate = async () => {
     const thisEval: ExperimentEvaluationRun = {
       id: id(),

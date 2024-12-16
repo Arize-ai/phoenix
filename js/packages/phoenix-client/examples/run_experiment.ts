@@ -45,7 +45,7 @@ const main = async () => {
     return;
   }
 
-  const task: RunExperimentParams["task"] = async (example) => {
+  const passThroughTask: RunExperimentParams["task"] = async (example) => {
     return example.output ?? "My own output";
   };
 
@@ -72,7 +72,8 @@ const main = async () => {
       dataset: dataset.id,
       experimentName,
       client: phoenix,
-      task,
+      task: passThroughTask,
+      repetitions: 2,
       evaluators: [
         asEvaluator("Mentions startups", async (example) => {
           await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -85,6 +86,20 @@ const main = async () => {
                 : 0,
             label: "Mentions startups",
             explanation: "The output contains the word 'startups'",
+            metadata: {},
+          };
+        }),
+        asEvaluator("Mentions evaluation", async (example) => {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const output = example.output;
+          const isString = typeof output === "string";
+          return {
+            score:
+              isString && output?.toLocaleLowerCase()?.includes?.("evaluation")
+                ? 1
+                : 0,
+            label: "Mentions evaluation",
+            explanation: "The output contains the word 'evaluation'",
             metadata: {},
           };
         }),
