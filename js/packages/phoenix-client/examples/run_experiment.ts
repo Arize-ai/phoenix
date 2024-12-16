@@ -1,4 +1,9 @@
-import { createClient, runExperiment, RunExperimentParams } from "../src";
+import {
+  asEvaluator,
+  createClient,
+  runExperiment,
+  RunExperimentParams,
+} from "../src";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
 
 // baseUrl defaults to http://localhost:6006
@@ -12,13 +17,8 @@ const getDatasets = () =>
     .GET("/v1/datasets", { params: { query: { limit: 100 } } })
     .then(({ data }) => data?.data ?? []);
 
-const getExamples = (datasetId: string) =>
-  phoenix
-    .GET(`/v1/datasets/{id}/examples`, { params: { path: { id: datasetId } } })
-    .then(({ data }) => data?.data);
-
 // - Prompt user to select a dataset from the list
-// - Prompt user to confirm the task, # of evaluators, # of examples before running
+// - Prompt user to confirm the task before running
 // - Run the experiment
 // - Print the results
 
@@ -45,21 +45,6 @@ const main = async () => {
     return;
   }
 
-  const examples = await getExamples(dataset.id);
-  if (!examples?.examples?.length) {
-    outro("No examples found in the dataset, sorry!");
-    return;
-  }
-
-  const datasetWithExamples: RunExperimentParams["dataset"] = {
-    ...dataset,
-    examples: examples.examples.map((example) => ({
-      ...example,
-      updatedAt: new Date(example.updated_at),
-    })),
-    versionId: examples.version_id,
-  };
-
   const task: RunExperimentParams["task"] = async (example) => {
     return example.output ?? "My own output";
   };
@@ -67,8 +52,7 @@ const main = async () => {
   const experimentName = "runExperiment example";
 
   log.info(
-    `We will run experiment "${experimentName}" on dataset "${dataset.name}"
-    with ${0} evaluators and ${datasetWithExamples.examples.length} examples`
+    `We will run experiment "${experimentName}" on dataset "${dataset.name}"`
   );
   const shouldContinue = await confirm({
     message: "Do you want to continue?",
@@ -85,10 +69,26 @@ const main = async () => {
   let experimentRun: Awaited<ReturnType<typeof runExperiment>>;
   try {
     experimentRun = await runExperiment({
-      dataset: datasetWithExamples,
+      dataset: dataset.id,
       experimentName,
       client: phoenix,
       task,
+      evaluators: [
+        asEvaluator("Mentions startups", async (example) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const output = example.output;
+          const isString = typeof output === "string";
+          return {
+            score:
+              isString && output?.toLocaleLowerCase()?.includes?.("startups")
+                ? 1
+                : 0,
+            label: "Mentions startups",
+            explanation: "The output contains the word 'startups'",
+            metadata: {},
+          };
+        }),
+      ],
     });
   } catch (e) {
     s.stop("Experiment run failed!");
