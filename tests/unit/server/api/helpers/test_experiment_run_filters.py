@@ -411,7 +411,7 @@ def test_experiment_run_filter_transformer_correctly_compiles(
         pytest.param(
             "input['question]",
             "EOL while scanning string literal"
-            if sys.version_info <= (3, 9)
+            if sys.version_info < (3, 10)
             else "unterminated string literal (detected at line 1)",
             id="invalid-python-syntax",
         ),
