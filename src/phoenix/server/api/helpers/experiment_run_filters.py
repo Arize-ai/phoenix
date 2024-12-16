@@ -1,5 +1,4 @@
 import ast
-import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional, Union, get_args
@@ -9,13 +8,16 @@ from sqlalchemy import (
     Boolean,
     Float,
     Integer,
+    Null,
     Select,
     String,
     and_,
     cast,
+    literal,
     or_,
 )
 from sqlalchemy.orm import aliased
+from sqlalchemy.sql import operators
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
@@ -125,7 +127,10 @@ class Constant(HasDataType, Term):
     value: SupportedConstantType
 
     def compile(self) -> Any:
-        return self.value
+        value = self.value
+        if value is None:
+            return Null()
+        return literal(value)
 
     def data_type(self) -> Optional[SQLAlchemyDataType]:
         value = self.value
@@ -351,7 +356,7 @@ class ComparisonOperation(BooleanExpression):
                 compiled_left_operand = cast(compiled_left_operand, cast_type)
             if not isinstance(right_operand, HasDataType):
                 compiled_right_operand = cast(compiled_right_operand, cast_type)
-        sqlalchemy_operator = _get_sqlalchemy_comparison_operator(self._operator)
+        sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
         comparison_expression = sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
         for operand in (self.left_operand, self.right_operand):
             comparison_expression = operand.update_expression(comparison_expression)
@@ -365,9 +370,9 @@ class UnaryBooleanOperation(BooleanExpression):
 
     def compile(self) -> Any:
         ast_operator = self.operator
-        sqlalchemy_operator: Callable[[BinaryExpression[Any]], BinaryExpression[Any]]
+        sqlalchemy_operator: Callable[[Any], Any]
         if isinstance(ast_operator, ast.Not):
-            sqlalchemy_operator = operator.invert
+            sqlalchemy_operator = operators.inv
         else:
             raise ValueError(f"Unsupported unary operator: {ast_operator}")
         compiled_operand = self.operand.compile()
@@ -515,25 +520,25 @@ def _get_sqlalchemy_comparison_operator(
     ast_operator: SupportedComparisonOperator,
 ) -> Callable[[Any, Any], Any]:
     if isinstance(ast_operator, ast.Eq):
-        return operator.eq
+        return operators.eq
     elif isinstance(ast_operator, ast.NotEq):
-        return operator.ne
+        return operators.ne
     elif isinstance(ast_operator, ast.Lt):
-        return operator.lt
+        return operators.lt
     elif isinstance(ast_operator, ast.LtE):
-        return operator.le
+        return operators.le
     elif isinstance(ast_operator, ast.Gt):
-        return operator.gt
+        return operators.gt
     elif isinstance(ast_operator, ast.GtE):
-        return operator.ge
+        return operators.ge
     elif isinstance(ast_operator, ast.Is):
-        return lambda left, right: left.is_(right)  # noqa: E731
+        return operators.is_
     elif isinstance(ast_operator, ast.IsNot):
-        return lambda left, right: ~(left.is_(right))  # noqa: E731
+        return operators.is_not
     elif isinstance(ast_operator, ast.In):
-        return lambda left, right: right.contains(left)  # noqa: E731
+        return lambda left, right: operators.contains_op(right, left)
     elif isinstance(ast_operator, ast.NotIn):
-        return lambda left, right: ~(right.contains(left))  # noqa: E731
+        return lambda left, right: operators.not_contains_op(right, left)
     assert_never(ast_operator)
 
 
@@ -599,7 +604,18 @@ def _is_supported_experiment_run_eval_attribute_name(
 
 if __name__ == "__main__":
     expressions = [
-        "'search-term' in experiments[0].evals['Hallucination'].explanation",
+        # "1 < 1.0",
+        # "'a' == 'b'",
+        # 'input["score"] > 1',
+        # 'input["score"] >= 1',
+        # 'input["score"] < 1',
+        # 'input["score"] <= 1',
+        # "output['question'] in input['question']",
+        # "output['question'] not in input['question']",
+        # "input['question'] == output['question']",
+        # "input['question'] != output['question']",
+        # "input['question'] is output['question']",
+        # "input['question'] is not output['question']",
     ]
 
     for expression in expressions:

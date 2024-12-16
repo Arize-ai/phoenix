@@ -10,6 +10,11 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
     (
         # primitive names
         pytest.param(
+            "1",
+            "1",
+            id="int-constant",
+        ),
+        pytest.param(
             "input",
             "dataset_example_revisions.input",
             id="input-name",
@@ -113,6 +118,11 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
             id="contains",
         ),
         pytest.param(
+            "error in 'invalid'",
+            "'invalid' LIKE '%' || experiment_runs_0.error || '%'",
+            id="contains-reversed",
+        ),
+        pytest.param(
             '"invalid" not in error',
             "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%'",  # noqa: E501
             id="not-contains",
@@ -124,7 +134,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 < latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
+            "1000 < round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="gt-reversed",
         ),
         pytest.param(
@@ -134,7 +144,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 <= latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) >= 1000",  # noqa: E501
+            "1000 <= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="gte-reversed",
         ),
         pytest.param(
@@ -144,7 +154,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 > latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000",  # noqa: E501
+            "1000 > round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="lt-reversed",
         ),
         pytest.param(
@@ -154,7 +164,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 >= latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) <= 1000",  # noqa: E501
+            "1000 >= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="lte-reversed",
         ),
         pytest.param(
@@ -164,7 +174,7 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 == latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) = 1000",  # noqa: E501
+            "1000 = round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="eq-reversed",
         ),
         pytest.param(
@@ -174,8 +184,19 @@ from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilte
         ),
         pytest.param(
             "1000 != latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) != 1000",  # noqa: E501
+            "1000 != round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="ne-reversed",
+        ),
+        # literal comparison
+        pytest.param(
+            "1 < 1.1",
+            "1 < 1.1",
+            id="literal-comparison-lt",
+        ),
+        pytest.param(
+            "'a' == 'b'",
+            "'a' = 'b'",
+            id="literal-comparison-eq",
         ),
         # experiment run attribute comparison expressions
         pytest.param(
