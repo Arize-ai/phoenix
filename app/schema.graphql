@@ -1376,6 +1376,32 @@ input ProjectSessionSort {
   dir: SortDir!
 }
 
+type Prompt implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type PromptConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Prompt!
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
@@ -1402,6 +1428,7 @@ type Query {
   model: Model!
   node(id: GlobalID!): Node!
   viewer: User
+  prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
