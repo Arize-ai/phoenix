@@ -282,7 +282,7 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
             return models.DatasetExampleRevision.output
         elif attribute_name == "output":
             aliased_experiment_run = self.experiment_run_alias(experiment_id)
-            return aliased_experiment_run.output
+            return aliased_experiment_run.output["task_output"]
         elif attribute_name == "error":
             aliased_experiment_run = self.experiment_run_alias(experiment_id)
             return aliased_experiment_run.error
