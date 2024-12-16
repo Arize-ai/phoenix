@@ -363,7 +363,7 @@ class Query:
                         OrmRevision.revision_kind != "DELETE",
                     ),
                 )
-                .order_by(OrmRevision.dataset_example_id.desc())
+                .order_by(OrmExample.id.desc())
             )
 
             if filter_condition:
