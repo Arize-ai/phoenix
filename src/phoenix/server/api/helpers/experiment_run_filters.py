@@ -139,7 +139,9 @@ class ExperimentRunFilterConditionParseError(Exception):
     ) -> "ExperimentRunFilterConditionParseError":
         source = syntax_error.text or ""
         start_offset = syntax_error.offset or 0
-        end_offset = syntax_error.end_offset or len(source)
+        end_offset = getattr(
+            syntax_error, "end_offset", start_offset + 1
+        )  # end_offset is unavailable in Python 3.9
         return cls(
             message=syntax_error.msg,
             source=source,
