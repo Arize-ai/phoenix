@@ -2,7 +2,11 @@ import ast
 
 import pytest
 
-from phoenix.server.api.helpers.experiment_run_filters import ExperimentRunFilterTransformer
+from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionParseError,
+    ExperimentRunFilterTransformer,
+    validate_filter_condition,
+)
 
 
 @pytest.mark.parametrize(
@@ -376,3 +380,117 @@ def test_experiment_run_filter_transformer_correctly_compiles(
     orm_expression = node.compile()
     sql_expression = str(orm_expression.compile(compile_kwargs={"literal_binds": True}))
     assert sql_expression == expected_sqlite_expression
+
+
+@pytest.mark.parametrize(
+    "filter_expression,expected_error_prefix",
+    [
+        pytest.param(
+            "input['question]",
+            "unterminated string literal (detected at line 1)",
+            id="invalid-python-syntax",
+        ),
+        pytest.param(
+            "latency_ms",
+            "Filter condition must be a boolean expression",
+            id="not-a-boolean-expression",
+        ),
+        pytest.param(
+            "unknown_name",
+            "Unknown name",
+            id="unknown-name",
+        ),
+        pytest.param(
+            "input.unknown_attribute",
+            "Unknown attribute",
+            id="invalid-attribute",
+        ),
+        pytest.param(
+            "latency_ms['key']",
+            "Invalid subscript",
+            id="invalid-subscript",
+        ),
+        pytest.param(
+            "input[0.5]",
+            "Index must be an integer or string",
+            id="non-integer-string-index",
+        ),
+        pytest.param(
+            "experiments[input]",
+            "Index must be a constant",
+            id="non-constant-index",
+        ),
+        pytest.param(
+            "experiments[100].latency_ms < 100",
+            "Select an experiment with [<index>]",
+            id="experiment-index-out-of-range",
+        ),
+        pytest.param(
+            "experiments['name'].latency_ms < 100",
+            "Index to experiments must be an integer",
+            id="non-integer-experiment-index",
+        ),
+        pytest.param(
+            "experiments < 0",
+            "Select an experiment with [<index>]",
+            id="missing-experiment-index",
+        ),
+        pytest.param(
+            "experiments[0] < 0",
+            "Add an attribute",
+            id="missing-experiment-attribute",
+        ),
+        pytest.param(
+            "experiments[0].evals < 0",
+            "Select an eval with [<eval-name>]",
+            id="missing-eval-name",
+        ),
+        pytest.param(
+            "evals[0] < 0",
+            "Eval must be indexed by string",
+            id="non-string-eval-index",
+        ),
+        pytest.param(
+            "experiments[0].evals['Hallucination'] == 'hallucinated'",
+            "Choose an attribute for your eval (label, score, etc.)",
+            id="missing-eval-attribute",
+        ),
+        pytest.param(
+            "evals['Hallucination'].probability > 0.5",
+            "Unknown eval attribute",
+            id="unknown-eval-attribute",
+        ),
+        pytest.param(
+            "experiments[0].evals['Hallucination']['score']",
+            "Invalid subscript",
+            id="forgot-dot-notation-for-eval-attribute",
+        ),
+        pytest.param(
+            "experiments[0].latency_ms < experiments[1].latency_ms < experiments[2].latency_ms",
+            "Only binary comparisons are supported",
+            id="chained-comparison",
+        ),
+        pytest.param(
+            "not input",
+            "Operand must be a boolean expression",
+            id="unary-not-on-non-boolean",
+        ),
+        pytest.param(
+            "True and True and True",
+            "Boolean operators are binary",
+            id="chained-boolean-operation",
+        ),
+    ],
+)
+def test_validate_filter_condition_raises_appropriate_error_message(
+    filter_expression: str,
+    expected_error_prefix: str,
+) -> None:
+    with pytest.raises(ExperimentRunFilterConditionParseError) as exc_info:
+        validate_filter_condition(
+            filter_condition=filter_expression,
+            experiment_ids=[0, 1, 2],
+        )
+
+    error = exc_info.value
+    assert str(error).startswith(expected_error_prefix)
