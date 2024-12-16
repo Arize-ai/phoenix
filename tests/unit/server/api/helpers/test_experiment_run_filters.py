@@ -30,7 +30,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             "output",
-            "experiment_runs_0.output",
+            "experiment_runs_0.output['task_output']",
             id="output-name",
         ),
         pytest.param(
@@ -56,7 +56,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             "experiments[1].output",
-            "experiment_runs_1.output",
+            "experiment_runs_1.output['task_output']",
             id="experiment-output-name",
         ),
         pytest.param(
@@ -77,7 +77,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             "output[0]",
-            "experiment_runs_0.output[0]",
+            "experiment_runs_0.output['task_output'][0]",
             id="json-attribute-int-key",
         ),
         pytest.param(
@@ -97,7 +97,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             "experiments[1].output[0]",
-            "experiment_runs_1.output[0]",
+            "experiment_runs_1.output['task_output'][0]",
             id="experiment-json-attribute-int-key",
         ),
         pytest.param(
@@ -226,7 +226,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             'experiments[0].output["confidence"] >= 0.8',
-            "CAST(experiment_runs_0.output['confidence'] AS FLOAT) >= 0.8",  # noqa: E501
+            "CAST(experiment_runs_0.output['task_output']['confidence'] AS FLOAT) >= 0.8",  # noqa: E501
             id="experiment-json-attribute-gte",
         ),
         pytest.param(
@@ -236,7 +236,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             'experiments[1].output["probability"] <= 0.3',
-            "CAST(experiment_runs_1.output['probability'] AS FLOAT) <= 0.3",  # noqa: E501
+            "CAST(experiment_runs_1.output['task_output']['probability'] AS FLOAT) <= 0.3",  # noqa: E501
             id="experiment-json-attribute-lte",
         ),
         pytest.param(
@@ -246,12 +246,12 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             'experiments[1].output["category"] != "unknown"',
-            "CAST(experiment_runs_1.output['category'] AS VARCHAR) != 'unknown'",  # noqa: E501
+            "CAST(experiment_runs_1.output['task_output']['category'] AS VARCHAR) != 'unknown'",  # noqa: E501
             id="experiment-json-attribute-ne",
         ),
         pytest.param(
             'experiments[2].output["result"] is None',
-            "experiment_runs_2.output['result'] IS NULL",
+            "experiment_runs_2.output['task_output']['result'] IS NULL",
             id="experiment-json-attribute-is-none",
         ),
         pytest.param(
@@ -266,7 +266,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             'experiments[0].output["category"] != None',
-            "experiment_runs_0.output['category'] IS NOT NULL",  # noqa: E501
+            "experiment_runs_0.output['task_output']['category'] IS NOT NULL",  # noqa: E501
             id="experiment-json-attribute-ne-none",
         ),
         pytest.param(
@@ -281,32 +281,32 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         pytest.param(
             "input['question'] in output['question']",
-            "CAST(experiment_runs_0.output['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",  # noqa: E501
+            "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",  # noqa: E501
             id="json-attribute-in-json-attribute",
         ),
         pytest.param(
             "output['question'] not in output['question']",
-            "CAST(experiment_runs_0.output['question'] AS VARCHAR) NOT LIKE '%' || CAST(experiment_runs_0.output['question'] AS VARCHAR) || '%'",  # noqa: E501
+            "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) NOT LIKE '%' || CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) || '%'",  # noqa: E501
             id="json-attribute-not-in-json-attribute",
         ),
         pytest.param(
             "input['question'] == output['question']",
-            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) = CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) = CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-eq-json-attribute",
         ),
         pytest.param(
             "input['question'] != output['question']",
-            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) != CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) != CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-ne-json-attribute",
         ),
         pytest.param(
             "input['question'] is output['question']",
-            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-is-json-attribute",
         ),
         pytest.param(
             "input['question'] is not output['question']",
-            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS NOT CAST(experiment_runs_0.output['question'] AS VARCHAR)",  # noqa: E501
+            "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS NOT CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-is-not-json-attribute",
         ),
         # eval attribute comparison expressions
