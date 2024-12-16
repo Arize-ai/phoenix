@@ -2,7 +2,7 @@ import ast
 import operator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal, Union, get_args
+from typing import Any, Callable, Literal, Optional, Union, get_args
 
 from sqlalchemy import (
     BinaryExpression,
@@ -33,8 +33,12 @@ SupportedComparisonOperator: TypeAlias = Union[
     ast.GtE,
 ]
 SupportedConstantType: TypeAlias = Union[bool, int, float, str, None]
-SQLAlchemyType: TypeAlias = Union[Boolean, Integer, Float[float], String]
+SQLAlchemyDataType: TypeAlias = Union[Boolean, Integer, Float[float], String]
 ExperimentID: TypeAlias = int
+SupportedExperimentRunAttributeName: TypeAlias = Literal[
+    "input", "reference_output", "output", "error", "latency_ms", "evals"
+]
+SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanation", "label"]
 
 
 def update_examples_query_with_filter_condition(
@@ -104,29 +108,40 @@ class FilterExpressionNode(ABC):
 
 
 @dataclass(frozen=True)
-class Constant(FilterExpressionNode):
+class Term(FilterExpressionNode):
+    def update_expression(self, expression: BinaryExpression[Any]) -> BinaryExpression[Any]:
+        return expression
+
+
+@dataclass(frozen=True)
+class HasDataType(ABC):
+    @abstractmethod
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class Constant(HasDataType, Term):
     value: SupportedConstantType
 
     def compile(self) -> Any:
         return self.value
 
-    @property
-    def sqlalchemy_type(self) -> Any:
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
         value = self.value
         if isinstance(value, bool):
-            return Boolean
+            return Boolean()
         elif isinstance(value, int):
-            return Integer
+            return Integer()
         elif isinstance(value, float):
-            return Float
+            return Float()
         elif isinstance(value, str):
-            return String
+            return String()
         elif value is None:
             return None
         assert_never(value)
 
 
-@dataclass(frozen=True)
 class ExperimentsName(FilterExpressionNode):
     def compile(self) -> Any:
         raise NotImplementedError("Can't compile 'experiments' alone")
@@ -149,16 +164,12 @@ class ExperimentRun(FilterExpressionNode):
 
 
 @dataclass(frozen=True)
-class Attribute(FilterExpressionNode, ABC):
-    @abstractmethod
-    def update_comparison_expression(
-        self, expression: BinaryExpression[Any]
-    ) -> BinaryExpression[Any]:
-        raise NotImplementedError
+class Attribute(Term):
+    pass
 
 
 @dataclass(frozen=True)
-class AliasedTableMixin:
+class HasAliasedTables:
     transformer: "ExperimentRunFilterTransformer"
 
     def experiment_run_alias(self, experiment_id: ExperimentID) -> Any:
@@ -173,12 +184,16 @@ class AliasedTableMixin:
 
 
 @dataclass(frozen=True)
-class ExperimentRunAttribute(AliasedTableMixin, Attribute):
+class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
     experiment_run: ExperimentRun
     attribute_name: str
+    _attribute_name: SupportedExperimentRunAttributeName = field(init=False)
     _experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
+        if not _is_supported_attribute_name(self.attribute_name):
+            raise SyntaxError
+        object.__setattr__(self, "_attribute_name", self.attribute_name)
         object.__setattr__(self, "_experiment_id", self.experiment_run._experiment_id)
 
     def compile(self) -> Any:
@@ -186,9 +201,6 @@ class ExperimentRunAttribute(AliasedTableMixin, Attribute):
         if column is None:
             raise SyntaxError
         return column
-
-    def update_comparison_expression(self, expression: Any) -> Any:
-        return expression
 
     @property
     def is_eval_attribute(self) -> bool:
@@ -200,7 +212,7 @@ class ExperimentRunAttribute(AliasedTableMixin, Attribute):
 
     @property
     def _column(self) -> Any:
-        attribute_name = self.attribute_name
+        attribute_name = self._attribute_name
         experiment_id = self._experiment_id
         if attribute_name == "evals":
             return None
@@ -217,7 +229,23 @@ class ExperimentRunAttribute(AliasedTableMixin, Attribute):
         elif attribute_name == "latency_ms":
             aliased_experiment_run = self.experiment_run_alias(experiment_id)
             return aliased_experiment_run.latency_ms
-        raise ValueError(f"Experiment runs have no attribute '{attribute_name}'")
+        assert_never(attribute_name)
+
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
+        attribute_name = self._attribute_name
+        if attribute_name == "evals":
+            assert False
+        elif attribute_name == "input":
+            assert False
+        elif attribute_name == "reference_output":
+            assert False
+        elif attribute_name == "output":
+            assert False
+        elif attribute_name == "error":
+            return String()
+        elif attribute_name == "latency_ms":
+            return Float()
+        assert_never(attribute_name)
 
 
 @dataclass(frozen=True)
@@ -238,9 +266,6 @@ class ExperimentRunJSONAttribute(Attribute):
         compiled_attribute = self.attribute.compile()
         return compiled_attribute[self._index_value]
 
-    def update_comparison_expression(self, expression: Any) -> Any:
-        return expression
-
 
 @dataclass(frozen=True)
 class ExperimentRunEval(FilterExpressionNode):
@@ -257,25 +282,39 @@ class ExperimentRunEval(FilterExpressionNode):
 
 
 @dataclass(frozen=True)
-class ExperimentRunEvalAttribute(AliasedTableMixin, Attribute):
+class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
+    _attribute_name: SupportedExperimentRunEvalAttributeName = field(init=False)
     _experiment_id: int = field(init=False)
     _eval_name: str = field(init=False)
 
     def __post_init__(self) -> None:
-        assert self.attribute_name in ("score", "explanation", "label")
+        if not _is_supported_experiment_run_eval_attribute_name(self.attribute_name):
+            raise SyntaxError
+        object.__setattr__(self, "_attribute_name", self.attribute_name)
         object.__setattr__(self, "_experiment_id", self.experiment_run_eval._experiment_id)
         object.__setattr__(self, "_eval_name", self.experiment_run_eval.eval_name)
 
     def compile(self) -> Any:
+        attribute_name = self._attribute_name
         experiment_run_annotations = self.experiment_run_annotation_alias(self._experiment_id)
-        return getattr(experiment_run_annotations, self.attribute_name)
+        return getattr(experiment_run_annotations, attribute_name)
 
-    def update_comparison_expression(self, expression: Any) -> Any:
+    def update_expression(self, expression: Any) -> Any:
         experiment_id = self._experiment_id
         experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id)
         return expression & (experiment_run_annotations.name == self._eval_name)
+
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
+        attribute_name = self._attribute_name
+        if attribute_name == "label":
+            return String()
+        elif attribute_name == "score":
+            return Float()
+        elif attribute_name == "explanation":
+            return String()
+        assert_never(attribute_name)
 
 
 @dataclass(frozen=True)
@@ -285,11 +324,9 @@ class BooleanExpression(FilterExpressionNode):
 
 @dataclass(frozen=True)
 class ComparisonOperation(BooleanExpression):
-    left_operand: Union[Attribute, Constant]
-    right_operand: Union[Attribute, Constant]
+    left_operand: Term
+    right_operand: Term
     operator: ast.cmpop
-    _attribute_operand: Attribute = field(init=False)
-    _constant_operand: Constant = field(init=False)
     _operator: SupportedComparisonOperator = field(init=False)
 
     def __post_init__(self) -> None:
@@ -298,101 +335,27 @@ class ComparisonOperation(BooleanExpression):
             raise SyntaxError(f"Unsupported comparison operator: {operator}")
         object.__setattr__(self, "_operator", operator)
 
-        expected_attribute_position: Literal["left", "right", "left_or_right"]
-        if isinstance(operator, (ast.Is, ast.IsNot)):
-            expected_attribute_position = "left"
-        elif isinstance(operator, (ast.In, ast.NotIn)):
-            expected_attribute_position = "right"
-        elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
-            expected_attribute_position = "left_or_right"
-        else:
-            assert_never(operator)
-
-        if expected_attribute_position == "left":
-            assert isinstance(self.left_operand, Attribute)
-            assert isinstance(self.right_operand, Constant)
-            object.__setattr__(self, "_attribute_operand", self.left_operand)
-            object.__setattr__(self, "_constant_operand", self.right_operand)
-        elif expected_attribute_position == "right":
-            assert isinstance(self.left_operand, Constant)
-            assert isinstance(self.right_operand, Attribute)
-            object.__setattr__(self, "_attribute_operand", self.right_operand)
-            object.__setattr__(self, "_constant_operand", self.left_operand)
-        elif expected_attribute_position == "left_or_right":
-            if isinstance(self.left_operand, Attribute) and isinstance(
-                self.right_operand, Constant
-            ):
-                object.__setattr__(self, "_attribute_operand", self.left_operand)
-                object.__setattr__(self, "_constant_operand", self.right_operand)
-            elif isinstance(self.left_operand, Constant) and isinstance(
-                self.right_operand, Attribute
-            ):
-                object.__setattr__(self, "_attribute_operand", self.right_operand)
-                object.__setattr__(self, "_constant_operand", self.left_operand)
-            else:
-                raise SyntaxError
-        else:
-            assert_never(expected_attribute_position)
-
     def compile(self) -> Any:
-        compiled_left_operand = self._compile_operand(self.left_operand)
-        compiled_right_operand = self._compile_operand(self.right_operand)
-        comparison_expression = self._sqlalchemy_operator(
-            compiled_left_operand, compiled_right_operand
-        )
-        comparison_expression = self._attribute_operand.update_comparison_expression(
-            comparison_expression
-        )
-        return comparison_expression
-
-    def _compile_operand(self, operand: Union[Attribute, Constant]) -> Any:
-        compiled_operand = operand.compile()
+        left_operand = self.left_operand
+        right_operand = self.right_operand
         operator = self._operator
-        if isinstance(operand, ExperimentRunJSONAttribute):
-            # A cast is needed for comparisons between values in a JSON column
-            # and non-null constants. We don't know the true type of the value
-            # in the JSON column, so we use heuristics to cast to a reasonable
-            # type given the operator and constant being compared.
-            if isinstance(operator, (ast.Gt, ast.GtE, ast.Lt, ast.LtE)):
-                # Assume the value is a float. If it's actually an integer, this
-                # is probably okay.
-                compiled_operand = cast(compiled_operand, Float())
-            elif isinstance(operator, (ast.In, ast.NotIn)):
-                compiled_operand = cast(compiled_operand, String())
-            elif isinstance(operator, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
-                # For the remaining operators, infer the cast type from the type
-                # of the constant being compared. If the constant is None, no
-                # cast is needed.
-                if (constant_type := self._constant_operand.sqlalchemy_type) is not None:
-                    compiled_operand = cast(compiled_operand, constant_type)
-            else:
-                assert_never(operator)
-        return compiled_operand
-
-    @property
-    def _sqlalchemy_operator(self) -> Callable[[Any, Any], Any]:
-        ast_operator = self._operator
-        if isinstance(ast_operator, ast.Eq):
-            return operator.eq
-        elif isinstance(ast_operator, ast.NotEq):
-            return operator.ne
-        elif isinstance(ast_operator, ast.Lt):
-            return operator.lt
-        elif isinstance(ast_operator, ast.LtE):
-            return operator.le
-        elif isinstance(ast_operator, ast.Gt):
-            return operator.gt
-        elif isinstance(ast_operator, ast.GtE):
-            return operator.ge
-        elif isinstance(ast_operator, ast.Is):
-            return lambda left, right: left.is_(right)  # noqa: E731
-        elif isinstance(ast_operator, ast.IsNot):
-            return lambda left, right: ~(left.is_(right))  # noqa: E731
-        elif isinstance(ast_operator, ast.In):
-            return lambda left, right: right.contains(left)  # noqa: E731
-        elif isinstance(ast_operator, ast.NotIn):
-            return lambda left, right: ~(right.contains(left))  # noqa: E731
-        assert_never(ast_operator)
+        cast_type = _get_cast_type_for_comparison(
+            operator=operator,
+            left_operand=left_operand,
+            right_operand=right_operand,
+        )
+        compiled_left_operand = left_operand.compile()
+        compiled_right_operand = right_operand.compile()
+        if cast_type is not None:
+            if not isinstance(left_operand, HasDataType):
+                compiled_left_operand = cast(compiled_left_operand, cast_type)
+            if not isinstance(right_operand, HasDataType):
+                compiled_right_operand = cast(compiled_right_operand, cast_type)
+        sqlalchemy_operator = _get_sqlalchemy_comparison_operator(self._operator)
+        comparison_expression = sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
+        for operand in (self.left_operand, self.right_operand):
+            comparison_expression = operand.update_expression(comparison_expression)
+        return comparison_expression
 
 
 @dataclass(frozen=True)
@@ -548,10 +511,90 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         return self._experiment_ids.index(experiment_id)
 
 
+def _get_sqlalchemy_comparison_operator(
+    ast_operator: SupportedComparisonOperator,
+) -> Callable[[Any, Any], Any]:
+    if isinstance(ast_operator, ast.Eq):
+        return operator.eq
+    elif isinstance(ast_operator, ast.NotEq):
+        return operator.ne
+    elif isinstance(ast_operator, ast.Lt):
+        return operator.lt
+    elif isinstance(ast_operator, ast.LtE):
+        return operator.le
+    elif isinstance(ast_operator, ast.Gt):
+        return operator.gt
+    elif isinstance(ast_operator, ast.GtE):
+        return operator.ge
+    elif isinstance(ast_operator, ast.Is):
+        return lambda left, right: left.is_(right)  # noqa: E731
+    elif isinstance(ast_operator, ast.IsNot):
+        return lambda left, right: ~(left.is_(right))  # noqa: E731
+    elif isinstance(ast_operator, ast.In):
+        return lambda left, right: right.contains(left)  # noqa: E731
+    elif isinstance(ast_operator, ast.NotIn):
+        return lambda left, right: ~(right.contains(left))  # noqa: E731
+    assert_never(ast_operator)
+
+
+def _get_cast_type_for_comparison(
+    *,
+    operator: SupportedComparisonOperator,
+    left_operand: Term,
+    right_operand: Term,
+) -> Optional[SQLAlchemyDataType]:
+    """
+    Some column types (e.g., JSON columns) require an explicit cast before
+    comparing with non-null values. We don't know the true type of the value in
+    the JSON column, so we use heuristics to cast to a reasonable type given the
+    operator and operands. There are three cases:
+
+      1. Both operands have known types.
+      2. One operand has a known type and the other does not.
+      3. Neither operand has a known type, e.g., both are JSON attributes.
+
+    In the first case, a cast is not needed. In the second case, we cast the
+    operand with the unknown type to the type of the operand being compared. In
+    the third case, we cast both operands to the same type using heuristics
+    based on the operator.
+    """
+
+    if isinstance(left_operand, HasDataType) and isinstance(right_operand, HasDataType):
+        return None  # Both operands have known data types, so no cast is needed.
+
+    if isinstance(operator, (ast.Gt, ast.GtE, ast.Lt, ast.LtE)):
+        # These operations should always cast to float, even if a comparison is
+        # being made to an integer.
+        return Float()
+
+    # If one operand has a known type and the other does not, cast to the known type.
+    if isinstance(left_operand, HasDataType) and not isinstance(right_operand, HasDataType):
+        return left_operand.data_type()
+    elif not isinstance(left_operand, HasDataType) and isinstance(right_operand, HasDataType):
+        return right_operand.data_type()
+
+    # If neither operand has a known type, we infer a cast type from the comparison operator.
+    if isinstance(operator, (ast.In, ast.NotIn, ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+        return String()
+    assert_never(operator)
+
+
 def _is_supported_comparison_operator(
     operator: ast.cmpop,
 ) -> TypeGuard[SupportedComparisonOperator]:
     return isinstance(operator, get_args(SupportedComparisonOperator))
+
+
+def _is_supported_attribute_name(
+    attribute_name: str,
+) -> TypeGuard[SupportedExperimentRunAttributeName]:
+    return attribute_name in get_args(SupportedExperimentRunAttributeName)
+
+
+def _is_supported_experiment_run_eval_attribute_name(
+    attribute_name: str,
+) -> TypeGuard[SupportedExperimentRunEvalAttributeName]:
+    return attribute_name in get_args(SupportedExperimentRunEvalAttributeName)
 
 
 if __name__ == "__main__":
