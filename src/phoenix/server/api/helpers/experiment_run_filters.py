@@ -37,6 +37,8 @@ SupportedComparisonOperator: TypeAlias = Union[
 SupportedConstantType: TypeAlias = Union[bool, int, float, str, None]
 SQLAlchemyDataType: TypeAlias = Union[Boolean, Integer, Float[float], String]
 ExperimentID: TypeAlias = int
+SupportedUnaryBooleanOperator: TypeAlias = ast.Not
+SupportedUnaryTermOperator: TypeAlias = ast.USub
 SupportedExperimentRunAttributeName: TypeAlias = Literal[
     "input", "reference_output", "output", "error", "latency_ms", "evals"
 ]
@@ -400,6 +402,23 @@ class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
 
 
 @dataclass(frozen=True)
+class UnaryTermOperation(Term):
+    operand: Term
+    operator: SupportedUnaryTermOperator
+
+    def compile(self) -> Any:
+        operator = self.operator
+        operand = self.operand
+        sqlalchemy_operator: Callable[[Any], Any]
+        if isinstance(operator, ast.USub):
+            sqlalchemy_operator = operators.neg
+        else:
+            assert_never(operator)
+        compiled_operand = operand.compile()
+        return sqlalchemy_operator(compiled_operand)
+
+
+@dataclass(frozen=True)
 class BooleanExpression(ExperimentRunFilterConditionNode):
     pass
 
@@ -445,19 +464,23 @@ class ComparisonOperation(BooleanExpression):
 
 @dataclass(frozen=True)
 class UnaryBooleanOperation(BooleanExpression):
-    operand: BooleanExpression
-    operator: ast.unaryop
+    operand: ExperimentRunFilterConditionNode
+    operator: SupportedUnaryBooleanOperator
 
-    def compile(self) -> Any:
-        ast_operator = self.operator
-        sqlalchemy_operator: Callable[[Any], Any]
-        if isinstance(ast_operator, ast.Not):
-            sqlalchemy_operator = operators.inv
-        else:
+    def __post_init__(self) -> None:
+        if not isinstance(self.operand, BooleanExpression):
             raise ExperimentRunFilterConditionParseError.from_ast_node(
-                message="Unknown unary operator",
+                message="Operand must be a boolean expression",
                 node=self.ast_node,
             )
+
+    def compile(self) -> Any:
+        operator = self.operator
+        sqlalchemy_operator: Callable[[Any], Any]
+        if isinstance(operator, ast.Not):
+            sqlalchemy_operator = operators.inv
+        else:
+            assert_never(operator)
         compiled_operand = self.operand.compile()
         return sqlalchemy_operator(compiled_operand)
 
@@ -468,9 +491,9 @@ class BooleanOperation(BooleanExpression):
     operands: list[BooleanExpression]
 
     def __post_init__(self) -> None:
-        if len(self.operands) != 2:
+        if len(self.operands) < 2:
             raise ExperimentRunFilterConditionParseError.from_ast_node(
-                message="Boolean operators are binary",
+                message="Boolean operators require at least two operands",
                 node=self.ast_node,
             )
 
@@ -515,26 +538,13 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
             ast_node=node,
         )
 
-    def visit_UnaryOp(self, node: ast.UnaryOp) -> UnaryBooleanOperation:
-        operation = node.op
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> Union[UnaryBooleanOperation, UnaryTermOperation]:
+        operator = node.op
         operand = self.visit(node.operand)
-        is_unary_boolean_operator = isinstance(operation, ast.Not)
-        if is_unary_boolean_operator:
-            if not isinstance(operand, BooleanExpression):
-                raise ExperimentRunFilterConditionParseError.from_ast_node(
-                    message="Operand must be a boolean expression",
-                    node=node,
-                )
-            return UnaryBooleanOperation(operand=operand, operator=operation, ast_node=node)
-        is_negation_operator = isinstance(operation, ast.USub)
-        if is_negation_operator:
-            if not isinstance(operand, HasDataType) or not (
-                isinstance(operand.data_type, (Float, Integer))
-            ):
-                raise ExperimentRunFilterConditionParseError.from_ast_node(
-                    message="Only numeric types can be negated",
-                    node=node,
-                )
+        if _is_supported_unary_boolean_operator(operator):
+            return UnaryBooleanOperation(operand=operand, operator=operator, ast_node=node)
+        if _is_supported_unary_term_operator(operator):
+            return UnaryTermOperation(operand=operand, operator=operator, ast_node=node)
         raise ExperimentRunFilterConditionParseError.from_ast_node(
             message="Unsupported unary operator",
             node=node,
@@ -735,14 +745,21 @@ def _is_supported_experiment_run_eval_attribute_name(
     return attribute_name in get_args(SupportedExperimentRunEvalAttributeName)
 
 
+def _is_supported_unary_boolean_operator(
+    operator: ast.unaryop,
+) -> TypeGuard[SupportedUnaryBooleanOperator]:
+    return isinstance(operator, SupportedUnaryBooleanOperator)
+
+
+def _is_supported_unary_term_operator(
+    operator: ast.unaryop,
+) -> TypeGuard[SupportedUnaryTermOperator]:
+    return isinstance(operator, SupportedUnaryTermOperator)
+
+
 # if __name__ == "__main__":
 #     expressions = [
-#         "input['question'] in output['question']",
-#         "output['question'] not in output['question']",
-#         "input['question'] == output['question']",
-#         "input['question'] != output['question']",
-#         "input['question'] is output['question']",
-#         "input['question'] is not output['question']",
+#         "-'hello' < 10",
 #     ]
 
 #     for expression in expressions:
@@ -758,28 +775,26 @@ def _is_supported_experiment_run_eval_attribute_name(
 #         print(f"{sql_filter_expression=}")
 
 
-if __name__ == "__main__":
-    import traceback
+# if __name__ == "__main__":
+#     import traceback
 
-    expressions = [
-        "-5",
-        "~latency_ms",
-        # "-latency_ms",
-    ]
+#     expressions = [
+#         "-'hello' < 10",
+#     ]
 
-    for expression in expressions:
-        print(f"{expression=}")
-        try:
-            validate_filter_condition(
-                filter_condition=expression,
-                experiment_ids=[0, 1, 2],
-            )
-        except ExperimentRunFilterConditionParseError as e:
-            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-            print(f"{e.source=}")
-            print(f"{e.start_position=}")
-            print(f"{e.end_position=}")
-        except Exception as e:
-            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
-        else:
-            assert False
+#     for expression in expressions:
+#         print(f"{expression=}")
+#         try:
+#             validate_filter_condition(
+#                 filter_condition=expression,
+#                 experiment_ids=[0, 1, 2],
+#             )
+#         except ExperimentRunFilterConditionParseError as e:
+#             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+#             print(f"{e.source=}")
+#             print(f"{e.start_position=}")
+#             print(f"{e.end_position=}")
+#         except Exception as e:
+#             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+#         else:
+#             assert False

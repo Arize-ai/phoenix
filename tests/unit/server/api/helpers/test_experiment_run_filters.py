@@ -366,6 +366,28 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             "NOT (experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)",  # noqa: E501
             id="complex-negation",
         ),
+        # unary operations
+        pytest.param(
+            "-5",
+            "-5",
+            id="unary-minus-constant",
+        ),
+        pytest.param(
+            "-latency_ms",
+            "-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
+            id="unary-minus-attribute",
+        ),
+        pytest.param(
+            "-latency_ms > -5",
+            "CAST(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) AS FLOAT) > CAST(-5 AS FLOAT)",  # noqa: E501
+            id="unary-minus-comparison",
+        ),
+        # weird cases
+        pytest.param(
+            "-'hello' < 10",
+            "CAST(-'hello' AS FLOAT) < 10",
+            id="unary-minus-string-comparison",
+        ),
     ),
 )
 def test_experiment_run_filter_transformer_correctly_compiles(
@@ -474,11 +496,6 @@ def test_experiment_run_filter_transformer_correctly_compiles(
             "not input",
             "Operand must be a boolean expression",
             id="unary-not-on-non-boolean",
-        ),
-        pytest.param(
-            "True and True and True",
-            "Boolean operators are binary",
-            id="chained-boolean-operation",
         ),
     ],
 )
