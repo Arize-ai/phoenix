@@ -40,6 +40,8 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  promptLoader,
+  PromptPage,
   promptsLoader,
   PromptsPage,
   resetPasswordLoader,
@@ -202,6 +204,11 @@ const router = createBrowserRouter(
             }}
           >
             <Route index element={<PromptsPage />} loader={promptsLoader} />
+            <Route
+              path=":promptId"
+              loader={promptLoader}
+              element={<PromptPage />}
+            />
           </Route>
           <Route
             path="/apis"

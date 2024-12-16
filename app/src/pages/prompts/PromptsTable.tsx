@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   flexRender,
   getCoreRowModel,
@@ -10,6 +11,7 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
+import { Link } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -24,6 +26,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -78,6 +81,9 @@ export function PromptsTable(props: PromptsTableProps) {
       {
         header: "name",
         accessorKey: "name",
+        cell: ({ row }) => {
+          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
+        },
       },
       {
         header: "created at",
@@ -149,7 +155,12 @@ export function PromptsTable(props: PromptsTableProps) {
           <tbody>
             {rows.map((row) => {
               return (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  onClick={() => {
+                    navigate(`${row.original.id}`);
+                  }}
+                >
                   {row.getVisibleCells().map((cell) => {
                     return (
                       <td
