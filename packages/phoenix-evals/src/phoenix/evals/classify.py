@@ -270,6 +270,52 @@ def llm_classify(
     )
 
 
+def audio_classify_2(
+    dataframe: Union[List, pd.DataFrame],
+    model: BaseModel,
+    template: Union[ClassificationTemplate, PromptTemplate, str],
+    rails: List[str],
+    data_fetcher: Optional[Callable[[str], Audio]],
+    system_instruction: Optional[str] = None,
+    verbose: bool = False,
+    use_function_calling_if_available: bool = True,
+    provide_explanation: bool = False,
+    include_prompt: bool = False,
+    include_response: bool = False,
+    include_exceptions: bool = False,
+    max_retries: int = 10,
+    exit_on_error: bool = True,
+    run_sync: bool = False,
+    concurrency: Optional[int] = None,
+    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
+) -> pd.DataFrame:
+    if isinstance(dataframe, pd.DataFrame):
+        dataframe['audio_bytes'] = dataframe['audio_url'].apply(lambda url: data_fetcher(url).data)
+        dataframe['audio_format'] = dataframe['audio_url'].apply(lambda url: data_fetcher(url).format.value)
+    elif isinstance(dataframe, list):
+        dataframe = pd.DataFrame(dataframe, columns=['audio_url'])
+        dataframe['audio_bytes'] = dataframe['audio_url'].apply(lambda url: data_fetcher(url).data)
+        dataframe['audio_format'] = dataframe['audio_url'].apply(lambda url: data_fetcher(url).format.value)
+    return llm_classify(
+        dataframe=dataframe,
+        model=model,
+        template=template,
+        rails=rails,
+        system_instruction=system_instruction,
+        verbose=verbose,
+        use_function_calling_if_available=use_function_calling_if_available,
+        provide_explanation=provide_explanation,
+        include_prompt=include_prompt,
+        include_response=include_response,
+        include_exceptions=include_exceptions,
+        max_retries=max_retries,
+        exit_on_error=exit_on_error,
+        run_sync=run_sync,
+        concurrency=concurrency,
+        progress_bar_format=progress_bar_format,
+    )
+
+
 def audio_classify(
     dataframe: Union[List, pd.DataFrame],
     model: BaseModel,

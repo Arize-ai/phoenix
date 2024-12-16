@@ -280,14 +280,16 @@ class OpenAIModel(BaseModel):
         )
 
     def _build_messages(
-        self, prompt: MultimodalPrompt, data_fetcher: Optional[Callable[[str], Audio]] = None, system_instruction: Optional[str] = None
+        self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
+        audio_format = None
         messages = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": part.content})
-            elif part.content_type == PromptPartContentType.AUDIO:
-                audio_object = data_fetcher(part.content)
+            elif part.content_type == PromptPartContentType.AUDIO_FORMAT:
+                audio_format = AudioFormat(part.content)
+            elif part.content_type == PromptPartContentType.AUDIO_BYTES:
                 messages.append(
                     {
                         "role": "user",
@@ -295,8 +297,8 @@ class OpenAIModel(BaseModel):
                             {
                                 "type": "input_audio",
                                 "input_audio": {
-                                    "data": audio_object.data,
-                                    "format": audio_object.format.value
+                                    "data": part.content,
+                                    "format": audio_format.value
                                 }
                             }
                         ],
@@ -311,12 +313,12 @@ class OpenAIModel(BaseModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], data_fetcher: Optional[Callable[[str], Audio]] = None, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, data_fetcher, kwargs.get("instruction"))
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
@@ -333,14 +335,13 @@ class OpenAIModel(BaseModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    def _generate(self, prompt: Union[str, MultimodalPrompt], data_fetcher: Optional[Callable[[str], Audio]] = None, **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
         messages = self._build_messages(
             prompt=prompt,
-            data_fetcher=data_fetcher,
             system_instruction=kwargs.get("instruction")
         )
         if functions := kwargs.get("functions"):
