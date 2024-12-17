@@ -24,6 +24,7 @@ export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children">,
     SizingProps {
   label?: string;
+  placeholder?: string;
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
   children: React.ReactNode | ((item: T) => React.ReactNode);
@@ -36,16 +37,33 @@ export interface ComboBoxProps<T extends object>
    * The width of the combobox. If not provided, the combobox will be sized to fit its contents. with a minimum width of 200px.
    */
   width?: string;
+  /**
+   * If true, click and keypress events will not propagate to the parent element.
+   *
+   * This is useful when nesting the combobox within containers that have onClick handlers,
+   * but should be used sparingly.
+   */
+  stopPropagation?: boolean;
 }
+
+/**
+ * Prevents the event from propagating to the parent element.
+ */
+const stopPropagationHandler = (e: React.MouseEvent | React.KeyboardEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+};
 
 export function ComboBox<T extends object>({
   label,
+  placeholder,
   description,
   errorMessage,
   children,
   container,
   size = "M",
   width,
+  stopPropagation,
   ...props
 }: ComboBoxProps<T>) {
   return (
@@ -57,9 +75,16 @@ export function ComboBox<T extends object>({
         width,
       }}
     >
-      <Label>{label}</Label>
-      <div className="px-combobox-container">
-        <Input />
+      {label && <Label>{label}</Label>}
+      <div
+        className="px-combobox-container"
+        // Prevent interactions with the combobox components from propagating above this element
+        // This allows us to nest the combobox within containers that have onClick handlers
+        onClick={stopPropagation ? stopPropagationHandler : undefined}
+        onKeyDown={stopPropagation ? stopPropagationHandler : undefined}
+        onKeyUp={stopPropagation ? stopPropagationHandler : undefined}
+      >
+        <Input placeholder={placeholder} />
         <Button>
           <Icon svg={<Icons.ArrowIosDownwardOutline />} />
         </Button>
