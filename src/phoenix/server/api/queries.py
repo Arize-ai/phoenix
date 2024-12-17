@@ -37,7 +37,7 @@ from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
-    compile_orm_filter_condition,
+    compile_sqlalchemy_filter_condition,
     update_examples_query_with_filter_condition,
 )
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
@@ -426,7 +426,7 @@ class Query:
         experiment_ids: list[GlobalID],
     ) -> ValidationResult:
         try:
-            compile_orm_filter_condition(
+            compile_sqlalchemy_filter_condition(
                 filter_condition=condition,
                 experiment_ids=[
                     from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
