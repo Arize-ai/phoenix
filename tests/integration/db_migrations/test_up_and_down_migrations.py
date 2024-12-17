@@ -288,3 +288,8 @@ def test_up_and_down_migrations(
         assert not constraints
         del constraints
     _up(_engine, _alembic_config, "4ded9e43755f")
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "bc8fea3c2bc8")
+        _down(_engine, _alembic_config, "4ded9e43755f")
+    _up(_engine, _alembic_config, "bc8fea3c2bc8")
