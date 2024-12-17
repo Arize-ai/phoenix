@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import {
   asEvaluator,
   createClient,
@@ -105,7 +106,6 @@ const main = async () => {
           };
         }),
         asEvaluator("Factuality", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
           const result = await Factuality.partial({
             openAiApiKey: "ollama",
             openAiBaseUrl: "http://localhost:11434/v1",
@@ -123,7 +123,6 @@ const main = async () => {
           };
         }),
         asEvaluator("Humor", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
           const result = await Humor.partial({
             openAiApiKey: "ollama",
             openAiBaseUrl: "http://localhost:11434/v1",
@@ -150,9 +149,24 @@ const main = async () => {
     return;
   }
 
-  log.info(JSON.stringify(experimentRun, null, 2));
-
   s.stop("Experiment run complete!");
+
+  log.info("Experiment runs:");
+  console.table(experimentRun.runs);
+  log.info("Evaluation run results:");
+  console.table(
+    experimentRun.evaluationRuns
+      ?.map((run) => ({
+        id: run.id,
+        experimentRunId: run.experimentRunId,
+        ...run.result,
+      }))
+      .map((r) => ({
+        ...r,
+        explanation: r?.explanation?.slice(0, 100).concat("..."),
+        metadata: "...Stripped for brevity...",
+      }))
+  );
 
   outro("🐦‍🔥 Thank you for using Phoenix!");
 };
