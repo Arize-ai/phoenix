@@ -197,7 +197,7 @@ const playgroundInputOutputPanelContentCSS = css`
  * This width accomodates the model config button min-width, as well as chat message accordion
  * header contents such as the chat message mode radio group for AI messages
  */
-const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 475;
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 570;
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
