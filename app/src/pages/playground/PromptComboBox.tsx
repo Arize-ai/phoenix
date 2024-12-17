@@ -24,7 +24,7 @@ type PromptComboBoxProps = {
   "children" | "onSelectionChange" | "defaultSelectedKey"
 >;
 
-export function PromptComboBoxLoader({
+function PromptComboBoxComponent({
   onChange,
   container,
   promptId,
@@ -33,7 +33,24 @@ export function PromptComboBoxLoader({
 }: PromptComboBoxProps & {
   queryReference: PreloadedQuery<PromptComboBoxQuery>;
 }) {
-  const data = usePreloadedQuery(promptComboBoxQuery, queryReference);
+  const data = usePreloadedQuery(
+    graphql`
+      query PromptComboBoxQuery($first: Int = 100) {
+        prompts(first: $first) {
+          edges {
+            prompt: node {
+              __typename
+              ... on Prompt {
+                id
+                name
+              }
+            }
+          }
+        }
+      }
+    `,
+    queryReference
+  );
   const items = useMemo((): PromptItem[] => {
     return data.prompts.edges.map((edge) => edge.prompt);
   }, [data.prompts.edges]);
@@ -73,7 +90,7 @@ export function PromptComboBoxLoader({
   );
 }
 
-export function PromptComboBox(props: PromptComboBoxProps) {
+function PromptComboBoxLoader(props: PromptComboBoxProps) {
   const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<PromptComboBoxQuery>(promptComboBoxQuery);
 
@@ -84,22 +101,10 @@ export function PromptComboBox(props: PromptComboBoxProps) {
   }, [disposeQuery, loadQuery]);
 
   return queryReference != null ? (
-    <PromptComboBoxLoader queryReference={queryReference} {...props} />
+    <PromptComboBoxComponent queryReference={queryReference} {...props} />
   ) : null;
 }
 
-graphql`
-  query PromptComboBoxQuery($first: Int = 100) {
-    prompts(first: $first) {
-      edges {
-        prompt: node {
-          __typename
-          ... on Prompt {
-            id
-            name
-          }
-        }
-      }
-    }
-  }
-`;
+export function PromptComboBox(props: PromptComboBoxProps) {
+  return <PromptComboBoxLoader {...props} />;
+}
