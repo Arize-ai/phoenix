@@ -68,7 +68,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
                 });
               }}
             />
-            <SaveButton instanceId={instanceId} setDialog={setDialog} />
           </Flex>
         }
         collapsible
@@ -88,6 +87,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
+            <SaveButton instanceId={instanceId} setDialog={setDialog} />
             {instances.length > 1 ? <DeleteButton {...props} /> : null}
           </Flex>
         }
@@ -166,12 +166,13 @@ function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
       <TooltipTrigger delay={100}>
         <TriggerWrap>
           <Button
+            // TODO(apowell): Make variant "primary" when instance is "dirty", aka different from selected prompt
             variant="default"
             size="compact"
-            icon={<Icon svg={<Icons.SaveOutline />} />}
-            aria-label="Save this prompt"
             onClick={onSave}
-          />
+          >
+            Save
+          </Button>
         </TriggerWrap>
         <Tooltip>
           <Content>Save this prompt</Content>
