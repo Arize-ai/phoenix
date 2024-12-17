@@ -21,29 +21,9 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="int-constant",
         ),
         pytest.param(
-            "input",
-            "dataset_example_revisions.input",
-            id="input-name",
-        ),
-        pytest.param(
-            "reference_output",
-            "dataset_example_revisions.output",
-            id="reference-output-name",
-        ),
-        pytest.param(
-            "output",
-            "experiment_runs_0.output['task_output']",
-            id="output-name",
-        ),
-        pytest.param(
-            "error",
-            "experiment_runs_0.error",
-            id="error-name",
-        ),
-        pytest.param(
-            "latency_ms",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
-            id="latency-ms-name",
+            "'foo'",
+            "'foo'",
+            id="string-constant",
         ),
         # experiment run attributes
         pytest.param(
@@ -73,26 +53,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         # json attributes
         pytest.param(
-            'input["question"]',
-            "dataset_example_revisions.input['question']",
-            id="json-attribute-string-key",
-        ),
-        pytest.param(
-            "output[0]",
-            "experiment_runs_0.output['task_output'][0]",
-            id="json-attribute-int-key",
-        ),
-        pytest.param(
-            'reference_output[0]["question"]',
-            "dataset_example_revisions.output[0]['question']",
-            id="json-attribute-nested-int-string-keys",
-        ),
-        pytest.param(
-            'reference_output["question"][0]',
-            "dataset_example_revisions.output['question'][0]",
-            id="json-attribute-nested-string-int-keys",
-        ),
-        pytest.param(
             'experiments[0].input["question"]',
             "dataset_example_revisions.input['question']",
             id="experiment-json-attribute-string-key",
@@ -109,87 +69,87 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         # primitive comparison expressions
         pytest.param(
-            "error is None",
+            "experiments[0].error is None",
             "experiment_runs_0.error IS NULL",
             id="is-none",
         ),
         pytest.param(
-            "error is not None",
+            "experiments[0].error is not None",
             "experiment_runs_0.error IS NOT NULL",
             id="is-not-none",
         ),
         pytest.param(
-            '"invalid" in error',
+            '"invalid" in experiments[0].error',
             "experiment_runs_0.error LIKE '%' || 'invalid' || '%'",  # noqa: E501
             id="contains",
         ),
         pytest.param(
-            "error in 'invalid'",
+            "experiments[0].error in 'invalid'",
             "'invalid' LIKE '%' || experiment_runs_0.error || '%'",
             id="contains-reversed",
         ),
         pytest.param(
-            '"invalid" not in error',
+            '"invalid" not in experiments[0].error',
             "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%'",  # noqa: E501
             id="not-contains",
         ),
         pytest.param(
-            "latency_ms > 1000",
+            "experiments[0].latency_ms > 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
             id="gt",
         ),
         pytest.param(
-            "1000 < latency_ms",
+            "1000 < experiments[0].latency_ms",
             "1000 < round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="gt-reversed",
         ),
         pytest.param(
-            "latency_ms >= 1000",
+            "experiments[0].latency_ms >= 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) >= 1000",  # noqa: E501
             id="gte",
         ),
         pytest.param(
-            "1000 <= latency_ms",
+            "1000 <= experiments[0].latency_ms",
             "1000 <= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="gte-reversed",
         ),
         pytest.param(
-            "latency_ms < 1000",
+            "experiments[0].latency_ms < 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000",  # noqa: E501
             id="lt",
         ),
         pytest.param(
-            "1000 > latency_ms",
+            "1000 > experiments[0].latency_ms",
             "1000 > round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="lt-reversed",
         ),
         pytest.param(
-            "latency_ms <= 1000",
+            "experiments[0].latency_ms <= 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) <= 1000",  # noqa: E501
             id="lte",
         ),
         pytest.param(
-            "1000 >= latency_ms",
+            "1000 >= experiments[0].latency_ms",
             "1000 >= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="lte-reversed",
         ),
         pytest.param(
-            "latency_ms == 1000",
+            "experiments[0].latency_ms == 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) = 1000",  # noqa: E501
             id="eq",
         ),
         pytest.param(
-            "1000 == latency_ms",
+            "1000 == experiments[0].latency_ms",
             "1000 = round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="eq-reversed",
         ),
         pytest.param(
-            "latency_ms != 1000",
+            "experiments[0].latency_ms != 1000",
             "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) != 1000",  # noqa: E501
             id="ne",
         ),
         pytest.param(
-            "1000 != latency_ms",
+            "1000 != experiments[0].latency_ms",
             "1000 != round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="ne-reversed",
         ),
@@ -203,22 +163,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             "'a' == 'b'",
             "'a' = 'b'",
             id="literal-comparison-eq",
-        ),
-        # experiment run attribute comparison expressions
-        pytest.param(
-            "experiments[2].error is None",
-            "experiment_runs_2.error IS NULL",
-            id="experiment-error-is-none",
-        ),
-        pytest.param(
-            "experiments[1].error is not None",
-            "experiment_runs_1.error IS NOT NULL",
-            id="experiment-error-is-not-none",
-        ),
-        pytest.param(
-            "experiments[1].latency_ms > 10",
-            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_1.end_time) - EXTRACT(EPOCH FROM experiment_runs_1.start_time)) * 1000 AS NUMERIC), 1) > 10",  # noqa: E501
-            id="experiment-latency-gt",
         ),
         # json attribute comparison expressions
         pytest.param(
@@ -272,42 +216,42 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="experiment-json-attribute-ne-none",
         ),
         pytest.param(
-            "'search-term' in input['questions'][0]",
+            "'search-term' in experiments[0].input['questions'][0]",
             "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) LIKE '%' || 'search-term' || '%'",  # noqa: E501
             id="experiment-json-attribute-in",
         ),
         pytest.param(
-            "'search-term' not in input['questions'][0]",
+            "'search-term' not in experiments[0].input['questions'][0]",
             "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%'",  # noqa: E501
             id="experiment-json-attribute-not-in",
         ),
         pytest.param(
-            "input['question'] in output['question']",
+            "experiments[0].input['question'] in experiments[0].output['question']",
             "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",  # noqa: E501
             id="json-attribute-in-json-attribute",
         ),
         pytest.param(
-            "output['question'] not in output['question']",
+            "experiments[0].output['question'] not in experiments[0].output['question']",
             "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) NOT LIKE '%' || CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) || '%'",  # noqa: E501
             id="json-attribute-not-in-json-attribute",
         ),
         pytest.param(
-            "input['question'] == output['question']",
+            "experiments[0].input['question'] == experiments[0].output['question']",
             "CAST(dataset_example_revisions.input['question'] AS VARCHAR) = CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-eq-json-attribute",
         ),
         pytest.param(
-            "input['question'] != output['question']",
+            "experiments[0].input['question'] != experiments[0].output['question']",
             "CAST(dataset_example_revisions.input['question'] AS VARCHAR) != CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-ne-json-attribute",
         ),
         pytest.param(
-            "input['question'] is output['question']",
+            "experiments[0].input['question'] is experiments[0].output['question']",
             "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-is-json-attribute",
         ),
         pytest.param(
-            "input['question'] is not output['question']",
+            "experiments[0].input['question'] is not experiments[0].output['question']",
             "CAST(dataset_example_revisions.input['question'] AS VARCHAR) IS NOT CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR)",  # noqa: E501
             id="json-attribute-is-not-json-attribute",
         ),
@@ -334,37 +278,37 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="negation",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 and latency_ms > 1000",
+            "experiments[0].evals['Hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",  # noqa: E501
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
             id="conjunction",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 and latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['Hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="conjunction-of-three",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000",
+            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
             id="disjunction",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000 or experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",  # noqa: E501
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL",  # noqa: E501
             id="disjunction-of-three",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="mixed-conjunction-and-disjunction-without-parentheses",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or (latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
+            "experiments[0].evals['Hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
             "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="mixed-conjunction-and-disjunction-with-parentheses",
         ),
         pytest.param(
-            "not (experiments[0].evals['Hallucination'].score > 0.5 or latency_ms > 1000)",
+            "not (experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",  # noqa: E501
             "NOT (experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)",  # noqa: E501
             id="complex-negation",
         ),
@@ -375,12 +319,12 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="unary-minus-constant",
         ),
         pytest.param(
-            "-latency_ms",
+            "-experiments[0].latency_ms",
             "-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)",  # noqa: E501
             id="unary-minus-attribute",
         ),
         pytest.param(
-            "-latency_ms > -5",
+            "-experiments[0].latency_ms > -5",
             "CAST(-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) AS FLOAT) > CAST(-5 AS FLOAT)",  # noqa: E501
             id="unary-minus-comparison",
         ),
@@ -392,7 +336,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
     ),
 )
-def test_experiment_run_filter_transformer_correctly_compiles(
+def test_sqlalchemy_transformer_correctly_compiles(
     filter_expression: str, expected_sqlite_expression: str, dialect: str
 ) -> None:
     if dialect == "postgres":
