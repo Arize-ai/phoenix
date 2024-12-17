@@ -215,7 +215,7 @@ class ExperimentsName(ExperimentRunFilterConditionNode):
 class ExperimentRun(ExperimentRunFilterConditionNode):
     slice: Constant
     experiment_ids: list[int]
-    _experiment_id: int = field(init=False)
+    experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         experiment_index = self.slice.value
@@ -227,7 +227,7 @@ class ExperimentRun(ExperimentRunFilterConditionNode):
             raise ExperimentRunFilterConditionParseError.from_ast_node(
                 message="Select an experiment with [<index>]", node=self.ast_node
             )
-        object.__setattr__(self, "_experiment_id", self.experiment_ids[experiment_index])
+        object.__setattr__(self, "experiment_id", self.experiment_ids[experiment_index])
 
     def compile(self) -> Any:
         raise ExperimentRunFilterConditionParseError.from_ast_node(
@@ -257,10 +257,9 @@ class HasAliasedTables:
 
 @dataclass(frozen=True)
 class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
-    experiment_run: ExperimentRun
     attribute_name: str
+    experiment_id: int
     _attribute_name: SupportedExperimentRunAttributeName = field(init=False)
-    _experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         if not _is_supported_attribute_name(self.attribute_name):
@@ -268,11 +267,10 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
                 message="Unknown name", node=self.ast_node
             )
         object.__setattr__(self, "_attribute_name", self.attribute_name)
-        object.__setattr__(self, "_experiment_id", self.experiment_run._experiment_id)
 
     def compile(self) -> Any:
         attribute_name = self._attribute_name
-        experiment_id = self._experiment_id
+        experiment_id = self.experiment_id
         if attribute_name == "evals":
             raise ExperimentRunFilterConditionParseError.from_ast_node(
                 message="Select an eval with [<eval-name>]",
@@ -322,11 +320,11 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
 class ExperimentRunJSONAttribute(Attribute):
     attribute: Union[ExperimentRunAttribute, "ExperimentRunJSONAttribute"]
     index_constant: Constant
-    _experiment_id: int = field(init=False)
+    experiment_id: int = field(init=False)
     _index_value: Union[int, str] = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "_experiment_id", self.attribute._experiment_id)
+        object.__setattr__(self, "experiment_id", self.attribute.experiment_id)
         index_value = self.index_constant.value
         if not isinstance(index_value, (int, str)):
             raise ExperimentRunFilterConditionParseError.from_ast_node(
@@ -344,7 +342,7 @@ class ExperimentRunJSONAttribute(Attribute):
 class ExperimentRunEval(ExperimentRunFilterConditionNode):
     experiment_run_attribute: ExperimentRunAttribute
     eval_name: str
-    _experiment_id: int = field(init=False)
+    experiment_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.eval_name, str):
@@ -352,7 +350,7 @@ class ExperimentRunEval(ExperimentRunFilterConditionNode):
                 message="Eval must be indexed by string",
                 node=self.ast_node,
             )
-        object.__setattr__(self, "_experiment_id", self.experiment_run_attribute._experiment_id)
+        object.__setattr__(self, "experiment_id", self.experiment_run_attribute.experiment_id)
 
     def compile(self) -> Any:
         raise ExperimentRunFilterConditionParseError.from_ast_node(
@@ -365,8 +363,8 @@ class ExperimentRunEval(ExperimentRunFilterConditionNode):
 class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
+    experiment_id: int = field(init=False)
     _attribute_name: SupportedExperimentRunEvalAttributeName = field(init=False)
-    _experiment_id: int = field(init=False)
     _eval_name: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -375,17 +373,17 @@ class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
                 message="Unknown eval attribute",
                 node=self.ast_node,
             )
+        object.__setattr__(self, "experiment_id", self.experiment_run_eval.experiment_id)
         object.__setattr__(self, "_attribute_name", self.attribute_name)
-        object.__setattr__(self, "_experiment_id", self.experiment_run_eval._experiment_id)
         object.__setattr__(self, "_eval_name", self.experiment_run_eval.eval_name)
 
     def compile(self) -> Any:
         attribute_name = self._attribute_name
-        experiment_run_annotations = self.experiment_run_annotation_alias(self._experiment_id)
+        experiment_run_annotations = self.experiment_run_annotation_alias(self.experiment_id)
         return getattr(experiment_run_annotations, attribute_name)
 
     def update_expression(self, expression: Any) -> Any:
-        experiment_id = self._experiment_id
+        experiment_id = self.experiment_id
         experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id)
         return expression & (experiment_run_annotations.name == self._eval_name)
 
@@ -532,7 +530,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         )
         return ExperimentRunAttribute(
             attribute_name=name,
-            experiment_run=baseline_experiment,
+            experiment_id=baseline_experiment.experiment_id,
             transformer=self,
             ast_node=node,
         )
@@ -562,11 +560,11 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
             )
         left_operand = self.visit(node.left)
         right_operand = self.visit(node.comparators[0])
-        operation = node.ops[0]
+        operator = node.ops[0]
         return ComparisonOperation(
             left_operand=left_operand,
             right_operand=right_operand,
-            operator=operation,
+            operator=operator,
             ast_node=node,
         )
 
@@ -614,7 +612,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         if isinstance(parent, ExperimentRun):
             return ExperimentRunAttribute(
                 attribute_name=attribute_name,
-                experiment_run=parent,
+                experiment_id=parent.experiment_id,
                 transformer=self,
                 ast_node=node,
             )
