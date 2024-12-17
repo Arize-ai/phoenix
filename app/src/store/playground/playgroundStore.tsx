@@ -24,6 +24,7 @@ import {
   InitialPlaygroundState,
   PlaygroundChatTemplate,
   PlaygroundInstance,
+  PlaygroundInstancePrompt,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -522,6 +523,29 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
                       invocationParameterInputInvocationName
                   ),
               },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateInstancePrompt: ({ instanceId, patch }) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            const prompt = patch ? { ...instance.prompt, ...patch } : undefined;
+            // delete the prompt state if there is no id in the patch, or on the instance already
+            if (!prompt?.id) {
+              return {
+                ...instance,
+                prompt: undefined,
+              };
+            }
+            return {
+              ...instance,
+              // we have ensured a prompt id in the patch, so we can safely cast to the type
+              prompt: prompt as PlaygroundInstancePrompt,
             };
           }
           return instance;
