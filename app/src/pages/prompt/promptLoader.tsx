@@ -24,6 +24,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
           ... on Prompt {
             name
             ...PromptIndexPage__main
+            ...PromptVersionsPageContent__main
           }
         }
       }
