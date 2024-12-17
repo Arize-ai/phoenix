@@ -170,7 +170,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "name",
             "prompt_id",
-            name="uq_prompt_template_version_tags_name_prompt_id",
         ),
     )
 

@@ -945,8 +945,4 @@ class PromptTemplateVersionTag(Base):
         "PromptVersion", back_populates="prompt_template_version_tags"
     )
 
-    __table_args__ = (
-        UniqueConstraint(
-            "name", "prompt_id", name="uq_prompt_template_version_tags_name_prompt_id"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("name", "prompt_id"),)
