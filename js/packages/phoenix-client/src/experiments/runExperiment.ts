@@ -1,4 +1,4 @@
-import { Dataset, Example } from "types/datasets";
+import { Dataset, Example } from "../types/datasets";
 import { createClient, type PhoenixClient } from "../client";
 import type {
   Evaluator,
@@ -9,9 +9,9 @@ import type {
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import { promisifyResult } from "utils/promisifyResult";
+import { promisifyResult } from "../utils/promisifyResult";
 import invariant from "tiny-invariant";
-import { pluralize } from "utils/pluralize";
+import { pluralize } from "../utils/pluralize";
 
 export type RunExperimentParams = {
   experimentName: string;
