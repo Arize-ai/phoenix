@@ -3,7 +3,13 @@ import { devtools, persist } from "zustand/middleware";
 
 import { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 
+import { ModelConfig } from "./playground";
+
 export type MarkdownDisplayMode = "text" | "markdown";
+
+export type ModelConfigByProvider = Partial<
+  Record<ModelProvider, Omit<ModelConfig, "supportedInvocationParameters">>
+>;
 
 export interface PreferencesProps {
   /**
@@ -34,6 +40,15 @@ export interface PreferencesProps {
    * Whether or not the trace tree shows metrics
    */
   showMetricsInTraceTree: boolean;
+  /**
+   * {@link ModelConfig|ModelConfigs} for llm providers will be used as the default parameters for the provider
+   */
+  modelConfigByProvider: ModelConfigByProvider;
+  /**
+   * Whether or not the playground is in streaming mode
+   * Note: this is always false in environments that do not support streaming
+   */
+  playgroundStreamingEnabled: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -66,6 +81,20 @@ export interface PreferencesState extends PreferencesProps {
    * @param showMetricsInTraceTree
    */
   setShowMetricsInTraceTree: (showMetricsInTraceTree: boolean) => void;
+  /**
+   * Setter for the model configs by provider
+   */
+  setModelConfigForProvider: ({
+    provider,
+    modelConfig,
+  }: {
+    provider: ModelProvider;
+    modelConfig: Omit<ModelConfig, "supportedInvocationParameters">;
+  }) => void;
+  /**
+   * Setter for enabling/disabling playground streaming
+   */
+  setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -95,6 +124,21 @@ export const createPreferencesStore = (
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
       set({ showMetricsInTraceTree });
+    },
+    modelConfigByProvider: {},
+    setModelConfigForProvider: ({ provider, modelConfig }) => {
+      set((state) => {
+        return {
+          modelConfigByProvider: {
+            ...state.modelConfigByProvider,
+            [provider]: modelConfig,
+          },
+        };
+      });
+    },
+    playgroundStreamingEnabled: true,
+    setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
+      set({ playgroundStreamingEnabled });
     },
     ...initialProps,
   });

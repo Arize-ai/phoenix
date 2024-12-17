@@ -1,25 +1,26 @@
 import operator
 from datetime import datetime
-from typing import (
-    Any,
-    ClassVar,
-    List,
-    Optional,
-    Type,
-)
+from typing import Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
-from sqlalchemy import and_, desc, distinct, select
+from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import and_, desc, distinct, func, or_, select
 from sqlalchemy.orm import contains_eager
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.ProjectSessionSort import (
+    ProjectSessionColumn,
+    ProjectSessionSort,
+)
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
@@ -30,16 +31,17 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_cursors_and_nodes,
 )
+from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import Trace, to_gql_trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
 
 @strawberry.type
 class Project(Node):
-    _table: ClassVar[Type[models.Base]] = models.Project
+    _table: ClassVar[type[models.Base]] = models.Project
     id_attr: NodeID[int]
     name: str
     gradient_start_color: str
@@ -129,7 +131,13 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            ("trace", self.id_attr, time_range, None, probability),
+            (
+                "trace",
+                self.id_attr,
+                time_range,
+                None,
+                probability,
+            ),
         )
 
     @strawberry.field
@@ -141,20 +149,26 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            ("span", self.id_attr, time_range, filter_condition, probability),
+            (
+                "span",
+                self.id_attr,
+                time_range,
+                filter_condition,
+                probability,
+            ),
         )
 
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
         stmt = (
-            select(models.Trace.id)
+            select(models.Trace)
             .where(models.Trace.trace_id == str(trace_id))
             .where(models.Trace.project_rowid == self.id_attr)
         )
         async with info.context.db() as session:
-            if (id_attr := await session.scalar(stmt)) is None:
+            if (trace := await session.scalar(stmt)) is None:
                 return None
-        return Trace(id_attr=id_attr, trace_id=trace_id, project_rowid=self.id_attr)
+        return to_gql_trace(trace)
 
     @strawberry.field
     async def spans(
@@ -223,18 +237,13 @@ class Project(Node):
             span_records = await session.execute(stmt)
             async for span_record in islice(span_records, first):
                 span = span_record[0]
-                sort_column_value = span_record[1] if len(span_record) > 1 else None
-                cursor = Cursor(
-                    rowid=span.id,
-                    sort_column=(
-                        CursorSortColumn(
-                            type=sort_config.column_data_type,
-                            value=sort_column_value,
-                        )
-                        if sort_config
-                        else None
-                    ),
-                )
+                cursor = Cursor(rowid=span.id)
+                if sort_config:
+                    assert len(span_record) > 1
+                    cursor.sort_column = CursorSortColumn(
+                        type=sort_config.column_data_type,
+                        value=span_record[1],
+                    )
                 cursors_and_nodes.append((cursor, to_gql_span(span)))
             has_next_page = True
             try:
@@ -248,6 +257,124 @@ class Project(Node):
             has_next_page=has_next_page,
         )
 
+    @strawberry.field
+    async def sessions(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+        sort: Optional[ProjectSessionSort] = UNSET,
+        filter_io_substring: Optional[str] = UNSET,
+    ) -> Connection[ProjectSession]:
+        table = models.ProjectSession
+        stmt = select(table).filter_by(project_id=self.id_attr)
+        if time_range:
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= table.start_time)
+            if time_range.end:
+                stmt = stmt.where(table.start_time < time_range.end)
+        if filter_io_substring:
+            filter_subq = (
+                stmt.with_only_columns(distinct(table.id).label("id"))
+                .join_from(table, models.Trace)
+                .join_from(models.Trace, models.Span)
+                .where(models.Span.parent_id.is_(None))
+                .where(
+                    or_(
+                        models.TextContains(
+                            models.Span.attributes[INPUT_VALUE].as_string(),
+                            filter_io_substring,
+                        ),
+                        models.TextContains(
+                            models.Span.attributes[OUTPUT_VALUE].as_string(),
+                            filter_io_substring,
+                        ),
+                    )
+                )
+            ).subquery()
+            stmt = stmt.join(filter_subq, table.id == filter_subq.c.id)
+        if sort:
+            key: ColumnElement[Any]
+            if sort.col is ProjectSessionColumn.startTime:
+                key = table.start_time.label("key")
+            elif sort.col is ProjectSessionColumn.endTime:
+                key = table.end_time.label("key")
+            elif (
+                sort.col is ProjectSessionColumn.tokenCountTotal
+                or sort.col is ProjectSessionColumn.numTraces
+            ):
+                if sort.col is ProjectSessionColumn.tokenCountTotal:
+                    sort_subq = (
+                        select(
+                            models.Trace.project_session_rowid.label("id"),
+                            func.sum(models.Span.cumulative_llm_token_count_total).label("key"),
+                        )
+                        .join_from(models.Trace, models.Span)
+                        .where(models.Span.parent_id.is_(None))
+                        .group_by(models.Trace.project_session_rowid)
+                    ).subquery()
+                elif sort.col is ProjectSessionColumn.numTraces:
+                    sort_subq = (
+                        select(
+                            models.Trace.project_session_rowid.label("id"),
+                            func.count(models.Trace.id).label("key"),
+                        ).group_by(models.Trace.project_session_rowid)
+                    ).subquery()
+                else:
+                    assert_never(sort.col)
+                key = sort_subq.c.key
+                stmt = stmt.join(sort_subq, table.id == sort_subq.c.id)
+            else:
+                assert_never(sort.col)
+            stmt = stmt.add_columns(key)
+            if sort.dir is SortDir.asc:
+                stmt = stmt.order_by(key.asc(), table.id.asc())
+            else:
+                stmt = stmt.order_by(key.desc(), table.id.desc())
+            if after:
+                cursor = Cursor.from_string(after)
+                assert cursor.sort_column is not None
+                compare = operator.lt if sort.dir is SortDir.desc else operator.gt
+                stmt = stmt.where(
+                    compare(
+                        tuple_(key, table.id),
+                        (cursor.sort_column.value, cursor.rowid),
+                    )
+                )
+        else:
+            stmt = stmt.order_by(table.id.desc())
+            if after:
+                cursor = Cursor.from_string(after)
+                stmt = stmt.where(table.id < cursor.rowid)
+        if first:
+            stmt = stmt.limit(
+                first + 1  # over-fetch by one to determine whether there's a next page
+            )
+        cursors_and_nodes = []
+        async with info.context.db() as session:
+            records = await session.stream(stmt)
+            async for record in islice(records, first):
+                project_session = record[0]
+                cursor = Cursor(rowid=project_session.id)
+                if sort:
+                    assert len(record) > 1
+                    cursor.sort_column = CursorSortColumn(
+                        type=sort.col.data_type,
+                        value=record[1],
+                    )
+                cursors_and_nodes.append((cursor, to_gql_project_session(project_session)))
+            has_next_page = True
+            try:
+                await records.__anext__()
+            except StopAsyncIteration:
+                has_next_page = False
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
+
     @strawberry.field(
         description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
@@ -255,7 +382,7 @@ class Project(Node):
     async def trace_annotations_names(
         self,
         info: Info[Context, None],
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.TraceAnnotation.name))
             .join(models.Trace)
@@ -271,7 +398,7 @@ class Project(Node):
     async def span_annotation_names(
         self,
         info: Info[Context, None],
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.SpanAnnotation.name))
             .join(models.Span)
@@ -288,7 +415,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         span_id: Optional[ID] = UNSET,
-    ) -> List[str]:
+    ) -> list[str]:
         stmt = (
             select(distinct(models.DocumentAnnotation.name))
             .join(models.Span)
@@ -370,3 +497,7 @@ def to_gql_project(project: models.Project) -> Project:
         gradient_start_color=project.gradient_start_color,
         gradient_end_color=project.gradient_end_color,
     )
+
+
+INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")

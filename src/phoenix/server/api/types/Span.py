@@ -1,12 +1,12 @@
 import json
-from dataclasses import dataclass
+from collections.abc import Mapping, Sized
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import numpy as np
 import strawberry
-from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
+from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
@@ -19,34 +19,23 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
+from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
+from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.trace.attributes import get_attribute_value
-
-from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from .Evaluation import DocumentEvaluation
-from .ExampleRevisionInterface import ExampleRevision
-from .MimeType import MimeType
-from .SpanAnnotation import SpanAnnotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
-
-EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
-EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
-LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-METADATA = SpanAttributes.METADATA
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 @strawberry.enum
@@ -79,18 +68,6 @@ class SpanKind(Enum):
 class SpanContext:
     trace_id: ID
     span_id: ID
-
-
-@strawberry.type
-class SpanIOValue:
-    mime_type: MimeType
-    value: str
-
-    @strawberry.field(
-        description="Truncate value up to `chars` characters, appending '...' if truncated.",
-    )  # type: ignore
-    def truncated_value(self, chars: int = 100) -> str:
-        return f"{self.value[: max(0, chars - 3)]}..." if len(self.value) > chars else self.value
 
 
 @strawberry.enum
@@ -152,7 +129,7 @@ class Span(Node):
     token_count_completion: Optional[int]
     input: Optional[SpanIOValue]
     output: Optional[SpanIOValue]
-    events: List[SpanEvent]
+    events: list[SpanEvent]
     cumulative_token_count_total: Optional[int] = strawberry.field(
         description="Cumulative (prompt plus completion) token count from "
         "self and all descendant spans (children, grandchildren, etc.)",
@@ -180,7 +157,7 @@ class Span(Node):
         self,
         info: Info[Context, None],
         sort: Optional[SpanAnnotationSort] = UNSET,
-    ) -> List[SpanAnnotation]:
+    ) -> list[SpanAnnotation]:
         span_id = self.id_attr
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
         sort_key = SpanAnnotationColumn.name.value
@@ -201,7 +178,7 @@ class Span(Node):
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    async def document_evaluations(self, info: Info[Context, None]) -> List[DocumentEvaluation]:
+    async def document_evaluations(self, info: Info[Context, None]) -> list[DocumentEvaluation]:
         return await info.context.data_loaders.document_evaluations.load(self.id_attr)
 
     @strawberry.field(
@@ -211,7 +188,7 @@ class Span(Node):
         self,
         info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
-    ) -> List[DocumentRetrievalMetrics]:
+    ) -> list[DocumentRetrievalMetrics]:
         if not self.num_documents:
             return []
         return await info.context.data_loaders.document_retrieval_metrics.load(
@@ -224,7 +201,7 @@ class Span(Node):
     async def descendants(
         self,
         info: Info[Context, None],
-    ) -> List["Span"]:
+    ) -> list["Span"]:
         span_id = str(self.context.span_id)
         spans = await info.context.data_loaders.span_descendants.load(span_id)
         return [to_gql_span(span) for span in spans]
@@ -233,21 +210,7 @@ class Span(Node):
         description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
     async def as_example_revision(self, info: Info[Context, None]) -> SpanAsExampleRevision:
-        db_span = self.db_span
-        attributes = db_span.attributes
-        span_io = _SpanIO(
-            span_kind=db_span.span_kind,
-            input_value=get_attribute_value(attributes, INPUT_VALUE),
-            input_mime_type=get_attribute_value(attributes, INPUT_MIME_TYPE),
-            output_value=get_attribute_value(attributes, OUTPUT_VALUE),
-            output_mime_type=get_attribute_value(attributes, OUTPUT_MIME_TYPE),
-            llm_prompt_template_variables=get_attribute_value(
-                attributes, LLM_PROMPT_TEMPLATE_VARIABLES
-            ),
-            llm_input_messages=get_attribute_value(attributes, LLM_INPUT_MESSAGES),
-            llm_output_messages=get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
-            retrieval_documents=get_attribute_value(attributes, RETRIEVAL_DOCUMENTS),
-        )
+        span = self.db_span
 
         # Fetch annotations associated with this span
         span_annotations = await self.span_annotations(info)
@@ -262,13 +225,13 @@ class Span(Node):
             }
         # Merge annotations into the metadata
         metadata = {
-            **attributes,
-            "annotations": annotations,
+            "span_kind": span.span_kind,
+            **({"annotations": annotations} if annotations else {}),
         }
 
         return SpanAsExampleRevision(
-            input=get_dataset_example_input(span_io),
-            output=get_dataset_example_output(span_io),
+            input=get_dataset_example_input(span),
+            output=get_dataset_example_output(span),
             metadata=metadata,
         )
 
@@ -290,9 +253,43 @@ class Span(Node):
         examples = await info.context.data_loaders.span_dataset_examples.load(self.id_attr)
         return bool(examples)
 
+    @strawberry.field(description="Invocation parameters for the span")  # type: ignore
+    async def invocation_parameters(self, info: Info[Context, None]) -> list[InvocationParameter]:
+        from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
+        from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+
+        db_span = self.db_span
+        attributes = db_span.attributes
+        llm_provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
+        if llm_provider is None:
+            return []
+        llm_model = get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME)
+        invocation_parameters = get_attribute_value(
+            attributes, SpanAttributes.LLM_INVOCATION_PARAMETERS
+        )
+        if invocation_parameters is None:
+            return []
+        invocation_parameters = json.loads(invocation_parameters)
+        # find the client class for the provider, if there is no client class or provider,
+        # return openai as default
+        client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(llm_provider, llm_model)
+        if not client_class:
+            client_class = OpenAIStreamingClient
+        supported_invocation_parameters = client_class.supported_invocation_parameters()
+        # filter supported invocation parameters down to those whose canonical_name is in the
+        # invocation_parameters keys
+        return [
+            ip
+            for ip in supported_invocation_parameters
+            if (
+                ip.canonical_name in invocation_parameters
+                or ip.invocation_name in invocation_parameters
+            )
+        ]
+
 
 def to_gql_span(span: models.Span) -> Span:
-    events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
+    events: list[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
     input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
     output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
     retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
@@ -398,19 +395,9 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
         return str(metadata)
 
 
-@dataclass
-class _SpanIO:
-    """
-    An class that contains the information needed to extract dataset example
-    input and output values from a span.
-    """
-
-    span_kind: Optional[str]
-    input_value: Any
-    input_mime_type: Optional[str]
-    output_value: Any
-    output_mime_type: Optional[str]
-    llm_prompt_template_variables: Any
-    llm_input_messages: Any
-    llm_output_messages: Any
-    retrieval_documents: Any
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+METADATA = SpanAttributes.METADATA
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS

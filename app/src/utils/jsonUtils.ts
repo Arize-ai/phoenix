@@ -32,3 +32,21 @@ export function isJSONString({
 export function isJSONObjectString(str: string) {
   return isJSONString({ str, excludeArray: true, excludePrimitives: true });
 }
+
+export function safelyParseJSON(str: string) {
+  try {
+    return { json: JSON.parse(str) };
+  } catch (e) {
+    return { json: null, parseError: e };
+  }
+}
+
+export function safelyStringifyJSON(
+  ...args: Parameters<typeof JSON.stringify>
+) {
+  try {
+    return { json: JSON.stringify(...args) };
+  } catch (e) {
+    return { json: null, stringifyError: e };
+  }
+}

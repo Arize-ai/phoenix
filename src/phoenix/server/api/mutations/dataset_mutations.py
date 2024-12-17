@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import strawberry
 from openinference.semconv.trace import (
@@ -12,7 +12,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
@@ -44,7 +44,7 @@ class DatasetMutationPayload:
 
 @strawberry.type
 class DatasetMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_dataset(
         self,
         info: Info[Context, None],
@@ -67,7 +67,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_dataset(
         self,
         info: Info[Context, None],
@@ -96,7 +96,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
@@ -136,23 +136,7 @@ class DatasetMutationMixin:
                 .returning(models.DatasetVersion.id)
             )
             spans = (
-                await session.execute(
-                    select(
-                        models.Span.id,
-                        models.Span.span_kind,
-                        models.Span.attributes,
-                        _span_attribute(INPUT_MIME_TYPE),
-                        _span_attribute(INPUT_VALUE),
-                        _span_attribute(OUTPUT_MIME_TYPE),
-                        _span_attribute(OUTPUT_VALUE),
-                        _span_attribute(LLM_PROMPT_TEMPLATE_VARIABLES),
-                        _span_attribute(LLM_INPUT_MESSAGES),
-                        _span_attribute(LLM_OUTPUT_MESSAGES),
-                        _span_attribute(RETRIEVAL_DOCUMENTS),
-                    )
-                    .select_from(models.Span)
-                    .where(models.Span.id.in_(span_rowids))
-                )
+                await session.scalars(select(models.Span).where(models.Span.id.in_(span_rowids)))
             ).all()
             if missing_span_rowids := span_rowids - {span.id for span in spans}:
                 raise ValueError(
@@ -160,22 +144,14 @@ class DatasetMutationMixin:
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
 
             span_annotations = (
-                await session.execute(
-                    select(
-                        models.SpanAnnotation.span_rowid,
-                        models.SpanAnnotation.name,
-                        models.SpanAnnotation.label,
-                        models.SpanAnnotation.score,
-                        models.SpanAnnotation.explanation,
-                        models.SpanAnnotation.metadata_,
-                        models.SpanAnnotation.annotator_kind,
+                await session.scalars(
+                    select(models.SpanAnnotation).where(
+                        models.SpanAnnotation.span_rowid.in_(span_rowids)
                     )
-                    .select_from(models.SpanAnnotation)
-                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
                 )
             ).all()
 
-            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
@@ -214,8 +190,12 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
                         DatasetExampleRevision.metadata_.key: {
-                            **span.attributes,
-                            "annotations": span_annotations_by_span[span.id],
+                            "span_kind": span.span_kind,
+                            **(
+                                {"annotations": annotations}
+                                if (annotations := span_annotations_by_span[span.id])
+                                else {}
+                            ),
                         },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
@@ -225,7 +205,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def add_examples_to_dataset(
         self, info: Info[Context, None], input: AddExamplesToDatasetInput
     ) -> DatasetMutationPayload:
@@ -287,7 +267,7 @@ class DatasetMutationMixin:
                 )
             ).all()
 
-            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
@@ -351,7 +331,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def delete_dataset(
         self,
         info: Info[Context, None],
@@ -382,7 +362,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_dataset_examples(
         self,
         info: Info[Context, None],
@@ -474,7 +454,7 @@ class DatasetMutationMixin:
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
@@ -577,7 +557,7 @@ def _to_orm_revision(
     patch: DatasetExamplePatch,
     example_id: int,
     version_id: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Creates a new revision from an existing revision and a patch. The output is a
     dictionary suitable for insertion into the database using the sqlalchemy

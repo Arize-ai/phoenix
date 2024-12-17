@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.17.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.4...arize-phoenix-evals-v0.17.5) (2024-11-19)
+
+
+### Bug Fixes
+
+* Allow dot key values in templates ([#5436](https://github.com/Arize-ai/phoenix/issues/5436)) ([8181094](https://github.com/Arize-ai/phoenix/commit/8181094ebd66e01f01a00ebe97473a965f7274e8))
+
+## [0.17.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.3...arize-phoenix-evals-v0.17.4) (2024-11-12)
+
+
+### Bug Fixes
+
+* **evals:** increase default max tokens ([#5339](https://github.com/Arize-ai/phoenix/issues/5339)) ([b4af61e](https://github.com/Arize-ai/phoenix/commit/b4af61ee544c929fb01ac97724c1c657f0a46715))
+
+## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.2...arize-phoenix-evals-v0.17.3) (2024-11-06)
+
+
+### Bug Fixes
+
+* **evals:** only allow keyword arguments for model instantiation ([#5287](https://github.com/Arize-ai/phoenix/issues/5287)) ([aa95902](https://github.com/Arize-ai/phoenix/commit/aa95902e82b9207d6108e2a19b8531a817273e06))
+
+## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.1...arize-phoenix-evals-v0.17.2) (2024-10-18)
+
+
+### Bug Fixes
+
+* allow progress bar to be disabled ([#5064](https://github.com/Arize-ai/phoenix/issues/5064)) ([07d9856](https://github.com/Arize-ai/phoenix/commit/07d985672de77ed5f90a8195cbac24554c951ac4))
+
+## [0.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.0...arize-phoenix-evals-v0.17.1) (2024-10-17)
+
+
+### Bug Fixes
+
+* increase python upper bound to include python 3.13 for `arize-phoenix-evals` and `arize-phoenix-otel` ([#5077](https://github.com/Arize-ai/phoenix/issues/5077)) ([ef5c893](https://github.com/Arize-ai/phoenix/commit/ef5c893ef7bc81690662a7687ed190f5b6dca701))
+
+## [0.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.16.1...arize-phoenix-evals-v0.17.0) (2024-10-09)
+
+
+### Features
+
+* Always prompt as system for OpenAI Models ([#4937](https://github.com/Arize-ai/phoenix/issues/4937)) ([5f28ef2](https://github.com/Arize-ai/phoenix/commit/5f28ef244db2c4dd59fad6c6d6f1b63ff235817b))
+
 ## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.16.0...arize-phoenix-evals-v0.16.1) (2024-09-27)
 
 

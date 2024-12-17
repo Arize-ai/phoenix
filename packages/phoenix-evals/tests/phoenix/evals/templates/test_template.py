@@ -28,6 +28,14 @@ def test_classification_template_score_returns_zero_for_missing_rail():
 def test_template_with_default_delimiters_uses_python_string_formatting():
     template = PromptTemplate(template='Hello, {name}! Look at this JSON {{ "hello": "world" }}')
     assert (
-        template.format(variable_values={"name": "world"})
+        str(template.format(variable_values={"name": "world"}))
+        == 'Hello, world! Look at this JSON { "hello": "world" }'
+    )
+
+
+def test_template_with_default_delimiters_accepts_keys_with_dots():
+    template = PromptTemplate(template='Hello, {my.name}! Look at this JSON {{ "hello": "world" }}')
+    assert (
+        str(template.format(variable_values={"my.name": "world"}))
         == 'Hello, world! Look at this JSON { "hello": "world" }'
     )

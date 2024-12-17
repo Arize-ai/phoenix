@@ -1,0 +1,6 @@
+asyncpg
+openai
+anthropic
+google-generativeai
+psycopg[binary,pool]
+uvloop; platform_system != 'Windows'

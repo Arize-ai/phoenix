@@ -1,4 +1,4 @@
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -6,7 +6,7 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
@@ -19,15 +19,15 @@ from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationIn
 
 @strawberry.type
 class SpanAnnotationMutationPayload:
-    span_annotations: List[SpanAnnotation]
+    span_annotations: list[SpanAnnotation]
     query: Query
 
 
 @strawberry.type
 class SpanAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_span_annotations(
-        self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
+        self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
@@ -59,9 +59,9 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_span_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationInput]
+        self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:

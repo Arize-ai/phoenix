@@ -1,4 +1,4 @@
-from typing import List, Sequence
+from collections.abc import Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -6,7 +6,7 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
@@ -19,15 +19,15 @@ from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotation
 
 @strawberry.type
 class TraceAnnotationMutationPayload:
-    trace_annotations: List[TraceAnnotation]
+    trace_annotations: list[TraceAnnotation]
     query: Query
 
 
 @strawberry.type
 class TraceAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_trace_annotations(
-        self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
+        self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
@@ -59,9 +59,9 @@ class TraceAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_trace_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationInput]
+        self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:

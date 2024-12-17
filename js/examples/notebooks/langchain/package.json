@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@arizeai/openinference-instrumentation-langchain": "^0.2.0",
+    "@arizeai/openinference-semantic-conventions": "^0.10.0",
+    "@langchain/core": "^0.2.30",
+    "@langchain/openai": "^0.2.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.50.0",
+    "@opentelemetry/resources": "^1.25.1",
+    "@opentelemetry/sdk-trace-node": "^1.25.1"
+  }
+}

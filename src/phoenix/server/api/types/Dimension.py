@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import pandas as pd
 import strawberry
@@ -123,7 +123,7 @@ class Dimension(Node):
             " Missing values are excluded. Non-categorical dimensions return an empty list."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
-    def categories(self) -> List[str]:
+    def categories(self) -> list[str]:
         return list(self.dimension.categories)
 
     @strawberry.field(
@@ -250,7 +250,7 @@ class Dimension(Node):
         if isinstance(binning_method, binning.IntervalBinning) and binning_method.bins is not None:
             all_bins = all_bins.union(binning_method.bins)
         for bin in all_bins:
-            values: Dict[ms.InferencesRole, Any] = defaultdict(lambda: None)
+            values: dict[ms.InferencesRole, Any] = defaultdict(lambda: None)
             for role in ms.InferencesRole:
                 if model[role].empty:
                     continue

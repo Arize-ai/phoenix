@@ -225,7 +225,11 @@ class AsyncExecutor(Executor):
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         execution_details = [ExecutionDetails() for _ in range(len(inputs))]
-        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+        progress_bar = tqdm(
+            total=len(inputs),
+            bar_format=self.tqdm_bar_format,
+            disable=self.tqdm_bar_format is None,
+        )
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
         max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
@@ -287,7 +291,7 @@ class SyncExecutor(Executor):
             returns an output.
 
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-            to None.
+            to None. If None, the progress bar is disabled.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
             10.
@@ -339,7 +343,11 @@ class SyncExecutor(Executor):
             execution_details: List[ExecutionDetails] = [
                 ExecutionDetails() for _ in range(len(inputs))
             ]
-            progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+            progress_bar = tqdm(
+                total=len(inputs),
+                bar_format=self.tqdm_bar_format,
+                disable=self.tqdm_bar_format is None,
+            )
 
             for index, input in enumerate(inputs):
                 task_start_time = time.time()

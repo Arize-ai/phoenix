@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { graphql, useMutation } from "react-relay";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   CreateDatasetFormMutation,
@@ -44,6 +44,25 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
         variables: { ...params, metadata: JSON.parse(params.metadata) },
         onCompleted: (response) => {
           onDatasetCreated(response["createDataset"]["dataset"]);
+        },
+        updater: (store) => {
+          // Add the new dataset to the list of datasets
+          const connectionId = ConnectionHandler.getConnectionID(
+            "client:root",
+            "DatasetPicker__datasets"
+          );
+          const payload = store.getRootField("createDataset");
+          const dataset = payload.getLinkedRecord("dataset");
+          const connectionRecord = store.get(connectionId);
+          if (connectionRecord && dataset) {
+            const newEdge = ConnectionHandler.createEdge(
+              store,
+              connectionRecord,
+              dataset,
+              "DatasetEdge"
+            );
+            ConnectionHandler.insertEdgeAfter(connectionRecord, newEdge);
+          }
         },
         onError: (error) => {
           // TODO(datasets): cleanup error handling to show human friendly error

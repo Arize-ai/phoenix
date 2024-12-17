@@ -1,15 +1,20 @@
+// TODO(apowell): we need to follow the vite tsconfig convention: tsconfig.json, tsconfig.node.json, tsconfig.app.json
+// tsconfig.json references tsconfig.app.json and tsconfig.node.json, each of which include react src and node src respectively
+// this current file being a part of tsconfig.node.json scope in particular
+// @ts-expect-error we need a separate tsconfig for vite
+import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
-import { visualizer } from "rollup-plugin-visualizer";
+// Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
+// import { visualizer } from "rollup-plugin-visualizer";
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
-export default defineConfig(({ command }) => {
-  const plugins = [react(), relay];
-  // Development uses the serve command
-  if (command === "serve") {
-    plugins.push(visualizer());
-  }
+export default defineConfig(() => {
+  const plugins = [react(), relay, lezer()];
+  // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
+  // plugins.push(visualizer());
   return {
     root: resolve(__dirname, "src"),
     plugins,
@@ -25,6 +30,13 @@ export default defineConfig(({ command }) => {
         "@phoenix": resolve(__dirname, "src"),
       },
     },
+    test: {
+      include: ["../__tests__/*.test.ts", "**/__tests__/*.test.ts"],
+      exclude: ["../node_modules/**"],
+      environment: "jsdom",
+      setupFiles: ["./vitest.setup.ts"],
+      globals: true,
+    },
     build: {
       manifest: true,
       outDir: resolve(__dirname, "../src/phoenix/server/static"),
@@ -39,6 +51,9 @@ export default defineConfig(({ command }) => {
               }
               if (id.includes("recharts")) {
                 return "vendor-recharts";
+              }
+              if (id.includes("shiki")) {
+                return "vendor-shiki";
               }
               if (id.includes("codemirror")) {
                 return "vendor-codemirror";

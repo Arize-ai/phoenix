@@ -2,15 +2,13 @@ import atexit
 import codecs
 import os
 import sys
-from argparse import ArgumentParser
-from importlib.metadata import version
+from argparse import SUPPRESS, ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urljoin
 
-from fastapi_mail import ConnectionConfig
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
@@ -23,6 +21,7 @@ from phoenix.config import (
     get_env_database_schema,
     get_env_db_logging_level,
     get_env_enable_prometheus,
+    get_env_enable_websockets,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
@@ -59,7 +58,7 @@ from phoenix.server.app import (
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
-from phoenix.server.email.sender import EMAIL_TEMPLATE_FOLDER, FastMailSender
+from phoenix.server.email.sender import SimpleEmailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -73,6 +72,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.version import __version__ as phoenix_version
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -96,6 +96,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
+|  Websockets: {{ websockets_enabled }}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -131,6 +132,9 @@ DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_
 
 
 def main() -> None:
+    initialize_settings()
+    setup_logging()
+
     primary_inferences_name: str
     reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -139,23 +143,29 @@ def main() -> None:
     reference_inferences: Optional[Inferences] = None
     corpus_inferences: Optional[Inferences] = None
 
-    # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
-    parser = ArgumentParser()
-    parser.add_argument("--database-url", required=False)
-    parser.add_argument("--export_path")
-    parser.add_argument("--host", type=str, required=False)
-    parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--read-only", action="store_true", required=False)  # Default is False
-    parser.add_argument("--no-internet", action="store_true")
-    parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
-    parser.add_argument("--debug", action="store_true")
-    # Whether the app is running in a development environment
-    parser.add_argument("--dev", action="store_true")
-    parser.add_argument("--no-ui", action="store_true")
-
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser = ArgumentParser(usage="phoenix serve", add_help=False)
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=SUPPRESS,
+    )
+    parser.add_argument("--database-url", required=False, help=SUPPRESS)
+    parser.add_argument("--export_path", help=SUPPRESS)
+    parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
+    parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
+    parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
+    parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
+    parser.add_argument(
+        "--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR, help=SUPPRESS
+    )
+    parser.add_argument("--debug", action="store_true", help=SUPPRESS)
+    parser.add_argument("--dev", action="store_true", help=SUPPRESS)
+    parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
+    parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
+    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument(
@@ -187,7 +197,7 @@ def main() -> None:
     )
     serve_parser.add_argument(
         "--force-fixture-ingestion",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to check the database age before adding the fixtures. "
@@ -197,7 +207,7 @@ def main() -> None:
     )
     serve_parser.add_argument(
         "--scaffold-datasets",
-        action="store_true",  # default is False
+        action="store_true",
         required=False,
         help=(
             "Whether or not to add any datasets defined in "
@@ -214,15 +224,13 @@ def main() -> None:
 
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
-    fixture_parser.add_argument("--primary-only", action="store_true")  # Default is False
+    fixture_parser.add_argument("--primary-only", action="store_true")
 
     trace_fixture_parser = subparsers.add_parser("trace-fixture")
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
-    trace_fixture_parser.add_argument(
-        "--simulate-streaming", action="store_true"
-    )  # Default is False
+    trace_fixture_parser.add_argument("--simulate-streaming", action="store_true")
 
     demo_parser = subparsers.add_parser("demo")
     demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
@@ -273,7 +281,6 @@ def main() -> None:
         )
         trace_dataset_name = args.trace_fixture
     elif args.command == "serve":
-        # We use sets to avoid duplicates
         if args.with_fixture:
             primary_inferences, reference_inferences, corpus_inferences = get_inferences(
                 str(args.with_fixture),
@@ -294,7 +301,6 @@ def main() -> None:
         scaffold_datasets = args.scaffold_datasets
     host: Optional[str] = args.host or get_env_host()
     if host == "::":
-        # TODO(dustin): why is this necessary? it's not type compliant
         host = None
 
     port = args.port or get_env_port()
@@ -308,8 +314,8 @@ def main() -> None:
 
     authentication_enabled, secret = get_env_auth_settings()
 
-    fixture_spans: List[Span] = []
-    fixture_evals: List[pb.Evaluation] = []
+    fixture_spans: list[Span] = []
+    fixture_evals: list[pb.Evaluation] = []
     if trace_dataset_name is not None:
         fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (
@@ -344,16 +350,25 @@ def main() -> None:
     corpus_model = (
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
+
+    # Get enable_websockets from environment variable or command line argument
+    enable_websockets = get_env_enable_websockets()
+    if args.enable_websockets is not None:
+        enable_websockets = args.enable_websockets.lower() == "true"
+    if enable_websockets is None:
+        enable_websockets = True
+
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
-        version=version("arize-phoenix"),
+        version=phoenix_version,
         ui_path=root_path,
         grpc_path=f"http://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
+        websockets_enabled=enable_websockets,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -368,25 +383,22 @@ def main() -> None:
     if mail_sever := get_env_smtp_hostname():
         assert (mail_username := get_env_smtp_username()), "SMTP username is required"
         assert (mail_password := get_env_smtp_password()), "SMTP password is required"
-        assert (mail_from := get_env_smtp_mail_from()), "SMTP mail_from is required"
-        email_sender = FastMailSender(
-            ConnectionConfig(
-                MAIL_USERNAME=mail_username,
-                MAIL_PASSWORD=mail_password,
-                MAIL_FROM=mail_from,
-                MAIL_SERVER=mail_sever,
-                MAIL_PORT=get_env_smtp_port(),
-                VALIDATE_CERTS=get_env_smtp_validate_certs(),
-                USE_CREDENTIALS=True,
-                MAIL_STARTTLS=True,
-                MAIL_SSL_TLS=False,
-                TEMPLATE_FOLDER=EMAIL_TEMPLATE_FOLDER,
-            )
+        assert (sender_email := get_env_smtp_mail_from()), "SMTP mail_from is required"
+        email_sender = SimpleEmailSender(
+            smtp_server=mail_sever,
+            smtp_port=get_env_smtp_port(),
+            username=mail_username,
+            password=mail_password,
+            sender_email=sender_email,
+            connection_method="STARTTLS",
+            validate_certs=get_env_smtp_validate_certs(),
         )
+
     app = create_app(
         db=factory,
         export_path=export_path,
         model=model,
+        enable_websockets=enable_websockets,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=corpus_model,
@@ -422,6 +434,4 @@ def initialize_settings() -> None:
 
 
 if __name__ == "__main__":
-    initialize_settings()
-    setup_logging()
     main()

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import ID, UNSET
@@ -6,5 +6,5 @@ from strawberry import ID, UNSET
 
 @strawberry.input
 class ClusterInput:
-    event_ids: List[ID]
+    event_ids: list[ID]
     id: Optional[ID] = UNSET

@@ -27,6 +27,7 @@ from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_contex
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
+    MultimodalPrompt,
     PromptOptions,
     PromptTemplate,
     normalize_classification_template,
@@ -78,6 +79,7 @@ def llm_classify(
     exit_on_error: bool = True,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
+    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -135,6 +137,11 @@ def llm_classify(
             submission is possible. If not provided, a recommended default concurrency is
             set on a per-model basis.
 
+        progress_bar_format(Optional[str]): An optional format for progress bar shown. If not
+            specified, defaults to: llm_classify |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+            "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}". If 'None' is passed in specifically,
+            the progress_bar log will be disabled.
+
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
             the classification labels. If provide_explanation=True, then an additional column named
@@ -150,7 +157,6 @@ def llm_classify(
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
 
-    tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -172,7 +178,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _map_template(data: pd.Series[Any]) -> str:
+    def _map_template(data: pd.Series[Any]) -> MultimodalPrompt:
         try:
             variables = {var: data[var] for var in eval_template.variables}
             empty_keys = [k for k, v in variables.items() if v is None]
@@ -212,7 +218,7 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
     def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
@@ -221,7 +227,7 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response, prompt
+        return inference, explanation, response, str(prompt)
 
     fallback_return_value: ParsedLLMResponse = (None, None, "", "")
 
@@ -230,7 +236,7 @@ def llm_classify(
         _run_llm_classification_async,
         run_sync=run_sync,
         concurrency=concurrency,
-        tqdm_bar_format=tqdm_bar_format,
+        tqdm_bar_format=progress_bar_format,
         max_retries=max_retries,
         exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,

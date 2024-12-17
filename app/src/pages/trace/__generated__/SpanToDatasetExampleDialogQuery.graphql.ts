@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4d723708a315e2aa8ad292e7fa432bc>>
+ * @generated SignedSource<<ceb629e02218c64c584fa68f04a489fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type SpanToDatasetExampleDialogQuery$variables = {
   spanId: string;
 };
@@ -21,7 +20,6 @@ export type SpanToDatasetExampleDialogQuery$data = {
       readonly output: any;
     };
   };
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetPicker__datasets">;
 };
 export type SpanToDatasetExampleDialogQuery = {
   response: SpanToDatasetExampleDialogQuery$data;
@@ -81,13 +79,6 @@ v2 = {
   ],
   "type": "Span",
   "abstractKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -107,11 +98,6 @@ return {
           (v2/*: any*/)
         ],
         "storageKey": null
-      },
-      {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "DatasetPicker__datasets"
       }
     ],
     "type": "Query",
@@ -143,46 +129,11 @@ return {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v3/*: any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "DatasetConnection",
-        "kind": "LinkedField",
-        "name": "datasets",
-        "plural": false,
-        "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "DatasetEdge",
-            "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
-            "selections": [
-              {
-                "alias": "dataset",
-                "args": null,
-                "concreteType": "Dataset",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  (v3/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
+            "kind": "ScalarField",
+            "name": "id",
             "storageKey": null
           }
         ],
@@ -191,16 +142,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "340325aadd2b2d81cb509e6b6bee7f0b",
+    "cacheID": "68887dda2ffa7793e66ff83d472c72f8",
     "id": null,
     "metadata": {},
     "name": "SpanToDatasetExampleDialogQuery",
     "operationKind": "query",
-    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      revision: asExampleRevision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  ...DatasetPicker__datasets\n}\n\nfragment DatasetPicker__datasets on Query {\n  datasets {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      revision: asExampleRevision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5afd1a4eede339492f5473ed17b770b3";
+(node as any).hash = "647a1865dacf40ce9bbb255b572a9a68";
 
 export default node;

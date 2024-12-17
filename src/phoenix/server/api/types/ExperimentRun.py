@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import strawberry
+from sqlalchemy import select
+from sqlalchemy.orm import load_only
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -18,7 +20,10 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import Trace, to_gql_trace
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.DatasetExample import DatasetExample
 
 
 @strawberry.type
@@ -56,11 +61,42 @@ class ExperimentRun(Node):
     async def trace(self, info: Info) -> Optional[Trace]:
         if not self.trace_id:
             return None
-        dataloader = info.context.data_loaders.trace_row_ids
+        dataloader = info.context.data_loaders.trace_by_trace_ids
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
-        trace_rowid, project_rowid = trace
-        return Trace(id_attr=trace_rowid, trace_id=self.trace_id, project_rowid=project_rowid)
+        return to_gql_trace(trace)
+
+    @strawberry.field
+    async def example(
+        self, info: Info
+    ) -> Annotated[
+        "DatasetExample", strawberry.lazy("phoenix.server.api.types.DatasetExample")
+    ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
+        from phoenix.server.api.types.DatasetExample import DatasetExample
+
+        async with info.context.db() as session:
+            assert (
+                result := await session.execute(
+                    select(models.DatasetExample, models.Experiment.dataset_version_id)
+                    .select_from(models.ExperimentRun)
+                    .join(
+                        models.DatasetExample,
+                        models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                    )
+                    .join(
+                        models.Experiment,
+                        models.Experiment.id == models.ExperimentRun.experiment_id,
+                    )
+                    .where(models.ExperimentRun.id == self.id_attr)
+                    .options(load_only(models.DatasetExample.id, models.DatasetExample.created_at))
+                )
+            ) is not None
+            example, version_id = result.first()
+        return DatasetExample(
+            id_attr=example.id,
+            created_at=example.created_at,
+            version_id=version_id,
+        )
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:

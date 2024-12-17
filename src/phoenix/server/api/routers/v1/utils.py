@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, List, Optional, TypedDict, TypeVar, Union
+from typing import Any, Generic, Optional, TypedDict, TypeVar, Union
 
 from typing_extensions import TypeAlias, assert_never
 
@@ -6,8 +6,8 @@ from .pydantic_compat import V1RoutesBaseModel
 
 StatusCode: TypeAlias = int
 DataType = TypeVar("DataType")
-Responses: TypeAlias = Dict[
-    Union[int, str], Dict[str, Any]
+Responses: TypeAlias = dict[
+    Union[int, str], dict[str, Any]
 ]  # input type for the `responses` parameter of a fastapi route
 
 
@@ -44,12 +44,12 @@ class PaginatedResponseBody(V1RoutesBaseModel, Generic[DataType]):
     # Don't use """ for this docstring or it will be included as a description
     # in the generated OpenAPI schema.
 
-    data: List[DataType]
+    data: list[DataType]
     next_cursor: Optional[str]
 
 
 def add_errors_to_responses(
-    errors: List[Union[StatusCode, StatusCodeWithDescription]],
+    errors: list[Union[StatusCode, StatusCodeWithDescription]],
     /,
     *,
     responses: Optional[Responses] = None,

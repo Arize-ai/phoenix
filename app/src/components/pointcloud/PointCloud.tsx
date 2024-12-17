@@ -73,7 +73,7 @@ const PointCloudInfo = function PointCloudInfo() {
     <section
       css={css`
         width: 300px;
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
       `}
     >
       <dl css={descriptionListCSS}>
@@ -147,7 +147,7 @@ const descriptionListCSS = css`
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: var(--px-spacing-sm);
+    gap: var(--ac-global-dimension-static-size-50);
   }
 `;
 
@@ -162,13 +162,13 @@ function CanvasTools() {
     <div
       css={css`
         position: absolute;
-        left: var(--px-spacing-med);
-        top: var(--px-spacing-med);
+        left: var(--ac-global-dimension-static-size-100);
+        top: var(--ac-global-dimension-static-size-100);
         z-index: 1;
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />

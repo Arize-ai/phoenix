@@ -2,15 +2,16 @@ name: Python CI
 
 on:
   push:
-    branches: [ main, playground ]
+    branches: [main, sessions]
   pull_request:
     paths:
+      - "**/*.py"
       - "src/**"
       - "tests/**"
-      - "integration_tests/**"
       - "tutorials/**"
       - "pyproject.toml"
       - "packages/**"
+      - "tox.ini"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -27,51 +28,42 @@ jobs:
     name: Filter Changes
     runs-on: ubuntu-latest
     outputs:
+      ipynb: ${{ steps.filter.outputs.ipynb }}
+      ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
+      proto: ${{ steps.filter.outputs.proto }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
-      packages: ${{ steps.filter.outputs.packages }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          list-files: shell
           filters: |
+            ipynb:
+              - "**/*.ipynb"
+            proto:
+              - "src/phoenix/proto/**"
+              - "src/phoenix/trace/v1/**"
             phoenix:
               - "src/**"
               - "tests/**"
-              - "integration_tests/**"
               - "tutorials/**"
               - "pyproject.toml"
-            packages:
-              - "packages/**"
+              - "tox.ini"
             phoenix_evals:
               - "packages/phoenix-evals/**"
+              - "tox.ini"
+            phoenix_otel:
+              - "packages/phoenix-otel/**"
+              - "tox.ini"
 
-  tox:
-    name: Tox
+  clean-jupyter-notebooks:
+    name: Clean Jupyter notebooks
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ needs.changes.outputs.packages == 'true' }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: |
-            3.9
-            3.12
-      - uses: yezz123/setup-uv@v4
-        with:
-          uv-version: 0.4.8
-          uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-pkg-phoenix_evals,py312-ci-pkg-phoenix_evals
-        if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
-
-  lint:
-    name: Lint Phoenix
-    runs-on: ubuntu-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    if: ${{ needs.changes.outputs.ipynb == 'true' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -83,79 +75,372 @@ jobs:
         run: |
           python -m pip install --upgrade pip==${{ env.pip-version }}
           pip install hatch
-      - name: Proto codegen
-        run: |
-          hatch run proto:recompile
-          git diff --exit-code
-      - name: Check format
-        run: |
-          hatch run style:check
-      - name: Check types
-        run: |
-          hatch run type:check
-      - name: Gql codegen
-        run: |
-          hatch run gql:build
-          git diff --exit-code
-      - name: Export OpenAPI schema
-        run: |
-          hatch run openapi:build
-          git diff --exit-code
       - name: Check notebooks have cleaned output and metadata
-        run: |
-          hatch run notebooks:clean
-          git diff --exit-code
+        run: hatch run notebooks:clean
+      - run: git diff --exit-code
 
-  test:
-    name: Test Phoenix
+  phoenix-evals:
+    name: Phoenix Evals
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
+    strategy:
+      matrix:
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-evals/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+      - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
+
+  phoenix-otel:
+    name: Phoenix OTel
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
+    strategy:
+      matrix:
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-otel/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+      - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
+
+  #  clean-jupyter-notebooks:
+  #    name: Clean Jupyter Notebooks
+  #    needs: changes
+  #    if: ${{ needs.changes.outputs.ipynb == 'true' }}
+  #    strategy:
+  #      matrix:
+  #        py: [ 3.13 ]
+  #        os: [ ubuntu-latest ]
+  #    runs-on: ${{ matrix.os }}
+  #    steps:
+  #      - name: Checkout repository
+  #        uses: actions/checkout@v4
+  #      - name: Set up Python ${{ matrix.py }}
+  #        uses: actions/setup-python@v5
+  #        with:
+  #          python-version: ${{ matrix.py }}
+  #      - name: Set up `uv`
+  #        uses: astral-sh/setup-uv@v4
+  #        with:
+  #          version: 0.5.8
+  #          enable-cache: true
+  #          cache-dependency-glob: |
+  #            pyproject.toml
+  #            requirements/clean-jupyter-notebooks.txt
+  #          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #      - name: Clean Jupyter notebooks
+  #        run: uvx --with tox-uv tox run -e clean_jupyter_notebooks -- ${{ needs.changes.outputs.ipynb_files }}
+  #      - run: git diff --exit-code
+
+  build-graphql-schema:
+    name: Build GraphQL Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [macos-12, windows-latest, ubuntu-latest]
-        python-version: ["3.9"]
+        py: [3.9]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up python ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Install PostgreSQL (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get -yqq install postgresql
-      - name: Run tests (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          hatch run test:tests --run-postgres
-        continue-on-error: false
-      - name: Run tests (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          hatch run test:tests
-        continue-on-error: false
-      - name: Run tests (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          hatch run test:tests
-        continue-on-error: false
-  integration-test:
-    runs-on: ${{ matrix.os }}
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/build-graphql-schema.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build GraphQL schema
+        run: uvx --with tox-uv tox run -e build_graphql_schema
+      - run: git diff --exit-code
+
+  build-openapi-schema:
+    name: Build OpenAPI Schema
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-2019, macos-12]
+        py: [3.9]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build OpenAPI schema
+        run: uvx --with tox-uv tox run -e build_openapi_schema
+      - run: git diff --exit-code
+
+  compile-protobuf:
+    name: Compile Protobuf
+    needs: changes
+    if: ${{ needs.changes.outputs.proto == 'true' }}
+    strategy:
+      matrix:
+        py: [3.9]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/compile-protobuf.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compile Protobuf
+        run: uvx --with tox-uv tox run -e compile_protobuf
+      - run: git diff --exit-code
+
+  ruff:
+    name: Ruff
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.12, 3.13]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+      - name: Run `ruff`
+        run: uvx --with tox-uv tox run -e ruff
+      - run: git diff --exit-code
+
+  type-check:
+    name: Type Check
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/type-check.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types
+        run: uvx --with tox-uv tox run -e type_check
+
+  type-check-unit-tests:
+    name: Type Check Unit Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/unit-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types on unit tests
+        run: uvx --with tox-uv tox run -e type_check_unit_tests
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        exclude:
+          - py: 3.13
+            os: macos-13
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/unit/
+            tests/conftest.py
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/unit-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install PostgreSQL (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get -yqq install postgresql
+      - name: Run tests with PostgreSQL (Linux)
+        if: runner.os == 'Linux'
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x --run-postgres
+      - name: Run tests without PostgreSQL (non-Linux)
+        if: runner.os != 'Linux'
+        run: uvx --with tox-uv tox run -e unit_tests -- -ra -x
+
+  type-check-integration-tests:
+    name: Type Check Integration Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/integration/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check types on integration tests
+        run: uvx --with tox-uv tox run -e type_check_integration_tests
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [3.9, 3.12, 3.13]
+        db: [sqlite, postgresql]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        exclude:
+          - db: postgresql
+            os: windows-latest
+          - db: postgresql
+            os: macos-latest
+          - db: postgresql
+            os: macos-13
+          - py: 3.13
+            db: sqlite
+            os: macos-13
+    env:
+      CI_TEST_DB_BACKEND: ${{ matrix.db }}
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
-        image: ${{ (matrix.os == 'ubuntu-latest') && 'postgres:12' || '' }}
+        image: ${{ (matrix.db == 'postgresql') && 'postgres:12' || '' }}
         env:
           POSTGRES_PASSWORD: phoenix
         options: >-
@@ -166,18 +451,26 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          python-version: 3.9
-      - uses: yezz123/setup-uv@v4
+          sparse-checkout: |
+            requirements/
+            src/phoenix/
+            tests/integration/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
         with:
-          uv-version: 0.4.8
-          uv-venv: ${{ github.job }}-${{ github.run_number }}
-      - run: uv pip install tox==4.18.1 tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests
-        if: ${{ matrix.os != 'ubuntu-latest' }}
-        timeout-minutes: 15
-      - run: tox run-parallel --parallel-no-spinner -e py39-ci-integration_tests,py312-ci-integration_tests
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        timeout-minutes: 15
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.8
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run integration tests
+        run: uvx --with tox-uv tox run -e integration_tests -- -ra -x -n auto --reruns 5

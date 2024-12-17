@@ -17,7 +17,7 @@ from typing_extensions import TypeAlias, TypeGuard, assert_never
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 
-_VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
+_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
 )
 
@@ -59,7 +59,7 @@ class AliasedAnnotationRelation:
         object.__setattr__(self, "table", table)
 
     @property
-    def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+    def attributes(self) -> typing.Iterator[tuple[str, Mapped[typing.Any]]]:
         """
         Alias names and attributes (i.e., columns) of the `span_annotation`
         relation.
@@ -80,7 +80,7 @@ class AliasedAnnotationRelation:
 
 # Because postgresql is strongly typed, we cast JSON values to string
 # by default unless it's hinted otherwise as done here.
-_FLOAT_ATTRIBUTES: typing.FrozenSet[str] = frozenset(
+_FLOAT_ATTRIBUTES: frozenset[str] = frozenset(
     {
         "llm.token_count.completion",
         "llm.token_count.prompt",
@@ -142,12 +142,8 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
-    _aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
-        init=False, repr=False
-    )
-    _aliased_annotation_attributes: typing.Dict[str, Mapped[typing.Any]] = field(
-        init=False, repr=False
-    )
+    _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
+    _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -156,11 +152,10 @@ class SpanFilter:
         if not (source := self.condition):
             return
         root = ast.parse(source, mode="eval")
-        _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
+        _validate_expression(root, valid_eval_names=self.valid_eval_names)
         source, aliased_annotation_relations = _apply_eval_aliasing(source)
         root = ast.parse(source, mode="eval")
         translated = _FilterTranslator(
-            source=source,
             reserved_keywords=(
                 alias
                 for aliased_annotation in aliased_annotation_relations
@@ -199,7 +194,7 @@ class SpanFilter:
             )
         )
 
-    def to_dict(self) -> typing.Dict[str, typing.Any]:
+    def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
 
     @classmethod
@@ -400,11 +395,7 @@ def _is_float(node: typing.Any) -> TypeGuard[ast.Call]:
 
 
 class _ProjectionTranslator(ast.NodeTransformer):
-    def __init__(self, source: str, reserved_keywords: typing.Iterable[str] = ()) -> None:
-        # Regarding the need for `source: str` for getting source segments:
-        # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
-        # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
-        self._source = source
+    def __init__(self, reserved_keywords: typing.Iterable[str] = ()) -> None:
         self._reserved_keywords = frozenset(
             chain(
                 reserved_keywords,
@@ -415,13 +406,13 @@ class _ProjectionTranslator(ast.NodeTransformer):
         )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
-        raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
+        raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
 
     def visit_Expression(self, node: ast.Expression) -> typing.Any:
         return ast.Expression(body=self.visit(node.body))
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
-        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
+        source_segment = ast.unparse(node)
         if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
             return ast.Name(id=replacement, ctx=ast.Load())
         if (keys := _get_attribute_keys_list(node)) is not None:
@@ -429,7 +420,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
         raise SyntaxError(f"invalid expression: {source_segment}")
 
     def visit_Name(self, node: ast.Name) -> typing.Any:
-        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
+        source_segment = ast.unparse(node)
         if source_segment in self._reserved_keywords:
             return node
         name = source_segment
@@ -438,13 +429,13 @@ class _ProjectionTranslator(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
         if (keys := _get_attribute_keys_list(node)) is not None:
             return _as_attribute(keys)
-        raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
+        raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
 
 
 class _FilterTranslator(_ProjectionTranslator):
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
         if len(node.comparators) > 1:
-            args: typing.List[typing.Any] = []
+            args: list[typing.Any] = []
             left = node.left
             for i, (op, comparator) in enumerate(zip(node.ops, node.comparators)):
                 args.append(self.visit(ast.Compare(left=left, ops=[op], comparators=[comparator])))
@@ -460,10 +451,7 @@ class _FilterTranslator(_ProjectionTranslator):
         elif not _is_float(left) and _is_float(right):
             left = _cast_as("Float", left)
         if isinstance(op, (ast.In, ast.NotIn)):
-            if (
-                _is_string_attribute(right)
-                or (typing.cast(str, ast.get_source_segment(self._source, right))) in _NAMES
-            ):
+            if _is_string_attribute(right) or ast.unparse(right) in _NAMES:
                 call = ast.Call(
                     func=ast.Name(id="TextContains", ctx=ast.Load()),
                     args=[right, left],
@@ -482,7 +470,7 @@ class _FilterTranslator(_ProjectionTranslator):
                     keywords=[],
                 )
             else:
-                raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, op)}")
+                raise SyntaxError(f"invalid expression: {ast.unparse(op)}")
         if isinstance(op, ast.Is):
             op = ast.Eq()
         elif isinstance(op, ast.IsNot):
@@ -495,7 +483,7 @@ class _FilterTranslator(_ProjectionTranslator):
         elif isinstance(node.op, ast.Or):
             func = ast.Name(id="or_", ctx=ast.Load())
         else:
-            raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
+            raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
         args = [self.visit(value) for value in node.values]
         return ast.Call(func=func, args=args, keywords=[])
 
@@ -532,13 +520,11 @@ class _FilterTranslator(_ProjectionTranslator):
         return _cast_as(type_, ast.BinOp(left=left, op=op, right=right))
 
     def visit_Call(self, node: ast.Call) -> typing.Any:
-        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
+        source_segment = ast.unparse(node)
         if len(node.args) != 1:
             raise SyntaxError(f"invalid expression: {source_segment}")
         if not isinstance(node.func, ast.Name) or node.func.id not in ("str", "float", "int"):
-            raise SyntaxError(
-                f"invalid expression: {ast.get_source_segment(self._source, node.func)}"
-            )
+            raise SyntaxError(f"invalid expression: {ast.unparse(node.func)}")
         arg = self.visit(node.args[0])
         if node.func.id in ("float", "int") and not _is_float(arg):
             return _cast_as("Float", arg)
@@ -549,9 +535,8 @@ class _FilterTranslator(_ProjectionTranslator):
 
 def _validate_expression(
     expression: ast.Expression,
-    source: str,
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
-    valid_eval_attributes: typing.Tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
+    valid_eval_attributes: tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
     """
     Validate primarily the structural (i.e. not semantic) characteristics of an
@@ -562,11 +547,8 @@ def _validate_expression(
     additional exceptions may be raised later by the NodeTransformer regarding
     either structural and semantic issues.
     """
-    # Regarding the need for `source: str` for getting source segments:
-    # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
-    # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
     if not isinstance(expression, ast.Expression):
-        raise SyntaxError(f"invalid expression: {source}")
+        raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (
@@ -584,7 +566,7 @@ def _validate_expression(
             if not (eval_name := _get_subscript_key(node)) or (
                 valid_eval_names is not None and eval_name not in valid_eval_names
             ):
-                source_segment = typing.cast(str, ast.get_source_segment(source, node))
+                source_segment = ast.unparse(node)
                 if eval_name and valid_eval_names:
                     # suggest a valid eval name most similar to the one given
                     choice, score = _find_best_match(eval_name, valid_eval_names)
@@ -604,7 +586,7 @@ def _validate_expression(
         elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
-                source_segment = typing.cast(str, ast.get_source_segment(source, node))
+                source_segment = ast.unparse(node)
                 # suggest a valid attribute most similar to the one given
                 choice, score = _find_best_match(attr, valid_eval_attributes)
                 if choice and score > 0.75:  # arbitrary threshold
@@ -644,20 +626,15 @@ def _validate_expression(
                 ast.cmpop,
                 ast.operator,
                 ast.unaryop,
-                # Prior to Python 3.9, `ast.Index` is part of `ast.Subscript`,
-                # so it needs to allowed here, but note that `ast.Subscript` is
-                # not allowed in general except in the case of `evals["name"]`.
-                # Note that `ast.Index` is deprecated in Python 3.9+.
-                *((ast.Index,) if sys.version_info < (3, 9) else ()),
             ),
         ):
             continue
-        source_segment = typing.cast(str, ast.get_source_segment(source, node))
+        source_segment = ast.unparse(node)
         raise SyntaxError(f"invalid expression: {source_segment}")
 
 
 def _as_attribute(
-    keys: typing.List[ast.Constant],
+    keys: list[ast.Constant],
     # as_float: typing.Optional[bool] = None,
 ) -> ast.Subscript:
     return ast.Subscript(
@@ -694,14 +671,14 @@ def _is_subscript(
 
 def _get_attribute_keys_list(
     node: typing.Any,
-) -> typing.Optional[typing.List[ast.Constant]]:
+) -> typing.Optional[list[ast.Constant]]:
     # e.g. `attributes["key"]` -> `["key"]`
     # e.g. `attributes["a"]["b.c"][["d"]]` -> `["a", "b.c", "d"]`
     # e.g. `attributes["a"][["b.c", "d"]]` -> `["a", "b.c", "d"]`
     # e.g. `metadata["key"]` -> `["metadata", "key"]`
     # e.g. `metadata["a"]["b.c"][["d"]]` -> `["metadata", "a", "b.c", "d"]`
     # e.g. `metadata["a"][["b.c", "d"]]` -> `["metadata", "a", "b.c", "d"]`
-    keys: typing.List[ast.Constant] = []
+    keys: list[ast.Constant] = []
     if isinstance(node, ast.Attribute):
         while isinstance(node, ast.Attribute):
             keys.append(ast.Constant(value=node.attr, kind=None))
@@ -726,15 +703,8 @@ def _get_attribute_keys_list(
 
 def _get_subscript_keys_list(
     node: ast.Subscript,
-) -> typing.Optional[typing.List[ast.Constant]]:
-    if sys.version_info < (3, 9):
-        # Note that `ast.Index` is deprecated in Python 3.9+, but is necessary
-        # for Python 3.8 as part of `ast.Subscript`.
-        if not isinstance(node.slice, ast.Index):
-            return None
-        child = node.slice.value
-    else:
-        child = node.slice
+) -> typing.Optional[list[ast.Constant]]:
+    child = node.slice
     if isinstance(child, ast.Constant):
         if not isinstance(child.value, (str, int)) or isinstance(child.value, bool):
             return None
@@ -756,14 +726,7 @@ def _get_subscript_keys_list(
 def _get_subscript_key(
     node: ast.Subscript,
 ) -> typing.Optional[str]:
-    if sys.version_info < (3, 9):
-        # Note that `ast.Index` is deprecated in Python 3.9+, but is necessary
-        # for Python 3.8 as part of `ast.Subscript`.
-        if not isinstance(node.slice, ast.Index):
-            return None
-        child = node.slice.value
-    else:
-        child = node.slice
+    child = node.slice
     if not (isinstance(child, ast.Constant) and isinstance(child.value, str)):
         return None
     return child.value
@@ -784,7 +747,7 @@ def _disjunction(choices: typing.Sequence[str]) -> str:
 
 def _find_best_match(
     source: str, choices: typing.Iterable[str]
-) -> typing.Tuple[typing.Optional[str], float]:
+) -> tuple[typing.Optional[str], float]:
     best_choice, best_score = None, 0.0
     for choice in choices:
         score = SequenceMatcher(None, source, choice).ratio()
@@ -795,9 +758,9 @@ def _find_best_match(
 
 def _apply_eval_aliasing(
     source: str,
-) -> typing.Tuple[
+) -> tuple[
     str,
-    typing.Tuple[AliasedAnnotationRelation, ...],
+    tuple[AliasedAnnotationRelation, ...],
 ]:
     """
     Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
@@ -817,7 +780,7 @@ def _apply_eval_aliasing(
     span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
     ```
     """
-    eval_aliases: typing.Dict[AnnotationName, AliasedAnnotationRelation] = {}
+    eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
     for (
         annotation_expression,
         annotation_type,
@@ -835,7 +798,7 @@ def _apply_eval_aliasing(
 def _parse_annotation_expressions_and_names(
     source: str,
 ) -> typing.Iterator[
-    typing.Tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
+    tuple[AnnotationExpression, AnnotationType, AnnotationName, AnnotationAttribute]
 ]:
     """
     Parses filter conditions for evaluation expressions of the form:

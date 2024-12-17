@@ -1,8 +1,8 @@
 import asyncio
 import logging
+from collections.abc import Generator
 from threading import Thread
 from time import sleep, time
-from typing import Generator
 
 from fastapi import FastAPI
 from uvicorn import Config, Server

@@ -1,7 +1,8 @@
 import re
 from dataclasses import dataclass
+from enum import Enum
 from string import Formatter
-from typing import Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 
@@ -21,57 +22,110 @@ class InvalidClassificationTemplateError(PhoenixException):
     pass
 
 
-class PromptTemplate:
+class DotKeyFormatter(Formatter):
+    def get_field(self, field_name: str, args: Sequence[Any], kwargs: Mapping[str, Any]) -> Any:
+        # Treat the entire field_name as a single key without splitting at dots
+        obj = self.get_value(field_name, args, kwargs)
+        return obj, field_name
+
+
+class PromptPartContentType(str, Enum):
+    TEXT = "text"
+    AUDIO_URL = "audio_url"
+
+
+@dataclass
+class PromptPart:
+    content_type: PromptPartContentType
+    content: str
+
+
+@dataclass
+class PromptPartTemplate:
+    content_type: PromptPartContentType
     template: str
+
+
+@dataclass
+class MultimodalPrompt:
+    parts: List[PromptPart]
+
+    @staticmethod
+    def from_string(string_prompt: str) -> "MultimodalPrompt":
+        return MultimodalPrompt(
+            parts=[PromptPart(content_type=PromptPartContentType.TEXT, content=string_prompt)]
+        )
+
+    def to_text_only_prompt(self) -> str:
+        return "\n\n".join(
+            [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
+        )
+
+    def __str__(self) -> str:
+        return "\n\n".join([part.content for part in self.parts])
+
+
+class PromptTemplate:
+    template: List[PromptPartTemplate]
     variables: List[str]
 
     def __init__(
         self,
-        template: str,
+        template: Union[str, List[PromptPartTemplate]],
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.template = template
+        self.template: List[PromptPartTemplate] = self._normalize_template(template)
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.template)
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> str:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         return self.template
 
     def format(
         self,
         variable_values: Mapping[str, Union[bool, int, float, str]],
         options: Optional[PromptOptions] = None,
-    ) -> str:
+    ) -> MultimodalPrompt:
         prompt = self.prompt(options)
-        if self._start_delim == "{" and self._end_delim == "}":
-            prompt = prompt.format(**variable_values)
-        else:
-            for variable_name in self.variables:
-                prompt = prompt.replace(
-                    self._start_delim + variable_name + self._end_delim,
-                    str(variable_values[variable_name]),
-                )
-        return prompt
+        prompt_messages = []
+        for template_message in prompt:
+            if self._start_delim == "{" and self._end_delim == "}":
+                self.formatter = DotKeyFormatter()
+                prompt_message = self.formatter.format(template_message.template, **variable_values)
+            else:
+                for variable_name in self.variables:
+                    prompt_message = prompt_message.replace(
+                        self._start_delim + variable_name + self._end_delim,
+                        str(variable_values[variable_name]),
+                    )
+            prompt_messages.append(
+                PromptPart(content_type=template_message.content_type, content=prompt_message)
+            )
+        return MultimodalPrompt(parts=prompt_messages)
 
-    def _parse_variables(self, text: str) -> List[str]:
-        if self._start_delim == "{" and self._end_delim == "}":
-            formatter = Formatter()
-            variables = [field_name for _, field_name, _, _ in formatter.parse(text) if field_name]
-            return variables
-        else:
-            start = re.escape(self._start_delim)
-            end = re.escape(self._end_delim)
-            pattern = rf"{start}(.*?){end}"
-            variables = re.findall(pattern, text)
-            return variables
+    def _parse_variables(self, template: List[PromptPartTemplate]) -> List[str]:
+        start = re.escape(self._start_delim)
+        end = re.escape(self._end_delim)
+        pattern = rf"{start}(.*?){end}"
+        variables = []
+        for template_message in template:
+            variables += re.findall(pattern, template_message.template)
+        return variables
+
+    def _normalize_template(
+        self, template: Union[str, List[PromptPartTemplate]]
+    ) -> List[PromptPartTemplate]:
+        if isinstance(template, str):
+            return [PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)]
+        return template
 
 
 class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
-        template: str,
-        explanation_template: Optional[str] = None,
+        template: Union[str, List[PromptPartTemplate]],
+        explanation_template: Optional[Union[str, List[PromptPartTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
         scores: Optional[List[float]] = None,
@@ -82,20 +136,21 @@ class ClassificationTemplate(PromptTemplate):
                 "(i.e., the length of both lists must be the same)."
             )
         self.rails = rails
-        self.template = template
-        self.explanation_template = explanation_template
+        self.template = self._normalize_template(template)
+        if explanation_template:
+            self.explanation_template = self._normalize_template(explanation_template)
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
-        for text in [template, explanation_template]:
-            if text is not None:
-                self.variables += self._parse_variables(text)
+        for _template in [self.template, self.explanation_template]:
+            if _template:
+                self.variables.extend(self._parse_variables(template=_template))
         self._scores = scores
 
     def __repr__(self) -> str:
-        return self.template
+        return "\n\n".join([template.template for template in self.template])
 
-    def prompt(self, options: Optional[PromptOptions] = None) -> str:
+    def prompt(self, options: Optional[PromptOptions] = None) -> List[PromptPartTemplate]:
         if options is None:
             return self.template
 
@@ -175,7 +230,7 @@ def map_template(
     dataframe: pd.DataFrame,
     template: PromptTemplate,
     options: Optional[PromptOptions] = None,
-) -> "pd.Series[str]":
+) -> List[MultimodalPrompt]:
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
@@ -187,13 +242,13 @@ def map_template(
     prompt_options: PromptOptions = PromptOptions() if options is None else options
 
     try:
-        prompts = dataframe.apply(
-            lambda row: template.format(
+        prompts = [
+            template.format(
                 variable_values={var_name: row[var_name] for var_name in template.variables},
                 options=prompt_options,
-            ),
-            axis=1,
-        )
+            )
+            for _, row in dataframe.iterrows()
+        ]
         return prompts
     except KeyError as e:
         raise RuntimeError(

@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import strawberry
 from strawberry import ID, UNSET
@@ -29,7 +29,7 @@ class ExportEventsMutationMixin:
     async def export_events(
         self,
         info: Info[Context, None],
-        event_ids: List[ID],
+        event_ids: list[ID],
         file_name: Optional[str] = UNSET,
     ) -> ExportedFile:
         if not isinstance(file_name, str):
@@ -61,7 +61,7 @@ class ExportEventsMutationMixin:
     async def export_clusters(
         self,
         info: Info[Context, None],
-        clusters: List[ClusterInput],
+        clusters: list[ClusterInput],
         file_name: Optional[str] = UNSET,
     ) -> ExportedFile:
         if not isinstance(file_name, str):
@@ -81,10 +81,10 @@ class ExportEventsMutationMixin:
 
 
 def _unpack_clusters(
-    clusters: List[ClusterInput],
-) -> Tuple[Dict[ms.InferencesRole, List[int]], Dict[ms.InferencesRole, Dict[int, str]]]:
-    row_numbers: Dict[ms.InferencesRole, List[int]] = defaultdict(list)
-    cluster_ids: Dict[ms.InferencesRole, Dict[int, str]] = defaultdict(dict)
+    clusters: list[ClusterInput],
+) -> tuple[dict[ms.InferencesRole, list[int]], dict[ms.InferencesRole, dict[int, str]]]:
+    row_numbers: dict[ms.InferencesRole, list[int]] = defaultdict(list)
+    cluster_ids: dict[ms.InferencesRole, dict[int, str]] = defaultdict(dict)
     for i, cluster in enumerate(clusters):
         for row_number, inferences_role in map(unpack_event_id, cluster.event_ids):
             if isinstance(inferences_role, AncillaryInferencesRole):

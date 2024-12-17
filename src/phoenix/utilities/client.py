@@ -14,7 +14,7 @@ class VersionedClient(httpx.Client):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
 
@@ -78,7 +78,7 @@ class VersionedAsyncClient(httpx.AsyncClient):
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         super().__init__(*args, **kwargs)
 

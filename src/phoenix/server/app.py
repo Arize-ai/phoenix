@@ -1,8 +1,11 @@
 import asyncio
 import contextlib
+import importlib
 import json
 import logging
-from contextlib import AsyncExitStack
+import os
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Sequence
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import cached_property
@@ -11,48 +14,48 @@ from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncContextManager,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
     NamedTuple,
     Optional,
-    Sequence,
-    Tuple,
     TypedDict,
     Union,
     cast,
 )
+from urllib.parse import urlparse
 
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
+from grpc.aio import ServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
-from starlette.exceptions import HTTPException
+from starlette.exceptions import HTTPException, WebSocketException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
+from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
+from starlette.websockets import WebSocket
+from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
-from strawberry.schema import BaseSchema
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
-import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
+    ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_csrf_trusted_origins,
+    get_env_fastapi_middleware_paths,
+    get_env_gql_extension_paths,
+    get_env_grpc_interceptor_paths,
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
@@ -84,12 +87,18 @@ from phoenix.server.api.dataloaders import (
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
     RecordCountDataLoader,
+    SessionIODataLoader,
+    SessionNumTracesDataLoader,
+    SessionNumTracesWithErrorDataLoader,
+    SessionTokenUsagesDataLoader,
+    SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
-    TraceRowIdsDataLoader,
+    TraceByTraceIdsDataLoader,
+    TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -100,7 +109,7 @@ from phoenix.server.api.routers import (
     oauth2_router,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
-from phoenix.server.api.schema import schema
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
@@ -129,6 +138,7 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -151,6 +161,28 @@ ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
 
 
+def import_object_from_file(file_path: str, object_name: str) -> Any:
+    """Import an object (class or function) from a Python file."""
+    try:
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"File '{file_path}' does not exist.")
+        module_name = f"custom_module_{hash(file_path)}"
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None:
+            raise ImportError(f"Could not load spec for '{file_path}'")
+        module = importlib.util.module_from_spec(spec)
+        loader = spec.loader
+        if loader is None:
+            raise ImportError(f"No loader found for '{file_path}'")
+        loader.exec_module(module)
+        try:
+            return getattr(module, object_name)
+        except AttributeError:
+            raise ImportError(f"Module '{file_path}' does not have an object '{object_name}'.")
+    except Exception as e:
+        raise ImportError(f"Could not import '{object_name}' from '{file_path}': {e}")
+
+
 class OAuth2Idp(TypedDict):
     name: str
     displayName: str
@@ -167,6 +199,7 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
+    websockets_enabled: bool
     oauth2_idps: Sequence[OAuth2Idp]
 
 
@@ -180,10 +213,10 @@ class Static(StaticFiles):
         super().__init__(**kwargs)
 
     @cached_property
-    def _web_manifest(self) -> Dict[str, Any]:
+    def _web_manifest(self) -> dict[str, Any]:
         try:
             with open(self._app_config.web_manifest_path, "r") as f:
-                return cast(Dict[str, Any], json.load(f))
+                return cast(dict[str, Any], json.load(f))
         except FileNotFoundError as e:
             if self._app_config.is_development:
                 return {}
@@ -211,17 +244,37 @@ class Static(StaticFiles):
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
                     "basename": self._sanitize_basename(request.scope.get("root_path", "")),
-                    "platform_version": phoenix.__version__,
+                    "platform_version": phoenix_version,
                     "request": request,
                     "is_development": self._app_config.is_development,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "websockets_enabled": self._app_config.websockets_enabled,
                 },
             )
         except Exception as e:
             raise e
         return response
+
+
+class RequestOriginHostnameValidator(BaseHTTPMiddleware):
+    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._trusted_hostnames = trusted_hostnames
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        headers = request.headers
+        for key in "origin", "referer":
+            if not (url := headers.get(key)):
+                continue
+            if urlparse(url).hostname not in self._trusted_hostnames:
+                return Response(f"untrusted {key}", status_code=HTTP_401_UNAUTHORIZED)
+        return await call_next(request)
 
 
 class HeadersMiddleware(BaseHTTPMiddleware):
@@ -230,7 +283,7 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        from phoenix import __version__ as phoenix_version
+        from phoenix.version import __version__ as phoenix_version
 
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
@@ -238,12 +291,45 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def user_fastapi_middlewares() -> list[Middleware]:
+    paths = get_env_fastapi_middleware_paths()
+    middlewares = []
+    for file_path, object_name in paths:
+        middleware_class = import_object_from_file(file_path, object_name)
+        if not issubclass(middleware_class, BaseHTTPMiddleware):
+            raise TypeError(f"{middleware_class} is not a subclass of BaseHTTPMiddleware")
+        middlewares.append(Middleware(middleware_class))
+    return middlewares
+
+
+def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]:
+    paths = get_env_gql_extension_paths()
+    extensions = []
+    for file_path, object_name in paths:
+        extension_class = import_object_from_file(file_path, object_name)
+        if not issubclass(extension_class, SchemaExtension):
+            raise TypeError(f"{extension_class} is not a subclass of SchemaExtension")
+        extensions.append(extension_class)
+    return extensions
+
+
+def user_grpc_interceptors() -> list[ServerInterceptor]:
+    paths = get_env_grpc_interceptor_paths()
+    interceptors = []
+    for file_path, object_name in paths:
+        interceptor_class = import_object_from_file(file_path, object_name)
+        if not issubclass(interceptor_class, ServerInterceptor):
+            raise TypeError(f"{interceptor_class} is not a subclass of ServerInterceptor")
+        interceptors.append(interceptor_class)
+    return interceptors
+
+
 ProjectRowId: TypeAlias = int
 
 
 @router.get("/arize_phoenix_version")
 async def version() -> PlainTextResponse:
-    return PlainTextResponse(f"{phoenix.__version__}")
+    return PlainTextResponse(f"{phoenix_version}")
 
 
 DB_MUTEX: Optional[asyncio.Lock] = None
@@ -251,7 +337,7 @@ DB_MUTEX: Optional[asyncio.Lock] = None
 
 def _db(
     engine: AsyncEngine, bypass_lock: bool = False
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
@@ -393,7 +479,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -412,6 +498,7 @@ def _lifespan(
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
                 token_store=token_store,
+                interceptors=user_grpc_interceptors(),
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
@@ -422,7 +509,7 @@ def _lifespan(
                     queue_evaluation=queue_evaluation,
                 )
                 await stack.enter_async_context(scaffolder)
-            if isinstance(token_store, AsyncContextManager):
+            if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
             yield {
                 "event_queue": dml_event_handler,
@@ -445,7 +532,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 def create_graphql_router(
     *,
-    schema: BaseSchema,
+    graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
     model: Model,
     export_path: Path,
@@ -528,6 +615,12 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                session_first_inputs=SessionIODataLoader(db, "first_input"),
+                session_last_outputs=SessionIODataLoader(db, "last_output"),
+                session_num_traces=SessionNumTracesDataLoader(db),
+                session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
+                session_token_usages=SessionTokenUsagesDataLoader(db),
+                session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
                 span_annotations=SpanAnnotationsDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
@@ -536,7 +629,8 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
-                trace_row_ids=TraceRowIdsDataLoader(db),
+                trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+                trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
                 user_roles=UserRolesDataLoader(db),
@@ -549,12 +643,13 @@ def create_graphql_router(
         )
 
     return GraphQLRouter(
-        schema,
+        graphql_schema,
         graphql_ide="graphiql",
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
+        subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
     )
 
 
@@ -579,7 +674,7 @@ def create_engine_and_run_migrations(
         raise PhoenixMigrationError(msg) from e
 
 
-def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
+def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
     instrumentation_cleanups = []
     if server_instrumentation_is_enabled():
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -605,18 +700,42 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+async def websocket_denial_response_handler(websocket: WebSocket, exc: WebSocketException) -> None:
+    """
+    Overrides the default exception handler for WebSocketException to ensure
+    that the HTTP response returned when a WebSocket connection is denied has
+    the same status code as the raised exception. This is in keeping with the
+    WebSocket Denial Response Extension of the ASGI specificiation described
+    below.
+
+    "Websocket connections start with the client sending a HTTP request
+    containing the appropriate upgrade headers. On receipt of this request a
+    server can choose to either upgrade the connection or respond with an HTTP
+    response (denying the upgrade). The core ASGI specification does not allow
+    for any control over the denial response, instead specifying that the HTTP
+    status code 403 should be returned, whereas this extension allows an ASGI
+    framework to control the denial response."
+
+    For details, see:
+    - https://asgi.readthedocs.io/en/latest/extensions.html#websocket-denial-response
+    """
+    assert isinstance(exc, WebSocketException)
+    await websocket.send_denial_response(JSONResponse(status_code=exc.code, content=exc.reason))
+
+
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
     model: Model,
     authentication_enabled: bool,
     umap_params: UMAPParameters,
+    enable_websockets: bool,
     corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
-    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
@@ -627,15 +746,24 @@ def create_app(
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
-    oauth2_client_configs: Optional[List[OAuth2ClientConfig]] = None,
+    oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    if model.embedding_dimensions:
+        try:
+            import fast_hdbscan  # noqa: F401
+            import umap  # noqa: F401
+        except ImportError as exc:
+            raise ImportError(
+                "To visualize embeddings, please install `umap-learn` and `fast-hdbscan` "
+                "via `pip install arize-phoenix[embeddings]`"
+            ) from exc
     logger.info(f"Server umap params: {umap_params}")
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
-    startup_callbacks_list: List[_Callback] = list(startup_callbacks)
-    shutdown_callbacks_list: List[_Callback] = list(shutdown_callbacks)
+    startup_callbacks_list: list[_Callback] = list(startup_callbacks)
+    shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
-    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
+    initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
         else (
@@ -648,7 +776,23 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: List[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares.extend(user_fastapi_middlewares())
+    if origins := get_env_csrf_trusted_origins():
+        trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
+        middlewares.append(
+            Middleware(
+                RequestOriginHostnameValidator,
+                trusted_hostnames=trusted_hostnames,
+            )
+        )
+    elif email_sender or oauth2_client_configs:
+        logger.warning(
+            "CSRF protection can be enabled by listing trusted origins via "
+            f"the `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` environment variable. "
+            "This is recommended when setting up OAuth2 clients or sending "
+            "password reset emails."
+        )
     if authentication_enabled and secret:
         token_store = JwtStore(db, secret)
         middlewares.append(
@@ -672,7 +816,9 @@ def create_app(
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
     tracer_provider = None
-    strawberry_extensions = schema.get_extensions()
+    graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
+    graphql_schema_extensions.extend(user_gql_extensions())
+
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
@@ -690,16 +836,11 @@ def create_app(
                 # used by OpenInference.
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
-        strawberry_extensions.append(_OpenTelemetryExtension)
+        graphql_schema_extensions.append(_OpenTelemetryExtension)
 
     graphql_router = create_graphql_router(
         db=db,
-        schema=strawberry.Schema(
-            query=schema.query,
-            mutation=schema.mutation,
-            subscription=schema.subscription,
-            extensions=strawberry_extensions,
-        ),
+        graphql_schema=build_graphql_schema(graphql_schema_extensions),
         model=model,
         corpus=corpus,
         authentication_enabled=authentication_enabled,
@@ -731,7 +872,10 @@ def create_app(
             scaffolder_config=scaffolder_config,
         ),
         middleware=middlewares,
-        exception_handlers={HTTPException: plain_text_http_exception_handler},
+        exception_handlers={
+            HTTPException: plain_text_http_exception_handler,
+            WebSocketException: websocket_denial_response_handler,  # type: ignore[dict-item]
+        },
         debug=debug,
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
@@ -765,6 +909,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    websockets_enabled=enable_websockets,
                 ),
             ),
             name="static",

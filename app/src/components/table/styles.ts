@@ -50,6 +50,12 @@ export const tableCSS = (theme: Theme) => css`
             background: var(--ac-global-color-primary);
           }
         }
+        // Style action menu buttons in the header
+        .ac-button[data-size="compact"][data-childless="true"] {
+          padding: 0;
+          border: none;
+          background-color: transparent;
+        }
       }
     }
   }
@@ -73,10 +79,8 @@ export const tableCSS = (theme: Theme) => css`
 export const borderedTableCSS = css`
   tbody:not(.is-empty) {
     tr {
-      &:not(:last-of-type) {
-        & > td {
-          border-bottom: 1px solid var(--ac-global-border-color-default);
-        }
+      & > td {
+        border-bottom: 1px solid var(--ac-global-border-color-default);
       }
       & > td:not(:last-of-type) {
         border-right: 1px solid var(--ac-global-border-color-default);

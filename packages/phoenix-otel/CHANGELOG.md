@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.0...arize-phoenix-otel-v0.6.1) (2024-10-17)
+
+
+### Bug Fixes
+
+* increase python upper bound to include python 3.13 for `arize-phoenix-evals` and `arize-phoenix-otel` ([#5077](https://github.com/Arize-ai/phoenix/issues/5077)) ([ef5c893](https://github.com/Arize-ai/phoenix/commit/ef5c893ef7bc81690662a7687ed190f5b6dca701))
+
+## [0.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.5.1...arize-phoenix-otel-v0.6.0) (2024-10-16)
+
+
+### Features
+
+* Add environment variable setting for structured logging ([#4635](https://github.com/Arize-ai/phoenix/issues/4635)) ([a50ca10](https://github.com/Arize-ai/phoenix/commit/a50ca1018014567d44835680a4daaaa07551d27c))
+
 ## [0.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.5.0...arize-phoenix-otel-v0.5.1) (2024-09-17)
 
 

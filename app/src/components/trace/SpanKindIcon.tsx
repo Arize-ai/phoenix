@@ -36,7 +36,7 @@ const ToolSVG = () => (
   </svg>
 );
 
-const ToolFilledSVG = () => (
+export const ToolFilledSVG = () => (
   <svg
     width="20"
     height="20"

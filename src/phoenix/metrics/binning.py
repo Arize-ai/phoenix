@@ -1,8 +1,9 @@
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Iterable, Optional, Sequence, cast
+from typing import Any, Optional, cast
 
 import numpy as np
 import pandas as pd

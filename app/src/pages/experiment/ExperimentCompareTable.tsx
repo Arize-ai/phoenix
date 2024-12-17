@@ -1,5 +1,4 @@
 import React, {
-  PropsWithChildren,
   ReactNode,
   startTransition,
   Suspense,
@@ -44,9 +43,13 @@ import {
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+} from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -71,7 +74,13 @@ type ExampleCompareTableProps = {
 
 type ExperimentInfoMap = Record<
   string,
-  { name: string; sequenceNumber: number } | undefined
+  | {
+      name: string;
+      sequenceNumber: number;
+      metadata: object;
+      projectId: string | null;
+    }
+  | undefined
 >;
 
 type TableRow = ExperimentCompareTableQuery$data["comparisons"][number] & {
@@ -107,34 +116,6 @@ const tableWrapCSS = css`
       vertical-align: top;
     }
   }
-`;
-
-const cellWithControlsWrapCSS = css`
-  position: relative;
-  min-height: 75px;
-  .controls {
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0;
-    display: none;
-    z-index: 1;
-  }
-  &:hover .controls {
-    opacity: 1;
-    display: flex;
-    // make them stand out
-    .ac-button {
-      border-color: var(--ac-global-color-primary);
-    }
-  }
-`;
-
-const cellControlsCSS = css`
-  position: absolute;
-  top: -23px;
-  right: 0px;
-  display: flex;
-  flex-direction: row;
-  gap: var(--ac-global-dimension-static-size-100);
 `;
 
 const annotationTooltipExtraCSS = css`
@@ -200,6 +181,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   id
                   name
                   sequenceNumber
+                  metadata
+                  project {
+                    id
+                  }
                 }
               }
             }
@@ -215,7 +200,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const experimentInfoById = useMemo(() => {
     return (
       data.dataset?.experiments?.edges.reduce((acc, edge) => {
-        acc[edge.experiment.id] = { ...edge.experiment };
+        acc[edge.experiment.id] = {
+          ...edge.experiment,
+          projectId: edge.experiment?.project?.id || null,
+        };
         return acc;
       }, {} as ExperimentInfoMap) || {}
     );
@@ -253,15 +241,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         minWidth: 500,
         cell: ({ row }) => {
           return (
-            <div css={cellWithControlsWrapCSS}>
-              <LargeTextWrap>
-                <JSONText
-                  json={row.original.input}
-                  disableTitle
-                  space={displayFullText ? 2 : 0}
-                />
-              </LargeTextWrap>
-              <div className="controls" css={cellControlsCSS}>
+            <CellWithControlsWrap
+              controls={
                 <TooltipTrigger>
                   <Button
                     variant="default"
@@ -285,8 +266,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   />
                   <Tooltip>View Example</Tooltip>
                 </TooltipTrigger>
-              </div>
-            </div>
+              }
+            >
+              <LargeTextWrap>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={displayFullText ? 2 : 0}
+                />
+              </LargeTextWrap>
+            </CellWithControlsWrap>
           );
         },
       },
@@ -303,12 +292,28 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return experimentIds.map((experimentId) => ({
       header: () => {
         const name = experimentInfoById[experimentId]?.name;
+        const metadata = experimentInfoById[experimentId]?.metadata;
+        const projectId = experimentInfoById[experimentId]?.projectId;
         const sequenceNumber =
           experimentInfoById[experimentId]?.sequenceNumber || 0;
         return (
-          <Flex direction="row" gap="size-100" wrap>
-            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
-            <Text>{name}</Text>
+          <Flex
+            direction="row"
+            gap="size-100"
+            wrap
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Flex direction="row" gap="size-100" wrap alignItems="center">
+              <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+              <Text>{name}</Text>
+            </Flex>
+            <ExperimentActionMenu
+              experimentId={experimentId}
+              metadata={metadata}
+              isQuiet={true}
+              projectId={projectId}
+            />
           </Flex>
         );
       },
@@ -386,13 +391,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         );
 
         return run ? (
-          <RunOutputWrap controls={runControls}>
+          <CellWithControlsWrap controls={runControls}>
             <ExperimentRunOutput
               {...run}
               displayFullText={displayFullText}
               setDialog={setDialog}
             />
-          </RunOutputWrap>
+          </CellWithControlsWrap>
         ) : (
           <NotRunText />
         );
@@ -426,6 +431,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
+    // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
 
@@ -662,19 +668,6 @@ function ExperimentRunOutput(
   );
 }
 
-/**
- * Provides space for the controls and output of a run.
- */
-function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
-  return (
-    <div css={cellWithControlsWrapCSS}>
-      {props.children}
-      <div css={cellControlsCSS} className="controls">
-        {props.controls}
-      </div>
-    </div>
-  );
-}
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
@@ -792,7 +785,7 @@ function SelectedExampleDialog({
                     {...defaultCardProps}
                     extra={
                       <CopyToClipboardButton
-                        text={JSON.stringify(selectedExample.input)}
+                        text={JSON.stringify(selectedExample.referenceOutput)}
                       />
                     }
                     bodyStyle={{

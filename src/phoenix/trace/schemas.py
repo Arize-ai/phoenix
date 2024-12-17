@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Mapping, NamedTuple, Optional
+from typing import Any, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 EXCEPTION_TYPE = "exception.type"
@@ -169,7 +169,7 @@ class Span:
     OpenTelemetry Inspiration:
     https://opentelemetry.io/docs/concepts/signals/traces/#span-events
     """
-    events: List[SpanEvent]
+    events: list[SpanEvent]
 
     """
     An extension of the OpenTelemetry Span interface to include the
@@ -185,6 +185,22 @@ class MimeType(Enum):
     @classmethod
     def _missing_(cls, v: Any) -> Optional["MimeType"]:
         return None if v else cls.TEXT
+
+
+@dataclass(frozen=True)
+class SpanIOValue:
+    value: str
+    mime_type: MimeType = MimeType.TEXT
+
+
+@dataclass(frozen=True)
+class TokenUsage:
+    prompt: int = 0
+    completion: int = 0
+
+    def __post_init__(self) -> None:
+        assert self.prompt >= 0, "prompt must be non-negative"
+        assert self.completion >= 0, "completion must be non-negative"
 
 
 ATTRIBUTE_PREFIX = "attributes."

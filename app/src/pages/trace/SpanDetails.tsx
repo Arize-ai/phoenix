@@ -40,7 +40,6 @@ import {
   TooltipTrigger,
   View,
   ViewProps,
-  ViewStyleProps,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
@@ -64,6 +63,7 @@ import { SpanKindIcon } from "@phoenix/components/trace";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -76,8 +76,10 @@ import {
   AttributeReranker,
   AttributeRetrieval,
   AttributeTool,
+  isAttributeMessages,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
@@ -116,11 +118,7 @@ const useSafelyParsedJSON = (
   jsonStr: string
 ): { json: { [key: string]: unknown } | null; parseError?: unknown } => {
   return useMemo(() => {
-    try {
-      return { json: JSON.parse(jsonStr) };
-    } catch (e) {
-      return { json: null, parseError: e };
-    }
+    return safelyParseJSON(jsonStr);
   }, [jsonStr]);
 };
 
@@ -148,6 +146,7 @@ export function SpanDetails({
   spanNodeId: string;
   projectId: string;
 }) {
+  const navigate = useNavigate();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
       query SpanDetailsQuery($spanId: GlobalID!) {
@@ -244,6 +243,16 @@ export function SpanDetails({
             <Text>{span.name}</Text>
           </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
+            <Button
+              variant="default"
+              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              disabled={span.spanKind !== "llm"}
+              onClick={() => {
+                navigate(`/playground/spans/${span.id}`);
+              }}
+            >
+              Playground
+            </Button>
             <SpanCodeDropdown
               traceId={span.context.traceId}
               spanId={span.context.spanId}
@@ -491,7 +500,15 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.input_messages]
+    const inputMessagesValue =
+      llmAttributes[LLMAttributePostfixes.input_messages];
+
+    // At this point, we cannot trust the type of outputMessagesValue
+    if (!isAttributeMessages(inputMessagesValue)) {
+      return [];
+    }
+
+    return (inputMessagesValue
       ?.map((obj) => obj[SemanticAttributePrefixes.message])
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
@@ -523,8 +540,15 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.output_messages]
-      ?.map((obj) => obj[SemanticAttributePrefixes.message])
+    const outputMessagesValue =
+      llmAttributes[LLMAttributePostfixes.output_messages];
+
+    // At this point, we cannot trust the type of outputMessagesValue
+    if (!isAttributeMessages(outputMessagesValue)) {
+      return [];
+    }
+    return (outputMessagesValue
+      .map((obj) => obj[SemanticAttributePrefixes.message])
       .filter(Boolean) || []) as AttributeMessage[];
   }, [llmAttributes]);
 
@@ -593,7 +617,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         }}
         titleSeparator={false}
         variant="compact"
-        // @ts-expect-error force putting the title in as a string
         title={modelNameTitleEl}
       >
         <Tabs>
@@ -1143,7 +1166,6 @@ function DocumentItem({
       bodyStyle={{
         padding: 0,
       }}
-      // @ts-expect-error force putting the title in as a string
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
@@ -1266,33 +1288,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
-  const messageStyles = useMemo<ViewStyleProps>(() => {
-    if (role === "user") {
-      return {
-        backgroundColor: "grey-100",
-        borderColor: "grey-500",
-      };
-    } else if (role === "assistant") {
-      return {
-        backgroundColor: "blue-100",
-        borderColor: "blue-700",
-      };
-    } else if (role === "system") {
-      return {
-        backgroundColor: "indigo-100",
-        borderColor: "indigo-700",
-      };
-    } else if (["function", "tool"].includes(role)) {
-      return {
-        backgroundColor: "yellow-100",
-        borderColor: "yellow-700",
-      };
-    }
-    return {
-      backgroundColor: "grey-100",
-      borderColor: "grey-700",
-    };
-  }, [role]);
+  const messageStyles = useChatMessageStyles(role);
 
   return (
     <MarkdownDisplayProvider>
@@ -1389,7 +1385,6 @@ function LLMToolSchema({
 
   return (
     <Card
-      // @ts-expect-error force putting the title in as a string
       title={titleEl}
       titleExtra={<Counter variant="light">#{index + 1}</Counter>}
       {...defaultCardProps}

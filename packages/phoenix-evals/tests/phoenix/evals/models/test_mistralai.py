@@ -1,6 +1,12 @@
-from mistralai.client import MistralClient
+import pytest
+from mistralai import Mistral
 
 from phoenix.evals.models.mistralai import MistralAIModel
+
+
+def test_instantiation_by_positional_args_is_not_allowed():
+    with pytest.raises(AssertionError, match="positional arguments"):
+        MistralAIModel("mistral-large-latest")
 
 
 def test_mistral_model(monkeypatch):
@@ -8,4 +14,4 @@ def test_mistral_model(monkeypatch):
     model = MistralAIModel(model="mistral-large-latest")
 
     assert model.model == "mistral-large-latest"
-    assert isinstance(model._client, MistralClient)
+    assert isinstance(model._client, Mistral)

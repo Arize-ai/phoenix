@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -37,12 +37,18 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.InvocationParameters import (
+    InvocationParameter,
+)
+from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -58,6 +64,11 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeProvider import (
+    GenerativeProvider,
+    GenerativeProviderKey,
+)
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
@@ -67,17 +78,71 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.Trace import Trace
+from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
 
+initialize_playground_clients()
+
+
+@strawberry.input
+class ModelsInput:
+    provider_key: Optional[GenerativeProviderKey]
+    model_name: Optional[str] = None
+
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    async def model_providers(self) -> list[GenerativeProvider]:
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+        return [
+            GenerativeProvider(
+                name=provider_key.value,
+                key=provider_key,
+            )
+            for provider_key in available_providers
+        ]
+
+    @strawberry.field
+    async def models(self, input: Optional[ModelsInput] = None) -> list[GenerativeModel]:
+        if input is not None and input.provider_key is not None:
+            supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
+            supported_models = [
+                GenerativeModel(name=model_name, provider_key=input.provider_key)
+                for model_name in supported_model_names
+            ]
+            return supported_models
+
+        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        all_models: list[GenerativeModel] = []
+        for provider_key, model_name in registered_models:
+            if model_name is not None and provider_key is not None:
+                all_models.append(GenerativeModel(name=model_name, provider_key=provider_key))
+        return all_models
+
+    @strawberry.field
+    async def model_invocation_parameters(
+        self, input: Optional[ModelsInput] = None
+    ) -> list[InvocationParameter]:
+        if input is None:
+            return []
+        provider_key = input.provider_key
+        model_name = input.model_name
+        if provider_key is not None:
+            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            if client is None:
+                return []
+            invocation_parameters = client.supported_invocation_parameters()
+            return invocation_parameters
+        else:
+            return []
+
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
         self,
@@ -109,7 +174,7 @@ class Query:
     async def user_roles(
         self,
         info: Info[Context, None],
-    ) -> List[UserRole]:
+    ) -> list[UserRole]:
         async with info.context.db() as session:
             roles = await session.scalars(
                 select(models.UserRole).where(models.UserRole.name != enums.UserRole.SYSTEM.value)
@@ -123,7 +188,7 @@ class Query:
         ]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def user_api_keys(self, info: Info[Context, None]) -> List[UserApiKey]:
+    async def user_api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -135,7 +200,7 @@ class Query:
         return [to_gql_api_key(api_key) for api_key in api_keys]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
-    async def system_api_keys(self, info: Info[Context, None]) -> List[SystemApiKey]:
+    async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
         stmt = (
             select(models.ApiKey)
             .join(models.User)
@@ -174,7 +239,10 @@ class Query:
             select(models.Project)
             .outerjoin(
                 models.Experiment,
-                models.Project.name == models.Experiment.project_name,
+                and_(
+                    models.Project.name == models.Experiment.project_name,
+                    models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
+                ),
             )
             .where(models.Experiment.project_name.is_(None))
             .order_by(models.Project.id)
@@ -230,8 +298,8 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: List[GlobalID],
-    ) -> List[ExperimentComparison]:
+        experiment_ids: list[GlobalID],
+    ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in experiment_ids
@@ -295,7 +363,7 @@ class Query:
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
             async for run in await session.stream_scalars(
@@ -378,17 +446,12 @@ class Query:
                 gradient_end_color=project.gradient_end_color,
             )
         elif type_name == "Trace":
-            trace_stmt = select(
-                models.Trace.id,
-                models.Trace.project_rowid,
-            ).where(models.Trace.id == node_id)
+            trace_stmt = select(models.Trace).filter_by(id=node_id)
             async with info.context.db() as session:
-                trace = (await session.execute(trace_stmt)).first()
+                trace = await session.scalar(trace_stmt)
             if trace is None:
                 raise NotFound(f"Unknown trace: {id}")
-            return Trace(
-                id_attr=trace.id, trace_id=trace.trace_id, project_rowid=trace.project_rowid
-            )
+            return to_gql_trace(trace)
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
@@ -477,6 +540,15 @@ class Query:
                 ):
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_user(user)
+        elif type_name == ProjectSession.__name__:
+            async with info.context.db() as session:
+                if not (
+                    project_session := await session.scalar(
+                        select(models.ProjectSession).filter_by(id=node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown user: {id}")
+            return to_gql_project_session(project_session)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -502,9 +574,9 @@ class Query:
     @strawberry.field
     def clusters(
         self,
-        clusters: List[ClusterInput],
-    ) -> List[Cluster]:
-        clustered_events: Dict[str, Set[ID]] = defaultdict(set)
+        clusters: list[ClusterInput],
+    ) -> list[Cluster]:
+        clustered_events: dict[str, set[ID]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
             clustered_events[cluster.id or str(i)].update(cluster.event_ids)
         return to_gql_clusters(
@@ -516,19 +588,19 @@ class Query:
         self,
         info: Info[Context, None],
         event_ids: Annotated[
-            List[ID],
+            list[ID],
             strawberry.argument(
                 description="Event ID of the coordinates",
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[InputCoordinate2D]],
+            Optional[list[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[InputCoordinate3D]],
+            Optional[list[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -551,7 +623,7 @@ class Query:
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> List[Cluster]:
+    ) -> list[Cluster]:
         coordinates_3d = ensure_list(coordinates_3d)
         coordinates_2d = ensure_list(coordinates_2d)
 
@@ -587,13 +659,13 @@ class Query:
         if len(event_ids) == 0:
             return []
 
-        grouped_event_ids: Dict[
+        grouped_event_ids: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[ID],
+            list[ID],
         ] = defaultdict(list)
-        grouped_coordinates: Dict[
+        grouped_coordinates: dict[
             Union[InferencesRole, AncillaryInferencesRole],
-            List[npt.NDArray[np.float64]],
+            list[npt.NDArray[np.float64]],
         ] = defaultdict(list)
 
         for event_id, coordinate in zip(event_ids, coordinates):

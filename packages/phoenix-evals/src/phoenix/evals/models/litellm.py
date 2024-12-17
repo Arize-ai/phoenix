@@ -1,9 +1,10 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.models.base import BaseModel
+from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class LiteLLMModel(BaseModel):
 
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     num_retries: int = 0
     request_timeout: int = 60
@@ -103,10 +104,18 @@ class LiteLLMModel(BaseModel):
                 package_name="litellm",
             )
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         return self._generate(prompt, **kwargs)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
             model=self.model,
@@ -120,7 +129,12 @@ class LiteLLMModel(BaseModel):
         )
         return str(response.choices[0].message.content)
 
-    def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
+    def _get_messages_from_prompt(self, prompt: MultimodalPrompt) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
-        # messages=[{"content": "ABC?","role": "user"}]
-        return [{"content": prompt, "role": "user"}]
+        messages = []
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"content": part.content, "role": "user"})
+            else:
+                raise ValueError(f"Unsupported content type: {part.content_type}")
+        return messages

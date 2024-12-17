@@ -1,7 +1,7 @@
 import secrets
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
-from typing import List, Literal, Optional, Tuple
+from typing import Literal, Optional
 
 import strawberry
 from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
@@ -22,7 +22,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import enums, models
-from phoenix.server.api.auth import IsAdmin, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -71,7 +71,7 @@ class PatchUserInput:
 
 @strawberry.input
 class DeleteUsersInput:
-    user_ids: List[GlobalID]
+    user_ids: list[GlobalID]
 
 
 @strawberry.type
@@ -81,7 +81,7 @@ class UserMutationPayload:
 
 @strawberry.type
 class UserMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def create_user(
         self,
         info: Info[Context, None],
@@ -112,7 +112,7 @@ class UserMutationMixin:
                 raise Conflict(_user_operation_error_message(error))
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def patch_user(
         self,
         info: Info[Context, None],
@@ -155,7 +155,7 @@ class UserMutationMixin:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_viewer(
         self,
         info: Info[Context, None],
@@ -196,7 +196,7 @@ class UserMutationMixin:
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def delete_users(
         self,
         info: Info[Context, None],
@@ -302,11 +302,11 @@ class UserMutationMixin:
         )
 
 
-def _select_role_id_by_name(role_name: str) -> Select[Tuple[int]]:
+def _select_role_id_by_name(role_name: str) -> Select[tuple[int]]:
     return select(models.UserRole.id).where(models.UserRole.name == role_name)
 
 
-def _select_user_by_id(user_id: int) -> Select[Tuple[models.User]]:
+def _select_user_by_id(user_id: int) -> Select[tuple[models.User]]:
     return (
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )

@@ -13,7 +13,6 @@ from typing import (
     Iterator,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -44,7 +43,7 @@ def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
     for index, row in dataframe.iterrows():
         subject_id = _extract_subject_id_from_index(
             index_names,
-            cast(Union[str, Tuple[Any]], index),
+            cast(Union[str, tuple[Any]], index),
         )
         if (result := _extract_result(row)) is None:
             continue

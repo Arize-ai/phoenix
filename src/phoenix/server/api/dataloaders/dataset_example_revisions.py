@@ -1,9 +1,4 @@
-from typing import (
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Optional, Union
 
 from sqlalchemy import and_, case, func, null, or_, select
 from sqlalchemy.sql.expression import literal
@@ -17,7 +12,7 @@ from phoenix.server.types import DbSessionFactory
 
 ExampleID: TypeAlias = int
 VersionID: TypeAlias = Optional[int]
-Key: TypeAlias = Tuple[ExampleID, Optional[VersionID]]
+Key: TypeAlias = tuple[ExampleID, Optional[VersionID]]
 Result: TypeAlias = DatasetExampleRevision
 
 
@@ -29,7 +24,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         )
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, NotFound]]:
+    async def _load_fn(self, keys: list[Key]) -> list[Union[Result, NotFound]]:
         example_and_version_ids = tuple(
             set(
                 (example_id, version_id)

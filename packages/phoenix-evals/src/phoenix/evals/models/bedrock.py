@@ -3,11 +3,12 @@ import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class BedrockModel(BaseModel):
 
     model_id: str = "anthropic.claude-v2"
     temperature: float = 0.0
-    max_tokens: int = 256
+    max_tokens: int = 1024
     top_p: float = 1
     top_k: int = 256
     stop_sequences: List[str] = field(default_factory=list)
@@ -102,7 +103,10 @@ class BedrockModel(BaseModel):
             enforcement_window_minutes=1,
         )
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         body = json.dumps(self._create_request_body(prompt))
         accept = "application/json"
         contentType = "application/json"
@@ -113,7 +117,12 @@ class BedrockModel(BaseModel):
 
         return self._parse_output(response) or ""
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _async_generate(
+        self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]
+    ) -> str:
+        if isinstance(prompt, str):
+            prompt = MultimodalPrompt.from_string(prompt)
+
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, partial(self._generate, prompt, **kwargs))
 
@@ -148,13 +157,19 @@ class BedrockModel(BaseModel):
             {"role": "user", "content": prompt},
         ]
 
-    def _create_request_body(self, prompt: str) -> Dict[str, Any]:
+    def _create_request_body(self, prompt: MultimodalPrompt) -> Dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
+
+        # TODO: Migrate to using the bedrock `converse` API
+        # https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html
+
+        prompt_str = prompt.to_text_only_prompt()
+
         if self.model_id.startswith("ai21"):
             return {
                 **{
-                    "prompt": prompt,
+                    "prompt": prompt_str,
                     "temperature": self.temperature,
                     "topP": self.top_p,
                     "maxTokens": self.max_tokens,
@@ -166,7 +181,7 @@ class BedrockModel(BaseModel):
             return {
                 **{
                     "anthropic_version": "bedrock-2023-05-31",
-                    "messages": self._format_prompt_for_claude(prompt),
+                    "messages": self._format_prompt_for_claude(prompt_str),
                     "temperature": self.temperature,
                     "top_p": self.top_p,
                     "top_k": self.top_k,
@@ -178,7 +193,7 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("mistral"):
             return {
                 **{
-                    "prompt": prompt,
+                    "prompt": prompt_str,
                     "max_tokens": self.max_tokens,
                     "temperature": self.temperature,
                     "stop": self.stop_sequences,
@@ -192,7 +207,7 @@ class BedrockModel(BaseModel):
                 logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
             return {
                 **{
-                    "inputText": prompt,
+                    "inputText": prompt_str,
                     "textGenerationConfig": {
                         "temperature": self.temperature,
                         "topP": self.top_p,

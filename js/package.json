@@ -1,0 +1,45 @@
+{
+  "name": "phoenix-js",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for Arize Phoenix Javascript Tooling",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Arize-ai/phoenix.git"
+  },
+  "scripts": {
+    "prettier:check": "prettier --check .",
+    "prettier:write": "prettier --write .",
+    "type:check": "pnpm run -r type:check",
+    "lint": "eslint . --ext .ts",
+    "ci:version": "pnpm changeset version",
+    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance"
+  },
+  "keywords": [
+    "telemetry",
+    "evaluation",
+    "llmops",
+    "observability"
+  ],
+  "author": "oss@arize.com",
+  "license": "ELv2",
+  "devDependencies": {
+    "@changesets/cli": "^2.27.10",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "prettier": "^3.4.1",
+    "rimraf": "^5.0.10",
+    "tsc-alias": "^1.8.10",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=10",
+    "pnpm": ">=3"
+  },
+  "packageManager": "pnpm@9.8.0",
+  "eslintIgnore": [
+    "examples/**/*"
+  ]
+}

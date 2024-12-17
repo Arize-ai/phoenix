@@ -4,9 +4,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Generator, Optional, Sequence
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, Union
 
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.templates import MultimodalPrompt
 
 T = TypeVar("T", bound=type)
 
@@ -43,6 +44,13 @@ class BaseModel(ABC):
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
+    def __new__(cls, *args: Any, **kwargs: Any) -> "BaseModel":
+        assert not args, (
+            f"{cls.__name__} instantiation via positional arguments is not allowed. "
+            "Please use keyword arguments only."
+        )
+        return super().__new__(cls)
+
     @property
     @abstractmethod
     def _model_name(self) -> str:
@@ -54,11 +62,13 @@ class BaseModel(ABC):
     def reload_client(self) -> None:
         pass
 
-    def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
+    def __call__(
+        self, prompt: Union[str, MultimodalPrompt], instruction: Optional[str] = None, **kwargs: Any
+    ) -> str:
         """Run the LLM on the given prompt."""
-        if not isinstance(prompt, str):
+        if not isinstance(prompt, (str, MultimodalPrompt)):
             raise TypeError(
-                "Invalid type for argument `prompt`. Expected a string but found "
+                "Invalid type for argument `prompt`. Expected a string or PromptMessages but found "
                 f"{type(prompt)}. If you want to run the LLM on multiple prompts, use "
                 "`generate` instead."
             )
@@ -67,6 +77,7 @@ class BaseModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
+
         return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     def verbose_generation_info(self) -> str:
@@ -75,11 +86,11 @@ class BaseModel(ABC):
         return ""
 
     @abstractmethod
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
         raise NotImplementedError
 
     @staticmethod

@@ -4,6 +4,8 @@ import { css } from "@emotion/react";
 
 import { Alert, Button, Form, TextField, View } from "@arizeai/components";
 
+import { prependBasename } from "@phoenix/utils/routingUtils";
+
 type ForgotPasswordFormParams = {
   email: string;
 };
@@ -20,13 +22,16 @@ export function ForgotPasswordForm({
       setError(null);
       setIsLoading(true);
       try {
-        const response = await fetch("/auth/password-reset-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(params),
-        });
+        const response = await fetch(
+          prependBasename("/auth/password-reset-email"),
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(params),
+          }
+        );
         if (!response.ok) {
           const message = await response.text();
           setError(message);

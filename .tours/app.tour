@@ -38,7 +38,7 @@
     },
     {
       "file": "app/src/components/trace/__tests__/utils.test.ts",
-      "description": "The fontend also utilizes `jest` to run unit tests to make sure certain code paths are properly tested. All tests can be run via the `npm` command `npm run test` which runs all the tests that fall under `__tests__` directories with the postfix `.test.ts`.",
+      "description": "The fontend also utilizes `vitest` to run unit tests to make sure certain code paths are properly tested. All tests can be run via the `npm` command `npm run test` which runs all the tests that fall under `__tests__` directories with the postfix `.test.ts`.",
       "line": 4
     },
     {

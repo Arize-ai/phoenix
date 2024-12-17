@@ -1,25 +1,22 @@
-import React, { createContext, PropsWithChildren, useRef } from "react";
+import React, { createContext, PropsWithChildren, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
   createPlaygroundStore,
-  PlaygroundProps,
+  InitialPlaygroundState,
   PlaygroundState,
   PlaygroundStore,
-} from "@phoenix/store/playgroundStore";
+} from "@phoenix/store";
 
 export const PlaygroundContext = createContext<PlaygroundStore | null>(null);
 
 export function PlaygroundProvider({
   children,
   ...props
-}: PropsWithChildren<Partial<PlaygroundProps>>) {
-  const storeRef = useRef<PlaygroundStore>();
-  if (!storeRef.current) {
-    storeRef.current = createPlaygroundStore(props);
-  }
+}: PropsWithChildren<InitialPlaygroundState>) {
+  const [store] = useState<PlaygroundStore>(() => createPlaygroundStore(props));
   return (
-    <PlaygroundContext.Provider value={storeRef.current}>
+    <PlaygroundContext.Provider value={store}>
       {children}
     </PlaygroundContext.Provider>
   );
@@ -32,4 +29,14 @@ export function usePlaygroundContext<T>(
   const store = React.useContext(PlaygroundContext);
   if (!store) throw new Error("Missing PlaygroundContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);
+}
+
+/**
+ * Returns the raw playground store. Should only be used for accessing the store directly.
+ * Using this hook ensures up to date (non stale) values in hooks / callbacks without making them depend on specific components of the store.
+ */
+export function usePlaygroundStore() {
+  const store = React.useContext(PlaygroundContext);
+  if (!store) throw new Error("Missing PlaygroundContext.Provider in the tree");
+  return store;
 }

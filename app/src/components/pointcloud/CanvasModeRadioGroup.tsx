@@ -16,7 +16,7 @@ import { CanvasMode } from "@phoenix/store";
 const radioItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--px-spacing-sm);
+  gap: var(--ac-global-dimension-static-size-50);
 `;
 /**
  * TypeGuard for the canvas mode

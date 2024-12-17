@@ -31,6 +31,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
         marginStart="auto"
         marginEnd="auto"
         borderRadius="medium"
+        overflow="auto"
       >
         {children}
       </View>

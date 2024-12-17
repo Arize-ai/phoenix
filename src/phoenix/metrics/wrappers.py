@@ -18,7 +18,7 @@ from abc import ABC
 from enum import Enum
 from inspect import Signature
 from itertools import chain, islice
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -26,6 +26,8 @@ from pandas.core.dtypes.common import is_categorical_dtype, is_object_dtype
 from sklearn import metrics as sk
 from sklearn.utils.multiclass import check_classification_targets
 from wrapt import PartialCallableObjectProxy
+
+from phoenix.config import SKLEARN_VERSION
 
 
 class Eval(PartialCallableObjectProxy, ABC):  # type: ignore
@@ -157,7 +159,7 @@ def _coerce_dtype_if_necessary(
 def _eliminate_missing_values_from_all_series(
     *args: Any,
     **kwargs: Any,
-) -> Tuple[List[Any], Dict[str, Any]]:
+) -> tuple[list[Any], dict[str, Any]]:
     positional_arguments = list(args)
     keyword_arguments = dict(kwargs)
     all_series = [
@@ -232,5 +234,9 @@ class SkEval(Enum):
     r2_score = RegressionEval(sk.r2_score)
     recall_score = ClassificationEval(sk.recall_score)
     roc_auc_score = ScoredClassificationEval(sk.roc_auc_score)
-    root_mean_squared_error = RegressionEval(sk.mean_squared_error, squared=False)
+    root_mean_squared_error = (
+        RegressionEval(sk.mean_squared_error, squared=False)
+        if SKLEARN_VERSION < (1, 6)
+        else RegressionEval(sk.root_mean_squared_error)
+    )
     zero_one_loss = ClassificationEval(sk.zero_one_loss)

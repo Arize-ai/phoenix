@@ -11,7 +11,7 @@ repos:
         name: clean-notebooks
         files: \.ipynb$
         exclude: ^tutorials/evals/.*\.ipynb$
-        stages: [ commit ]
+        stages: [ pre-commit ]
         language: system
         entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
   - repo: local
@@ -19,7 +19,7 @@ repos:
       - id: format-notebooks
         name: format-notebooks
         files: \.ipynb$
-        stages: [ commit ]
+        stages: [ pre-commit ]
         language: system
         entry: nbqa ruff --fix --ignore=E402 --ignore=E501 --ignore=F704
   - repo: https://github.com/pre-commit/mirrors-prettier
@@ -29,7 +29,7 @@ repos:
         files: \.(jsx?|tsx?|css|.md)$
         exclude: \.*__generated__.*$
         additional_dependencies:
-          - prettier@3.2.4
+          - prettier@3.3.3
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: "8ddcbd412c0b348841f0f82c837702f432539652"
     hooks:
@@ -39,3 +39,10 @@ repos:
           - eslint-plugin-react@7.33.2
           - eslint-plugin-react-hooks@4.6.0
           - eslint-plugin-simple-import-sort@10.0.0
+  - repo: local
+    hooks:
+      - id: forbid-commit-to-local-main-branch
+        name: Check branch before committing
+        entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
+        language: system
+        stages: [ pre-commit ]

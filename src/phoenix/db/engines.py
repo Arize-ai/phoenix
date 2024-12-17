@@ -1,9 +1,10 @@
 import asyncio
 import json
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any, Callable
+from typing import Any
 
 import aiosqlite
 import numpy as np
@@ -52,7 +53,7 @@ def get_async_db_url(connection_str: str) -> URL:
         # So we need to parse them out manually
         if url.username and url.password:
             url = url.set(
-                query={"user": url.username, "password": url.password},
+                query={**url.query, "user": url.username, "password": url.password},
                 password=None,
                 username=None,
             )
@@ -162,11 +163,23 @@ def aio_postgresql_engine(
     log_to_stdout: bool = False,
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    engine = create_async_engine(url=url, echo=log_to_stdout, json_serializer=_dumps)
+    url_query = dict(url.query)
+    sslmode = url_query.pop("sslmode", None) or url_query.pop("ssl", None)
+    engine = create_async_engine(
+        url=url.set(
+            # https://github.com/MagicStack/asyncpg/issues/737
+            query={**url_query, "ssl": sslmode} if sslmode else url_query,
+        ),
+        echo=log_to_stdout,
+        json_serializer=_dumps,
+    )
     if not migrate:
         return engine
     sync_engine = sqlalchemy.create_engine(
-        url=url.set(drivername="postgresql+psycopg"),
+        url=url.set(
+            drivername="postgresql+psycopg",
+            query={**url_query, "sslmode": sslmode} if sslmode else url_query,
+        ),
         echo=log_migrations_to_stdout,
         json_serializer=_dumps,
     )

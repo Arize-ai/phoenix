@@ -180,10 +180,10 @@ export function TracesTable(props: TracesTableProps) {
                   cumulativeTokenCountPrompt: tokenCountPrompt
                   cumulativeTokenCountCompletion: tokenCountCompletion
                   input {
-                    value
+                    value: truncatedValue
                   }
                   output {
-                    value
+                    value: truncatedValue
                   }
                   context {
                     spanId

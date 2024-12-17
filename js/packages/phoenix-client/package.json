@@ -1,0 +1,44 @@
+{
+  "name": "@arizeai/phoenix-client",
+  "version": "0.0.0",
+  "description": "A client for the Phoenix API",
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean && pnpm run generate",
+    "generate": "openapi-typescript ../../../schemas/openapi.json -o ./src/__generated__/api/v1.d.ts",
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && rimraf dist/test",
+    "type:check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ELv2",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "openapi-typescript": "^7.4.1",
+    "tsx": "^4.19.1"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.12.2",
+    "zod": "^3.23.8"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

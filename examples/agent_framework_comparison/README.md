@@ -1,5 +1,12 @@
 # agent-framework-analysis
 
+This project shows the same agent defined in multiple different frameworks:
+- Pure Code (aka no framework)
+- LangGraph
+- LlamaIndex Workflows
+
+More framework examples are in the works, let us know if you have one you want to see!
+
 ## Prerequisites
 Because this agent is designed to talk to a Phoenix project, you will need to have a Phoenix project with traces in it.
 If you don't have a Phoenix project, I recommend running this quickstart before running the agent: https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/tracing_quickstart_openai.ipynb

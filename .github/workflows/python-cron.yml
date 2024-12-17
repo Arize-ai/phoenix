@@ -8,6 +8,8 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
+    env:
+      CI_TEST_DB_BACKEND: postgresql
     services:
       postgres:
         image: postgres:12
@@ -23,12 +25,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: playground
+          ref: sessions
       - uses: actions/setup-python@v5
         with:
           python-version: 3.9
-      - run: pip install tox-uv==1.11.3
-      - run: tox run-parallel --parallel-no-spinner -e test-integration_tests
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.5
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/integration-tests.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv tool install tox --with tox-uv
+      - run: tox run -e ci_integration_tests
       - uses: slackapi/slack-github-action@v1
         if: failure()
         env:

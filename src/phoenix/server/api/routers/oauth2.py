@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from random import randrange
-from typing import Any, Dict, Optional, Tuple, TypedDict
+from typing import Any, Optional, TypedDict
 from urllib.parse import unquote, urlparse
 
 from authlib.common.security import generate_token
@@ -14,7 +14,7 @@ from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, upd
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import URL
+from starlette.datastructures import URL, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
 from starlette.status import HTTP_302_FOUND
@@ -86,8 +86,16 @@ async def login(
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
-        return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
-    origin_url = _get_origin_url(request)
+        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
+    if (referer := request.headers.get("referer")) is not None:
+        # if the referer header is present, use it as the origin URL
+        parsed_url = urlparse(referer)
+        origin_url = _append_root_path_if_exists(
+            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+        )
+    else:
+        # fall back to the base url as the origin URL
+        origin_url = str(request.base_url)
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(
             request=request, origin_url=origin_url, idp_name=idp_name
@@ -124,22 +132,22 @@ async def create_tokens(
 ) -> RedirectResponse:
     secret = request.app.state.get_secret()
     if state != stored_state:
-        return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
     try:
         payload = _parse_state_payload(secret=secret, state=state)
     except JoseError:
-        return _redirect_to_login(error=_INVALID_OAUTH2_STATE_MESSAGE)
+        return _redirect_to_login(request=request, error=_INVALID_OAUTH2_STATE_MESSAGE)
     if (return_url := payload.get("return_url")) is not None and not _is_relative_url(
         unquote(return_url)
     ):
-        return _redirect_to_login(error="Attempting login with unsafe return URL.")
+        return _redirect_to_login(request=request, error="Attempting login with unsafe return URL.")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()
     if not isinstance(
         oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
     ):
-        return _redirect_to_login(error=f"Unknown IDP: {idp_name}.")
+        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
     try:
         token_data = await oauth2_client.fetch_access_token(
             state=state,
@@ -149,11 +157,12 @@ async def create_tokens(
             ),
         )
     except OAuthError as error:
-        return _redirect_to_login(error=str(error))
+        return _redirect_to_login(request=request, error=str(error))
     _validate_token_data(token_data)
     if "id_token" not in token_data:
         return _redirect_to_login(
-            error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect."
+            request=request,
+            error=f"OAuth2 IDP {idp_name} does not appear to support OpenID Connect.",
         )
     user_info = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
     user_info = _parse_user_info(user_info)
@@ -165,14 +174,18 @@ async def create_tokens(
                 user_info=user_info,
             )
     except EmailAlreadyInUse as error:
-        return _redirect_to_login(error=str(error))
+        return _redirect_to_login(request=request, error=str(error))
     access_token, refresh_token = await create_access_and_refresh_tokens(
         user=user,
         token_store=token_store,
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    response = RedirectResponse(url=return_url or "/", status_code=HTTP_302_FOUND)
+    redirect_path = _prepend_root_path_if_exists(request=request, path=return_url or "/")
+    response = RedirectResponse(
+        url=redirect_path,
+        status_code=HTTP_302_FOUND,
+    )
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -192,7 +205,7 @@ class UserInfo:
     profile_picture_url: Optional[str]
 
 
-def _validate_token_data(token_data: Dict[str, Any]) -> None:
+def _validate_token_data(token_data: dict[str, Any]) -> None:
     """
     Performs basic validations on the token data returned by the IDP.
     """
@@ -201,7 +214,7 @@ def _validate_token_data(token_data: Dict[str, Any]) -> None:
     assert token_type.lower() == "bearer"
 
 
-def _parse_user_info(user_info: Dict[str, Any]) -> UserInfo:
+def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
     """
@@ -321,7 +334,7 @@ async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: s
 
 async def _email_and_username_exist(
     session: AsyncSession, /, *, email: str, username: Optional[str]
-) -> Tuple[bool, bool]:
+) -> tuple[bool, bool]:
     """
     Checks whether the email and username are already in use.
     """
@@ -352,15 +365,44 @@ class EmailAlreadyInUse(Exception):
     pass
 
 
-def _redirect_to_login(*, error: str) -> RedirectResponse:
+def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    url = URL("/login").include_query_params(error=error)
+    login_path = _prepend_root_path_if_exists(request=request, path="/login")
+    url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     return response
+
+
+def _prepend_root_path_if_exists(*, request: Request, path: str) -> str:
+    """
+    If a root path is configured, prepends it to the input path.
+    """
+    if not path.startswith("/"):
+        raise ValueError("path must start with a forward slash")
+    root_path = _get_root_path(request=request)
+    if root_path.endswith("/"):
+        root_path = root_path.rstrip("/")
+    return root_path + path
+
+
+def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
+    """
+    If a root path is configured, appends it to the input base url.
+    """
+    if not (root_path := _get_root_path(request=request)):
+        return base_url
+    return str(URLPath(root_path).make_absolute_url(base_url=base_url))
+
+
+def _get_root_path(*, request: Request) -> str:
+    """
+    Gets the root path from the request.
+    """
+    return str(request.scope.get("root_path", ""))
 
 
 def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: str) -> str:
@@ -425,16 +467,6 @@ def _with_random_suffix(string: str) -> str:
     Appends a random suffix.
     """
     return f"{string}-{randrange(10_000, 100_000)}"
-
-
-def _get_origin_url(request: Request) -> str:
-    """
-    Infers the origin URL from the request.
-    """
-    if (referer := request.headers.get("referer")) is None:
-        return str(request.base_url)
-    parsed_url = urlparse(referer)
-    return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
 
 def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2StatePayload]:

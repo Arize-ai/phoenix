@@ -207,7 +207,7 @@ export function EventItem(props: EventItemProps) {
           }
           &[data-size="large"] {
             & > *:nth-child(1) {
-              margin: var(--px-spacing-med);
+              margin: var(--ac-global-dimension-static-size-100);
               border-radius: 8px;
             }
           }
@@ -341,8 +341,8 @@ function PromptResponsePreview(
         &[data-size="small"] {
           display: flex;
           flex-direction: column;
-          padding: var(--px-spacing-sm);
-          font-size: var(--px-font-size-sm);
+          padding: var(--ac-global-dimension-static-size-50);
+          font-size: var(--ac-global-dimension-static-font-size-75);
           section {
             flex: 1 1 0;
             overflow: hidden;
@@ -354,8 +354,8 @@ function PromptResponsePreview(
         &[data-size="medium"] {
           display: flex;
           flex-direction: column;
-          gap: var(--px-spacing-sm);
-          padding: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-50);
+          padding: var(--ac-global-dimension-static-size-100);
           section {
             flex: 1 1 0;
             overflow: hidden;
@@ -365,7 +365,7 @@ function PromptResponsePreview(
           display: flex;
           flex-direction: row;
           section {
-            padding: var(--px-spacing-sm);
+            padding: var(--ac-global-dimension-static-size-50);
             flex: 1 1 0;
           }
         }
@@ -374,7 +374,7 @@ function PromptResponsePreview(
 
           header {
             font-weight: bold;
-            margin-bottom: var(--px-spacing-sm);
+            margin-bottom: var(--ac-global-dimension-static-size-50);
           }
           &:before {
             content: "";
@@ -412,7 +412,7 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
       data-size={props.size}
       css={css`
         flex: 1 1 auto;
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
@@ -420,7 +420,7 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
-          padding: var(--px-spacing-sm);
+          padding: var(--ac-global-dimension-static-size-50);
           box-sizing: border-box;
         }
         &:before {
@@ -452,7 +452,7 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
       data-size={props.size}
       css={css`
         flex: 1 1 auto;
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
@@ -460,7 +460,7 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
-          padding: var(--px-spacing-sm);
+          padding: var(--ac-global-dimension-static-size-50);
           font-size: var(--ac-global-color-gray-600);
           box-sizing: border-box;
         }
@@ -494,17 +494,17 @@ function EventMetadataPreview(
     <dl
       css={css`
         margin: 0;
-        padding: var(--px-spacing-lg);
+        padding: var(--ac-global-dimension-static-size-200);
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
 
         dt {
           font-weight: bold;
         }
         dd {
-          margin-inline-start: var(--px-spacing-med);
+          margin-inline-start: var(--ac-global-dimension-static-size-100);
         }
       `}
     >
@@ -534,8 +534,9 @@ function EventItemFooter({
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        padding: var(--px-spacing-sm) var(--px-spacing-med) var(--px-spacing-sm)
-          7px;
+        padding: var(--ac-global-dimension-static-size-50)
+          var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-50) 7px;
         border-top: 1px solid var(--ac-global-border-color-dark);
       `}
     >
@@ -544,7 +545,7 @@ function EventItemFooter({
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: var(--px-spacing-sm);
+          gap: var(--ac-global-dimension-static-size-50);
         `}
       >
         <ShapeIcon shape={Shape.circle} color={color} />

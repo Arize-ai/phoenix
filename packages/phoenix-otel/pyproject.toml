@@ -2,7 +2,7 @@
 name = "arize-phoenix-otel"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.8, <3.13"
+requires-python = ">=3.8, <3.14"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -20,8 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
-version = "0.5.1"
+version = "0.6.1"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
@@ -82,7 +83,7 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.format]
-line-ending = "lf"
+line-ending = "native"
 
 [tool.mypy]
 explicit_package_bases = true

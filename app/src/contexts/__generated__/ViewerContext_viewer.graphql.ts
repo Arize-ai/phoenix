@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b404e55614d071f40b1328bc81b05cc5>>
+ * @generated SignedSource<<4943c441f0a18f63c691a565344bcaf7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,11 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type AuthMethod = "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type ViewerContext_viewer$data = {
   readonly viewer: {
+    readonly authMethod: AuthMethod;
     readonly email: string;
     readonly id: string;
     readonly profilePictureUrl: string | null;
@@ -97,6 +99,13 @@ const node: ReaderFragment = {
           "storageKey": null
         },
         {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "authMethod",
+          "storageKey": null
+        },
+        {
           "args": null,
           "kind": "FragmentSpread",
           "name": "APIKeysTableFragment"
@@ -109,6 +118,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "0fda3314d35e251b11f0ed180df72f44";
+(node as any).hash = "bec0ae2a629134a5b9afe1846eaec2c9";
 
 export default node;

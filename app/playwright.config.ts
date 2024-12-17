@@ -1,4 +1,4 @@
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig, devices, Project } from "@playwright/test";
 
 /**
  * Read environment variables from file.
@@ -6,6 +6,42 @@ import { defineConfig, devices } from "@playwright/test";
  */
 // import dotenv from 'dotenv';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// Skip WebKit for CI because of recurring issues with caching binaries.
+const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
+
+const projects: Project[] = [
+  {
+    name: "chromium",
+    use: { ...devices["Desktop Chrome"] },
+    // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
+    testIgnore: "**/*.rate-limit.spec.ts",
+  },
+  {
+    name: "firefox",
+    use: { ...devices["Desktop Firefox"] },
+    // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
+    testIgnore: "**/*.rate-limit.spec.ts",
+  },
+];
+
+if (!skipWebKit) {
+  projects.push({
+    name: "webkit",
+    use: { ...devices["Desktop Safari"] },
+    // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
+    testIgnore: "**/*.rate-limit.spec.ts",
+  });
+}
+
+projects.push({
+  name: "rate limit",
+  use: { ...devices["Desktop Chrome"] },
+  dependencies: skipWebKit
+    ? ["chromium", "firefox"]
+    : ["chromium", "firefox", "webkit"],
+  testMatch: "**/*.rate-limit.spec.ts",
+});
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -21,6 +57,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
+  /* Opt out of parallel tests on CI. */
+  // workers: process.env.CI ? 1 : undefined,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -31,51 +69,7 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-      testIgnore: "**/*.rate-limit.spec.ts",
-    },
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-      testIgnore: "**/*.rate-limit.spec.ts",
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-      // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-      testIgnore: "**/*.rate-limit.spec.ts",
-    },
-    {
-      name: "rate limit",
-      use: { ...devices["Desktop Chrome"] },
-      dependencies: ["chromium", "firefox", "webkit"],
-      testMatch: "**/*.rate-limit.spec.ts",
-    },
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
-  ],
+  projects: projects,
 
   /* Run your local dev server before starting the tests */
   webServer: {

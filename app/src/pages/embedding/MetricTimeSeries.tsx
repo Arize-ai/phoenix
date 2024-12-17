@@ -103,9 +103,9 @@ function TooltipContent({
             flex-direction: row;
             align-items: center;
             color: var(--ac-global-color-primary);
-            gap: var(--px-spacing-sm);
+            gap: var(--ac-global-dimension-static-size-50);
 
-            margin-top: var(--px-spacing-sm);
+            margin-top: var(--ac-global-dimension-static-size-50);
           `}
         >
           <Icon svg={<InfoOutline />} />
@@ -333,13 +333,14 @@ export function MetricTimeSeries({
         flex-direction: column;
         overflow: hidden;
         h3 {
-          padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
-            var(--px-spacing-lg);
+          padding: var(--ac-global-dimension-static-size-50)
+            var(--ac-global-dimension-static-size-200) 0
+            var(--ac-global-dimension-static-size-200);
           flex: none;
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: var(--px-spacing-sm);
+          gap: var(--ac-global-dimension-static-size-50);
         }
         & > div {
           flex: 1 1 auto;

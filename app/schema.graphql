@@ -65,6 +65,137 @@ enum AuthMethod {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+type BooleanInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Boolean
+}
+
+type BoundedFloatInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Float
+  minValue: Float!
+  maxValue: Float!
+}
+
+enum CanonicalParameterName {
+  TEMPERATURE
+  MAX_COMPLETION_TOKENS
+  STOP_SEQUENCES
+  TOP_P
+  RANDOM_SEED
+  TOOL_CHOICE
+  RESPONSE_FORMAT
+}
+
+type ChatCompletionFunctionCall {
+  name: String!
+  arguments: String!
+}
+
+input ChatCompletionInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: [InvocationParameterInput!]! = []
+  tools: [JSON!]
+  apiKey: String = null
+  template: TemplateOptions
+}
+
+input ChatCompletionMessageInput {
+  role: ChatCompletionMessageRole!
+
+  """The content of the message as JSON to support various kinds of text"""
+  content: JSON! = ""
+
+  """The tool calls that were made in the message"""
+  toolCalls: [JSON!]
+
+  """
+  The ID that corresponds to a prior tool call. Used to link a tool message to a pre-existing tool call.
+  """
+  toolCallId: String
+}
+
+enum ChatCompletionMessageRole {
+  USER
+  SYSTEM
+  TOOL
+  AI
+}
+
+type ChatCompletionMutationError {
+  message: String!
+}
+
+type ChatCompletionMutationPayload {
+  content: String
+  toolCalls: [ChatCompletionToolCall!]!
+  span: Span!
+  errorMessage: String
+}
+
+union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
+
+input ChatCompletionOverDatasetInput {
+  messages: [ChatCompletionMessageInput!]!
+  model: GenerativeModelInput!
+  invocationParameters: [InvocationParameterInput!]! = []
+  tools: [JSON!]
+  apiKey: String = null
+  templateLanguage: TemplateLanguage!
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID = null
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = {}
+}
+
+type ChatCompletionOverDatasetMutationExamplePayload {
+  datasetExampleId: GlobalID!
+  experimentRunId: GlobalID!
+  result: ChatCompletionMutationPayloadChatCompletionMutationError!
+}
+
+type ChatCompletionOverDatasetMutationPayload {
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID!
+  experimentId: GlobalID!
+  examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
+}
+
+type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  message: String!
+}
+
+type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  experiment: Experiment!
+}
+
+interface ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+}
+
+type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  span: Span
+  experimentRun: ExperimentRun
+}
+
+type ChatCompletionToolCall {
+  id: String!
+  function: ChatCompletionFunctionCall!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -731,6 +862,7 @@ type ExperimentRun implements Node {
   error: String
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
   trace: Trace
+  example: DatasetExample!
 }
 
 type ExperimentRunAnnotation implements Node {
@@ -796,12 +928,53 @@ type ExportedFile {
   fileName: String!
 }
 
+type FloatInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Float
+}
+
+type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  name: String!
+  arguments: String!
+}
+
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
 
   """Generative tracing records are available for analysis"""
   tracing: Boolean!
+}
+
+type GenerativeModel {
+  name: String!
+  providerKey: GenerativeProviderKey!
+}
+
+input GenerativeModelInput {
+  providerKey: GenerativeProviderKey!
+  name: String!
+  endpoint: String
+  apiVersion: String
+}
+
+type GenerativeProvider {
+  name: String!
+  key: GenerativeProviderKey!
+  dependencies: [String!]!
+  dependenciesInstalled: Boolean!
+}
+
+enum GenerativeProviderKey {
+  OPENAI
+  ANTHROPIC
+  AZURE_OPENAI
+  GEMINI
 }
 
 """
@@ -855,14 +1028,63 @@ input InputCoordinate3D {
   z: Float!
 }
 
+type IntInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Int
+}
+
 type IntervalBin {
   range: NumericRange!
+}
+
+enum InvocationInputField {
+  value_int
+  value_float
+  value_bool
+  value_string
+  value_json
+  value_string_list
+  value_boolean
+}
+
+union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
+
+interface InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+}
+
+input InvocationParameterInput {
+  invocationName: String!
+  canonicalName: CanonicalParameterName = null
+  valueInt: Int
+  valueFloat: Float
+  valueBool: Boolean
+  valueString: String
+  valueJson: JSON
+  valueStringList: [String!]
+  valueBoolean: Boolean
 }
 
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
+
+type JSONInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: JSON
+}
 
 type LabelFraction {
   label: String!
@@ -908,6 +1130,11 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
+input ModelsInput {
+  providerKey: GenerativeProviderKey
+  modelName: String = null
+}
+
 type Mutation {
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
@@ -943,6 +1170,8 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
 }
 
 """An object with a Globally Unique ID"""
@@ -1053,6 +1282,7 @@ type Project implements Node {
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 50, after: String, sort: ProjectSessionSort, filterIoSubstring: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -1091,6 +1321,53 @@ type ProjectEdge {
   node: Project!
 }
 
+type ProjectSession implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sessionId: String!
+  startTime: DateTime!
+  endTime: DateTime!
+  projectId: GlobalID!
+  numTraces: Int!
+  numTracesWithError: Int!
+  firstInput: SpanIOValue
+  lastOutput: SpanIOValue
+  tokenUsage: TokenUsage!
+  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
+  traceLatencyMsQuantile(probability: Float!): Float
+}
+
+enum ProjectSessionColumn {
+  startTime
+  endTime
+  tokenCountTotal
+  numTraces
+}
+
+"""A connection to a list of items."""
+type ProjectSessionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectSessionEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectSessionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectSession!
+}
+
+"""The sort key and direction for ProjectSession connections."""
+input ProjectSessionSort {
+  col: ProjectSessionColumn!
+  dir: SortDir!
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
@@ -1100,6 +1377,9 @@ type PromptResponse {
 }
 
 type Query {
+  modelProviders: [GenerativeProvider!]!
+  models(input: ModelsInput = null): [GenerativeModel!]!
+  modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -1247,6 +1527,9 @@ type Span implements Node {
 
   """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
+
+  """Invocation parameters for the span"""
+  invocationParameters: [InvocationParameter!]!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -1372,6 +1655,29 @@ enum SpanStatusCode {
   UNSET
 }
 
+type StringInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: String
+}
+
+type StringListInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: [String!]
+}
+
+type Subscription {
+  chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+}
+
 type SystemApiKey implements ApiKey & Node {
   """Name of the API key."""
   name: String!
@@ -1387,6 +1693,22 @@ type SystemApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
+}
+
+enum TemplateLanguage {
+  NONE
+  MUSTACHE
+  F_STRING
+}
+
+input TemplateOptions {
+  variables: JSON!
+  language: TemplateLanguage!
+}
+
+type TextChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  content: String!
 }
 
 input TimeRange {
@@ -1406,11 +1728,29 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+type TokenUsage {
+  prompt: Int!
+  completion: Int!
+  total: Int!
+}
+
+type ToolCallChunk implements ChatCompletionSubscriptionPayload {
+  datasetExampleId: GlobalID
+  id: String!
+  function: FunctionCallChunk!
+}
+
 type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   traceId: String!
+  startTime: DateTime!
+  endTime: DateTime!
+  latencyMs: Float
   projectId: GlobalID!
+  projectSessionId: GlobalID
+  session: ProjectSession
+  rootSpan: Span
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""
@@ -1443,6 +1783,24 @@ type TraceAnnotationMutationPayload {
 input TraceAnnotationSort {
   col: TraceAnnotationColumn!
   dir: SortDir!
+}
+
+"""A connection to a list of items."""
+type TraceConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [TraceEdge!]!
+}
+
+"""An edge in a connection."""
+type TraceEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Trace!
 }
 
 type UMAPPoint {

@@ -27,6 +27,7 @@ const codeEditorFormWrapperCSS = css`
   .cm-editor {
     border-radius: var(--ac-global-rounding-small);
   }
+  box-sizing: border-box;
   .cm-focused {
     outline: none;
   }

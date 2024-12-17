@@ -4,6 +4,7 @@ import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
 import { Provider, theme } from "@arizeai/components";
 
+import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
@@ -33,11 +34,13 @@ export function AppContent() {
           <GlobalStyles />
           <FeatureFlagsProvider>
             <PreferencesProvider>
-              <Suspense>
-                <NotificationProvider>
-                  <AppRoutes />
-                </NotificationProvider>
-              </Suspense>
+              <CredentialsProvider>
+                <Suspense>
+                  <NotificationProvider>
+                    <AppRoutes />
+                  </NotificationProvider>
+                </Suspense>
+              </CredentialsProvider>
             </PreferencesProvider>
           </FeatureFlagsProvider>
         </RelayEnvironmentProvider>

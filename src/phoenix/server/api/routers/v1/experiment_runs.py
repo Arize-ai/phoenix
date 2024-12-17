@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import Field
@@ -113,7 +113,7 @@ class ExperimentRunResponse(ExperimentRun):
     experiment_id: str = Field(description="The ID of the experiment")
 
 
-class ListExperimentRunsResponseBody(ResponseBody[List[ExperimentRunResponse]]):
+class ListExperimentRunsResponseBody(ResponseBody[list[ExperimentRunResponse]]):
     pass
 
 

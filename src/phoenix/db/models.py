@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Optional, TypedDict
 
 from sqlalchemy import (
     JSON,
@@ -50,7 +50,7 @@ class JSONB(JSON):
     __visit_name__ = "JSONB"
 
 
-@compiles(JSONB, "sqlite")  # type: ignore
+@compiles(JSONB, "sqlite")
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
@@ -69,21 +69,21 @@ JSON_ = (
 )
 
 
-class JsonDict(TypeDecorator[Dict[str, Any]]):
+class JsonDict(TypeDecorator[dict[str, Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[Dict[str, Any]], _: Dialect) -> Dict[str, Any]:
+    def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
 
 
-class JsonList(TypeDecorator[List[Any]]):
+class JsonList(TypeDecorator[list[Any]]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: Optional[List[Any]], _: Dialect) -> List[Any]:
+    def process_bind_param(self, value: Optional[list[Any]], _: Dialect) -> list[Any]:
         return value if isinstance(value, list) else []
 
 
@@ -117,8 +117,8 @@ class Base(DeclarativeBase):
         },
     )
     type_annotation_map = {
-        Dict[str, Any]: JsonDict,
-        List[Dict[str, Any]]: JsonList,
+        dict[str, Any]: JsonDict,
+        list[dict[str, Any]]: JsonList,
         ExperimentRunOutput: JsonDict,
     }
 
@@ -142,7 +142,7 @@ class Project(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    traces: WriteOnlyMapped[List["Trace"]] = relationship(
+    traces: WriteOnlyMapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project",
         cascade="all, delete-orphan",
@@ -156,14 +156,37 @@ class Project(Base):
     )
 
 
+class ProjectSession(Base):
+    __tablename__ = "project_sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    traces: Mapped[list["Trace"]] = relationship(
+        "Trace",
+        back_populates="project_session",
+        uselist=True,
+    )
+
+
 class Trace(Base):
     __tablename__ = "traces"
     id: Mapped[int] = mapped_column(primary_key=True)
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
         index=True,
     )
     trace_id: Mapped[str]
+    project_session_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        index=True,
+    )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
@@ -182,13 +205,17 @@ class Trace(Base):
         "Project",
         back_populates="traces",
     )
-    spans: Mapped[List["Span"]] = relationship(
+    spans: Mapped[list["Span"]] = relationship(
         "Span",
         back_populates="trace",
         cascade="all, delete-orphan",
         uselist=True,
     )
-    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
+    project_session: Mapped[ProjectSession] = relationship(
+        "ProjectSession",
+        back_populates="traces",
+    )
+    experiment_runs: Mapped[list["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="trace",
     )
@@ -212,8 +239,8 @@ class Span(Base):
     span_kind: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
-    attributes: Mapped[Dict[str, Any]]
-    events: Mapped[List[Dict[str, Any]]]
+    attributes: Mapped[dict[str, Any]]
+    events: Mapped[list[dict[str, Any]]]
     status_code: Mapped[str] = mapped_column(
         CheckConstraint("status_code IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
     )
@@ -248,8 +275,8 @@ class Span(Base):
         return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
-    document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
-    dataset_examples: Mapped[List["DatasetExample"]] = relationship(back_populates="span")
+    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
+    dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -271,7 +298,7 @@ class LatencyMs(expression.FunctionElement[float]):
     name = "latency_ms"
 
 
-@compiles(LatencyMs)  # type: ignore
+@compiles(LatencyMs)
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
@@ -287,7 +314,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     )
 
 
-@compiles(LatencyMs, "sqlite")  # type: ignore
+@compiles(LatencyMs, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
@@ -308,21 +335,21 @@ class TextContains(expression.FunctionElement[str]):
     name = "text_contains"
 
 
-@compiles(TextContains)  # type: ignore
+@compiles(TextContains)
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(string.contains(substring), **kw)
 
 
-@compiles(TextContains, "postgresql")  # type: ignore
+@compiles(TextContains, "postgresql")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.strpos(string, substring) > 0, **kw)
 
 
-@compiles(TextContains, "sqlite")  # type: ignore
+@compiles(TextContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
@@ -351,7 +378,7 @@ class SpanAnnotation(Base):
     label: Mapped[Optional[str]] = mapped_column(String, index=True)
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
     )
@@ -378,7 +405,7 @@ class TraceAnnotation(Base):
     label: Mapped[Optional[str]] = mapped_column(String, index=True)
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
     )
@@ -406,7 +433,7 @@ class DocumentAnnotation(Base):
     label: Mapped[Optional[str]] = mapped_column(String, index=True)
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
     )
@@ -430,7 +457,7 @@ class Dataset(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -493,7 +520,7 @@ class DatasetVersion(Base):
         index=True,
     )
     description: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
 
@@ -525,9 +552,9 @@ class DatasetExampleRevision(Base):
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
         index=True,
     )
-    input: Mapped[Dict[str, Any]]
-    output: Mapped[Dict[str, Any]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    input: Mapped[dict[str, Any]]
+    output: Mapped[dict[str, Any]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
@@ -557,7 +584,7 @@ class Experiment(Base):
     name: Mapped[str]
     description: Mapped[Optional[str]]
     repetitions: Mapped[int]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -615,7 +642,7 @@ class ExperimentRunAnnotation(Base):
     explanation: Mapped[Optional[str]]
     trace_id: Mapped[Optional[str]]
     error: Mapped[Optional[str]]
-    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
@@ -631,7 +658,7 @@ class UserRole(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, index=True)
-    users: Mapped[List["User"]] = relationship("User", back_populates="role")
+    users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
 class User(Base):
@@ -659,11 +686,11 @@ class User(Base):
         back_populates="user",
         uselist=False,
     )
-    access_tokens: Mapped[List["AccessToken"]] = relationship("AccessToken", back_populates="user")
-    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+    access_tokens: Mapped[list["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         "RefreshToken", back_populates="user"
     )
-    api_keys: Mapped[List["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
     @hybrid_property
     def auth_method(self) -> Optional[str]:

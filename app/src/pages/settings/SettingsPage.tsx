@@ -56,7 +56,12 @@ export function SettingsPage() {
                 />
                 <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="end"
+                justifyContent="center"
+              >
                 <TextField
                   label="Python Version"
                   isReadOnly
@@ -82,7 +87,7 @@ export function SettingsPage() {
 function CopyToClipboardButtonWithPadding(props: { text: string }) {
   return (
     <View paddingBottom="19px">
-      <CopyToClipboardButton text={props.text} size="normal" />
+      <CopyToClipboardButton text={props.text} size="default" />
     </View>
   );
 }

@@ -5,8 +5,9 @@ import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
+from importlib.metadata import version
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, overload
+from typing import Optional, cast, overload
 from urllib.parse import urlparse
 
 from phoenix.utilities.logging import log_a_list
@@ -80,6 +81,10 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 """
 Whether or not to log migrations. Defaults to true.
 """
+ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
+"""
+Whether or not to enable websockets. Defaults to None.
+"""
 
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
@@ -93,6 +98,13 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
+ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
+"""
+The initial password for the default admin account, which defaults to ‘admin’ if not
+explicitly set. Note that changing this value will have no effect if the default admin
+record already exists in the database. In such cases, the default admin password must
+be updated manually in the application.
+"""
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
@@ -106,6 +118,14 @@ The duration, in minutes, before refresh tokens expire.
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before password reset tokens expire.
+"""
+ENV_PHOENIX_CSRF_TRUSTED_ORIGINS = "PHOENIX_CSRF_TRUSTED_ORIGINS"
+"""
+A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF)
+protection. This setting is recommended when configuring OAuth2 clients or sending
+password reset emails. If this variable is left unspecified or contains no origins, CSRF
+protection will not be enabled. In such cases, when a request includes `origin` or `referer`
+headers, those values will not be validated.
 """
 
 # SMTP settings
@@ -133,6 +153,11 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
 Whether to validate SMTP server certificates. Defaults to true.
 """
+
+# API extension settings
+ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
+ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
+ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS = "PHOENIX_GRPC_INTERCEPTOR_PATHS"
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -257,6 +282,12 @@ def get_env_phoenix_secret() -> Optional[str]:
     return phoenix_secret
 
 
+def get_env_default_admin_initial_password() -> str:
+    from phoenix.auth import DEFAULT_ADMIN_PASSWORD
+
+    return os.environ.get(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
+
+
 def get_env_phoenix_use_secure_cookies() -> bool:
     return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
 
@@ -265,7 +296,7 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return os.environ.get(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> Tuple[bool, Optional[str]]:
+def get_env_auth_settings() -> tuple[bool, Optional[str]]:
     """
     Gets auth settings and performs validation.
     """
@@ -321,6 +352,22 @@ def get_env_refresh_token_expiry() -> timedelta:
     return timedelta(minutes=minutes)
 
 
+def get_env_csrf_trusted_origins() -> list[str]:
+    origins: list[str] = []
+    if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
+        return origins
+    for origin in csrf_trusted_origins.split(","):
+        if not origin:
+            continue
+        if not urlparse(origin).hostname:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_CSRF_TRUSTED_ORIGINS}` contains a url "
+                f"with missing hostname. Please ensure that each url has a valid hostname."
+            )
+        origins.append(origin)
+    return sorted(set(origins))
+
+
 def get_env_smtp_username() -> str:
     return os.getenv(ENV_PHOENIX_SMTP_USERNAME) or ""
 
@@ -345,6 +392,10 @@ def get_env_smtp_port() -> int:
 
 def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
+
+
+def get_env_enable_websockets() -> Optional[bool]:
+    return _bool_val(ENV_PHOENIX_ENABLE_WEBSOCKETS)
 
 
 @dataclass(frozen=True)
@@ -387,7 +438,9 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
-        if urlparse(oidc_config_url).scheme != "https":
+        parsed_oidc_config_url = urlparse(oidc_config_url)
+        is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
+        if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
             raise ValueError(
                 f"Server metadata URL for {idp_name} OAuth2 IDP "
                 "must be a valid URL using the https protocol"
@@ -404,7 +457,7 @@ class OAuth2ClientConfig:
         )
 
 
-def get_env_oauth2_settings() -> List[OAuth2ClientConfig]:
+def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
     Get OAuth2 settings from environment variables.
     """
@@ -470,7 +523,7 @@ def ensure_working_dir() -> None:
 ensure_working_dir()
 
 
-def get_exported_files(directory: Path) -> List[Path]:
+def get_exported_files(directory: Path) -> list[Path]:
     """
     Yields the list of paths of exported files.
 
@@ -481,7 +534,7 @@ def get_exported_files(directory: Path) -> List[Path]:
 
     Returns
     -------
-    list: List[Path]
+    list: list[Path]
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
@@ -522,7 +575,19 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    return os.getenv(ENV_PHOENIX_HOST_ROOT_PATH) or HOST_ROOT_PATH
+    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+        return HOST_ROOT_PATH
+    if not host_root_path.startswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value must start with '/'"
+        )
+    if host_root_path.endswith("/"):
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_HOST_ROOT_PATH}: "
+            f"{host_root_path}. Value cannot end with '/'"
+        )
+    return host_root_path
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -560,7 +625,7 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
-def get_env_client_headers() -> Optional[Dict[str, str]]:
+def get_env_client_headers() -> Optional[dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
@@ -619,6 +684,51 @@ def get_env_db_logging_level() -> int:
     )
 
 
+def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid middleware entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
+def get_env_gql_extension_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_GQL_EXTENSION_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid extension entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
+def get_env_grpc_interceptor_paths() -> list[tuple[str, str]]:
+    env_value = os.getenv(ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS, "")
+    paths = []
+    for entry in env_value.split(","):
+        entry = entry.strip()
+        if entry:
+            if ":" not in entry:
+                raise ValueError(
+                    f"Invalid interceptor entry '{entry}'. Expected format 'file_path:ClassName'."
+                )
+            file_path, object_name = entry.split(":", 1)
+            paths.append((file_path.strip(), object_name.strip()))
+    return paths
+
+
 def _get_logging_level(env_var: str, default_level: int) -> int:
     logging_level = os.getenv(env_var)
     if not logging_level:
@@ -675,3 +785,5 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
+
+SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))

@@ -2,7 +2,7 @@ import React, {
   createContext,
   PropsWithChildren,
   useContext,
-  useRef,
+  useState,
 } from "react";
 import { useZustand } from "use-zustand";
 
@@ -19,12 +19,10 @@ export function PointCloudProvider({
   children,
   ...props
 }: PropsWithChildren<Partial<PointCloudProps>>) {
-  const storeRef = useRef<PointCloudStore>();
-  if (!storeRef.current) {
-    storeRef.current = createPointCloudStore(props);
-  }
+  const [store] = useState<PointCloudStore>(() => createPointCloudStore(props));
+
   return (
-    <PointCloudContext.Provider value={storeRef.current}>
+    <PointCloudContext.Provider value={store}>
       {children}
     </PointCloudContext.Provider>
   );
