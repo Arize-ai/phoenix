@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from phoenix.server.api.helpers.experiment_run_filters import (
-    ExperimentRunFilterConditionParseError,
+    ExperimentRunFilterConditionSyntaxError,
     ExperimentRunFilterTransformer,
     compile_orm_filter_condition,
 )
@@ -506,7 +506,7 @@ def test_compile_orm_filter_condition_raises_appropriate_error_message(
     filter_expression: str,
     expected_error_prefix: str,
 ) -> None:
-    with pytest.raises(ExperimentRunFilterConditionParseError) as exc_info:
+    with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
         compile_orm_filter_condition(
             filter_condition=filter_expression,
             experiment_ids=[0, 1, 2],

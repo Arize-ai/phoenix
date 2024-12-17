@@ -87,12 +87,12 @@ def compile_orm_filter_condition(
     try:
         tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
-        raise ExperimentRunFilterConditionParseError.from_syntax_error(error)
+        raise ExperimentRunFilterConditionSyntaxError.from_syntax_error(error)
     transformer = ExperimentRunFilterTransformer(experiment_ids)
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
     if not isinstance(node, BooleanExpression):
-        raise ExperimentRunFilterConditionParseError(
+        raise ExperimentRunFilterConditionSyntaxError(
             message="Filter condition must be a boolean expression",
             source=filter_condition,
             start_offset=0,
@@ -102,7 +102,7 @@ def compile_orm_filter_condition(
     return orm_filter_condition, transformer
 
 
-class ExperimentRunFilterConditionParseError(Exception):
+class ExperimentRunFilterConditionSyntaxError(Exception):
     def __init__(
         self,
         *,
@@ -121,7 +121,7 @@ class ExperimentRunFilterConditionParseError(Exception):
         cls,
         message: str,
         node: ast.AST,
-    ) -> "ExperimentRunFilterConditionParseError":
+    ) -> "ExperimentRunFilterConditionSyntaxError":
         source = ast.unparse(node)
         start_offset = getattr(node, "col_offset", 0)
         end_offset = getattr(node, "end_col_offset", len(source))
@@ -136,7 +136,7 @@ class ExperimentRunFilterConditionParseError(Exception):
     def from_syntax_error(
         cls,
         syntax_error: SyntaxError,
-    ) -> "ExperimentRunFilterConditionParseError":
+    ) -> "ExperimentRunFilterConditionSyntaxError":
         source = syntax_error.text or ""
         start_offset = syntax_error.offset or 0
         end_offset = getattr(
@@ -206,7 +206,7 @@ class Constant(HasDataType, Term):
 
 class ExperimentsName(ExperimentRunFilterConditionNode):
     def compile(self) -> Any:
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Select an experiment with [<index>]", node=self.ast_node
         )
 
@@ -220,17 +220,17 @@ class ExperimentRun(ExperimentRunFilterConditionNode):
     def __post_init__(self) -> None:
         experiment_index = self.slice.value
         if not isinstance(experiment_index, int):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Index to experiments must be an integer", node=self.ast_node
             )
         if not (0 <= experiment_index < len(self.experiment_ids)):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Select an experiment with [<index>]", node=self.ast_node
             )
         object.__setattr__(self, "experiment_id", self.experiment_ids[experiment_index])
 
     def compile(self) -> Any:
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Add an attribute", node=self.ast_node
         )
 
@@ -263,7 +263,7 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
 
     def __post_init__(self) -> None:
         if not _is_supported_attribute_name(self.attribute_name):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Unknown name", node=self.ast_node
             )
         object.__setattr__(self, "_attribute_name", self.attribute_name)
@@ -272,7 +272,7 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
         attribute_name = self._attribute_name
         experiment_id = self.experiment_id
         if attribute_name == "evals":
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Select an eval with [<eval-name>]",
                 node=self.ast_node,
             )
@@ -327,7 +327,7 @@ class ExperimentRunJSONAttribute(Attribute):
         object.__setattr__(self, "experiment_id", self.attribute.experiment_id)
         index_value = self.index_constant.value
         if not isinstance(index_value, (int, str)):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Index must be an integer or string",
                 node=self.ast_node,
             )
@@ -346,14 +346,14 @@ class ExperimentRunEval(ExperimentRunFilterConditionNode):
 
     def __post_init__(self) -> None:
         if not isinstance(self.eval_name, str):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Eval must be indexed by string",
                 node=self.ast_node,
             )
         object.__setattr__(self, "experiment_id", self.experiment_run_attribute.experiment_id)
 
     def compile(self) -> Any:
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Choose an attribute for your eval (label, score, etc.)",
             node=self.ast_node,
         )
@@ -369,7 +369,7 @@ class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
 
     def __post_init__(self) -> None:
         if not _is_supported_experiment_run_eval_attribute_name(self.attribute_name):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Unknown eval attribute",
                 node=self.ast_node,
             )
@@ -430,7 +430,7 @@ class ComparisonOperation(BooleanExpression):
     def __post_init__(self) -> None:
         operator = self.operator
         if not _is_supported_comparison_operator(operator):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Unsupported comparison operator",
                 node=self.ast_node,
             )
@@ -466,7 +466,7 @@ class UnaryBooleanOperation(BooleanExpression):
 
     def __post_init__(self) -> None:
         if not isinstance(self.operand, BooleanExpression):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Operand must be a boolean expression",
                 node=self.ast_node,
             )
@@ -489,7 +489,7 @@ class BooleanOperation(BooleanExpression):
 
     def __post_init__(self) -> None:
         if len(self.operands) < 2:
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Boolean operators require at least two operands",
                 node=self.ast_node,
             )
@@ -501,7 +501,7 @@ class BooleanOperation(BooleanExpression):
             return and_(*operands)
         elif isinstance(ast_operator, ast.Or):
             return or_(*operands)
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Unsupported boolean operator",
             node=self.ast_node,
         )
@@ -542,7 +542,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
             return UnaryBooleanOperation(operand=operand, operator=operator, ast_node=node)
         if _is_supported_unary_term_operator(operator):
             return UnaryTermOperation(operand=operand, operator=operator, ast_node=node)
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Unsupported unary operator",
             node=node,
         )
@@ -554,7 +554,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
 
     def visit_Compare(self, node: ast.Compare) -> ExperimentRunFilterConditionNode:
         if not (len(node.ops) == 1 and len(node.comparators) == 1):
-            raise ExperimentRunFilterConditionParseError.from_ast_node(
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Only binary comparisons are supported",
                 node=node,
             )
@@ -573,7 +573,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
         key = self.visit(node.slice)
         if isinstance(container, ExperimentsName):
             if not isinstance(key, Constant):
-                raise ExperimentRunFilterConditionParseError.from_ast_node(
+                raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                     message="Index must be a constant",
                     node=node,
                 )
@@ -601,7 +601,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
                 index_constant=key,
                 ast_node=node,
             )
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Invalid subscript",
             node=node,
         )
@@ -623,7 +623,7 @@ class ExperimentRunFilterTransformer(ast.NodeTransformer):
                 transformer=self,
                 ast_node=node,
             )
-        raise ExperimentRunFilterConditionParseError.from_ast_node(
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
             message="Unknown attribute",
             node=node,
         )
