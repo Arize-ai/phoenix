@@ -5,8 +5,9 @@ import pytest
 
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
-    ExperimentRunFilterTransformer,
-    compile_orm_filter_condition,
+    FreeAttributeNameBinder,
+    SQLAlchemyTransformer,
+    compile_sqlalchemy_filter_condition,
 )
 
 
@@ -397,12 +398,67 @@ def test_experiment_run_filter_transformer_correctly_compiles(
     if dialect == "postgres":
         pytest.skip("test case currently works only in postgres")
     tree = ast.parse(filter_expression, mode="eval")
-    transformer = ExperimentRunFilterTransformer([0, 1, 2])
+    transformer = SQLAlchemyTransformer([0, 1, 2])
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
     orm_expression = node.compile()
     sql_expression = str(orm_expression.compile(compile_kwargs={"literal_binds": True}))
     assert sql_expression == expected_sqlite_expression
+
+
+@pytest.mark.parametrize(
+    "filter_expression,expected_sqlite_expression",
+    (
+        pytest.param(
+            "5 == 5",
+            "5 = 5",
+            id="no-free-attributes",
+        ),
+        pytest.param(
+            "input['score'] < 10",
+            "CAST(dataset_example_revisions.input['score'] AS FLOAT) < 10",
+            id="input-is-not-free-attribute",
+        ),
+        pytest.param(
+            "reference_output['score'] < 10",
+            "CAST(dataset_example_revisions.output['score'] AS FLOAT) < 10",
+            id="reference-output-is-not-free-attribute",
+        ),
+        pytest.param(
+            "output['score'] < 10",
+            "CAST(experiment_runs_0.output['task_output']['score'] AS FLOAT) < 10 OR CAST(experiment_runs_1.output['task_output']['score'] AS FLOAT) < 10",  # noqa: E501
+            id="output-is-not-free-attribute",
+        ),
+        pytest.param(
+            "'invalid' in error",
+            "(experiment_runs_0.error LIKE '%' || 'invalid' || '%') OR (experiment_runs_1.error LIKE '%' || 'invalid' || '%')",  # noqa: E501
+            id="error-is-not-free-attribute",
+        ),
+        pytest.param(
+            "latency_ms < 1000",
+            "round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_1.end_time) - EXTRACT(EPOCH FROM experiment_runs_1.start_time)) * 1000 AS NUMERIC), 1) < 1000",  # noqa: E501
+            id="latency-ms-is-not-free-attribute",
+        ),
+        pytest.param(
+            "evals['hallucination'].score < 10",
+            "experiment_run_annotations_0.score < 10 AND experiment_run_annotations_0.name = 'hallucination' OR experiment_run_annotations_1.score < 10 AND experiment_run_annotations_1.name = 'hallucination'",  # noqa: E501
+            id="eval-comparison",
+        ),
+    ),
+)
+def test_compile_sqlalchemy_filter_condition_correctly_compiles(
+    filter_expression: str, expected_sqlite_expression: str, dialect: str
+) -> None:
+    if dialect == "postgres":
+        pytest.skip("test case currently works only in postgres")
+    orm_filter_expression, _ = compile_sqlalchemy_filter_condition(
+        filter_condition=filter_expression,
+        experiment_ids=[0, 1],
+    )
+    sql_filter_expression = str(
+        orm_filter_expression.compile(compile_kwargs={"literal_binds": True})
+    )
+    assert sql_filter_expression == expected_sqlite_expression
 
 
 @pytest.mark.parametrize(
@@ -502,15 +558,119 @@ def test_experiment_run_filter_transformer_correctly_compiles(
         ),
     ],
 )
-def test_compile_orm_filter_condition_raises_appropriate_error_message(
+def test_compile_sqlalchemy_filter_condition_raises_appropriate_error_message(
     filter_expression: str,
     expected_error_prefix: str,
 ) -> None:
     with pytest.raises(ExperimentRunFilterConditionSyntaxError) as exc_info:
-        compile_orm_filter_condition(
+        compile_sqlalchemy_filter_condition(
             filter_condition=filter_expression,
             experiment_ids=[0, 1, 2],
         )
 
     error = exc_info.value
     assert str(error).startswith(expected_error_prefix)
+
+
+@pytest.mark.parametrize(
+    "input_expression,experiment_index,expected_output_expression,expected_binds_free_attribute_name",
+    [
+        pytest.param(
+            "input",
+            0,
+            "input",
+            False,
+            id="input-attribute",
+        ),
+        pytest.param(
+            "output",
+            7,
+            "experiments[7].output",
+            True,
+            id="output-attribute",
+        ),
+        pytest.param(
+            "reference_output",
+            13,
+            "reference_output",
+            False,
+            id="reference-output-attribute",
+        ),
+        pytest.param(
+            "error",
+            99,
+            "experiments[99].error",
+            True,
+            id="error-attribute",
+        ),
+        pytest.param(
+            "latency_ms",
+            3,
+            "experiments[3].latency_ms",
+            True,
+            id="latency-ms-attribute",
+        ),
+        pytest.param(
+            "evals",
+            21,
+            "experiments[21].evals",
+            True,
+            id="evals-attribute",
+        ),
+        # Test cases for unsupported names (should remain unchanged)
+        pytest.param(
+            "unknown_name",
+            42,
+            "unknown_name",
+            False,
+            id="unsupported-name",
+        ),
+        pytest.param(
+            "True",
+            42,
+            "True",
+            False,
+            id="boolean-literal",
+        ),
+        pytest.param(
+            "None",
+            42,
+            "None",
+            False,
+            id="none-literal",
+        ),
+        pytest.param(
+            "output > 5",
+            55,
+            "experiments[55].output > 5",
+            True,
+            id="comparison-expression-with-output-attribute",
+        ),
+        pytest.param(
+            "x > 5",
+            42,
+            "x > 5",
+            False,
+            id="comparison-expression-with-unknown-name",
+        ),
+        pytest.param(
+            "x > 5 and output > 5",
+            33,
+            "x > 5 and experiments[33].output > 5",
+            True,
+            id="boolean-expression",
+        ),
+    ],
+)
+def test_free_attribute_name_binder_produces_correct_output(
+    input_expression: str,
+    experiment_index: int,
+    expected_output_expression: str,
+    expected_binds_free_attribute_name: bool,
+) -> None:
+    input_tree = ast.parse(input_expression, mode="eval")
+    binder = FreeAttributeNameBinder(experiment_index=experiment_index)
+    transformed_tree = binder.visit(input_tree)
+    assert binder.binds_free_attribute_name == expected_binds_free_attribute_name
+    transformed_expr = ast.unparse(transformed_tree)
+    assert transformed_expr == expected_output_expression
