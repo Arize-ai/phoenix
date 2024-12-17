@@ -1,19 +1,60 @@
 import React from "react";
 import { useLoaderData, useNavigate } from "react-router";
+import { css } from "@emotion/react";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
+import {
+  Button,
+  Counter,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  TabPane,
+  Tabs,
+  View,
+} from "@arizeai/components";
 
 import { promptLoaderQuery$data } from "./__generated__/promptLoaderQuery.graphql";
+import { PromptTabContent } from "./PromptTabContent";
+
+const mainCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  .ac-tabs {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    div[role="tablist"] {
+      flex: none;
+    }
+    .ac-tabs__pane-container {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      div[role="tabpanel"]:not([hidden]) {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+    }
+  }
+`;
 
 export function PromptPage() {
   const loaderData = useLoaderData() as promptLoaderQuery$data;
   const navigate = useNavigate();
   return (
-    <Flex direction="column" height="100%">
+    <main css={mainCSS}>
       <View
-        padding="size-200"
-        borderBottomWidth="thin"
-        borderBottomColor="dark"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
         flex="none"
       >
         <Flex direction="row" justifyContent="space-between">
@@ -30,6 +71,14 @@ export function PromptPage() {
           </Button>
         </Flex>
       </View>
-    </Flex>
+      <Tabs>
+        <TabPane name={"Prompt"}>
+          <PromptTabContent prompt={loaderData.prompt} />
+        </TabPane>
+        <TabPane name={"Versions"} extra={<Counter>0</Counter>}>
+          Versions
+        </TabPane>
+      </Tabs>
+    </main>
   );
 }
