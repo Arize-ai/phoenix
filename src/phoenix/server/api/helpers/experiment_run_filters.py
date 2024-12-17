@@ -52,31 +52,24 @@ def update_examples_query_with_filter_condition(
         filter_condition=filter_condition, experiment_ids=experiment_ids
     )
     for experiment_id in experiment_ids:
+        experiment_runs = transformer.get_experiment_runs_alias(experiment_id)
+        if experiment_runs is None:
+            continue
+        query = query.join(
+            experiment_runs,
+            onclause=and_(
+                experiment_runs.dataset_example_id == models.DatasetExample.id,
+                experiment_runs.experiment_id == experiment_id,
+            ),
+            isouter=True,
+        )
         experiment_run_annotations = transformer.get_experiment_run_annotations_alias(experiment_id)
         if experiment_run_annotations is not None:
-            # Ensure an experiment runs alias exists for each experiment runs
-            # annotations alias. This is needed because the experiment runs
-            # annotations table is joined on the experiment runs table.
-            experiment_runs = transformer.get_experiment_runs_alias(
-                experiment_id
-            ) or transformer.create_experiment_runs_alias(experiment_id)
-        else:
-            experiment_runs = transformer.get_experiment_runs_alias(experiment_id)
-        if experiment_runs is not None:
             query = query.join(
-                experiment_runs,
-                onclause=and_(
-                    experiment_runs.dataset_example_id == models.DatasetExample.id,
-                    experiment_runs.experiment_id == experiment_id,
-                ),
+                experiment_run_annotations,
+                onclause=experiment_run_annotations.experiment_run_id == experiment_runs.id,
                 isouter=True,
             )
-            if experiment_run_annotations is not None:
-                query = query.join(
-                    experiment_run_annotations,
-                    onclause=experiment_run_annotations.experiment_run_id == experiment_runs.id,
-                    isouter=True,
-                )
     query = query.where(orm_filter_condition)
     return query
 
@@ -719,6 +712,9 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
     def create_experiment_run_annotations_alias(self, experiment_id: ExperimentID) -> Any:
         if self.get_experiment_run_annotations_alias(experiment_id) is not None:
             raise ValueError(f"Alias already exists for experiment ID: {experiment_id}")
+        self._ensure_experiment_runs_alias_exists(
+            experiment_id
+        )  # experiment_runs are needed so we have something to join experiment_run_annotations to
         experiment_index = self.get_experiment_index(experiment_id)
         alias_name = f"experiment_run_annotations_{experiment_index}"
         aliased_table = aliased(models.ExperimentRunAnnotation, name=alias_name)
@@ -730,6 +726,10 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
 
     def get_experiment_index(self, experiment_id: ExperimentID) -> int:
         return self._experiment_ids.index(experiment_id)
+
+    def _ensure_experiment_runs_alias_exists(self, experiment_id: ExperimentID) -> None:
+        if self.get_experiment_runs_alias(experiment_id) is None:
+            self.create_experiment_runs_alias(experiment_id)
 
 
 def _get_sqlalchemy_comparison_operator(
