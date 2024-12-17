@@ -46,7 +46,7 @@ Let's generate some of those traces now. We'll use OpenAI in this example, but P
 First we'll import our instrumentor and the OpenAI package:
 
 ```bash
-pip install openinference-instrumentation-openai openai 'httpx<0.28'
+pip install openinference-instrumentation-openai openai
 ```
 
 Then enable our OpenAI integration:

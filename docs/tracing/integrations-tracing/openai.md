@@ -144,7 +144,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-openai openai 'httpx<0.28'
+pip install openinference-instrumentation-openai openai
 ```
 
 ## Setup
