@@ -9,6 +9,7 @@ import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generat
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
+import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -208,7 +209,6 @@ const router = createBrowserRouter(
             <Route
               path=":promptId"
               loader={promptLoader}
-              element={<PromptPage />}
               handle={{
                 crumb: (data: promptLoaderQuery$data) => {
                   if (data.prompt.__typename === "Prompt") {
@@ -217,7 +217,17 @@ const router = createBrowserRouter(
                   return "unknown";
                 },
               }}
-            />
+            >
+              <Route index element={<PromptPage />} loader={promptLoader} />
+              <Route
+                path="playground"
+                element={<PromptPlaygroundPage />}
+                loader={promptLoader}
+                handle={{
+                  crumb: () => "Playground",
+                }}
+              />
+            </Route>
           </Route>
           <Route
             path="/apis"
