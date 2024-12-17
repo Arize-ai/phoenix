@@ -817,6 +817,11 @@ class Prompt(Base):
     __tablename__ = "prompts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    source_prompt_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -852,7 +857,7 @@ class PromptTag(Base):
     __tablename__ = "prompt_tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    prompt_tag_config_rowid: Mapped[int] = mapped_column(
+    prompt_tag_config_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_tag_configs.id", ondelete="CASCADE"),
         index=True,
         nullable=False,

@@ -55,6 +55,13 @@ def upgrade() -> None:
     op.create_table(
         "prompts",
         sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "source_prompt_id",
+            sa.Integer,
+            sa.ForeignKey("prompts.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("name", sa.String, unique=True, nullable=False),
         sa.Column("description", sa.String),
         sa.Column(
@@ -76,7 +83,7 @@ def upgrade() -> None:
         "prompt_tags",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "prompt_tag_config_rowid",
+            "prompt_tag_config_id",
             sa.Integer,
             sa.ForeignKey("prompt_tag_configs.id", ondelete="CASCADE"),
             nullable=False,
