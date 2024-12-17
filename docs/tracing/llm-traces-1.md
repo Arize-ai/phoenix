@@ -155,7 +155,7 @@ Now we need to indicate which methods and attributes we want to trace. Phoenix h
 Here we're using OpenAI, so we'll install the built-in OpenAI instrumentor we provide.
 
 ```bash
-pip install -q openinference-instrumentation-openai openai 'httpx<0.28'
+pip install -q openinference-instrumentation-openai openai
 ```
 
 Initialize the OpenAIInstrumentor before your application code:
