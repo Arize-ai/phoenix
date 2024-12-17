@@ -37,6 +37,11 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="experiment-reference-output-name",
         ),
         pytest.param(
+            "experiments[0].metadata",
+            "dataset_example_revisions.metadata",
+            id="experiment-metadata-name",
+        ),
+        pytest.param(
             "experiments[1].output",
             "experiment_runs_1.output['task_output']",
             id="experiment-output-name",
@@ -191,8 +196,8 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="experiment-json-attribute-eq",
         ),
         pytest.param(
-            'experiments[1].output["category"] != "unknown"',
-            "CAST(experiment_runs_1.output['task_output']['category'] AS VARCHAR) != 'unknown'",  # noqa: E501
+            'experiments[1].metadata["category"] != "hard_question"',
+            "CAST(dataset_example_revisions.metadata['category'] AS VARCHAR) != 'hard_question'",
             id="experiment-json-attribute-ne",
         ),
         pytest.param(
@@ -367,6 +372,11 @@ def test_sqlalchemy_transformer_correctly_compiles(
             "reference_output['score'] < 10",
             "CAST(dataset_example_revisions.output['score'] AS FLOAT) < 10",
             id="reference-output-is-not-free-attribute",
+        ),
+        pytest.param(
+            "metadata['category'] == 'hard_questions'",
+            "CAST(dataset_example_revisions.metadata['category'] AS VARCHAR) = 'hard_questions'",
+            id="metadata-is-not-free-attribute",
         ),
         pytest.param(
             "output['score'] < 10",

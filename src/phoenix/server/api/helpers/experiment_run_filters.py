@@ -40,7 +40,7 @@ SQLAlchemyDataType: TypeAlias = Union[Boolean, Integer, Float[float], String]
 ExperimentID: TypeAlias = int
 SupportedUnaryBooleanOperator: TypeAlias = ast.Not
 SupportedUnaryTermOperator: TypeAlias = ast.USub
-SupportedDatasetExampleAttributeName: TypeAlias = Literal["input", "reference_output"]
+SupportedDatasetExampleAttributeName: TypeAlias = Literal["input", "reference_output", "metadata"]
 SupportedExperimentRunAttributeName: TypeAlias = Literal["output", "error", "latency_ms", "evals"]
 SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanation", "label"]
 
@@ -326,6 +326,8 @@ class DatasetExampleAttribute(HasAliasedTables, Attribute):
             return models.DatasetExampleRevision.input
         elif attribute_name == "reference_output":
             return models.DatasetExampleRevision.output
+        elif attribute_name == "metadata":
+            return models.DatasetExampleRevision.metadata_
         assert_never(attribute_name)
 
 
