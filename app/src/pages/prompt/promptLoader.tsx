@@ -35,7 +35,5 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     }
   )
     .toPromise()
-    .catch(() => {
-      throw new Error("Prompt not found");
-    });
+    .catch(() => new Response("Prompt not found", { status: 404 }));
 }
