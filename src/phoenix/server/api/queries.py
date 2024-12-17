@@ -441,8 +441,6 @@ class Query:
             return ValidationResult(
                 is_valid=False,
                 error_message=str(error),
-                error_start_offset=error.start_offset,
-                error_end_offset=error.end_offset,
             )
 
     @strawberry.field
