@@ -21,13 +21,13 @@ Phoenix 是一个开源的可观测性库，用于实验、评估和故障排除
 
 ## 安装 Phoenix
 
-\{% 选项卡 %\} \{% 选项卡标题=“使用pip” %\} 在 Jupyter 或 Colab 环境中，运行以下命令进行安装。
+使用pip在 Jupyter 或 Colab 环境中，运行以下命令进行安装。
 
 ```sh
 pip install arize-phoenix
 ```
 
-有关如何在 Databricks 等各种环境中运行 phoenix 的详细信息，请参阅我们的环境指南。 \{% 选项卡结束 %\}
+有关如何在 Databricks 等各种环境中运行 phoenix 的详细信息，请参阅我们的环境指南。&#x20;
 
 ```sh
 conda install -c conda-forge arize-phoenix[evals]
@@ -37,7 +37,7 @@ Phoenix 也可以通过容器运行。镜像地址：
 
 查看环境部分和部署指南了解详情。
 
-Phoenix 可与 OpenTelemetry 和[OpenInference](https://github.com/Arize-ai/openinference)工具配合使用。如果您希望将 phoenix 部署为服务而非库，请参阅\[部署]\(deployment/ “mention”)
+Phoenix 可与 OpenTelemetry 和OpenInference工具配合使用。如果您希望将 phoenix 部署为服务而非库，请参阅部署
 
 
 
