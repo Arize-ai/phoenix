@@ -35,7 +35,7 @@ conda install -c conda-forge arize-phoenix[evals]
 
 Phoenix 也可以通过容器运行。镜像地址：
 
-查看[环境部分](deployment/environments.md)和[部署指南](deployment/deploying-phoenix.md)了解详情。
+查看环境部分和部署指南了解详情。
 
 Phoenix 可与 OpenTelemetry 和[OpenInference](https://github.com/Arize-ai/openinference)工具配合使用。如果您希望将 phoenix 部署为服务而非库，请参阅\[部署]\(deployment/ “mention”)
 
