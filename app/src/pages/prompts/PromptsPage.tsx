@@ -1,5 +1,5 @@
 import React from "react";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useNavigate } from "react-router";
 
 import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
 
@@ -8,6 +8,7 @@ import { PromptsTable } from "./PromptsTable";
 
 export function PromptsPage() {
   const loaderData = useLoaderData() as promptsLoaderQuery$data;
+  const navigate = useNavigate();
   return (
     <Flex direction="column" height="100%">
       <View
@@ -22,8 +23,11 @@ export function PromptsPage() {
             variant="default"
             size="compact"
             icon={<Icon svg={<Icons.PlusOutline />} />}
+            onClick={() => {
+              navigate("/playground");
+            }}
           >
-            Prompt Template
+            Create Prompt Template
           </Button>
         </Flex>
       </View>

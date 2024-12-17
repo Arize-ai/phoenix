@@ -1,9 +1,11 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useCallback, useState } from "react";
 
 import {
   Button,
   Card,
   Content,
+  Dialog,
+  DialogContainer,
   Flex,
   Icon,
   Icons,
@@ -20,11 +22,13 @@ import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PromptComboBox } from "./PromptComboBox";
+import { SavePromptForm, SavePromptSubmitHandler } from "./SavePromptForm";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
+  const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
@@ -45,55 +49,66 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const { template } = instance;
 
   return (
-    <Card
-      title={
-        <Flex
-          direction="row"
-          gap="size-100"
-          alignItems="center"
-          marginEnd="size-100"
-        >
-          <AlphabeticIndexIcon index={index} />
-          <PromptComboBox
-            promptId={promptId}
-            onChange={(nextPromptId) => {
-              updateInstancePrompt({
-                instanceId,
-                patch: nextPromptId ? { id: nextPromptId } : null,
-              });
-            }}
-          />
-        </Flex>
-      }
-      collapsible
-      variant="compact"
-      bodyStyle={{ padding: 0 }}
-      extra={
-        <Flex direction="row" gap="size-100">
-          <Suspense
-            fallback={
-              <div>
-                <Loading size="S" />
-              </div>
-            }
+    <>
+      <Card
+        title={
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            marginEnd="size-100"
           >
-            {/* As long as this component mounts, it will sync the supported
-            invocation parameters for the model to the instance in the store */}
-            <ModelSupportedParamsFetcher instanceId={instanceId} />
+            <AlphabeticIndexIcon index={index} />
+            <PromptComboBox
+              promptId={promptId}
+              onChange={(nextPromptId) => {
+                updateInstancePrompt({
+                  instanceId,
+                  patch: nextPromptId ? { id: nextPromptId } : null,
+                });
+              }}
+            />
+            <SaveButton instanceId={instanceId} setDialog={setDialog} />
+          </Flex>
+        }
+        collapsible
+        variant="compact"
+        bodyStyle={{ padding: 0 }}
+        extra={
+          <Flex direction="row" gap="size-100">
+            <Suspense
+              fallback={
+                <div>
+                  <Loading size="S" />
+                </div>
+              }
+            >
+              {/* As long as this component mounts, it will sync the supported
+              invocation parameters for the model to the instance in the store */}
+              <ModelSupportedParamsFetcher instanceId={instanceId} />
+            </Suspense>
+            <ModelConfigButton {...props} />
+            {instances.length > 1 ? <DeleteButton {...props} /> : null}
+          </Flex>
+        }
+      >
+        {template.__type === "chat" ? (
+          <Suspense>
+            <PlaygroundChatTemplate {...props} />
           </Suspense>
-          <ModelConfigButton {...props} />
-          {instances.length > 1 ? <DeleteButton {...props} /> : null}
-        </Flex>
-      }
-    >
-      {template.__type === "chat" ? (
-        <Suspense>
-          <PlaygroundChatTemplate {...props} />
-        </Suspense>
-      ) : (
-        "Completion Template"
-      )}
-    </Card>
+        ) : (
+          "Completion Template"
+        )}
+      </Card>
+      <DialogContainer
+        isDismissable
+        onDismiss={() => {
+          setDialog(null);
+        }}
+      >
+        {dialog}
+      </DialogContainer>
+    </>
   );
 }
 
@@ -105,6 +120,7 @@ function DeleteButton(props: PlaygroundInstanceProps) {
         <Button
           variant="default"
           size="compact"
+          aria-label="Delete this instance of the playground"
           icon={<Icon svg={<Icons.TrashOutline />} />}
           onClick={() => {
             deleteInstance(props.playgroundInstanceId);
@@ -115,5 +131,52 @@ function DeleteButton(props: PlaygroundInstanceProps) {
         <Content>Delete this instance of the playground</Content>
       </Tooltip>
     </TooltipTrigger>
+  );
+}
+
+type SaveButtonProps = {
+  instanceId: number;
+  setDialog: (dialog: React.ReactNode) => void;
+};
+
+function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
+  const instance = usePlaygroundContext((state) =>
+    state.instances.find((instance) => instance.id === instanceId)
+  );
+  if (!instance) {
+    throw new Error(`Instance ${instanceId} not found`);
+  }
+  const prompt = instance.prompt;
+  const onSubmit: SavePromptSubmitHandler = useCallback(
+    (params) => {
+      // eslint-disable-next-line no-console
+      console.log("saving prompt", instanceId, params);
+    },
+    [instanceId]
+  );
+  const onSave = () => {
+    setDialog(
+      <Dialog title={prompt?.id ? "Update Prompt" : "Save Prompt"}>
+        <SavePromptForm onSubmit={onSubmit} />
+      </Dialog>
+    );
+  };
+  return (
+    <>
+      <TooltipTrigger delay={100}>
+        <TriggerWrap>
+          <Button
+            variant="default"
+            size="compact"
+            icon={<Icon svg={<Icons.SaveOutline />} />}
+            aria-label="Save this prompt"
+            onClick={onSave}
+          />
+        </TriggerWrap>
+        <Tooltip>
+          <Content>Save this prompt</Content>
+        </Tooltip>
+      </TooltipTrigger>
+    </>
   );
 }
