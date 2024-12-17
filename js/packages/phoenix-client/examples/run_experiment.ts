@@ -5,6 +5,7 @@ import {
   RunExperimentParams,
 } from "../src";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
+import { Factuality, Humor } from "autoevals";
 
 // baseUrl defaults to http://localhost:6006
 const phoenix = createClient();
@@ -75,9 +76,9 @@ const main = async () => {
       task: passThroughTask,
       repetitions: 2,
       evaluators: [
-        asEvaluator("Mentions startups", async (example) => {
+        asEvaluator("Mentions startups", async (params) => {
           await new Promise((resolve) => setTimeout(resolve, 1000));
-          const output = example.output;
+          const output = params.output;
           const isString = typeof output === "string";
           return {
             score:
@@ -89,9 +90,9 @@ const main = async () => {
             metadata: {},
           };
         }),
-        asEvaluator("Mentions evaluation", async (example) => {
+        asEvaluator("Mentions evaluation", async (params) => {
           await new Promise((resolve) => setTimeout(resolve, 500));
-          const output = example.output;
+          const output = params.output;
           const isString = typeof output === "string";
           return {
             score:
@@ -101,6 +102,40 @@ const main = async () => {
             label: "Mentions evaluation",
             explanation: "The output contains the word 'evaluation'",
             metadata: {},
+          };
+        }),
+        asEvaluator("Factuality", async (params) => {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const result = await Factuality.partial({
+            openAiApiKey: "ollama",
+            openAiBaseUrl: "http://localhost:11434/v1",
+            model: "llama3.2",
+          })({
+            output: JSON.stringify(params.output, null, 2),
+            input: JSON.stringify(params.input, null, 2),
+            expected: JSON.stringify(params.expected, null, 2),
+          });
+          return {
+            score: result.score,
+            label: result.name,
+            explanation: (result.metadata?.rationale as string) ?? "",
+            metadata: result.metadata ?? {},
+          };
+        }),
+        asEvaluator("Humor", async (params) => {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const result = await Humor.partial({
+            openAiApiKey: "ollama",
+            openAiBaseUrl: "http://localhost:11434/v1",
+            model: "llama3.2",
+          })({
+            output: JSON.stringify(params.output, null, 2),
+          });
+          return {
+            score: result.score,
+            label: result.name,
+            explanation: (result.metadata?.rationale as string) ?? "",
+            metadata: result.metadata ?? {},
           };
         }),
       ],

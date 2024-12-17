@@ -38,12 +38,30 @@ export interface ExperimentRun extends Node {
   traceId: string | null;
 }
 
+export type EvaluatorParams = {
+  /**
+   * The input field of the Dataset Example
+   */
+  input: Example["input"];
+  /**
+   * The output of the task
+   */
+  output: TaskOutput;
+  /**
+   * The expected or reference output of the Dataset Example
+   */
+  expected?: Example["output"];
+  /**
+   * Metadata associated with the Dataset Example
+   */
+  metadata?: Record<string, unknown>;
+};
+
 export type Evaluator = {
   name: string;
-  evaluate: (args: {
-    output: TaskOutput;
-    expected?: TaskOutput;
-  }) => Promise<EvaluationResult> | EvaluationResult;
+  evaluate: (
+    args: EvaluatorParams
+  ) => Promise<EvaluationResult> | EvaluationResult;
 };
 
 export type EvaluationResult = {

@@ -266,8 +266,10 @@ async function runEvaluator({
     };
     try {
       const result = await evaluator.evaluate({
+        input: example.input,
         output: run.output ?? null,
         expected: example.output,
+        metadata: example.metadata,
       });
       thisEval.result = result;
     } catch (error) {

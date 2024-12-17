@@ -31,6 +31,7 @@
   "devDependencies": {
     "@clack/prompts": "^0.8.2",
     "@types/node": "^20.14.11",
+    "autoevals": "^0.0.111",
     "openapi-typescript": "^7.4.1",
     "tsx": "^4.19.1"
   },
