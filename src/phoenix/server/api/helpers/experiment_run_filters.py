@@ -40,9 +40,8 @@ SQLAlchemyDataType: TypeAlias = Union[Boolean, Integer, Float[float], String]
 ExperimentID: TypeAlias = int
 SupportedUnaryBooleanOperator: TypeAlias = ast.Not
 SupportedUnaryTermOperator: TypeAlias = ast.USub
-SupportedExperimentRunAttributeName: TypeAlias = Literal[
-    "input", "reference_output", "output", "error", "latency_ms", "evals"
-]
+SupportedDatasetExampleAttributeName: TypeAlias = Literal["input", "reference_output"]
+SupportedExperimentRunAttributeName: TypeAlias = Literal["output", "error", "latency_ms", "evals"]
 SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanation", "label"]
 
 
@@ -146,24 +145,16 @@ class FreeAttributeNameBinder(ast.NodeTransformer):
     def visit_Name(self, node: ast.Name) -> Any:
         name = node.id
         if _is_supported_experiment_run_attribute_name(name):
-            if name == "input" or name == "reference_output":
-                # These attributes are pulled from the dataset example revision
-                # rather than the experiment run and hence are not free
-                # attributes names.
-                return node
-            elif name == "output" or name == "error" or name == "latency_ms" or name == "evals":
-                self._binds_free_attribute_name = True
-                attribute_node = ast.Attribute(
-                    value=ast.Subscript(
-                        value=ast.Name(id="experiments", ctx=ast.Load()),
-                        slice=ast.Constant(value=self._experiment_index),
-                        ctx=ast.Load(),
-                    ),
-                    attr=name,
-                    ctx=node.ctx,
-                )
-                return attribute_node
-            assert_never(name)
+            self._binds_free_attribute_name = True
+            return ast.Attribute(
+                value=ast.Subscript(
+                    value=ast.Name(id="experiments", ctx=ast.Load()),
+                    slice=ast.Constant(value=self._experiment_index),
+                    ctx=ast.Load(),
+                ),
+                attr=name,
+                ctx=node.ctx,
+            )
         return node
 
     @property
@@ -325,6 +316,27 @@ class HasAliasedTables:
 
 
 @dataclass(frozen=True)
+class DatasetExampleAttribute(HasAliasedTables, Attribute):
+    attribute_name: str
+    _attribute_name: SupportedDatasetExampleAttributeName = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not _is_supported_dataset_example_attribute(self.attribute_name):
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
+                message="Unknown name", node=self.ast_node
+            )
+        object.__setattr__(self, "_attribute_name", self.attribute_name)
+
+    def compile(self) -> Any:
+        attribute_name = self._attribute_name
+        if attribute_name == "input":
+            return models.DatasetExampleRevision.input
+        elif attribute_name == "reference_output":
+            return models.DatasetExampleRevision.output
+        assert_never(attribute_name)
+
+
+@dataclass(frozen=True)
 class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
     attribute_name: str
     experiment_id: int
@@ -345,10 +357,6 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
                 message="Select an eval with [<eval-name>]",
                 node=self.ast_node,
             )
-        elif attribute_name == "input":
-            return models.DatasetExampleRevision.input
-        elif attribute_name == "reference_output":
-            return models.DatasetExampleRevision.output
         elif attribute_name == "output":
             aliased_experiment_run = self.experiment_run_alias(experiment_id)
             return aliased_experiment_run.output["task_output"]
@@ -372,10 +380,6 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
         attribute_name = self._attribute_name
         if attribute_name == "evals":
             return None
-        elif attribute_name == "input":
-            return None
-        elif attribute_name == "reference_output":
-            return None
         elif attribute_name == "output":
             return None
         elif attribute_name == "error":
@@ -386,14 +390,12 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
 
 
 @dataclass(frozen=True)
-class ExperimentRunJSONAttribute(Attribute):
-    attribute: Union[ExperimentRunAttribute, "ExperimentRunJSONAttribute"]
+class JSONAttribute(Attribute):
+    attribute: Attribute
     index_constant: Constant
-    experiment_id: int = field(init=False)
     _index_value: Union[int, str] = field(init=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "experiment_id", self.attribute.experiment_id)
         index_value = self.index_constant.value
         if not isinstance(index_value, (int, str)):
             raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
@@ -591,17 +593,15 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         name = node.id
         if name == "experiments":
             return ExperimentsName(ast_node=node)
-        baseline_experiment_index = 0
-        baseline_experiment = ExperimentRun(
-            slice=Constant(value=baseline_experiment_index, ast_node=node),
-            experiment_ids=self._experiment_ids,
-            ast_node=node,
-        )
-        return ExperimentRunAttribute(
-            attribute_name=name,
-            experiment_id=baseline_experiment.experiment_id,
-            transformer=self,
-            ast_node=node,
+        elif _is_supported_dataset_example_attribute(name):
+            return DatasetExampleAttribute(
+                attribute_name=name,
+                transformer=self,
+                ast_node=node,
+            )
+        raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
+            message="Unknown name",
+            node=node,
         )
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Union[UnaryBooleanOperation, UnaryTermOperation]:
@@ -658,14 +658,10 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
                     eval_name=key.value,
                     ast_node=node,
                 )
-            if container.is_json_attribute:
-                return ExperimentRunJSONAttribute(
-                    attribute=container,
-                    index_constant=key,
-                    ast_node=node,
-                )
-        if isinstance(container, ExperimentRunJSONAttribute):
-            return ExperimentRunJSONAttribute(
+        if isinstance(container, (JSONAttribute, DatasetExampleAttribute)) or (
+            isinstance(container, ExperimentRunAttribute) and container.is_json_attribute
+        ):
+            return JSONAttribute(
                 attribute=container,
                 index_constant=key,
                 ast_node=node,
@@ -679,11 +675,22 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         parent = self.visit(node.value)
         attribute_name = node.attr
         if isinstance(parent, ExperimentRun):
-            return ExperimentRunAttribute(
-                attribute_name=attribute_name,
-                experiment_id=parent.experiment_id,
-                transformer=self,
-                ast_node=node,
+            if _is_supported_experiment_run_attribute_name(attribute_name):
+                return ExperimentRunAttribute(
+                    attribute_name=attribute_name,
+                    experiment_id=parent.experiment_id,
+                    transformer=self,
+                    ast_node=node,
+                )
+            elif _is_supported_dataset_example_attribute(attribute_name):
+                return DatasetExampleAttribute(
+                    attribute_name=attribute_name,
+                    transformer=self,
+                    ast_node=node,
+                )
+            raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
+                message="Unknown attribute",
+                node=node,
             )
         if isinstance(parent, ExperimentRunEval):
             return ExperimentRunEvalAttribute(
@@ -797,6 +804,12 @@ def _is_supported_comparison_operator(
     operator: ast.cmpop,
 ) -> TypeGuard[SupportedComparisonOperator]:
     return isinstance(operator, get_args(SupportedComparisonOperator))
+
+
+def _is_supported_dataset_example_attribute(
+    name: str,
+) -> TypeGuard[SupportedDatasetExampleAttributeName]:
+    return name in get_args(SupportedDatasetExampleAttributeName)
 
 
 def _is_supported_experiment_run_attribute_name(
