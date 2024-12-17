@@ -1402,6 +1402,49 @@ type PromptResponse {
   response: String
 }
 
+enum PromptTemplateFormat {
+  MUSTACHE
+  FSTRING
+}
+
+enum PromptTemplateType {
+  TEXT
+  JSON
+}
+
+type PromptVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  user: String
+  description: String!
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: JSON!
+  invocationParameters: JSON
+  tools: JSON
+  outputSchema: JSON
+  modelName: String!
+  modelProvider: String!
+}
+
+"""A connection to a list of items."""
+type PromptVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptVersion!
+}
+
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
@@ -1420,6 +1463,7 @@ type Query {
   node(id: GlobalID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
