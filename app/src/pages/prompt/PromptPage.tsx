@@ -57,7 +57,11 @@ export function PromptPage() {
         paddingBottom="size-100"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Heading level={1}>{loaderData.prompt.name}</Heading>
           <Button
             variant="default"
