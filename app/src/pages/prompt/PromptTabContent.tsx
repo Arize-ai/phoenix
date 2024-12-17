@@ -13,6 +13,7 @@ import {
 import { PromptTabContent__aside$key } from "./__generated__/PromptTabContent__aside.graphql";
 import { PromptTabContent__main$key } from "./__generated__/PromptTabContent__main.graphql";
 import { ChatTemplateMessage } from "./ChatTemplateMessage";
+
 export function PromptTabContent({
   prompt,
 }: {
