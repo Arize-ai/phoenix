@@ -6,10 +6,9 @@ This process is similar to the [evaluation quickstart guide](https://docs.arize.
 
 ### Install dependencies & Set environment variables
 
-```
-%%bash
+```bash
 pip install -q "arize-phoenix>=4.29.0"
-pip install -q openai
+pip install -q openai 'httpx<0.28'
 ```
 
 ```python

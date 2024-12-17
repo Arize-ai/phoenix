@@ -20,7 +20,7 @@ Looking for a working application? Jump to our [Python and Javascript examples.]
 
 ## Setup a Server
 
-Setting up a server to run your LLM application can be tricky to bootstrap. While bootstrapping and LLM application is not part of Phoenix, you can take a look at some of examples from our partners.
+Setting up a server to run your LLM application can be tricky to bootstrap. While bootstrapping an LLM application is not part of Phoenix, you can take a look at some of examples from our partners.
 
 * [**create-llama**](https://blog.llamaindex.ai/create-llama-a-command-line-tool-to-generate-llamaindex-apps-8f7683021191): A bootstrapping tool for setting up a full-stack LlamaIndex app
 * [**langchain-templates**](https://github.com/langchain-ai/langchain/blob/master/templates/README.md): Create a Langchain server using a template
@@ -179,7 +179,7 @@ Note, you should pin the phoenix version for production to the version of phoeni
 docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 ```
 
-See [#ports](../setup/configuration.md#ports "mention")for details on the ports for the container.
+See [#ports](configuration.md#ports "mention")for details on the ports for the container.
 {% endtab %}
 
 {% tab title="Command Line" %}
@@ -242,6 +242,4 @@ This way you will always have a running Phoenix instance when you run
 docker compose up
 ```
 
-For the full details of on how to configure Phoenix, check out the [Configuration section](../setup/configuration.md)
-
-\\
+For the full details of on how to configure Phoenix, check out the [Configuration section](configuration.md)

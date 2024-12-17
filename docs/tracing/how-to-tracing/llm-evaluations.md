@@ -8,6 +8,19 @@ description: >-
 
 An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../evaluation/concepts-evals/evaluation.md) for more information.
 
+## Connect to Phoenix
+
+Before accessing px.Client(), be sure you've set the following environment variables:
+
+```python
+import os
+
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+```
+
+If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
+
 ## Span Evaluations
 
 A dataframe of span evaluations would look similar like the table below. It must contain `span_id` as an index or as a column. Once ingested, Phoenix uses the `span_id` to associate the evaluation with its target span.
@@ -18,6 +31,7 @@ The evaluations dataframe can be sent to Phoenix as follows. Note that the name 
 
 ```python
 from phoenix.trace import SpanEvaluations
+import os
 
 px.Client().log_evaluations(
     SpanEvaluations(

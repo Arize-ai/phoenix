@@ -35,8 +35,6 @@ Re-deploy your application with the API key created above and you will see trace
 
 The following environment variables are optional but recommended:
 
-
-
 ## User Management
 
 Users can be added and removed from a Phoenix instance with authentication enabled. Users have one of two roles `admin` or `member`, see [permissions](authentication.md#permissions) below to learn more about the permissions for each role.
@@ -182,11 +180,11 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 
 1. In Google Cloud Console, select a GCP project in which to register your Phoenix OAuth2 app.
 2. Select **APIs and Services**.
-3. In the **Credentials** page, click on **Create Credentials** and select **OAuth Client ID**.&#x20;
+3. In the **Credentials** page, click on **Create Credentials** and select **OAuth Client ID**.
 4. From the **Application type** dropdown, select **Web application**.
 5. Enter a name for your Phoenix app, which will be displayed to users when signing in.
 6. Under **Authorized JavaScript origins**, click **Add URI** and enter the origin URL where you will access Phoenix in the browser.
-7. Under **Authorized redirect URIs**, click **Add URI**. Take the URL from the previous step and append the slug `/oauth2/google/tokens`. Enter this URL.
+7. Under **Authorized redirect URIs**, click **Add URI**. Take the URL from the previous step and append the slug `/oauth2/google/tokens`. Alternatively, if you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, append a slug of the form `/<root-path>/oauth2/google/tokens`. Enter the resulting URL.
 8. Copy your client ID and client secret.
 9. Deploy Phoenix with the three environment variables described above, substituting `GOOGLE` for `<IDP>`. The well-known configuration endpoint is `https://accounts.google.com/.well-known/openid-configuration`.
 
@@ -206,7 +204,7 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 9. Under **App Integration > App client list > App clients and analytics**, select your newly created client.
 10. Copy and save your client ID and client secret.
 11. Under **Hosted UI**, click **Edit**. On the **Edit Hosted UI** page:
-    1. Add an **Allowed callback URL** of the form `<origin-url>/oauth2/aws_cognito/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser.
+    1. Add an **Allowed callback URL** of the form `<origin-url>/oauth2/aws_cognito/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser. Alternatively, if you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, your callback URL will have the form `<origin-url>/<root-path>/oauth2/aws_cognito/tokens`.
     2. In the **Identity Providers** dropdown, select **Cognito user pool**.
     3. Under **OAuth 2.0 grant types**, select **Authorization code grant**.
     4. Under **OpenID Connect scopes**, select **OpenID**, **Email**, and **Profile**.
@@ -220,7 +218,7 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 2. Select **Add > App Registration**.
 3. On the **Register an Application** page:
    1. Enter a name for your application.
-   2. Under **Redirect URI**, in the **Select a platform** dropdown, select **Web** and a redirect URI of the form `<origin-url>/oauth2/microsoft_entra_id/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser.
+   2. Under **Redirect URI**, in the **Select a platform** dropdown, select **Web** and a redirect URI of the form `<origin-url>/oauth2/microsoft_entra_id/tokens`, where `<origin-url>` is the URL where you will access Phoenix in the browser. Alternatively, if you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, your redirect URI will have the form `<origin-url>/<root-path>/oauth2/microsoft_entra_id/tokens`.
 4. Copy and save the **Application (client) ID**.
 5. Under **Endpoints**, copy and save the well-known configuration endpoint under **OpenID Connect metadata document**.
 6. Under **Client credentials**, click **Add a certificate or secret**. Create a client secret and copy and save its value.
@@ -232,5 +230,5 @@ Phoenix can integrate with any OAuth2 IDP that supports OpenID Connect and has a
 
 1. Register a Phoenix client application with your IDP. If prompted to select an application type, select **traditional web application** or a similarly named application type that allows you to generate a client secret in addition to a client ID.
 2. Find the well-known configuration endpoint for your IDP.
-3. Deploy Phoenix with the environment variables described above, substituting `<IDP>` with your IDP name, e.g., `AUTH0`.
+3. Deploy Phoenix with the environment variables described above, substituting `<IDP>` with your IDP name, e.g., `AUTH0`. If you have configured a root path via the `PHOENIX_HOST_ROOT_PATH` environment variable, ensure that the root path is included in the path of your callback URL.
 4. Phoenix will make a best-effort attempt to display a readable name for your IDP on the login page based on the value substituted in the previous step. If you wish to customize the display name, for example, if your IDP name contains special characters, you may optionally configure the IDP name to be displayed with the `PHOENIX_OAUTH2_<IDP>_DISPLAY_NAME` environment variable.

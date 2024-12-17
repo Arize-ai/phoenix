@@ -2,7 +2,7 @@
 description: A deep dive into the details of a trace
 ---
 
-# What are Traces?
+# Traces
 
 ## Spans <a href="#user-content-spans" id="user-content-spans"></a>
 
@@ -57,15 +57,13 @@ Tracing makes debugging and understanding LLM applications less daunting by brea
 
 A trace is made of one or more spans. The first span represents the root span. Each root span represents a request from start to finish. The spans underneath the parent provide a more in-depth context of what occurs during a request (or what steps make up a request).
 
-
-
 ## Projects
 
-A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces. Projects can be useful for various use-cases such as separating out environments, logging traces for evaluation runs, etc. To learn more about how to setup projects,  see the [how-to guide.](../how-to-tracing/customize-traces.md#log-to-a-specific-project)
+A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces. Projects can be useful for various use-cases such as separating out environments, logging traces for evaluation runs, etc. To learn more about how to setup projects, see the [how-to guide](../how-to-tracing/setup-tracing/setup-tracing-python/#log-to-a-specific-project)
 
 ## Span Kind
 
-When a span is created,  it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, or Tool.&#x20;
+When a span is created, it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, or Tool.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_kinds.png" alt=""><figcaption><p>The SpanKinds supported by OpenInference Tracing</p></figcaption></figure>
 
@@ -95,8 +93,7 @@ A Tool is a span that represents a call to an external tool such as a calculator
 
 **AGENT**
 
-A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.\
-
+A span that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.\\
 
 ## Span Attributes
 
@@ -108,7 +105,3 @@ Attributes have the following rules:
 
 * Keys must be non-null string values
 * Values must be a non-null string, boolean, floating point value, integer, or an array of these values Additionally, there are Semantic Attributes, which are known naming conventions for metadata that is typically present in common operations. It's helpful to use semantic attribute naming wherever possible so that common kinds of metadata are standardized across systems. See [semantic conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md) for more information.
-
-##
-
-\

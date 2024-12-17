@@ -30,7 +30,7 @@ and should not contain any text or characters aside from that word.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 10/12/2023
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L12).
 {% endhint %}
 
 ## Benchmark Results
