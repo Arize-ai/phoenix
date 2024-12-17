@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4e02cae69ff9b96b268be86c66b40ee>>
+ * @generated SignedSource<<274a626dd3aa2fa1eeddc72a632e2cf1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type promptLoaderQuery$variables = {
   id: string;
 };
@@ -17,6 +18,7 @@ export type promptLoaderQuery$data = {
     readonly __typename: string;
     readonly id: string;
     readonly name?: string;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptTabContent__main">;
   };
 };
 export type promptLoaderQuery = {
@@ -34,58 +36,66 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": "prompt",
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "id",
-        "variableName": "id"
-      }
-    ],
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "node",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "__typename",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "id",
-        "storageKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          }
-        ],
-        "type": "Prompt",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "promptLoaderQuery",
-    "selections": (v1/*: any*/),
+    "selections": [
+      {
+        "alias": "prompt",
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v4/*: any*/),
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptTabContent__main"
+              }
+            ],
+            "type": "Prompt",
+            "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -94,19 +104,48 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "promptLoaderQuery",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": "prompt",
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v4/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "description",
+                "storageKey": null
+              }
+            ],
+            "type": "Prompt",
+            "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "a08f26b93468d63c0a76176105703d87",
+    "cacheID": "49b6d03554dbd24fadbec2f41d945beb",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n    }\n  }\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptTabContent__main\n    }\n  }\n}\n\nfragment PromptTabContent__aside on Prompt {\n  description\n}\n\nfragment PromptTabContent__main on Prompt {\n  ...PromptTabContent__aside\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2be55248f208b8502c9abc178078a721";
+(node as any).hash = "14626f5838d196eae3b58ebb40c43773";
 
 export default node;
