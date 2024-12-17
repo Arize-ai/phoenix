@@ -15,6 +15,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
+import { PromptComboBox } from "./PromptComboBox";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -24,6 +25,15 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
+  const prompt = instance?.prompt;
+  const promptId = prompt?.id;
+  const updateInstancePrompt = usePlaygroundContext(
+    (state) => state.updateInstancePrompt
+  );
+
+  // TODO(apowell): Sync instance state with promptId + version (or latest if unset)
+  // If it exists, and we can fetch it from gql, replace the instance with it
+  // If it doesn't exist, or we can't fetch it from gql, set the promptId to null
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
@@ -33,9 +43,22 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   return (
     <Card
       title={
-        <Flex direction="row" gap="size-100" alignItems="center">
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          marginEnd="size-100"
+        >
           <AlphabeticIndexIcon index={index} />
-          <span>Prompt</span>
+          <PromptComboBox
+            promptId={promptId}
+            onChange={(nextPromptId) => {
+              updateInstancePrompt({
+                instanceId,
+                patch: nextPromptId ? { id: nextPromptId } : null,
+              });
+            }}
+          />
         </Flex>
       }
       collapsible
