@@ -64,6 +64,8 @@ This output the trace ID and prints the path of the saved file:
 
 To load the previously saved trace dataset, use the trace ID and the specific directory path where the trace was stored.
 
+NOTE: Make sure to trim down to ONLY the UUID to load. Include path strings for directory only and note to the dataset ID
+
 ```notebook-python
 px.launch_app(trace=px.TraceDataset.load('f7733fda-6ad6-4427-a803-55ad2182b662', directory="/my_saved_traces/"))
 ```
