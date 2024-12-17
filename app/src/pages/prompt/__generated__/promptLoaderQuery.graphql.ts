@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<274a626dd3aa2fa1eeddc72a632e2cf1>>
+ * @generated SignedSource<<4a81e1f1513814f083bc51a07ce917a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type promptLoaderQuery$data = {
     readonly __typename: string;
     readonly id: string;
     readonly name?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"PromptTabContent__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptIndexPage__main">;
   };
 };
 export type promptLoaderQuery = {
@@ -86,7 +86,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "PromptTabContent__main"
+                "name": "PromptIndexPage__main"
               }
             ],
             "type": "Prompt",
@@ -136,16 +136,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "49b6d03554dbd24fadbec2f41d945beb",
+    "cacheID": "d761fdccc57a8447624373f49ed05cff",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptTabContent__main\n    }\n  }\n}\n\nfragment PromptTabContent__aside on Prompt {\n  description\n}\n\nfragment PromptTabContent__main on Prompt {\n  ...PromptTabContent__aside\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n    }\n  }\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n}\n\nfragment PromptIndexPage__main on Prompt {\n  ...PromptIndexPage__aside\n}\n"
   }
 };
 })();
 
-(node as any).hash = "14626f5838d196eae3b58ebb40c43773";
+(node as any).hash = "021f2527b6acd8cc4402bad932311b5a";
 
 export default node;

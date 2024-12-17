@@ -9,7 +9,10 @@ import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generat
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
+import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
+import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
+import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -43,7 +46,6 @@ import {
   ProjectsPage,
   ProjectsRoot,
   promptLoader,
-  PromptPage,
   promptsLoader,
   PromptsPage,
   resetPasswordLoader,
@@ -218,11 +220,13 @@ const router = createBrowserRouter(
                 },
               }}
             >
-              <Route index element={<PromptPage />} loader={promptLoader} />
+              <Route element={<PromptLayout />}>
+                <Route index element={<PromptIndexPage />} />
+                <Route path="versions" element={<PromptVersionsPage />} />
+              </Route>
               <Route
                 path="playground"
                 element={<PromptPlaygroundPage />}
-                loader={promptLoader}
                 handle={{
                   crumb: () => "Playground",
                 }}

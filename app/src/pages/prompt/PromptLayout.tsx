@@ -1,5 +1,5 @@
 import React from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -14,8 +14,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { promptLoaderQuery$data } from "./__generated__/promptLoaderQuery.graphql";
-import { PromptTabContent } from "./PromptTabContent";
+import { usePromptIdLoader } from "./usePromptIdLoader";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -45,9 +44,32 @@ const mainCSS = css`
   }
 `;
 
-export function PromptPage() {
-  const loaderData = useLoaderData() as promptLoaderQuery$data;
+/**
+ * Given a tab index and a promptId, return the URL for that tab.
+ */
+function makePromptUrl({
+  index,
+  promptId,
+}: {
+  index: number;
+  promptId: string;
+}) {
+  if (index === 1) {
+    return `/prompts/${promptId}/versions`;
+  } else {
+    return `/prompts/${promptId}`;
+  }
+}
+
+export function PromptLayout() {
+  const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  let tabIndex = 0;
+  if (pathname.includes("versions")) {
+    tabIndex = 1;
+  }
+
   return (
     <main css={mainCSS}>
       <View
@@ -75,12 +97,17 @@ export function PromptPage() {
           </Button>
         </Flex>
       </View>
-      <Tabs>
+      <Tabs
+        index={tabIndex}
+        onChange={(index) => {
+          navigate(makePromptUrl({ index, promptId: loaderData.prompt.id }));
+        }}
+      >
         <TabPane name={"Prompt"}>
-          <PromptTabContent prompt={loaderData.prompt} />
+          <Outlet />
         </TabPane>
         <TabPane name={"Versions"} extra={<Counter>0</Counter>}>
-          Versions
+          <Outlet />
         </TabPane>
       </Tabs>
     </main>

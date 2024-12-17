@@ -6,7 +6,11 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { promptLoaderQuery } from "./__generated__/promptLoaderQuery.graphql";
 
 /**
- * Loads in the necessary page data for the dataset page
+ * Loads in the necessary page data for the prompt/:promptId pages
+ *
+ * Child routes of prompt/:promptId will have access to this loader's data
+ * via usePromptIdLoader. They can add fragments to this loader's query to
+ * load additional data.
  */
 export async function promptLoader(args: LoaderFunctionArgs) {
   const { promptId } = args.params;
@@ -19,7 +23,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
           id
           ... on Prompt {
             name
-            ...PromptTabContent__main
+            ...PromptIndexPage__main
           }
         }
       }
