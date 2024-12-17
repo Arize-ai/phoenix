@@ -794,3 +794,160 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class PromptTagConfig(Base):
+    __tablename__ = "prompt_tag_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    description: Mapped[Optional[str]]
+
+    prompt_tags: Mapped[list["PromptTag"]] = relationship(
+        "PromptTag",
+        back_populates="prompt_tag_config",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
+class Prompt(Base):
+    __tablename__ = "prompts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_prompt_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    description: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    prompt_tags: Mapped[list["PromptTag"]] = relationship(
+        "PromptTag",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_versions: Mapped[list["PromptVersion"]] = relationship(
+        "PromptVersion",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_template_version_tags: Mapped[list["PromptTemplateVersionTag"]] = relationship(
+        "PromptTemplateVersionTag",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
+class PromptTag(Base):
+    __tablename__ = "prompt_tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prompt_tag_config_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_tag_configs.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    prompt_tag_config: Mapped["PromptTagConfig"] = relationship(
+        "PromptTagConfig", back_populates="prompt_tags"
+    )
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_tags")
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    template_type: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint("template_type IN ('chat', 'str')", name="template_type"),
+        nullable=False,
+    )
+    template_format: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "template_format IN ('fstring', 'mustache', 'none')", name="template_format"
+        ),
+        nullable=False,
+    )
+    template: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    invocation_parameters: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JsonDict, default=dict, nullable=True
+    )
+    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=dict, nullable=True)
+    output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JsonDict, default=dict, nullable=True
+    )
+    model_provider: Mapped[str]
+    model_name: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_versions")
+
+    prompt_template_version_tags: Mapped[list["PromptTemplateVersionTag"]] = relationship(
+        "PromptTemplateVersionTag",
+        back_populates="prompt_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class PromptTemplateVersionTag(Base):
+    __tablename__ = "prompt_template_version_tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_version_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_template_version_tags")
+    prompt_version: Mapped["PromptVersion"] = relationship(
+        "PromptVersion", back_populates="prompt_template_version_tags"
+    )
+
+    __table_args__ = (UniqueConstraint("name", "prompt_id"),)
