@@ -18,6 +18,7 @@ class PromptTemplateType(str, Enum):
 class PromptTemplateFormat(str, Enum):
     MUSTACHE = "mustache"
     FSTRING = "fstring"
+    NONE = "none"
 
 
 @strawberry.type
