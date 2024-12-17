@@ -190,12 +190,14 @@ def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
         tqdm.write(*args, **kwargs)
 
+
 def fetch_gcloud_data(url: str) -> Audio:
     token = None
     try:
         # Execute the gcloud command to fetch the access token
-        output = subprocess.check_output(["gcloud", "auth", "print-access-token"],
-                                         stderr=subprocess.STDOUT)
+        output = subprocess.check_output(
+            ["gcloud", "auth", "print-access-token"], stderr=subprocess.STDOUT
+        )
         token = output.decode("UTF-8").strip()
 
         # Ensure the token is not empty or None
@@ -216,50 +218,23 @@ def fetch_gcloud_data(url: str) -> Audio:
 
     # Must ensure that the url begins with storage.googleapis..., rather than store.cloud.google...
     G_API_HOST = "https://storage.googleapis.com/"
-    is_gcloud = url.startswith("https://storage.cloud.google.com/") or url.startswith(
-        "gs://") or url.startswith(G_API_HOST)
-    g_api_url = url.replace("https://storage.cloud.google.com/", G_API_HOST) if is_gcloud else url
+    not_googleapis = url.startswith("https://storage.cloud.google.com/") or url.startswith("gs://")
+    g_api_url = (
+        url.replace("https://storage.cloud.google.com/", G_API_HOST)
+        if url and not_googleapis
+        else url
+    )
 
     # Get a response back, present the status
     response = requests.get(g_api_url, headers=gcloud_header)
     response.raise_for_status()
 
-    encoded_string = base64.b64encode(response.content).decode('utf-8')
+    encoded_string = base64.b64encode(response.content).decode("utf-8")
 
     # Get the content type from the response headers
-    content_type = response.headers.get('Content-Type')
+    content_type = response.headers.get("Content-Type")
 
     # Replace 'audio/' with an empty string to get the audio format
-    audio_format = AudioFormat(content_type.replace('audio/', ''))
+    audio_format = AudioFormat(content_type.replace("audio/", ""))
 
     return Audio(data=encoded_string, format=audio_format)
-
-
-
-# def fetch_gcloud_audio_bytes(url: str) -> str:
-#     response = get_gcloud_response(url)
-#
-#     # Convert the audio byte data to a base64-encoded string, then decodes to usable UTF-8 format
-#     encoded_string = base64.b64encode(response.content).decode('utf-8')
-#
-#     response = get_gcloud_response(url)
-#
-#     # Get the content type from the response headers
-#     content_type = response.headers.get('Content-Type')
-#
-#     # Replace 'audio/' with an empty string to get the audio format
-#     audio_format = content_type.replace('audio/', '')
-#
-#     return encoded_string
-#
-#
-# def fetch_gcloud_audio_format(url: str) -> AudioFormat:
-#     response = get_gcloud_response(url)
-#
-#     # Get the content type from the response headers
-#     content_type = response.headers.get('Content-Type')
-#
-#     # Replace 'audio/' with an empty string to get the audio format
-#     audio_format = content_type.replace('audio/', '')
-#
-#     return AudioFormat(audio_format)

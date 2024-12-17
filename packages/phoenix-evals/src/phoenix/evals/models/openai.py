@@ -18,7 +18,7 @@ from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import AudioFormat, Audio
+from phoenix.evals.utils import AudioFormat
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -290,16 +290,15 @@ class OpenAIModel(BaseModel):
             elif part.content_type == PromptPartContentType.AUDIO_FORMAT:
                 audio_format = AudioFormat(part.content)
             elif part.content_type == PromptPartContentType.AUDIO_BYTES:
+                if not audio_format:
+                    raise ValueError("No audio format provided")
                 messages.append(
-                    {
+                    {  # type: ignore
                         "role": "user",
                         "content": [
                             {
                                 "type": "input_audio",
-                                "input_audio": {
-                                    "data": part.content,
-                                    "format": audio_format.value
-                                }
+                                "input_audio": {"data": part.content, "format": audio_format.value},
                             }
                         ],
                     }
@@ -340,10 +339,7 @@ class OpenAIModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
-        messages = self._build_messages(
-            prompt=prompt,
-            system_instruction=kwargs.get("instruction")
-        )
+        messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
@@ -384,7 +380,7 @@ class OpenAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _rate_limited_completion(self, audio_format: str, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
@@ -396,7 +392,6 @@ class OpenAIModel(BaseModel):
                         )
                     # OpenAI 1.0.0 API responses are pydantic objects, not dicts
                     # We must dump the model to get the dict
-                    # TODO consider if there are additional changes + consider 'modalities' parameter
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.BadRequestError as e:

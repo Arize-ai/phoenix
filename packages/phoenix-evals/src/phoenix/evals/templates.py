@@ -33,7 +33,6 @@ class PromptPartContentType(str, Enum):
     TEXT = "text"
     AUDIO_BYTES = "audio_bytes"
     AUDIO_FORMAT = "audio_format"
-    # AUDIO = "audio"
 
 
 @dataclass
