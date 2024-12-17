@@ -36,7 +36,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.experiment_run_filters import (
-    ExperimentRunFilterConditionParseError,
+    ExperimentRunFilterConditionSyntaxError,
     compile_orm_filter_condition,
     update_examples_query_with_filter_condition,
 )
@@ -437,7 +437,7 @@ class Query:
                 is_valid=True,
                 error_message=None,
             )
-        except ExperimentRunFilterConditionParseError as error:
+        except ExperimentRunFilterConditionSyntaxError as error:
             return ValidationResult(
                 is_valid=False,
                 error_message=str(error),
