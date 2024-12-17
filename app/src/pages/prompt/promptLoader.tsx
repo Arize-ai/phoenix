@@ -19,6 +19,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
           id
           ... on Prompt {
             name
+            ...PromptTabContent__main
           }
         }
       }
