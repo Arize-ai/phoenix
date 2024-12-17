@@ -878,7 +878,7 @@ class PromptVersion(Base):
         index=True,
         nullable=False,
     )
-    description: Mapped[str]
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
@@ -886,13 +886,13 @@ class PromptVersion(Base):
     )
     template_type: Mapped[str] = mapped_column(
         String,
-        CheckConstraint("template_type IN ('chat', 'str')", name="ck_template_type"),
+        CheckConstraint("template_type IN ('chat', 'str')", name="template_type"),
         nullable=False,
     )
     template_format: Mapped[str] = mapped_column(
         String,
         CheckConstraint(
-            "template_format IN ('fstring', 'mustache', 'none')", name="ck_template_format"
+            "template_format IN ('fstring', 'mustache', 'none')", name="template_format"
         ),
         nullable=False,
     )
@@ -923,7 +923,7 @@ class PromptTemplateVersionTag(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]]
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     prompt_id: Mapped[int] = mapped_column(
         ForeignKey("prompts.id", ondelete="CASCADE"),
         index=True,

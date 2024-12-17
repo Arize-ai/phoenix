@@ -50,7 +50,6 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String),
-        sa.UniqueConstraint("name", name="uq_prompt_tag_configs_name"),
     )
 
     op.create_table(
@@ -68,9 +67,9 @@ def upgrade() -> None:
             "updated_at",
             sa.TIMESTAMP(timezone=True),
             server_default=sa.func.now(),
+            nullable=False,
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint("name", name="uq_prompts_name"),
     )
 
     op.create_table(
@@ -102,7 +101,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("description", sa.String, nullable=False),
+        sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "user_id",
             sa.Integer,
@@ -115,7 +114,7 @@ def upgrade() -> None:
             sa.String,
             sa.CheckConstraint(
                 "template_type IN ('chat', 'str')",
-                name="ck_template_type",
+                name="template_type",
             ),
             nullable=False,
         ),
@@ -124,7 +123,7 @@ def upgrade() -> None:
             sa.String,
             sa.CheckConstraint(
                 "template_format IN ('fstring', 'mustache', 'none')",
-                name="ck_template_format",
+                name="template_format",
             ),
             nullable=False,
         ),
@@ -146,7 +145,7 @@ def upgrade() -> None:
         "prompt_template_version_tags",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False),
-        sa.Column("description", sa.String),
+        sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "prompt_id",
             sa.Integer,
