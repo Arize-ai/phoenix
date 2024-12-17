@@ -1,5 +1,6 @@
 import ast
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional, Union, get_args
 
@@ -48,7 +49,7 @@ SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanati
 def update_examples_query_with_filter_condition(
     query: Select[Any], filter_condition: str, experiment_ids: list[int]
 ) -> Select[Any]:
-    orm_filter_condition, transformer = compile_orm_filter_condition(
+    orm_filter_condition, transformer = compile_sqlalchemy_filter_condition(
         filter_condition=filter_condition, experiment_ids=experiment_ids
     )
     for experiment_id in experiment_ids:
@@ -81,16 +82,37 @@ def update_examples_query_with_filter_condition(
     return query
 
 
-def compile_orm_filter_condition(
+def compile_sqlalchemy_filter_condition(
     filter_condition: str, experiment_ids: list[int]
-) -> tuple[Any, "ExperimentRunFilterTransformer"]:
+) -> tuple[Any, "SQLAlchemyTransformer"]:
     try:
-        tree = ast.parse(filter_condition, mode="eval")
+        original_tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
         raise ExperimentRunFilterConditionSyntaxError.from_syntax_error(error)
-    transformer = ExperimentRunFilterTransformer(experiment_ids)
-    transformed_tree = transformer.visit(tree)
-    node = transformed_tree.body
+
+    trees_with_bound_attribute_names = _bind_free_attribute_names(original_tree, experiment_ids)
+    has_free_attribute_names = bool(trees_with_bound_attribute_names)
+    if has_free_attribute_names:
+        # compile the filter condition once for each experiment and return the disjunction
+        sqlalchemy_transformer = SQLAlchemyTransformer(experiment_ids=experiment_ids)
+        compiled_filter_conditions: dict[ExperimentID, BinaryExpression[Any]] = {}
+        for experiment_id, tree in trees_with_bound_attribute_names.items():
+            sqlalchemy_tree = sqlalchemy_transformer.visit(tree)
+            node = sqlalchemy_tree.body
+            if not isinstance(node, BooleanExpression):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    message="Filter condition must be a boolean expression",
+                    source=filter_condition,
+                    start_offset=0,
+                    end_offset=len(filter_condition),
+                )
+            compiled_filter_conditions[experiment_id] = node.compile()
+        return or_(*compiled_filter_conditions.values()), sqlalchemy_transformer
+
+    # compile the filter condition once for all experiments
+    sqlalchemy_transformer = SQLAlchemyTransformer(experiment_ids)
+    sqlalchemy_tree = sqlalchemy_transformer.visit(original_tree)
+    node = sqlalchemy_tree.body
     if not isinstance(node, BooleanExpression):
         raise ExperimentRunFilterConditionSyntaxError(
             message="Filter condition must be a boolean expression",
@@ -98,8 +120,55 @@ def compile_orm_filter_condition(
             start_offset=0,
             end_offset=len(filter_condition),
         )
-    orm_filter_condition = node.compile()
-    return orm_filter_condition, transformer
+    compiled_filter_condition = node.compile()
+    return compiled_filter_condition, sqlalchemy_transformer
+
+
+def _bind_free_attribute_names(
+    tree: ast.AST, experiment_ids: list[ExperimentID]
+) -> dict[ExperimentID, ast.AST]:
+    trees_with_bound_attribute_names: dict[ExperimentID, ast.AST] = {}
+    for experiment_index, experiment_id in enumerate(experiment_ids):
+        binder = FreeAttributeNameBinder(experiment_index=experiment_index)
+        trees_with_bound_attribute_names[experiment_id] = binder.visit(deepcopy(tree))
+        has_free_attribute_names = binder.binds_free_attribute_name
+        if not has_free_attribute_names:
+            return {}  # return early since there are no free attribute names
+    return trees_with_bound_attribute_names
+
+
+class FreeAttributeNameBinder(ast.NodeTransformer):
+    def __init__(self, *, experiment_index: int) -> None:
+        super().__init__()
+        self._experiment_index = experiment_index
+        self._binds_free_attribute_name = False
+
+    def visit_Name(self, node: ast.Name) -> Any:
+        name = node.id
+        if _is_supported_experiment_run_attribute_name(name):
+            if name == "input" or name == "reference_output":
+                # These attributes are pulled from the dataset example revision
+                # rather than the experiment run and hence are not free
+                # attributes names.
+                return node
+            elif name == "output" or name == "error" or name == "latency_ms" or name == "evals":
+                self._binds_free_attribute_name = True
+                attribute_node = ast.Attribute(
+                    value=ast.Subscript(
+                        value=ast.Name(id="experiments", ctx=ast.Load()),
+                        slice=ast.Constant(value=self._experiment_index),
+                        ctx=ast.Load(),
+                    ),
+                    attr=name,
+                    ctx=node.ctx,
+                )
+                return attribute_node
+            assert_never(name)
+        return node
+
+    @property
+    def binds_free_attribute_name(self) -> bool:
+        return self._binds_free_attribute_name
 
 
 class ExperimentRunFilterConditionSyntaxError(Exception):
@@ -242,7 +311,7 @@ class Attribute(Term):
 
 @dataclass(frozen=True)
 class HasAliasedTables:
-    transformer: "ExperimentRunFilterTransformer"
+    transformer: "SQLAlchemyTransformer"
 
     def experiment_run_alias(self, experiment_id: ExperimentID) -> Any:
         return self.transformer.get_experiment_runs_alias(
@@ -262,7 +331,7 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
     _attribute_name: SupportedExperimentRunAttributeName = field(init=False)
 
     def __post_init__(self) -> None:
-        if not _is_supported_attribute_name(self.attribute_name):
+        if not _is_supported_experiment_run_attribute_name(self.attribute_name):
             raise ExperimentRunFilterConditionSyntaxError.from_ast_node(
                 message="Unknown name", node=self.ast_node
             )
@@ -507,7 +576,7 @@ class BooleanOperation(BooleanExpression):
         )
 
 
-class ExperimentRunFilterTransformer(ast.NodeTransformer):
+class SQLAlchemyTransformer(ast.NodeTransformer):
     def __init__(self, experiment_ids: list[int]) -> None:
         if not experiment_ids:
             raise ValueError("Must provide one or more experiments")
@@ -730,16 +799,16 @@ def _is_supported_comparison_operator(
     return isinstance(operator, get_args(SupportedComparisonOperator))
 
 
-def _is_supported_attribute_name(
-    attribute_name: str,
+def _is_supported_experiment_run_attribute_name(
+    name: str,
 ) -> TypeGuard[SupportedExperimentRunAttributeName]:
-    return attribute_name in get_args(SupportedExperimentRunAttributeName)
+    return name in get_args(SupportedExperimentRunAttributeName)
 
 
 def _is_supported_experiment_run_eval_attribute_name(
-    attribute_name: str,
+    name: str,
 ) -> TypeGuard[SupportedExperimentRunEvalAttributeName]:
-    return attribute_name in get_args(SupportedExperimentRunEvalAttributeName)
+    return name in get_args(SupportedExperimentRunEvalAttributeName)
 
 
 def _is_supported_unary_boolean_operator(
@@ -754,14 +823,35 @@ def _is_supported_unary_term_operator(
     return isinstance(operator, SupportedUnaryTermOperator)
 
 
+if __name__ == "__main__":
+    expressions = [
+        "input['score'] < 10",
+        "output['score'] < 10",
+        "'invalid' in error",
+        "latency_ms < 1000",
+        "evals['hallucination'].score < 10",
+        "reference_output['score'] < 10",
+    ]
+    for expression in expressions:
+        print(f"{expression=}")
+        orm_filter_expression, _ = compile_sqlalchemy_filter_condition(
+            filter_condition=expression,
+            experiment_ids=[0, 1],
+        )
+        sql_filter_expression = str(
+            orm_filter_expression.compile(compile_kwargs={"literal_binds": True})
+        )
+        print(f"{sql_filter_expression=}")
+
+
 # if __name__ == "__main__":
 #     expressions = [
-#         "-'hello' < 10",
+#         "output['score'] < 10",
 #     ]
 
 #     for expression in expressions:
 #         tree = ast.parse(expression, mode="eval")
-#         transformer = ExperimentRunFilterTransformer([0, 1, 2])
+#         transformer = SQLAlchemyTransformer([0, 1, 2])
 #         transformed_tree = transformer.visit(tree)
 #         node = transformed_tree.body
 #         orm_filter_expression = node.compile()
