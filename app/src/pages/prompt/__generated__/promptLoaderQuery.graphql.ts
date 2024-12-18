@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<274a626dd3aa2fa1eeddc72a632e2cf1>>
+ * @generated SignedSource<<e046fd4e0f1bfd9c3d25ca714ba62846>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type promptLoaderQuery$data = {
     readonly __typename: string;
     readonly id: string;
     readonly name?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"PromptTabContent__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptIndexPage__main" | "PromptLayout__main" | "PromptVersionsPageContent__main">;
   };
 };
 export type promptLoaderQuery = {
@@ -61,6 +61,13 @@ v4 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -86,7 +93,17 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "PromptTabContent__main"
+                "name": "PromptIndexPage__main"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptVersionsPageContent__main"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptLayout__main"
               }
             ],
             "type": "Prompt",
@@ -119,11 +136,52 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
+              (v5/*: any*/),
               {
                 "alias": null,
                 "args": null,
-                "kind": "ScalarField",
-                "name": "description",
+                "concreteType": "PromptVersionConnection",
+                "kind": "LinkedField",
+                "name": "promptVersions",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersionEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "version",
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v5/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               }
             ],
@@ -136,16 +194,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "49b6d03554dbd24fadbec2f41d945beb",
+    "cacheID": "1ef3f5e1a5129f8ff263db17d9937da0",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptTabContent__main\n    }\n  }\n}\n\nfragment PromptTabContent__aside on Prompt {\n  description\n}\n\nfragment PromptTabContent__main on Prompt {\n  ...PromptTabContent__aside\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n}\n\nfragment PromptIndexPage__main on Prompt {\n  ...PromptIndexPage__aside\n}\n\nfragment PromptLayout__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        description\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
   }
 };
 })();
 
-(node as any).hash = "14626f5838d196eae3b58ebb40c43773";
+(node as any).hash = "dd012c15d97eec72a33a69900a92dc9a";
 
 export default node;
