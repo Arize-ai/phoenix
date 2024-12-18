@@ -23,6 +23,7 @@ import {
 } from "@arizeai/components";
 
 import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
@@ -176,16 +177,9 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
-          <div
-            css={css`
-              max-width: ${MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}px;
-              text-overflow: ellipsis;
-              overflow: hidden;
-              white-space: nowrap;
-            `}
-          >
+          <Truncate maxWidth={MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}>
             <Text>{instance.model.modelName || "--"}</Text>
-          </div>
+          </Truncate>
           {!requiredInvocationParametersConfigured ? (
             <TooltipTrigger delay={0} offset={5}>
               <span>
