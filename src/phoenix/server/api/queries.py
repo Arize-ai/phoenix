@@ -583,6 +583,7 @@ class Query:
                             }
                         ],
                     },
+                    output_schema=None
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
@@ -602,6 +603,9 @@ class Query:
                             }
                         ],
                     },
+                    invocation_parameters=None,
+                    tools=None,
+                    output_schema=None,
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
