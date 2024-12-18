@@ -10,8 +10,8 @@ from strawberry.scalars import JSON
 
 @strawberry.enum
 class PromptTemplateType(str, Enum):
-    TEXT = "text"
-    JSON = "json"
+    STRING = "str"
+    CHAT = "chat"
 
 
 @strawberry.enum
