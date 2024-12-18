@@ -31,8 +31,8 @@ class SessionIODataLoader(DataLoader[Key, Result]):
         )
         if self._kind == "first_input":
             stmt = stmt.add_columns(
-                models.Span.attributes[INPUT_VALUE].label("value"),
-                models.Span.attributes[INPUT_MIME_TYPE].label("mime_type"),
+                models.Span.attributes[INPUT_VALUE].as_string().label("value"),
+                models.Span.attributes[INPUT_MIME_TYPE].as_string().label("mime_type"),
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
@@ -42,8 +42,8 @@ class SessionIODataLoader(DataLoader[Key, Result]):
             )
         elif self._kind == "last_output":
             stmt = stmt.add_columns(
-                models.Span.attributes[OUTPUT_VALUE].label("value"),
-                models.Span.attributes[OUTPUT_MIME_TYPE].label("mime_type"),
+                models.Span.attributes[OUTPUT_VALUE].as_string().label("value"),
+                models.Span.attributes[OUTPUT_MIME_TYPE].as_string().label("mime_type"),
                 func.row_number()
                 .over(
                     partition_by=models.Trace.project_session_rowid,
@@ -57,7 +57,11 @@ class SessionIODataLoader(DataLoader[Key, Result]):
 
     def _stmt(self, *keys: Key) -> Select[tuple[int, str, str]]:
         subq = self._subq.where(models.Trace.project_session_rowid.in_(keys)).subquery()
-        return select(subq.c.id_, subq.c.value, subq.c.mime_type).filter_by(rank=1)
+        return (
+            select(subq.c.id_, subq.c.value, subq.c.mime_type)
+            .filter_by(rank=1)
+            .where(subq.c.value.isnot(None))
+        )
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         async with self._db() as session:
