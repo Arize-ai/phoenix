@@ -13,6 +13,7 @@ import {
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { ChatTemplateMessage } from "./ChatTemplateMessage";
+import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
@@ -26,14 +27,26 @@ export function PromptIndexPageContent({
   prompt: PromptIndexPage__main$key;
 }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
-  const data = useFragment(
+  const data = useFragment<PromptIndexPage__main$key>(
     graphql`
       fragment PromptIndexPage__main on Prompt {
+        promptVersions {
+          edges {
+            node {
+              id
+              invocationParameters
+            }
+          }
+        }
         ...PromptIndexPage__aside
       }
     `,
     prompt
   );
+
+  // TODO: Maybe we should add a property to Prompt schema to get the latest version?
+  const latestPromptVersion = data?.promptVersions?.edges?.[0]?.node;
+
   return (
     <Flex direction="row" height="100%">
       <View flex="1 1 auto" padding="size-200">
@@ -51,7 +64,9 @@ export function PromptIndexPageContent({
             </Flex>
           </Card>
           <Card title="Model Configuration" variant="compact">
-            <View padding="lg">model configuration</View>
+            <PromptInvocationParameters
+              invocationParameters={latestPromptVersion?.invocationParameters}
+            />
           </Card>
           <Card
             title="Code"

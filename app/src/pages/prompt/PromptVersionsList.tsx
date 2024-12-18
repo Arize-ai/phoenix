@@ -58,6 +58,8 @@ type PromptVersionsListProps = {
   prompt: PromptVersionsList__main$key;
 };
 
+const PROMPT_VERSIONS_LIST_WIDTH = 300;
+
 /**
  * Full height, scrollable, list of prompt versions
  */
@@ -81,8 +83,13 @@ export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
     prompt
   );
   return (
-    <View height="100%" overflow="scroll">
-      <Flex direction="column" width={300}>
+    <View
+      height="100%"
+      overflow="scroll"
+      width={PROMPT_VERSIONS_LIST_WIDTH}
+      minWidth={PROMPT_VERSIONS_LIST_WIDTH}
+    >
+      <Flex direction="column">
         {promptVersions.edges.map(({ version }) => (
           <PromptVersionItem key={version.id} version={version} />
         ))}
