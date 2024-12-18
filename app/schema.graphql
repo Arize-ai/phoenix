@@ -1889,8 +1889,6 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
-  errorStartOffset: Int
-  errorEndOffset: Int
 }
 
 enum VectorDriftMetric {
