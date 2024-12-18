@@ -10,20 +10,26 @@ import {
   PythonBlock,
 } from "@phoenix/components/code";
 
-import { PromptTabContent__aside$key } from "./__generated__/PromptTabContent__aside.graphql";
-import { PromptTabContent__main$key } from "./__generated__/PromptTabContent__main.graphql";
+import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
+import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { ChatTemplateMessage } from "./ChatTemplateMessage";
+import { usePromptIdLoader } from "./usePromptIdLoader";
 
-export function PromptTabContent({
+export function PromptIndexPage() {
+  const loaderData = usePromptIdLoader();
+  return <PromptIndexPageContent prompt={loaderData.prompt} />;
+}
+
+export function PromptIndexPageContent({
   prompt,
 }: {
-  prompt: PromptTabContent__main$key;
+  prompt: PromptIndexPage__main$key;
 }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
   const data = useFragment(
     graphql`
-      fragment PromptTabContent__main on Prompt {
-        ...PromptTabContent__aside
+      fragment PromptIndexPage__main on Prompt {
+        ...PromptIndexPage__aside
       }
     `,
     prompt
@@ -61,7 +67,7 @@ export function PromptTabContent({
           </Card>
         </Flex>
       </View>
-      <PromptTabContentAside prompt={data} />
+      <PromptIndexPageAside prompt={data} />
     </Flex>
   );
 }
@@ -70,14 +76,14 @@ export function PromptTabContent({
  * The aside content for the prompt details. Displays the description,
  * tags, and history
  */
-function PromptTabContentAside({
+function PromptIndexPageAside({
   prompt,
 }: {
-  prompt: PromptTabContent__aside$key;
+  prompt: PromptIndexPage__aside$key;
 }) {
   const data = useFragment(
     graphql`
-      fragment PromptTabContent__aside on Prompt {
+      fragment PromptIndexPage__aside on Prompt {
         description
       }
     `,
