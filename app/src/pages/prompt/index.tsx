@@ -1,2 +1,2 @@
 export * from "./promptLoader";
-export * from "./PromptPage";
+export * from "./PromptLayout";

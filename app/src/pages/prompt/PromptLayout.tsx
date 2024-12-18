@@ -1,5 +1,7 @@
 import React from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useFragment } from "react-relay";
+import { Outlet, useLocation, useNavigate } from "react-router";
+import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
@@ -14,8 +16,8 @@ import {
   View,
 } from "@arizeai/components";
 
-import { promptLoaderQuery$data } from "./__generated__/promptLoaderQuery.graphql";
-import { PromptTabContent } from "./PromptTabContent";
+import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
+import { usePromptIdLoader } from "./usePromptIdLoader";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -45,9 +47,30 @@ const mainCSS = css`
   }
 `;
 
-export function PromptPage() {
-  const loaderData = useLoaderData() as promptLoaderQuery$data;
+export function PromptLayout() {
+  const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  let tabIndex = 0;
+  if (pathname.includes("versions")) {
+    tabIndex = 1;
+  }
+
+  const data = useFragment<PromptLayout__main$key>(
+    graphql`
+      fragment PromptLayout__main on Prompt {
+        promptVersions {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    `,
+    loaderData.prompt
+  );
+
   return (
     <main css={mainCSS}>
       <View
@@ -75,12 +98,26 @@ export function PromptPage() {
           </Button>
         </Flex>
       </View>
-      <Tabs>
+      <Tabs
+        index={tabIndex}
+        onChange={(index) => {
+          let url: string;
+          if (index === 1) {
+            url = `/prompts/${loaderData.prompt.id}/versions`;
+          } else {
+            url = `/prompts/${loaderData.prompt.id}`;
+          }
+          navigate(url);
+        }}
+      >
         <TabPane name={"Prompt"}>
-          <PromptTabContent prompt={loaderData.prompt} />
+          <Outlet />
         </TabPane>
-        <TabPane name={"Versions"} extra={<Counter>0</Counter>}>
-          Versions
+        <TabPane
+          name={"Versions"}
+          extra={<Counter>{data.promptVersions.edges.length}</Counter>}
+        >
+          <Outlet />
         </TabPane>
       </Tabs>
     </main>
