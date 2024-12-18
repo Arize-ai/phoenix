@@ -5,11 +5,6 @@ from typing import Optional, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from phoneix.server.api.types.PromptVersion import (
-    PromptTemplateFormat,
-    PromptTemplateType,
-    PromptVersion,
-)
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
@@ -19,24 +14,12 @@ from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
 from phoenix.db import enums, models
-from phoenix.db.models import (
-    DatasetExample as OrmExample,
-)
-from phoenix.db.models import (
-    DatasetExampleRevision as OrmRevision,
-)
-from phoenix.db.models import (
-    DatasetVersion as OrmVersion,
-)
-from phoenix.db.models import (
-    Experiment as OrmExperiment,
-)
-from phoenix.db.models import (
-    ExperimentRun as OrmRun,
-)
-from phoenix.db.models import (
-    Trace as OrmTrace,
-)
+from phoenix.db.models import DatasetExample as OrmExample
+from phoenix.db.models import DatasetExampleRevision as OrmRevision
+from phoenix.db.models import DatasetVersion as OrmVersion
+from phoenix.db.models import Experiment as OrmExperiment
+from phoenix.db.models import ExperimentRun as OrmRun
+from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -45,14 +28,9 @@ from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import (
-    InputCoordinate2D,
-    InputCoordinate3D,
-)
+from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import (
-    InvocationParameter,
-)
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -70,21 +48,19 @@ from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, 
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
-from phoenix.server.api.types.GenerativeProvider import (
-    GenerativeProvider,
-    GenerativeProviderKey,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt
+from phoenix.server.api.types.PromptVersion import (
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptVersion,
+)
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
