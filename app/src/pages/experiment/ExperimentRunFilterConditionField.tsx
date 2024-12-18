@@ -85,66 +85,50 @@ function filterConditionCompletions(
     from: word.from,
     options: [
       {
-        label: "span_kind",
+        label: "input",
         type: "variable",
-        info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
+        info: "The input of the dataset example",
       },
       {
-        label: "status_code",
+        label: "reference_output",
         type: "variable",
-        info: "The span status: OK, UNSET, or ERROR",
+        info: "The reference output of the dataset example",
       },
       {
-        label: "input.value",
+        label: "metadata",
         type: "variable",
-        info: "The input value of a span, typically a query",
+        info: "The metadata of the dataset example",
       },
       {
-        label: "output.value",
+        label: "output",
         type: "variable",
-        info: "The output value of a span, typically a response",
+        info: "The output of the experiment run",
       },
       {
-        label: "name",
+        label: "error",
         type: "variable",
-        info: "The name given to a span - e.x. OpenAI",
+        info: "The error message of the experiment run (if exists)",
       },
       {
         label: "latency_ms",
         type: "variable",
-        info: "Latency (i.e. duration) in milliseconds",
+        info: "The duration of the experiment run in milliseconds",
       },
       {
-        label: "cumulative_token_count.prompt",
+        label: "evals",
         type: "variable",
-        info: "Sum of token count for prompt from self and all child spans",
-      },
-      {
-        label: "cumulative_token_count.completion",
-        type: "variable",
-        info: "Sum of token count for completion from self and all child spans",
-      },
-      {
-        label: "cumulative_token_count.total",
-        type: "variable",
-        info: "Sum of token count total (prompt + completion) from self and all child spans",
-      },
-      {
-        label: "llm spans",
-        type: "text",
-        apply: "span_kind == 'LLM'",
-        detail: "macro",
-      },
-      {
-        label: "retriever spans",
-        type: "text",
-        apply: "span_kind == 'RETRIEVER'",
-        detail: "macro",
+        info: "The evaluations of the experiment run",
       },
       {
         label: "search input",
         type: "text",
-        apply: "'' in input.value",
+        apply: "'' in input",
+        detail: "macro",
+      },
+      {
+        label: "search reference output",
+        type: "text",
+        apply: "'' in reference_output",
         detail: "macro",
       },
       {
@@ -154,9 +138,9 @@ function filterConditionCompletions(
         detail: "macro",
       },
       {
-        label: "status_code error",
+        label: "has error",
         type: "text",
-        apply: "status_code == 'ERROR'",
+        apply: "error is not None",
         detail: "macro",
       },
       {
@@ -174,25 +158,13 @@ function filterConditionCompletions(
       {
         label: "Hallucinations",
         type: "text",
-        apply: "annotations['Hallucination'].label == 'hallucinated'",
-        detail: "macro",
-      },
-      {
-        label: "Annotations",
-        type: "text",
-        apply: "annotations['Hallucination'].label == 'hallucinated'",
+        apply: "evals['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
       {
         label: "Metadata",
         type: "text",
-        apply: "metadata['topic'] == 'agent'",
-        detail: "macro",
-      },
-      {
-        label: "Substring",
-        type: "text",
-        apply: "'agent' in input.value",
+        apply: "metadata['category'] == 'hard_examples'",
         detail: "macro",
       },
     ],
@@ -385,45 +357,51 @@ function FilterConditionBuilder(props: {
     >
       <Form>
         <FilterConditionSnippet
-          key="kind"
-          label="filter by kind"
-          initialSnippet="span_kind == 'LLM'"
+          key="substring"
+          label="filter by substring"
+          initialSnippet="'search term' in output['key']"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
-          key="token_count"
-          label="filter by token count"
-          initialSnippet="cumulative_token_count.total > 1000"
-          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
-        />
-        <FilterConditionSnippet
-          key="annotation_label"
-          label="filter by annotation label"
-          initialSnippet="annotations['Hallucination'].label == 'hallucinated'"
+          key="substring"
+          label="filter on errors"
+          initialSnippet="error is not None"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="eval_label"
           label="filter by evaluation label"
-          initialSnippet="evals['Hallucination'].label == 'hallucinated'"
+          initialSnippet="evals['hallucination'].label == 'hallucinated'"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="eval_score"
           label="filter by evaluation score"
-          initialSnippet="evals['Hallucination'].score < 1"
+          initialSnippet="evals['hallucination'].score >= 0.5"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="compare_experiments"
+          label="compare experiments"
+          initialSnippet="evals['hallucination'].score < experiments[0].evals['hallucination'].score"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="eval_explanation"
+          label="filter by evaluation explanation"
+          initialSnippet="'search term' in evals['hallucination'].explanation"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="metadata"
           label="filter by metadata"
-          initialSnippet="metadata['topic'] == 'agent'"
+          initialSnippet="metadata['category'] == 'hard_examples'"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
-          key="substring"
-          label="filter by substring"
-          initialSnippet="'agent' in input.value"
+          key="latency"
+          label="filter by latency"
+          initialSnippet="latency_ms >= 10_000"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
       </Form>
