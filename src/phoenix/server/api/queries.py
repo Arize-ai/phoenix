@@ -618,7 +618,7 @@ class Query:
         return to_gql_user(user)
 
     @strawberry.field
-    def prompts(
+    async def prompts(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
