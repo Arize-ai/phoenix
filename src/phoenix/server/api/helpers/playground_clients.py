@@ -476,10 +476,12 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
-        "o1-preview",
-        "o1-preview-2024-09-12",
+        "o1",
+        "o1-2024-12-17",
         "o1-mini",
         "o1-mini-2024-09-12",
+        "o1-preview",
+        "o1-preview-2024-09-12",
     ],
 )
 class OpenAIO1StreamingClient(OpenAIStreamingClient):
@@ -500,6 +502,11 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="tool_choice",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+            JSONInvocationParameter(
+                invocation_name="response_format",
+                label="Response Format",
+                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
             ),
         ]
 
