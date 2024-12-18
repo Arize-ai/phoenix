@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ccb1e35501572458779e2e8d70ead51>>
+ * @generated SignedSource<<707bc96a0fe2c47c86398c05cf6394cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -160,14 +160,14 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
                           {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
                             "name": "invocationParameters",
                             "storageKey": null
-                          }
+                          },
+                          (v3/*: any*/)
                         ],
                         "storageKey": null
                       },
@@ -201,12 +201,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "afd579fbdc8c67b692b7ff41c0cf458e",
+    "cacheID": "c75f5c234fcf302f4e4a93447f8daa70",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        id\n        invocationParameters\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptLayout__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        description\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        ...PromptInvocationParameters__main\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptLayout__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        description\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
   }
 };
 })();

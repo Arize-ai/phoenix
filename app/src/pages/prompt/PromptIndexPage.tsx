@@ -33,8 +33,7 @@ export function PromptIndexPageContent({
         promptVersions {
           edges {
             node {
-              id
-              invocationParameters
+              ...PromptInvocationParameters__main
             }
           }
         }
@@ -44,8 +43,7 @@ export function PromptIndexPageContent({
     prompt
   );
 
-  // TODO: Maybe we should add a property to Prompt schema to get the latest version?
-  const latestPromptVersion = data?.promptVersions?.edges?.[0]?.node;
+  const latestVersion = data?.promptVersions?.edges?.[0]?.node;
 
   return (
     <Flex direction="row" height="100%">
@@ -64,9 +62,7 @@ export function PromptIndexPageContent({
             </Flex>
           </Card>
           <Card title="Model Configuration" variant="compact">
-            <PromptInvocationParameters
-              invocationParameters={latestPromptVersion?.invocationParameters}
-            />
+            <PromptInvocationParameters promptVersion={latestVersion} />
           </Card>
           <Card
             title="Code"

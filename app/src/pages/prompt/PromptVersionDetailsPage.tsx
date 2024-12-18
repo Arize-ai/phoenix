@@ -26,9 +26,7 @@ function PromptVersionDetailsPageContent({
         marginEnd="auto"
       >
         <Card title="Model Configuration" variant="compact">
-          <PromptInvocationParameters
-            invocationParameters={promptVersion.invocationParameters}
-          />
+          <PromptInvocationParameters promptVersion={promptVersion} />
         </Card>
       </Flex>
     </View>

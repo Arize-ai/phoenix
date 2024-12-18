@@ -1,8 +1,11 @@
 import React, { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import { isObject } from "lodash";
 import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
+
+import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
 
 function PromptInvocationParameterItem({
   keyName,
@@ -30,12 +33,21 @@ const promptInvocationParametersCSS = css`
 `;
 
 type PromptInvocationParametersProps = {
-  invocationParameters: Record<string, unknown>;
+  promptVersion: PromptInvocationParameters__main$key;
 };
 
 export function PromptInvocationParameters({
-  invocationParameters,
+  promptVersion,
 }: PromptInvocationParametersProps) {
+  const { invocationParameters } =
+    useFragment<PromptInvocationParameters__main$key>(
+      graphql`
+        fragment PromptInvocationParameters__main on PromptVersion {
+          invocationParameters
+        }
+      `,
+      promptVersion
+    );
   const parameters = useMemo(() => {
     if (!isObject(invocationParameters)) {
       return [];
