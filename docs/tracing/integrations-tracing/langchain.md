@@ -138,7 +138,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## Install
 
 ```bash
-pip install openinference-instrumentation-langchain
+pip install openinference-instrumentation-langchain langchain_openai
 ```
 
 ## Setup
@@ -170,6 +170,6 @@ Now that you have tracing setup, all invocations of chains will be streamed to y
 
 ## Resources
 
-* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain\_tracing\_tutorial.ipynb)
+* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain)
 * [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-langchain/examples)
