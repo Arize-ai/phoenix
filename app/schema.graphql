@@ -1374,6 +1374,7 @@ type Prompt implements Node {
   name: String!
   description: String
   createdAt: DateTime!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
 }
 
 """A connection to a list of items."""
@@ -1405,11 +1406,12 @@ type PromptResponse {
 enum PromptTemplateFormat {
   MUSTACHE
   FSTRING
+  NONE
 }
 
 enum PromptTemplateType {
-  TEXT
-  JSON
+  STRING
+  CHAT
 }
 
 type PromptVersion implements Node {
@@ -1463,7 +1465,6 @@ type Query {
   node(id: GlobalID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
-  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
