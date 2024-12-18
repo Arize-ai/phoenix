@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<be9924215eda06be678465f7cd8f5b33>>
+ * @generated SignedSource<<ed092b89608a88dfeec9a37e3acfd8b1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,13 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptIndexPage__main$data = {
+  readonly promptVersions: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main">;
+      };
+    }>;
+  };
   readonly " $fragmentSpreads": FragmentRefs<"PromptIndexPage__aside">;
   readonly " $fragmentType": "PromptIndexPage__main";
 };
@@ -26,6 +33,44 @@ const node: ReaderFragment = {
   "name": "PromptIndexPage__main",
   "selections": [
     {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptVersionConnection",
+      "kind": "LinkedField",
+      "name": "promptVersions",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptVersionEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptVersion",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "PromptInvocationParameters__main"
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
       "args": null,
       "kind": "FragmentSpread",
       "name": "PromptIndexPage__aside"
@@ -35,6 +80,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "25a4ebead60b4112b552a38954277093";
+(node as any).hash = "31cc58fdb7f4d754a6a7fee9f4429846";
 
 export default node;

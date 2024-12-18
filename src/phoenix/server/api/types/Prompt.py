@@ -9,17 +9,9 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
-from .PromptVersion import (
-    PromptTemplateFormat,
-    PromptTemplateType,
-    PromptVersion,
-)
+from .PromptVersion import PromptTemplateFormat, PromptTemplateType, PromptVersion
 
 
 @strawberry.type
@@ -58,7 +50,11 @@ class Prompt(Node):
                         {"role": "user", "content": "Hello what's the weather in Antarctica like?"}
                     ],
                 },
-                invocation_parameters={"temperature": 0.5},
+                invocation_parameters={
+                    "temperature": 0.5,
+                    "model": "gpt-4o",
+                    "max_tokens": 100,
+                },
                 tools={
                     "_version": "tools-v1",
                     "tools": [
