@@ -583,7 +583,7 @@ class Query:
                             }
                         ],
                     },
-                    output_schema=None
+                    output_schema=None,
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
