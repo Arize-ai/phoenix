@@ -47,23 +47,6 @@ const mainCSS = css`
   }
 `;
 
-/**
- * Given a tab index and a promptId, return the URL for that tab.
- */
-function makePromptUrl({
-  index,
-  promptId,
-}: {
-  index: number;
-  promptId: string;
-}) {
-  if (index === 1) {
-    return `/prompts/${promptId}/versions`;
-  } else {
-    return `/prompts/${promptId}`;
-  }
-}
-
 export function PromptLayout() {
   const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
@@ -118,7 +101,13 @@ export function PromptLayout() {
       <Tabs
         index={tabIndex}
         onChange={(index) => {
-          navigate(makePromptUrl({ index, promptId: loaderData.prompt.id }));
+          let url: string;
+          if (index === 1) {
+            url = `/prompts/${loaderData.prompt.id}/versions`;
+          } else {
+            url = `/prompts/${loaderData.prompt.id}`;
+          }
+          navigate(url);
         }}
       >
         <TabPane name={"Prompt"}>

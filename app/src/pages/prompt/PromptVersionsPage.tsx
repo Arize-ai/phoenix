@@ -10,6 +10,8 @@ import { PromptVersionsList } from "./PromptVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptVersionsPage() {
+  // TODO: Add a loader that will redirect to the latest version
+  // Landing on /versions alone is not a good user experience
   const { prompt } = usePromptIdLoader();
   return <PromptVersionsPageContent prompt={prompt} />;
 }
