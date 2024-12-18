@@ -1,14 +1,13 @@
 import React, { useMemo } from "react";
-import { useLoaderData } from "react-router";
 
 import { createPlaygroundInstance } from "@phoenix/store";
 
 import { Playground } from "../playground/Playground";
 
-import { promptLoaderQuery$data } from "./__generated__/promptLoaderQuery.graphql";
+import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptPlaygroundPage() {
-  const { prompt } = useLoaderData() as promptLoaderQuery$data;
+  const { prompt } = usePromptIdLoader();
 
   // create a playground instance with the prompt details configured
   // When the playground component mounts and sees the prompt id in the instance,
