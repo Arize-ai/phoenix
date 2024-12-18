@@ -1,5 +1,18 @@
 # Changelog
 
+## [7.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.1...arize-phoenix-v7.2.0) (2024-12-18)
+
+
+### Features
+
+* **playground:** Enhance template editor ergonomics ([#5715](https://github.com/Arize-ai/phoenix/issues/5715)) ([1c593a4](https://github.com/Arize-ai/phoenix/commit/1c593a47967ea78d569b6538720678a921bcbb92))
+
+
+### Bug Fixes
+
+* **sessions:** exclude null input/output values in dataloader query for sessions table ([#5781](https://github.com/Arize-ai/phoenix/issues/5781)) ([fb1330f](https://github.com/Arize-ai/phoenix/commit/fb1330fdc61c756adcade2cf29f893d504ef3243))
+* update index.html ([#5783](https://github.com/Arize-ai/phoenix/issues/5783)) ([bca3b09](https://github.com/Arize-ai/phoenix/commit/bca3b0972fa75ff27516d98ec4d3f8db3de9fe29))
+
 ## [7.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.0...arize-phoenix-v7.1.1) (2024-12-11)
 
 
