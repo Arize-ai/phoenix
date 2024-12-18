@@ -5,6 +5,11 @@ from typing import Optional, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from phoneix.server.api.types.PromptVersion import (
+    PromptTemplateFormat,
+    PromptTemplateType,
+    PromptVersion,
+)
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
@@ -557,6 +562,75 @@ class Query:
                 description="description",
                 created_at=datetime.now(),
             )
+        elif type_name == PromptVersion.__name__:
+            if node_id == 2:
+                return PromptVersion(
+                    id_attr=2,
+                    user="alice",
+                    description="A dummy prompt version",
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template={
+                        "_version": "messages-v1",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": "Hello what's the weather in Antarctica like?",
+                            }
+                        ],
+                    },
+                    invocation_parameters={"temperature": 0.5},
+                    tools={
+                        "_version": "tools-v1",
+                        "tools": [
+                            {
+                                "definition": {
+                                    "name": "get_current_weather",
+                                    "description": "Get the current weather in a given location",
+                                    "parameters": {
+                                        "type": "object",
+                                        "properties": {
+                                            "location": {
+                                                "type": "string",
+                                                "description": "A location in the world",
+                                            },
+                                            "unit": {
+                                                "type": "string",
+                                                "enum": ["celsius", "fahrenheit"],
+                                                "default": "fahrenheit",
+                                                "description": "The unit of temperature",
+                                            },
+                                        },
+                                        "required": ["location"],
+                                    },
+                                }
+                            }
+                        ],
+                    },
+                    model_name="gpt-4o",
+                    model_provider="openai",
+                )
+            elif node_id == 1:
+                return PromptVersion(
+                    id_attr=1,
+                    user="alice",
+                    description="A dummy prompt version",
+                    template_type=PromptTemplateType.CHAT,
+                    template_format=PromptTemplateFormat.MUSTACHE,
+                    template={
+                        "_version": "messages-v1",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": "Hello what's the weather in Antarctica like?",
+                            }
+                        ],
+                    },
+                    model_name="gpt-4o",
+                    model_provider="openai",
+                )
+            else:
+                raise NotFound(f"Unknown prompt version: {id}")
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
