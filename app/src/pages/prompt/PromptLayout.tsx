@@ -1,5 +1,7 @@
 import React from "react";
+import { useFragment } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
+import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
@@ -14,6 +16,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 const mainCSS = css`
@@ -70,6 +73,21 @@ export function PromptLayout() {
     tabIndex = 1;
   }
 
+  const data = useFragment<PromptLayout__main$key>(
+    graphql`
+      fragment PromptLayout__main on Prompt {
+        promptVersions {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    `,
+    loaderData.prompt
+  );
+
   return (
     <main css={mainCSS}>
       <View
@@ -106,7 +124,10 @@ export function PromptLayout() {
         <TabPane name={"Prompt"}>
           <Outlet />
         </TabPane>
-        <TabPane name={"Versions"} extra={<Counter>0</Counter>}>
+        <TabPane
+          name={"Versions"}
+          extra={<Counter>{data.promptVersions.edges.length}</Counter>}
+        >
           <Outlet />
         </TabPane>
       </Tabs>

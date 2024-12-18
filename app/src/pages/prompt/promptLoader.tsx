@@ -25,6 +25,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
             name
             ...PromptIndexPage__main
             ...PromptVersionsPageContent__main
+            ...PromptLayout__main
           }
         }
       }
@@ -34,5 +35,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
     }
   )
     .toPromise()
-    .catch(() => new Response("Prompt not found", { status: 404 }));
+    .catch(() => {
+      throw new Error("Prompt not found");
+    });
 }
