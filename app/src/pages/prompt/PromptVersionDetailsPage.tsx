@@ -1,7 +1,7 @@
 import React from "react";
 import { useLoaderData } from "react-router";
 
-import { Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 
@@ -17,7 +17,10 @@ function PromptVersionDetailsPageContent({
 }) {
   return (
     <View padding="size-200">
-      <Text>{promptVersion.description}</Text>
+      <Flex direction="column">
+        <Text weight="heavy">{promptVersion.id}</Text>
+        <Text>{promptVersion.description}</Text>
+      </Flex>
     </View>
   );
 }
