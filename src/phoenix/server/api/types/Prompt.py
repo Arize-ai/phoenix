@@ -5,8 +5,8 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
-from strawberry.types import Connection, Info
+from strawberry.relay import Connection, Node, NodeID
+from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.pagination import (
@@ -50,7 +50,7 @@ class Prompt(Node):
                 id_attr=2,
                 user="alice",
                 description="A dummy prompt version",
-                template_type=PromptTemplateType.TEXT,
+                template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
                 template={
                     "_version": "messages-v1",
@@ -86,7 +86,6 @@ class Prompt(Node):
                         }
                     ],
                 },
-                output_schema=UNSET,
                 model_name="gpt-4o",
                 model_provider="openai",
             ),
@@ -94,7 +93,7 @@ class Prompt(Node):
                 id_attr=1,
                 user="alice",
                 description="A dummy prompt version",
-                template_type=PromptTemplateType.TEXT,
+                template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
                 template={
                     "_version": "messages-v1",
