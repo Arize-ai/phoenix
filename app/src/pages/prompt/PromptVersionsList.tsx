@@ -6,7 +6,7 @@ import { css } from "@emotion/react";
 
 import { Button, Flex, Text, View } from "@arizeai/components";
 
-import { Truncate } from "@phoenix/components/Truncate";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import {
   PromptVersionsList__main$data,

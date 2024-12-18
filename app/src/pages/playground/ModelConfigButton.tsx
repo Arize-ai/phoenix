@@ -27,7 +27,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Truncate } from "@phoenix/components/Truncate";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
