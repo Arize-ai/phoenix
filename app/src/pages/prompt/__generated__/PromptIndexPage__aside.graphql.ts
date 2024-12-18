@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e979aefd80106702a0c4ca619a33e44>>
+ * @generated SignedSource<<85edb438bc01ac475c035ae2d6fb58cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,20 +10,20 @@
 
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptTabContent__aside$data = {
+export type PromptIndexPage__aside$data = {
   readonly description: string | null;
-  readonly " $fragmentType": "PromptTabContent__aside";
+  readonly " $fragmentType": "PromptIndexPage__aside";
 };
-export type PromptTabContent__aside$key = {
-  readonly " $data"?: PromptTabContent__aside$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptTabContent__aside">;
+export type PromptIndexPage__aside$key = {
+  readonly " $data"?: PromptIndexPage__aside$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptIndexPage__aside">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "PromptTabContent__aside",
+  "name": "PromptIndexPage__aside",
   "selections": [
     {
       "alias": null,
@@ -37,6 +37,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "bd08ff2f3a8ad88395e43d393eb2b9a5";
+(node as any).hash = "c6a72ce409cffadcfc51a2cae978b619";
 
 export default node;
