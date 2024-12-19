@@ -1,7 +1,7 @@
 import React from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Flex, Text, View } from "@arizeai/components";
@@ -26,6 +26,8 @@ const promptVersionItemCSS = css`
     width: 100%;
     justify-content: flex-start;
     padding: 0;
+    border-radius: 0;
+    border: none;
   }
 `;
 
@@ -35,10 +37,15 @@ const promptVersionItemCSS = css`
  * add /:versionId to the current path
  */
 export const PromptVersionItem = ({ version }: PromptVersionItemProps) => {
+  const { versionId } = useParams();
   const navigate = useNavigate();
+  const active = versionId === version.id;
   return (
     <div css={promptVersionItemCSS}>
-      <Button onClick={() => navigate(`${version.id}`)} variant="quiet">
+      <Button
+        onClick={() => navigate(`${version.id}`)}
+        variant={active ? "default" : "quiet"}
+      >
         <Flex width="100%" height={96} direction="row">
           <View padding="size-200">
             <Flex direction="column">
