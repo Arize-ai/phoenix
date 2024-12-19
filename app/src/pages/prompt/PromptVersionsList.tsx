@@ -92,9 +92,11 @@ export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
   return (
     <View
       height="100%"
-      overflow="scroll"
+      overflow="auto"
       width={PROMPT_VERSIONS_LIST_WIDTH}
       minWidth={PROMPT_VERSIONS_LIST_WIDTH}
+      borderRightWidth="thin"
+      borderColor="grey-300"
     >
       <Flex direction="column">
         {promptVersions.edges.map(({ version }) => (
