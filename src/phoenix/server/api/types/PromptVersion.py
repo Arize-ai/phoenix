@@ -8,6 +8,8 @@ from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.types.PromptVersionTemplate import PromptTemplateVersion
+
 
 @strawberry.enum
 class PromptTemplateType(str, Enum):
@@ -29,7 +31,7 @@ class PromptVersion(Node):
     description: str
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
-    template: JSON
+    template: PromptTemplateVersion
     invocation_parameters: Optional[JSON] = UNSET
     tools: Optional[JSON] = UNSET
     output_schema: Optional[JSON] = UNSET
