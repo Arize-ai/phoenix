@@ -61,6 +61,12 @@ from phoenix.server.api.types.PromptVersion import (
     PromptTemplateType,
     PromptVersion,
 )
+from phoenix.server.api.types.PromptVersionTemplate import (
+    PromptMessageRole,
+    PromptMessagesTemplateV1,
+    PromptMessagesTemplateV1GQL,
+    TextPromptMessage,
+)
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -539,6 +545,17 @@ class Query:
                 created_at=datetime.now(),
             )
         elif type_name == PromptVersion.__name__:
+            template_model = PromptMessagesTemplateV1(
+                template=[
+                    TextPromptMessage(
+                        role=PromptMessageRole.USER,
+                        content="Hello what's the weather in Antarctica like?",
+                    )
+                ]
+            )
+
+            template_gql = PromptMessagesTemplateV1GQL.from_model(template_model)
+
             if node_id == 2:
                 return PromptVersion(
                     id_attr=2,
@@ -546,22 +563,8 @@ class Query:
                     description="A dummy prompt version",
                     template_type=PromptTemplateType.CHAT,
                     template_format=PromptTemplateFormat.MUSTACHE,
-                    template={
-                        "_version": "messages-v1",
-                        "messages": [
-                            {"role": "system", "content": "You are a helpful assistant"},
-                            {
-                                "role": "user",
-                                "content": "Hello what's the weather in {{location}} like?",
-                            },
-                            {"role": "ai", "content": "Looking up the weather in {{location}}..."},
-                        ],
-                    },
-                    invocation_parameters={
-                        "temperature": 0.5,
-                        "model": "gpt-4o",
-                        "max_tokens": 100,
-                    },
+                    template=template_gql,
+                    invocation_parameters={"temperature": 0.5},
                     tools={
                         "_version": "tools-v1",
                         "tools": [
@@ -600,15 +603,7 @@ class Query:
                     description="A dummy prompt version",
                     template_type=PromptTemplateType.CHAT,
                     template_format=PromptTemplateFormat.MUSTACHE,
-                    template={
-                        "_version": "messages-v1",
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": "Hello what's the weather in {{location}} like?",
-                            }
-                        ],
-                    },
+                    template=template_gql,
                     invocation_parameters=None,
                     tools=None,
                     output_schema=None,
