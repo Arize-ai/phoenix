@@ -19,6 +19,7 @@ pyarrow-stubs
 pytest-postgresql
 responses
 respx # For OpenAI testing
+syrupy
 tenacity
 tiktoken
 types-pytz
