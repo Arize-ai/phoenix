@@ -134,7 +134,7 @@ function filterConditionCompletions(
       {
         label: "search output",
         type: "text",
-        apply: "'' in output.value",
+        apply: "'' in output",
         detail: "macro",
       },
       {
@@ -150,15 +150,9 @@ function filterConditionCompletions(
         detail: "macro",
       },
       {
-        label: "Tokens >= 1,000",
-        type: "text",
-        apply: "llm.token_count.total >= 1_000",
-        detail: "macro",
-      },
-      {
         label: "Hallucinations",
         type: "text",
-        apply: "evals['Hallucination'].label == 'hallucinated'",
+        apply: "evals['hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
       {
