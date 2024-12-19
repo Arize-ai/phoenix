@@ -1,7 +1,8 @@
 import React from "react";
 
-import { Button, Card, Icon, Icons } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
+import { CopyToClipboardButton } from "@phoenix/components";
 import {
   TemplateEditor,
   TemplateEditorWrap,
@@ -28,13 +29,7 @@ export function ChatTemplateMessage(props: ChatTemplateMessageProps) {
       variant="compact"
       {...styles}
       bodyStyle={{ padding: 0 }}
-      extra={
-        <Button
-          variant="default"
-          size="compact"
-          icon={<Icon svg={<Icons.ClipboardCopy />} />}
-        />
-      }
+      extra={<CopyToClipboardButton text={content} />}
     >
       <TemplateEditorWrap>
         <TemplateEditor
