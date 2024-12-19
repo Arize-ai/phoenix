@@ -9,7 +9,17 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
+from phoenix.server.api.types.PromptVersionTemplate import (
+    PromptMessageRole,
+    PromptMessagesTemplateV1,
+    PromptMessagesTemplateV1GQL,
+    TextPromptMessage,
+)
 
 from .PromptVersion import PromptTemplateFormat, PromptTemplateType, PromptVersion
 
@@ -37,6 +47,17 @@ class Prompt(Node):
             before=before if isinstance(before, CursorString) else None,
         )
 
+        template_model = PromptMessagesTemplateV1(
+            template=[
+                TextPromptMessage(
+                    role=PromptMessageRole.USER,
+                    content="Hello what's the weather in Antarctica like?",
+                )
+            ]
+        )
+
+        template_gql = PromptMessagesTemplateV1GQL.from_model(template_model)
+
         dummy_data = [
             PromptVersion(
                 id_attr=2,
@@ -44,22 +65,8 @@ class Prompt(Node):
                 description="A dummy prompt version",
                 template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
-                template={
-                    "_version": "messages-v1",
-                    "messages": [
-                        {"role": "system", "content": "You are a helpful assistant"},
-                        {
-                            "role": "user",
-                            "content": "Hello what's the weather in {{location}} like?",
-                        },
-                        {"role": "ai", "content": "Looking up the weather in {{location}}..."},
-                    ],
-                },
-                invocation_parameters={
-                    "temperature": 0.5,
-                    "model": "gpt-4o",
-                    "max_tokens": 100,
-                },
+                template=template_gql,
+                invocation_parameters={"temperature": 0.5},
                 tools={
                     "_version": "tools-v1",
                     "tools": [
@@ -96,15 +103,7 @@ class Prompt(Node):
                 description="A dummy prompt version",
                 template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
-                template={
-                    "_version": "messages-v1",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": "Hello what's the weather in {{location}} like?",
-                        }
-                    ],
-                },
+                template=template_gql,
                 model_name="gpt-4o",
                 model_provider="openai",
             ),
