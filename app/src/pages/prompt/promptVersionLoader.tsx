@@ -18,6 +18,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
           __typename
           id
           ... on PromptVersion {
+            ...PromptInvocationParameters__main
             description
             invocationParameters
             modelName

@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Card, Flex, View } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Card,
+  Flex,
+  View,
+} from "@arizeai/components";
 
 import {
   CodeLanguage,
@@ -13,6 +19,7 @@ import {
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { ChatTemplateMessage } from "./ChatTemplateMessage";
+import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
@@ -26,46 +33,72 @@ export function PromptIndexPageContent({
   prompt: PromptIndexPage__main$key;
 }) {
   const [language, setLanguage] = useState<CodeLanguage>("Python");
-  const data = useFragment(
+  const data = useFragment<PromptIndexPage__main$key>(
     graphql`
       fragment PromptIndexPage__main on Prompt {
+        promptVersions {
+          edges {
+            node {
+              ...PromptInvocationParameters__main
+            }
+          }
+        }
         ...PromptIndexPage__aside
       }
     `,
     prompt
   );
+
+  const latestVersion = data?.promptVersions?.edges?.[0]?.node;
+
   return (
     <Flex direction="row" height="100%">
-      <View flex="1 1 auto" padding="size-200">
-        <Flex
-          direction="column"
-          gap="size-200"
-          maxWidth={900}
-          marginStart="auto"
-          marginEnd="auto"
-        >
-          <Card title="Prompt Template" variant="compact">
-            <Flex direction="column" gap="size-100">
-              <ChatTemplateMessage role="system" content="System message" />
-              <ChatTemplateMessage role="user" content="User message" />
-            </Flex>
-          </Card>
-          <Card title="Model Configuration" variant="compact">
-            <View padding="lg">model configuration</View>
-          </Card>
-          <Card
-            title="Code"
-            variant="compact"
-            extra={
-              <CodeLanguageRadioGroup
-                language={language}
-                onChange={setLanguage}
-              />
-            }
+      <View height="100%" overflow="auto" data-testid="scroll-container">
+        <View padding="size-200">
+          <Flex
+            direction="column"
+            gap="size-200"
+            maxWidth={900}
+            marginStart="auto"
+            marginEnd="auto"
           >
-            <PythonBlock value="Hello world" />
-          </Card>
-        </Flex>
+            <Card title="Prompt Template" variant="compact">
+              <Flex direction="column" gap="size-100">
+                <ChatTemplateMessage role="system" content="System message" />
+                <ChatTemplateMessage role="user" content="User message" />
+              </Flex>
+            </Card>
+            <Card
+              title="Model Configuration"
+              variant="compact"
+              bodyStyle={{ padding: 0 }}
+            >
+              <Accordion size="M">
+                <AccordionItem
+                  title="Invocation Parameters"
+                  id="invocation-parameters"
+                >
+                  <PromptInvocationParameters promptVersion={latestVersion} />
+                </AccordionItem>
+                <AccordionItem title="Tools" id="model-tools">
+                  <View padding="size-200">No Tools Specified</View>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+            <Card
+              title="Code"
+              variant="compact"
+              extra={
+                <CodeLanguageRadioGroup
+                  language={language}
+                  onChange={setLanguage}
+                />
+              }
+            >
+              <PythonBlock value="Hello world" />
+            </Card>
+          </Flex>
+        </View>
       </View>
       <PromptIndexPageAside prompt={data} />
     </Flex>

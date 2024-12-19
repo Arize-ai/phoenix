@@ -595,7 +595,11 @@ class Query:
                             }
                         ],
                     },
-                    invocation_parameters={"temperature": 0.5},
+                    invocation_parameters={
+                        "temperature": 0.5,
+                        "model": "gpt-4o",
+                        "max_tokens": 100,
+                    },
                     tools={
                         "_version": "tools-v1",
                         "tools": [
