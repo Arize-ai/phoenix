@@ -36,6 +36,31 @@ importers:
         specifier: ^2.1.8
         version: 2.1.8(@types/node@20.17.9)
 
+  examples/apps/phoenix-experiment-runner:
+    dependencies:
+      '@arizeai/phoenix-client':
+        specifier: workspace:*
+        version: link:../../../packages/phoenix-client
+      '@clack/prompts':
+        specifier: ^0.8.2
+        version: 0.8.2
+      autoevals:
+        specifier: ^0.0.111
+        version: 0.0.111
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.11
+        version: 20.17.9
+      rimraf:
+        specifier: ^5.0.10
+        version: 5.0.10
+      tsx:
+        specifier: ^4.19.1
+        version: 4.19.2
+      typescript:
+        specifier: ^5.7.2
+        version: 5.7.2
+
   packages/phoenix-client:
     dependencies:
       openapi-fetch:
@@ -48,15 +73,9 @@ importers:
         specifier: ^3.23.8
         version: 3.24.0
     devDependencies:
-      '@clack/prompts':
-        specifier: ^0.8.2
-        version: 0.8.2
       '@types/node':
         specifier: ^20.14.11
         version: 20.17.9
-      autoevals:
-        specifier: ^0.0.111
-        version: 0.0.111
       openapi-typescript:
         specifier: ^7.4.1
         version: 7.4.4(typescript@5.7.2)

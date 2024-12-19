@@ -1,0 +1,29 @@
+{
+  "name": "phoenix-experiment-runner",
+  "version": "1.0.0",
+  "description": "An example app that uses the phoenix-client to run experiments",
+  "main": "dist/index.js",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@arizeai/phoenix-client": "workspace:*",
+    "@clack/prompts": "^0.8.2",
+    "autoevals": "^0.0.111"
+  },
+  "scripts": {
+    "start": "node dist/index.js",
+    "d:up": "docker compose up -d",
+    "d:down": "docker compose down",
+    "build": "tsc",
+    "dev": "tsx watch index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "rimraf": "^5.0.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.7.2"
+  }
+}

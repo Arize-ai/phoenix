@@ -8,10 +8,12 @@ Typescript packages for interfacing with Phoenix and evaluating LLM applications
 
 Provides a client and utilities for interacting with the phoenix application.
 
-### [phoenix-evals](./packages/phoenix-evals/)
+## Examples
 
-A library for evaluating LLM applications.
+### [notebooks](./examples/notebooks/)
 
-### [phoenix-types](./packages/phoenix-types/)
+A collection of Deno Jupyter notebooks that demonstrate how to interact with Phoenix using JavaScript.
 
-A common set of types and interfaces used by Phoenix typescript packages.
+### [phoenix-experiment-runner](./examples/apps/phoenix-experiment-runner/)
+
+An example app that uses the phoenix-client and @clack/prompts to run experiments interactively.

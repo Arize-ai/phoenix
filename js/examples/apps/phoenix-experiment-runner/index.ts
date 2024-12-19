@@ -3,8 +3,8 @@ import {
   asEvaluator,
   createClient,
   runExperiment,
-  RunExperimentParams,
-} from "../src";
+  type RunExperimentParams,
+} from "@arizeai/phoenix-client";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
 import { Factuality, Humor } from "autoevals";
 
@@ -26,13 +26,27 @@ const getDatasets = () =>
 
 const main = async () => {
   intro("Phoenix Experiment Runner");
-  const datasets = await getDatasets();
+  let datasets: Awaited<ReturnType<typeof getDatasets>> = [];
+  try {
+    datasets = await getDatasets();
+  } catch (e) {
+    if (e instanceof Error && e.message === "fetch failed") {
+      log.error(
+        "Cannot connect to Phoenix at http://localhost:6006! Start it with `pnpm d:up` and try again!"
+      );
+      return;
+    }
+    log.error(String(e));
+    return;
+  }
+
   if (datasets.length === 0) {
     outro(
-      "No datasets found in your Phoenix instance. Please create a dataset first!"
+      "No datasets found in your Phoenix instance. Please create a dataset at http://localhost:6006/datasets first!"
     );
     return;
   }
+
   const datasetId = await select({
     message: "Select a dataset",
     options: datasets.map((dataset) => ({
