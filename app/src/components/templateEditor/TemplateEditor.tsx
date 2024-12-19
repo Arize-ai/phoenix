@@ -62,24 +62,36 @@ export const TemplateEditor = ({
 };
 
 export const TemplateEditorWrap = ({
+  readOnly,
   children,
 }: {
+  readOnly?: boolean;
   children: React.ReactNode;
 }) => {
   return (
     <div
       css={css`
+        & .cm-editor,
+        & .cm-gutters {
+          background-color: ${!readOnly ? "auto" : "transparent !important"};
+        }
+        & .cm-gutters {
+          border-right: none !important;
+        }
         & .cm-content {
           padding: var(--ac-global-dimension-size-100)
             var(--ac-global-dimension-size-250);
         }
         & .cm-gutter,
         & .cm-content {
-          min-height: 75px;
+          min-height: ${!readOnly ? "75px" : "100%"};
         }
         & .cm-line {
           padding-left: 0;
           padding-right: 0;
+        }
+        & .cm-cursor {
+          display: ${!readOnly ? "auto" : "none !important"};
         }
       `}
     >

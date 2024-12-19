@@ -31,7 +31,7 @@ export function ChatTemplateMessage(props: ChatTemplateMessageProps) {
       bodyStyle={{ padding: 0 }}
       extra={<CopyToClipboardButton text={content} />}
     >
-      <TemplateEditorWrap>
+      <TemplateEditorWrap readOnly>
         <TemplateEditor
           readOnly
           height="100%"
