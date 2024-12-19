@@ -8,14 +8,17 @@
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
     "@clack/prompts": "^0.8.2",
-    "autoevals": "^0.0.111"
+    "autoevals": "^0.0.111",
+    "dotenv": "^16.4.7",
+    "openai": "^4.77.0",
+    "zod": "^3.23.8"
   },
   "scripts": {
     "start": "node dist/index.js",
     "d:up": "docker compose up -d",
     "d:down": "docker compose down",
     "build": "tsc",
-    "dev": "tsx watch index.ts"
+    "dev": "tsx index.ts"
   },
   "keywords": [],
   "author": "",

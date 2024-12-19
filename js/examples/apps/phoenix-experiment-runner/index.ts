@@ -7,6 +7,29 @@ import {
 } from "@arizeai/phoenix-client";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
 import { Factuality, Humor } from "autoevals";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+import { z } from "zod";
+
+dotenv.config();
+
+const env = z
+  .object({
+    OPENAI_MODEL: z.string().default("llama3.2"),
+    OPENAI_API_KEY: z.string().default("ollama"),
+    OPENAI_API_BASE_URL: z.string().default("http://localhost:11434/v1"),
+  })
+  .parse(process.env);
+
+const config: {
+  model: string;
+  openAiApiKey: string;
+  openAiBaseUrl: string;
+} = {
+  model: env.OPENAI_MODEL,
+  openAiApiKey: env.OPENAI_API_KEY,
+  openAiBaseUrl: env.OPENAI_API_BASE_URL,
+};
 
 // baseUrl defaults to http://localhost:6006
 const phoenix = createClient();
@@ -42,7 +65,7 @@ const main = async () => {
 
   if (datasets.length === 0) {
     outro(
-      "No datasets found in your Phoenix instance. Please create a dataset at http://localhost:6006/datasets first!"
+      "No datasets found in your Phoenix instance. Please create a dataset at http://localhost:6006/datasets first!\nYou can use the `qa-dataset.csv` file in this directory to create a dataset."
     );
     return;
   }
@@ -61,8 +84,18 @@ const main = async () => {
     return;
   }
 
-  const passThroughTask: RunExperimentParams["task"] = async (example) => {
-    return example.output ?? "My own output";
+  const LLMAssistantTask: RunExperimentParams["task"] = async (example) => {
+    const response = await new OpenAI({
+      baseURL: config.openAiBaseUrl,
+      apiKey: config.openAiApiKey,
+    }).chat.completions.create({
+      model: config.model,
+      messages: [
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: JSON.stringify(example.input, null, 2) },
+      ],
+    });
+    return response.choices[0]?.message?.content ?? "No response";
   };
 
   const experimentName = "runExperiment example";
@@ -88,7 +121,7 @@ const main = async () => {
       dataset: dataset.id,
       experimentName,
       client: phoenix,
-      task: passThroughTask,
+      task: LLMAssistantTask,
       repetitions: 2,
       evaluators: [
         asEvaluator("Mentions startups", async (params) => {
@@ -121,9 +154,7 @@ const main = async () => {
         }),
         asEvaluator("Factuality", async (params) => {
           const result = await Factuality.partial({
-            openAiApiKey: "ollama",
-            openAiBaseUrl: "http://localhost:11434/v1",
-            model: "llama3.2",
+            ...config,
           })({
             output: JSON.stringify(params.output, null, 2),
             input: JSON.stringify(params.input, null, 2),
@@ -138,9 +169,7 @@ const main = async () => {
         }),
         asEvaluator("Humor", async (params) => {
           const result = await Humor.partial({
-            openAiApiKey: "ollama",
-            openAiBaseUrl: "http://localhost:11434/v1",
-            model: "llama3.2",
+            ...config,
           })({
             output: JSON.stringify(params.output, null, 2),
           });
@@ -166,7 +195,12 @@ const main = async () => {
   s.stop("Experiment run complete!");
 
   log.info("Experiment runs:");
-  console.table(experimentRun.runs);
+  console.table(
+    Object.values(experimentRun.runs).map((run) => ({
+      ...run,
+      output: JSON.stringify(run.output)?.slice(0, 50).concat("..."),
+    }))
+  );
   log.info("Evaluation run results:");
   console.table(
     experimentRun.evaluationRuns
