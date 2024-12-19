@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "react-relay";
-import { useNavigate } from "react-router";
+import { Link } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
@@ -21,17 +21,34 @@ export type PromptVersionItemProps = {
 type PromptVersion =
   PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
 
-const promptVersionItemCSS = css`
+const promptVersionItemCSS = ({ active }: { active?: boolean }) => css`
   & {
     border-bottom: 1px solid var(--ac-global-color-grey-300);
+    transition: background-color 0.1s ease-in;
   }
 
-  & > * {
+  & > a {
+    height: 100%;
     width: 100%;
     justify-content: flex-start;
     padding: 0;
     border-radius: 0;
     border: none;
+    text-decoration: none;
+    background-opacity: 0;
+    & > * {
+      background-color: ${active ? "var(--ac-global-color-grey-200)" : "auto"};
+    }
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      & > * {
+        outline: none;
+        background-color: ${active
+          ? "var(--ac-global-color-grey-200)"
+          : "var(--ac-global-color-grey-100)"};
+      }
+    }
   }
 `;
 
@@ -44,15 +61,12 @@ export const PromptVersionItem = ({
   version,
   active,
 }: PromptVersionItemProps) => {
-  const navigate = useNavigate();
+  const styles = useMemo(() => promptVersionItemCSS({ active }), [active]);
   return (
-    <div css={promptVersionItemCSS}>
-      <Button
-        onClick={() => navigate(`${version.id}`)}
-        variant={active ? "default" : "quiet"}
-      >
+    <div css={styles}>
+      <Link to={`${version.id}`}>
         <Flex width="100%" height={96} direction="row">
-          <View padding="size-200">
+          <View width="100%" padding="size-200">
             <Flex direction="column">
               <Text>{version.id}</Text>
               <Truncate maxWidth={"100%"}>
@@ -61,7 +75,7 @@ export const PromptVersionItem = ({
             </Flex>
           </View>
         </Flex>
-      </Button>
+      </Link>
     </div>
   );
 };
