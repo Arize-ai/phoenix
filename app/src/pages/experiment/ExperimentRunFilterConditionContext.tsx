@@ -7,26 +7,26 @@ import React, {
   useState,
 } from "react";
 
-export type SpanFilterConditionContextType = {
+export type ExperimentRunFilterConditionContextType = {
   filterCondition: string;
   setFilterCondition: (condition: string) => void;
   appendFilterCondition: (condition: string) => void;
 };
 
-export const SpanFilterConditionContext =
-  createContext<SpanFilterConditionContextType | null>(null);
+export const ExperimentRunFilterConditionContext =
+  createContext<ExperimentRunFilterConditionContextType | null>(null);
 
-export function useSpanFilterCondition() {
-  const context = useContext(SpanFilterConditionContext);
+export function useExperimentRunFilterCondition() {
+  const context = useContext(ExperimentRunFilterConditionContext);
   if (context === null) {
     throw new Error(
-      "useSpanFilterCondition must be used within a SpanFilterConditionProvider"
+      "useExperimentRunFilterCondition must be used within a ExperimentRunFilterConditionProvider"
     );
   }
   return context;
 }
 
-export function SpanFilterConditionProvider(props: PropsWithChildren) {
+export function ExperimentRunFilterConditionProvider(props: PropsWithChildren) {
   const [filterCondition, _setFilterCondition] = useState<string>("");
   const setFilterCondition = useCallback((condition: string) => {
     startTransition(() => {
@@ -47,10 +47,10 @@ export function SpanFilterConditionProvider(props: PropsWithChildren) {
   );
 
   return (
-    <SpanFilterConditionContext.Provider
+    <ExperimentRunFilterConditionContext.Provider
       value={{ filterCondition, setFilterCondition, appendFilterCondition }}
     >
       {props.children}
-    </SpanFilterConditionContext.Provider>
+    </ExperimentRunFilterConditionContext.Provider>
   );
 }
