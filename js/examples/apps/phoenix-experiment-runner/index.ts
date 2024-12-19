@@ -123,6 +123,10 @@ const main = async () => {
       client: phoenix,
       task: LLMAssistantTask,
       repetitions: 2,
+      logger: {
+        ...log,
+        log: (message) => log.message(message),
+      },
       evaluators: [
         asEvaluator("Mentions startups", async (params) => {
           await new Promise((resolve) => setTimeout(resolve, 1000));

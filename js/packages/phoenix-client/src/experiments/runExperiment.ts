@@ -13,6 +13,12 @@ import { promisifyResult } from "../utils/promisifyResult";
 import invariant from "tiny-invariant";
 import { pluralize } from "../utils/pluralize";
 
+export type Logger = {
+  info: (message: string) => void;
+  error: (message: string) => void;
+  log: (message: string) => void;
+};
+
 export type RunExperimentParams = {
   experimentName: string;
   client?: PhoenixClient;
@@ -21,6 +27,7 @@ export type RunExperimentParams = {
   evaluators?: Evaluator[];
   repetitions?: number;
   projectName?: string;
+  logger?: Logger;
 };
 
 /**
@@ -34,6 +41,7 @@ export async function runExperiment({
   evaluators,
   repetitions = 1,
   projectName = "default",
+  logger = console,
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDataset({ dataset: _dataset, client });
@@ -52,18 +60,14 @@ export async function runExperiment({
     projectName,
   };
 
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(
+  logger.info(
     `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )}`
   );
 
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(
+  logger.info(
     `🔁 Running ${repetitions} ${pluralize("repetition", repetitions)} of task "${task.name}"`
   );
 
@@ -78,15 +82,14 @@ export async function runExperiment({
         experimentId: experiment.id,
         task,
         dataset,
+        logger,
         onComplete: (run) => {
           runs[run.id] = run;
         },
       })
     )
   );
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(`✅ Task runs completed`);
+  logger.info(`✅ Task runs completed`);
 
   const ranExperiment: RanExperiment = {
     ...experiment,
@@ -98,12 +101,11 @@ export async function runExperiment({
     experiment: ranExperiment,
     evaluators: evaluators ?? [],
     client,
+    logger,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(`✅ Experiment ${experiment.id} completed`);
+  logger.info(`✅ Experiment ${experiment.id} completed`);
 
   return ranExperiment;
 }
@@ -117,6 +119,7 @@ function runTask({
   dataset,
   repetition,
   onComplete,
+  logger,
 }: {
   /** The id of the experiment */
   experimentId: string;
@@ -128,10 +131,10 @@ function runTask({
   repetition: number;
   /** A callback to call when the task is complete */
   onComplete: (run: ExperimentRun) => void;
+  /** The logger to use */
+  logger: Logger;
 }) {
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(
+  logger.info(
     `🔧 (${repetition}) Running task "${task.name}" on dataset "${dataset.id}"`
   );
   const run = async (example: Example) => {
@@ -163,6 +166,7 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
+  logger,
 }: {
   /**
    * The experiment to evaluate
@@ -173,6 +177,8 @@ export async function evaluateExperiment({
   evaluators: Evaluator[];
   /** The client to use */
   client?: PhoenixClient;
+  /** The logger to use */
+  logger: Logger;
 }): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDataset({ dataset: experiment.datasetId, client });
@@ -190,9 +196,7 @@ export async function evaluateExperiment({
     };
   }
 
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(
+  logger.info(
     `🧠 Evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
@@ -226,9 +230,7 @@ export async function evaluateExperiment({
     )
   );
 
-  // TODO: logger w/ verbosity
-  // eslint-disable-next-line no-console
-  console.info(`\n✅ Evaluation runs completed`);
+  logger.info(`✅ Evaluation runs completed`);
 
   return {
     ...experiment,
