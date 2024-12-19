@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<56f7ed5ad02bc5e59f842e1861f0aa83>>
+ * @generated SignedSource<<c0ec818d892b85bd1cb928ec89a894c9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type ExperimentCompareTableQuery$variables = {
   datasetId: string;
   experimentIds: ReadonlyArray<string>;
+  filterCondition?: string | null;
 };
 export type ExperimentCompareTableQuery$data = {
   readonly comparisons: ReadonlyArray<{
@@ -87,13 +88,18 @@ v1 = {
   "name": "experimentIds"
 },
 v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filterCondition"
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -118,20 +124,25 @@ v3 = {
   ],
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": "comparisons",
   "args": [
     {
       "kind": "Variable",
       "name": "experimentIds",
       "variableName": "experimentIds"
+    },
+    {
+      "kind": "Variable",
+      "name": "filterCondition",
+      "variableName": "filterCondition"
     }
   ],
   "concreteType": "ExperimentComparison",
@@ -147,7 +158,7 @@ v5 = {
       "name": "example",
       "plural": false,
       "selections": [
-        (v2/*: any*/),
+        (v3/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -227,7 +238,7 @@ v5 = {
               "name": "endTime",
               "storageKey": null
             },
-            (v3/*: any*/),
+            (v4/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -252,8 +263,8 @@ v5 = {
                       "name": "node",
                       "plural": false,
                       "selections": [
-                        (v2/*: any*/),
-                        (v4/*: any*/),
+                        (v3/*: any*/),
+                        (v5/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -282,7 +293,7 @@ v5 = {
                           "name": "explanation",
                           "storageKey": null
                         },
-                        (v3/*: any*/)
+                        (v4/*: any*/)
                       ],
                       "storageKey": null
                     }
@@ -301,14 +312,14 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = [
+v7 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v7 = {
+v8 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -335,8 +346,8 @@ v7 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*: any*/),
-                (v4/*: any*/),
+                (v3/*: any*/),
+                (v5/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -359,7 +370,7 @@ v7 = {
                   "name": "project",
                   "plural": false,
                   "selections": [
-                    (v2/*: any*/)
+                    (v3/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -380,23 +391,24 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v5/*: any*/),
+      (v6/*: any*/),
       {
         "alias": "dataset",
-        "args": (v6/*: any*/),
+        "args": (v7/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v7/*: any*/)
+          (v3/*: any*/),
+          (v8/*: any*/)
         ],
         "storageKey": null
       }
@@ -408,15 +420,16 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*: any*/),
-      (v0/*: any*/)
+      (v0/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v5/*: any*/),
+      (v6/*: any*/),
       {
         "alias": "dataset",
-        "args": (v6/*: any*/),
+        "args": (v7/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -429,24 +442,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
-          (v7/*: any*/)
+          (v3/*: any*/),
+          (v8/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e8b3f1f7011d0059ded7076b4d83afea",
+    "cacheID": "2858d6862ebdeb9248578effd1944942",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        startTime\n        endTime\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              annotatorKind\n              explanation\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n  $filterCondition: String\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds, filterCondition: $filterCondition) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        startTime\n        endTime\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              annotatorKind\n              explanation\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            metadata\n            project {\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7e1c83a2fa6f2f46532902b526017663";
+(node as any).hash = "3a013b01c738ae156d59ed0d0dcced72";
 
 export default node;

@@ -1388,7 +1388,8 @@ type Query {
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
+  compareExperiments(experimentIds: [GlobalID!]!, filterCondition: String): [ExperimentComparison!]!
+  validateExperimentRunFilterCondition(condition: String!, experimentIds: [GlobalID!]!): ValidationResult!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
