@@ -280,7 +280,7 @@ from phoenix.server.api.helpers.experiment_run_filters import (
     ),
 )
 def test_sqlalchemy_transformer_correctly_compiles(
-    filter_condition: str, snapshot: SnapshotAssertion
+    filter_condition: str, dialect: str, snapshot: SnapshotAssertion
 ) -> None:
     tree = ast.parse(filter_condition, mode="eval")
     transformer = SQLAlchemyTransformer([0, 1, 2])
@@ -334,7 +334,7 @@ def test_sqlalchemy_transformer_correctly_compiles(
     ),
 )
 def test_compile_sqlalchemy_filter_condition_correctly_compiles(
-    filter_condition: str, snapshot: SnapshotAssertion
+    filter_condition: str, dialect: str, snapshot: SnapshotAssertion
 ) -> None:
     sqlalchemy_filter_condition, _ = compile_sqlalchemy_filter_condition(
         filter_condition=filter_condition,
