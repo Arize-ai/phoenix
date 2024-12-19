@@ -1,5 +1,4 @@
 import React from "react";
-import { css } from "@emotion/react";
 
 import { Button, Card, Icon, Icons } from "@arizeai/components";
 
