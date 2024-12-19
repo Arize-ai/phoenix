@@ -262,59 +262,59 @@ from phoenix.server.api.helpers.experiment_run_filters import (
         ),
         # eval attribute comparison expressions
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5",
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination'",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5",
+            "experiment_run_annotations_0_hallucination.score > 0.5",  # noqa: E501
             id="experiment-hallucination-score-gt",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].label == 'hallucinated'",
-            "experiment_run_annotations_0.label = 'hallucinated' AND experiment_run_annotations_0.name = 'Hallucination'",  # noqa: E501
+            "experiments[0].evals['hallucination'].label == 'hallucinated'",
+            "experiment_run_annotations_0_hallucination.label = 'hallucinated'",  # noqa: E501
             id="experiment-hallucination-label-eq",
         ),
         pytest.param(
-            "'search-term' in experiments[0].evals['Hallucination'].explanation",
-            "(experiment_run_annotations_0.explanation LIKE '%' || 'search-term' || '%') AND experiment_run_annotations_0.name = 'Hallucination'",  # noqa: E501
+            "'search-term' in experiments[0].evals['hallucination'].explanation",
+            "experiment_run_annotations_0_hallucination.explanation LIKE '%' || 'search-term' || '%'",  # noqa: E501
             id="experiment-hallucination-explanation-in",
         ),
         # compound expressions
         pytest.param(
-            "not experiments[0].evals['Hallucination'].label == 'hallucinated'",
-            "NOT (experiment_run_annotations_0.label = 'hallucinated' AND experiment_run_annotations_0.name = 'Hallucination')",  # noqa: E501
+            "not experiments[0].evals['hallucination'].label == 'hallucinated'",
+            "experiment_run_annotations_0_hallucination.label != 'hallucinated'",  # noqa: E501
             id="negation",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",  # noqa: E501
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
             id="conjunction",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="conjunction-of-three",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
+            "experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000",  # noqa: E501
             id="disjunction",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",  # noqa: E501
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL",  # noqa: E501
             id="disjunction-of-three",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="mixed-conjunction-and-disjunction-without-parentheses",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
-            "experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
+            "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL",  # noqa: E501
             id="mixed-conjunction-and-disjunction-with-parentheses",
         ),
         pytest.param(
-            "not (experiments[0].evals['Hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",  # noqa: E501
-            "NOT (experiment_run_annotations_0.score > 0.5 AND experiment_run_annotations_0.name = 'Hallucination' OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)",  # noqa: E501
+            "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",  # noqa: E501
+            "NOT (experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)",  # noqa: E501
             id="complex-negation",
         ),
         # unary operations
@@ -395,7 +395,7 @@ def test_sqlalchemy_transformer_correctly_compiles(
         ),
         pytest.param(
             "evals['hallucination'].score < 10",
-            "experiment_run_annotations_0.score < 10 AND experiment_run_annotations_0.name = 'hallucination' OR experiment_run_annotations_1.score < 10 AND experiment_run_annotations_1.name = 'hallucination'",  # noqa: E501
+            "experiment_run_annotations_0_hallucination.score < 10 OR experiment_run_annotations_1_hallucination.score < 10",  # noqa: E501
             id="eval-comparison",
         ),
     ),
@@ -486,17 +486,17 @@ def test_compile_sqlalchemy_filter_condition_correctly_compiles(
             id="non-string-eval-index",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination'] == 'hallucinated'",
+            "experiments[0].evals['hallucination'] == 'hallucinated'",
             "Choose an attribute for your eval (label, score, etc.)",
             id="missing-eval-attribute",
         ),
         pytest.param(
-            "evals['Hallucination'].probability > 0.5",
+            "evals['hallucination'].probability > 0.5",
             "Unknown eval attribute",
             id="unknown-eval-attribute",
         ),
         pytest.param(
-            "experiments[0].evals['Hallucination']['score']",
+            "experiments[0].evals['hallucination']['score']",
             "Invalid subscript",
             id="forgot-dot-notation-for-eval-attribute",
         ),
