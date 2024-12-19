@@ -1,7 +1,7 @@
 import React from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Flex, Text, View } from "@arizeai/components";
@@ -15,7 +15,11 @@ import {
 
 export type PromptVersionItemProps = {
   version: PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
+  active?: boolean;
 };
+
+type PromptVersion =
+  PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
 
 const promptVersionItemCSS = css`
   & {
@@ -36,10 +40,11 @@ const promptVersionItemCSS = css`
  * the date it was created, and tag. Clicking the item will
  * add /:versionId to the current path
  */
-export const PromptVersionItem = ({ version }: PromptVersionItemProps) => {
-  const { versionId } = useParams();
+export const PromptVersionItem = ({
+  version,
+  active,
+}: PromptVersionItemProps) => {
   const navigate = useNavigate();
-  const active = versionId === version.id;
   return (
     <div css={promptVersionItemCSS}>
       <Button
@@ -63,6 +68,7 @@ export const PromptVersionItem = ({ version }: PromptVersionItemProps) => {
 
 type PromptVersionsListProps = {
   prompt: PromptVersionsList__main$key;
+  itemActive?: (version: PromptVersion) => boolean;
 };
 
 const PROMPT_VERSIONS_LIST_WIDTH = 300;
@@ -70,7 +76,10 @@ const PROMPT_VERSIONS_LIST_WIDTH = 300;
 /**
  * Full height, scrollable, list of prompt versions
  */
-export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
+export const PromptVersionsList = ({
+  prompt,
+  itemActive,
+}: PromptVersionsListProps) => {
   const { promptVersions } = useFragment(
     graphql`
       fragment PromptVersionsList__main on Prompt {
@@ -100,7 +109,11 @@ export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
     >
       <Flex direction="column">
         {promptVersions.edges.map(({ version }) => (
-          <PromptVersionItem key={version.id} version={version} />
+          <PromptVersionItem
+            key={version.id}
+            version={version}
+            active={itemActive?.(version)}
+          />
         ))}
       </Flex>
     </View>
