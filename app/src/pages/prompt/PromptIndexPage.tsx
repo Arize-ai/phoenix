@@ -53,50 +53,52 @@ export function PromptIndexPageContent({
 
   return (
     <Flex direction="row" height="100%">
-      <View flex="1 1 auto" padding="size-200">
-        <Flex
-          direction="column"
-          gap="size-200"
-          maxWidth={900}
-          marginStart="auto"
-          marginEnd="auto"
-        >
-          <Card title="Prompt Template" variant="compact">
-            <Flex direction="column" gap="size-100">
-              <ChatTemplateMessage role="system" content="System message" />
-              <ChatTemplateMessage role="user" content="User message" />
-            </Flex>
-          </Card>
-          <Card
-            title="Model Configuration"
-            variant="compact"
-            bodyStyle={{ padding: 0 }}
+      <View height="100%" overflow="auto" data-testid="scroll-container">
+        <View padding="size-200">
+          <Flex
+            direction="column"
+            gap="size-200"
+            maxWidth={900}
+            marginStart="auto"
+            marginEnd="auto"
           >
-            <Accordion size="M">
-              <AccordionItem
-                title="Invocation Parameters"
-                id="invocation-parameters"
-              >
-                <PromptInvocationParameters promptVersion={latestVersion} />
-              </AccordionItem>
-              <AccordionItem title="Tools" id="model-tools">
-                <View padding="size-200">No Tools Specified</View>
-              </AccordionItem>
-            </Accordion>
-          </Card>
-          <Card
-            title="Code"
-            variant="compact"
-            extra={
-              <CodeLanguageRadioGroup
-                language={language}
-                onChange={setLanguage}
-              />
-            }
-          >
-            <PythonBlock value="Hello world" />
-          </Card>
-        </Flex>
+            <Card title="Prompt Template" variant="compact">
+              <Flex direction="column" gap="size-100">
+                <ChatTemplateMessage role="system" content="System message" />
+                <ChatTemplateMessage role="user" content="User message" />
+              </Flex>
+            </Card>
+            <Card
+              title="Model Configuration"
+              variant="compact"
+              bodyStyle={{ padding: 0 }}
+            >
+              <Accordion size="M">
+                <AccordionItem
+                  title="Invocation Parameters"
+                  id="invocation-parameters"
+                >
+                  <PromptInvocationParameters promptVersion={latestVersion} />
+                </AccordionItem>
+                <AccordionItem title="Tools" id="model-tools">
+                  <View padding="size-200">No Tools Specified</View>
+                </AccordionItem>
+              </Accordion>
+            </Card>
+            <Card
+              title="Code"
+              variant="compact"
+              extra={
+                <CodeLanguageRadioGroup
+                  language={language}
+                  onChange={setLanguage}
+                />
+              }
+            >
+              <PythonBlock value="Hello world" />
+            </Card>
+          </Flex>
+        </View>
       </View>
       <PromptIndexPageAside prompt={data} />
     </Flex>
