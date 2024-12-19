@@ -363,7 +363,7 @@ function FilterConditionBuilder(props: {
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
-          key="substring"
+          key="errors"
           label="filter on errors"
           initialSnippet="error is not None"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
@@ -381,17 +381,18 @@ function FilterConditionBuilder(props: {
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
-          key="compare_experiments"
-          label="compare experiments"
-          initialSnippet="evals['hallucination'].score < experiments[0].evals['hallucination'].score"
-          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
-        />
-        <FilterConditionSnippet
           key="eval_explanation"
           label="filter by evaluation explanation"
           initialSnippet="'search term' in evals['hallucination'].explanation"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
+        <FilterConditionSnippet
+          key="compare_experiments"
+          label="filter for lower scores than first experiment"
+          initialSnippet="evals['hallucination'].score < experiments[0].evals['hallucination'].score"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+
         <FilterConditionSnippet
           key="metadata"
           label="filter by metadata"
