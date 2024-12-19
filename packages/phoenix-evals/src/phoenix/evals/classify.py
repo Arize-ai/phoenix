@@ -35,7 +35,6 @@ from phoenix.evals.templates import (
 )
 from phoenix.evals.utils import (
     NOT_PARSABLE,
-    Audio,
     get_tqdm_progress_bar_formatter,
     openai_function_call_kwargs,
     parse_openai_function_call,
@@ -65,11 +64,12 @@ class ClassificationStatus(Enum):
     MISSING_INPUT = "MISSING INPUT"
 
 
-def llm_classify(
+def classify(
     dataframe: pd.DataFrame,
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
+    data_processor: Optional[Callable[[Union[List, pd.DataFrame]], pd.DataFrame]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -103,6 +103,9 @@ def llm_classify(
 
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
+
+        data_processor (Callable[[Union[List, pd.DataFrame]], pd.DataFrame]): A function
+            that takes a URL or audio bytes and returns a complete audio object.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -155,6 +158,9 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
+    if data_processor:
+        dataframe = data_processor(dataframe)
+
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -267,126 +273,6 @@ def llm_classify(
             **({"execution_seconds": [runtime for runtime in execution_times]}),
         },
         index=dataframe.index,
-    )
-
-
-def audio_classify(
-    dataframe: Union[List, pd.DataFrame],
-    model: BaseModel,
-    template: Union[ClassificationTemplate, PromptTemplate, str],
-    rails: List[str],
-    data_fetcher: Optional[Callable[[str], Audio]],
-    system_instruction: Optional[str] = None,
-    verbose: bool = False,
-    use_function_calling_if_available: bool = True,
-    provide_explanation: bool = False,
-    include_prompt: bool = False,
-    include_response: bool = False,
-    include_exceptions: bool = False,
-    max_retries: int = 10,
-    exit_on_error: bool = True,
-    run_sync: bool = False,
-    concurrency: Optional[int] = None,
-    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
-) -> pd.DataFrame:
-    """
-    Classifies each input row of the dataframe using an LLM.
-    Returns a pandas.DataFrame where the first column is named `label` and contains
-    the classification labels. An optional column named `explanation` is added when
-    `provide_explanation=True`.
-
-    Args:
-        dataframe (Union[List, pandas.DataFrame]): A pandas dataframe in which each row represents
-            a record to be classified. All template variable names must appear as column
-            names in the dataframe (extra columns unrelated to the template are permitted).
-
-        template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
-            as either an instance of PromptTemplate, ClassificationTemplate or a string.
-            If a string, the variable names should be surrounded by curly braces so that
-            a call to `.format` can be made to substitute variable values.
-
-        model (BaseEvalModel): An LLM model class.
-
-        rails (List[str]): A list of strings representing the possible output classes
-            of the model's predictions.
-
-        data_fetcher (Optional[Callable[[str], Audio]]): A function that takes a URL or audio bytes
-            and returns a complete audio object.
-
-        system_instruction (Optional[str], optional): An optional system message.
-
-        verbose (bool, optional): If True, prints detailed info to stdout such as
-            model invocation parameters and details about retries and snapping to rails.
-            Default False.
-
-        use_function_calling_if_available (bool, default=True): If True, use function
-            calling (if available) as a means to constrain the LLM outputs.
-            With function calling, the LLM is instructed to provide its response as a
-            structured JSON object, which is easier to parse.
-
-        provide_explanation (bool, default=False): If True, provides an explanation
-            for each classification label. A column named `explanation` is added to
-            the output dataframe.
-
-        include_prompt (bool, default=False): If True, includes a column named `prompt`
-            in the output dataframe containing the prompt used for each classification.
-
-        include_response (bool, default=False): If True, includes a column named `response`
-            in the output dataframe containing the raw response from the LLM.
-
-        max_retries (int, optional): The maximum number of times to retry on exceptions.
-            Defaults to 10.
-
-        exit_on_error (bool, default=True): If True, stops processing evals after all retries
-            are exhausted on a single eval attempt. If False, all evals are attempted before
-            returning, even if some fail.
-
-        run_sync (bool, default=False): If True, forces synchronous request submission.
-            Otherwise evaluations will be run asynchronously if possible.
-
-        concurrency (Optional[int], default=None): The number of concurrent evals if async
-            submission is possible. If not provided, a recommended default concurrency is
-            set on a per-model basis.
-
-        progress_bar_format(Optional[str]): An optional format for progress bar shown. If not
-            specified, defaults to: llm_classify |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
-            "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}". If 'None' is passed in specifically,
-            the progress_bar log will be disabled.
-
-    Returns:
-        pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
-            the classification labels. If provide_explanation=True, then an additional column named
-            `explanation` is added to contain the explanation for each label. The dataframe has
-            the same length and index as the input dataframe. The classification label values are
-            from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
-            not be parsed. The output dataframe also includes three additional columns in the
-            output dataframe: `exceptions`, `execution_status`, and `execution_seconds` containing
-            details about execution errors that may have occurred during the classification as well
-            as the total runtime of each classification (in seconds).
-    """
-    if not isinstance(dataframe, pd.DataFrame):
-        dataframe = pd.DataFrame(dataframe, columns=["audio_url"])
-    dataframe["audio_bytes"] = dataframe["audio_url"].apply(lambda url: data_fetcher(url).data)
-    dataframe["audio_format"] = dataframe["audio_url"].apply(
-        lambda url: data_fetcher(url).format.value
-    )
-    return llm_classify(
-        dataframe=dataframe,
-        model=model,
-        template=template,
-        rails=rails,
-        system_instruction=system_instruction,
-        verbose=verbose,
-        use_function_calling_if_available=use_function_calling_if_available,
-        provide_explanation=provide_explanation,
-        include_prompt=include_prompt,
-        include_response=include_response,
-        include_exceptions=include_exceptions,
-        max_retries=max_retries,
-        exit_on_error=exit_on_error,
-        run_sync=run_sync,
-        concurrency=concurrency,
-        progress_bar_format=progress_bar_format,
     )
 
 

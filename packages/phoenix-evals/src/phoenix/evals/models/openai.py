@@ -18,7 +18,8 @@ from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import AudioFormat
+
+from ...evals.utils import get_audio_format_from_base64
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -282,23 +283,21 @@ class OpenAIModel(BaseModel):
     def _build_messages(
         self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        audio_format = None
         messages = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": part.content})
-            elif part.content_type == PromptPartContentType.AUDIO_FORMAT:
-                audio_format = AudioFormat(part.content)
-            elif part.content_type == PromptPartContentType.AUDIO_BYTES:
-                if not audio_format:
-                    raise ValueError("No audio format provided")
+            elif part.content_type == PromptPartContentType.AUDIO_STRING:
                 messages.append(
                     {  # type: ignore
                         "role": "user",
                         "content": [
                             {
                                 "type": "input_audio",
-                                "input_audio": {"data": part.content, "format": audio_format.value},
+                                "input_audio": {
+                                    "data": part.content,
+                                    "format": get_audio_format_from_base64(part.content)
+                                },
                             }
                         ],
                     }
