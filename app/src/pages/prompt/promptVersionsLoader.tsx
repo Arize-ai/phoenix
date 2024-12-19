@@ -30,7 +30,7 @@ export async function promptVersionsLoader({ params }: LoaderFunctionArgs) {
           ... on Prompt {
             promptVersions(first: 1) {
               edges {
-                node {
+                promptVersion: node {
                   id
                 }
               }
@@ -48,6 +48,6 @@ export async function promptVersionsLoader({ params }: LoaderFunctionArgs) {
     throw new Error("Prompt does not have any versions");
   }
 
-  const promptVersion = response.prompt.promptVersions.edges[0].node;
+  const promptVersion = response.prompt.promptVersions.edges[0].promptVersion;
   return redirect(`/prompts/${promptId}/versions/${promptVersion.id}`);
 }

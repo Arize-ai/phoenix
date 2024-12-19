@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3ca2ce7fa22f5ba219e29918cfd46e9>>
+ * @generated SignedSource<<678ce2c5ba82f0de380ba8f413f52cfa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type promptVersionsLoaderQuery$data = {
   readonly prompt: {
     readonly promptVersions?: {
       readonly edges: ReadonlyArray<{
-        readonly node: {
+        readonly promptVersion: {
           readonly id: string;
         };
       }>;
@@ -76,7 +76,7 @@ v3 = {
           "plural": true,
           "selections": [
             {
-              "alias": null,
+              "alias": "promptVersion",
               "args": null,
               "concreteType": "PromptVersion",
               "kind": "LinkedField",
@@ -153,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4663f7d6085a298ea86a9923d81661d5",
+    "cacheID": "6b4dac4f67e74b03bfd1c4802b844fb0",
     "id": null,
     "metadata": {},
     "name": "promptVersionsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionsLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query promptVersionsLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eb7e3d480f8becf8b9968119e0ab4e8f";
+(node as any).hash = "b5ea8ee71d6ce7848581a446f803c1aa";
 
 export default node;
