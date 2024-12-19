@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Card, Flex, View } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Card,
+  Flex,
+  View,
+} from "@arizeai/components";
 
 import {
   CodeLanguage,
@@ -61,8 +67,22 @@ export function PromptIndexPageContent({
               <ChatTemplateMessage role="user" content="User message" />
             </Flex>
           </Card>
-          <Card title="Model Configuration" variant="compact">
-            <PromptInvocationParameters promptVersion={latestVersion} />
+          <Card
+            title="Model Configuration"
+            variant="compact"
+            bodyStyle={{ padding: 0 }}
+          >
+            <Accordion size="M">
+              <AccordionItem
+                title="Invocation Parameters"
+                id="invocation-parameters"
+              >
+                <PromptInvocationParameters promptVersion={latestVersion} />
+              </AccordionItem>
+              <AccordionItem title="Tools" id="model-tools">
+                <View padding="size-200">No Tools Specified</View>
+              </AccordionItem>
+            </Accordion>
           </Card>
           <Card
             title="Code"

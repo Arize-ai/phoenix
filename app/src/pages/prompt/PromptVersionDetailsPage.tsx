@@ -1,7 +1,13 @@
 import React from "react";
 import { useLoaderData } from "react-router";
 
-import { Card, Flex, View } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Card,
+  Flex,
+  View,
+} from "@arizeai/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
@@ -25,8 +31,19 @@ function PromptVersionDetailsPageContent({
         marginStart="auto"
         marginEnd="auto"
       >
-        <Card title="Model Configuration" variant="compact">
-          <PromptInvocationParameters promptVersion={promptVersion} />
+        <Card
+          title="Model Configuration"
+          variant="compact"
+          bodyStyle={{ padding: 0 }}
+        >
+          <Accordion size="M">
+            <AccordionItem
+              title="Invocation Parameters"
+              id="invocation-parameters"
+            >
+              <PromptInvocationParameters promptVersion={promptVersion} />
+            </AccordionItem>
+          </Accordion>
         </Card>
       </Flex>
     </View>

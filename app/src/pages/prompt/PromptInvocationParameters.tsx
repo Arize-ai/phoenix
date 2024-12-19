@@ -1,9 +1,8 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import { isObject } from "lodash";
-import { css } from "@emotion/react";
+import isObject from "lodash/isObject";
 
-import { Flex, Text, View } from "@arizeai/components";
+import { Flex, List, ListItem, Text, View } from "@arizeai/components";
 
 import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
 
@@ -15,7 +14,7 @@ function PromptInvocationParameterItem({
   value: unknown;
 }) {
   return (
-    <View padding="size-100">
+    <View paddingStart="size-100" paddingEnd="size-100">
       <Flex direction="row" justifyContent="space-between">
         <Text weight="heavy">{keyName}</Text>
         <Text>{String(value)}</Text>
@@ -23,14 +22,6 @@ function PromptInvocationParameterItem({
     </View>
   );
 }
-
-const promptInvocationParametersCSS = css`
-  // every other row should have a background color
-  & > *:nth-child(even) {
-    background-color: var(--ac-global-background-color-light);
-    border-radius: 4px;
-  }
-`;
 
 type PromptInvocationParametersProps = {
   promptVersion: PromptInvocationParameters__main$key;
@@ -62,23 +53,19 @@ export function PromptInvocationParameters({
     return (
       <View padding="size-200">
         <Flex justifyContent="center" alignItems="center">
-          <Text>No parameters recorded for this prompt</Text>
+          <Text>No parameters saved for this prompt</Text>
         </Flex>
       </View>
     );
   }
 
   return (
-    <View width="100%">
-      <div css={promptInvocationParametersCSS}>
-        {parameters.map(({ key, value }) => (
-          <PromptInvocationParameterItem
-            keyName={key}
-            value={value}
-            key={key}
-          />
-        ))}
-      </div>
-    </View>
+    <List listSize="small">
+      {parameters.map(({ key, value }) => (
+        <ListItem key="key">
+          <PromptInvocationParameterItem keyName={key} value={value} />
+        </ListItem>
+      ))}
+    </List>
   );
 }
