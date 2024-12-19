@@ -64,7 +64,7 @@ class ClassificationStatus(Enum):
     MISSING_INPUT = "MISSING INPUT"
 
 
-def classify(
+def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
