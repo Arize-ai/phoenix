@@ -15,6 +15,12 @@ export interface Experiment extends Node {
   projectName: string;
 }
 
+export interface RanExperiment extends Experiment {
+  params: ExperimentParameters;
+  runs: Record<string, ExperimentRun>;
+  evaluationRuns?: ExperimentEvaluationRun[];
+}
+
 /**
  * The result of running an experiment on a single example
  */
@@ -31,6 +37,32 @@ export interface ExperimentRun extends Node {
   error: string | null;
   traceId: string | null;
 }
+
+export type EvaluatorParams = {
+  /**
+   * The input field of the Dataset Example
+   */
+  input: Example["input"];
+  /**
+   * The output of the task
+   */
+  output: TaskOutput;
+  /**
+   * The expected or reference output of the Dataset Example
+   */
+  expected?: Example["output"];
+  /**
+   * Metadata associated with the Dataset Example
+   */
+  metadata?: Record<string, unknown>;
+};
+
+export type Evaluator = {
+  name: string;
+  evaluate: (
+    args: EvaluatorParams
+  ) => Promise<EvaluationResult> | EvaluationResult;
+};
 
 export type EvaluationResult = {
   score: number | null;
@@ -54,14 +86,14 @@ export interface ExperimentEvaluationRun extends Node {
    * The trace id of the evaluation
    * This is null if the trace is deleted or never recorded
    */
-  trace_id: string | null;
+  traceId: string | null;
 }
 
 export type TaskOutput = string | boolean | number | object | null;
 
-export type ExperimentTask =
-  | ((example: Example) => Promise<TaskOutput>)
-  | ((example: Example) => TaskOutput);
+export type ExperimentTask = (
+  example: Example
+) => Promise<TaskOutput> | TaskOutput;
 
 export interface ExperimentParameters {
   /**
