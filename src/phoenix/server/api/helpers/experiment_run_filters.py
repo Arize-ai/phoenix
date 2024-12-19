@@ -43,6 +43,7 @@ SupportedUnaryTermOperator: TypeAlias = ast.USub
 SupportedDatasetExampleAttributeName: TypeAlias = Literal["input", "reference_output", "metadata"]
 SupportedExperimentRunAttributeName: TypeAlias = Literal["output", "error", "latency_ms", "evals"]
 SupportedExperimentRunEvalAttributeName: TypeAlias = Literal["score", "explanation", "label"]
+EvalName: TypeAlias = str
 
 
 def update_examples_query_with_filter_condition(
@@ -63,11 +64,18 @@ def update_examples_query_with_filter_condition(
             ),
             isouter=True,
         )
-        experiment_run_annotations = transformer.get_experiment_run_annotations_alias(experiment_id)
-        if experiment_run_annotations is not None:
+        experiment_run_annotations_aliases = transformer.get_experiment_run_annotations_aliases(
+            experiment_id
+        )
+        for eval_name, experiment_run_annotations in experiment_run_annotations_aliases.items():
             query = query.join(
                 experiment_run_annotations,
-                onclause=experiment_run_annotations.experiment_run_id == experiment_runs.id,
+                onclause=(
+                    and_(
+                        experiment_run_annotations.experiment_run_id == experiment_runs.id,
+                        experiment_run_annotations.name == eval_name,
+                    )
+                ),
                 isouter=True,
             )
     query = query.where(orm_filter_condition)
@@ -171,8 +179,7 @@ class ExperimentRunFilterConditionNode(ABC):
 
 @dataclass(frozen=True)
 class Term(ExperimentRunFilterConditionNode):
-    def update_expression(self, expression: BinaryExpression[Any]) -> BinaryExpression[Any]:
-        return expression
+    pass
 
 
 @dataclass(frozen=True)
@@ -244,10 +251,12 @@ class HasAliasedTables:
             experiment_id
         ) or self.transformer.create_experiment_runs_alias(experiment_id)
 
-    def experiment_run_annotation_alias(self, experiment_id: ExperimentID) -> Any:
+    def experiment_run_annotation_alias(
+        self, experiment_id: ExperimentID, eval_name: EvalName
+    ) -> Any:
         return self.transformer.get_experiment_run_annotations_alias(
-            experiment_id
-        ) or self.transformer.create_experiment_run_annotations_alias(experiment_id)
+            experiment_id, eval_name
+        ) or self.transformer.create_experiment_run_annotations_alias(experiment_id, eval_name)
 
 
 @dataclass(frozen=True)
@@ -369,14 +378,11 @@ class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
         object.__setattr__(self, "_eval_name", self.experiment_run_eval.eval_name)
 
     def compile(self) -> Any:
-        attribute_name = self._attribute_name
-        experiment_run_annotations = self.experiment_run_annotation_alias(self.experiment_id)
-        return getattr(experiment_run_annotations, attribute_name)
-
-    def update_expression(self, expression: Any) -> Any:
         experiment_id = self.experiment_id
-        experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id)
-        return expression & (experiment_run_annotations.name == self._eval_name)
+        eval_name = self._eval_name
+        attribute_name = self._attribute_name
+        experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id, eval_name)
+        return getattr(experiment_run_annotations, attribute_name)
 
     def data_type(self) -> Optional[SQLAlchemyDataType]:
         attribute_name = self._attribute_name
@@ -441,10 +447,7 @@ class ComparisonOperation(BooleanExpression):
             if not isinstance(right_operand, HasDataType):
                 compiled_right_operand = cast(compiled_right_operand, cast_type)
         sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
-        comparison_expression = sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
-        for operand in (self.left_operand, self.right_operand):
-            comparison_expression = operand.update_expression(comparison_expression)
-        return comparison_expression
+        return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
 
 
 @dataclass(frozen=True)
@@ -494,7 +497,7 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
             raise ValueError("Must provide one or more experiments")
         self._experiment_ids = experiment_ids
         self._aliased_experiment_runs: dict[ExperimentID, Any] = {}
-        self._aliased_experiment_run_annotations: dict[ExperimentID, Any] = {}
+        self._aliased_experiment_run_annotations: dict[ExperimentID, dict[EvalName, Any]] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
         return Constant(value=node.value, ast_node=node)
@@ -605,20 +608,33 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
     def get_experiment_runs_alias(self, experiment_id: ExperimentID) -> Any:
         return self._aliased_experiment_runs.get(experiment_id)
 
-    def create_experiment_run_annotations_alias(self, experiment_id: ExperimentID) -> Any:
-        if self.get_experiment_run_annotations_alias(experiment_id) is not None:
-            raise ValueError(f"Alias already exists for experiment ID: {experiment_id}")
+    def create_experiment_run_annotations_alias(
+        self, experiment_id: ExperimentID, eval_name: EvalName
+    ) -> Any:
+        if self.get_experiment_run_annotations_alias(experiment_id, eval_name) is not None:
+            raise ValueError(
+                f"Alias exists for experiment ID and eval name: {(experiment_id, eval_name)}"
+            )
         self._ensure_experiment_runs_alias_exists(
             experiment_id
         )  # experiment_runs are needed so we have something to join experiment_run_annotations to
         experiment_index = self.get_experiment_index(experiment_id)
-        alias_name = f"experiment_run_annotations_{experiment_index}"
+        alias_name = f"experiment_run_annotations_{experiment_index}_{eval_name}"
         aliased_table = aliased(models.ExperimentRunAnnotation, name=alias_name)
-        self._aliased_experiment_run_annotations[experiment_id] = aliased_table
+        if experiment_id not in self._aliased_experiment_run_annotations:
+            self._aliased_experiment_run_annotations[experiment_id] = {}
+        self._aliased_experiment_run_annotations[experiment_id][eval_name] = aliased_table
         return aliased_table
 
-    def get_experiment_run_annotations_alias(self, experiment_id: ExperimentID) -> Any:
-        return self._aliased_experiment_run_annotations.get(experiment_id)
+    def get_experiment_run_annotations_alias(
+        self, experiment_id: ExperimentID, eval_name: EvalName
+    ) -> Any:
+        return self._aliased_experiment_run_annotations.get(experiment_id, {}).get(eval_name)
+
+    def get_experiment_run_annotations_aliases(
+        self, experiment_id: ExperimentID
+    ) -> dict[EvalName, Any]:
+        return self._aliased_experiment_run_annotations.get(experiment_id, {})
 
     def get_experiment_index(self, experiment_id: ExperimentID) -> int:
         return self._experiment_ids.index(experiment_id)
@@ -734,12 +750,7 @@ def _is_supported_unary_term_operator(
 
 if __name__ == "__main__":
     expressions = [
-        "input['score'] < 10",
-        "output['score'] < 10",
-        "'invalid' in error",
-        "latency_ms < 1000",
-        "evals['hallucination'].score < 10",
-        "reference_output['score'] < 10",
+        'experiments[0].evals["matches expected"].label == "does not match" and experiments[0].evals["judged correct"].label == "incorrect"',  # noqa: E501
     ]
     for expression in expressions:
         print(f"{expression=}")
