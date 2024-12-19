@@ -455,7 +455,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   // Make sure the table is at least 1280px wide
 
   return (
-    <div css={tableWrapCSS}>
+    <Flex direction="column" height="100%">
       <View
         paddingTop="size-100"
         paddingBottom="size-100"
@@ -469,63 +469,65 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           onValidCondition={handleFilterChange}
         />
       </View>
-      <table
-        css={css(tableCSS, borderedTableCSS)}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
-      >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                  }}
-                >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
-                  <div
-                    {...{
-                      onMouseDown: header.getResizeHandler(),
-                      onTouchStart: header.getResizeHandler(),
-                      className: `resizer ${
-                        header.column.getIsResizing() ? "isResizing" : ""
-                      }`,
+      <div css={tableWrapCSS}>
+        <table
+          css={css(tableCSS, borderedTableCSS)}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    style={{
+                      width: `calc(var(--header-${header?.id}-size) * 1px)`,
                     }}
-                  />
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : /* When resizing any column we will render this special memoized version of our table body */
-        table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} />
-        ) : (
-          <TableBody table={table} />
-        )}
-      </table>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </div>
+                  >
+                    <div>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </div>
+                    <div
+                      {...{
+                        onMouseDown: header.getResizeHandler(),
+                        onTouchStart: header.getResizeHandler(),
+                        className: `resizer ${
+                          header.column.getIsResizing() ? "isResizing" : ""
+                        }`,
+                      }}
+                    />
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : /* When resizing any column we will render this special memoized version of our table body */
+          table.getState().columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody table={table} />
+          ) : (
+            <TableBody table={table} />
+          )}
+        </table>
+        <DialogContainer
+          isDismissable
+          type="slideOver"
+          onDismiss={() => {
+            setDialog(null);
+          }}
+        >
+          {dialog}
+        </DialogContainer>
+      </div>
+    </Flex>
   );
 }
 
