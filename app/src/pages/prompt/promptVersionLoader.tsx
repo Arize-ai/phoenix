@@ -6,7 +6,9 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { promptVersionLoaderQuery } from "./__generated__/promptVersionLoaderQuery.graphql";
 
 /**
- * Loads in the necessary page data for the prompt/:promptId/versions page
+ * Loads in the necessary page data for the prompt/:promptId/versions/:versionId page
+ *
+ * In other words, the data required to render a specific version of a prompt
  */
 export async function promptVersionLoader(args: LoaderFunctionArgs) {
   const { versionId } = args.params;
@@ -19,6 +21,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
           id
           ... on PromptVersion {
             ...PromptInvocationParameters__main
+            ...PromptChatMessages__main
             description
             invocationParameters
             modelName

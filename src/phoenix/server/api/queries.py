@@ -549,10 +549,12 @@ class Query:
                     template={
                         "_version": "messages-v1",
                         "messages": [
+                            {"role": "system", "content": "You are a helpful assistant"},
                             {
                                 "role": "user",
-                                "content": "Hello what's the weather in Antarctica like?",
-                            }
+                                "content": "Hello what's the weather in {{location}} like?",
+                            },
+                            {"role": "ai", "content": "Looking up the weather in {{location}}..."},
                         ],
                     },
                     invocation_parameters={
@@ -603,7 +605,7 @@ class Query:
                         "messages": [
                             {
                                 "role": "user",
-                                "content": "Hello what's the weather in Antarctica like?",
+                                "content": "Hello what's the weather in {{location}} like?",
                             }
                         ],
                     },

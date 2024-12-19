@@ -10,6 +10,7 @@ import {
 } from "@arizeai/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
+import { PromptChatMessages } from "./PromptChatMessages";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
 
 export function PromptVersionDetailsPage() {
@@ -31,6 +32,9 @@ function PromptVersionDetailsPageContent({
         marginStart="auto"
         marginEnd="auto"
       >
+        <Card title="Prompt">
+          <PromptChatMessages promptVersion={promptVersion} />
+        </Card>
         <Card
           title="Model Configuration"
           variant="compact"

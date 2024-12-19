@@ -18,7 +18,7 @@ import {
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
-import { ChatTemplateMessage } from "./ChatTemplateMessage";
+import { PromptChatMessages } from "./PromptChatMessages";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
@@ -40,6 +40,7 @@ export function PromptIndexPageContent({
           edges {
             node {
               ...PromptInvocationParameters__main
+              ...PromptChatMessages__main
             }
           }
         }
@@ -53,20 +54,22 @@ export function PromptIndexPageContent({
 
   return (
     <Flex direction="row" height="100%">
-      <View height="100%" overflow="auto" data-testid="scroll-container">
+      <View
+        height="100%"
+        overflow="auto"
+        width="100%"
+        data-testid="scroll-container"
+      >
         <View padding="size-200">
           <Flex
             direction="column"
             gap="size-200"
-            maxWidth={900}
             marginStart="auto"
             marginEnd="auto"
+            maxWidth={900}
           >
             <Card title="Prompt Template" variant="compact">
-              <Flex direction="column" gap="size-100">
-                <ChatTemplateMessage role="system" content="System message" />
-                <ChatTemplateMessage role="user" content="User message" />
-              </Flex>
+              <PromptChatMessages promptVersion={latestVersion} />
             </Card>
             <Card
               title="Model Configuration"
@@ -125,7 +128,7 @@ function PromptIndexPageAside({
   return (
     <View
       flex="none"
-      width="400px"
+      width={400}
       borderStartColor="dark"
       borderStartWidth="thin"
     >

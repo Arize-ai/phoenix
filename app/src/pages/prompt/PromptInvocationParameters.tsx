@@ -61,8 +61,8 @@ export function PromptInvocationParameters({
 
   return (
     <List listSize="small">
-      {parameters.map(({ key, value }) => (
-        <ListItem key="key">
+      {parameters.map(({ key, value }, i) => (
+        <ListItem key={`${key}-${i}`}>
           <PromptInvocationParameterItem keyName={key} value={value} />
         </ListItem>
       ))}
