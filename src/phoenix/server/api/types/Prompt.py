@@ -47,7 +47,9 @@ class Prompt(Node):
                 template={
                     "_version": "messages-v1",
                     "messages": [
-                        {"role": "user", "content": "Hello what's the weather in Antarctica like?"}
+                        {"role": "system", "content": "You are a helpful assistant"},
+                        {"role": "user", "content": "Hello what's the weather in Antarctica like?"},
+                        {"role": "ai", "content": "The weather in Antarctica is very cold."},
                     ],
                 },
                 invocation_parameters={

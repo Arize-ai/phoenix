@@ -6,6 +6,7 @@ import CodeMirror, {
   EditorView,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
+import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -57,5 +58,32 @@ export const TemplateEditor = ({
       basicSetup={basicSetupOptions}
       {...props}
     />
+  );
+};
+
+export const TemplateEditorWrap = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  return (
+    <div
+      css={css`
+        & .cm-content {
+          padding: var(--ac-global-dimension-size-100)
+            var(--ac-global-dimension-size-250);
+        }
+        & .cm-gutter,
+        & .cm-content {
+          min-height: 75px;
+        }
+        & .cm-line {
+          padding-left: 0;
+          padding-right: 0;
+        }
+      `}
+    >
+      {children}
+    </div>
   );
 };
