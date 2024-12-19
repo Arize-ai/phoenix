@@ -19,6 +19,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
           id
           ... on PromptVersion {
             ...PromptInvocationParameters__main
+            ...PromptChatMessages__main
             description
             invocationParameters
             modelName
