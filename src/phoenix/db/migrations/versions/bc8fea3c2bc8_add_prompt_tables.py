@@ -146,6 +146,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sqlite_autoincrement=True,
     )
 
     op.create_table(
