@@ -27,6 +27,7 @@ from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
@@ -63,7 +64,6 @@ from phoenix.server.api.types.PromptVersion import (
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptChatTemplate,
-    PromptMessageRole,
     TextPromptMessage,
 )
 from phoenix.server.api.types.SortDir import SortDir

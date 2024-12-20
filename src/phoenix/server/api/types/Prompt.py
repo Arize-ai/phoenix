@@ -9,6 +9,7 @@ from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
+from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -16,7 +17,6 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptChatTemplate,
-    PromptMessageRole,
     TextPromptMessage,
 )
 

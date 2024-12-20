@@ -34,15 +34,6 @@ class PromptStringTemplate(BaseModel):
     template: str
 
 
-# TODO: Figure out enums, maybe just store whole tool blobs
-# class PromptToolParameter(BaseModel):
-#     name: str
-#     type: str
-#     description: str
-#     required: bool
-#     default: str
-
-
 class PromptToolDefinition(BaseModel):
     definition: JSONSerializable
 

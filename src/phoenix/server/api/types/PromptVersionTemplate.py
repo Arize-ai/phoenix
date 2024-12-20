@@ -4,7 +4,7 @@
 import strawberry
 from strawberry.scalars import JSON
 
-from phoenix.server.api.helpers.prompthub.models import (
+from phoenix.server.api.helpers.prompts.models import (
     PromptMessageRole,
 )
 
@@ -21,15 +21,15 @@ class JSONPromptMessage:
     content: JSON
 
 
-PromptTemplateMessages = list[
-    strawberry.union("PromptTemplateMessage", (TextPromptMessage, JSONPromptMessage))
-]
+PromptTemplateMessage = strawberry.union(
+    "PromptTemplateMessage", (TextPromptMessage, JSONPromptMessage)
+)
 
 
 @strawberry.type
 class PromptChatTemplate:
     _version: str = "messages-v1"
-    messages: PromptTemplateMessages
+    messages: list[PromptTemplateMessage]
 
 
 @strawberry.type
