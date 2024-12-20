@@ -6,23 +6,23 @@ export function useChatMessageStyles(
   role: string
 ): Pick<ViewStyleProps, "backgroundColor" | "borderColor"> {
   return useMemo<ViewStyleProps>(() => {
-    role = role.toLowerCase();
-    if (role === "user" || role === "human") {
+    const normalizedRole = role.toLowerCase();
+    if (normalizedRole === "user" || normalizedRole === "human") {
       return {
         backgroundColor: "grey-100",
         borderColor: "grey-500",
       };
-    } else if (role === "assistant" || role === "ai") {
+    } else if (normalizedRole === "assistant" || normalizedRole === "ai") {
       return {
         backgroundColor: "blue-100",
         borderColor: "blue-700",
       };
-    } else if (role === "system") {
+    } else if (normalizedRole === "system" || normalizedRole === "developer") {
       return {
         backgroundColor: "indigo-100",
         borderColor: "indigo-700",
       };
-    } else if (["function", "tool"].includes(role)) {
+    } else if (["function", "tool"].includes(normalizedRole)) {
       return {
         backgroundColor: "yellow-100",
         borderColor: "yellow-700",
