@@ -347,6 +347,12 @@
     'sql': "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",
   })
 # ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-output]
+  dict({
+    'filter_condition': "'x' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%'",
+  })
+# ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-json-attribute]
   dict({
     'filter_condition': "experiments[0].input['question'] is experiments[0].output['question']",
@@ -723,6 +729,12 @@
   dict({
     'filter_condition': "experiments[0].input['question'] in experiments[0].output['question']",
     'sql': "CAST(experiment_runs_0.output['task_output']['question'] AS VARCHAR) LIKE '%' || CAST(dataset_example_revisions.input['question'] AS VARCHAR) || '%'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-output]
+  dict({
+    'filter_condition': "'x' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-json-attribute]
