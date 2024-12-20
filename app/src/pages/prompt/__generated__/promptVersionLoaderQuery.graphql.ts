@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fa6484b12fb3aaaf58c06d62f864e6e6>>
+ * @generated SignedSource<<e18233b96a4ae06413df1401104a6623>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,6 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
-export type PromptTemplateType = "CHAT" | "STRING";
 export type promptVersionLoaderQuery$variables = {
   id: string;
 };
@@ -22,11 +20,6 @@ export type promptVersionLoaderQuery$data = {
     readonly id: string;
     readonly invocationParameters?: any | null;
     readonly modelName?: string;
-    readonly modelProvider?: string;
-    readonly outputSchema?: any | null;
-    readonly template?: any;
-    readonly templateFormat?: PromptTemplateFormat;
-    readonly templateType?: PromptTemplateType;
     readonly tools?: any | null;
     readonly user?: string | null;
     readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptInvocationParameters__main">;
@@ -91,49 +84,21 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "modelProvider",
+  "name": "tools",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "outputSchema",
+  "name": "user",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "template",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateFormat",
-  "storageKey": null
-},
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateType",
-  "storageKey": null
-},
-v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "tools",
-  "storageKey": null
-},
-v13 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "user",
+  "name": "role",
   "storageKey": null
 };
 return {
@@ -170,12 +135,7 @@ return {
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
-              (v12/*: any*/),
-              (v13/*: any*/)
+              (v8/*: any*/)
             ],
             "type": "PromptVersion",
             "abstractKey": null
@@ -207,15 +167,99 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v5/*: any*/),
-              (v9/*: any*/),
-              (v11/*: any*/),
-              (v10/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "template",
+                "plural": false,
+                "selections": [
+                  (v2/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "messages",
+                        "plural": true,
+                        "selections": [
+                          (v2/*: any*/),
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              (v9/*: any*/),
+                              {
+                                "alias": "jsonContent",
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "content",
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "JSONPromptMessage",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              (v9/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "content",
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "TextPromptMessage",
+                            "abstractKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "PromptChatTemplate",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "template",
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "PromptStringTemplate",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "templateType",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "templateFormat",
+                "storageKey": null
+              },
               (v4/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
-              (v8/*: any*/),
-              (v12/*: any*/),
-              (v13/*: any*/)
+              (v8/*: any*/)
             ],
             "type": "PromptVersion",
             "abstractKey": null
@@ -226,16 +270,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9fcdaf76b12a28f886760db11059c46a",
+    "cacheID": "79d9f2c9b07ae6e056c5c426fc3d41f9",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      modelProvider\n      outputSchema\n      template\n      templateFormat\n      templateType\n      tools\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      tools\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5cdef074e1a5bbe1dfd8e1928665c5aa";
+(node as any).hash = "d97d68d3c88281b2949823d0e02948f3";
 
 export default node;

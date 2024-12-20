@@ -25,11 +25,6 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
             description
             invocationParameters
             modelName
-            modelProvider
-            outputSchema
-            template
-            templateFormat
-            templateType
             tools
             user
           }
