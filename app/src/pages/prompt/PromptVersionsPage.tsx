@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { useFragment } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, View } from "@arizeai/components";
@@ -10,16 +10,19 @@ import { PromptVersionsList } from "./PromptVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptVersionsPage() {
-  // TODO: Add a loader that will redirect to the latest version
-  // Landing on /versions alone is not a good user experience
   const { prompt } = usePromptIdLoader();
-  return <PromptVersionsPageContent prompt={prompt} />;
+  const { versionId } = useParams();
+  return (
+    <PromptVersionsPageContent prompt={prompt} promptVersionId={versionId} />
+  );
 }
 
 function PromptVersionsPageContent({
   prompt,
+  promptVersionId,
 }: {
   prompt: PromptVersionsPageContent__main$key;
+  promptVersionId?: string;
 }) {
   const promptVersions = useFragment(
     graphql`
@@ -29,10 +32,14 @@ function PromptVersionsPageContent({
     `,
     prompt
   );
+  const itemActive = useCallback(
+    (version: { id: string }) => version.id === promptVersionId,
+    [promptVersionId]
+  );
   return (
     <View height="100%">
       <Flex direction="row" height="100%">
-        <PromptVersionsList prompt={promptVersions} />
+        <PromptVersionsList prompt={promptVersions} itemActive={itemActive} />
         <Outlet />
       </Flex>
     </View>
