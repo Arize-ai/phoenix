@@ -21,7 +21,6 @@ export function CopyToClipboardButton({
   disabled = false,
 }: {
   text: string;
-
   size?: ButtonProps["size"];
   disabled?: boolean;
 }) {
