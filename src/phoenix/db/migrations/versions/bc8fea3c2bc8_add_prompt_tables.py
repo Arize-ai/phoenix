@@ -46,7 +46,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "prompt_tag_configs",
+        "prompt_labels",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String),
@@ -80,12 +80,12 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "prompt_tags",
+        "prompts_prompt_labels",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "prompt_tag_config_id",
+            "prompt_label_id",
             sa.Integer,
-            sa.ForeignKey("prompt_tag_configs.id", ondelete="CASCADE"),
+            sa.ForeignKey("prompt_labels.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
         ),
@@ -149,7 +149,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "prompt_template_version_tags",
+        "prompt_tags",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
@@ -182,8 +182,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("prompt_template_version_tags")
-    op.drop_table("prompt_versions")
     op.drop_table("prompt_tags")
+    op.drop_table("prompt_versions")
+    op.drop_table("prompts_prompt_labels")
     op.drop_table("prompts")
-    op.drop_table("prompt_tag_configs")
+    op.drop_table("prompt_labels")
