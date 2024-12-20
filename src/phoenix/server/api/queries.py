@@ -62,8 +62,8 @@ from phoenix.server.api.types.PromptVersion import (
     PromptVersion,
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
+    PromptChatTemplateV1,
     PromptMessageRole,
-    PromptMessagesTemplateV1,
     TextPromptMessage,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -544,7 +544,7 @@ class Query:
                 created_at=datetime.now(),
             )
         elif type_name == PromptVersion.__name__:
-            template = PromptMessagesTemplateV1(
+            template = PromptChatTemplateV1(
                 messages=[
                     TextPromptMessage(
                         role=PromptMessageRole.USER,

@@ -14,10 +14,6 @@ class PromptMessageRole(str, Enum):
     AI = "ai"  # E.g. the assistant. Normalize to AI for consistency.
 
 
-class PromptStringTemplate(BaseModel):
-    template: str
-
-
 class TextPromptMessage(BaseModel):
     role: PromptMessageRole
     content: str
@@ -28,9 +24,13 @@ class JSONPromptMessage(BaseModel):
     content: JSONSerializable
 
 
-class PromptMessagesTemplateV1(BaseModel):
+class PromptChatTemplateV1(BaseModel):
     _version: str = "messages-v1"
     template: list[Union[TextPromptMessage, JSONPromptMessage]]
+
+
+class PromptStringTemplate(BaseModel):
+    template: str
 
 
 # TODO: Figure out enums, maybe just store whole tool blobs
