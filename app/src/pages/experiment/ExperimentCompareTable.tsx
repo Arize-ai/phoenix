@@ -129,13 +129,7 @@ const annotationTooltipExtraCSS = css`
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
-  const [queryKey, setQueryKey] = useState(0);
   const [filterCondition, setFilterCondition] = useState("");
-
-  const handleFilterChange = (newFilter: string) => {
-    setFilterCondition(newFilter);
-    setQueryKey((prev) => prev + 1);
-  };
 
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
@@ -209,8 +203,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       experimentIds,
       datasetId,
       filterCondition,
-    },
-    { fetchKey: queryKey }
+    }
   );
   const experimentInfoById = useMemo(() => {
     return (
@@ -468,7 +461,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         flex="none"
       >
         <ExperimentRunFilterConditionField
-          onValidCondition={handleFilterChange}
+          onValidCondition={setFilterCondition}
         />
       </View>
       <div css={tableWrapCSS}>
