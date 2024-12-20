@@ -15,7 +15,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptMessageRole,
     TextPromptMessage,
 )
@@ -46,7 +46,7 @@ class Prompt(Node):
             before=before if isinstance(before, CursorString) else None,
         )
 
-        template = PromptChatTemplateV1(
+        template = PromptChatTemplate(
             messages=[
                 TextPromptMessage(
                     role=PromptMessageRole.USER,

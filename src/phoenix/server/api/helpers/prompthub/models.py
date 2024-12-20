@@ -10,8 +10,9 @@ JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 @strawberry.enum
 class PromptMessageRole(str, Enum):
     USER = "user"
-    SYSTEM = "system"
+    SYSTEM = "system"  # e.g. the OpenAI developer role or an Anthropic system instruction
     AI = "ai"  # E.g. the assistant. Normalize to AI for consistency.
+    TOOL = "tool"
 
 
 class TextPromptMessage(BaseModel):

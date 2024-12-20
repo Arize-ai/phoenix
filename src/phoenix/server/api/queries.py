@@ -62,7 +62,7 @@ from phoenix.server.api.types.PromptVersion import (
     PromptVersion,
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptMessageRole,
     TextPromptMessage,
 )
@@ -544,7 +544,7 @@ class Query:
                 created_at=datetime.now(),
             )
         elif type_name == PromptVersion.__name__:
-            template = PromptChatTemplateV1(
+            template = PromptChatTemplate(
                 messages=[
                     TextPromptMessage(
                         role=PromptMessageRole.USER,
