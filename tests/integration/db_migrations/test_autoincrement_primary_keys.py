@@ -27,6 +27,7 @@ def test_prompt_versions(
     )
     with db.begin() as session:
         prompt_version = models.PromptVersion(**values)
+        assert prompt_version.id is None
         session.add(prompt_version)
     assert (id_ := prompt_version.id) is not None
     with db.begin() as session:
@@ -37,5 +38,6 @@ def test_prompt_versions(
         assert session.scalar(select(models.PromptVersion.id).filter_by(id=id_)) is None
     with db.begin() as session:
         new_prompt_version = models.PromptVersion(**values)
+        assert new_prompt_version.id is None
         session.add(new_prompt_version)
     assert new_prompt_version.id > id_
