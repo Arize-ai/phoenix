@@ -841,8 +841,8 @@ class Prompt(Base):
         uselist=True,
     )
 
-    prompt_tags: Mapped[list["PromptTag"]] = relationship(
-        "PromptTag",
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
         back_populates="prompt",
         cascade="all, delete-orphan",
         uselist=True,
@@ -911,16 +911,16 @@ class PromptVersion(Base):
 
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_versions")
 
-    prompt_tags: Mapped[list["PromptTag"]] = relationship(
-        "PromptTag",
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
         back_populates="prompt_version",
         cascade="all, delete-orphan",
         uselist=True,
     )
 
 
-class PromptTag(Base):
-    __tablename__ = "prompt_tags"
+class PromptVersionTag(Base):
+    __tablename__ = "prompt_version_tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -941,9 +941,9 @@ class PromptTag(Base):
         nullable=True,
     )
 
-    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_tags")
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_version_tags")
     prompt_version: Mapped["PromptVersion"] = relationship(
-        "PromptVersion", back_populates="prompt_tags"
+        "PromptVersion", back_populates="prompt_version_tags"
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)

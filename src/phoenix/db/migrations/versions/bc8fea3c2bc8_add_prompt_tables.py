@@ -149,7 +149,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "prompt_tags",
+        "prompt_version_tags",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
@@ -182,7 +182,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("prompt_tags")
+    op.drop_table("prompt_version_tags")
     op.drop_table("prompt_versions")
     op.drop_table("prompts_prompt_labels")
     op.drop_table("prompts")
