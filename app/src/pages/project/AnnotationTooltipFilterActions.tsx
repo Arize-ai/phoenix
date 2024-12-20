@@ -112,7 +112,7 @@ function FilterItem({
       className="button--reset"
       css={css`
         color: var(--ac-global-text-color-900);
-        border: 1px solid var(--ac-global-color-gray-200);
+        border: 1px solid var(--ac-global-color-grey-300);
         border-radius: 4px;
         padding: var(--ac-global-dimension-size-50)
           var(--ac-global-dimension-size-100);
