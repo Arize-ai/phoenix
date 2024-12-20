@@ -47,7 +47,12 @@ class Prompt(Node):
                 template={
                     "_version": "messages-v1",
                     "messages": [
-                        {"role": "user", "content": "Hello what's the weather in Antarctica like?"}
+                        {"role": "system", "content": "You are a helpful assistant"},
+                        {
+                            "role": "user",
+                            "content": "Hello what's the weather in {{location}} like?",
+                        },
+                        {"role": "ai", "content": "Looking up the weather in {{location}}..."},
                     ],
                 },
                 invocation_parameters={
@@ -94,7 +99,10 @@ class Prompt(Node):
                 template={
                     "_version": "messages-v1",
                     "messages": [
-                        {"role": "user", "content": "Hello what's the weather in Antarctica like?"}
+                        {
+                            "role": "user",
+                            "content": "Hello what's the weather in {{location}} like?",
+                        }
                     ],
                 },
                 model_name="gpt-4o",

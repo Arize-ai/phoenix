@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed092b89608a88dfeec9a37e3acfd8b1>>
+ * @generated SignedSource<<e499062a95936b7eccc8d91c8f6dd096>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptIndexPage__main$data = {
   readonly promptVersions: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main">;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptInvocationParameters__main">;
       };
     }>;
   };
@@ -60,6 +60,11 @@ const node: ReaderFragment = {
                   "args": null,
                   "kind": "FragmentSpread",
                   "name": "PromptInvocationParameters__main"
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "PromptChatMessages__main"
                 }
               ],
               "storageKey": null
@@ -80,6 +85,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "31cc58fdb7f4d754a6a7fee9f4429846";
+(node as any).hash = "272d9002d4e1031d850f68a838d7af35";
 
 export default node;
