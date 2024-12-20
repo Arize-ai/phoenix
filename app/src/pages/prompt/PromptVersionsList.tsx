@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "react-relay";
-import { useNavigate } from "react-router";
+import { Link } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
@@ -15,17 +15,40 @@ import {
 
 export type PromptVersionItemProps = {
   version: PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
+  active?: boolean;
 };
 
-const promptVersionItemCSS = css`
+type PromptVersion =
+  PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
+
+const promptVersionItemCSS = ({ active }: { active?: boolean }) => css`
   & {
     border-bottom: 1px solid var(--ac-global-color-grey-300);
+    transition: background-color 0.1s ease-in;
   }
 
-  & > * {
+  & > a {
+    height: 100%;
     width: 100%;
     justify-content: flex-start;
     padding: 0;
+    border-radius: 0;
+    border: none;
+    text-decoration: none;
+    background-opacity: 0;
+    & > * {
+      background-color: ${active ? "var(--ac-global-color-grey-200)" : "auto"};
+    }
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      & > * {
+        outline: none;
+        background-color: ${active
+          ? "var(--ac-global-color-grey-200)"
+          : "var(--ac-global-color-grey-100)"};
+      }
+    }
   }
 `;
 
@@ -34,13 +57,16 @@ const promptVersionItemCSS = css`
  * the date it was created, and tag. Clicking the item will
  * add /:versionId to the current path
  */
-export const PromptVersionItem = ({ version }: PromptVersionItemProps) => {
-  const navigate = useNavigate();
+export const PromptVersionItem = ({
+  version,
+  active,
+}: PromptVersionItemProps) => {
+  const styles = useMemo(() => promptVersionItemCSS({ active }), [active]);
   return (
-    <div css={promptVersionItemCSS}>
-      <Button onClick={() => navigate(`${version.id}`)} variant="quiet">
+    <div css={styles}>
+      <Link to={`${version.id}`}>
         <Flex width="100%" height={96} direction="row">
-          <View padding="size-200">
+          <View width="100%" padding="size-200">
             <Flex direction="column">
               <Text>{version.id}</Text>
               <Truncate maxWidth={"100%"}>
@@ -49,13 +75,14 @@ export const PromptVersionItem = ({ version }: PromptVersionItemProps) => {
             </Flex>
           </View>
         </Flex>
-      </Button>
+      </Link>
     </div>
   );
 };
 
 type PromptVersionsListProps = {
   prompt: PromptVersionsList__main$key;
+  itemActive?: (version: PromptVersion) => boolean;
 };
 
 const PROMPT_VERSIONS_LIST_WIDTH = 300;
@@ -63,7 +90,10 @@ const PROMPT_VERSIONS_LIST_WIDTH = 300;
 /**
  * Full height, scrollable, list of prompt versions
  */
-export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
+export const PromptVersionsList = ({
+  prompt,
+  itemActive,
+}: PromptVersionsListProps) => {
   const { promptVersions } = useFragment(
     graphql`
       fragment PromptVersionsList__main on Prompt {
@@ -85,13 +115,19 @@ export const PromptVersionsList = ({ prompt }: PromptVersionsListProps) => {
   return (
     <View
       height="100%"
-      overflow="scroll"
+      overflow="auto"
       width={PROMPT_VERSIONS_LIST_WIDTH}
       minWidth={PROMPT_VERSIONS_LIST_WIDTH}
+      borderRightWidth="thin"
+      borderColor="grey-300"
     >
       <Flex direction="column">
         {promptVersions.edges.map(({ version }) => (
-          <PromptVersionItem key={version.id} version={version} />
+          <PromptVersionItem
+            key={version.id}
+            version={version}
+            active={itemActive?.(version)}
+          />
         ))}
       </Flex>
     </View>

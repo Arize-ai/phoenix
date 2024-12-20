@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4d8bc0b752cdb36f0d8b608f7f67250>>
+ * @generated SignedSource<<fa6484b12fb3aaaf58c06d62f864e6e6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,7 +29,7 @@ export type promptVersionLoaderQuery$data = {
     readonly templateType?: PromptTemplateType;
     readonly tools?: any | null;
     readonly user?: string | null;
-    readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptInvocationParameters__main">;
   };
 };
 export type promptVersionLoaderQuery = {
@@ -161,6 +161,11 @@ return {
                 "kind": "FragmentSpread",
                 "name": "PromptInvocationParameters__main"
               },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptChatMessages__main"
+              },
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
@@ -202,13 +207,13 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v5/*: any*/),
+              (v9/*: any*/),
+              (v11/*: any*/),
+              (v10/*: any*/),
               (v4/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
-              (v9/*: any*/),
-              (v10/*: any*/),
-              (v11/*: any*/),
               (v12/*: any*/),
               (v13/*: any*/)
             ],
@@ -221,16 +226,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5db17759daf5cde3019b5287785e71bb",
+    "cacheID": "9fcdaf76b12a28f886760db11059c46a",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      description\n      invocationParameters\n      modelName\n      modelProvider\n      outputSchema\n      template\n      templateFormat\n      templateType\n      tools\n      user\n    }\n  }\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      modelProvider\n      outputSchema\n      template\n      templateFormat\n      templateType\n      tools\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
   }
 };
 })();
 
-(node as any).hash = "566873faa060ebafbabe1b5e8996674e";
+(node as any).hash = "5cdef074e1a5bbe1dfd8e1928665c5aa";
 
 export default node;

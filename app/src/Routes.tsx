@@ -14,6 +14,7 @@ import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
@@ -226,7 +227,11 @@ const router = createBrowserRouter(
             >
               <Route element={<PromptLayout />}>
                 <Route index element={<PromptIndexPage />} />
-                <Route path="versions" element={<PromptVersionsPage />}>
+                <Route
+                  path="versions"
+                  loader={promptVersionsLoader}
+                  element={<PromptVersionsPage />}
+                >
                   <Route
                     path=":versionId"
                     loader={promptVersionLoader}
