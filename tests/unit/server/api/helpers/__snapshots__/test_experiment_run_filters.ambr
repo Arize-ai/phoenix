@@ -2,7 +2,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-error-is-not-free-attribute]
   dict({
     'filter_condition': "'invalid' in error",
-    'sql': "(experiment_runs_0.error LIKE '%' || 'invalid' || '%') OR (experiment_runs_1.error LIKE '%' || 'invalid' || '%')",
+    'sql': "(experiment_runs_0.error LIKE '%' || 'invalid' || '%' ESCAPE '/') OR (experiment_runs_1.error LIKE '%' || 'invalid' || '%' ESCAPE '/')",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-eval-comparison]
@@ -50,7 +50,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-error-is-not-free-attribute]
   dict({
     'filter_condition': "'invalid' in error",
-    'sql': "(experiment_runs_0.error LIKE '%' || 'invalid' || '%') OR (experiment_runs_1.error LIKE '%' || 'invalid' || '%')",
+    'sql': "(experiment_runs_0.error LIKE '%' || 'invalid' || '%' ESCAPE '/') OR (experiment_runs_1.error LIKE '%' || 'invalid' || '%' ESCAPE '/')",
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-eval-comparison]
@@ -122,7 +122,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-contains]
   dict({
     'filter_condition': '"invalid" in experiments[0].error',
-    'sql': "experiment_runs_0.error LIKE '%' || 'invalid' || '%'",
+    'sql': "experiment_runs_0.error LIKE '%' || 'invalid' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction-of-three]
@@ -158,7 +158,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-explanation-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
-    'sql': "experiment_run_annotations_0_hallucination.explanation LIKE '%' || 'search-term' || '%'",
+    'sql': "experiment_run_annotations_0_hallucination.explanation LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-label-eq]
@@ -206,7 +206,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
-    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) LIKE '%' || 'search-term' || '%'",
+    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-int-key]
@@ -260,7 +260,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-not-in]
   dict({
     'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
-    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%'",
+    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-json-attribute-string-key]
@@ -350,7 +350,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-in-output]
   dict({
     'filter_condition': "'x' in experiments[0].output",
-    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%'",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-json-attribute-is-json-attribute]
@@ -446,7 +446,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-not-contains]
   dict({
     'filter_condition': '"invalid" not in experiments[0].error',
-    'sql': "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%'",
+    'sql': "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%' ESCAPE '/'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[postgresql-special-characters-in-attribute-escaped]
+  dict({
+    'filter_condition': "'%_' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || '/%/_' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-string-constant]
@@ -506,7 +512,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-contains]
   dict({
     'filter_condition': '"invalid" in experiments[0].error',
-    'sql': "experiment_runs_0.error LIKE '%' || 'invalid' || '%'",
+    'sql': "experiment_runs_0.error LIKE '%' || 'invalid' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction-of-three]
@@ -542,7 +548,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-explanation-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
-    'sql': "experiment_run_annotations_0_hallucination.explanation LIKE '%' || 'search-term' || '%'",
+    'sql': "experiment_run_annotations_0_hallucination.explanation LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-label-eq]
@@ -590,7 +596,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].input['questions'][0]",
-    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) LIKE '%' || 'search-term' || '%'",
+    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-int-key]
@@ -644,7 +650,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-not-in]
   dict({
     'filter_condition': "'search-term' not in experiments[0].input['questions'][0]",
-    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%'",
+    'sql': "CAST(dataset_example_revisions.input['questions'][0] AS VARCHAR) NOT LIKE '%' || 'search-term' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-json-attribute-string-key]
@@ -734,7 +740,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-in-output]
   dict({
     'filter_condition': "'x' in experiments[0].output",
-    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%'",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || 'x' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-json-attribute-is-json-attribute]
@@ -830,7 +836,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-not-contains]
   dict({
     'filter_condition': '"invalid" not in experiments[0].error',
-    'sql': "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%'",
+    'sql': "experiment_runs_0.error NOT LIKE '%' || 'invalid' || '%' ESCAPE '/'",
+  })
+# ---
+# name: test_sqlalchemy_transformer_correctly_compiles[sqlite-special-characters-in-attribute-escaped]
+  dict({
+    'filter_condition': "'%_' in experiments[0].output",
+    'sql': "CAST(experiment_runs_0.output['task_output'] AS VARCHAR) LIKE '%' || '/%/_' || '%' ESCAPE '/'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-string-constant]

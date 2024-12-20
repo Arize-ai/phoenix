@@ -190,8 +190,8 @@ from phoenix.server.api.helpers.experiment_run_filters import (
             id="experiment-json-attribute-not-in",
         ),
         pytest.param(
-            "'x' in experiments[0].output",
-            id="json-attribute-in-output",
+            "'%_' in experiments[0].output",
+            id="special-characters-in-attribute-escaped",
         ),
         pytest.param(
             "experiments[0].input['question'] in experiments[0].output['question']",

@@ -7,6 +7,7 @@ from typing import Any, Callable, Literal, Optional, Union, get_args
 
 from sqlalchemy import (
     BinaryExpression,
+    BindParameter,
     Boolean,
     Float,
     Integer,
@@ -663,10 +664,40 @@ def _get_sqlalchemy_comparison_operator(
     elif isinstance(ast_operator, ast.IsNot):
         return sqlalchemy_operators.is_not
     elif isinstance(ast_operator, ast.In):
-        return lambda left, right: sqlalchemy_operators.contains_op(right, left)
+        return _contains
     elif isinstance(ast_operator, ast.NotIn):
-        return lambda left, right: sqlalchemy_operators.not_contains_op(right, left)
+        return _not_contains
     assert_never(ast_operator)
+
+
+def _contains(left: Any, right: Any) -> Any:
+    """
+    Handles nuances for `in` operator.
+    """
+    autoescape = False
+    if isinstance(left, BindParameter):
+        autoescape = True
+        left = str(left.value)  # contains_op expects a string when autoescape is true
+    return sqlalchemy_operators.contains_op(
+        right,
+        left,
+        autoescape=autoescape,
+    )
+
+
+def _not_contains(left: Any, right: Any) -> Any:
+    """
+    Handles nuances for `not in` operator.
+    """
+    autoescape = False
+    if isinstance(left, BindParameter):
+        autoescape = True
+        left = str(left.value)  # not_contains_op expects a string when autoescape is true
+    return sqlalchemy_operators.not_contains_op(
+        right,
+        left,
+        autoescape=autoescape,
+    )
 
 
 def _get_cast_type_for_comparison(
@@ -761,7 +792,7 @@ def _is_supported_unary_term_operator(
 
 if __name__ == "__main__":
     expressions = [
-        "'x' in output",
+        "'_' in output",
     ]
     for expression in expressions:
         print(f"{expression=}")
