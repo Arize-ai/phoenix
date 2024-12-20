@@ -1,4 +1,5 @@
 import ast
+import operator
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -18,7 +19,7 @@ from sqlalchemy import (
     or_,
 )
 from sqlalchemy.orm import aliased
-from sqlalchemy.sql import operators
+from sqlalchemy.sql import operators as sqlalchemy_operators
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
@@ -179,18 +180,13 @@ class ExperimentRunFilterConditionNode(ABC):
 
 @dataclass(frozen=True)
 class Term(ExperimentRunFilterConditionNode):
-    pass
-
-
-@dataclass(frozen=True)
-class HasDataType(ABC):
-    @abstractmethod
+    @property
     def data_type(self) -> Optional[SQLAlchemyDataType]:
-        raise NotImplementedError
+        return None
 
 
 @dataclass(frozen=True)
-class Constant(HasDataType, Term):
+class Constant(Term):
     value: SupportedConstantType
 
     def compile(self) -> Any:
@@ -199,6 +195,7 @@ class Constant(HasDataType, Term):
             return Null()
         return literal(value)
 
+    @property
     def data_type(self) -> Optional[SQLAlchemyDataType]:
         value = self.value
         if isinstance(value, bool):
@@ -281,7 +278,7 @@ class DatasetExampleAttribute(HasAliasedTables, Attribute):
 
 
 @dataclass(frozen=True)
-class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
+class ExperimentRunAttribute(HasAliasedTables, Attribute):
     attribute_name: str
     experiment_id: int
     _attribute_name: SupportedExperimentRunAttributeName = field(init=False)
@@ -315,6 +312,7 @@ class ExperimentRunAttribute(HasAliasedTables, HasDataType, Attribute):
     def is_json_attribute(self) -> bool:
         return self.attribute_name in ("input", "reference_output", "output")
 
+    @property
     def data_type(self) -> Optional[SQLAlchemyDataType]:
         attribute_name = self._attribute_name
         if attribute_name == "evals":
@@ -363,7 +361,7 @@ class ExperimentRunEval(ExperimentRunFilterConditionNode):
 
 
 @dataclass(frozen=True)
-class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
+class ExperimentRunEvalAttribute(HasAliasedTables, Attribute):
     experiment_run_eval: ExperimentRunEval
     attribute_name: str
     experiment_id: int = field(init=False)
@@ -384,6 +382,7 @@ class ExperimentRunEvalAttribute(HasAliasedTables, HasDataType, Attribute):
         experiment_run_annotations = self.experiment_run_annotation_alias(experiment_id, eval_name)
         return getattr(experiment_run_annotations, attribute_name)
 
+    @property
     def data_type(self) -> Optional[SQLAlchemyDataType]:
         attribute_name = self._attribute_name
         if attribute_name == "label":
@@ -405,7 +404,7 @@ class UnaryTermOperation(Term):
         operand = self.operand
         sqlalchemy_operator: Callable[[Any], Any]
         if isinstance(operator, ast.USub):
-            sqlalchemy_operator = operators.neg
+            sqlalchemy_operator = sqlalchemy_operators.neg
         else:
             assert_never(operator)
         compiled_operand = operand.compile()
@@ -434,17 +433,17 @@ class ComparisonOperation(BooleanExpression):
         left_operand = self.left_operand
         right_operand = self.right_operand
         operator = self._operator
+        compiled_left_operand = left_operand.compile()
+        compiled_right_operand = right_operand.compile()
         cast_type = _get_cast_type_for_comparison(
             operator=operator,
             left_operand=left_operand,
             right_operand=right_operand,
         )
-        compiled_left_operand = left_operand.compile()
-        compiled_right_operand = right_operand.compile()
         if cast_type is not None:
-            if not isinstance(left_operand, HasDataType):
+            if left_operand.data_type is None:
                 compiled_left_operand = cast(compiled_left_operand, cast_type)
-            if not isinstance(right_operand, HasDataType):
+            if right_operand.data_type is None:
                 compiled_right_operand = cast(compiled_right_operand, cast_type)
         sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
         return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
@@ -463,7 +462,7 @@ class UnaryBooleanOperation(BooleanExpression):
         operator = self.operator
         sqlalchemy_operator: Callable[[Any], Any]
         if isinstance(operator, ast.Not):
-            sqlalchemy_operator = operators.inv
+            sqlalchemy_operator = sqlalchemy_operators.inv
         else:
             assert_never(operator)
         compiled_operand = self.operand.compile()
@@ -648,25 +647,25 @@ def _get_sqlalchemy_comparison_operator(
     ast_operator: SupportedComparisonOperator,
 ) -> Callable[[Any, Any], Any]:
     if isinstance(ast_operator, ast.Eq):
-        return operators.eq
+        return operator.eq
     elif isinstance(ast_operator, ast.NotEq):
-        return operators.ne
+        return operator.ne
     elif isinstance(ast_operator, ast.Lt):
-        return operators.lt
+        return sqlalchemy_operators.lt
     elif isinstance(ast_operator, ast.LtE):
-        return operators.le
+        return sqlalchemy_operators.le
     elif isinstance(ast_operator, ast.Gt):
-        return operators.gt
+        return sqlalchemy_operators.gt
     elif isinstance(ast_operator, ast.GtE):
-        return operators.ge
+        return sqlalchemy_operators.ge
     elif isinstance(ast_operator, ast.Is):
-        return operators.is_
+        return sqlalchemy_operators.is_
     elif isinstance(ast_operator, ast.IsNot):
-        return operators.is_not
+        return sqlalchemy_operators.is_not
     elif isinstance(ast_operator, ast.In):
-        return lambda left, right: operators.contains_op(right, left)
+        return lambda left, right: sqlalchemy_operators.contains_op(right, left)
     elif isinstance(ast_operator, ast.NotIn):
-        return lambda left, right: operators.not_contains_op(right, left)
+        return lambda left, right: sqlalchemy_operators.not_contains_op(right, left)
     assert_never(ast_operator)
 
 
@@ -692,7 +691,9 @@ def _get_cast_type_for_comparison(
     based on the operator.
     """
 
-    if isinstance(left_operand, HasDataType) and isinstance(right_operand, HasDataType):
+    left_operand_data_type = left_operand.data_type
+    right_operand_data_type = right_operand.data_type
+    if left_operand_data_type is not None and right_operand_data_type is not None:
         return None  # Both operands have known data types, so no cast is needed.
 
     if isinstance(operator, (ast.Gt, ast.GtE, ast.Lt, ast.LtE)):
@@ -700,14 +701,24 @@ def _get_cast_type_for_comparison(
         # being made to an integer.
         return Float()
 
+    if isinstance(operator, (ast.In, ast.NotIn)):
+        # These operations are performed on strings.
+        return String()
+
+    # If one operand is None, don't cast.
+    left_operand_is_null = isinstance(left_operand, Constant) and left_operand.value is None
+    right_operand_is_null = isinstance(right_operand, Constant) and right_operand.value is None
+    if left_operand_is_null or right_operand_is_null:
+        return None
+
     # If one operand has a known type and the other does not, cast to the known type.
-    if isinstance(left_operand, HasDataType) and not isinstance(right_operand, HasDataType):
-        return left_operand.data_type()
-    elif not isinstance(left_operand, HasDataType) and isinstance(right_operand, HasDataType):
-        return right_operand.data_type()
+    if left_operand_data_type is not None and right_operand_data_type is None:
+        return left_operand_data_type
+    elif left_operand_data_type is None and right_operand_data_type is not None:
+        return right_operand_data_type
 
     # If neither operand has a known type, we infer a cast type from the comparison operator.
-    if isinstance(operator, (ast.In, ast.NotIn, ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+    if isinstance(operator, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
         return String()
     assert_never(operator)
 
@@ -750,7 +761,7 @@ def _is_supported_unary_term_operator(
 
 if __name__ == "__main__":
     expressions = [
-        'experiments[0].evals["matches expected"].label == "does not match" and experiments[0].evals["judged correct"].label == "incorrect"',  # noqa: E501
+        "'x' in output",
     ]
     for expression in expressions:
         print(f"{expression=}")
