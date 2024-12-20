@@ -1086,6 +1086,11 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
+type JSONPromptMessage {
+  role: PromptMessageRole!
+  content: JSON!
+}
+
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1377,6 +1382,11 @@ type Prompt implements Node {
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
 }
 
+type PromptChatTemplate {
+  Version: String!
+  messages: [PromptTemplateMessage!]!
+}
+
 """A connection to a list of items."""
 type PromptConnection {
   """Pagination data for this connection"""
@@ -1395,6 +1405,13 @@ type PromptEdge {
   node: Prompt!
 }
 
+enum PromptMessageRole {
+  USER
+  SYSTEM
+  AI
+  TOOL
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
@@ -1403,11 +1420,19 @@ type PromptResponse {
   response: String
 }
 
+type PromptStringTemplate {
+  template: String!
+}
+
+union PromptTemplate = PromptStringTemplate | PromptChatTemplate
+
 enum PromptTemplateFormat {
   MUSTACHE
   FSTRING
   NONE
 }
+
+union PromptTemplateMessage = TextPromptMessage | JSONPromptMessage
 
 enum PromptTemplateType {
   STRING
@@ -1421,7 +1446,7 @@ type PromptVersion implements Node {
   description: String!
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
-  template: JSON!
+  template: PromptTemplate!
   invocationParameters: JSON
   tools: JSON
   outputSchema: JSON
@@ -1780,6 +1805,11 @@ input TemplateOptions {
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
+  content: String!
+}
+
+type TextPromptMessage {
+  role: PromptMessageRole!
   content: String!
 }
 
