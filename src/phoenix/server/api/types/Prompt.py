@@ -17,7 +17,6 @@ from phoenix.server.api.types.pagination import (
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptMessageRole,
     PromptMessagesTemplateV1,
-    PromptMessagesTemplateV1GQL,
     TextPromptMessage,
 )
 
@@ -47,16 +46,14 @@ class Prompt(Node):
             before=before if isinstance(before, CursorString) else None,
         )
 
-        template_model = PromptMessagesTemplateV1(
-            template=[
+        template = PromptMessagesTemplateV1(
+            messages=[
                 TextPromptMessage(
                     role=PromptMessageRole.USER,
                     content="Hello what's the weather in Antarctica like?",
                 )
             ]
         )
-
-        template_gql = PromptMessagesTemplateV1GQL.from_model(template_model)
 
         dummy_data = [
             PromptVersion(
@@ -65,7 +62,7 @@ class Prompt(Node):
                 description="A dummy prompt version",
                 template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
-                template=template_gql,
+                template=template,
                 invocation_parameters={"temperature": 0.5},
                 tools={
                     "_version": "tools-v1",
@@ -103,7 +100,7 @@ class Prompt(Node):
                 description="A dummy prompt version",
                 template_type=PromptTemplateType.CHAT,
                 template_format=PromptTemplateFormat.MUSTACHE,
-                template=template_gql,
+                template=template,
                 model_name="gpt-4o",
                 model_provider="openai",
             ),

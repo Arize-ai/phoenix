@@ -64,7 +64,6 @@ from phoenix.server.api.types.PromptVersion import (
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptMessageRole,
     PromptMessagesTemplateV1,
-    PromptMessagesTemplateV1GQL,
     TextPromptMessage,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -545,16 +544,14 @@ class Query:
                 created_at=datetime.now(),
             )
         elif type_name == PromptVersion.__name__:
-            template_model = PromptMessagesTemplateV1(
-                template=[
+            template = PromptMessagesTemplateV1(
+                messages=[
                     TextPromptMessage(
                         role=PromptMessageRole.USER,
                         content="Hello what's the weather in Antarctica like?",
                     )
                 ]
             )
-
-            template_gql = PromptMessagesTemplateV1GQL.from_model(template_model)
 
             if node_id == 2:
                 return PromptVersion(
@@ -563,7 +560,7 @@ class Query:
                     description="A dummy prompt version",
                     template_type=PromptTemplateType.CHAT,
                     template_format=PromptTemplateFormat.MUSTACHE,
-                    template=template_gql,
+                    template=template,
                     invocation_parameters={"temperature": 0.5},
                     tools={
                         "_version": "tools-v1",
@@ -603,7 +600,7 @@ class Query:
                     description="A dummy prompt version",
                     template_type=PromptTemplateType.CHAT,
                     template_format=PromptTemplateFormat.MUSTACHE,
-                    template=template_gql,
+                    template=template,
                     invocation_parameters=None,
                     tools=None,
                     output_schema=None,
