@@ -805,7 +805,7 @@ class PromptLabel(Base):
 
     prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
         "PromptPromptLabel",
-        back_populates="prompt_labels",
+        back_populates="prompt_label",
         cascade="all, delete-orphan",
         uselist=True,
     )
