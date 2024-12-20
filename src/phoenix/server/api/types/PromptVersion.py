@@ -15,6 +15,8 @@ from .JSONSchema import JSONSchema
 from .PromptVersionTag import PromptVersionTag
 from .ToolDefinition import ToolDefinition
 
+from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate
+
 
 @strawberry.enum
 class PromptTemplateType(str, Enum):
