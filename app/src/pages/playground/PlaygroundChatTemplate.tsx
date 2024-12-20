@@ -27,7 +27,10 @@ import {
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
-import { TemplateEditor } from "@phoenix/components/templateEditor";
+import {
+  TemplateEditor,
+  TemplateEditorWrap,
+} from "@phoenix/components/templateEditor";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -259,22 +262,7 @@ function MessageEditor({
     );
   }
   return (
-    <div
-      css={css`
-        & .cm-content {
-          padding: var(--ac-global-dimension-size-100)
-            var(--ac-global-dimension-size-250);
-        }
-        & .cm-gutter,
-        & .cm-content {
-          min-height: 75px;
-        }
-        & .cm-line {
-          padding-left: 0;
-          padding-right: 0;
-        }
-      `}
-    >
+    <TemplateEditorWrap>
       <TemplateEditor
         height="100%"
         value={
@@ -293,7 +281,7 @@ function MessageEditor({
               : "What is the weather in San Francisco?"
         }
       />
-    </div>
+    </TemplateEditorWrap>
   );
 }
 
