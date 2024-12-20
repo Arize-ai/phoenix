@@ -6,6 +6,7 @@ export function useChatMessageStyles(
   role: string
 ): Pick<ViewStyleProps, "backgroundColor" | "borderColor"> {
   return useMemo<ViewStyleProps>(() => {
+    role = role.toLowerCase();
     if (role === "user" || role === "human") {
       return {
         backgroundColor: "grey-100",
