@@ -1086,7 +1086,7 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
-type JSONPromptMessageGQL {
+type JSONPromptMessage {
   role: PromptMessageRole!
   content: JSON!
 }
@@ -1406,9 +1406,9 @@ enum PromptMessageRole {
   AI
 }
 
-type PromptMessagesTemplateV1GQL {
+type PromptMessagesTemplateV1 {
   version: String!
-  template: [TextPromptMessageGQLJSONPromptMessageGQL!]!
+  messages: [TextPromptMessageJSONPromptMessage!]!
 }
 
 type PromptResponse {
@@ -1419,7 +1419,7 @@ type PromptResponse {
   response: String
 }
 
-type PromptStringTemplateGQL {
+type PromptStringTemplate {
   template: String!
 }
 
@@ -1434,7 +1434,7 @@ enum PromptTemplateType {
   CHAT
 }
 
-union PromptTemplateVersion = PromptStringTemplateGQL | PromptMessagesTemplateV1GQL
+union PromptTemplateVersion = PromptStringTemplate | PromptMessagesTemplateV1
 
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
@@ -1805,12 +1805,12 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
-type TextPromptMessageGQL {
+type TextPromptMessage {
   role: PromptMessageRole!
   content: String!
 }
 
-union TextPromptMessageGQLJSONPromptMessageGQL = TextPromptMessageGQL | JSONPromptMessageGQL
+union TextPromptMessageJSONPromptMessage = TextPromptMessage | JSONPromptMessage
 
 input TimeRange {
   """The start of the time range"""
