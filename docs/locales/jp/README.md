@@ -4,36 +4,49 @@
 
 # Arize Phoenix
 
-Phoenix は、実験、評価、トラブルシューティング用に設計されたオープンソースの観測性ライブラリです。AI エンジニアやデータサイエンティストがデータを迅速に可視化し、パフォーマンスを評価し、問題を追跡し、データをエクスポートして改善できるようにします。 Phoenixは、業界をリードするAI可視化プラットフォームを提供する企業である[Arize AI](https://www.arize.com)と、コアな貢献者たちによって開発されました。
+### なぜフェニックスなのか？
 
-## Phoenixのインストール
+### 完全にオープンソースでオープンに開発
 
-{% tabs %}
-{% tab title="Python" %}
-JupyterまたはColab環境で、次のコマンドを実行してインストールします。
+フェニックスは、プライバシーとカスタマイズ性を念頭に置いて設計された[オープンソースのプラットフォーム](https://github.com/Arize-ai/phoenix)です。フェニックスアプリケーションは[自己ホスト](https://docs.arize.com/phoenix/deployment)でき、ローカルマシンまたはコンテナ上で完全に実行できます。または、当社のウェブサイト上の無料クラウドインスタンスからアクセスすることもできます。\
 
-```sh
-pip install arize-phoenix
-```
 
-Databricks などのさまざまな環境で phoenix を実行する方法の詳細については、環境ガイド を参照してください.
-{% endtab %}
+開発プロセスはすべて（_市場投入や運用チケットなど_）GitHub上で公開されています。私たちはコミュニティからの貢献を歓迎し、称賛します。私たちは、Phoenixを真の共同作業にしたいと考えています。
 
-{% tab title="Conda" %}
-```sh
-conda install -c conda-forge arize-phoenix[evals]
-```
-{% endtab %}
+### OpenTelemetryを基盤として構築 
 
-{% tab title="コンテナ" %}
-Phoenixはコンテナでも実行できます。イメージは次の場所にあります.
+Phoenixは、業界標準で実戦で実績のある可視化用ライブラリである[OpenTelemetry](https://opentelemetry.io/)プロトコルによって強化されています。つまり、Phoenixにインストルメントを書き込むコードは、他の数十のプラットフォームでも再利用できるということです。Phoenixは、技術的負債ではなく、最高のAI可視化プラットフォームであるため、長期的に利用していただきたいと考えています。
 
-詳細は、[環境セクション](deployment/environments.md)とデプロイメントガイドを参照してください。
-{% endtab %}
-{% endtabs %}
+Phoenixチームは、OpenTelemetryチームと積極的に協力し、フレームワークの進化に貢献しています。\
 
-PhoenixはOpenTelemetryと[OpenInference](https://github.com/Arize-ai/openinference) のインストゥルメンテーションと連携します。ライブラリではなくサービスとしてPhoenixをデプロイしたい場合は、Deployment を参照してください.
 
-### [コミュニティ](https://join.slack.com/t/arize-ai/shared_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
+### 包括的な機能セット
 
-Phoenix Slack コミュニティに参加して、質問をしたり、調査結果を共有したり、フィードバックを提供したり、他の開発者とつながったりしましょう。
+Phoenixは、LLMアプリケーションの構築、評価、実用化に必要なすべてをカバーしています。
+
+* トレース：システム動作の詳細な可視化を提供します。
+* 評価：モデルのパフォーマンスの測定と最適化を支援します。
+* 実験：さまざまなアプローチのテストと比較を容易にします。
+* データセット管理：AIワークフローのデータセットの処理を簡素化します。
+* 迅速な反復：LLMプロンプトの改良と管理をサポートします。\
+
+* 複数のデプロイオプション：オンデマンドのクラウドインスタンスからDockerコンテナ、ローカルマシンで&#x306E;_&#x70;hoenix serv&#x65;_&#x306E;実行まで、幅広いデプロイオプションを提供します。
+
+OpenAI、LangChain、LlamaIndex、Anthropic、DSPy、Groq、Vercel AI SDKなど、[20以上のフレームワーク](https://docs.arize.com/phoenix/tracing/integrations-tracing)との統合や、手動での実装オプションにより、Phoenixはあらゆる既存のワークフローに適合します。\
+
+
+### フレームワークに依存しない
+
+Phoenixは、すべての統合を平等に扱います。フレームワーク、モデル、ツールに依存しないため、いつでも簡単にアプローチを変更できます。また、オープンスタンダードであるOpenTelemetryを基盤としているため、可視化のためのインストゥルメンテーションもPhoenixに限定されることはありません。\
+
+
+### Phoenixはお客様とともに成長します
+
+Phoenixは包括的な可視化プラットフォームとして設計されていますが、より高度なニーズをお持ちの組織には、Arizeが[エンタープライズプラットフォーム](https://arize.com/)を提供します。これには、拡張されたAI機能、専用サポート、MLおよびCVの可視化ツールが含まれます。\
+
+
+エンタープライズプラットフォームは拡張性を備えて構築されており、毎日数十億のリクエストを管理できるため、可視性を次のレベルに引き上げる準備ができているチームにシームレスな移行を提供します。
+
+Arizeは、TCV、Battery Ventures、Foundation Capitalの支援を受けている設立4年目の[シリーズB](https://techcrunch.com/2022/09/08/arize-lands-38m-to-grow-its-mlops-platform-for-the-enterprise/?guccounter=1)企業であり、経験豊富な創業者によって運営されています。
+
+Phoenixは常に無料であり、オープンソースであり、AIエンジニアによってAIエンジニアのために構築されています。
