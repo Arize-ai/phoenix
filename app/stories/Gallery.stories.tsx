@@ -1,8 +1,14 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex, Item, Picker } from "@arizeai/components";
+import {
+  Button as LegacyButton,
+  Flex,
+  Item,
+  Picker,
+} from "@arizeai/components";
 
+import { Button } from "@phoenix/components/button/Button";
 import {
   ComboBox,
   ComboBoxItem,
@@ -23,7 +29,8 @@ export default meta;
 
 const Template: StoryFn<ComboBoxProps<object>> = () => (
   <ThemeWrapper>
-    <Flex direction="row" gap="size-200">
+    <Flex direction="row" gap="size-200" alignItems="center">
+      <Button size="S">Button</Button>
       <ComboBox label="Ice cream flavor" description={"pick a flavor"}>
         <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
           Chocolate
@@ -44,6 +51,8 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
         <Item key="strawberry">Strawberry</Item>
         <Item key="vanilla">Vanilla</Item>
       </Picker>
+      <Button size="M">Button</Button>
+      <LegacyButton variant="default">Button</LegacyButton>
       <ComboBox label="Ice cream flavor" description={"pick a flavor"} size="L">
         <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
           Chocolate
