@@ -1382,6 +1382,11 @@ type Prompt implements Node {
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
 }
 
+type PromptChatTemplateV1 {
+  version: String!
+  messages: [TextPromptMessageJSONPromptMessage!]!
+}
+
 """A connection to a list of items."""
 type PromptConnection {
   """Pagination data for this connection"""
@@ -1404,11 +1409,6 @@ enum PromptMessageRole {
   USER
   SYSTEM
   AI
-}
-
-type PromptMessagesTemplateV1 {
-  version: String!
-  messages: [TextPromptMessageJSONPromptMessage!]!
 }
 
 type PromptResponse {
@@ -1434,7 +1434,7 @@ enum PromptTemplateType {
   CHAT
 }
 
-union PromptTemplateVersion = PromptStringTemplate | PromptMessagesTemplateV1
+union PromptTemplateVersion = PromptStringTemplate | PromptChatTemplateV1
 
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
