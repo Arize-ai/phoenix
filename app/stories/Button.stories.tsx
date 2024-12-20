@@ -66,6 +66,10 @@ const Template: StoryFn<ButtonProps> = (args) => (
 
 export const Default = Template.bind({});
 
+Default.args = {
+  children: "Button",
+};
+
 const liCSS = css`
   display: flex;
   flex-direction: row;
