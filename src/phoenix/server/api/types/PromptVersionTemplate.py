@@ -34,5 +34,5 @@ class PromptStringTemplate:
 
 
 PromptTemplate = strawberry.union(
-    "PromptTemplateVersion", (PromptStringTemplate, PromptChatTemplateV1)
+    "PromptTemplate", (PromptStringTemplate, PromptChatTemplateV1)
 )

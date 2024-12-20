@@ -1423,6 +1423,8 @@ type PromptStringTemplate {
   template: String!
 }
 
+union PromptTemplate = PromptStringTemplate | PromptChatTemplateV1
+
 enum PromptTemplateFormat {
   MUSTACHE
   FSTRING
@@ -1434,8 +1436,6 @@ enum PromptTemplateType {
   CHAT
 }
 
-union PromptTemplateVersion = PromptStringTemplate | PromptChatTemplateV1
-
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1443,7 +1443,7 @@ type PromptVersion implements Node {
   description: String!
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
-  template: PromptTemplateVersion!
+  template: PromptTemplate!
   invocationParameters: JSON
   tools: JSON
   outputSchema: JSON
