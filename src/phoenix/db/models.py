@@ -800,7 +800,7 @@ class PromptLabel(Base):
     __tablename__ = "prompt_labels"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
 
     prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
@@ -809,8 +809,6 @@ class PromptLabel(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
-
-    __table_args__ = (UniqueConstraint("name"),)
 
 
 class Prompt(Base):
@@ -822,7 +820,7 @@ class Prompt(Base):
         index=True,
         nullable=True,
     )
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -849,8 +847,6 @@ class Prompt(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
-
-    __table_args__ = (UniqueConstraint("name"),)
 
 
 class PromptPromptLabel(Base):
@@ -903,11 +899,11 @@ class PromptVersion(Base):
     )
     template: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
     invocation_parameters: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JsonDict, default=dict, nullable=True
+        JsonDict, default=None, nullable=True
     )
-    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=dict, nullable=True)
+    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=None, nullable=True)
     output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JsonDict, default=dict, nullable=True
+        JsonDict, default=None, nullable=True
     )
     model_provider: Mapped[str]
     model_name: Mapped[str]

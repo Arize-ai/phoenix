@@ -48,8 +48,8 @@ def upgrade() -> None:
     op.create_table(
         "prompt_labels",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True),
-        sa.Column("description", sa.String),
+        sa.Column("name", sa.String, nullable=False, unique=True, index=True),
+        sa.Column("description", sa.String, nullable=True),
     )
 
     op.create_table(
@@ -62,8 +62,8 @@ def upgrade() -> None:
             nullable=True,
             index=True,
         ),
-        sa.Column("name", sa.String, unique=True, nullable=False),
-        sa.Column("description", sa.String),
+        sa.Column("name", sa.String, unique=True, index=True, nullable=False),
+        sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
