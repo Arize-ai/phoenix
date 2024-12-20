@@ -1,12 +1,19 @@
 import React from "react";
 
-import { Button, Card, Icon, Icons } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
+import { CopyToClipboardButton } from "@phoenix/components";
+import {
+  TemplateEditor,
+  TemplateEditorWrap,
+} from "@phoenix/components/templateEditor";
+import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 
 export type ChatTemplateMessageProps = {
   role: string;
   content: string;
+  templateFormat: TemplateLanguage;
 };
 
 /**
@@ -14,22 +21,24 @@ export type ChatTemplateMessageProps = {
  * E.x. a system or user message template part
  */
 export function ChatTemplateMessage(props: ChatTemplateMessageProps) {
-  const { role, content } = props;
+  const { role, content, templateFormat } = props;
   const styles = useChatMessageStyles(role);
   return (
     <Card
       title={role}
       variant="compact"
       {...styles}
-      extra={
-        <Button
-          variant="default"
-          size="compact"
-          icon={<Icon svg={<Icons.ClipboardCopy />} />}
-        />
-      }
+      bodyStyle={{ padding: 0 }}
+      extra={<CopyToClipboardButton text={content} />}
     >
-      {content}
+      <TemplateEditorWrap readOnly>
+        <TemplateEditor
+          readOnly
+          height="100%"
+          value={content}
+          templateLanguage={templateFormat}
+        />
+      </TemplateEditorWrap>
     </Card>
   );
 }
