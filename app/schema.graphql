@@ -1382,9 +1382,9 @@ type Prompt implements Node {
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
 }
 
-type PromptChatTemplateV1 {
-  version: String!
-  messages: [TextPromptMessageJSONPromptMessage!]!
+type PromptChatTemplate {
+  Version: String!
+  messages: [PromptTemplateMessage!]!
 }
 
 """A connection to a list of items."""
@@ -1409,6 +1409,7 @@ enum PromptMessageRole {
   USER
   SYSTEM
   AI
+  TOOL
 }
 
 type PromptResponse {
@@ -1423,13 +1424,15 @@ type PromptStringTemplate {
   template: String!
 }
 
-union PromptTemplate = PromptStringTemplate | PromptChatTemplateV1
+union PromptTemplate = PromptStringTemplate | PromptChatTemplate
 
 enum PromptTemplateFormat {
   MUSTACHE
   FSTRING
   NONE
 }
+
+union PromptTemplateMessage = TextPromptMessage | JSONPromptMessage
 
 enum PromptTemplateType {
   STRING
@@ -1809,8 +1812,6 @@ type TextPromptMessage {
   role: PromptMessageRole!
   content: String!
 }
-
-union TextPromptMessageJSONPromptMessage = TextPromptMessage | JSONPromptMessage
 
 input TimeRange {
   """The start of the time range"""
