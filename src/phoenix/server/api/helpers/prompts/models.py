@@ -1,14 +1,15 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 import strawberry
 from pydantic import BaseModel, ConfigDict, ValidationError
 from typing_extensions import assert_never
 
-JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
-
 if TYPE_CHECKING:
     from phoenix.server.api.types.PromptVersion import PromptTemplateType
+
+JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
+PromptModel = TypeVar("PromptModel", bound="BasePromptModel")
 
 
 @strawberry.enum
@@ -66,35 +67,53 @@ def validate_prompt_template(
     template_type = PromptTemplateType(template_type)
     base_error_message = "Invalid prompt template:\n"
     if template_type == PromptTemplateType.CHAT:
-        is_valid, error_message = _validate_input(input, PromptChatTemplateV1)
+        is_valid, error_message = validate_input(input, PromptChatTemplateV1)
     elif template_type == PromptTemplateType.STRING:
-        is_valid, error_message = _validate_input(input, PromptStringTemplate)
+        is_valid, error_message = validate_input(input, PromptStringTemplate)
     else:
         assert_never(template_type)
     return is_valid, base_error_message + error_message if error_message is not None else None
 
 
-def _validate_input(input: dict[str, Any], model: type[BaseModel]) -> tuple[bool, Optional[str]]:
+def validate_input(
+    input: dict[str, Any], model: type[BasePromptModel]
+) -> tuple[bool, Optional[str]]:
     """
-    Validates an input against a Pydantic model.
+    Validates an input against a Pydantic model, returning a tuple of (is_valid,
+    error_message), where is_valid specifies whether the input is valid and
+    error_message contains the error message if one exists.
     """
     try:
-        model.model_validate(input)
+        marshal_input(input, model)
         return True, None
-    except ValidationError as e:
-        return False, _format_validation_error(e)
+    except PromptValidationError as error:
+        return False, str(error)
 
 
-def _format_validation_error(error: ValidationError) -> str:
+def marshal_input(input: dict[str, Any], model: type[PromptModel]) -> PromptModel:
     """
-    Formats Pydantic ValidationError without including Pydantic-specific URLs.
+    Marshals an input into a Pydantic model, raising a PromptValidationError if
+    the input is invalid.
     """
-    error_messages = []
-    for error_detail in error.errors(include_url=False):
-        error_message = "  - "
-        location = ".".join(map(str, error_detail["loc"]))
-        if location:
-            error_message += f"Error at key '{location}': "
-        error_message += error_detail["msg"]
-        error_messages.append(error_message)
-    return "\n".join(error_messages)
+    try:
+        return model.model_validate(input)
+    except ValidationError as error:
+        raise PromptValidationError.from_validation_error(error)
+
+
+class PromptValidationError(Exception):
+    @classmethod
+    def from_validation_error(cls, error: ValidationError) -> "PromptValidationError":
+        """
+        Creates a PromptValidationError from a pydantic.ValidationError,
+        formatting the error message to exclude Pydantic-specific URLs.
+        """
+        error_messages = []
+        for error_detail in error.errors(include_url=False):
+            error_message = "  - "
+            location = ".".join(map(str, error_detail["loc"]))
+            if location:
+                error_message += f"Error at key '{location}': "
+            error_message += error_detail["msg"]
+            error_messages.append(error_message)
+        return cls("\n".join(error_messages))
