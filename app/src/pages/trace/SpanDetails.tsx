@@ -310,7 +310,6 @@ export function SpanDetails({
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
               extra={<CopyToClipboardButton text={span.attributes} />}
-              bodyStyle={{ padding: 0 }}
             >
               <JSONBlock>{span.attributes}</JSONBlock>
             </Card>
@@ -1587,7 +1586,6 @@ function SpanIO({ span }: { span: Span }) {
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
-          bodyStyle={{ padding: 0 }}
           extra={<CopyToClipboardButton text={span.attributes} />}
         >
           <JSONBlock>{span.attributes}</JSONBlock>
@@ -1598,9 +1596,6 @@ function SpanIO({ span }: { span: Span }) {
 }
 
 const codeMirrorCSS = css`
-  .cm-content {
-    padding: var(--ac-global-dimension-static-size-200) 0;
-  }
   .cm-editor,
   .cm-gutters {
     background-color: transparent;

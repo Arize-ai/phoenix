@@ -7,14 +7,13 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, Flex, View } from "@arizeai/components";
+import { Card, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
   MarkdownDisplayProvider,
-  useMarkdownMode,
 } from "@phoenix/components/markdown";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
@@ -84,7 +83,6 @@ function PlaygroundOutputMessage({
 }) {
   const { role, content, toolCalls } = message;
   const styles = useChatMessageStyles(role);
-  const { mode: markdownMode } = useMarkdownMode();
 
   return (
     <Card
@@ -94,15 +92,7 @@ function PlaygroundOutputMessage({
       extra={<ConnectedMarkdownModeRadioGroup />}
     >
       {content != null && !Array.isArray(content) && (
-        <Flex direction="column" alignItems="start">
-          {markdownMode === "text" ? (
-            content
-          ) : (
-            <View overflow="auto" maxWidth="100%">
-              <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
-            </View>
-          )}
-        </Flex>
+        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
       )}
       {toolCalls && toolCalls.length > 0
         ? toolCalls.map((toolCall) => {
