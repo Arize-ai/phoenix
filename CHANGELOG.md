@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.2.0...arize-phoenix-v7.3.0) (2024-12-21)
+
+
+### Features
+
+* **components:** styled button ([#5803](https://github.com/Arize-ai/phoenix/issues/5803)) ([e8afaa8](https://github.com/Arize-ai/phoenix/commit/e8afaa8d5aa421be2cddcaf515162b5d86f0a110))
+* **playground:** Update o1 model listing and params ([#5773](https://github.com/Arize-ai/phoenix/issues/5773)) ([aabe535](https://github.com/Arize-ai/phoenix/commit/aabe5359c86dd931fb70fb4f3d7663b9d608882b))
+* **tracing:** pretty print JSON strings for structured data outputs ([#5811](https://github.com/Arize-ai/phoenix/issues/5811)) ([b371f7c](https://github.com/Arize-ai/phoenix/commit/b371f7c4a05af80601fdb9660e20baf70d55de6c))
+
+
+### Bug Fixes
+
+* fix light mode filters and colors ([#5789](https://github.com/Arize-ai/phoenix/issues/5789)) ([6d8f0c6](https://github.com/Arize-ai/phoenix/commit/6d8f0c6cc31d91e0b07edf55786ccbfd486e856d))
+
 ## [7.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.1...arize-phoenix-v7.2.0) (2024-12-18)
 
 
