@@ -1,4 +1,8 @@
+import base64
 import json
+import subprocess
+from dataclasses import dataclass
+from enum import Enum
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.error import HTTPError
@@ -6,6 +10,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
+import requests
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
@@ -18,6 +23,16 @@ NOT_PARSABLE = "NOT_PARSABLE"
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 _FUNCTION_NAME = "record_response"
+
+
+# class AudioFormat(Enum):
+#     WAV = "wav"
+#
+#
+# @dataclass
+# class Audio:
+#     data: str
+#     format: AudioFormat
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -174,3 +189,21 @@ def _default_openai_function(
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
         tqdm.write(*args, **kwargs)
+
+
+def get_audio_format_from_base64(encoded_string):
+    # Decode the Base64 string back to bytes
+    audio_bytes = base64.b64decode(encoded_string)
+
+    if audio_bytes[:4] == b'RIFF' and audio_bytes[8:12] == b'WAVE':
+        return 'wav'
+    elif audio_bytes[:3] == b'ID3':
+        return 'mp3'
+    elif audio_bytes[:4] == b'fLaC':
+        return 'flac'
+    elif audio_bytes[:4] == b'OggS':
+        return 'ogg'
+    elif audio_bytes[0:2] == b'\xFF\xF1' or audio_bytes[0:2] == b'\xFF\xF9':
+        return 'aac'
+    else:
+        return 'unknown'

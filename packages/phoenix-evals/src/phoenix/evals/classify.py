@@ -6,6 +6,7 @@ from enum import Enum
 from itertools import product
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -68,6 +69,7 @@ def llm_classify(
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
+    data_processor: Optional[Callable[[Union[List, pd.DataFrame]], pd.DataFrame]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -101,6 +103,9 @@ def llm_classify(
 
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
+
+        data_processor (Callable[[Union[List, pd.DataFrame]], pd.DataFrame]): A function
+            that takes a URL or audio bytes and returns a complete audio object.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -153,6 +158,9 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
+    if data_processor:
+        dataframe = data_processor(dataframe)
+
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
