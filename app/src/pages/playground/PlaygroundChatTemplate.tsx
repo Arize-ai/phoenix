@@ -30,7 +30,10 @@ import {
 import { CopyToClipboardButton } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
-import { TemplateEditor } from "@phoenix/components/templateEditor";
+import {
+  TemplateEditor,
+  TemplateEditorWrap,
+} from "@phoenix/components/templateEditor";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -262,22 +265,7 @@ function MessageEditor({
     );
   }
   return (
-    <div
-      css={css`
-        & .cm-content {
-          padding: var(--ac-global-dimension-size-100)
-            var(--ac-global-dimension-size-250);
-        }
-        & .cm-gutter,
-        & .cm-content {
-          min-height: 75px;
-        }
-        & .cm-line {
-          padding-left: 0;
-          padding-right: 0;
-        }
-      `}
-    >
+    <TemplateEditorWrap>
       <TemplateEditor
         height="100%"
         value={
@@ -296,7 +284,7 @@ function MessageEditor({
               : "What is the weather in San Francisco?"
         }
       />
-    </div>
+    </TemplateEditorWrap>
   );
 }
 
@@ -377,30 +365,39 @@ function SortableMessageItem({
         bodyStyle={{ padding: 0 }}
         {...messageCardStyles}
         title={
-          <MessageRolePicker
-            includeLabel={false}
-            role={message.role}
-            onChange={(role) => {
-              let toolCalls = message.toolCalls;
-              // Tool calls should only be attached to ai messages
-              // Clear tools from the message and reset the message mode when switching away form ai
-              if (role !== "ai") {
-                toolCalls = undefined;
-                setAIMessageMode("text");
-              }
-              updateInstance({
-                instanceId: playgroundInstanceId,
-                patch: {
-                  template: {
-                    __type: "chat",
-                    messages: template.messages.map((msg) =>
-                      msg.id === message.id ? { ...msg, role, toolCalls } : msg
-                    ),
+          <div
+            css={css`
+              // Align the role picker with the prompt picker in PlaygroundTemplate header
+              margin-left: var(--ac-global-dimension-size-150);
+            `}
+          >
+            <MessageRolePicker
+              includeLabel={false}
+              role={message.role}
+              onChange={(role) => {
+                let toolCalls = message.toolCalls;
+                // Tool calls should only be attached to ai messages
+                // Clear tools from the message and reset the message mode when switching away form ai
+                if (role !== "ai") {
+                  toolCalls = undefined;
+                  setAIMessageMode("text");
+                }
+                updateInstance({
+                  instanceId: playgroundInstanceId,
+                  patch: {
+                    template: {
+                      __type: "chat",
+                      messages: template.messages.map((msg) =>
+                        msg.id === message.id
+                          ? { ...msg, role, toolCalls }
+                          : msg
+                      ),
+                    },
                   },
-                },
-              });
-            }}
-          />
+                });
+              }}
+            />
+          </div>
         }
         extra={
           <Flex direction="row" gap="size-100">

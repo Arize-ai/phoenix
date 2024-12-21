@@ -8,6 +8,14 @@ import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
+import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
+import { PromptLayout } from "./pages/prompt/PromptLayout";
+import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
+import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
+import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
+import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -40,6 +48,9 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  promptLoader,
+  promptsLoader,
+  PromptsPage,
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
@@ -180,7 +191,7 @@ const router = createBrowserRouter(
               />
             </Route>
             <Route
-              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              path="spans/:spanId"
               element={<SpanPlaygroundPage />}
               loader={spanPlaygroundPageLoader}
               handle={{
@@ -192,6 +203,48 @@ const router = createBrowserRouter(
                 },
               }}
             />
+          </Route>
+          <Route
+            path="/prompts"
+            handle={{
+              crumb: () => "Prompts",
+            }}
+          >
+            <Route index element={<PromptsPage />} loader={promptsLoader} />
+            <Route
+              path=":promptId"
+              loader={promptLoader}
+              handle={{
+                crumb: (data: promptLoaderQuery$data) => {
+                  if (data.prompt.__typename === "Prompt") {
+                    return data.prompt.name;
+                  }
+                  return "unknown";
+                },
+              }}
+            >
+              <Route element={<PromptLayout />}>
+                <Route index element={<PromptIndexPage />} />
+                <Route
+                  path="versions"
+                  loader={promptVersionsLoader}
+                  element={<PromptVersionsPage />}
+                >
+                  <Route
+                    path=":versionId"
+                    loader={promptVersionLoader}
+                    element={<PromptVersionDetailsPage />}
+                  />
+                </Route>
+              </Route>
+              <Route
+                path="playground"
+                element={<PromptPlaygroundPage />}
+                handle={{
+                  crumb: () => "Playground",
+                }}
+              />
+            </Route>
           </Route>
           <Route
             path="/apis"
