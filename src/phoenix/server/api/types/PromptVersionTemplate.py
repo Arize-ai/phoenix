@@ -1,46 +1,64 @@
 # Part of the Phoenix PromptHub feature set
 
 
+from typing import Annotated, Any, Union
+
 import strawberry
+from pydantic import Field
 from strawberry.scalars import JSON
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import JSONPromptMessage as JSONPromptMessageModel
+from phoenix.server.api.helpers.prompts.models import (
+    JSONPromptMessage as JSONPromptMessageModel,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
-    PromptMessageRole,
     PromptStringTemplateV1,
+    PromptTemplateType,
 )
-from phoenix.server.api.helpers.prompts.models import TextPromptMessage as TextPromptMessageModel
+from phoenix.server.api.helpers.prompts.models import (
+    PromptStringTemplateV1 as PromptStringTemplateModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    PromptToolDefinition as PromptToolDefinitionModelModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    PromptToolsV1 as PromptToolsModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    TextPromptMessage as TextPromptMessageModel,
+)
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(TextPromptMessageModel)
 class TextPromptMessage:
-    role: PromptMessageRole
-    content: str
+    role: strawberry.auto
+    content: strawberry.auto
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(JSONPromptMessageModel)
 class JSONPromptMessage:
-    role: PromptMessageRole
+    role: strawberry.auto
     content: JSON
 
 
-PromptTemplateMessage = strawberry.union(
-    "PromptTemplateMessage", (TextPromptMessage, JSONPromptMessage)
-)
+PromptTemplateMessage: TypeAlias = Annotated[
+    Union[TextPromptMessage, JSONPromptMessage],
+    strawberry.union("PromptTemplateMessage"),
+]
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(PromptChatTemplateV1)
 class PromptChatTemplate:
-    _version: str = "messages-v1"
+    _version: strawberry.Private[str] = "messages-v1"
     messages: list[PromptTemplateMessage]
 
 
 def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
-    model = PromptChatTemplateV1.model_validate(orm_model.template)
+    template = PromptChatTemplateV1.model_validate(orm_model.template)
     messages: list[PromptTemplateMessage] = []
-    for msg in model.template:
+    for msg in template.messages:
         if isinstance(msg.content, TextPromptMessageModel):
             messages.append(TextPromptMessage(role=msg.role, content=msg.content))
         elif isinstance(msg.content, JSONPromptMessageModel):
@@ -50,9 +68,9 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
     return PromptChatTemplate(messages=messages)
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(PromptStringTemplateModel)
 class PromptStringTemplate:
-    template: str
+    template: strawberry.auto
 
 
 def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
@@ -69,4 +87,41 @@ def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptT
         raise ValueError(f"Unknown template type: {orm_prompt_version.template_type}")
 
 
-PromptTemplate = strawberry.union("PromptTemplate", (PromptStringTemplate, PromptChatTemplate))
+PromptTemplate: TypeAlias = Annotated[
+    Union[PromptStringTemplate, PromptChatTemplate],
+    strawberry.union("PromptTemplate"),
+]
+
+
+@strawberry.experimental.pydantic.type(PromptToolDefinitionModelModel)
+class PromptToolDefinition:
+    definition: JSON
+
+
+@strawberry.experimental.pydantic.type(PromptToolsModel)
+class PromptTools:
+    version: strawberry.auto
+    tool_definitions: list[PromptToolDefinition] = Field(default_factory=list)
+
+
+def to_gql_prompt_template(
+    template: dict[str, Any], prompt_template_type: "PromptTemplateType"
+) -> PromptTemplate:
+    if prompt_template_type == PromptTemplateType.STRING:
+        return to_gql_prompt_string_template(template)
+    elif prompt_template_type == PromptTemplateType.CHAT:
+        return to_gql_prompt_chat_template(template)
+    assert_never(prompt_template_type)
+
+
+def to_gql_prompt_chat_template(template: dict[str, Any]) -> PromptChatTemplate:
+    messages: list[PromptTemplateMessage] = []
+    for message in template.get("messages", []):
+        role = message["role"]
+        content = message["content"]
+        messages.append(TextPromptMessage(role=role, content=content))
+    return PromptChatTemplate(messages=messages)
+
+
+def to_gql_prompt_string_template(template: dict[str, Any]) -> PromptStringTemplate:
+    raise NotImplementedError

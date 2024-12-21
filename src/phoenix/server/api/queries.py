@@ -56,7 +56,10 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
-from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
+from phoenix.server.api.types.PromptVersion import (
+    PromptVersion,
+    to_gql_prompt_version,
+)
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey

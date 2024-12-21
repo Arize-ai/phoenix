@@ -244,6 +244,12 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreatePromptInput {
+  name: String!
+  description: String = null
+  promptVersion: PromptVersionInput!
+}
+
 input CreateSpanAnnotationInput {
   spanId: GlobalID!
   name: String!
@@ -1092,7 +1098,11 @@ type JSONPromptMessage {
 }
 
 type JSONSchema {
-  schema: JSON!
+  definition: JSON!
+}
+
+input JSONSchemaInput {
+  definition: JSON!
 }
 
 type LabelFraction {
@@ -1169,6 +1179,7 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
+  createPrompt(input: CreatePromptInput!): Prompt!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1387,7 +1398,6 @@ type Prompt implements Node {
 }
 
 type PromptChatTemplate {
-  Version: String!
   messages: [PromptTemplateMessage!]!
 }
 
@@ -1446,17 +1456,17 @@ enum PromptTemplateType {
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  invocationParameters: JSON
+  tags: [PromptVersionTag!]!
   user: String
   description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
-  invocationParameters: JSON
   tools: [ToolDefinition!]!
   outputSchema: JSONSchema
   modelName: String!
   modelProvider: String!
-  tags: [PromptVersionTag!]!
 }
 
 """A connection to a list of items."""
@@ -1475,6 +1485,18 @@ type PromptVersionEdge {
 
   """The item at the end of the edge"""
   node: PromptVersion!
+}
+
+input PromptVersionInput {
+  description: String = null
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: JSON!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  outputSchema: JSONSchemaInput = null
+  modelProvider: String!
+  modelName: String!
 }
 
 type PromptVersionTag implements Node {
@@ -1855,6 +1877,10 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
 }
 
 type ToolDefinition {
+  definition: JSON!
+}
+
+input ToolDefinitionInput {
   definition: JSON!
 }
 

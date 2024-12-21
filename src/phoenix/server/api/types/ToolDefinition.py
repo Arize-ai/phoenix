@@ -2,10 +2,11 @@ import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
+from phoenix.server.api.helpers.prompts.models import PromptToolDefinition as ToolDefinitionModel
 from phoenix.server.api.helpers.prompts.models import PromptToolsV1
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(ToolDefinitionModel)
 class ToolDefinition:
     """The definition of a tool that a generative tool can invoke."""
 

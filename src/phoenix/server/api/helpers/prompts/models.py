@@ -1,13 +1,18 @@
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Literal, Optional, TypeVar, Union
 
-import strawberry
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import TypeAlias
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
+PromptModel = TypeVar("PromptModel", bound="BasePromptModel")
 
 
-@strawberry.enum
+class PromptTemplateType(str, Enum):
+    STRING = "str"
+    CHAT = "chat"
+
+
 class PromptMessageRole(str, Enum):
     USER = "user"
     SYSTEM = "system"  # e.g. the OpenAI developer role or an Anthropic system instruction
@@ -15,30 +20,63 @@ class PromptMessageRole(str, Enum):
     TOOL = "tool"
 
 
-class TextPromptMessage(BaseModel):
+class PromptTemplateFormat(str, Enum):
+    MUSTACHE = "mustache"
+    FSTRING = "fstring"
+    NONE = "none"
+
+
+class BasePromptModel(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",  # disallow extra attributes
+    )
+
+
+class TextPromptMessage(BasePromptModel):
     role: PromptMessageRole
     content: str
 
 
-class JSONPromptMessage(BaseModel):
+class JSONPromptMessage(BasePromptModel):
     role: PromptMessageRole
     content: JSONSerializable
 
 
-class PromptChatTemplateV1(BaseModel):
+class PromptChatTemplateV1(BasePromptModel):
     _version: str = "messages-v1"
-    template: list[Union[TextPromptMessage, JSONPromptMessage]]
+    messages: list[Union[TextPromptMessage, JSONPromptMessage]]
 
 
-class PromptStringTemplateV1(BaseModel):
+class PromptStringTemplateV1(BasePromptModel):
     _version: str = "string-v1"
     template: str
 
 
-class PromptToolDefinition(BaseModel):
-    definition: JSONSerializable
+PromptTemplate: TypeAlias = Union[PromptChatTemplateV1, PromptStringTemplateV1]
 
 
-class PromptToolsV1(BaseModel):
-    _version: str = "tools-v1"
+class PromptJSONSchema(BaseModel):
+    """A JSON schema definition used to guide an LLM's output"""
+
+    definition: dict[str, Any]
+
+
+class PromptToolDefinition(BasePromptModel):
+    definition: dict[str, Any]
+
+
+class PromptToolsV1(BasePromptModel):
+    version: Literal["tools-v1"] = "tools-v1"
+    tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
+
+
+class PromptVersion(BasePromptModel):
+    user: Optional[str] = None
+    description: Optional[str] = None
+    template_type: PromptTemplateType
+    template_format: PromptTemplateFormat
+    template: PromptTemplate
     tools: list[PromptToolDefinition]
+    output_schema: Optional[dict[str, Any]] = None
+    model_name: str
+    model_provider: str
