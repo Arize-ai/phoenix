@@ -4,8 +4,9 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Form, TextField, View } from "@arizeai/components";
+import { Form, TextField, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
@@ -162,14 +163,13 @@ export function ResetPasswordForm() {
           `}
         >
           <Button
-            variant="default"
-            onClick={() => {
+            onPress={() => {
               navigate(-1);
             }}
           >
             Cancel
           </Button>
-          <Button variant={"primary"} type="submit" disabled={isCommitting}>
+          <Button variant="primary" type="submit" isDisabled={isCommitting}>
             {isCommitting ? "Resetting..." : "Reset Password"}
           </Button>
         </div>

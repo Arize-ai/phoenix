@@ -2,15 +2,9 @@ import React, { ReactNode, startTransition, Suspense, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import {
-  Button,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  View,
-} from "@arizeai/components";
+import { DialogContainer, Flex, Icon, Icons, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
@@ -72,10 +66,9 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           <Button
-            size="compact"
-            variant="default"
+            size="S"
             icon={<Icon svg={<Icons.EditOutline />} />}
-            onClick={() =>
+            onPress={() =>
               setDialog(
                 <EditSpanAnnotationsDialog
                   spanNodeId={spanId}
@@ -87,10 +80,9 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
             Annotate
           </Button>
           <Button
-            size="compact"
-            variant="default"
+            size="S"
             icon={<Icon svg={<Icons.Trace />} />}
-            onClick={() => {
+            onPress={() => {
               startTransition(() => {
                 setDialog(
                   <Suspense>

@@ -2,9 +2,9 @@ import React, { useMemo } from "react";
 import { useRouteError } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, EmptyGraphic, Flex } from "@arizeai/components";
+import { EmptyGraphic, Flex } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { Button, ExternalLink } from "@phoenix/components";
 
 export function ErrorElement() {
   const error = useRouteError();
@@ -107,8 +107,8 @@ function ErrorContent({ error }: { error: unknown }) {
 
         <Button
           variant="primary"
-          size="compact"
-          onClick={() => {
+          size="S"
+          onPress={() => {
             window.location.href = "/";
           }}
         >

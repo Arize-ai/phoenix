@@ -34,7 +34,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  Button,
   DialogContainer,
   Flex,
   Icon,
@@ -44,7 +43,7 @@ import {
   TooltipTrigger,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -164,7 +163,7 @@ const cellWithControlsWrapCSS = css`
     opacity: 1;
     display: flex;
     // make them stand out
-    .ac-button {
+    button {
       border-color: var(--ac-global-color-primary);
     }
   }
@@ -274,13 +273,10 @@ function ExampleOutputContent({
           {hasExperimentRun && (
             <TooltipTrigger>
               <Button
-                variant="default"
-                size="compact"
+                size="S"
                 aria-label="View experiment run details"
                 icon={<Icon svg={<Icons.ExpandOutline />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onPress={() => {
                   startTransition(() => {
                     setDialog(
                       <PlaygroundExperimentRunDetailsDialog
@@ -297,13 +293,10 @@ function ExampleOutputContent({
             <>
               <TooltipTrigger>
                 <Button
-                  variant="default"
-                  size="compact"
+                  size="S"
                   aria-label="View run trace"
                   icon={<Icon svg={<Icons.Trace />} />}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                  onPress={() => {
                     startTransition(() => {
                       setDialog(
                         <PlaygroundRunTraceDetailsDialog
@@ -807,11 +800,10 @@ export function PlaygroundDatasetExamplesTable({
             controls={
               <TooltipTrigger>
                 <Button
-                  variant="default"
-                  size="compact"
+                  size="S"
                   aria-label="View example details"
                   icon={<Icon svg={<Icons.ExpandOutline />} />}
-                  onClick={() => {
+                  onPress={() => {
                     navigate(
                       `/playground/datasets/${datasetId}/examples/${row.original.id}`
                     );

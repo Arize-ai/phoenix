@@ -7,16 +7,17 @@ import React, {
 import { css } from "@emotion/react";
 
 import {
-  Button,
   classNames,
   Flex,
   Icon,
   Icons,
   Tooltip,
   TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
@@ -89,25 +90,27 @@ function TraceTreeToolbar() {
     <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
       <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
         <TooltipTrigger offset={5}>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-            onClick={() => {
-              setIsCollapsed(!isCollapsed);
-            }}
-            icon={
-              <Icon
-                svg={
-                  isCollapsed ? (
-                    <Icons.RowCollapseOutline />
-                  ) : (
-                    <Icons.RowExpandOutline />
-                  )
-                }
-              />
-            }
-          />
+          <TriggerWrap>
+            <Button
+              variant="default"
+              size="S"
+              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+              onPress={() => {
+                setIsCollapsed(!isCollapsed);
+              }}
+              icon={
+                <Icon
+                  svg={
+                    isCollapsed ? (
+                      <Icons.RowCollapseOutline />
+                    ) : (
+                      <Icons.RowExpandOutline />
+                    )
+                  }
+                />
+              }
+            />
+          </TriggerWrap>
           <Tooltip>
             {isCollapsed
               ? "Expand all nested spans"
@@ -115,29 +118,30 @@ function TraceTreeToolbar() {
           </Tooltip>
         </TooltipTrigger>
         <TooltipTrigger offset={5}>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label={
-              showMetricsInTraceTree
-                ? "Hide metrics in trace tree"
-                : "Show metrics in trace tree"
-            }
-            onClick={() => {
-              setShowMetricsInTraceTree(!showMetricsInTraceTree);
-            }}
-            icon={
-              <Icon
-                svg={
-                  showMetricsInTraceTree ? (
-                    <Icons.TimerOutline />
-                  ) : (
-                    <Icons.TimerOffOutline />
-                  )
-                }
-              />
-            }
-          />
+          <TriggerWrap>
+            <Button
+              size="S"
+              aria-label={
+                showMetricsInTraceTree
+                  ? "Hide metrics in trace tree"
+                  : "Show metrics in trace tree"
+              }
+              onPress={() => {
+                setShowMetricsInTraceTree(!showMetricsInTraceTree);
+              }}
+              icon={
+                <Icon
+                  svg={
+                    showMetricsInTraceTree ? (
+                      <Icons.TimerOutline />
+                    ) : (
+                      <Icons.TimerOffOutline />
+                    )
+                  }
+                />
+              }
+            />
+          </TriggerWrap>
           <Tooltip>
             {showMetricsInTraceTree
               ? "Hide metrics in trace tree"

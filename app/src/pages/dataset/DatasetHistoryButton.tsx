@@ -1,13 +1,14 @@
 import React, { ReactNode, Suspense, useState } from "react";
 
 import {
-  Button,
   DialogContainer,
   Icon,
   Icons,
   Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 import { DatasetHistoryDialog } from "./DatasetHistoryDialog";
 
@@ -18,10 +19,9 @@ export function DatasetHistoryButton(props: { datasetId: string }) {
     <>
       <TooltipTrigger>
         <Button
-          variant="default"
           icon={<Icon svg={<Icons.ClockOutline />} />}
           aria-label="Version History"
-          onClick={() => {
+          onPress={() => {
             setDialog(<DatasetHistoryDialog datasetId={datasetId} />);
           }}
         />

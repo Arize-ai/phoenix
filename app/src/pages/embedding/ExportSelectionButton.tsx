@@ -9,16 +9,17 @@ import {
   Accordion,
   AccordionItem,
   Alert,
-  Button,
   Dialog,
   DialogContainer,
   Download,
   Icon,
+  Icons,
   List,
   ListItem,
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { Loading } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
@@ -71,7 +72,7 @@ export function ExportSelectionButton() {
     `
   );
   const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
-  const onClick = useCallback(() => {
+  const onPress = useCallback(() => {
     commit({
       variables: {
         eventIds: [...selectedEventIds],
@@ -85,12 +86,15 @@ export function ExportSelectionButton() {
   return (
     <>
       <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<Download />} />}
+        size="S"
+        icon={
+          <Icon
+            svg={isInFlight ? <Icons.LoadingOutline /> : <Icons.Download />}
+          />
+        }
         aria-label="Export selection / cluster"
-        loading={isInFlight}
-        onClick={onClick}
+        isDisabled={isInFlight}
+        onPress={onPress}
       >
         {isInFlight ? "Exporting" : "Export"}
       </Button>
@@ -108,8 +112,8 @@ export function ExportSelectionButton() {
               extra={
                 <Button
                   variant="success"
-                  size="compact"
-                  onClick={() => {
+                  size="S"
+                  onPress={() => {
                     window.open(
                       `/exports?filename=${exportInfo.fileName}`,
                       "_self"
@@ -190,11 +194,11 @@ function ExportsList() {
           >
             {fileInfo.fileName}
             <Button
-              size="compact"
+              size="S"
               aria-label="Download"
               variant="default"
               icon={<Icon svg={<Download />} />}
-              onClick={() => {
+              onPress={() => {
                 window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
               }}
             />

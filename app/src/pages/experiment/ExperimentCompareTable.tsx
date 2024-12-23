@@ -20,7 +20,6 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
-  Button,
   Card,
   CardProps,
   Dialog,
@@ -36,6 +35,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
 import {
   AnnotationLabel,
@@ -245,11 +245,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               controls={
                 <TooltipTrigger>
                   <Button
-                    variant="default"
-                    size="compact"
+                    size="S"
                     aria-label="View example details"
                     icon={<Icon svg={<Icons.ExpandOutline />} />}
-                    onClick={() => {
+                    onPress={() => {
                       startTransition(() => {
                         setDialog(
                           <Suspense>
@@ -340,12 +339,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Button
                 variant="default"
                 className="trace-button"
-                size="compact"
+                size="S"
                 aria-label="View run trace"
                 icon={<Icon svg={<Icons.Trace />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onPress={() => {
                   startTransition(() => {
                     setDialog(
                       <TraceDetailsDialog
@@ -367,12 +364,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Button
                 variant="default"
                 className="expand-button"
-                size="compact"
+                size="S"
                 aria-label="View example run details"
                 icon={<Icon svg={<Icons.ExpandOutline />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onPress={() => {
                   startTransition(() => {
                     setDialog(
                       <SelectedExampleDialog
@@ -928,8 +923,7 @@ function TraceDetailsDialog({
       size="fullscreen"
       extra={
         <Button
-          variant="default"
-          onClick={() => navigate(`/projects/${projectId}/traces/${traceId}`)}
+          onPress={() => navigate(`/projects/${projectId}/traces/${traceId}`)}
         >
           View Trace in Project
         </Button>
