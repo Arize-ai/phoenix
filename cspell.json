@@ -33,6 +33,7 @@
         "LLAMATRACE",
         "LOOKBACK",
         "mistralai",
+        "multimodal",
         "ndcg",
         "NDJSON",
         "numpy",

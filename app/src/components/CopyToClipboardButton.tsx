@@ -9,8 +9,13 @@ import { Button, ButtonProps } from "@phoenix/components";
 
 export type CopyToClipboardButtonProps = Omit<
   ButtonProps,
-  "icon" | "onPress"
+  "icon" | "onPress" | "size"
 > & {
+  /**
+   * The size of the button
+   * @default S
+   */
+  size?: ButtonProps["size"];
   /**
    * The text to copy to the clipboard
    */
@@ -21,7 +26,7 @@ export type CopyToClipboardButtonProps = Omit<
  * An Icon button that copies the given text to the clipboard when clicked.
  */
 export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
-  const { text, ...otherProps } = props;
+  const { text, size = "S", ...otherProps } = props;
   const [isCopied, setIsCopied] = useState(false);
 
   const onPress = useCallback(() => {
@@ -35,6 +40,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
     <div className="copy-to-clipboard-button">
       <TooltipTrigger delay={0} offset={5}>
         <Button
+          size={size}
           icon={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}

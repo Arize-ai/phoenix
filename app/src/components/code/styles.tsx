@@ -9,7 +9,7 @@ export const readOnlyCodeMirrorCSS = css`
 
 export const codeBlockWithCopyCSS = css`
   position: relative;
-  min-height: 53px;
+  min-height: 47px;
   display: flex;
   flex-direction: row;
   align-items: center;

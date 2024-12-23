@@ -1,7 +1,9 @@
 import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import { Button, classNames, Icon, Icons } from "@arizeai/components";
+import { classNames, Icon, Icons } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 type SpanImageProps = {
   /**
@@ -77,8 +79,8 @@ export function SpanImage(props: SpanImageProps) {
       {!isRedacted && (
         <Button
           variant="default"
-          size="compact"
-          onClick={() => setIsExpanded(!isExpanded)}
+          size="S"
+          onPress={() => setIsExpanded(!isExpanded)}
           icon={
             <Icon
               svg={
