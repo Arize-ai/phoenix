@@ -20,12 +20,19 @@ export type Logger = {
 };
 
 export type RunExperimentParams = {
-  experimentName: string;
+  /**
+   * An optional name for the experiment.
+   * Defaults to the dataset name + a timestamp
+   */
+  experimentName?: string;
   client?: PhoenixClient;
   dataset: Dataset | string | Example[];
   task: ExperimentTask;
   evaluators?: Evaluator[];
   repetitions?: number;
+  /**
+   * The project under which the experiment task traces are recorded
+   */
   projectName?: string;
   logger?: Logger;
 };
@@ -34,7 +41,7 @@ export type RunExperimentParams = {
  * Run an experiment.
  */
 export async function runExperiment({
-  experimentName,
+  experimentName: _experimentName,
   client: _client,
   dataset: _dataset,
   task,
@@ -47,6 +54,8 @@ export async function runExperiment({
   const dataset = await getDataset({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
+  const experimentName =
+    _experimentName ?? `${dataset.name}-${new Date().toISOString()}`;
   const experimentParams: ExperimentParameters = {
     nRepetitions: repetitions,
     // TODO: Make configurable?
@@ -72,7 +81,6 @@ export async function runExperiment({
   );
 
   // Run task against all examples, for each repetition
-  // TODO: Summarize repetitions
   type ExperimentRunId = string;
   const runs: Record<ExperimentRunId, ExperimentRun> = {};
   await Promise.all(

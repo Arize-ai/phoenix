@@ -16,6 +16,7 @@ export interface Example extends Node {
  */
 export interface Dataset extends Node {
   id: string;
+  name: string;
   versionId: string;
   examples: Example[];
 }
