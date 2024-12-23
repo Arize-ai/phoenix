@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.0...arize-phoenix-v7.3.1) (2024-12-23)
+
+
+### Bug Fixes
+
+* increase default wait time for uvicorn server process start ([#5818](https://github.com/Arize-ai/phoenix/issues/5818)) ([a4cef8e](https://github.com/Arize-ai/phoenix/commit/a4cef8e227516fced7bfc8471b988c21a88236bd))
+
 ## [7.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.2.0...arize-phoenix-v7.3.0) (2024-12-21)
 
 
