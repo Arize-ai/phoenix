@@ -72,7 +72,7 @@ export function DatasetCodeDropdown() {
                   width="100%"
                 >
                   <TextField label="Dataset ID" isReadOnly value={datasetId} />
-                  <CopyToClipboardButton text={datasetId} size="default" />
+                  <CopyToClipboardButton text={datasetId} size="M" />
                 </Flex>
                 <Flex direction="row" gap="size-100" alignItems="end">
                   <TextField
@@ -83,8 +83,8 @@ export function DatasetCodeDropdown() {
                   />
                   <CopyToClipboardButton
                     text={version?.id || "No Versions"}
-                    disabled={!version}
-                    size="default"
+                    isDisabled={!version}
+                    size="M"
                   />
                 </Flex>
               </Form>
@@ -105,7 +105,7 @@ export function DatasetCodeDropdown() {
                   <Form>
                     <Flex direction="row" gap="size-100" alignItems="end">
                       <TextField label="URL" isReadOnly value={datasetURL} />
-                      <CopyToClipboardButton text={datasetURL} size="default" />
+                      <CopyToClipboardButton text={datasetURL} size="M" />
                     </Flex>
                   </Form>
                 </View>

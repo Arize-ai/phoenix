@@ -45,11 +45,11 @@ export function SpanCodeDropdown(props: SpanCodeDropdownProps) {
             <Form>
               <Flex direction="row" gap="size-100" alignItems="end">
                 <TextField label="Span ID" isReadOnly value={spanId} />
-                <CopyToClipboardButton text={spanId} size="default" />
+                <CopyToClipboardButton text={spanId} size="M" />
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="end">
                 <TextField label="Trace ID" isReadOnly value={traceId} />
-                <CopyToClipboardButton text={traceId} size="default" />
+                <CopyToClipboardButton text={traceId} size="M" />
               </Flex>
             </Form>
           </View>

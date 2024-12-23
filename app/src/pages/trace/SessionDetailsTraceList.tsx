@@ -170,7 +170,7 @@ function RootSpanDetails({
           </Flex>
           <span>
             <EditSpanAnnotationsButton
-              size={"compact"}
+              size="S"
               spanNodeId={rootSpan.id}
               projectId={rootSpan.project.id}
             />
