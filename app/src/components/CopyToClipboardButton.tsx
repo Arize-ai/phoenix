@@ -1,33 +1,30 @@
 import React, { useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 
-import {
-  Button,
-  ButtonProps,
-  Icon,
-  Icons,
-  Tooltip,
-  TooltipTrigger,
-} from "@arizeai/components";
+import { Icon, Icons, Tooltip, TooltipTrigger } from "@arizeai/components";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
+
+import { Button, ButtonProps } from "@phoenix/components";
+
+export type CopyToClipboardButtonProps = Omit<
+  ButtonProps,
+  "icon" | "onPress"
+> & {
+  /**
+   * The text to copy to the clipboard
+   */
+  text: string;
+};
 
 /**
  * An Icon button that copies the given text to the clipboard when clicked.
  */
-export function CopyToClipboardButton({
-  text,
-  size = "compact",
-  disabled = false,
-}: {
-  text: string;
-
-  size?: ButtonProps["size"];
-  disabled?: boolean;
-}) {
+export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
+  const { text, ...otherProps } = props;
   const [isCopied, setIsCopied] = useState(false);
 
-  const onClick = useCallback(() => {
+  const onPress = useCallback(() => {
     copy(text);
     setIsCopied(true);
     setTimeout(() => {
@@ -38,15 +35,13 @@ export function CopyToClipboardButton({
     <div className="copy-to-clipboard-button">
       <TooltipTrigger delay={0} offset={5}>
         <Button
-          variant="default"
-          disabled={disabled}
           icon={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
             />
           }
-          size={size}
-          onClick={onClick}
+          onPress={onPress}
+          {...otherProps}
         />
         <Tooltip>Copy</Tooltip>
       </TooltipTrigger>

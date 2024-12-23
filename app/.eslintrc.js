@@ -53,7 +53,7 @@ module.exports = {
       },
     ],
     "deprecate/import": [
-      "warn",
+      "error",
       {
         name: "Button",
         module: "@arizeai/components",
