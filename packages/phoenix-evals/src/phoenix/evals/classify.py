@@ -104,7 +104,7 @@ def llm_classify(
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
 
-        data_processor (Callable[[Union[List, pd.DataFrame]], pd.DataFrame]): A function
+        data_processor (Optional[Callable[[Union[List, pd.DataFrame]], pd.DataFrame]]): A function
             that takes a URL or audio bytes and returns a complete audio object.
 
         system_instruction (Optional[str], optional): An optional system message.

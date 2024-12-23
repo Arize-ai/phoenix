@@ -6,7 +6,11 @@ from phoenix.evals.span_templates import (
     QA_SPAN_PROMPT_TEMPLATE,
     TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
 )
-from phoenix.evals.templates import ClassificationTemplate
+from phoenix.evals.templates import (
+    ClassificationTemplate,
+    PromptPartContentType,
+    PromptPartTemplate,
+)
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
@@ -701,6 +705,71 @@ LABEL: "frustrated" or "ok"
 """
 
 USER_FRUSTRATION_PROMPT_RAILS_MAP = OrderedDict({True: "frustrated", False: "ok"})
+
+TONE_EMOTION_TEMPLATE_PT1 = """
+You are a helpful AI bot that checks for the emotional sentiment of the audio.
+Analyze the audio file and determine the sentiment (e.g., positive, neutral, negative).
+Your evaluation should provide a multiclass label from the following options:
+['positive', 'neutral', 'negative'].
+
+Here is the audio:
+"""
+
+TONE_EMOTION_TEMPLATE_PT2 = """{the_audio_string}"""
+
+TONE_EMOTION_TEMPLATE_PT4 = """
+Your response must be a string, either positive, neutral, or negative, and should not contain any
+text or characters aside from that.
+The string positive means that the emotion/tone of the audio suggests that the user is happy,
+enthusiastic, etc., such as through positive intonation, energetic delivery, or cheerful
+expressions, while neutral reflects a lack of strong emotional cues, and negative indicates
+frustration, heightened intensity, and other negative emotions.
+"""
+
+EXPLANATION_TEMPLATE_PT = """
+Write out in a step-by-step manner an EXPLANATION to show how you determined if the answer was
+positive, neutral, or negative.
+
+EXPLANATION:
+"""
+
+TONE_EMOTION_RAILS = ["positive", "neutral", "negative"]
+
+AUDIO_SENTIMENT_TEMPLATE = ClassificationTemplate(
+    rails=TONE_EMOTION_RAILS,
+    template=[
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=TONE_EMOTION_TEMPLATE_PT1,
+        ),
+        PromptPartTemplate(
+            content_type=PromptPartContentType.AUDIO_STRING,
+            template=TONE_EMOTION_TEMPLATE_PT2
+        ),
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=TONE_EMOTION_TEMPLATE_PT4,
+        ),
+    ],
+    explanation_template=[
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=EXPLANATION_TEMPLATE_PT,
+        ),
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=TONE_EMOTION_TEMPLATE_PT1,
+        ),
+        PromptPartTemplate(
+            content_type=PromptPartContentType.AUDIO_STRING,
+            template=TONE_EMOTION_TEMPLATE_PT2
+        ),
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=TONE_EMOTION_TEMPLATE_PT4,
+        ),
+    ],
+)
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
