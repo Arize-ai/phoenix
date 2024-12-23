@@ -1,7 +1,6 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
   Icon,
@@ -10,6 +9,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { ExternalLink } from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
@@ -63,10 +63,9 @@ export function RunExperimentButton() {
   return (
     <>
       <Button
-        size="compact"
-        variant="default"
+        size="S"
         icon={<Icon svg={<Icons.ExperimentOutline />} />}
-        onClick={onRunExample}
+        onPress={onRunExample}
       >
         Run Experiment
       </Button>

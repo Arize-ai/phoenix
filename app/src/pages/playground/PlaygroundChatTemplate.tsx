@@ -16,7 +16,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Card,
   Field,
   Flex,
@@ -27,7 +26,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { Button, CopyToClipboardButton } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { TemplateEditor } from "@phoenix/components/templateEditor";
@@ -453,9 +452,8 @@ function SortableMessageItem({
             <Button
               aria-label="Delete message"
               icon={<Icon svg={<Icons.TrashOutline />} />}
-              variant="default"
-              size="compact"
-              onClick={() => {
+              size="S"
+              onPress={() => {
                 updateInstance({
                   instanceId: playgroundInstanceId,
                   patch: {

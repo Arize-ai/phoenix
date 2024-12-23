@@ -3,7 +3,6 @@ import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   DialogContainer,
   Flex,
   Icon,
@@ -12,6 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
@@ -104,16 +104,25 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         >
           <Text>{`${selectedExamples.length} example${isPlural ? "s" : ""} selected`}</Text>
           <Flex direction="row" gap="size-100">
-            <Button variant="default" size="compact" onClick={onClearSelection}>
+            <Button variant="default" size="S" onPress={onClearSelection}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              size="compact"
-              icon={<Icon svg={<Icons.TrashOutline />} />}
-              loading={isDeletingExamples}
-              disabled={isDeletingExamples}
-              onClick={onDeleteExamples}
+              size="S"
+              icon={
+                <Icon
+                  svg={
+                    isDeletingExamples ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
+                  }
+                />
+              }
+              isDisabled={isDeletingExamples}
+              onPress={onDeleteExamples}
             >
               {isDeletingExamples
                 ? "Deleting..."

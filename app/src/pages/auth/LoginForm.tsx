@@ -3,8 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Button, Form, TextField, View } from "@arizeai/components";
+import { Alert, Form, Icon, Icons, TextField, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { Link } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 import { getReturnUrl } from "@phoenix/utils/routingUtils";
@@ -129,10 +130,13 @@ export function LoginForm(props: LoginFormProps) {
         >
           <Button
             variant="primary"
-            loading={isLoading}
-            onClick={handleSubmit(onSubmit)}
+            isDisabled={isLoading}
+            icon={
+              isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+            }
+            onPress={() => handleSubmit(onSubmit)()}
           >
-            Login
+            {isLoading ? "Logging in" : "Log in"}
           </Button>
         </div>
       </Form>

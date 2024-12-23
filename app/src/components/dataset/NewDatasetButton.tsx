@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import {
   Alert,
-  Button,
   Card,
   Icon,
   Icons,
@@ -10,6 +9,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import { CreateDatasetForm } from "./CreateDatasetForm";

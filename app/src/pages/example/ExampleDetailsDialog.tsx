@@ -5,7 +5,6 @@ import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Card,
   CardProps,
   Dialog,
@@ -15,7 +14,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { Button, CopyToClipboardButton } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -94,9 +93,8 @@ export function ExampleDetailsDialog({
           <Flex direction="row" gap="size-100">
             {sourceSpanInfo ? (
               <Button
-                variant="default"
-                size="compact"
-                onClick={() => {
+                size="S"
+                onPress={() => {
                   navigate(
                     `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
                   );

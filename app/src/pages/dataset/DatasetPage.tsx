@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
-  Button,
   Counter,
   Flex,
   Icon,
@@ -16,7 +15,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Loading } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -164,9 +163,8 @@ function DatasetPageContent({
             <DatasetCodeDropdown />
             <RunExperimentButton />
             <Button
-              variant={"default"}
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(`/playground/datasets/${dataset.id}`);
               }}
             >

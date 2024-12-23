@@ -3,7 +3,6 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Content,
   ContextualHelp,
   Form,
@@ -12,6 +11,7 @@ import {
   TextField,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import {
   MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,
