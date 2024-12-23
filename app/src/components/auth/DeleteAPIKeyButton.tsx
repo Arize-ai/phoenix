@@ -1,7 +1,6 @@
 import React, { ReactNode, useState } from "react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
   Flex,
@@ -10,6 +9,8 @@ import {
   Text,
   View,
 } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 export function DeleteAPIKeyButton({
   handleDelete,
@@ -36,7 +37,7 @@ export function DeleteAPIKeyButton({
           <Flex direction="row" justifyContent="end">
             <Button
               variant="danger"
-              onClick={() => {
+              onPress={() => {
                 handleDelete();
                 setDialog(null);
               }}
@@ -52,10 +53,10 @@ export function DeleteAPIKeyButton({
     <>
       <Button
         variant="danger"
-        size="compact"
+        size="S"
         icon={<Icon svg={<Icons.TrashOutline />} />}
         aria-label="Delete System Key"
-        onClick={onDelete}
+        onPress={onDelete}
       />
       <DialogContainer
         isDismissable

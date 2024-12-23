@@ -2,7 +2,9 @@ import React, { startTransition, useCallback } from "react";
 import { useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Button, Dialog, Flex, Text, View } from "@arizeai/components";
+import { Dialog, Flex, Icon, Icons, Text, View } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 
@@ -58,11 +60,21 @@ export function DeleteDatasetDialog({
         <Flex direction="row" justifyContent="end">
           <Button
             variant="danger"
-            onClick={() => {
+            onPress={() => {
               handleDelete();
             }}
-            disabled={isCommittingDelete}
-            loading={isCommittingDelete}
+            isDisabled={isCommittingDelete}
+            icon={
+              <Icon
+                svg={
+                  isCommittingDelete ? (
+                    <Icons.LoadingOutline />
+                  ) : (
+                    <Icons.TrashOutline />
+                  )
+                }
+              />
+            }
           >
             Delete Dataset
           </Button>

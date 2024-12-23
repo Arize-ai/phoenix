@@ -1,15 +1,9 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import {
-  Button,
-  Flex,
-  Form,
-  TextArea,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Flex, Form, TextArea, TextField, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -129,11 +123,14 @@ export function DatasetForm({
           <Button
             // Only allow submission if the form is dirty for edits
             // When creating allow the user to click create without any changes as the form will be prefilled with valid values
-            disabled={formMode === "edit" ? !isDirty : false}
+            isDisabled={
+              (formMode === "edit" ? !isDirty : false) || isSubmitting
+            }
             variant={isDirty ? "primary" : "default"}
-            size="compact"
-            loading={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
+            size="S"
+            onPress={() => {
+              handleSubmit(onSubmit)();
+            }}
           >
             {submitButtonText}
           </Button>

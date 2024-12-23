@@ -5,11 +5,11 @@ import { ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
-  Button,
   Heading,
   Icon,
   InfoOutline,
   TooltipTrigger,
+  TriggerWrap,
 } from "@arizeai/components";
 import {
   Axes,
@@ -21,6 +21,7 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { Button } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,
@@ -184,12 +185,13 @@ function CanvasTools() {
 function CanvasInfo() {
   return (
     <TooltipTrigger placement="bottom left" delay={0}>
-      <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<InfoOutline />} />}
-        aria-label="Information bout the point-cloud display"
-      />
+      <TriggerWrap>
+        <Button
+          size="S"
+          icon={<Icon svg={<InfoOutline />} />}
+          aria-label="Information bout the point-cloud display"
+        />
+      </TriggerWrap>
       <ActionTooltip title={"Point Cloud Summary"}>
         <PointCloudInfo />
       </ActionTooltip>
