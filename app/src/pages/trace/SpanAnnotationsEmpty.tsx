@@ -2,7 +2,6 @@ import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
   EmptyGraphic,
@@ -13,11 +12,12 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { ExternalLink } from "@phoenix/components";
 
 export function SpanAnnotationsEmpty() {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const onGettingStartedClick = () => {
+  const onGettingStartedPress = () => {
     setDialog(
       <Dialog title="Span Annotations" isDismissable>
         <View padding="size-200">
@@ -44,8 +44,8 @@ export function SpanAnnotationsEmpty() {
         <Text>No annotations for this span</Text>
         <Button
           variant="default"
-          size={"compact"}
-          onClick={onGettingStartedClick}
+          size={"S"}
+          onPress={onGettingStartedPress}
           icon={<Icon svg={<Icons.Edit2Outline />} />}
         >
           How to Annotate
