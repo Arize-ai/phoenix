@@ -136,7 +136,7 @@ export function LoginForm(props: LoginFormProps) {
             }
             onPress={() => handleSubmit(onSubmit)()}
           >
-            {isLoading ? "Logging in" : "Log in"}
+            {isLoading ? "Logging In" : "Log In"}
           </Button>
         </div>
       </Form>
