@@ -1,11 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { BaseSyntheticEvent, useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
   Alert,
-  Button,
   Card,
   CardProps,
   Dialog,
@@ -15,6 +14,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -141,11 +141,18 @@ export function SpanToDatasetExampleDialog({
       extra={
         <Button
           variant="primary"
-          size="compact"
-          disabled={!isValid || isCommitting}
-          loading={isCommitting}
-          onClick={handleSubmit(onSubmit)}
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          size="S"
+          isDisabled={!isValid || isCommitting}
+          onPress={() => {
+            return handleSubmit(onSubmit)();
+          }}
+          icon={
+            <Icon
+              svg={
+                isCommitting ? <Icons.LoadingOutline /> : <Icons.PlusOutline />
+              }
+            />
+          }
         >
           Add Example
         </Button>
