@@ -7,7 +7,7 @@ export interface Example extends Node {
   id: string;
   updatedAt: Date;
   input: Record<string, unknown>;
-  output: Record<string, unknown>;
+  output: Record<string, unknown> | null;
   metadata: Record<string, unknown>;
 }
 
@@ -16,6 +16,7 @@ export interface Example extends Node {
  */
 export interface Dataset extends Node {
   id: string;
+  name: string;
   versionId: string;
   examples: Example[];
 }
