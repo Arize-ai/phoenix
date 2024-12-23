@@ -122,6 +122,7 @@
     "dev": "pnpm run dev:server & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "pnpm run build:static && pnpm run build:relay && vite",
     "dev:server": "source .env && tox r -e phoenix_main -- --dev serve",
+    "dev:server:embeddings": "source .env && tox r -e phoenix_main -- --dev serve --with-fixture=chatbot",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
     "dev:server:init": "tox r -e phoenix_main -- --dev serve --with-trace-fixtures=llama_index_rag --with-projects=demo_llama_index --force-fixture-ingestion",
     "typecheck": "tsc --noEmit",

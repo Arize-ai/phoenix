@@ -4,3 +4,6 @@ anthropic
 google-generativeai
 psycopg[binary,pool]
 uvloop; platform_system != 'Windows'
+fast-hdbscan
+numba
+umap-learn
