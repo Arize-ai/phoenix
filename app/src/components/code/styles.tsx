@@ -9,6 +9,10 @@ export const readOnlyCodeMirrorCSS = css`
 
 export const codeBlockWithCopyCSS = css`
   position: relative;
+  min-height: 53px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   .copy-to-clipboard-button {
     position: absolute;
     top: var(--ac-global-dimension-size-100);
