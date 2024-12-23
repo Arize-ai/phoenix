@@ -16,7 +16,6 @@ import { css } from "@emotion/react";
 
 import {
   Alert,
-  Button,
   Card,
   CardProps,
   Content,
@@ -52,6 +51,7 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
+import { Button } from "@phoenix/components";
 import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
@@ -246,8 +246,8 @@ export function SpanDetails({
             <Button
               variant="default"
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              disabled={span.spanKind !== "llm"}
-              onClick={() => {
+              isDisabled={span.spanKind !== "llm"}
+              onPress={() => {
                 navigate(`/playground/spans/${span.id}`);
               }}
             >
@@ -266,7 +266,7 @@ export function SpanDetails({
               <Button
                 variant="default"
                 aria-label="Toggle showing span details"
-                onClick={() => {
+                onPress={() => {
                   setShowSpanAside(!showSpanAside);
                 }}
                 icon={
@@ -381,7 +381,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
       <Button
         variant="default"
         icon={<Icon svg={<Icons.DatabaseOutline />} />}
-        onClick={onAddSpanToDataset}
+        onPress={onAddSpanToDataset}
       >
         Add to Dataset
       </Button>
