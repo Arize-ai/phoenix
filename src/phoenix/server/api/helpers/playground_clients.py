@@ -237,7 +237,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         *,
         client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
         model: GenerativeModelInput,
-        api_key: str,
+        api_key: Optional[str] = None,
     ) -> None:
         from openai import RateLimitError as OpenAIRateLimitError
 
