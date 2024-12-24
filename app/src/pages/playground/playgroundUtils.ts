@@ -1010,10 +1010,8 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    template: {
-      variables: variablesMap,
-      language: templateLanguage,
-    },
+    templateVariables: variablesMap,
+    templateLanguage,
   };
 };
 

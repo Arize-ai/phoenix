@@ -120,15 +120,17 @@ class Subscription:
             for message in input.messages
         ]
         attributes = None
-        if template_options := input.template:
+        if (template_language := input.template_language) and (
+            template_variables := input.template_variables
+        ):
             messages = list(
                 _formatted_messages(
                     messages=messages,
-                    template_language=template_options.language,
-                    template_variables=template_options.variables,
+                    template_language=template_language,
+                    template_variables=template_variables,
                 )
             )
-            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
+            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)}
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
         )

@@ -10,7 +10,6 @@ from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
 from .GenerativeModelInput import GenerativeModelInput
 from .InvocationParameters import InvocationParameterInput
-from .TemplateOptions import TemplateOptions
 
 
 @strawberry.input
@@ -20,7 +19,8 @@ class ChatCompletionInput:
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
-    template: Optional[TemplateOptions] = UNSET
+    template_language: Optional[TemplateLanguage] = UNSET
+    template_variables: Optional[JSON] = UNSET
 
 
 @strawberry.input
