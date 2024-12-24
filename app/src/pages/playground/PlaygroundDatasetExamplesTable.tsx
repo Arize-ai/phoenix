@@ -95,7 +95,7 @@ import {
 const PAGE_SIZE = 10;
 
 type ChatCompletionOverDatasetMutationPayload = Extract<
-  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableMutation$data["chatCompletionsOverDataset"],
   { __typename: "ChatCompletionOverDatasetMutationPayload" }
 >;
 
@@ -474,7 +474,7 @@ export function PlaygroundDatasetExamplesTable({
         if (response == null) {
           return;
         }
-        const chatCompletion = response.chatCompletionOverDataset;
+        const chatCompletion = response.chatCompletionsOverDataset;
         switch (chatCompletion.__typename) {
           case "ChatCompletionSubscriptionExperiment":
             updateInstance({
@@ -565,13 +565,13 @@ export function PlaygroundDatasetExamplesTable({
         updateInstance({
           instanceId,
           patch: {
-            experimentId: response.chatCompletionOverDataset.experimentId,
+            experimentId: response.chatCompletionsOverDataset.experimentId,
           },
         });
         setExampleDataForInstance({
           instanceId,
           data: createExampleResponsesForInstance(
-            response.chatCompletionOverDataset
+            response.chatCompletionsOverDataset
           ),
         });
       },
@@ -966,9 +966,9 @@ export function PlaygroundDatasetExamplesTable({
 
 graphql`
   subscription PlaygroundDatasetExamplesTableSubscription(
-    $input: ChatCompletionOverDatasetInput!
+    $input: ChatCompletionsOverDatasetInput!
   ) {
-    chatCompletionOverDataset(input: $input) {
+    chatCompletionsOverDataset(input: $input) {
       __typename
       ... on TextChunk {
         content
@@ -1016,9 +1016,9 @@ graphql`
 
 graphql`
   mutation PlaygroundDatasetExamplesTableMutation(
-    $input: ChatCompletionOverDatasetInput!
+    $input: ChatCompletionsOverDatasetInput!
   ) {
-    chatCompletionOverDataset(input: $input) {
+    chatCompletionsOverDataset(input: $input) {
       __typename
       experimentId
       examples {

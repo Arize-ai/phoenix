@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f3e504e38941a8f03594af12b1525ad1>>
+ * @generated SignedSource<<457f7409eb5ae58e2bf9e49537822f7a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,13 @@ export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
-export type ChatCompletionOverDatasetInput = {
-  apiKey?: string | null;
+export type ChatCompletionsOverDatasetInput = {
+  configs: ReadonlyArray<ChatCompletionOverDatasetConfig>;
   datasetId: string;
   datasetVersionId?: string | null;
+};
+export type ChatCompletionOverDatasetConfig = {
+  apiKey?: string | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
@@ -50,10 +53,10 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
-  input: ChatCompletionOverDatasetInput;
+  input: ChatCompletionsOverDatasetInput;
 };
 export type PlaygroundDatasetExamplesTableSubscription$data = {
-  readonly chatCompletionOverDataset: {
+  readonly chatCompletionsOverDataset: {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly datasetExampleId: string | null;
     readonly message: string;
@@ -141,7 +144,7 @@ v4 = [
     ],
     "concreteType": null,
     "kind": "LinkedField",
-    "name": "chatCompletionOverDataset",
+    "name": "chatCompletionsOverDataset",
     "plural": false,
     "selections": [
       {
@@ -340,16 +343,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "3759bfb17a93aa0cf227c4ef7fa6cd30",
+    "cacheID": "6d9fab96fa2bb0d876c639b5f3283480",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountCompletion\n        tokenCountPrompt\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionsOverDatasetInput!\n) {\n  chatCompletionsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      span {\n        id\n        tokenCountCompletion\n        tokenCountPrompt\n        tokenCountTotal\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f1df5c75f1a62acde69f3f5d676f9213";
+(node as any).hash = "05f8043eb3631fa7f680bcb2f23e52c0";
 
 export default node;

@@ -145,15 +145,13 @@ type ChatCompletionMutationPayload {
 
 union ChatCompletionMutationPayloadChatCompletionMutationError = ChatCompletionMutationPayload | ChatCompletionMutationError
 
-input ChatCompletionOverDatasetInput {
+input ChatCompletionOverDatasetConfig {
   messages: [ChatCompletionMessageInput!]!
   model: GenerativeModelInput!
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
   templateLanguage: TemplateLanguage!
-  datasetId: GlobalID!
-  datasetVersionId: GlobalID = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
@@ -173,20 +171,24 @@ type ChatCompletionOverDatasetMutationPayload {
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   span: Span
   experimentRun: ExperimentRun
@@ -195,6 +197,12 @@ type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPaylo
 type ChatCompletionToolCall {
   id: String!
   function: ChatCompletionFunctionCall!
+}
+
+input ChatCompletionsOverDatasetInput {
+  configs: [ChatCompletionOverDatasetConfig!]!
+  datasetId: GlobalID!
+  datasetVersionId: GlobalID = null
 }
 
 input ClearProjectInput {
@@ -939,6 +947,7 @@ type FloatInvocationParameter implements InvocationParameterBase {
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   name: String!
   arguments: String!
@@ -1171,7 +1180,7 @@ type Mutation {
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
   deleteUsers(input: DeleteUsersInput!): Void
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
+  chatCompletionsOverDataset(input: ChatCompletionsOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
   chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
 }
 
@@ -1676,7 +1685,7 @@ type StringListInvocationParameter implements InvocationParameterBase {
 
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  chatCompletionsOverDataset(input: ChatCompletionsOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -1703,6 +1712,7 @@ enum TemplateLanguage {
 }
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   content: String!
 }
@@ -1731,6 +1741,7 @@ type TokenUsage {
 }
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
+  configIndex: Int
   datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!

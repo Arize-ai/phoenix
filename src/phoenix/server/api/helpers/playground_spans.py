@@ -34,7 +34,7 @@ from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
+    ChatCompletionOverDatasetConfig,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
@@ -63,7 +63,7 @@ class streaming_llm_span:
     def __init__(
         self,
         *,
-        input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
+        input: Union[ChatCompletionInput, ChatCompletionOverDatasetConfig],
         messages: list[ChatCompletionMessage],
         invocation_parameters: Mapping[str, Any],
         attributes: Optional[dict[str, Any]] = None,
@@ -254,7 +254,7 @@ def llm_tools(tools: list[JSONScalarType]) -> Iterator[tuple[str, Any]]:
 
 
 def input_value_and_mime_type(
-    input: Union[ChatCompletionInput, ChatCompletionOverDatasetInput],
+    input: Union[ChatCompletionInput, ChatCompletionOverDatasetConfig],
 ) -> Iterator[tuple[str, Any]]:
     assert (api_key := "api_key") in (input_data := jsonify(input))
     disallowed_keys = {"api_key", "invocation_parameters"}

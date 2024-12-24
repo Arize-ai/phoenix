@@ -24,15 +24,20 @@ class ChatCompletionInput:
 
 
 @strawberry.input
-class ChatCompletionOverDatasetInput:
+class ChatCompletionOverDatasetConfig:
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
     template_language: TemplateLanguage
-    dataset_id: GlobalID
-    dataset_version_id: Optional[GlobalID] = None
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
+
+
+@strawberry.input
+class ChatCompletionsOverDatasetInput:
+    configs: list[ChatCompletionOverDatasetConfig]
+    dataset_id: GlobalID
+    dataset_version_id: Optional[GlobalID] = None

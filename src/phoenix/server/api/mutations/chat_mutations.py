@@ -44,7 +44,7 @@ from phoenix.server.api.helpers.playground_spans import (
 )
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
+    ChatCompletionsOverDatasetInput,
 )
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_description,
@@ -121,11 +121,12 @@ class ChatCompletionOverDatasetMutationPayload:
 class ChatCompletionMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     @classmethod
-    async def chat_completion_over_dataset(
+    async def chat_completions_over_dataset(
         cls,
         info: Info[Context, None],
-        input: ChatCompletionOverDatasetInput,
+        input: ChatCompletionsOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
+        raise NotImplementedError
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:

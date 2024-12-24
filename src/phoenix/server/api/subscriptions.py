@@ -43,7 +43,8 @@ from phoenix.server.api.helpers.playground_spans import (
 )
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
+    ChatCompletionOverDatasetConfig,
+    ChatCompletionsOverDatasetInput,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
@@ -170,25 +171,30 @@ class Subscription:
         yield ChatCompletionSubscriptionResult(span=to_gql_span(db_span))
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def chat_completion_over_dataset(
-        self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
+    async def chat_completions_over_dataset(
+        self, info: Info[Context, None], input: ChatCompletionsOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            llm_client = llm_client_class(
-                model=input.model,
-                api_key=input.api_key,
+        llm_clients: dict[int, PlaygroundStreamingClient] = {}
+        for config_index, config in enumerate(input.configs):
+            provider_key = config.model.provider_key
+            llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(
+                provider_key, config.model.name
             )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
+            if llm_client_class is None:
+                raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
+            try:
+                llm_client = llm_client_class(
+                    model=config.model,
+                    api_key=config.api_key,
+                )
+                llm_clients[config_index] = llm_client
+            except CustomGraphQLError:
+                raise
+            except Exception as error:
+                raise BadRequest(
+                    f"Failed to connect to LLM API for {provider_key.value} {config.model.name}: "
+                    f"{str(error)}"
+                )
 
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
@@ -273,22 +279,25 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            experiment = models.Experiment(
-                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
-                dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _default_playground_experiment_name(),
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
-                repetitions=1,
-                metadata_=input.experiment_metadata
-                or _default_playground_experiment_metadata(
-                    dataset_name=dataset.name,
-                    dataset_id=input.dataset_id,
-                    version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
-                ),
-                project_name=PLAYGROUND_PROJECT_NAME,
-            )
-            session.add(experiment)
+            for config in input.configs:
+                experiment = models.Experiment(
+                    dataset_id=from_global_id_with_expected_type(
+                        input.dataset_id, Dataset.__name__
+                    ),
+                    dataset_version_id=resolved_version_id,
+                    name=config.experiment_name or _default_playground_experiment_name(),
+                    description=config.experiment_description
+                    or _default_playground_experiment_description(dataset_name=dataset.name),
+                    repetitions=1,
+                    metadata_=config.experiment_metadata
+                    or _default_playground_experiment_metadata(
+                        dataset_name=dataset.name,
+                        dataset_id=input.dataset_id,
+                        version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
+                    ),
+                    project_name=PLAYGROUND_PROJECT_NAME,
+                )
+                session.add(experiment)
             await session.flush()
         yield ChatCompletionSubscriptionExperiment(
             experiment=to_gql_experiment(experiment)
@@ -299,15 +308,17 @@ class Subscription:
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
                 _stream_chat_completion_over_dataset_example(
-                    input=input,
-                    llm_client=llm_client,
+                    config=config,
+                    llm_client=llm_clients[config_index],
                     revision=revision,
                     results=results,
                     experiment_id=experiment.id,
                     project_id=playground_project_id,
+                    config_index=config_index,
                 ),
             )
             for revision in revisions
+            for config_index, config in enumerate(input.configs)
         ]
         in_progress: list[
             tuple[
@@ -378,15 +389,16 @@ class Subscription:
 
 async def _stream_chat_completion_over_dataset_example(
     *,
-    input: ChatCompletionOverDatasetInput,
+    config: ChatCompletionOverDatasetConfig,
     llm_client: PlaygroundStreamingClient,
     revision: models.DatasetExampleRevision,
     results: asyncio.Queue[ChatCompletionResult],
     experiment_id: int,
     project_id: int,
+    config_index: int,
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
+    invocation_parameters = llm_client.construct_invocation_parameters(config.invocation_parameters)
     messages = [
         (
             message.role,
@@ -394,20 +406,24 @@ async def _stream_chat_completion_over_dataset_example(
             message.tool_call_id if isinstance(message.tool_call_id, str) else None,
             message.tool_calls if isinstance(message.tool_calls, list) else None,
         )
-        for message in input.messages
+        for message in config.messages
     ]
     try:
         format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
         messages = list(
             _formatted_messages(
                 messages=messages,
-                template_language=input.template_language,
+                template_language=config.template_language,
                 template_variables=revision.input,
             )
         )
     except TemplateFormatterError as error:
         format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        yield ChatCompletionSubscriptionError(message=str(error), dataset_example_id=example_id)
+        yield ChatCompletionSubscriptionError(
+            message=str(error),
+            dataset_example_id=example_id,
+            config_index=config_index,
+        )
         await results.put(
             (
                 example_id,
@@ -427,16 +443,17 @@ async def _stream_chat_completion_over_dataset_example(
         )
         return
     async with streaming_llm_span(
-        input=input,
+        input=config,
         messages=messages,
         invocation_parameters=invocation_parameters,
         attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(revision.input)},
     ) as span:
         async for chunk in llm_client.chat_completion_create(
-            messages=messages, tools=input.tools or [], **invocation_parameters
+            messages=messages, tools=config.tools or [], **invocation_parameters
         ):
             span.add_response_chunk(chunk)
             chunk.dataset_example_id = example_id
+            chunk.config_index = config_index
             yield chunk
         span.set_attributes(llm_client.attributes)
     db_trace = get_db_trace(span, project_id)
@@ -447,7 +464,9 @@ async def _stream_chat_completion_over_dataset_example(
     await results.put((example_id, db_span, db_run))
     if span.status_message is not None:
         yield ChatCompletionSubscriptionError(
-            message=span.status_message, dataset_example_id=example_id
+            message=span.status_message,
+            dataset_example_id=example_id,
+            config_index=config_index,
         )
 
 
