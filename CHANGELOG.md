@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.3.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.1...arize-phoenix-v7.3.2) (2024-12-24)
+
+
+### Bug Fixes
+
+* **playground:** add common base class for OpenAI and AzureOpenAI streaming clients ([#5823](https://github.com/Arize-ai/phoenix/issues/5823)) ([9b8f10e](https://github.com/Arize-ai/phoenix/commit/9b8f10e942387e2dc230371a3715c71e2cd01e83))
+
 ## [7.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.0...arize-phoenix-v7.3.1) (2024-12-23)
 
 
