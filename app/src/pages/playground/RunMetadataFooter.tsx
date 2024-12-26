@@ -2,9 +2,9 @@ import React, { ReactNode, startTransition, Suspense, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { DialogContainer, Flex, View } from "@arizeai/components";
+import { DialogContainer, Flex } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Icon, Icons, View } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";

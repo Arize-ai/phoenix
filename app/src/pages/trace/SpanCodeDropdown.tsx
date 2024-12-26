@@ -8,10 +8,9 @@ import {
   Flex,
   Form,
   TextField,
-  View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
+import { CopyToClipboardButton, Icon, Icons, View } from "@phoenix/components";
 
 type SpanCodeDropdownProps = {
   spanId: string;

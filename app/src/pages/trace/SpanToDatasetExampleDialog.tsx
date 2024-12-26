@@ -3,16 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Card,
-  CardProps,
-  Dialog,
-  Flex,
-  View,
-} from "@arizeai/components";
+import { Alert, Card, CardProps, Dialog, Flex } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Icon, Icons, View } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";

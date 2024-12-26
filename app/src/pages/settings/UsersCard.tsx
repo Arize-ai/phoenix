@@ -1,9 +1,9 @@
 import React, { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Card, DialogContainer, View } from "@arizeai/components";
+import { Card, DialogContainer } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";

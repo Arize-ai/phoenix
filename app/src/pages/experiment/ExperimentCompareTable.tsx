@@ -30,7 +30,6 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
-  View,
 } from "@arizeai/components";
 
 import {
@@ -38,6 +37,7 @@ import {
   CopyToClipboardButton,
   Icon,
   Icons,
+  View,
   ViewSummaryAside,
 } from "@phoenix/components";
 import {

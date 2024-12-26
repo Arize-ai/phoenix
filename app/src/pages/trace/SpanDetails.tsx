@@ -34,8 +34,6 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
-  View,
-  ViewProps,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
@@ -54,6 +52,8 @@ import {
   ExternalLink,
   Icon,
   Icons,
+  View,
+  ViewProps,
 } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {

@@ -1,9 +1,9 @@
 import React, { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, Flex, Text, View } from "@arizeai/components";
+import { Dialog, Flex, Text } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 import { normalizeUserRole } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 

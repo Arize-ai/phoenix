@@ -1,9 +1,9 @@
 import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@arizeai/components";
+import { Flex, Heading, Text } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, View } from "@phoenix/components";
 
 const supportItemsCSS = css`
   display: grid;

@@ -10,10 +10,9 @@ import {
   TabPane,
   Tabs,
   Text,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,

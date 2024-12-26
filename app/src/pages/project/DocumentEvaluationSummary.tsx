@@ -8,9 +8,9 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
+import { View } from "@phoenix/components";
 import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";

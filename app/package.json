@@ -21,6 +21,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@lezer/highlight": "^1.2.1",
     "@lezer/lr": "^1.4.2",
+    "@react-aria/utils": "^3.26.0",
     "@react-three/drei": "^9.108.4",
     "@react-three/fiber": "8.0.12",
     "@tanstack/react-table": "^8.19.3",

@@ -1,7 +1,9 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Dialog, DialogContainer, Switch, View } from "@arizeai/components";
+import { Dialog, DialogContainer, Switch } from "@arizeai/components";
+
+import { View } from "@phoenix/components";
 
 type FeatureFlag = "__RESET__";
 export type FeatureFlagsContextType = {

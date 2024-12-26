@@ -18,17 +18,10 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
-import {
-  Counter,
-  Flex,
-  Switch,
-  TabPane,
-  Tabs,
-  View,
-} from "@arizeai/components";
+import { Counter, Flex, Switch, TabPane, Tabs } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
-import { Loading, LoadingMask } from "@phoenix/components";
+import { Loading, LoadingMask, View } from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
   ReferenceInferencesTimeRange,

@@ -3,9 +3,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, Flex, View } from "@arizeai/components";
+import { Dialog, DialogContainer, Flex } from "@arizeai/components";
 
-import { Loading, ViewSummaryAside } from "@phoenix/components";
+import { Loading, View, ViewSummaryAside } from "@phoenix/components";
 import { useInferences, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 

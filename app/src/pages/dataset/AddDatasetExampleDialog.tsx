@@ -10,10 +10,9 @@ import {
   Dialog,
   Flex,
   TextArea,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Icon, Icons, View } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 

@@ -2,9 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Flex, Form, TextArea, TextField, View } from "@arizeai/components";
+import { Flex, Form, TextArea, TextField } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 export type AnnotationFormData = {
   name: string;
   score?: number | null;

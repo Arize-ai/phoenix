@@ -1,8 +1,8 @@
 import React from "react";
 
-import { Heading, Text, View } from "@arizeai/components";
+import { Heading, Text } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { TypeScriptBlockWithCopy } from "@phoenix/components/code/TypeScriptBlockWithCopy";
 

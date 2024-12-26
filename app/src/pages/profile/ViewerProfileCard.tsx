@@ -10,10 +10,9 @@ import {
   Heading,
   Text,
   TextField,
-  View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";

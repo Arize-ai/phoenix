@@ -7,9 +7,9 @@ import {
   requestSubscription,
 } from "relay-runtime";
 
-import { Card, View } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Loading, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,

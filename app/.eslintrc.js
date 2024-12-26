@@ -69,6 +69,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components/icon",
       },
+      {
+        name: "View",
+        module: "@arizeai/components",
+        use: "@phoenix/components/view",
+      },
     ],
     "no-duplicate-imports": "error",
   },

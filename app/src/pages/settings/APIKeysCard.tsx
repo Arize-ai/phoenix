@@ -6,10 +6,9 @@ import {
   TabbedCard,
   TabPane,
   Tabs,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,

@@ -10,10 +10,9 @@ import {
   TabPane,
   Tabs,
   TextField,
-  View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
+import { CopyToClipboardButton, Icon, Icons, View } from "@phoenix/components";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";

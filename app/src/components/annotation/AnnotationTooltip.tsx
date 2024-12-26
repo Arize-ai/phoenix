@@ -6,9 +6,9 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
+import { View } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";

@@ -1,19 +1,14 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import {
-  Accordion,
-  AccordionItem,
-  Card,
-  Flex,
-  View,
-} from "@arizeai/components";
+import { Accordion, AccordionItem, Card, Flex } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
   Icon,
   Icons,
+  View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
