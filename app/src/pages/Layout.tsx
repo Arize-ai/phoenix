@@ -8,7 +8,6 @@ import { Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,
-  GitHubLink,
   NavBreadcrumb,
   NavButton,
   NavLink,
@@ -151,7 +150,11 @@ function SideNav() {
             <DocsLink />
           </li>
           <li>
-            <GitHubLink />
+            <NavLink
+              to="/support"
+              text="Support"
+              icon={<Icon svg={<Icons.LifeBuoy />} />}
+            />
           </li>
           <li>
             <ThemeToggle />
