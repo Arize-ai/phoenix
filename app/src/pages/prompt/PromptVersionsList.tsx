@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
-import { useFragment } from "react-relay";
-import { graphql } from "react-relay";
+import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router-dom";
 import { css } from "@emotion/react";
 
