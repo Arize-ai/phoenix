@@ -1,7 +1,9 @@
 import React from "react";
 import { useLoaderData, useNavigate } from "react-router";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@arizeai/components";
+import { Flex, Heading, View } from "@arizeai/components";
+
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { promptsLoaderQuery$data } from "./__generated__/promptsLoaderQuery.graphql";
 import { PromptsTable } from "./PromptsTable";
@@ -20,10 +22,9 @@ export function PromptsPage() {
         <Flex direction="row" justifyContent="space-between">
           <Heading level={1}>Prompts</Heading>
           <Button
-            variant="default"
-            size="compact"
+            size="S"
             icon={<Icon svg={<Icons.PlusOutline />} />}
-            onClick={() => {
+            onPress={() => {
               navigate("/playground");
             }}
           >
