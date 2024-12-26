@@ -9,13 +9,16 @@ import {
   Dialog,
   Flex,
   Heading,
-  Icon,
-  Icons,
   Text,
   View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Icon,
+  Icons,
+  ViewSummaryAside,
+} from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";

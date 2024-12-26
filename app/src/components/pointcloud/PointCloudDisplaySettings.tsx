@@ -5,8 +5,7 @@ import { Alert, Form } from "@arizeai/components";
 
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { useInferences } from "@phoenix/contexts";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 
 import { Loading } from "../Loading";
 

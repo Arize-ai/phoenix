@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card, Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Card, Flex, Text } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { CopyToClipboardButton } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  Icon,
+  Icons,
+} from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";

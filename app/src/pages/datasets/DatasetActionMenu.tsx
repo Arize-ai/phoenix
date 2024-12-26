@@ -4,15 +4,14 @@ import {
   ActionMenu,
   DialogContainer,
   Flex,
-  Icon,
-  Icons,
   Item,
   Text,
 } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
+
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
-
 type DatasetActionMenuProps = {
   datasetId: string;
   datasetName: string;

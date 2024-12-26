@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Icon, Icons } from "@arizeai/components";
-
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export function PlaygroundRunButton() {

@@ -15,12 +15,10 @@ import {
   AccordionItem,
   Flex,
   Heading,
-  Icon,
-  Icons,
   View,
 } from "@arizeai/components";
 
-import { Button, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";

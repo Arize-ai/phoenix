@@ -7,13 +7,11 @@ import {
   DropdownTrigger,
   Flex,
   Form,
-  Icon,
-  Icons,
   TextField,
   View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
 
 type SpanCodeDropdownProps = {
   spanId: string;

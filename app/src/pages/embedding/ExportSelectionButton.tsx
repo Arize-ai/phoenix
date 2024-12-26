@@ -12,17 +12,13 @@ import {
   Dialog,
   DialogContainer,
   Download,
-  Icon,
-  Icons,
   List,
   ListItem,
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { Loading } from "@phoenix/components";
-import { useTheme } from "@phoenix/contexts";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";
@@ -89,7 +85,9 @@ export function ExportSelectionButton() {
         size="S"
         icon={
           <Icon
-            svg={isInFlight ? <Icons.LoadingOutline /> : <Icons.Download />}
+            svg={
+              isInFlight ? <Icons.LoadingOutline /> : <Icons.DownloadOutline />
+            }
           />
         }
         aria-label="Export selection / cluster"

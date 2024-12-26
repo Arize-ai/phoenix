@@ -9,12 +9,10 @@ import {
   CardProps,
   Dialog,
   Flex,
-  Icon,
-  Icons,
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";

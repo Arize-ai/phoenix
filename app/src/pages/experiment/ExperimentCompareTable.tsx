@@ -26,8 +26,6 @@ import {
   DialogContainer,
   Flex,
   Heading,
-  Icon,
-  Icons,
   Item,
   Text,
   Tooltip,
@@ -35,8 +33,13 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  Icon,
+  Icons,
+  ViewSummaryAside,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,

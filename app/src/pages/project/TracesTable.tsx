@@ -27,16 +27,14 @@ import {
   ContextualHelp,
   Flex,
   Heading,
-  Icon,
-  Icons,
   View,
 } from "@arizeai/components";
 
+import { Icon, Icons, Link } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
-import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";

@@ -1,14 +1,8 @@
 import React, { ReactNode, Suspense, useState } from "react";
 
-import {
-  DialogContainer,
-  Icon,
-  Icons,
-  Tooltip,
-  TooltipTrigger,
-} from "@arizeai/components";
+import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { DatasetHistoryDialog } from "./DatasetHistoryDialog";
 

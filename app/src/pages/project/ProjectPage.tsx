@@ -6,8 +6,7 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { Outlet } from "react-router";
-import { useParams } from "react-router";
+import { Outlet, useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, TabPane, Tabs } from "@arizeai/components";

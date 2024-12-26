@@ -1,7 +1,6 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
-import { css } from "@emotion/react";
-import { ThemeContext as EmotionThemeContext } from "@emotion/react";
+import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
@@ -19,8 +18,7 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
-import { Icon, Icons } from "@phoenix/components";
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,

@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Icon, Icons } from "@phoenix/components";
 
 export type ExternalLinkProps = {
   href: string;

@@ -9,9 +9,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,

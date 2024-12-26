@@ -70,6 +70,7 @@ module.exports = {
         use: "@phoenix/components/icon",
       },
     ],
+    "no-duplicate-imports": "error",
   },
   settings: {
     react: {

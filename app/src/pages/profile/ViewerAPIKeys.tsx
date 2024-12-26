@@ -1,9 +1,9 @@
 import React, { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Card, DialogContainer, Icon, Icons } from "@arizeai/components";
+import { Card, DialogContainer } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,

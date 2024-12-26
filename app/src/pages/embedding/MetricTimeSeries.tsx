@@ -19,12 +19,11 @@ import {
   Content,
   ContextualHelp,
   Heading,
-  Icon,
-  InfoOutline,
   Text,
   theme,
 } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -32,8 +31,8 @@ import {
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useChartColors,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
-import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -108,7 +107,7 @@ function TooltipContent({
             margin-top: var(--ac-global-dimension-static-size-50);
           `}
         >
-          <Icon svg={<InfoOutline />} />
+          <Icon svg={<Icons.InfoOutline />} />
           <span>Click to view the point cloud at this time</span>
         </div>
       </ChartTooltip>
