@@ -86,9 +86,8 @@ export function SavePromptForm({
         <Flex direction="row" justifyContent="end">
           <Button
             variant={isDirty ? "primary" : "default"}
-            size="compact"
-            loading={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
+            size="S"
+            onPress={() => handleSubmit(onSubmit)()}
           >
             {submitButtonText}
           </Button>
