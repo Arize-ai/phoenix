@@ -3,7 +3,6 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Content,
   ContextualHelp,
   Form,
@@ -12,6 +11,7 @@ import {
   TextField,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
 import {
   MIN_CLUSTER_MIN_SAMPLES,
@@ -243,15 +243,12 @@ export default function ClusteringSettings() {
           <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
-            isDisabled={!isValid}
-            loading={clustersLoading}
+            isDisabled={!isValid || clustersLoading}
             css={css`
               width: 100%;
             `}
           >
-            {clustersLoading
-              ? "Applying parameters"
-              : "Apply Clustering Config"}
+            {clustersLoading ? "Applying..." : "Apply Clustering Config"}
           </Button>
         </div>
       </Form>

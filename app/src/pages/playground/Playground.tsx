@@ -13,7 +13,6 @@ import { css } from "@emotion/react";
 import {
   Accordion,
   AccordionItem,
-  Button,
   Flex,
   Heading,
   Icon,
@@ -21,7 +20,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Loading } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
@@ -141,25 +140,17 @@ function AddPromptButton() {
   const numInstances = instances.length;
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   return (
-    <div
-      onClick={(e) => {
-        // Stop propagation to prevent the accordion from closing
-        e.stopPropagation();
+    <Button
+      size="S"
+      aria-label="add prompt"
+      icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+      isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
+      onPress={() => {
+        addInstance();
       }}
     >
-      <Button
-        variant="default"
-        size="compact"
-        aria-label="add prompt"
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        disabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
-        onClick={() => {
-          addInstance();
-        }}
-      >
-        Compare
-      </Button>
-    </div>
+      Compare
+    </Button>
   );
 }
 

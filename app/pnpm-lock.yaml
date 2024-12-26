@@ -264,6 +264,9 @@ importers:
       eslint:
         specifier: ^8.57.0
         version: 8.57.0
+      eslint-plugin-deprecate:
+        specifier: ^0.8.5
+        version: 0.8.5(eslint@8.57.0)
       eslint-plugin-react:
         specifier: ^7.34.4
         version: 7.34.4(eslint@8.57.0)
@@ -3054,6 +3057,11 @@ packages:
     hasBin: true
     peerDependencies:
       eslint: '>=7.0.0'
+
+  eslint-plugin-deprecate@0.8.5:
+    resolution: {integrity: sha512-nBH14smi2O1qsQY/deVf1xg1XPMB5ADPPcXWpUDp5ptGrWuNGD7Ghe0mIQKmsoFr6VjjDxJZ5tt78hb5GaCScA==}
+    peerDependencies:
+      eslint: '>=2.x'
 
   eslint-plugin-react-compiler@0.0.0-experimental-42acc6a-20241001:
     resolution: {integrity: sha512-pzkTsWowlHK4yKHsK1d9tTKOUtApZzL7wI6jT5iN31d00DhI9JGDD0pkLohQ6Wfkll+2aiqTPGj9esJoGYmRaw==}
@@ -8848,6 +8856,10 @@ snapshots:
   escape-string-regexp@5.0.0: {}
 
   eslint-config-prettier@8.10.0(eslint@8.57.0):
+    dependencies:
+      eslint: 8.57.0
+
+  eslint-plugin-deprecate@0.8.5(eslint@8.57.0):
     dependencies:
       eslint: 8.57.0
 

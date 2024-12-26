@@ -8,7 +8,7 @@ module.exports = {
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:storybook/recommended"
+    "plugin:storybook/recommended",
   ],
   overrides: [],
   parser: "@typescript-eslint/parser",
@@ -22,6 +22,7 @@ module.exports = {
     "simple-import-sort",
     "@typescript-eslint",
     "eslint-plugin-react-compiler",
+    "deprecate",
   ],
   rules: {
     "react/no-unknown-property": ["error", { ignore: ["css"] }],
@@ -49,6 +50,14 @@ module.exports = {
           // Style imports.
           ["^.+\\.?(css)$"],
         ],
+      },
+    ],
+    "deprecate/import": [
+      "error",
+      {
+        name: "Button",
+        module: "@arizeai/components",
+        use: "@phoenix/components/button",
       },
     ],
   },

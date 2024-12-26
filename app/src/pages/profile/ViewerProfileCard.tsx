@@ -4,7 +4,6 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
-  Button,
   Card,
   Flex,
   Form,
@@ -14,6 +13,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
@@ -83,9 +83,8 @@ export function ViewerProfileCard() {
       extra={
         viewer.authMethod === "LOCAL" && (
           <Button
-            variant="default"
-            size="compact"
-            onClick={() => {
+            size="S"
+            onPress={() => {
               navigate("/reset-password");
             }}
           >
@@ -147,9 +146,9 @@ export function ViewerProfileCard() {
             <Flex direction="row" gap="size-100" justifyContent="end">
               <Button
                 variant={isDirty ? "primary" : "default"}
-                size="compact"
-                disabled={!isDirty}
-                onClick={() => {
+                size="S"
+                isDisabled={!isDirty}
+                onPress={() => {
                   handleSubmit(onSubmit)();
                 }}
               >

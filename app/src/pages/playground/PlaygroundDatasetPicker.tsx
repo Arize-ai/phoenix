@@ -2,8 +2,9 @@ import React from "react";
 import { useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, Icon, Icons } from "@arizeai/components";
+import { Icon, Icons } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { DatasetPicker } from "@phoenix/components/dataset";
 
 /**
@@ -23,7 +24,7 @@ const playgroundDatasetPickerCSS = css`
     border-bottom-right-radius: 0;
     height: ${DATASET_PICKER_BUTTON_HEIGHT}px;
   }
-  .ac-button {
+  & > button {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     border-left: none;
@@ -51,10 +52,9 @@ export function PlaygroundDatasetPicker() {
         }}
       />
       <Button
-        size="compact"
-        variant={"default"}
+        size="S"
         icon={<Icon svg={<Icons.CloseOutline />} />}
-        onClick={() => {
+        onPress={() => {
           navigate("/playground");
         }}
       />

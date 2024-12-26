@@ -2,7 +2,6 @@ import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
-  Button,
   DialogContainer,
   Icon,
   Icons,
@@ -12,7 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Loading } from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,
@@ -118,10 +117,9 @@ export function APIKeysCard() {
         variant="compact"
         extra={
           <Button
-            variant="default"
-            size="compact"
+            size="S"
             icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-            onClick={showCreateSystemAPIKeyDialog}
+            onPress={showCreateSystemAPIKeyDialog}
           >
             System Key
           </Button>

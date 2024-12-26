@@ -1,30 +1,21 @@
 import React, { ReactNode } from "react";
 import { Blocker } from "react-router";
 
-import {
-  Button,
-  Dialog,
-  DialogContainer,
-  Flex,
-  Text,
-  View,
-} from "@arizeai/components";
+import { Dialog, DialogContainer, Flex, Text, View } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
   return (
     <View padding={"size-100"} borderTopColor={"dark"} borderTopWidth={"thin"}>
       <Flex justifyContent={"end"} gap={"size-100"}>
-        <Button
-          variant={"default"}
-          onClick={() => blocker.reset && blocker.reset()}
-          size={"compact"}
-        >
+        <Button onPress={() => blocker.reset && blocker.reset()} size="S">
           Cancel
         </Button>
         <Button
-          variant={"primary"}
-          onClick={() => blocker.proceed && blocker.proceed()}
-          size={"compact"}
+          variant="primary"
+          onPress={() => blocker.proceed && blocker.proceed()}
+          size="S"
         >
           Confirm
         </Button>

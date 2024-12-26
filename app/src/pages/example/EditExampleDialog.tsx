@@ -5,15 +5,17 @@ import { css } from "@emotion/react";
 
 import {
   Alert,
-  Button,
   Card,
   CardProps,
   Dialog,
   Flex,
+  Icon,
+  Icons,
   TextArea,
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -108,10 +110,16 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
       extra={
         <Button
           variant="primary"
-          size="compact"
-          disabled={!isValid || isCommitting}
-          loading={isCommitting}
-          onClick={handleSubmit(onSubmit)}
+          size="S"
+          isDisabled={!isValid || isCommitting}
+          icon={
+            <Icon
+              svg={
+                isCommitting ? <Icons.LoadingOutline /> : <Icons.SaveOutline />
+              }
+            />
+          }
+          onPress={() => handleSubmit(onSubmit)()}
         >
           Save Changes
         </Button>

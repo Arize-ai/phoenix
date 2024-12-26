@@ -3,8 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Button, Form, TextField, View } from "@arizeai/components";
+import { Alert, Form, TextField, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const MIN_PASSWORD_LENGTH = 4;
@@ -145,7 +146,7 @@ export function ResetPasswordWithTokenForm({
           <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
-            disabled={isLoading}
+            isDisabled={isLoading}
           >
             {isLoading ? "Resetting..." : "Reset Password"}
           </Button>

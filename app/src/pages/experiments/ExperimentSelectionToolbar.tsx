@@ -4,7 +4,6 @@ import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
   Flex,
@@ -14,6 +13,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 interface SelectedExperiment {
@@ -84,7 +84,7 @@ export function ExperimentSelectionToolbar(
     selectedExperiments,
   ]);
 
-  const onClickDelete = useCallback(() => {
+  const onPressDelete = useCallback(() => {
     setDialog(
       <Dialog size="S" title="Delete Experiments">
         <View padding="size-200">
@@ -102,7 +102,7 @@ export function ExperimentSelectionToolbar(
           <Flex direction="row" justifyContent="end">
             <Button
               variant="danger"
-              onClick={() => {
+              onPress={() => {
                 handleDelete();
                 setDialog(null);
               }}
@@ -140,23 +140,32 @@ export function ExperimentSelectionToolbar(
         >
           <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
           <Flex direction="row" gap="size-100">
-            <Button variant="default" size="compact" onClick={onClearSelection}>
+            <Button variant="default" size="S" onPress={onClearSelection}>
               Cancel
             </Button>
             <Button
               variant="danger"
-              size="compact"
-              icon={<Icon svg={<Icons.TrashOutline />} />}
-              loading={isDeletingExperiments}
-              disabled={isDeletingExperiments}
-              onClick={onClickDelete}
+              size="S"
+              icon={
+                <Icon
+                  svg={
+                    isDeletingExperiments ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
+                  }
+                />
+              }
+              isDisabled={isDeletingExperiments}
+              onPress={onPressDelete}
             >
               {isDeletingExperiments ? "Deleting..." : "Delete"}
             </Button>
             <Button
               variant="primary"
-              size="compact"
-              onClick={() => {
+              size="S"
+              onPress={() => {
                 navigate(
                   `/datasets/${datasetId}/compare?${selectedExperiments.map((experiment) => `experimentId=${experiment.id}`).join("&")}`
                 );

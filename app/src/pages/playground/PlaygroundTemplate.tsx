@@ -1,7 +1,6 @@
 import React, { Suspense } from "react";
 
 import {
-  Button,
   Card,
   Content,
   Flex,
@@ -12,7 +11,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -80,10 +79,9 @@ function DeleteButton(props: PlaygroundInstanceProps) {
     <TooltipTrigger>
       <TriggerWrap>
         <Button
-          variant="default"
-          size="compact"
+          size="S"
           icon={<Icon svg={<Icons.TrashOutline />} />}
-          onClick={() => {
+          onPress={() => {
             deleteInstance(props.playgroundInstanceId);
           }}
         />

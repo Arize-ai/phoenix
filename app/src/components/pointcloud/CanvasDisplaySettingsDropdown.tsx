@@ -1,7 +1,8 @@
 import React from "react";
 
+// eslint-disable-next-line deprecate/import
 import {
-  Button,
+  Button as LegacyButton,
   DropdownMenu,
   DropdownTrigger,
   Flex,
@@ -20,8 +21,8 @@ export function CanvasDisplaySettingsDropdown() {
   const pointSizeScale = usePointCloudContext((state) => state.pointSizeScale);
   return (
     <DropdownTrigger placement="bottom left">
-      <Button
-        variant={"default"}
+      <LegacyButton
+        variant="default"
         size="compact"
         icon={<Icon svg={<Icons.OptionsOutline />} />}
         aria-label="Display Settings"

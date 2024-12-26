@@ -2,7 +2,6 @@ import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
   Flex,
@@ -11,6 +10,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
@@ -35,7 +35,7 @@ function SetupProjectDialog({ projectName }: { projectName: string }) {
 
 export function ProjectTableEmpty({ projectName }: { projectName: string }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const onGettingStartedClick = () => {
+  const onGettingStartedPress = () => {
     setDialog(<SetupProjectDialog projectName={projectName} />);
   };
   return (
@@ -53,7 +53,7 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
             <Button
               variant="default"
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onClick={onGettingStartedClick}
+              onPress={onGettingStartedPress}
             >
               Get Started
             </Button>

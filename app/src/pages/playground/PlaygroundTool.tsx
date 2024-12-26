@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Button, Card, Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Card, Flex, Icon, Icons, Text } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
@@ -137,9 +138,8 @@ export function PlaygroundTool({
           <Button
             aria-label="Delete tool"
             icon={<Icon svg={<Icons.TrashOutline />} />}
-            variant="default"
-            size="compact"
-            onClick={() => {
+            size="S"
+            onPress={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
               const toolName = getToolName(tool);
               const deletingToolChoice =

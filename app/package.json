@@ -92,6 +92,7 @@
     "chromatic": "^11.20.0",
     "cpy-cli": "^5.0.0",
     "eslint": "^8.57.0",
+    "eslint-plugin-deprecate": "^0.8.5",
     "eslint-plugin-react": "^7.34.4",
     "eslint-plugin-react-compiler": "0.0.0-experimental-42acc6a-20241001",
     "eslint-plugin-react-hooks": "^4.6.2",

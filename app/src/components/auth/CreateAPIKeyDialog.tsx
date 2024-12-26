@@ -3,14 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { Form } from "react-router-dom";
 import { isValid as dateIsValid, parseISO } from "date-fns";
 
-import {
-  Button,
-  Dialog,
-  Flex,
-  TextArea,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Dialog, Flex, TextArea, TextField, View } from "@arizeai/components";
+
+import { Button } from "@phoenix/components";
 
 export type APIKeyFormParams = {
   name: string;
@@ -129,8 +124,8 @@ export function CreateAPIKeyDialog(props: {
             <Button
               variant={isDirty ? "primary" : "default"}
               type="submit"
-              size="compact"
-              disabled={!isValid || isCommitting}
+              size="S"
+              isDisabled={!isValid || isCommitting}
             >
               {isCommitting ? "Creating..." : "Create Key"}
             </Button>

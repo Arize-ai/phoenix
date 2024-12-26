@@ -9,8 +9,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -201,10 +202,9 @@ export function ExampleExperimentRunsTable({
         if (trace) {
           return (
             <Button
-              variant="default"
-              size="compact"
+              size="S"
               icon={<Icon svg={<Icons.Trace />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(
                   `/projects/${trace.projectId}/traces/${trace.traceId}`
                 );
@@ -271,12 +271,7 @@ export function ExampleExperimentRunsTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                // onClick={() => {
-                //   navigate(`experiments/${row.original.id}`);
-                // }}
-              >
+              <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>

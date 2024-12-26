@@ -1,25 +1,20 @@
 import React, { ReactNode, useState } from "react";
 
-import {
-  Button,
-  ButtonProps,
-  DialogContainer,
-  Icon,
-  Icons,
-} from "@arizeai/components";
+import { DialogContainer, Icon, Icons } from "@arizeai/components";
 
+import { Button, ButtonProps } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 
 export function EditSpanAnnotationsButton({
   spanNodeId,
   projectId,
-  size = "default",
+  size = "M",
 }: {
   spanNodeId: string;
   projectId: string;
   /**
    * The size of the button
-   * @default default
+   * @default M
    */
   size?: ButtonProps["size"];
 }) {
@@ -27,10 +22,9 @@ export function EditSpanAnnotationsButton({
   return (
     <>
       <Button
-        variant="default"
         size={size}
         icon={<Icon svg={<Icons.EditOutline />} />}
-        onClick={() =>
+        onPress={() =>
           setDialog(
             <EditSpanAnnotationsDialog
               spanNodeId={spanNodeId}

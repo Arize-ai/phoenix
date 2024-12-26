@@ -3,8 +3,9 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
+// eslint-disable-next-line deprecate/import
 import {
-  Button,
+  Button as LegacyButton, // TODO(components): Move to dialog
   Dialog,
   DialogContainer,
   Flex,
@@ -15,6 +16,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
@@ -114,7 +116,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         >
           <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
           <Flex direction="row" gap="size-100">
-            <Button variant="default" size="compact" onClick={onClearSelection}>
+            <Button variant="default" size="S" onPress={onClearSelection}>
               Cancel
             </Button>
             <PopoverTrigger
@@ -125,17 +127,26 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 setIsDatasetPopoverOpen(isOpen);
               }}
             >
-              <Button
+              <LegacyButton
                 variant="primary"
                 size="compact"
-                icon={<Icon svg={<Icons.DatabaseOutline />} />}
-                loading={isAddingSpansToDataset}
-                disabled={isAddingSpansToDataset}
+                icon={
+                  <Icon
+                    svg={
+                      isAddingSpansToDataset ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.DatabaseOutline />
+                      )
+                    }
+                  />
+                }
+                isDisabled={isAddingSpansToDataset}
               >
                 {isAddingSpansToDataset
                   ? "Adding to dataset"
                   : "Add to dataset"}
-              </Button>
+              </LegacyButton>
               <Suspense>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {

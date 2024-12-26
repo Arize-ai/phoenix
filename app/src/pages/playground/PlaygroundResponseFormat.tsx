@@ -4,7 +4,6 @@ import { JSONSchema7 } from "json-schema";
 import {
   Accordion,
   AccordionItem,
-  Button,
   Card,
   Flex,
   Icon,
@@ -12,6 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { CopyToClipboardButton } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
@@ -99,9 +99,8 @@ export function PlaygroundResponseFormat({
                 <Button
                   aria-label="Delete Output Schema"
                   icon={<Icon svg={<Icons.TrashOutline />} />}
-                  variant="default"
-                  size="compact"
-                  onClick={() => {
+                  size="S"
+                  onPress={() => {
                     deleteInvocationParameterInput({
                       instanceId: playgroundInstanceId,
                       invocationParameterInputInvocationName:
