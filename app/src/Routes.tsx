@@ -46,6 +46,7 @@ import {
   SettingsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
+  SupportPage,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -198,6 +199,13 @@ const router = createBrowserRouter(
             element={<APIsPage />}
             handle={{
               crumb: () => "APIs",
+            }}
+          />
+          <Route
+            path="/support"
+            element={<SupportPage />}
+            handle={{
+              crumb: () => "Support",
             }}
           />
           <Route
