@@ -59,6 +59,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components/button",
       },
+      {
+        name: "Icon",
+        module: "@arizeai/components",
+        use: "@phoenix/components/icon",
+      },
+      {
+        name: "Icons",
+        module: "@arizeai/components",
+        use: "@phoenix/components/icon",
+      },
     ],
   },
   settings: {

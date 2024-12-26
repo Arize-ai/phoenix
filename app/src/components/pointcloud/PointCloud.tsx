@@ -6,8 +6,6 @@ import { ThemeContext as EmotionThemeContext } from "@emotion/react";
 import {
   ActionTooltip,
   Heading,
-  Icon,
-  InfoOutline,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
@@ -21,6 +19,7 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { Icon, Icons } from "@phoenix/components";
 import { Button } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
@@ -188,7 +187,7 @@ function CanvasInfo() {
       <TriggerWrap>
         <Button
           size="S"
-          icon={<Icon svg={<InfoOutline />} />}
+          icon={<Icon svg={<Icons.InfoOutline />} />}
           aria-label="Information bout the point-cloud display"
         />
       </TriggerWrap>

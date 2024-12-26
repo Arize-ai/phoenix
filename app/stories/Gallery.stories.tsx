@@ -1,12 +1,7 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import {
-  Button as LegacyButton,
-  Flex,
-  Item,
-  Picker,
-} from "@arizeai/components";
+import { Flex, Item, Picker } from "@arizeai/components";
 
 import { Button } from "@phoenix/components/button/Button";
 import {
@@ -52,7 +47,6 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
         <Item key="vanilla">Vanilla</Item>
       </Picker>
       <Button size="M">Button</Button>
-      <LegacyButton variant="default">Button</LegacyButton>
       <ComboBox label="Ice cream flavor" description={"pick a flavor"} size="L">
         <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
           Chocolate

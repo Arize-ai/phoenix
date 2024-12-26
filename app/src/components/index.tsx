@@ -9,3 +9,4 @@ export * from "./CopyToClipboardButton";
 // design system based components
 export * from "./combobox";
 export * from "./button";
+export * from "./icon";
