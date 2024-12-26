@@ -88,6 +88,7 @@ export function SavePromptForm({
             variant={isDirty ? "primary" : "default"}
             size="S"
             onPress={() => handleSubmit(onSubmit)()}
+            isDisabled={isSubmitting}
           >
             {submitButtonText}
           </Button>
