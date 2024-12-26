@@ -2,9 +2,9 @@ import React from "react";
 import { useNavigate } from "react-router";
 import { useSearchParams } from "react-router-dom";
 
-import { Flex, View } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
-import { Link } from "@phoenix/components";
+import { Link, View } from "@phoenix/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";

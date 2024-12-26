@@ -12,10 +12,9 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Icon, Icons, View } from "@phoenix/components";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 

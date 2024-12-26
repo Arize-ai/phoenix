@@ -10,12 +10,11 @@ import {
   Heading,
   Text,
   TextField,
-  View,
 } from "@arizeai/components";
 
+import { View } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   OPENAI: "OPENAI_API_KEY",
   ANTHROPIC: "ANTHROPIC_API_KEY",

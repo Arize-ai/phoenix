@@ -8,13 +8,11 @@ import {
   Heading,
   Text,
   TextField,
-  View,
 } from "@arizeai/components";
 
+import { ExternalLink, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
-
-import { ExternalLink } from "../ExternalLink";
 
 /**
  * Displays the key one time for the user to copy.

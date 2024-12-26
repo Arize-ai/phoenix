@@ -9,15 +9,9 @@ import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Heading,
-  Text,
-  useNotification,
-  View,
-} from "@arizeai/components";
+import { Flex, Heading, Text, useNotification } from "@arizeai/components";
 
-import { Link, Loading } from "@phoenix/components";
+import { Link, Loading, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useLastNTimeRange,

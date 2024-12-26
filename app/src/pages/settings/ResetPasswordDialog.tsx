@@ -2,9 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, Flex, Form, TextField, View } from "@arizeai/components";
+import { Dialog, Flex, Form, TextField } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";

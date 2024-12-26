@@ -13,10 +13,9 @@ import {
   ListBox,
   TextArea,
   TextField,
-  View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;

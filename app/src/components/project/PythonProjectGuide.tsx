@@ -1,15 +1,8 @@
 import React from "react";
 
-import {
-  Heading,
-  TabbedCard,
-  TabPane,
-  Tabs,
-  Text,
-  View,
-} from "@arizeai/components";
+import { Heading, TabbedCard, TabPane, Tabs, Text } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, View } from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";

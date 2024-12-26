@@ -10,13 +10,13 @@ import {
   Flex,
   Heading,
   Text,
-  View,
 } from "@arizeai/components";
 
 import {
   CopyToClipboardButton,
   Icon,
   Icons,
+  View,
   ViewSummaryAside,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";

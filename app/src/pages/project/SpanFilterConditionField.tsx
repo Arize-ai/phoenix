@@ -26,10 +26,9 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Icon, Icons, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 

@@ -3,9 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Form, TextField, View } from "@arizeai/components";
+import { Alert, Form, TextField } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const MIN_PASSWORD_LENGTH = 4;

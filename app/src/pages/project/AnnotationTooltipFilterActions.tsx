@@ -1,7 +1,9 @@
 import React, { PropsWithChildren, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Text, View } from "@arizeai/components";
+import { Text } from "@arizeai/components";
+
+import { View } from "@phoenix/components";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 

@@ -14,10 +14,9 @@ import {
   Download,
   List,
   ListItem,
-  View,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";

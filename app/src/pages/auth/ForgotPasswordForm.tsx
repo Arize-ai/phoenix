@@ -2,9 +2,9 @@ import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Alert, Form, TextField, View } from "@arizeai/components";
+import { Alert, Form, TextField } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type ForgotPasswordFormParams = {

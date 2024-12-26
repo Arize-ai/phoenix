@@ -17,13 +17,12 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
+import { Link, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { SequenceNumberLabel } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell, IntCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";

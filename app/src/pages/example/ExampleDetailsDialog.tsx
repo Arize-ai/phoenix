@@ -11,10 +11,9 @@ import {
   DialogContainer,
   Flex,
   Heading,
-  View,
 } from "@arizeai/components";
 
-import { Button, CopyToClipboardButton } from "@phoenix/components";
+import { Button, CopyToClipboardButton, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useNotifySuccess } from "@phoenix/contexts";

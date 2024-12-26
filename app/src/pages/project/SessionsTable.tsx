@@ -20,9 +20,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { View } from "@arizeai/components";
-
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, View } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";

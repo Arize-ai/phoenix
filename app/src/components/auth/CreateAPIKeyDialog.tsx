@@ -3,9 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { Form } from "react-router-dom";
 import { isValid as dateIsValid, parseISO } from "date-fns";
 
-import { Dialog, Flex, TextArea, TextField, View } from "@arizeai/components";
+import { Dialog, Flex, TextArea, TextField } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, View } from "@phoenix/components";
 
 export type APIKeyFormParams = {
   name: string;

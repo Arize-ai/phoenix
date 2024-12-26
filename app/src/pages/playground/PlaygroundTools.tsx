@@ -6,9 +6,9 @@ import {
   Counter,
   Flex,
   Form,
-  View,
 } from "@arizeai/components";
 
+import { View } from "@phoenix/components";
 import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 

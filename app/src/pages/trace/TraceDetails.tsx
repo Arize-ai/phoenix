@@ -4,9 +4,9 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
+import { Flex, Text } from "@arizeai/components";
 
-import { Icon, Icons, Link, Loading } from "@phoenix/components";
+import { Icon, Icons, Link, Loading, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
