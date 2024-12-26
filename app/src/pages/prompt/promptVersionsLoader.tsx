@@ -3,8 +3,7 @@
  * is provided in url params
  */
 import { LoaderFunctionArgs, redirect } from "react-router-dom";
-import { graphql } from "relay-runtime";
-import { fetchQuery } from "relay-runtime";
+import { fetchQuery, graphql } from "relay-runtime";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
