@@ -2,9 +2,9 @@ import React, { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Icon, Icons, Loading } from "@phoenix/components";
 import {
   Brand,
   DocsLink,

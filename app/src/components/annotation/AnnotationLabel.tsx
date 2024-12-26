@@ -1,8 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Flex, Text } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 

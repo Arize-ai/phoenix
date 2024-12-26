@@ -4,14 +4,12 @@ import {
   Card,
   Content,
   Flex,
-  Icon,
-  Icons,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 

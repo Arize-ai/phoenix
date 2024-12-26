@@ -1,6 +1,8 @@
 import React, { Key } from "react";
 
-import { Icon, Icons, Item, Picker } from "@arizeai/components";
+import { Item, Picker } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 import { LAST_N_TIME_RANGES } from "./constants";
 import { LastNTimeRangeKey } from "./types";

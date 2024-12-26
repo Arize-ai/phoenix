@@ -129,6 +129,7 @@
     "dev:server:init": "tox r -e phoenix_main -- --dev serve --with-trace-fixtures=llama_index_rag --with-projects=demo_llama_index --force-fixture-ingestion",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
+    "lint:fix": "eslint --fix ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'",
     "storybook": "storybook dev -p 6007",

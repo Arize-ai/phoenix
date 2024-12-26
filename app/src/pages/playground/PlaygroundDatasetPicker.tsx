@@ -2,9 +2,7 @@ import React from "react";
 import { useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
-
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { DatasetPicker } from "@phoenix/components/dataset";
 
 /**

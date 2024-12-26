@@ -10,8 +10,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { nord } from "@uiw/codemirror-theme-nord";
-import { EditorView } from "@uiw/react-codemirror";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
@@ -25,8 +24,6 @@ import {
   EmptyGraphic,
   Flex,
   Heading,
-  Icon,
-  Icons,
   Label,
   LabelProps,
   List,
@@ -51,8 +48,13 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Button } from "@phoenix/components";
-import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  ExternalLink,
+  Icon,
+  Icons,
+} from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,

@@ -15,8 +15,9 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
+import { Text, theme } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -37,7 +38,6 @@ import {
 
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
-
 const useColors = () => {
   const { orange300, gray300 } = useChartColors();
   return {
@@ -77,7 +77,7 @@ function TooltipContent({
             margin-top: var(--ac-global-dimension-static-size-50);
           `}
         >
-          <Icon svg={<InfoOutline />} />
+          <Icon svg={<Icons.InfoOutline />} />
           <span>Click to view details</span>
         </div>
       </ChartTooltip>

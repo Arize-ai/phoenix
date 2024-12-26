@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 
-import { Icon, Icons, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
+
+import { Button, ButtonProps, Icon, Icons } from "@phoenix/components";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
-
-import { Button, ButtonProps } from "@phoenix/components";
 
 export type CopyToClipboardButtonProps = Omit<
   ButtonProps,

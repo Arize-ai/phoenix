@@ -1,9 +1,9 @@
 import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import { classNames, Icon, Icons } from "@arizeai/components";
+import { classNames } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 type SpanImageProps = {
   /**

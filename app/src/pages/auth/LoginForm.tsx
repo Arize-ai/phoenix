@@ -3,12 +3,10 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Form, Icon, Icons, TextField, View } from "@arizeai/components";
+import { Alert, Form, TextField, View } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { Link } from "@phoenix/components";
-import { prependBasename } from "@phoenix/utils/routingUtils";
-import { getReturnUrl } from "@phoenix/utils/routingUtils";
+import { Button, Icon, Icons, Link } from "@phoenix/components";
+import { getReturnUrl, prependBasename } from "@phoenix/utils/routingUtils";
 
 type LoginFormParams = {
   email: string;

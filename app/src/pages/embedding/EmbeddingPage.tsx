@@ -48,9 +48,9 @@ import {
 import {
   PointCloudProvider,
   useGlobalNotification,
+  useInferences,
   usePointCloudContext,
 } from "@phoenix/contexts";
-import { useInferences } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,

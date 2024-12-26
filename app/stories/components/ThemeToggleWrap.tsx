@@ -1,8 +1,9 @@
 import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Button, Icon, Icons, View } from "@arizeai/components";
+import { View } from "@arizeai/components";
 
+import { Button, Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
 export function ThemeToggleWrap({ children }: PropsWithChildren) {
@@ -21,8 +22,7 @@ export function ThemeToggleWrap({ children }: PropsWithChildren) {
     >
       <Button
         className="theme-toggle"
-        onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        variant="default"
+        onPress={() => setTheme(theme === "light" ? "dark" : "light")}
         icon={
           <Icon
             svg={

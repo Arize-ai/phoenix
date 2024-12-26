@@ -8,9 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Icon, Icons } from "@arizeai/components";
-
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { paginationCSS, tableCSS } from "./styles";
 import { TableEmpty } from "./TableEmpty";

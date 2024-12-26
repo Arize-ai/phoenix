@@ -1,8 +1,8 @@
 import React, { ReactNode, useCallback, useState } from "react";
 
-import { DialogContainer, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { AddDatasetExampleDialog } from "./AddDatasetExampleDialog";
 

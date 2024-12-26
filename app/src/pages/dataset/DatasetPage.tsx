@@ -6,8 +6,6 @@ import {
   ActionMenu,
   Counter,
   Flex,
-  Icon,
-  Icons,
   Item,
   TabPane,
   Tabs,
@@ -15,7 +13,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Button, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,

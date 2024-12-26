@@ -15,18 +15,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
+import { Card, Field, Flex, Form, TextField, View } from "@arizeai/components";
+
 import {
-  Card,
-  Field,
-  Flex,
-  Form,
+  Button,
+  CopyToClipboardButton,
   Icon,
   Icons,
-  TextField,
-  View,
-} from "@arizeai/components";
-
-import { Button, CopyToClipboardButton } from "@phoenix/components";
+} from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { TemplateEditor } from "@phoenix/components/templateEditor";

@@ -36,14 +36,12 @@ import { css } from "@emotion/react";
 import {
   DialogContainer,
   Flex,
-  Icon,
-  Icons,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
 
-import { Button, Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";

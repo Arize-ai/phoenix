@@ -6,14 +6,11 @@ import {
   DialogContainer,
   EmptyGraphic,
   Flex,
-  Icon,
-  Icons,
   Text,
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { ExternalLink } from "@phoenix/components";
+import { Button, ExternalLink, Icon, Icons } from "@phoenix/components";
 
 export function SpanAnnotationsEmpty() {
   const [dialog, setDialog] = useState<ReactNode>(null);

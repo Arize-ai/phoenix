@@ -4,11 +4,11 @@ import {
   ActionMenu,
   DialogContainer,
   Flex,
-  Icon,
-  Icons,
   Item,
   Text,
 } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";

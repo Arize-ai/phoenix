@@ -7,8 +7,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { DeleteAPIKeyButton } from "@phoenix/components/auth";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";

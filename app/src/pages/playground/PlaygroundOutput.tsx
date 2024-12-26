@@ -37,11 +37,10 @@ import PlaygroundOutputMutation, {
   PlaygroundOutputMutation as PlaygroundOutputMutationType,
   PlaygroundOutputMutation$data,
 } from "./__generated__/PlaygroundOutputMutation.graphql";
-import {
+import PlaygroundOutputSubscription, {
   PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import PlaygroundOutputSubscription from "./__generated__/PlaygroundOutputSubscription.graphql";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundOutputMoveButton } from "./PlaygroundOutputMoveButton";
 import {

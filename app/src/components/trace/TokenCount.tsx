@@ -3,14 +3,14 @@ import { css } from "@emotion/react";
 
 import {
   Flex,
-  Icon,
-  Icons,
   Text,
   TextProps,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 type TokenCountProps = {
   /**

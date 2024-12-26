@@ -7,15 +7,16 @@ import React, {
 import { graphql, useMutation } from "react-relay";
 
 import {
+  ActionMenu,
   Dialog,
   DialogContainer,
-  Icon,
-  Icons,
+  Flex,
+  Item,
+  Text,
   View,
 } from "@arizeai/components";
-import { ActionMenu, Flex, Item, Text } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";

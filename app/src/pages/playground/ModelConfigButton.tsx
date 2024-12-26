@@ -15,8 +15,6 @@ import {
   Dialog,
   DialogContainer,
   Flex,
-  Icon,
-  Icons,
   Item,
   Picker,
   Text,
@@ -26,7 +24,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,

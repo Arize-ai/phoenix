@@ -8,9 +8,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
-import { ExternalLink, LinkButton } from "@phoenix/components";
+import { ExternalLink, Icon, Icons, LinkButton } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";

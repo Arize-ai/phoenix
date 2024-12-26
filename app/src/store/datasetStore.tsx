@@ -1,5 +1,4 @@
-import { graphql } from "react-relay";
-import { fetchQuery } from "react-relay";
+import { fetchQuery, graphql } from "react-relay";
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 

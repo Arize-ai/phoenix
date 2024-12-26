@@ -2,8 +2,9 @@ import React, { ReactNode, useState } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
 
-import { Icon, Icons, Text } from "@arizeai/components";
+import { Text } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";

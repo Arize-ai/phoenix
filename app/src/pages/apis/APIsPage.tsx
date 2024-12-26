@@ -1,7 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Alert, Icon, Icons, TabPane, Tabs } from "@arizeai/components";
+import { Alert, TabPane, Tabs } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 const basename = window.Config.basename;
 const iframeStyle = {

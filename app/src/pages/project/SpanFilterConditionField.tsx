@@ -22,8 +22,6 @@ import {
   Flex,
   Form,
   HelpTooltip,
-  Icon,
-  Icons,
   PopoverTrigger,
   Text,
   TooltipTrigger,
@@ -31,7 +29,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 

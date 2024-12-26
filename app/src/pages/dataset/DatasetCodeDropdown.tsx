@@ -7,15 +7,13 @@ import {
   DropdownTrigger,
   Flex,
   Form,
-  Icon,
-  Icons,
   TabPane,
   Tabs,
   TextField,
   View,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";

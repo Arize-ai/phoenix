@@ -1,15 +1,8 @@
 import React, { useState } from "react";
 
-import {
-  Alert,
-  Card,
-  Icon,
-  Icons,
-  PopoverTrigger,
-  View,
-} from "@arizeai/components";
+import { Alert, Card, PopoverTrigger, View } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import { CreateDatasetForm } from "./CreateDatasetForm";

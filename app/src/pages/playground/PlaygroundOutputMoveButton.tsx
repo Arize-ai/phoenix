@@ -1,8 +1,8 @@
 import React from "react";
 
-import { Icon, Icons, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   ChatMessage,

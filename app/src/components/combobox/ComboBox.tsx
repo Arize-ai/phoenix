@@ -14,8 +14,7 @@ import {
   ValidationResult,
 } from "react-aria-components";
 
-import { Icon, Icons } from "@arizeai/components";
-
+import { Icon, Icons } from "@phoenix/components";
 import { SizingProps } from "@phoenix/components/types";
 
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";

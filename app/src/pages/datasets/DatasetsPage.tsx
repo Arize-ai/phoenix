@@ -8,13 +8,11 @@ import {
   DialogContainer,
   Flex,
   Heading,
-  Icon,
-  Icons,
   Item,
   View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Icon, Icons, Loading } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 

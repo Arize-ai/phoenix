@@ -6,13 +6,15 @@ import {
   AccordionItem,
   Card,
   Flex,
-  Icon,
-  Icons,
   View,
 } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
-import { CopyToClipboardButton } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  Icon,
+  Icons,
+} from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

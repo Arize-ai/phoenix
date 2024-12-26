@@ -1,8 +1,8 @@
 import React, { ReactNode, useState } from "react";
 
-import { DialogContainer, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
-import { Button, ButtonProps } from "@phoenix/components";
+import { Button, ButtonProps, Icon, Icons } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 
 export function EditSpanAnnotationsButton({
