@@ -1,15 +1,9 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import {
-  Button,
-  Flex,
-  Form,
-  TextArea,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Flex, Form, TextArea, TextField, View } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 export type SavePromptSubmitHandler = (params: SavePromptFormParams) => void;
 
 export type SavePromptFormParams = {
