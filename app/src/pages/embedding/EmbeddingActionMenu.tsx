@@ -63,7 +63,7 @@ export function EmbeddingActionMenu() {
       }}
     >
       <Item key="export_cluster">
-        <Icon svg={<Icons.Download />} />
+        <Icon svg={<Icons.DownloadOutline />} />
         Export clusters
       </Item>
     </ActionMenu>
