@@ -4,9 +4,7 @@ Teams that are using conversation bots and assistants desire to know whether a u
 
 {% embed url="https://colab.research.google.com/drive/1Av5MGJHqt0xcJziBadEoVgdYqqohm6oT?usp=sharing" %}
 
-{% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L652).
-{% endhint %}
+## User Frustration Eval Template
 
 ```python
   You are given a conversation where between a user and an assistant.
@@ -29,7 +27,11 @@ We are continually iterating our templates, view the most up-to-date template [o
   from the conversation.
 ```
 
-The following is an example of code snipit for implementation:
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L652).
+{% endhint %}
+
+The following is an example of code snippet showing how to use the eval above template:
 
 ```python
 from phoenix.evals import (

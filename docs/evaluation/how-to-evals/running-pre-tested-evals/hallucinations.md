@@ -7,11 +7,9 @@ This LLM Eval detects if the output of a model is a hallucination based on conte
 This Eval is specifically designed to detect hallucinations in generated answers from private or retrieved data. The Eval detects if an AI answer to a question is a hallucination based on the reference data used to generate the answer.
 
 {% hint style="info" %}
-This Eval is designed to check for hallucinations on private data, on data that is fed into the context window from retrieval.
+This Eval is designed to check for hallucinations on private data, specifically on data that is fed into the context window from retrieval.
 
-It is NOT designed to check hallucinations on what the LLM was trained on. It is not useful for random public fact hallucinations "What was Michael Jordan's birthday?"
-
-It is useful for hallucinations in RAG systems
+It is not designed to check hallucinations on what the LLM was trained on. It is not useful for random public fact hallucinations. E.g. "What was Michael Jordan's birthday?"
 {% endhint %}
 
 ## Hallucination Eval Template
@@ -37,28 +35,10 @@ your response.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span\_templates.py#L7).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span_templates.py#L7).
 {% endhint %}
 
-## Benchmark Results
-
-#### GPT-4 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.04 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
-
-#### GPT-3.5 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.57 PM.png" alt=""><figcaption></figcaption></figure>
-
-#### Claud v2 Results
-
-<figure><img src="../../../.gitbook/assets/claude_v2_hallucination.png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/GPT-4-Turbo_halluc.png" alt=""><figcaption></figcaption></figure>
-
-## How To Run the Eval
+## How To Run the Hallucination Eval
 
 ```python
 from phoenix.evals import (
@@ -89,6 +69,28 @@ hallucination_classifications = llm_classify(
 ```
 
 The above Eval shows how to the the hallucination template for Eval detection.
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using the [HaluEval QA Dataset](https://github.com/RUCAIBox/HaluEval/blob/main/data/qa_data.json) as a ground truth dataset. Each example in the dataset was evaluating using the `HALLUCINATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the `is_hallucination` label in the HaluEval dataset to generate the confusion matrices below.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
+
+#### GPT-4 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.04 PM.png" alt=""><figcaption><p>Scikit GPT-4</p></figcaption></figure>
+
+#### GPT-3.5 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.57 PM.png" alt=""><figcaption></figcaption></figure>
+
+#### Claud v2 Results
+
+<figure><img src="../../../.gitbook/assets/claude_v2_hallucination.png" alt=""><figcaption></figcaption></figure>
+
+#### GPT-4 Turbo
+
+<figure><img src="../../../.gitbook/assets/GPT-4-Turbo_halluc.png" alt=""><figcaption></figcaption></figure>
 
 <table><thead><tr><th width="117">Eval</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5-turbo-instruct</th><th>Palm 2 (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:green;">0.80</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.72</mark></td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.53</mark></td><td><mark style="color:green;">0.65</mark></td><td><mark style="color:green;">0.80</mark></td><td><mark style="color:red;">0.44</mark></td><td><mark style="color:green;">0.95</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.82</mark></td><td><mark style="color:green;">0.81</mark></td><td><mark style="color:green;">0.67</mark></td><td><mark style="color:green;">0.75</mark></td><td><mark style="color:green;">0.84</mark></td><td><mark style="color:red;">0.61</mark></td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>
 
