@@ -5,16 +5,15 @@ import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Counter,
   Flex,
   Heading,
-  Icon,
-  Icons,
   TabPane,
   Tabs,
   View,
 } from "@arizeai/components";
+
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import { usePromptIdLoader } from "./usePromptIdLoader";
@@ -87,10 +86,9 @@ export function PromptLayout() {
         >
           <Heading level={1}>{loaderData.prompt.name}</Heading>
           <Button
-            variant="default"
-            size="compact"
+            size="S"
             icon={<Icon svg={<Icons.Edit2Outline />} />}
-            onClick={() => {
+            onPress={() => {
               navigate(`/prompts/${loaderData.prompt.id}/playground`);
             }}
           >
