@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f0a1573a1009505663c27730bbc1033b>>
+ * @generated SignedSource<<eb0da5e686dfedfa2ecfe7b6e5645071>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLatestVersionsListFragment$data = {
-  readonly promptVersions: {
+  readonly latestVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
         readonly description: string;
@@ -33,8 +33,14 @@ const node: ReaderFragment = {
   "name": "PromptLatestVersionsListFragment",
   "selections": [
     {
-      "alias": null,
-      "args": null,
+      "alias": "latestVersions",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "first",
+          "value": 5
+        }
+      ],
       "concreteType": "PromptVersionConnection",
       "kind": "LinkedField",
       "name": "promptVersions",
@@ -77,13 +83,13 @@ const node: ReaderFragment = {
           "storageKey": null
         }
       ],
-      "storageKey": null
+      "storageKey": "promptVersions(first:5)"
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 
-(node as any).hash = "9c77ed418966e6a91cf3713f96fa9e3b";
+(node as any).hash = "87e8c1a015201c696ee01c008ec310f3";
 
 export default node;

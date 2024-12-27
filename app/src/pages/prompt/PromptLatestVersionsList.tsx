@@ -19,7 +19,7 @@ export function PromptLatestVersionsList(props: {
   const data = useFragment<PromptLatestVersionsListFragment$key>(
     graphql`
       fragment PromptLatestVersionsListFragment on Prompt {
-        promptVersions(first: 5) {
+        latestVersions: promptVersions(first: 5) {
           edges {
             version: node {
               id
@@ -34,7 +34,7 @@ export function PromptLatestVersionsList(props: {
     prompt
   );
   const versions = useMemo(() => {
-    return data?.promptVersions?.edges?.map((edge) => edge.version);
+    return data?.latestVersions?.edges?.map((edge) => edge.version);
   }, [data]);
 
   if (!versions) {
@@ -43,7 +43,7 @@ export function PromptLatestVersionsList(props: {
 
   return (
     <ul>
-      {versions.map((version, i) => {
+      {versions.map((version) => {
         return (
           <li key={version.id} css={versionListItemCSS}>
             <Flex direction="row" gap="size-200" alignItems="start">
