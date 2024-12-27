@@ -19,7 +19,6 @@ import { css } from "@emotion/react";
 import {
   AddonBefore,
   Field,
-  Flex,
   Form,
   HelpTooltip,
   PopoverTrigger,
@@ -28,7 +27,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 

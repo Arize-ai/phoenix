@@ -5,14 +5,19 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Flex,
   Form,
   TabPane,
   Tabs,
   TextField,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton, Icon, Icons, View } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Flex,
+  Icon,
+  Icons,
+  View,
+} from "@phoenix/components";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";

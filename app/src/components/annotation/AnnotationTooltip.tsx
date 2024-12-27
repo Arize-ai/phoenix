@@ -1,14 +1,13 @@
 import React, { CSSProperties, ReactNode } from "react";
 
 import {
-  Flex,
   HelpTooltip,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";

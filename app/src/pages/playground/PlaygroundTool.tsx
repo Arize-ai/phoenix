@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card, Flex, Text } from "@arizeai/components";
+import { Card, Text } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
+  Flex,
   Icon,
   Icons,
 } from "@phoenix/components";

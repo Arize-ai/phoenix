@@ -9,11 +9,10 @@ import {
   CardProps,
   Dialog,
   DialogContainer,
-  Flex,
   Heading,
 } from "@arizeai/components";
 
-import { Button, CopyToClipboardButton, View } from "@phoenix/components";
+import { Button, CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useNotifySuccess } from "@phoenix/contexts";

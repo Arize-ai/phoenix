@@ -3,9 +3,9 @@ import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Dropdown, Flex } from "@arizeai/components";
+import { Dropdown } from "@arizeai/components";
 
-import { Icon, Icons, View } from "@phoenix/components";
+import { Flex, Icon, Icons, View } from "@phoenix/components";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";

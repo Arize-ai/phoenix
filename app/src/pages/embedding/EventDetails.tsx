@@ -11,12 +11,11 @@ import {
   Accordion,
   AccordionItem,
   Counter,
-  Flex,
   Heading,
   Label,
 } from "@arizeai/components";
 
-import { Icon, Icons, View } from "@phoenix/components";
+import { Flex, Icon, Icons, View } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";

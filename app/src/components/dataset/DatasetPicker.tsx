@@ -1,7 +1,9 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Item, Picker, PickerProps, Text } from "@arizeai/components";
+import { Item, Picker, PickerProps, Text } from "@arizeai/components";
+
+import { Flex } from "@phoenix/components";
 
 import { DatasetPickerQuery } from "./__generated__/DatasetPickerQuery.graphql";
 

@@ -3,9 +3,9 @@ import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Flex } from "@arizeai/components";
+import { AddonBefore } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
 import { useSessionSearchContext } from "./SessionSearchContext";

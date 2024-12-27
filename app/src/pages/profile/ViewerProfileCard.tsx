@@ -3,16 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import {
-  Card,
-  Flex,
-  Form,
-  Heading,
-  Text,
-  TextField,
-} from "@arizeai/components";
+import { Card, Form, Heading, Text, TextField } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import { Button, Flex, View } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
