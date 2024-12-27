@@ -41,7 +41,6 @@ export function PromptLatestVersionsList(props: {
     throw new Error("Expected prompt versions to be defined");
   }
 
-  const numVersions = versions.length;
   return (
     <ul>
       {versions.map((version, i) => {
@@ -54,6 +53,7 @@ export function PromptLatestVersionsList(props: {
                 <Text color="text-700">{version.description}</Text>
               </Flex>
             </Flex>
+            {/* TODO(prompts): show that there are more */}
             <VersionsConnector />
           </li>
         );
