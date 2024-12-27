@@ -1,8 +1,9 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Text } from "@arizeai/components";
+import { Text } from "@arizeai/components";
 
+import { Flex } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 
