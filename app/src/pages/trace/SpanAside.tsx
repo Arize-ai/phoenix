@@ -2,9 +2,9 @@ import React, { PropsWithChildren, useMemo } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@arizeai/components";
+import { Text } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Heading } from "@arizeai/components";
+import { Heading } from "@arizeai/components";
 
-import { Link } from "@phoenix/components";
+import { Flex, Link } from "@phoenix/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";

@@ -57,22 +57,27 @@ module.exports = {
       {
         name: "Button",
         module: "@arizeai/components",
-        use: "@phoenix/components/button",
+        use: "@phoenix/components",
       },
       {
         name: "Icon",
         module: "@arizeai/components",
-        use: "@phoenix/components/icon",
+        use: "@phoenix/components",
       },
       {
         name: "Icons",
         module: "@arizeai/components",
-        use: "@phoenix/components/icon",
+        use: "@phoenix/components",
       },
       {
         name: "View",
         module: "@arizeai/components",
-        use: "@phoenix/components/view",
+        use: "@phoenix/components",
+      },
+      {
+        name: "Flex",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
       },
     ],
     "no-duplicate-imports": "error",

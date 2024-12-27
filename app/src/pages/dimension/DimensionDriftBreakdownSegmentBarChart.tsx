@@ -13,9 +13,9 @@ import {
   YAxis,
 } from "recharts";
 
-import { Flex, Text, theme } from "@arizeai/components";
+import { Text, theme } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,

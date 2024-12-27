@@ -1,16 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Dialog,
-  Flex,
-  Heading,
-  Text,
-  TextField,
-} from "@arizeai/components";
+import { Alert, Dialog, Heading, Text, TextField } from "@arizeai/components";
 
-import { ExternalLink, View } from "@phoenix/components";
+import { ExternalLink, Flex, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
 

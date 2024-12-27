@@ -14,7 +14,6 @@ import { css } from "@emotion/react";
 import {
   Dialog,
   DialogContainer,
-  Flex,
   Item,
   Picker,
   Text,
@@ -24,7 +23,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,

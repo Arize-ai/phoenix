@@ -6,12 +6,12 @@ import {
   DropdownProps,
   Field,
   FieldProps,
-  Flex,
   Item,
   ListBox,
   Text,
 } from "@arizeai/components";
 
+import { Flex } from "@phoenix/components";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";

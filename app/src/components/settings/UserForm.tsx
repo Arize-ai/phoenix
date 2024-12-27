@@ -2,9 +2,9 @@ import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Flex, Form, TextField } from "@arizeai/components";
+import { Form, TextField } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import { Button, Flex, View } from "@phoenix/components";
 import { UserRole } from "@phoenix/constants";
 
 import { RolePicker } from "./RolePicker";

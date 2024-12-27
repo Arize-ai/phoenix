@@ -2,9 +2,9 @@ import React, { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { DialogContainer, Flex, Text } from "@arizeai/components";
+import { DialogContainer, Text } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 

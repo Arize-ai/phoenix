@@ -5,14 +5,13 @@ import { css } from "@emotion/react";
 import {
   ActionMenu,
   Counter,
-  Flex,
   Item,
   TabPane,
   Tabs,
   Text,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,

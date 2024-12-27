@@ -1,9 +1,9 @@
 import React, { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, Flex, Text } from "@arizeai/components";
+import { Dialog, Text } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import { Button, Flex, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 export function DeleteUserDialog({

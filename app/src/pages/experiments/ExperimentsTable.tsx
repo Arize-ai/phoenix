@@ -10,7 +10,6 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  Flex,
   Heading,
   HelpTooltip,
   ProgressBar,
@@ -19,7 +18,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Link, View } from "@phoenix/components";
+import { Flex, Link, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { SequenceNumberLabel } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";

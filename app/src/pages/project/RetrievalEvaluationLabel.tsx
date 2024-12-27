@@ -2,13 +2,13 @@ import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
 import {
-  Flex,
   HelpTooltip,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Flex } from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";

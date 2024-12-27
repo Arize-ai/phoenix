@@ -2,9 +2,9 @@ import React, { useMemo } from "react";
 import { useRouteError } from "react-router";
 import { css } from "@emotion/react";
 
-import { EmptyGraphic, Flex } from "@arizeai/components";
+import { EmptyGraphic } from "@arizeai/components";
 
-import { Button, ExternalLink } from "@phoenix/components";
+import { Button, ExternalLink, Flex } from "@phoenix/components";
 
 export function ErrorElement() {
   const error = useRouteError();

@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text } from "@arizeai/components";
+import { Heading, Text } from "@arizeai/components";
 
+import { Flex } from "@phoenix/components";
 import { InferencesRole } from "@phoenix/types";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 

@@ -1,15 +1,9 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  Content,
-  ContextualHelp,
-  Flex,
-  Heading,
-  Text,
-} from "@arizeai/components";
+import { Content, ContextualHelp, Heading, Text } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, Flex } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionDriftStats_dimension$key } from "./__generated__/DimensionDriftStats_dimension.graphql";

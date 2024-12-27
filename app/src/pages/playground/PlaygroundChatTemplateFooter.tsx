@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Flex } from "@arizeai/components";
-
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   createOpenAIResponseFormat,

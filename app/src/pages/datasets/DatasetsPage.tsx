@@ -6,12 +6,11 @@ import {
   ActionMenu,
   Dialog,
   DialogContainer,
-  Flex,
   Heading,
   Item,
 } from "@arizeai/components";
 
-import { Icon, Icons, Loading, View } from "@phoenix/components";
+import { Flex, Icon, Icons, Loading, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 

@@ -1,13 +1,13 @@
 import React, { useMemo } from "react";
 import { isNumber, isString } from "lodash";
 
-import { Flex, Text } from "@arizeai/components";
+import { Text } from "@arizeai/components";
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Icon, Icons, Link, View } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,

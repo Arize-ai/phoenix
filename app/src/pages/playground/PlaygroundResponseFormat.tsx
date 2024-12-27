@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Accordion, AccordionItem, Card, Flex } from "@arizeai/components";
+import { Accordion, AccordionItem, Card } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
+  Flex,
   Icon,
   Icons,
   View,

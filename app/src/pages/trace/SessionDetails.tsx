@@ -2,9 +2,9 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@arizeai/components";
+import { Text } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 

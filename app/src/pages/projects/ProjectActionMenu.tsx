@@ -10,12 +10,11 @@ import {
   ActionMenu,
   Dialog,
   DialogContainer,
-  Flex,
   Item,
   Text,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";

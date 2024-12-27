@@ -1,14 +1,8 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
-import {
-  ActionMenu,
-  DialogContainer,
-  Flex,
-  Item,
-  Text,
-} from "@arizeai/components";
+import { ActionMenu, DialogContainer, Item, Text } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";

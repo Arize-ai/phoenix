@@ -4,14 +4,13 @@ import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
-  Flex,
   HelpTooltip,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,

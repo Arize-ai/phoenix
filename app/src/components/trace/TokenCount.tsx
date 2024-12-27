@@ -2,7 +2,6 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import {
-  Flex,
   Text,
   TextProps,
   Tooltip,
@@ -10,7 +9,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 
 type TokenCountProps = {
   /**

@@ -3,17 +3,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import {
-  Card,
-  CardProps,
-  Dialog,
-  Flex,
-  Heading,
-  Text,
-} from "@arizeai/components";
+import { Card, CardProps, Dialog, Heading, Text } from "@arizeai/components";
 
 import {
   CopyToClipboardButton,
+  Flex,
   Icon,
   Icons,
   View,

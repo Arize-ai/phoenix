@@ -1,9 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Card, Flex, TextField } from "@arizeai/components";
+import { Card, TextField } from "@arizeai/components";
 
-import { CopyToClipboardButton, View } from "@phoenix/components";
+import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 

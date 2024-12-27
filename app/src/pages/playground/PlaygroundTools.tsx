@@ -1,14 +1,8 @@
 import React, { useMemo } from "react";
 
-import {
-  Accordion,
-  AccordionItem,
-  Counter,
-  Flex,
-  Form,
-} from "@arizeai/components";
+import { Accordion, AccordionItem, Counter, Form } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 

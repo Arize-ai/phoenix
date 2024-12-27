@@ -3,13 +3,12 @@ import React, { Suspense } from "react";
 import {
   Card,
   Content,
-  Flex,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 

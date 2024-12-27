@@ -24,7 +24,6 @@ import {
   CardProps,
   Dialog,
   DialogContainer,
-  Flex,
   Heading,
   Item,
   Text,
@@ -35,6 +34,7 @@ import {
 import {
   Button,
   CopyToClipboardButton,
+  Flex,
   Icon,
   Icons,
   View,

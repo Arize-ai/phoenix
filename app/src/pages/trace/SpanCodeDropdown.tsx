@@ -5,12 +5,17 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Flex,
   Form,
   TextField,
 } from "@arizeai/components";
 
-import { CopyToClipboardButton, Icon, Icons, View } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Flex,
+  Icon,
+  Icons,
+  View,
+} from "@phoenix/components";
 
 type SpanCodeDropdownProps = {
   spanId: string;

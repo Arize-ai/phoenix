@@ -8,13 +8,12 @@ import { css } from "@emotion/react";
 
 import {
   classNames,
-  Flex,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
