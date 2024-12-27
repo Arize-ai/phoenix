@@ -15,6 +15,7 @@ import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__asi
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { PromptChatMessages } from "./PromptChatMessages";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
+import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
 export function PromptIndexPage() {
@@ -116,6 +117,7 @@ function PromptIndexPageAside({
     graphql`
       fragment PromptIndexPage__aside on Prompt {
         description
+        ...PromptLatestVersionsListFragment
       }
     `,
     prompt
@@ -131,7 +133,10 @@ function PromptIndexPageAside({
         <Heading level={3}>Description</Heading>
         {/* TODO: Add a markdown view here */}
         <p>{data.description || "No description"}</p>
-        {/* TODO: Add a history view here */}
+        <section>
+          <Heading level={3}>Latest Versions</Heading>
+          <PromptLatestVersionsList prompt={data} />
+        </section>
       </View>
     </View>
   );
