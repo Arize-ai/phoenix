@@ -31,7 +31,8 @@ class DotKeyFormatter(Formatter):
 
 class PromptPartContentType(str, Enum):
     TEXT = "text"
-    AUDIO_STRING = "audio_string"
+    TEXT_DATA = "text_data"
+    AUDIO = "audio"
 
 
 @dataclass
@@ -120,13 +121,22 @@ class PromptTemplate:
             return [PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)]
         return template
 
+    def get_data_template_variable(self) -> Union[str, None]:
+        if isinstance(self.template, str):
+            return None
+
+        for template_message in self.template:
+            if (template_message.content_type == PromptPartContentType.AUDIO
+                or
+                template_message.content_type == PromptPartContentType.TEXT_DATA):
+                return template_message.template.strip("{}")
+
 
 class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
         template: Union[str, List[PromptPartTemplate]],
-        # TODO: ask about this being optional but is called in line 145
         explanation_template: Optional[Union[str, List[PromptPartTemplate]]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),

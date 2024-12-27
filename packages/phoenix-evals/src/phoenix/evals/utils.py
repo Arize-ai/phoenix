@@ -8,7 +8,6 @@ from zipfile import ZipFile
 
 import filetype
 import pandas as pd
-import requests
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be

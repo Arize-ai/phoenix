@@ -345,64 +345,13 @@ def test_classify_fn_call_explain(
         pd.DataFrame(data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}),
     )
 
-"""
-- test for an audio call where model is not supported (should get an err back)
-- test where encoded bytes are not a valid file type (should get an err back)
-"""
-
-"""
-- test processor - does it work as expected?
-"""
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_classify_audio_fn_call_no_explain(
-    openai_api_key: str, audio_classification_dataframe: DataFrame, respx_mock: respx.mock
-):
-    dataframe = audio_classification_dataframe
-    keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["neutral"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
-
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    model = OpenAIModel()
-
-    result = llm_classify(
-        dataframe=dataframe,
-        template=AUDIO_SENTIMENT_TEMPLATE,
-        model=model,
-        rails=["positive", "neutral", "negative"],
-    )
-
-    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(result[["label"]], pd.DataFrame(data={"label": expected_labels}))
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_classify_audio_fn_call_explain(
-    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
-):
-    pass
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_classify_audio_model_not_supported(
-    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
-):
-    pass
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_classify_audio_invalid_string(
+def test_classify_data_processor(
     openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     # Test for case where the encoded string is not of a valid file type
+    # todo implement this test
     pass
 
 

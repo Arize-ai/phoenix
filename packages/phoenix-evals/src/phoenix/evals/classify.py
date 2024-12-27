@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 from collections import defaultdict
 from enum import Enum
@@ -69,7 +70,7 @@ def llm_classify(
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
-    data_processor: Optional[Callable[[Union[List, pd.DataFrame]], pd.DataFrame]] = None,
+    data_processor: Optional[Callable[[Any], str]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -104,8 +105,8 @@ def llm_classify(
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
 
-        data_processor (Optional[Callable[[Union[List, pd.DataFrame]], pd.DataFrame]]): A function
-            that takes a URL or audio bytes and returns a complete audio object.
+        data_processor (Optional[Callable[[Any], str]]): An optional general-purpose function which
+            can be run as a coroutine to process the data before it is passed to the model.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -158,8 +159,7 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    if data_processor:
-        dataframe = data_processor(dataframe)
+    data_index = template.get_data_template_variable()
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -221,6 +221,16 @@ def llm_classify(
 
     async def _run_llm_classification_async(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
+            if data_processor:
+                if not inspect.iscoroutinefunction(data_processor):
+                    raise ValueError("data_processor must be an asynchronous function")
+
+                # Process audio element and replace with template variable corresponding to data
+                input_data.loc[data_index] = await data_processor(input_data.loc[data_index])
+                input_data.index = [data_index if idx == data_index else idx for idx in input_data.index]
+
+                print(input_data)
+
             prompt = _map_template(input_data)
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
@@ -230,6 +240,15 @@ def llm_classify(
 
     def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
+            if data_processor:
+                if inspect.iscoroutinefunction(data_processor):
+                    raise ValueError("data_processor must be a synchronous function")
+                # Get the first index value (whatever it is)
+                first_index = input_data.index[0]
+
+                # Process audio element and replace with template variable corresponding to data
+                input_data.loc[first_index] = data_processor(input_data.loc[first_index])
+                input_data.index = [data_col_name if idx == first_index else idx for idx in input_data.index]
             prompt = _map_template(input_data)
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs

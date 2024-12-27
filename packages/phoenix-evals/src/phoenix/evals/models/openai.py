@@ -287,7 +287,7 @@ class OpenAIModel(BaseModel):
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": part.content})
-            elif part.content_type == PromptPartContentType.AUDIO_STRING:
+            elif part.content_type == PromptPartContentType.AUDIO:
                 messages.append(
                     {  # type: ignore
                         "role": "user",
