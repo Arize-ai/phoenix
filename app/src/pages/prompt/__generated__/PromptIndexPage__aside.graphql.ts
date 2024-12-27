@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85edb438bc01ac475c035ae2d6fb58cc>>
+ * @generated SignedSource<<0d6c8a6a19d8462c1d4a08d1322c61e5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptIndexPage__aside$data = {
   readonly description: string | null;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptLatestVersionsListFragment">;
   readonly " $fragmentType": "PromptIndexPage__aside";
 };
 export type PromptIndexPage__aside$key = {
@@ -31,12 +32,17 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "description",
       "storageKey": null
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "PromptLatestVersionsListFragment"
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 
-(node as any).hash = "c6a72ce409cffadcfc51a2cae978b619";
+(node as any).hash = "8e6287bde2de600156e2ccf4467944c4";
 
 export default node;
