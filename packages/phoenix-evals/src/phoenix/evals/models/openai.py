@@ -296,7 +296,7 @@ class OpenAIModel(BaseModel):
                                 "type": "input_audio",
                                 "input_audio": {
                                     "data": part.content,
-                                    "format": get_audio_format_from_base64(part.content)
+                                    "format": get_audio_format_from_base64(part.content),
                                 },
                             }
                         ],

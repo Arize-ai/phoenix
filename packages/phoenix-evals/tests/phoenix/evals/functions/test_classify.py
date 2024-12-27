@@ -22,7 +22,6 @@ from phoenix.evals.classify import (
     run_evals,
 )
 from phoenix.evals.default_templates import (
-    AUDIO_SENTIMENT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )

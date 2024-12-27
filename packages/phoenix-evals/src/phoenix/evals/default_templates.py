@@ -743,8 +743,7 @@ AUDIO_SENTIMENT_TEMPLATE = ClassificationTemplate(
             template=TONE_EMOTION_TEMPLATE_PT1,
         ),
         PromptPartTemplate(
-            content_type=PromptPartContentType.AUDIO,
-            template=TONE_EMOTION_TEMPLATE_PT2
+            content_type=PromptPartContentType.AUDIO, template=TONE_EMOTION_TEMPLATE_PT2
         ),
         PromptPartTemplate(
             content_type=PromptPartContentType.TEXT,
@@ -761,8 +760,7 @@ AUDIO_SENTIMENT_TEMPLATE = ClassificationTemplate(
             template=TONE_EMOTION_TEMPLATE_PT1,
         ),
         PromptPartTemplate(
-            content_type=PromptPartContentType.AUDIO,
-            template=TONE_EMOTION_TEMPLATE_PT2
+            content_type=PromptPartContentType.AUDIO, template=TONE_EMOTION_TEMPLATE_PT2
         ),
         PromptPartTemplate(
             content_type=PromptPartContentType.TEXT,

@@ -126,9 +126,10 @@ class PromptTemplate:
             return None
 
         for template_message in self.template:
-            if (template_message.content_type == PromptPartContentType.AUDIO
-                or
-                template_message.content_type == PromptPartContentType.TEXT_DATA):
+            if (
+                template_message.content_type == PromptPartContentType.AUDIO
+                or template_message.content_type == PromptPartContentType.TEXT_DATA
+            ):
                 return template_message.template.strip("{}")
 
 
