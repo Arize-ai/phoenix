@@ -3,14 +3,13 @@ import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
 import {
-  Flex,
   HelpTooltip,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";

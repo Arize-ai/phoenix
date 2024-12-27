@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Flex } from "@arizeai/components";
-
-import { View } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";

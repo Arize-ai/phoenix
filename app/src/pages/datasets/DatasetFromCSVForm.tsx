@@ -7,7 +7,6 @@ import {
   DropdownProps,
   Field,
   FieldProps,
-  Flex,
   Form,
   Item,
   ListBox,
@@ -15,7 +14,7 @@ import {
   TextField,
 } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import { Button, Flex, View } from "@phoenix/components";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;

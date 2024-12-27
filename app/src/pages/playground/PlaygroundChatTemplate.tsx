@@ -15,11 +15,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Card, Field, Flex, Form, TextField } from "@arizeai/components";
+import { Card, Field, Form, TextField } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
+  Flex,
   Icon,
   Icons,
   View,

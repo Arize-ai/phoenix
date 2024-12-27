@@ -3,9 +3,9 @@ import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, Flex, Text } from "@arizeai/components";
+import { Dialog, DialogContainer, Text } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 interface SelectedExperiment {

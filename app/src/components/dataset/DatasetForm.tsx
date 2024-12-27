@@ -1,9 +1,9 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Flex, Form, TextArea, TextField } from "@arizeai/components";
+import { Form, TextArea, TextField } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import { Button, Flex, View } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 

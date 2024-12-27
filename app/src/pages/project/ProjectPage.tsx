@@ -9,9 +9,9 @@ import {
 import { Outlet, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, TabPane, Tabs } from "@arizeai/components";
+import { TabPane, Tabs } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useLastNTimeRange,

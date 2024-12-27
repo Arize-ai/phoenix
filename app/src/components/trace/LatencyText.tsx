@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
 
-import { Flex, Text, TextProps } from "@arizeai/components";
+import { Text, TextProps } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 export function LatencyText({
   latencyMs,

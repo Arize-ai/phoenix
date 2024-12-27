@@ -2,9 +2,9 @@ import React, { startTransition, Suspense, useState } from "react";
 import { useLoaderData, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, Heading, Switch } from "@arizeai/components";
+import { Alert, Heading, Switch } from "@arizeai/components";
 
-import { Loading, View } from "@phoenix/components";
+import { Flex, Loading, View } from "@phoenix/components";
 
 import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
