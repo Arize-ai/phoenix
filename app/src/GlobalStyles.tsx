@@ -63,14 +63,14 @@ export function GlobalStyles() {
         :root {
           --px-blue-color: ${theme.colors.arizeBlue};
 
-          --px-section-background-color: ${theme.colors.gray500};
+          --px-section-background-color: #2f353d;
 
           /** The color of shadows on menus etc. */
           --px-overlay-shadow-color: rgba(0, 0, 0, 0.4);
 
           /* An item is a typically something in a list */
-          --px-item-background-color: ${theme.colors.gray800};
-          --px-item-border-color: ${theme.colors.gray600};
+          --px-item-background-color: #1d2126;
+          --px-item-border-color: #282e35;
 
           --px-font-weight-heavy: 600;
 
@@ -78,6 +78,20 @@ export function GlobalStyles() {
 
           --px-nav-collapsed-width: 45px;
           --px-nav-expanded-width: 200px;
+
+          /* Text */
+          --ac-global-font-size-xs: 12px;
+          --ac-global-font-size-s: 14px;
+          --ac-global-font-size-m: 16px;
+          --ac-global-font-size-l: 18px;
+          --ac-global-font-size-xl: 24px;
+          --ac-global-font-size-xxl: 32px;
+
+          --ac-global-line-height-xs: 16px;
+          --ac-global-line-height-s: 20px;
+          --ac-global-line-height-m: 24px;
+          --ac-global-line-height-l: 28px;
+          --ac-global-line-height-xl: 40px;
         }
 
         .ac-theme--dark {
