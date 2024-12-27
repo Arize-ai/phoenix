@@ -4,16 +4,9 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  Counter,
-  Flex,
-  Heading,
-  TabPane,
-  Tabs,
-  View,
-} from "@arizeai/components";
+import { Counter, Heading, TabPane, Tabs } from "@arizeai/components";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import { usePromptIdLoader } from "./usePromptIdLoader";

@@ -1,13 +1,9 @@
 import React from "react";
 import { useLoaderData } from "react-router";
 
-import {
-  Accordion,
-  AccordionItem,
-  Card,
-  Flex,
-  View,
-} from "@arizeai/components";
+import { Accordion, AccordionItem, Card } from "@arizeai/components";
+
+import { Flex, View } from "@phoenix/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptChatMessages } from "./PromptChatMessages";
