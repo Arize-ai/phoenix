@@ -3,7 +3,7 @@ import { useFragment } from "react-relay";
 import { Outlet, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 
-import { Flex, View } from "@arizeai/components";
+import { Flex, View } from "@phoenix/components";
 
 import { PromptVersionsPageContent__main$key } from "./__generated__/PromptVersionsPageContent__main.graphql";
 import { PromptVersionsList } from "./PromptVersionsList";

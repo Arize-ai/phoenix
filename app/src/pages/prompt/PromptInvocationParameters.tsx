@@ -2,7 +2,9 @@ import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import isObject from "lodash/isObject";
 
-import { Flex, List, ListItem, Text, View } from "@arizeai/components";
+import { List, ListItem, Text } from "@arizeai/components";
+
+import { Flex, View } from "@phoenix/components";
 
 import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
 
