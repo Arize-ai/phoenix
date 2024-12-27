@@ -2,14 +2,9 @@ import React, { useState } from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  Accordion,
-  AccordionItem,
-  Card,
-  Flex,
-  View,
-} from "@arizeai/components";
+import { Accordion, AccordionItem, Card } from "@arizeai/components";
 
+import { Flex, View } from "@phoenix/components";
 import {
   CodeLanguage,
   CodeLanguageRadioGroup,
