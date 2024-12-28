@@ -1,6 +1,5 @@
 import React, { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
-import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
 import { Provider } from "@arizeai/components";
 

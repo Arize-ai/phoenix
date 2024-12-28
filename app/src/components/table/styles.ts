@@ -1,6 +1,6 @@
 import { CSSProperties } from "react";
 import { Column } from "@tanstack/react-table";
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
 export const tableCSS = css`
   font-size: var(--ac-global-font-size-s);

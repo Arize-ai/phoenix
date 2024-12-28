@@ -1,13 +1,8 @@
 import React, { CSSProperties, ReactNode } from "react";
 
-import {
-  HelpTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";
@@ -37,12 +32,7 @@ export function AnnotationTooltip({
           alignItems="center"
         >
           <View>
-            <Text
-              weight="heavy"
-              color="inherit"
-              textSize="large"
-              elementType="h3"
-            >
+            <Text weight="heavy" color="inherit" size="L" elementType="h3">
               {annotation.name}
             </Text>
             <View paddingTop="size-50" minWidth="150px">

@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
 import { Icon, Icons, Text } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
