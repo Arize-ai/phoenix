@@ -12,8 +12,6 @@ import {
   YAxis,
 } from "recharts";
 
-import { theme } from "@arizeai/components";
-
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -147,7 +145,7 @@ export function DimensionSegmentsBarChart(props: {
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "% Volume",
             angle: -90,
@@ -161,7 +159,7 @@ export function DimensionSegmentsBarChart(props: {
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip

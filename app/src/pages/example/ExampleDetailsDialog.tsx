@@ -4,15 +4,15 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import {
-  Card,
-  CardProps,
-  Dialog,
-  DialogContainer,
-  Heading,
-} from "@arizeai/components";
+import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
 
-import { Button, CopyToClipboardButton, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  Flex,
+  Heading,
+  View,
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useNotifySuccess } from "@phoenix/contexts";

@@ -2,9 +2,7 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
@@ -25,36 +23,36 @@ function SessionDetailsHeader({
 }) {
   return (
     <View
-      padding={"size-200"}
+      padding="size-200"
       borderBottomWidth={"thin"}
       borderBottomColor={"dark"}
     >
       <Flex direction={"row"} gap={"size-400"}>
         <Flex direction={"column"}>
-          <Text elementType={"h3"} textSize={"medium"} color={"text-700"}>
+          <Text elementType={"h3"} color={"text-700"}>
             Traces Count
           </Text>
-          <Text textSize={"xlarge"}>{traceCount}</Text>
+          <Text size="L">{traceCount}</Text>
         </Flex>
         {tokenUsage != null ? (
           <Flex direction={"column"}>
-            <Text elementType={"h3"} textSize={"medium"} color={"text-700"}>
+            <Text elementType={"h3"} color={"text-700"}>
               Total Tokens
             </Text>
             <TokenCount
               tokenCountTotal={tokenUsage.total}
               tokenCountCompletion={tokenUsage.completion}
               tokenCountPrompt={tokenUsage.prompt}
-              textSize={"xlarge"}
+              size="L"
             />
           </Flex>
         ) : null}
         {latencyP50 != null ? (
           <Flex direction={"column"}>
-            <Text elementType={"h3"} textSize={"medium"} color={"text-700"}>
+            <Text elementType={"h3"} color={"text-700"}>
               Latency P50
             </Text>
-            <LatencyText latencyMs={latencyP50} textSize={"xlarge"} />
+            <LatencyText latencyMs={latencyP50} size="L" />
           </Flex>
         ) : null}
       </Flex>

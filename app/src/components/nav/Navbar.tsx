@@ -1,10 +1,8 @@
 import React, { ReactNode, useState } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, Text } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";
@@ -70,13 +68,14 @@ const navLinkCSS = css`
     display: inline-block;
   }
   .ac-text {
+    padding-inline-start: var(--ac-global-dimension-size-50);
     white-space: nowrap;
   }
 `;
 
-const brandCSS = (theme: Theme) => css`
+const brandCSS = css`
   color: var(--ac-global-text-color-900);
-  font-size: ${theme.typography.sizes.large.fontSize}px;
+  font-size: var(--ac-global-font-size-xl);
   text-decoration: none;
   margin: 0 0 var(--ac-global-dimension-static-size-200) 0;
 `;

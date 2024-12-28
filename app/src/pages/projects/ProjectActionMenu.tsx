@@ -6,15 +6,9 @@ import React, {
 } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  ActionMenu,
-  Dialog,
-  DialogContainer,
-  Item,
-  Text,
-} from "@arizeai/components";
+import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";

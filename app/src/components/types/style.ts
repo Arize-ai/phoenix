@@ -577,3 +577,10 @@ export interface FlexStyleProps extends BoxAlignmentStyleProps, StyleProps {
 }
 
 export type Responsive<T> = T | ResponsiveProp<T>;
+
+export type TextColorValue =
+  | "text-900"
+  | "text-700"
+  | "text-300"
+  | "inherit"
+  | ColorValue;

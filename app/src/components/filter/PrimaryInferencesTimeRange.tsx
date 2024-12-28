@@ -3,7 +3,6 @@ import { css } from "@emotion/react";
 
 import {
   FieldColorDesignation,
-  Heading,
   Item,
   Picker,
   Tooltip,
@@ -11,6 +10,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Heading } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";

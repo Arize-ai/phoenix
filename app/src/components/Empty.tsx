@@ -1,7 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { EmptyGraphic, EmptyGraphicProps, Text } from "@arizeai/components";
+import { EmptyGraphic, EmptyGraphicProps } from "@arizeai/components";
+
+import { Text } from "@phoenix/components";
 
 interface EmptyProps extends EmptyGraphicProps {
   message?: string;
@@ -17,8 +19,8 @@ export function Empty(props: EmptyProps) {
       `}
     >
       <div
-        css={(theme) => css`
-          margin: ${theme.spacing.margin24}px;
+        css={css`
+          margin: var(--ac-global-dimension-size-300);
           display: flex;
           flex-direction: column;
           align-items: center;

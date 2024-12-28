@@ -9,9 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -32,9 +30,10 @@ export function ExampleExperimentsTableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           No experiments have been run for this example.

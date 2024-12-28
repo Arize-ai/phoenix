@@ -6,10 +6,10 @@ import React, {
 } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, DialogContainer, Text } from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 import { NoticeConfig } from "@arizeai/components/dist/notification/types";
 
-import { Button, Flex, View } from "@phoenix/components";
+import { Button, Flex, Text, View } from "@phoenix/components";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 import { AnnotationActionMenu } from "./AnnotationActionMenu";

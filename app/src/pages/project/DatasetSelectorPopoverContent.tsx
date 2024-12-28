@@ -2,9 +2,9 @@ import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Card, Item, ListBox, Text, TextField } from "@arizeai/components";
+import { Card, Item, ListBox, TextField } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 import { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";

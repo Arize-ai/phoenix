@@ -335,11 +335,11 @@ function SpanTreeEdgeConnector({
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
-      css={(theme) => css`
+      css={css`
         position: absolute;
         border-left: 1px solid
           ${statusCode === "ERROR"
-            ? theme.colors.statusDanger
+            ? "var(--ac-global-color-danger)"
             : "var(--ac-global-color-grey-700)"};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
@@ -358,25 +358,23 @@ function SpanTreeEdge({
   statusCode: SpanStatusCodeType;
   nestingLevel: number;
 }) {
+  const color =
+    statusCode === "ERROR"
+      ? "var(--ac-global-color-danger)"
+      : "var(--ac-global-color-grey-700)";
   return (
     <div
       aria-hidden="true"
-      css={(theme) => {
-        const color =
-          statusCode === "ERROR"
-            ? theme.colors.statusDanger
-            : "var(--ac-global-color-grey-700)";
-        return css`
-          position: absolute;
-          border-left: 1px solid ${color};
-          border-bottom: 1px solid ${color};
-          border-radius: 0 0 0 11px;
-          top: -5px;
-          left: ${nestingLevel * NESTING_INDENT + 29}px;
-          width: 15px;
-          height: 24px;
-        `;
-      }}
+      css={css`
+        position: absolute;
+        border-left: 1px solid ${color};
+        border-bottom: 1px solid ${color};
+        border-radius: 0 0 0 11px;
+        top: -5px;
+        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        width: 15px;
+        height: 24px;
+      `}
     ></div>
   );
 }

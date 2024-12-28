@@ -1,8 +1,15 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
-import { Dialog, DialogContainer, Text } from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { Button, ExternalLink, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  ExternalLink,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { IsAdmin, IsAuthenticated } from "@phoenix/components/auth";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";

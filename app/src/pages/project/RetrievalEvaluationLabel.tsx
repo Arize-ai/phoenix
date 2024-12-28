@@ -1,14 +1,9 @@
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import {
-  HelpTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex } from "@phoenix/components";
+import { Flex, Text } from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
 import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -51,18 +46,18 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
             <ColorSwatch color={"var(--ac-global-color-seafoam-1000)"} />
             {name ? (
               <div css={textCSS}>
-                <Text weight="heavy" textSize="small" color="inherit">
+                <Text weight="heavy" size="XS" color="inherit">
                   {name}
                 </Text>
               </div>
             ) : null}
             <div css={textCSS}>
-              <Text textSize="small" color="inherit">
+              <Text size="XS" color="inherit">
                 {label}
               </Text>
             </div>
             <div css={textCSS}>
-              <Text textSize="small">{labelValue}</Text>
+              <Text size="XS">{labelValue}</Text>
             </div>
           </Flex>
         </div>

@@ -22,12 +22,11 @@ import {
   Form,
   HelpTooltip,
   PopoverTrigger,
-  Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 

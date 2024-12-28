@@ -18,9 +18,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp, Heading } from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
-import { Flex, Icon, Icons, Link, View } from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,

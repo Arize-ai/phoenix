@@ -10,15 +10,13 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  Heading,
   HelpTooltip,
   ProgressBar,
-  Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Flex, Link, View } from "@phoenix/components";
+import { Flex, Heading, Link, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { SequenceNumberLabel } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
@@ -53,7 +51,7 @@ export function ExperimentsTableEmpty() {
           css={css`
             text-align: center;
             padding: var(--ac-global-dimension-size-400) !important;
-            .ac-button {
+            button {
               margin-top: var(--ac-global-dimension-size-200);
               margin-left: auto;
               margin-right: auto;
@@ -449,28 +447,28 @@ function AnnotationAggregationCell({
           </Heading>
           <Flex direction="column">
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 Mean Score
               </Text>
-              <Text textSize="small">{floatFormatter(value)}</Text>
+              <Text size="XS">{floatFormatter(value)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 All Experiments Min
               </Text>
-              <Text textSize="small">{floatFormatter(min)}</Text>
+              <Text size="XS">{floatFormatter(min)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 All Experiments Max
               </Text>
-              <Text textSize="small">{floatFormatter(max)}</Text>
+              <Text size="XS">{floatFormatter(max)}</Text>
             </Flex>
             <Flex justifyContent="space-between">
-              <Text weight="heavy" textSize="small">
+              <Text weight="heavy" size="XS">
                 Mean Score Percentile
               </Text>
-              <Text textSize="small">{formatPercent(percentile)}</Text>
+              <Text size="XS">{formatPercent(percentile)}</Text>
             </Flex>
           </Flex>
         </View>

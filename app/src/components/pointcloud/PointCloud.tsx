@@ -4,7 +4,6 @@ import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
-  Heading,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
@@ -18,7 +17,7 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import { Button, Heading, Icon, Icons } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,

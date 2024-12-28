@@ -1,12 +1,7 @@
 import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import {
-  Dialog,
-  DialogContainer,
-  EmptyGraphic,
-  Text,
-} from "@arizeai/components";
+import { Dialog, DialogContainer, EmptyGraphic } from "@arizeai/components";
 
 import {
   Button,
@@ -14,6 +9,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Text,
   View,
 } from "@phoenix/components";
 
@@ -40,7 +36,7 @@ export function SpanAnnotationsEmpty() {
     );
   };
   return (
-    <View padding={"size-200"}>
+    <View padding="size-200">
       <Flex direction="column" gap="size-100" alignItems="center">
         <EmptyGraphic graphicKey="documents" />
         <Text>No annotations for this span</Text>

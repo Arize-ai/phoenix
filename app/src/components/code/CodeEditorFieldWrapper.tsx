@@ -5,7 +5,6 @@ import {
   classNames,
   Field,
   FieldProps,
-  theme,
   ValidationState,
 } from "@arizeai/components";
 
@@ -19,7 +18,7 @@ const codeEditorFormWrapperCSS = css`
   &.is-invalid {
     border: 1px solid var(--ac-global-color-danger);
   }
-  border-radius: ${theme.borderRadius.medium}px;
+  border-radius: var(--ac-global-rounding-medium);
   border: 1px solid var(--ac-global-input-field-border-color);
   width: 100%;
   .cm-gutters,

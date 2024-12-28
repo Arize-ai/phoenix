@@ -9,10 +9,9 @@ import {
   DialogContainer,
   TabPane,
   Tabs,
-  Text,
 } from "@arizeai/components";
 
-import { Button, Icon } from "@phoenix/components";
+import { Button, Icon, Text } from "@phoenix/components";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Card, Text } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Text,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";

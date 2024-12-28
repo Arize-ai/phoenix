@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 import { CellContext } from "@tanstack/react-table";
 
-import { Text } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 /**
  * A table cell that nicely formats the error rate,

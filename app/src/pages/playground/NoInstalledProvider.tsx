@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { PythonBlock } from "@phoenix/components/code";
 import { Empty } from "@phoenix/components/Empty";
 
