@@ -3,9 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import {
