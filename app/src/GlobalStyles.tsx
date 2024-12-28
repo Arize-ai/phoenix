@@ -79,6 +79,7 @@ export function GlobalStyles() {
 
           --ac-global-opacity-disabled: 0.6;
           /* Text */
+          --ac-global-font-size-xxs: 10px;
           --ac-global-font-size-xs: 12px;
           --ac-global-font-size-s: 14px;
           --ac-global-font-size-m: 16px;
@@ -86,6 +87,7 @@ export function GlobalStyles() {
           --ac-global-font-size-xl: 24px;
           --ac-global-font-size-xxl: 32px;
 
+          --ac-global-line-height-xxs: 12px;
           --ac-global-line-height-xs: 16px;
           --ac-global-line-height-s: 20px;
           --ac-global-line-height-m: 24px;
