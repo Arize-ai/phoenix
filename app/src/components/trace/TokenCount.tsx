@@ -21,7 +21,7 @@ type TokenCountProps = {
   /**
    * The size of the icon and text
    */
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
 };
 
 /**
@@ -31,7 +31,7 @@ export function TokenCount(props: TokenCountProps) {
   return (
     <TooltipTrigger>
       <TriggerWrap>
-        <TokenItem textSize={props.textSize}>{props.tokenCountTotal}</TokenItem>
+        <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
         <Flex direction="column" gap="size-50">
@@ -54,7 +54,7 @@ function TokenItem({
   ...textProps
 }: {
   children: number;
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
 }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">

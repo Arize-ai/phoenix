@@ -68,9 +68,7 @@ export function AnnotationTooltipFilterActions(
       marginStart="size-200"
       width={300}
     >
-      <Text textSize="large" weight="heavy">
-        Filters
-      </Text>
+      <Text weight="heavy">Filters</Text>
 
       <ul
         css={css`

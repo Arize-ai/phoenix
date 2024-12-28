@@ -48,7 +48,7 @@ const colors: TextProps["color"][] = [
 export const Gallery = () => {
   return (
     <ThemeWrapper>
-      <Flex direction="row" gap="size-200" alignItems="start">
+      <Flex direction="row" gap="size-200" alignItems="start" height="1000px">
         <GalleryComponent />
         <LegacyGalleryComponent />
       </Flex>
@@ -109,28 +109,6 @@ function GalleryComponent() {
           );
         })}
       </p>
-
-      <p
-        css={css`
-          .ac-text {
-            display: block;
-          }
-        `}
-      >
-        {colors.map((color) => {
-          return (
-            <Text
-              key={color}
-              fontStyle="italic"
-              size="XL"
-              color={color}
-              weight="heavy"
-            >
-              {`I will not waste chalk`}
-            </Text>
-          );
-        })}
-      </p>
     </div>
   );
 }
@@ -183,7 +161,7 @@ function LegacyGalleryComponent() {
       >
         {colors.map((color) => {
           return (
-            <Text key={color} size="L" color={color} weight="heavy">
+            <Text key={color} textSize="xlarge" color={color} weight="heavy">
               {`I will not waste chalk`}
             </Text>
           );
@@ -202,7 +180,7 @@ function LegacyGalleryComponent() {
             <Text
               key={color}
               fontStyle="italic"
-              size="L"
+              textSize="xlarge"
               color={color}
               weight="heavy"
             >
