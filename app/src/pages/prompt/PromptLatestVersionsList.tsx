@@ -2,9 +2,7 @@ import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
 import { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
 
