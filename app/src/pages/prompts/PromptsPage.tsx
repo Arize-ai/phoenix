@@ -1,9 +1,7 @@
 import React from "react";
 import { useLoaderData, useNavigate } from "react-router";
 
-import { Heading } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
 import { promptsLoaderQuery$data } from "./__generated__/promptsLoaderQuery.graphql";
 import { PromptsTable } from "./PromptsTable";
