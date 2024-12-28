@@ -13,9 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text, theme } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -61,7 +59,7 @@ function TooltipContent({
 
     return (
       <ChartTooltip>
-        <Text elementType="h3" textSize="medium" weight="heavy">
+        <Text elementType="h3" size="S" weight="heavy">
           {label}
         </Text>
         <ChartTooltipItem
@@ -186,7 +184,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
       <View flex="none" paddingTop="size-100" paddingStart="size-200">
         <Text
           elementType="h3"
-          textSize="medium"
+          size="S"
           color="text-700"
         >{`Distribution comparison at ${fullTimeFormatter(
           new Date(timeRange.end)
@@ -242,7 +240,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
               style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <YAxis
-              stroke={theme.colors.gray200}
+              stroke="var(--ac-global-color-grey-500)"
               label={{
                 value: "Percent",
                 angle: -90,
@@ -256,8 +254,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             />
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke={theme.colors.gray200}
-              strokeOpacity={0.5}
+              stroke="var(--ac-global-color-grey-500)"
             />
             <Tooltip
               {...defaultBarChartTooltipProps}

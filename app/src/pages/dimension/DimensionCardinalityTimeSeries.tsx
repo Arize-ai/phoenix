@@ -11,8 +11,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text, theme } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -54,7 +53,7 @@ function TooltipContent({
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -141,7 +140,7 @@ export function DimensionCardinalityTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "Cardinality",
             angle: -90,
@@ -155,7 +154,7 @@ export function DimensionCardinalityTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />

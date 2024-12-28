@@ -2,9 +2,7 @@ import React, { PropsWithChildren, useMemo } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -83,23 +81,21 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
         <LabeledValue label="Status">
           <Flex direction="row" gap="size-50" alignItems="center">
             <SpanStatusCodeIcon statusCode={code} />
-            <Text textSize="xlarge" color={statusColor}>
-              {code}
-            </Text>
+            <Text color={statusColor}>{code}</Text>
           </Flex>
         </LabeledValue>
         <LabeledValue label="Start Time">
-          <Text textSize="xlarge">{fullTimeFormatter(startDate)}</Text>
+          <Text>{fullTimeFormatter(startDate)}</Text>
         </LabeledValue>
         {endDate && (
           <LabeledValue label="End Time">
-            <Text textSize="xlarge">{fullTimeFormatter(endDate)}</Text>
+            <Text size="M">{fullTimeFormatter(endDate)}</Text>
           </LabeledValue>
         )}
         <LabeledValue label="Latency">
-          <Text textSize="xlarge">
+          <Text>
             {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+              <LatencyText latencyMs={latencyMs} />
             ) : (
               "--"
             )}
@@ -111,7 +107,7 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
               tokenCountTotal={tokenCountTotal}
               tokenCountPrompt={tokenCountPrompt ?? 0}
               tokenCountCompletion={tokenCountCompletion ?? 0}
-              textSize="xlarge"
+              size="L"
             />
           </LabeledValue>
         ) : null}
@@ -140,7 +136,7 @@ function LabeledValue({
 }: PropsWithChildren<{ label: string }>) {
   return (
     <Flex direction="column">
-      <Text elementType="h3" textSize="medium" color="text-700">
+      <Text elementType="h3" size="S" color="text-700">
         {label}
       </Text>
       {children}

@@ -5,15 +5,14 @@ import { css } from "@emotion/react";
 import {
   Content,
   ContextualHelp,
-  Heading,
   Item,
   Label,
   LabelProps,
   Picker,
   PickerProps,
-  Text,
 } from "@arizeai/components";
 
+import { Heading, Text } from "@phoenix/components";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";

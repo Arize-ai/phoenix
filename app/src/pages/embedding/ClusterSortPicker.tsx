@@ -72,13 +72,13 @@ export function ClusterSortPicker() {
   const selectedSortKey = getSortKey(sort);
   return (
     <div
-      css={(theme) => css`
+      css={css`
         .ac-action-button {
           background: none;
           border: none;
           color: ${"var(--ac-global-text-color-700)"};
-          font-size: ${theme.typography.sizes.small.fontSize}px;
-          line-height: ${theme.typography.sizes.small.lineHeight}px;
+          font-size: var(--ac-global-font-size-xs);
+          line-height: var(--ac-global-line-height-xs);
           cursor: pointer;
           outline: none;
           &:hover {

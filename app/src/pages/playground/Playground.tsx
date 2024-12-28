@@ -10,9 +10,17 @@ import {
 } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Accordion, AccordionItem, Heading } from "@arizeai/components";
+import { Accordion, AccordionItem } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Loading, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Loading,
+  View,
+} from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";

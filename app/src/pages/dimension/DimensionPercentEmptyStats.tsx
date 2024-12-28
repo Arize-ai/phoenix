@@ -1,8 +1,7 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Text } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionPercentEmptyStats_dimension$key } from "./__generated__/DimensionPercentEmptyStats_dimension.graphql";
@@ -33,12 +32,12 @@ export function DimensionPercentEmptyStats(props: {
 
   return (
     <>
-      <Text elementType="h3" textSize="small" color="text-700">
+      <Text elementType="h3" size="XS" color="text-700">
         % Empty
       </Text>
-      <Text textSize="xlarge">{percentFormatter(data.percentEmpty)}</Text>
+      <Text size="L">{percentFormatter(data.percentEmpty)}</Text>
       {data.referencePercentEmpty != null && (
-        <Text textSize="medium" color="designationPurple">
+        <Text size="M" color="purple-800">
           {percentFormatter(data.referencePercentEmpty)}
         </Text>
       )}

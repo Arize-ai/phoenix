@@ -1,9 +1,9 @@
 import React, { ReactNode } from "react";
 import { Blocker } from "react-router";
 
-import { Dialog, DialogContainer, Text } from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { Button, Flex, View } from "@phoenix/components";
+import { Button, Flex, Text, View } from "@phoenix/components";
 
 function ConfirmNavigationDialogFooter({ blocker }: { blocker: Blocker }) {
   return (
@@ -39,7 +39,7 @@ export function ConfirmNavigationDialog({
         onDismiss={() => blocker.reset()}
       >
         <Dialog title={"Confirm Navigation"} size="S">
-          <View padding={"size-200"}>
+          <View padding="size-200">
             <Text>{message}</Text>
           </View>
           <ConfirmNavigationDialogFooter blocker={blocker} />

@@ -1,7 +1,9 @@
 import React, { ComponentProps } from "react";
 import { css } from "@emotion/react";
 
-import { ProgressCircle, Text } from "@arizeai/components";
+import { ProgressCircle } from "@arizeai/components";
+
+import { Text } from "@phoenix/components";
 
 type LoadingProps = {
   message?: string;

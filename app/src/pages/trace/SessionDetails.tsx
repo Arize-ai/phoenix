@@ -2,9 +2,7 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
@@ -25,7 +23,7 @@ function SessionDetailsHeader({
 }) {
   return (
     <View
-      padding={"size-200"}
+      padding="size-200"
       borderBottomWidth={"thin"}
       borderBottomColor={"dark"}
     >

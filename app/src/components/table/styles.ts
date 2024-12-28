@@ -2,8 +2,8 @@ import { CSSProperties } from "react";
 import { Column } from "@tanstack/react-table";
 import { css, Theme } from "@emotion/react";
 
-export const tableCSS = (theme: Theme) => css`
-  font-size: ${theme.typography.sizes.medium.fontSize}px;
+export const tableCSS = css`
+  font-size: var(--ac-global-font-size-s);
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -13,7 +13,8 @@ export const tableCSS = (theme: Theme) => css`
     z-index: 1;
     tr {
       th {
-        padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
+        padding: var(--ac-global-dimension-size-50)
+          var(--ac-global-dimension-size-200);
         background-color: var(--ac-global-color-grey-100);
         position: relative;
         text-align: left;
@@ -26,8 +27,8 @@ export const tableCSS = (theme: Theme) => css`
           cursor: pointer;
         }
         .sort-icon {
-          margin-left: ${theme.spacing.margin4}px;
-          font-size: ${theme.typography.sizes.small.fontSize}px;
+          margin-left: var(--ac-global-dimension-size-50);
+          font-size: var(--ac-global-font-size-xs);
           vertical-align: middle;
           display: inline-block;
         }
@@ -70,7 +71,8 @@ export const tableCSS = (theme: Theme) => css`
         background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.3);
       }
       & > td {
-        padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
+        padding: var(--ac-global-dimension-size-100)
+          var(--ac-global-dimension-size-200);
       }
     }
   }
@@ -89,24 +91,23 @@ export const borderedTableCSS = css`
   }
 `;
 
-export const selectableTableCSS = (theme: Theme) =>
-  css(
-    tableCSS(theme),
-    css`
-      tbody:not(.is-empty) {
-        tr {
-          cursor: pointer;
-        }
+export const selectableTableCSS = css(
+  tableCSS,
+  css`
+    tbody:not(.is-empty) {
+      tr {
+        cursor: pointer;
       }
-    `
-  );
+    }
+  `
+);
 
-export const paginationCSS = (theme: Theme) => css`
+export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: ${theme.spacing.margin8}px;
-  gap: ${theme.spacing.margin4}px;
+  padding: var(--ac-global-dimension-size-100);
+  gap: var(--ac-global-dimension-size-50);
   border-top: 1px solid var(--ac-global-color-grey-300);
 `;
 

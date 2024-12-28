@@ -22,7 +22,6 @@ import {
   Counter,
   DialogContainer,
   EmptyGraphic,
-  Heading,
   Label,
   LabelProps,
   List,
@@ -30,7 +29,6 @@ import {
   TabbedCard,
   TabPane,
   Tabs,
-  Text,
   Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
@@ -50,8 +48,10 @@ import {
   CopyToClipboardButton,
   ExternalLink,
   Flex,
+  Heading,
   Icon,
   Icons,
+  Text,
   View,
   ViewProps,
 } from "@phoenix/components";
@@ -591,7 +591,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return (
       <Flex direction="row" gap="size-100" alignItems="center">
         <SpanKindIcon spanKind="llm" />
-        <Text textSize="large" weight="heavy">
+        <Text size="M" weight="heavy">
           {modelName}
         </Text>
       </Flex>
@@ -1238,13 +1238,13 @@ function DocumentItem({
                               <Label color={evalLabelColor} shape="badge">
                                 <Flex direction="row" gap="size-50">
                                   <Text
-                                    textSize="xsmall"
+                                    size="XS"
                                     weight="heavy"
                                     color="inherit"
                                   >
                                     score
                                   </Text>
-                                  <Text textSize="xsmall">
+                                  <Text size="XS">
                                     {formatFloat(documentEvaluation.score)}
                                   </Text>
                                 </Flex>
@@ -1378,9 +1378,7 @@ function LLMToolSchema({
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text textSize="large" weight="heavy">
-        Tool
-      </Text>
+      <Text weight="heavy">Tool</Text>
     </Flex>
   );
 
@@ -1734,12 +1732,12 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               <View flex="none">
                 <div
                   data-event-type={isException ? "exception" : "info"}
-                  css={(theme) => css`
+                  css={css`
                     &[data-event-type="exception"] {
-                      --px-event-icon-color: ${theme.colors.statusDanger};
+                      --px-event-icon-color: var(--ac-global-color-danger);
                     }
                     &[data-event-type="info"] {
-                      --px-event-icon-color: ${theme.colors.statusInfo};
+                      --px-event-icon-color: var(--ac-global-color-info);
                     }
                     .ac-icon-wrap {
                       color: var(--px-event-icon-color);

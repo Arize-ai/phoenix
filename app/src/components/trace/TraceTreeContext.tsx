@@ -9,7 +9,7 @@ import React, {
 
 export type TraceTreeContextType = {
   isCollapsed: boolean;
-  setIsCollapsed: (theme: boolean) => void;
+  setIsCollapsed: (collapsed: boolean) => void;
 };
 
 export const TraceTreeConnext = createContext<TraceTreeContextType | null>(

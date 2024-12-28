@@ -11,6 +11,7 @@ import {
 import { Flex, Text, TextProps } from "@phoenix/components";
 
 import { ThemeWrapper } from "./components/ThemeWrapper";
+import { GLOBAL_COLORS } from "./constants/colorConstants";
 
 const meta: Meta = {
   title: "Text",
@@ -38,55 +39,7 @@ const colors: TextProps["color"][] = [
   "success",
   "danger",
   "warning",
-  "grey-50",
-  "grey-75",
-  "grey-100",
-  "grey-200",
-  "grey-300",
-  "grey-400",
-  "grey-500",
-  "grey-600",
-  "grey-700",
-  "grey-800",
-  "grey-900",
-  "blue-100",
-  "blue-200",
-  "blue-300",
-  "blue-400",
-  "blue-500",
-  "blue-600",
-  "blue-700",
-  "blue-800",
-  "blue-900",
-  "blue-1000",
-  "blue-1100",
-  "blue-1200",
-  "blue-1300",
-  "blue-1400",
-  "red-100",
-  "red-200",
-  "red-300",
-  "red-400",
-  "red-500",
-  "red-600",
-  "red-700",
-  "red-800",
-  "red-900",
-  "red-1000",
-  "red-1100",
-  "red-1200",
-  "red-1300",
-  "red-1400",
-  "orange-100",
-  "orange-200",
-  "orange-300",
-  "orange-400",
-  "orange-500",
-  "orange-600",
-  "orange-700",
-  "orange-800",
-  "orange-900",
-  "yellow-100",
+  ...GLOBAL_COLORS,
 ];
 
 /**
@@ -230,7 +183,7 @@ function LegacyGalleryComponent() {
       >
         {colors.map((color) => {
           return (
-            <Text key={color} textSize="xlarge" color={color} weight="heavy">
+            <Text key={color} size="L" color={color} weight="heavy">
               {`I will not waste chalk`}
             </Text>
           );
@@ -249,7 +202,7 @@ function LegacyGalleryComponent() {
             <Text
               key={color}
               fontStyle="italic"
-              textSize="xlarge"
+              size="L"
               color={color}
               weight="heavy"
             >

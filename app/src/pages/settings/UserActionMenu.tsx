@@ -1,6 +1,6 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
-import { ActionMenu, DialogContainer, Item, Text } from "@arizeai/components";
+import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 
@@ -56,7 +56,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           alignItems={"center"}
         >
           <Icon svg={<Icons.TrashOutline />} />
-          <Text>Delete</Text>
+          <>Delete</>
         </Flex>
       </Item>
     );
@@ -70,7 +70,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           alignItems={"center"}
         >
           <Icon svg={<Icons.Refresh />} />
-          <Text>Reset Password</Text>
+          <>Reset Password</>
         </Flex>
       </Item>
     );

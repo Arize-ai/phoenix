@@ -4,12 +4,12 @@ import { css, Global } from "@emotion/react";
 export function GlobalStyles() {
   return (
     <Global
-      styles={(theme) => css`
+      styles={css`
         body {
           background-color: var(--ac-global-color-grey-75);
           color: var(--ac-global-text-color-900);
           font-family: "Roboto";
-          font-size: ${theme.typography.sizes.medium.fontSize}px;
+          font-size: var(--ac-global-font-size-s);
           margin: 0;
           overflow: hidden;
           #root,
@@ -61,8 +61,6 @@ export function GlobalStyles() {
         }
 
         :root {
-          --px-blue-color: ${theme.colors.arizeBlue};
-
           --px-section-background-color: #2f353d;
 
           /** The color of shadows on menus etc. */
@@ -79,6 +77,7 @@ export function GlobalStyles() {
           --px-nav-collapsed-width: 45px;
           --px-nav-expanded-width: 200px;
 
+          --ac-global-opacity-disabled: 0.6;
           /* Text */
           --ac-global-font-size-xs: 12px;
           --ac-global-font-size-s: 14px;
@@ -91,7 +90,8 @@ export function GlobalStyles() {
           --ac-global-line-height-s: 20px;
           --ac-global-line-height-m: 24px;
           --ac-global-line-height-l: 28px;
-          --ac-global-line-height-xl: 40px;
+          --ac-global-line-height-xl: 36px;
+          --ac-global-line-height-xxl: 48px;
         }
 
         .ac-theme--dark {

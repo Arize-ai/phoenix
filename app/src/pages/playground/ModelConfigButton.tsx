@@ -16,14 +16,13 @@ import {
   DialogContainer,
   Item,
   Picker,
-  Text,
   TextField,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,

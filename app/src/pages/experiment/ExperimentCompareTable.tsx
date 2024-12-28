@@ -24,9 +24,7 @@ import {
   CardProps,
   Dialog,
   DialogContainer,
-  Heading,
   Item,
-  Text,
   Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
@@ -35,8 +33,10 @@ import {
   Button,
   CopyToClipboardButton,
   Flex,
+  Heading,
   Icon,
   Icons,
+  Text,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
@@ -442,7 +442,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   return (
     <div css={tableWrapCSS}>
       <table
-        css={(theme) => css(tableCSS(theme), borderedTableCSS)}
+        css={css(tableCSS, borderedTableCSS)}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),

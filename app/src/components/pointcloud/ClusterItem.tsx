@@ -1,9 +1,7 @@
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Heading, Text } from "@arizeai/components";
-
-import { Flex } from "@phoenix/components";
+import { Flex, Heading, Text } from "@phoenix/components";
 import { InferencesRole } from "@phoenix/types";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -137,7 +135,7 @@ export function ClusterItem(props: ClusterItemProps) {
             <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
             <Text
               color="text-700"
-              textSize="small"
+              size="XS"
             >{`${props.numPoints} points`}</Text>
           </Flex>
         </Flex>
@@ -149,14 +147,14 @@ export function ClusterItem(props: ClusterItemProps) {
             align-items: end;
           `}
         >
-          <Text color="text-700" textSize="small">
+          <Text color="text-700" size="XS">
             {metricName}
           </Text>
-          <Text color="text-900" textSize="medium">
+          <Text color="text-900" size="S">
             {numberFormatter(primaryMetricValue)}
           </Text>
           {!hideReference ? (
-            <Text color="designationPurple" textSize="small">
+            <Text color="purple-800" size="XS">
               {numberFormatter(referenceMetricValue)}
             </Text>
           ) : null}

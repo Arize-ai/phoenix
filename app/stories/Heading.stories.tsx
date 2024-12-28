@@ -1,6 +1,7 @@
 import React from "react";
 import { Meta } from "@storybook/react";
 
+// eslint-disable-next-line deprecate/import
 import { Heading as LegacyHeading, View } from "@arizeai/components";
 
 import { Flex, Heading } from "@phoenix/components";

@@ -1,8 +1,6 @@
 import React, { ReactNode } from "react";
 
-import { Text } from "@arizeai/components";
-
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
 export function PlaygroundErrorWrap({ children }: { children: ReactNode }) {
   return (

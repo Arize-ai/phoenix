@@ -6,12 +6,10 @@ import {
   DropdownMenu,
   DropdownTrigger,
   Form,
-  Heading,
-  Text,
   TextField,
 } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import { Flex, Heading, Text, View } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {

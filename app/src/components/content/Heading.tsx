@@ -5,7 +5,7 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import { textBaseCSS } from "./styles";
+import { headingBaseCSS, textBaseCSS } from "./styles";
 import { Weight } from "./types";
 
 export interface HeadingProps extends AriaHeadingProps {
@@ -25,7 +25,7 @@ function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
   return (
     <AriaHeading
       {...otherProps}
-      css={css(textBaseCSS)}
+      css={css(textBaseCSS, headingBaseCSS)}
       ref={ref}
       level={level}
       data-level={level}

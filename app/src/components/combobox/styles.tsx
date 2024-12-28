@@ -1,6 +1,6 @@
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
-export const comboBoxCSS = (theme: Theme) => css`
+export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
     --combobox-horizontal-padding: 6px;
@@ -45,7 +45,7 @@ export const comboBoxCSS = (theme: Theme) => css`
         border: 1px solid var(--ac-global-input-field-border-color-active);
       }
       &[data-disabled] {
-        opacity: ${theme.opacity.disabled};
+        opacity: var(--ac-global-opacity-disabled);
       }
       &[data-invalid]:not([data-focused]) {
         border-color: var(--ac-global-color-danger);
@@ -63,7 +63,7 @@ export const comboBoxCSS = (theme: Theme) => css`
       cursor: pointer;
       padding: 0 10px;
       &[data-disabled] {
-        opacity: ${theme.opacity.disabled};
+        opacity: var(--ac-global-opacity-disabled);
       }
       i {
         font-size: var(--ac-global-dimension-static-font-size-200);

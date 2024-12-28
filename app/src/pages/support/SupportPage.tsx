@@ -1,9 +1,7 @@
 import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Heading, Text } from "@arizeai/components";
-
-import { Flex, Icon, Icons, View } from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, Text, View } from "@phoenix/components";
 
 const supportItemsCSS = css`
   display: grid;
@@ -101,9 +99,7 @@ const SupportItem = ({
         {icon}
         <Heading level={2}>{title}</Heading>
       </Flex>
-      <Text textSize="medium" color="text-700">
-        {description}
-      </Text>
+      <Text color="text-700">{description}</Text>
     </a>
   );
 };

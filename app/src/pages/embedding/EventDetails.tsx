@@ -7,15 +7,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Accordion,
-  AccordionItem,
-  Counter,
-  Heading,
-  Label,
-} from "@arizeai/components";
+import { Accordion, AccordionItem, Counter, Label } from "@arizeai/components";
 
-import { Flex, Icon, Icons, View } from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -400,9 +394,10 @@ function TableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           <Empty

@@ -2,9 +2,7 @@ import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Text } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundDatasetSectionQuery } from "./__generated__/PlaygroundDatasetSectionQuery.graphql";
@@ -41,7 +39,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
       <View
         flex="none"
         backgroundColor={"dark"}
-        paddingX={"size-200"}
+        paddingX="size-200"
         paddingY={"size-100"}
         borderBottomColor={"light"}
         borderBottomWidth={"thin"}

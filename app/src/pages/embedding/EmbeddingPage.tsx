@@ -676,12 +676,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
           </View>
           <View flex="1 1 auto" overflow="auto">
             <ul
-              css={(theme) => css`
+              css={css`
                 flex: 1 1 auto;
                 display: flex;
                 flex-direction: column;
-                gap: ${theme.spacing.margin8}px;
-                margin: ${theme.spacing.margin8}px;
+                gap: var(--ac-global-dimension-size-100);
+                margin: var(--ac-global-dimension-size-100);
               `}
             >
               {clusters.map((cluster) => {

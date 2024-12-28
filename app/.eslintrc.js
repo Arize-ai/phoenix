@@ -84,6 +84,15 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "Heading",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "theme",
+        module: "@arizeai/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

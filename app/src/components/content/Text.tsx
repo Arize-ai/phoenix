@@ -24,7 +24,7 @@ import { TextElementType, Weight } from "./types";
 export interface TextProps extends DOMProps, StyleProps {
   /**
    * Sets text size
-   * @default 'M'
+   * @default 'S'
    */
   size?: TextSize;
   /**
@@ -84,7 +84,7 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
   const {
     children,
     color = isDisabled ? "text-300" : "text-900",
-    size = "medium",
+    size = "S",
     elementType = "span",
     weight = "normal",
     fontStyle = "normal",

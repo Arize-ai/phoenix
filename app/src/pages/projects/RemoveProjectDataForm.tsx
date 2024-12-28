@@ -3,9 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { isValid as dateIsValid, parseISO } from "date-fns";
 
-import { Text, TextField } from "@arizeai/components";
+import { TextField } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";

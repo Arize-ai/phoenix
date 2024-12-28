@@ -33,14 +33,9 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  DialogContainer,
-  Text,
-  Tooltip,
-  TooltipTrigger,
-} from "@arizeai/components";
+import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Loading, Text } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -316,7 +311,7 @@ function ExampleOutputContent({
 
   return (
     <CellWithControlsWrap controls={spanControls}>
-      <Flex direction={"column"} gap={"size-200"}>
+      <Flex direction={"column"} gap="size-200">
         {errorMessage != null ? (
           <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
         ) : null}
@@ -895,7 +890,7 @@ export function PlaygroundDatasetExamplesTable({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={(theme) => css(tableCSS(theme), borderedTableCSS)}
+        css={css(tableCSS, borderedTableCSS)}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),
