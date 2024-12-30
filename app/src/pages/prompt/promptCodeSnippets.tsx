@@ -70,9 +70,9 @@ const jsonFormatter = ({
  * code(
  *   { language, provider },
  *   [
- *     openai(),
+ *     providerSetup(),
  *     messages({messages}),
- *     completion(null, [argument(null, tools({ tools }))
+ *     providerCompletion(null, [argument({messages}), argument({tools}), argument({response_format})])
  *   ]
  * )
  * ```
