@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e18233b96a4ae06413df1401104a6623>>
+ * @generated SignedSource<<0c2994fc8df019c1e562af9548883e3d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,9 @@ export type promptVersionLoaderQuery$data = {
     readonly id: string;
     readonly invocationParameters?: any | null;
     readonly modelName?: string;
-    readonly tools?: any | null;
+    readonly tools?: ReadonlyArray<{
+      readonly definition: any;
+    }>;
     readonly user?: string | null;
     readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptInvocationParameters__main">;
   };
@@ -83,8 +85,19 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
+  "concreteType": "ToolDefinition",
+  "kind": "LinkedField",
   "name": "tools",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "definition",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 },
 v8 = {
@@ -270,16 +283,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79d9f2c9b07ae6e056c5c426fc3d41f9",
+    "cacheID": "a0bbd9435b68c46f99e884efea87a0bf",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      tools\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d97d68d3c88281b2949823d0e02948f3";
+(node as any).hash = "695fd26b98b3ee3026952b6d82e17372";
 
 export default node;
