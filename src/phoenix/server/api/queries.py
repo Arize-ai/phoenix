@@ -74,6 +74,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
+from phoenix.server.api.types.ToolDefinition import ToolDefinition
 from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
@@ -602,33 +603,30 @@ class Query:
                     template_format=PromptTemplateFormat.MUSTACHE,
                     template=template,
                     invocation_parameters={"temperature": 0.5},
-                    tools={
-                        "_version": "tools-v1",
-                        "tools": [
-                            {
-                                "definition": {
-                                    "name": "get_current_weather",
-                                    "description": "Get the current weather in a given location",
-                                    "parameters": {
-                                        "type": "object",
-                                        "properties": {
-                                            "location": {
-                                                "type": "string",
-                                                "description": "A location in the world",
-                                            },
-                                            "unit": {
-                                                "type": "string",
-                                                "enum": ["celsius", "fahrenheit"],
-                                                "default": "fahrenheit",
-                                                "description": "The unit of temperature",
-                                            },
+                    tools=[
+                        ToolDefinition(
+                            definition={
+                                "name": "get_current_weather",
+                                "description": "Get the current weather in a given location",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "A location in the world",
                                         },
-                                        "required": ["location"],
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": ["celsius", "fahrenheit"],
+                                            "default": "fahrenheit",
+                                            "description": "The unit of temperature",
+                                        },
                                     },
-                                }
+                                    "required": ["location"],
+                                },
                             }
-                        ],
-                    },
+                        )
+                    ],
                     output_schema=None,
                     model_name="gpt-4o",
                     model_provider="openai",
@@ -642,7 +640,7 @@ class Query:
                     template_format=PromptTemplateFormat.MUSTACHE,
                     template=template,
                     invocation_parameters=None,
-                    tools=None,
+                    tools=[],
                     output_schema=None,
                     model_name="gpt-4o",
                     model_provider="openai",
