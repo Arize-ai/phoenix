@@ -12,7 +12,7 @@ export interface TextFieldProps extends AriaTextFieldProps, SizingProps {}
 const textFieldCSS = css`
   display: flex;
   flex-direction: column;
-  width: fit-content;
+  width: 100%;
 
   &[data-size="M"] {
     --textfield-input-height: 30px;
@@ -52,6 +52,7 @@ function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
   return (
     <AriaTextField
       data-size={size}
+      className="ac-textfield"
       ref={ref}
       {...otherProps}
       css={css(fieldBaseCSS, textFieldCSS)}

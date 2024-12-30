@@ -47,25 +47,6 @@ export const comboBoxCSS = css`
       }
     }
   }
-  .react-aria-Label {
-    padding: 5px 0;
-    display: inline-block;
-    font-size: var(--ac-global-dimension-static-font-size-75);
-    font-weight: var(--px-font-weight-heavy);
-  }
-
-  .react-aria-FieldError {
-    font-size: var(--ac-global-dimension-static-font-size-75);
-    font-size: 12px;
-    color: var(--ac-global-color-danger);
-  }
-  [slot="description"] {
-    font-size: var(--ac-global-dimension-static-font-size-75);
-    padding-top: var(--ac-global-dimension-static-size-50);
-    display: inline-block;
-    color: var(--ac-global-text-color-500);
-    line-height: var(--ac-global-dimension-static-font-size-200);
-  }
 `;
 
 export const comboBoxPopoverCSS = css`

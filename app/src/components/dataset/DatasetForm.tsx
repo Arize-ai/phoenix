@@ -1,9 +1,18 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Form, TextArea, TextField } from "@arizeai/components";
+import { Form, TextArea } from "@arizeai/components";
 
-import { Button, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -56,14 +65,19 @@ export function DatasetForm({
             fieldState: { invalid, error },
           }) => (
             <TextField
-              label="Dataset Name"
-              description={`The name of the dataset`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
               value={value.toString()}
-            />
+            >
+              <Label>Dataset Name</Label>
+              <Input placeholder="e.x. Golden Dataset" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The name of the dataset</Text>
+              )}
+            </TextField>
           )}
         />
         <Controller

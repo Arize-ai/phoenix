@@ -36,12 +36,25 @@ export const fieldBaseCSS = css`
     &[data-invalid]:not([data-focused]) {
       border-color: var(--ac-global-color-danger);
     }
+    &::placeholder {
+      color: var(--ac-global-text-color-300);
+      font-style: italic;
+    }
   }
-  [slot="description"] {
-    font-size: var(--ac-global-font-size-xs);
+  [slot="description"],
+  .react-aria-FieldError {
+    /* The overriding cascade here is non ideal but it lets us have only one notion of text  */
+    font-size: var(--ac-global-font-size-xs) !important;
     padding-top: var(--ac-global-dimension-static-size-50);
     display: inline-block;
+    line-height: var(--ac-global-dimension-static-font-size-200) !important;
+  }
+
+  [slot="description"] {
     color: var(--ac-global-text-color-500);
-    line-height: var(--ac-global-dimension-static-font-size-200);
+  }
+
+  .react-aria-FieldError {
+    color: var(--ac-global-color-danger);
   }
 `;
