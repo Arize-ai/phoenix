@@ -20,7 +20,9 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     TextPromptMessage,
 )
 
+from .JSONSchema import JSONSchema
 from .PromptVersion import PromptTemplateFormat, PromptTemplateType, PromptVersion
+from .ToolDefinition import ToolDefinition
 
 
 @strawberry.type
@@ -64,33 +66,30 @@ class Prompt(Node):
                 template_format=PromptTemplateFormat.MUSTACHE,
                 template=template,
                 invocation_parameters={"temperature": 0.5},
-                tools={
-                    "_version": "tools-v1",
-                    "tools": [
-                        {
-                            "definition": {
-                                "name": "get_current_weather",
-                                "description": "Get the current weather in a given location",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "location": {
-                                            "type": "string",
-                                            "description": "A location in the world",
-                                        },
-                                        "unit": {
-                                            "type": "string",
-                                            "enum": ["celsius", "fahrenheit"],
-                                            "default": "fahrenheit",
-                                            "description": "The unit of temperature",
-                                        },
+                tools=[
+                    ToolDefinition(
+                        definition={
+                            "name": "get_current_weather",
+                            "description": "Get the current weather in a given location",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "location": {
+                                        "type": "string",
+                                        "description": "A location in the world",
                                     },
-                                    "required": ["location"],
+                                    "unit": {
+                                        "type": "string",
+                                        "enum": ["celsius", "fahrenheit"],
+                                        "default": "fahrenheit",
+                                        "description": "The unit of temperature",
+                                    },
                                 },
-                            }
+                                "required": ["location"],
+                            },
                         }
-                    ],
-                },
+                    )
+                ],
                 model_name="gpt-4o",
                 model_provider="openai",
             ),
@@ -103,6 +102,22 @@ class Prompt(Node):
                 template=template,
                 model_name="gpt-4o",
                 model_provider="openai",
+                tools=[],
+                output_schema=JSONSchema(
+                    schema={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "response",
+                            "schema": {
+                                "type": "object",
+                                "properties": {},
+                                "required": [],
+                                "additionalProperties": False,
+                            },
+                            "strict": True,
+                        },
+                    }
+                ),
             ),
         ]
 
