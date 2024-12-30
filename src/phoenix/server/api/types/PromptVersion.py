@@ -11,7 +11,9 @@ from strawberry.types import Info
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate
 
+from .JSONSchema import JSONSchema
 from .PromptVersionTag import PromptVersionTag
+from .ToolDefinition import ToolDefinition
 
 
 @strawberry.enum
@@ -36,8 +38,8 @@ class PromptVersion(Node):
     template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
-    tools: Optional[JSON] = None
-    output_schema: Optional[JSON] = None
+    tools: list[ToolDefinition]
+    output_schema: Optional[JSONSchema] = None
     model_name: str
     model_provider: str
 
