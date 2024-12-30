@@ -6,8 +6,12 @@ from typing import Optional
 import strawberry
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
+from strawberry.types import Info
 
+from phoenix.server.api.context import Context
 from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate
+
+from .PromptVersionTag import PromptVersionTag
 
 
 @strawberry.enum
@@ -36,3 +40,19 @@ class PromptVersion(Node):
     output_schema: Optional[JSON] = None
     model_name: str
     model_provider: str
+
+    @strawberry.field
+    def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
+        # TODO fill out details
+        return [
+            PromptVersionTag(
+                id_attr=1,
+                name="tag 1",
+                description="tag 1 description",
+            ),
+            PromptVersionTag(
+                id_attr=2,
+                name="tag 2",
+                description="tag 2 description",
+            ),
+        ]
