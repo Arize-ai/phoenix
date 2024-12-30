@@ -62,30 +62,32 @@ class Prompt(Node):
                 tools=[
                     ToolDefinition(
                         definition={
-                            "name": "get_current_weather",
-                            "description": "Get the current weather in a given location",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "location": {
-                                        "type": "string",
-                                        "description": "A location in the world",
+                            "type": "function",
+                            "function": {
+                                "name": "get_current_weather",
+                                "description": "Get the current weather in a given location",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "A location in the world",
+                                        },
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": ["celsius", "fahrenheit"],
+                                            "default": "fahrenheit",
+                                            "description": "The unit of temperature",
+                                        },
                                     },
-                                    "unit": {
-                                        "type": "string",
-                                        "enum": ["celsius", "fahrenheit"],
-                                        "default": "fahrenheit",
-                                        "description": "The unit of temperature",
-                                    },
+                                    "required": ["location"],
                                 },
-                                "required": ["location"],
                             },
                         }
                     )
                 ],
-                output_schema={
-                    "_version": "output-schema-v1",
-                    "output_schema": {
+                output_schema=JSONSchema(
+                    schema={
                         "type": "json_schema",
                         "json_schema": {
                             "type": "object",
@@ -97,7 +99,7 @@ class Prompt(Node):
                             "required": ["temperature", "location", "unit"],
                         },
                     },
-                },
+                ),
                 model_name="gpt-4o",
                 model_provider="openai",
             ),

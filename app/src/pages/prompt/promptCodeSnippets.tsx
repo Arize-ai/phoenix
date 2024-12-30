@@ -1,5 +1,4 @@
 import { CodeLanguage } from "@phoenix/components/code";
-import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
 
@@ -110,16 +109,16 @@ export const promptCodeSnippets: Record<
         messages = `${fmt}`;
         args.push(`messages=messages`);
       }
-      if (isObject(prompt.tools) && "tools" in prompt.tools) {
+      if (prompt.tools) {
         const fmt = jsonFormatter({
-          json: prompt.tools.tools,
+          json: prompt.tools.map((tool) => tool.definition),
           level: 1,
         });
         args.push(`tools=${fmt}`);
       }
-      if (prompt.outputSchema && "output_schema" in prompt.outputSchema) {
+      if (prompt.outputSchema && "schema" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.output_schema,
+          json: prompt.outputSchema.schema,
           level: 1,
         });
         args.push(`response_format=${fmt}`);
@@ -170,17 +169,17 @@ print(completion.choices[0].message)
         messages = `${fmt}`;
         args.push(`messages`);
       }
-      if (isObject(prompt.tools) && "tools" in prompt.tools) {
+      if (prompt.tools) {
         const fmt = jsonFormatter({
-          json: prompt.tools.tools,
+          json: prompt.tools.map((tool) => tool.definition),
           level: 1,
           removeKeyQuotes: true,
         });
         args.push(`tools: ${fmt}`);
       }
-      if (prompt.outputSchema && "output_schema" in prompt.outputSchema) {
+      if (prompt.outputSchema && "schema" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.output_schema,
+          json: prompt.outputSchema.schema,
           level: 1,
           removeKeyQuotes: true,
         });

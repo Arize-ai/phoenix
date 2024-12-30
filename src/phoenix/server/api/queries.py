@@ -51,6 +51,7 @@ from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
+from phoenix.server.api.types.JSONSchema import JSONSchema
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
@@ -563,30 +564,32 @@ class Query:
                     tools=[
                         ToolDefinition(
                             definition={
-                                "name": "get_current_weather",
-                                "description": "Get the current weather in a given location",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "location": {
-                                            "type": "string",
-                                            "description": "A location in the world",
+                                "type": "function",
+                                "function": {
+                                    "name": "get_current_weather",
+                                    "description": "Get the current weather in a given location",
+                                    "parameters": {
+                                        "type": "object",
+                                        "properties": {
+                                            "location": {
+                                                "type": "string",
+                                                "description": "A location in the world",
+                                            },
+                                            "unit": {
+                                                "type": "string",
+                                                "enum": ["celsius", "fahrenheit"],
+                                                "default": "fahrenheit",
+                                                "description": "The unit of temperature",
+                                            },
                                         },
-                                        "unit": {
-                                            "type": "string",
-                                            "enum": ["celsius", "fahrenheit"],
-                                            "default": "fahrenheit",
-                                            "description": "The unit of temperature",
-                                        },
+                                        "required": ["location"],
                                     },
-                                    "required": ["location"],
                                 },
                             }
                         )
                     ],
-                    output_schema={
-                        "_version": "output-schema-v1",
-                        "output_schema": {
+                    output_schema=JSONSchema(
+                        schema={
                             "type": "json_schema",
                             "json_schema": {
                                 "type": "object",
@@ -598,7 +601,7 @@ class Query:
                                 "required": ["temperature", "location", "unit"],
                             },
                         },
-                    },
+                    ),
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
