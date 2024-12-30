@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c2994fc8df019c1e562af9548883e3d>>
+ * @generated SignedSource<<e76ec250e8c9ef2f02b841a2ef8f5609>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,7 @@ export type promptVersionLoaderQuery$data = {
       readonly definition: any;
     }>;
     readonly user?: string | null;
-    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptInvocationParameters__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptCodeExportCard__main" | "PromptInvocationParameters__main">;
   };
 };
 export type promptVersionLoaderQuery = {
@@ -143,6 +143,11 @@ return {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "PromptChatMessages__main"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptCodeExportCard__main"
               },
               (v4/*: any*/),
               (v5/*: any*/),
@@ -269,9 +274,34 @@ return {
                 "name": "templateFormat",
                 "storageKey": null
               },
-              (v4/*: any*/),
               (v6/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "modelProvider",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "JSONSchema",
+                "kind": "LinkedField",
+                "name": "outputSchema",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "schema",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
               (v7/*: any*/),
+              (v4/*: any*/),
               (v8/*: any*/)
             ],
             "type": "PromptVersion",
@@ -283,16 +313,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0bbd9435b68c46f99e884efea87a0bf",
+    "cacheID": "ca612db6a8c270e44675d56c67a78f04",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      ...PromptCodeExportCard__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    schema\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
   }
 };
 })();
 
-(node as any).hash = "695fd26b98b3ee3026952b6d82e17372";
+(node as any).hash = "c3d7a33362c62c6db87bda93909e0a61";
 
 export default node;
