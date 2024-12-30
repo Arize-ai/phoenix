@@ -21,7 +21,7 @@ function PromptVersionDetailsPageContent({
   promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
   return (
-    <View padding="size-200" width="100%">
+    <View padding="size-200" width="100%" overflow="auto">
       <Flex
         direction="column"
         gap="size-200"

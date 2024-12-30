@@ -62,6 +62,26 @@ const jsonFormatter = ({
   return fmt;
 };
 
+/**
+ * A map of languages to model providers to code snippets
+ *
+ * @todo replace with a react-like DSL, for example something like the following:
+ * @example
+ * ```tsx
+ * code(
+ *   { language, provider },
+ *   [
+ *     openai(),
+ *     messages({messages}),
+ *     completion(null, [argument(null, tools({ tools }))
+ *   ]
+ * )
+ * ```
+ * where each function takes a props object and optional children, and returns a string.
+ *
+ * That way, each component can manage how to emit its portion of the string based on language and model provider,
+ * accessible via context from the top level code component.
+ */
 export const promptCodeSnippets: Record<
   CodeLanguage,
   Record<string, PromptToSnippet>
