@@ -80,6 +80,7 @@ class Prompt(Node):
                                             "description": "The unit of temperature",
                                         },
                                     },
+                                    "required": ["location"],
                                 },
                             },
                         }
