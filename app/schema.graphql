@@ -1091,6 +1091,10 @@ type JSONPromptMessage {
   content: JSON!
 }
 
+type JSONSchema {
+  schema: JSON!
+}
+
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1448,8 +1452,8 @@ type PromptVersion implements Node {
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
   invocationParameters: JSON
-  tools: JSON
-  outputSchema: JSON
+  tools: [ToolDefinition!]!
+  outputSchema: JSONSchema
   modelName: String!
   modelProvider: String!
   tags: [PromptVersionTag!]!
@@ -1849,6 +1853,10 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!
+}
+
+type ToolDefinition {
+  definition: JSON!
 }
 
 type Trace implements Node {
