@@ -10,15 +10,8 @@ from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import PromptMessageRole
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
-from phoenix.server.api.types.PromptVersionTemplate import (
-    PromptChatTemplate,
-    TextPromptMessage,
-)
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.PromptVersionTemplate import PromptChatTemplate, TextPromptMessage
 
 from .JSONSchema import JSONSchema
 from .PromptVersion import PromptTemplateFormat, PromptTemplateType, PromptVersion
@@ -90,6 +83,21 @@ class Prompt(Node):
                         }
                     )
                 ],
+                output_schema={
+                    "_version": "output-schema-v1",
+                    "output_schema": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "type": "object",
+                            "properties": {
+                                "temperature": {"type": "number"},
+                                "location": {"type": "string"},
+                                "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                            },
+                            "required": ["temperature", "location", "unit"],
+                        },
+                    },
+                },
                 model_name="gpt-4o",
                 model_provider="openai",
             ),

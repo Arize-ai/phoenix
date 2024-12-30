@@ -20,7 +20,7 @@ export type PromptToSnippet = ({
   | "template"
 >) => string;
 
-const TABS = "    ";
+const TABS = "  ";
 
 /**
  * Indentation-aware JSON formatter
@@ -117,9 +117,9 @@ export const promptCodeSnippets: Record<
         });
         args.push(`tools=${fmt}`);
       }
-      if (prompt.outputSchema) {
+      if (prompt.outputSchema && "output_schema" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema,
+          json: prompt.outputSchema.output_schema,
           level: 1,
         });
         args.push(`response_format=${fmt}`);
@@ -178,9 +178,9 @@ print(completion.choices[0].message)
         });
         args.push(`tools: ${fmt}`);
       }
-      if (prompt.outputSchema) {
+      if (prompt.outputSchema && "output_schema" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema,
+          json: prompt.outputSchema.output_schema,
           level: 1,
           removeKeyQuotes: true,
         });

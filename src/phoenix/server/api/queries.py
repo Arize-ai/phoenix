@@ -62,10 +62,7 @@ from phoenix.server.api.types.PromptVersion import (
     PromptTemplateType,
     PromptVersion,
 )
-from phoenix.server.api.types.PromptVersionTemplate import (
-    PromptChatTemplate,
-    TextPromptMessage,
-)
+from phoenix.server.api.types.PromptVersionTemplate import PromptChatTemplate, TextPromptMessage
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -587,7 +584,21 @@ class Query:
                             }
                         )
                     ],
-                    output_schema=None,
+                    output_schema={
+                        "_version": "output-schema-v1",
+                        "output_schema": {
+                            "type": "json_schema",
+                            "json_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "temperature": {"type": "number"},
+                                    "location": {"type": "string"},
+                                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                                },
+                                "required": ["temperature", "location", "unit"],
+                            },
+                        },
+                    },
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
