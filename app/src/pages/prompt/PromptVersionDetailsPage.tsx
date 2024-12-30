@@ -7,6 +7,7 @@ import { Flex, View } from "@phoenix/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptChatMessages } from "./PromptChatMessages";
+import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
 
 export function PromptVersionDetailsPage() {
@@ -20,7 +21,7 @@ function PromptVersionDetailsPageContent({
   promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
   return (
-    <View padding="size-200" width="100%">
+    <View padding="size-200" width="100%" overflow="auto">
       <Flex
         direction="column"
         gap="size-200"
@@ -45,6 +46,7 @@ function PromptVersionDetailsPageContent({
             </AccordionItem>
           </Accordion>
         </Card>
+        <PromptCodeExportCard promptVersion={promptVersion} />
       </Flex>
     </View>
   );
