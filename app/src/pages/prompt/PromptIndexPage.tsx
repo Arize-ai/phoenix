@@ -1,19 +1,15 @@
-import React, { useState } from "react";
+import React from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
 import { Accordion, AccordionItem, Card } from "@arizeai/components";
 
 import { Flex, View } from "@phoenix/components";
-import {
-  CodeLanguage,
-  CodeLanguageRadioGroup,
-  PythonBlock,
-} from "@phoenix/components/code";
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
 import { PromptChatMessages } from "./PromptChatMessages";
+import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
@@ -28,7 +24,6 @@ export function PromptIndexPageContent({
 }: {
   prompt: PromptIndexPage__main$key;
 }) {
-  const [language, setLanguage] = useState<CodeLanguage>("Python");
   const data = useFragment<PromptIndexPage__main$key>(
     graphql`
       fragment PromptIndexPage__main on Prompt {
@@ -37,6 +32,7 @@ export function PromptIndexPageContent({
             node {
               ...PromptInvocationParameters__main
               ...PromptChatMessages__main
+              ...PromptCodeExportCard__main
             }
           }
         }
@@ -84,18 +80,7 @@ export function PromptIndexPageContent({
                 </AccordionItem>
               </Accordion>
             </Card>
-            <Card
-              title="Code"
-              variant="compact"
-              extra={
-                <CodeLanguageRadioGroup
-                  language={language}
-                  onChange={setLanguage}
-                />
-              }
-            >
-              <PythonBlock value="Hello world" />
-            </Card>
+            <PromptCodeExportCard promptVersion={latestVersion} />
           </Flex>
         </View>
       </View>
