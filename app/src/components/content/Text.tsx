@@ -1,11 +1,8 @@
-import React, {
-  CSSProperties,
-  ElementType,
-  forwardRef,
-  ReactNode,
-  Ref,
-} from "react";
-import { filterDOMProps } from "@react-aria/utils";
+import React, { CSSProperties, forwardRef, ReactNode, Ref } from "react";
+import {
+  Text as AriaText,
+  TextProps as AriaTextProps,
+} from "react-aria-components";
 import { css } from "@emotion/react";
 
 import {
@@ -21,7 +18,7 @@ import { colorValue, useStyleProps } from "../utils";
 import { textBaseCSS } from "./styles";
 import { TextElementType, Weight } from "./types";
 
-export interface TextProps extends DOMProps, StyleProps {
+export interface TextProps extends AriaTextProps, DOMProps, StyleProps {
   /**
    * Sets text size
    * @default 'S'
@@ -85,18 +82,16 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
     children,
     color = isDisabled ? "text-300" : "text-900",
     size = "S",
-    elementType = "span",
     weight = "normal",
     fontStyle = "normal",
     ...otherProps
   } = props;
-  const TextTag = elementType as ElementType;
   const { styleProps } = useStyleProps(otherProps);
 
   return (
-    <TextTag
+    <AriaText
       className="ac-text"
-      {...filterDOMProps(otherProps)}
+      {...otherProps}
       {...styleProps}
       css={css`
         ${textCSS(color)};
@@ -107,7 +102,7 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
       ref={ref}
     >
       {children}
-    </TextTag>
+    </AriaText>
   );
 }
 

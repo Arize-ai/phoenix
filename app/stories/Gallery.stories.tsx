@@ -1,9 +1,17 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex, Item, Picker } from "@arizeai/components";
+import { Item, Picker } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import {
   ComboBox,
   ComboBoxItem,
@@ -51,6 +59,11 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
           <Item key="strawberry">Strawberry</Item>
           <Item key="vanilla">Vanilla</Item>
         </Picker>
+        <TextField size="M">
+          <Label>Label</Label>
+          <Input type="text" />
+          <Text slot="description">some text</Text>
+        </TextField>
         <Button size="S">Button</Button>
       </Flex>
       <Flex direction="row" gap="size-200" alignItems="center">
@@ -78,6 +91,11 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
           <Item key="strawberry">Strawberry</Item>
           <Item key="vanilla">Vanilla</Item>
         </Picker>
+        <TextField size="L">
+          <Label>Label</Label>
+          <Input type="text" />
+          <Text slot="description">some description</Text>
+        </TextField>
         <Button size="M">Button</Button>
       </Flex>
     </View>
