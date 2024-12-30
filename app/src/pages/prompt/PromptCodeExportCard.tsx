@@ -4,6 +4,7 @@ import { graphql } from "relay-runtime";
 
 import { Card } from "@arizeai/components";
 
+import { CopyToClipboardButton, Flex } from "@phoenix/components";
 import {
   CodeLanguage,
   CodeLanguageRadioGroup,
@@ -65,7 +66,10 @@ export function PromptCodeExportCard({
       title="Code"
       variant="compact"
       extra={
-        <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+        <Flex gap="size-100">
+          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+          <CopyToClipboardButton text={snippet} />
+        </Flex>
       }
     >
       {language === "Python" ? (
