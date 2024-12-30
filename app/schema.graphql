@@ -1460,6 +1460,7 @@ type PromptVersion implements Node {
   outputSchema: JSON
   modelName: String!
   modelProvider: String!
+  tags: [PromptVersionTag!]!
 }
 
 """A connection to a list of items."""
@@ -1478,6 +1479,13 @@ type PromptVersionEdge {
 
   """The item at the end of the edge"""
   node: PromptVersion!
+}
+
+type PromptVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  description: String
 }
 
 type Query {
