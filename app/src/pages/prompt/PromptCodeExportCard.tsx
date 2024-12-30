@@ -2,9 +2,9 @@ import React, { useMemo, useState } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Card } from "@arizeai/components";
+import { Accordion, AccordionItem, Card } from "@arizeai/components";
 
-import { CopyToClipboardButton, Flex } from "@phoenix/components";
+import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import {
   CodeLanguage,
   CodeLanguageRadioGroup,
@@ -65,6 +65,7 @@ export function PromptCodeExportCard({
     <Card
       title="Code"
       variant="compact"
+      bodyStyle={{ padding: 0 }}
       extra={
         <Flex gap="size-100">
           <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
@@ -72,11 +73,17 @@ export function PromptCodeExportCard({
         </Flex>
       }
     >
-      {language === "Python" ? (
-        <PythonBlock value={snippet} />
-      ) : language === "TypeScript" ? (
-        <TypeScriptBlock value={snippet} />
-      ) : null}
+      <Accordion>
+        <AccordionItem title="Snippet" id="snippet">
+          <View padding="size-100">
+            {language === "Python" ? (
+              <PythonBlock value={snippet} />
+            ) : language === "TypeScript" ? (
+              <TypeScriptBlock value={snippet} />
+            ) : null}
+          </View>
+        </AccordionItem>
+      </Accordion>
     </Card>
   );
 }
