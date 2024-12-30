@@ -1,8 +1,10 @@
+import { template } from "lodash";
+
 import { CodeLanguage } from "@phoenix/components/code";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
 
-export type PromptToSnippet = ({
+export type PromptToSnippetParams = ({
   invocationParameters,
   modelName,
   modelProvider,
@@ -19,7 +21,7 @@ export type PromptToSnippet = ({
   | "template"
 >) => string;
 
-const TABS = "  ";
+const TAB = "  ";
 
 /**
  * Indentation-aware JSON formatter
@@ -44,8 +46,8 @@ const jsonFormatter = ({
    */
   removeKeyQuotes?: boolean;
 }) => {
-  const tabsWithLevel = TABS.repeat(level);
-  let fmt = JSON.stringify(json, null, TABS);
+  const tabsWithLevel = TAB.repeat(level);
+  let fmt = JSON.stringify(json, null, TAB);
   // add TABS before every line except the first
   // this allows you to add additional indentation to the emitted JSON
   fmt = fmt
@@ -61,10 +63,44 @@ const jsonFormatter = ({
   return fmt;
 };
 
+const openaiTemplatePython = template(
+  `
+from openai import OpenAI
+
+client = OpenAI()
+
+messages=<%= messages %>
+# ^ apply additional templating to messages if needed
+
+completion = client.chat.completions.create(
+<% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
+<% }); %>)
+
+print(completion.choices[0].message)
+`.trim()
+);
+
+const openaiTemplateTypeScript = template(
+  `
+import OpenAI from "openai";
+
+const openai = new OpenAI();
+
+const messages = <%= messages %>;
+// ^ apply additional templating to messages if needed
+
+const response = openai.chat.completions.create({
+<% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
+<% }); %>});
+
+response.then((completion) => console.log(completion.choices[0].message));
+`.trim()
+);
+
 /**
  * A map of languages to model providers to code snippets
  *
- * @todo replace with a react-like DSL, for example something like the following:
+ * @todo when we implement more langs / providers, replace with a react-like DSL, for example something like the following:
  * @example
  * ```tsx
  * code(
@@ -83,13 +119,14 @@ const jsonFormatter = ({
  */
 export const promptCodeSnippets: Record<
   CodeLanguage,
-  Record<string, PromptToSnippet>
+  Record<string, PromptToSnippetParams>
 > = {
   Python: {
     openai: (prompt) => {
       if (!("messages" in prompt.template)) {
         throw new Error("Prompt template does not contain messages");
       }
+      // collect args to the provider completion fn call from the incoming template
       const args: string[] = [];
       if (prompt.modelName) {
         args.push(`model="${prompt.modelName}"`);
@@ -100,6 +137,8 @@ export const promptCodeSnippets: Record<
         );
         args.push(`${invocationArgs.join(",\n")}`);
       }
+      // messages are special, they are passed as a kwarg to the provider completion fn
+      // but defined in the template as a top level variable first
       let messages = "";
       if (prompt.template.messages.length > 0) {
         const fmt = jsonFormatter({
@@ -109,7 +148,7 @@ export const promptCodeSnippets: Record<
         messages = `${fmt}`;
         args.push(`messages=messages`);
       }
-      if (prompt.tools) {
+      if (prompt.tools && prompt.tools.length > 0) {
         const fmt = jsonFormatter({
           json: prompt.tools.map((tool) => tool.definition),
           level: 1,
@@ -124,24 +163,12 @@ export const promptCodeSnippets: Record<
         args.push(`response_format=${fmt}`);
       }
 
-      return `
-from openai import OpenAI
-
-client = OpenAI()
-${
-  messages
-    ? `
-messages=${messages}
-# ^ apply additional templating to messages if needed
-`
-    : ""
-}
-completion = client.chat.completions.create(
-${TABS}${args.join(",\n" + TABS)}
-)
-
-print(completion.choices[0].message)
-`.trim();
+      // now emit the template with the collected args and messages
+      return openaiTemplatePython({
+        tab: TAB,
+        args,
+        messages,
+      });
     },
   },
   TypeScript: {
@@ -149,6 +176,7 @@ print(completion.choices[0].message)
       if (!("messages" in prompt.template)) {
         throw new Error("Prompt template does not contain messages");
       }
+      // collect args to the provider completion fn call from the incoming template
       const args: string[] = [];
       if (prompt.modelName) {
         args.push(`model: "${prompt.modelName}"`);
@@ -159,6 +187,8 @@ print(completion.choices[0].message)
         );
         args.push(`${invocationArgs.join(",\n")}`);
       }
+      // messages are special, they are passed as a kwarg to the provider completion fn
+      // but defined in the template as a top level variable first
       let messages = "";
       if (prompt.template.messages.length > 0) {
         const fmt = jsonFormatter({
@@ -169,7 +199,7 @@ print(completion.choices[0].message)
         messages = `${fmt}`;
         args.push(`messages`);
       }
-      if (prompt.tools) {
+      if (prompt.tools && prompt.tools.length > 0) {
         const fmt = jsonFormatter({
           json: prompt.tools.map((tool) => tool.definition),
           level: 1,
@@ -186,24 +216,12 @@ print(completion.choices[0].message)
         args.push(`response_format: ${fmt}`);
       }
 
-      return `
-import OpenAI from "openai";
-
-const openai = new OpenAI();
-${
-  messages
-    ? `
-const messages = ${messages};
-// ^ apply additional templating to messages if needed
-`
-    : ""
-}
-const response = openai.chat.completions.create({
-${TABS}${args.join(",\n" + TABS)}
-});
-
-response.then((completion) => console.log(completion.choices[0].message));
-`.trim();
+      // now emit the template with the collected args and messages
+      return openaiTemplateTypeScript({
+        tab: TAB,
+        args,
+        messages,
+      });
     },
   },
 };
