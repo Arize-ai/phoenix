@@ -604,44 +604,28 @@ class Query:
                     tools=[
                         ToolDefinition(
                             definition={
-                                "type": "function",
-                                "function": {
-                                    "name": "get_current_weather",
-                                    "description": "Get the current weather in a given location",
-                                    "parameters": {
-                                        "type": "object",
-                                        "properties": {
-                                            "location": {
-                                                "type": "string",
-                                                "description": "A location in the world",
-                                            },
-                                            "unit": {
-                                                "type": "string",
-                                                "enum": ["celsius", "fahrenheit"],
-                                                "default": "fahrenheit",
-                                                "description": "The unit of temperature",
-                                            },
+                                "name": "get_current_weather",
+                                "description": "Get the current weather in a given location",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "location": {
+                                            "type": "string",
+                                            "description": "A location in the world",
                                         },
-                                        "required": ["location"],
+                                        "unit": {
+                                            "type": "string",
+                                            "enum": ["celsius", "fahrenheit"],
+                                            "default": "fahrenheit",
+                                            "description": "The unit of temperature",
+                                        },
                                     },
+                                    "required": ["location"],
                                 },
                             }
                         )
                     ],
-                    output_schema=JSONSchema(
-                        schema={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "temperature": {"type": "number"},
-                                    "location": {"type": "string"},
-                                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
-                                },
-                                "required": ["temperature", "location", "unit"],
-                            },
-                        },
-                    ),
+                    output_schema=None,
                     model_name="gpt-4o",
                     model_provider="openai",
                 )
