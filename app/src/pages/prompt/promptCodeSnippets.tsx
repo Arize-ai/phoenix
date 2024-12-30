@@ -107,6 +107,7 @@ export const promptCodeSnippets: Record<
 
       return `
 from openai import OpenAI
+
 client = OpenAI()
 ${
   messages
@@ -168,7 +169,8 @@ print(completion.choices[0].message)
 
       return `
 import OpenAI from "openai";
-const client = new OpenAI();
+
+const openai = new OpenAI();
 ${
   messages
     ? `
@@ -177,7 +179,7 @@ const messages = ${messages};
 `
     : ""
 }
-const response = client.chat.completions.create({
+const response = openai.chat.completions.create({
 ${TABS}${args.join(",\n" + TABS)}
 });
 
