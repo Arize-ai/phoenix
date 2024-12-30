@@ -191,5 +191,7 @@ def get_audio_format_from_base64(enc_str: str) -> str:
     # Decode the Base64 string back to bytes and guess the file type
     audio_bytes = base64.b64decode(enc_str)
     kind = filetype.guess(audio_bytes)
+    if kind is None:
+        return "pcm"
 
     return kind.extension

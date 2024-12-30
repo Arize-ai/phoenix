@@ -715,7 +715,7 @@ Your evaluation should provide a multiclass label from the following options:
 Here is the audio:
 """
 
-TONE_EMOTION_TEMPLATE_PT2 = """{the_audio_string}"""
+TONE_EMOTION_TEMPLATE_PT2 = """{audio_data}"""
 
 TONE_EMOTION_TEMPLATE_PT4 = """
 Your response must be a string, either positive, neutral, or negative, and should not contain any
@@ -735,7 +735,7 @@ EXPLANATION:
 
 TONE_EMOTION_RAILS = ["positive", "neutral", "negative"]
 
-AUDIO_SENTIMENT_TEMPLATE = ClassificationTemplate(
+AUDIO_SENTIMENT_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=TONE_EMOTION_RAILS,
     template=[
         PromptPartTemplate(

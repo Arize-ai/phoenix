@@ -22,6 +22,7 @@ from phoenix.evals.classify import (
     run_evals,
 )
 from phoenix.evals.default_templates import (
+    AUDIO_SENTIMENT_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
@@ -85,17 +86,6 @@ def classification_dataframe():
 
 
 @pytest.fixture
-def audio_classification_dataframe():
-    return pd.DataFrame(
-        [
-            {
-                "input": "/AAABAAgABwADAAwACAAOABAACgAQABIAFQASABkCAAGAPACMAGgAcACAAFwAmACcAHQAuA=",
-            },
-        ]
-    )
-
-
-@pytest.fixture
 def classification_responses():
     return [
         "relevant",
@@ -145,6 +135,50 @@ def test_llm_classify(
     )
 
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_audio(
+    openai_api_key: str,
+    classification_dataframe: DataFrame,
+    respx_mock: respx.mock,
+):
+    dataframe = pd.DataFrame(
+        [
+            {
+                "input": "/AAABAAgABwADAAwACAAOABAACgAQABIAFQASABkCAAGAPACMAGgAcACAAFwAmACcAHQAuA=",
+            },
+        ]
+    )
+    keys = list(dataframe["input"])
+    responses = ["neutral"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=AUDIO_SENTIMENT_PROMPT_TEMPLATE,
+        model=model,
+        rails=["positive", "neutral", "negative"],
+        verbose=True,
+    )
+
+    expected_labels = ["neutral"]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result[["label"]],
