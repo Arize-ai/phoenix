@@ -78,6 +78,7 @@ export function GlobalStyles() {
           --px-nav-expanded-width: 200px;
 
           --ac-global-opacity-disabled: 0.6;
+
           /* Text */
           --ac-global-font-size-xxs: 10px;
           --ac-global-font-size-xs: 12px;
@@ -94,6 +95,9 @@ export function GlobalStyles() {
           --ac-global-line-height-l: 28px;
           --ac-global-line-height-xl: 36px;
           --ac-global-line-height-xxl: 48px;
+
+          /* Fields */
+          --ac-global-input-field-min-width: 200px;
         }
 
         .ac-theme--dark {
