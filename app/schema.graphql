@@ -1447,7 +1447,7 @@ type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   user: String
-  description: String!
+  description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!

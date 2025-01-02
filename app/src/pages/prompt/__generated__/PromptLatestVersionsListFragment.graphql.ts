@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb0da5e686dfedfa2ecfe7b6e5645071>>
+ * @generated SignedSource<<b90f887419819663254b45a07d6597d9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptLatestVersionsListFragment$data = {
   readonly latestVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
-        readonly description: string;
+        readonly description: string | null;
         readonly id: string;
       };
     }>;

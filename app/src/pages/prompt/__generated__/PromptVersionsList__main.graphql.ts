@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92674889d2415687b4901d34eb98df89>>
+ * @generated SignedSource<<029b37a1cae4c9540506388ed485a026>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type PromptVersionsList__main$data = {
   readonly promptVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
-        readonly description: string;
+        readonly description: string | null;
         readonly id: string;
       };
     }>;
