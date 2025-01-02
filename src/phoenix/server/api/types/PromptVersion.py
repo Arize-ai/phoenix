@@ -61,7 +61,7 @@ class PromptVersion(Node):
         ]
 
 
-def to_gql_prompt_version_from_orm(orm_model: ORMPromptVersion) -> PromptVersion:
+def to_gql_prompt_version(orm_model: ORMPromptVersion) -> PromptVersion:
     return PromptVersion(
         id_attr=orm_model.id,
         user=None,  # TODO: propagate user if provided

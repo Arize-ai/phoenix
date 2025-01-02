@@ -56,7 +56,7 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
-from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version_from_orm
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -539,7 +539,7 @@ class Query:
                 if orm_prompt_version := await session.scalar(
                     select(models.PromptVersion).where(models.PromptVersion.id == node_id)
                 ):
-                    return to_gql_prompt_version_from_orm(orm_prompt_version)
+                    return to_gql_prompt_version(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
         raise NotFound(f"Unknown node type: {type_name}")
