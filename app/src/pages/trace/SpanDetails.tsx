@@ -1331,11 +1331,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     `}
                   >
                     {toolCall?.function?.name as string}(
-                    {JSON.stringify(
-                      JSON.parse(toolCall?.function?.arguments as string),
-                      null,
-                      2
-                    )}
+                    {typeof toolCall?.function?.arguments === "string"
+                      ? JSON.stringify(
+                          JSON.parse(toolCall?.function?.arguments as string),
+                          null,
+                          2
+                        )
+                      : ""}
                     )
                   </pre>
                 );
