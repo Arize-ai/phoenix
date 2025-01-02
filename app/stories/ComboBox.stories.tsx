@@ -1,8 +1,7 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex } from "@arizeai/components";
-
+import { Flex } from "@phoenix/components";
 import {
   ComboBox,
   ComboBoxItem,

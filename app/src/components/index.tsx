@@ -1,9 +1,18 @@
 // Re-export parts of react-aria-components
-export { FieldError, Input, Label } from "react-aria-components";
+export {
+  FieldError,
+  Input,
+  Label,
+  Tag,
+  TagGroup,
+  TagList,
+  Collection,
+} from "react-aria-components";
 export type {
   InputProps,
   LabelProps,
   FieldErrorProps,
+  TagProps,
 } from "react-aria-components";
 
 export * from "./Link";
