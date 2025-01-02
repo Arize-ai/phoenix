@@ -2,10 +2,12 @@ import React, { ReactNode, startTransition, useEffect } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+
 import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatInt, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
@@ -30,6 +32,8 @@ export function ProjectPageHeader(props: {
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         traceCount(timeRange: $timeRange)
         tokenCountTotal(timeRange: $timeRange)
+        tokenCountPrompt(timeRange: $timeRange)
+        tokenCountCompletion(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(
           probability: 0.50
           timeRange: $timeRange
@@ -55,6 +59,8 @@ export function ProjectPageHeader(props: {
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
   const tokenCountTotal = data?.tokenCountTotal;
+  const tokenCountPrompt = data?.tokenCountPrompt;
+  const tokenCountCompletion = data?.tokenCountCompletion;
   const spanAnnotationNames = data?.spanAnnotationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 
@@ -117,7 +123,41 @@ export function ProjectPageHeader(props: {
               <Text elementType="h3" size="S" color="text-700">
                 Total Tokens
               </Text>
-              <Text size="L">{intFormatter(tokenCountTotal)}</Text>
+              <TooltipTrigger delay={0} placement="bottom">
+                <TriggerWrap>
+                  <Text size="L">{intFormatter(tokenCountTotal)}</Text>
+                </TriggerWrap>
+                <HelpTooltip>
+                  <View width="size-2400">
+                    <Flex direction="column">
+                      <Flex justifyContent="space-between">
+                        <Text>Prompt Tokens</Text>
+                        <Text>
+                          {typeof tokenCountPrompt === "number"
+                            ? formatInt(tokenCountPrompt)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Completion Tokens</Text>
+                        <Text>
+                          {typeof tokenCountCompletion === "number"
+                            ? formatInt(tokenCountCompletion)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Total Tokens</Text>
+                        <Text>
+                          {typeof tokenCountTotal === "number"
+                            ? formatInt(tokenCountTotal)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                </HelpTooltip>
+              </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" size="S" color="text-700">

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd80b6efb4b67da91ba9add83415d3f7>>
+ * @generated SignedSource<<1e5e785003c8513a63755f3bc760005d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,8 @@ export type ProjectPageHeader_stats$data = {
   readonly latencyMsP50: number | null;
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
+  readonly tokenCountCompletion: number;
+  readonly tokenCountPrompt: number;
   readonly tokenCountTotal: number;
   readonly traceCount: number;
   readonly " $fragmentType": "ProjectPageHeader_stats";
@@ -74,6 +76,20 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
+      "args": (v1/*: any*/),
+      "kind": "ScalarField",
+      "name": "tokenCountPrompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": (v1/*: any*/),
+      "kind": "ScalarField",
+      "name": "tokenCountCompletion",
+      "storageKey": null
+    },
+    {
       "alias": "latencyMsP50",
       "args": [
         {
@@ -128,6 +144,6 @@ return {
 };
 })();
 
-(node as any).hash = "dcce9d160db90e2b5c51eef9971101a4";
+(node as any).hash = "e110b84031cc6bfa6bb37751b9c69765";
 
 export default node;
