@@ -8,8 +8,9 @@ from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
+from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate
+from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate, template_from_orm
 
 from .JSONSchema import JSONSchema
 from .PromptVersionTag import PromptVersionTag
@@ -58,3 +59,21 @@ class PromptVersion(Node):
                 description="tag 2 description",
             ),
         ]
+
+    @classmethod
+    def from_orm(cls, orm_model: ORMPromptVersion):
+        return cls(
+            id_attr=orm_model.id,
+            user=orm_model.user,
+            description=orm_model.description,
+            template_type=PromptTemplateType(orm_model.template_type),
+            template_format=PromptTemplateFormat(orm_model.template_format),
+            template=template_from_orm(orm_model),
+            invocation_parameters=orm_model.invocation_parameters,
+            tools=[ToolDefinition(definition=tool.definition) for tool in orm_model.tools],
+            output_schema=JSONSchema(schema=orm_model.output_schema)
+            if orm_model.output_schema
+            else None,
+            model_name=orm_model.model_name,
+            model_provider=orm_model.model_provider,
+        )
