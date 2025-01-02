@@ -1862,7 +1862,7 @@ type PromptVersion implements Node {
   """
   id: GlobalID!
   user: String
-  description: String!
+  description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
