@@ -8,12 +8,13 @@ from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
+from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate
+from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate, to_gql_template_from_orm
 
 from .JSONSchema import JSONSchema
 from .PromptVersionTag import PromptVersionTag
-from .ToolDefinition import ToolDefinition
+from .ToolDefinition import ToolDefinition, to_gql_tool_definitions_from_orm
 
 
 @strawberry.enum
@@ -33,7 +34,7 @@ class PromptTemplateFormat(str, Enum):
 class PromptVersion(Node):
     id_attr: NodeID[int]
     user: Optional[str]
-    description: str
+    description: Optional[str]
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     template: PromptTemplate
@@ -58,3 +59,21 @@ class PromptVersion(Node):
                 description="tag 2 description",
             ),
         ]
+
+
+def to_gql_prompt_version(orm_model: ORMPromptVersion) -> PromptVersion:
+    return PromptVersion(
+        id_attr=orm_model.id,
+        user=None,  # TODO: propagate user if provided
+        description=orm_model.description,
+        template_type=PromptTemplateType(orm_model.template_type),
+        template_format=PromptTemplateFormat(orm_model.template_format),
+        template=to_gql_template_from_orm(orm_model),
+        invocation_parameters=orm_model.invocation_parameters,
+        tools=to_gql_tool_definitions_from_orm(orm_model),
+        output_schema=JSONSchema(schema=orm_model.output_schema)
+        if orm_model.output_schema
+        else None,
+        model_name=orm_model.model_name,
+        model_provider=orm_model.model_provider,
+    )
