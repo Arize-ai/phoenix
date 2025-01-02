@@ -34,6 +34,6 @@ class PromptToolDefinition(BaseModel):
     definition: JSONSerializable
 
 
-class PromptTools(BaseModel):
+class PromptToolsV1(BaseModel):
     _version: str = "tools-v1"
     tools: list[PromptToolDefinition]

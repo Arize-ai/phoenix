@@ -13,7 +13,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
-from .PromptVersion import PromptVersion
+from .PromptVersion import PromptVersion, to_gql_prompt_version_from_orm
 
 
 @strawberry.type
@@ -46,15 +46,16 @@ class Prompt(Node):
         async with info.context.db() as session:
             orm_prompt_versions = await session.stream_scalars(stmt)
             data = [
-                PromptVersion.from_orm(prompt_version) for prompt_version in orm_prompt_versions
+                to_gql_prompt_version_from_orm(prompt_version)
+                async for prompt_version in orm_prompt_versions
             ]
             return connection_from_list(data=data, args=args)
 
-    @classmethod
-    def from_orm(cls, orm_model: "models.Prompt") -> "Prompt":
-        return Prompt(
-            id_attr=orm_model.id,
-            name=orm_model.name,
-            description=orm_model.description,
-            created_at=orm_model.created_at,
-        )
+
+def to_gql_prompt_from_orm(orm_model: "models.Prompt") -> Prompt:
+    return Prompt(
+        id_attr=orm_model.id,
+        name=orm_model.name,
+        description=orm_model.description,
+        created_at=orm_model.created_at,
+    )

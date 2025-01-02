@@ -35,18 +35,18 @@ class PromptChatTemplate:
     _version: str = "messages-v1"
     messages: list[PromptTemplateMessage]
 
-    @classmethod
-    def from_orm(cls, orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
-        model = PromptChatTemplateV1.model_validate(orm_model.template)
-        messages = []
-        for msg in model.template:
-            if isinstance(msg.content, TextPromptMessageModel):
-                messages.append(TextPromptMessage(role=msg.role, content=msg.content))
-            elif isinstance(msg.content, JSONPromptMessageModel):
-                messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
-            else:
-                raise ValueError(f"Unknown message type: {msg}")
-        return PromptChatTemplate(messages=messages)
+
+def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
+    model = PromptChatTemplateV1.model_validate(orm_model.template)
+    messages: list[PromptTemplateMessage] = []
+    for msg in model.template:
+        if isinstance(msg.content, TextPromptMessageModel):
+            messages.append(TextPromptMessage(role=msg.role, content=msg.content))
+        elif isinstance(msg.content, JSONPromptMessageModel):
+            messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
+        else:
+            raise ValueError(f"Unknown message type: {msg}")
+    return PromptChatTemplate(messages=messages)
 
 
 @strawberry.type
@@ -56,9 +56,10 @@ class PromptStringTemplate:
 
 def template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
     if orm_prompt_version.template_type == "str":
+        assert isinstance(orm_prompt_version.template, str)
         return PromptStringTemplate(template=orm_prompt_version.template)
     elif orm_prompt_version.template_type == "chat":
-        return PromptChatTemplate.from_orm(orm_prompt_version.template)
+        return to_gql_prompt_chat_template_from_orm(orm_prompt_version)
     else:
         raise ValueError(f"Unknown template type: {orm_prompt_version.template_type}")
 

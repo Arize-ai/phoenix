@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional, TypedDict, Union
 
 from sqlalchemy import (
     JSON,
@@ -76,6 +76,21 @@ class JsonDict(TypeDecorator[dict[str, Any]]):
 
     def process_bind_param(self, value: Optional[dict[str, Any]], _: Dialect) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
+
+
+class JsonDictOrStr(TypeDecorator[Union[dict[str, Any], str]]):
+    impl = JSON
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: Optional[Union[dict[str, Any], str]], _: Dialect
+    ) -> Optional[Union[dict[str, Any], str]]:
+        if isinstance(value, dict):
+            return value
+        elif isinstance(value, str):
+            return value  # Bare strings are accepted as-is
+        else:
+            return {}
 
 
 class JsonList(TypeDecorator[list[Any]]):
@@ -897,7 +912,7 @@ class PromptVersion(Base):
         ),
         nullable=False,
     )
-    template: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    template: Mapped[Union[dict[str, Any], str]] = mapped_column(JsonDictOrStr, nullable=False)
     invocation_parameters: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JsonDict, default=None, nullable=True
     )

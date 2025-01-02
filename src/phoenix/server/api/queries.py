@@ -55,10 +55,8 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
-from phoenix.server.api.types.Prompt import Prompt
-from phoenix.server.api.types.PromptVersion import (
-    PromptVersion,
-)
+from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version_from_orm
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -541,7 +539,7 @@ class Query:
                 if orm_prompt_version := await session.scalar(
                     select(models.PromptVersion).where(models.PromptVersion.id == node_id)
                 ):
-                    return PromptVersion.from_orm(orm_prompt_version)
+                    return to_gql_prompt_version_from_orm(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
         raise NotFound(f"Unknown node type: {type_name}")
@@ -584,7 +582,7 @@ class Query:
         stmt = select(models.Prompt)
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
-            data = [Prompt.from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
             return connection_from_list(
                 data=data,
                 args=args,
