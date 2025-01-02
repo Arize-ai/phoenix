@@ -9,6 +9,7 @@ from phoenix.server.api.helpers.prompts.models import JSONPromptMessage as JSONP
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptMessageRole,
+    PromptStringTemplateV1,
 )
 from phoenix.server.api.helpers.prompts.models import TextPromptMessage as TextPromptMessageModel
 
@@ -54,10 +55,14 @@ class PromptStringTemplate:
     template: str
 
 
-def template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
+def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
+    model = PromptStringTemplateV1.model_validate(orm_model.template)
+    return PromptStringTemplate(template=model.template)
+
+
+def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
     if orm_prompt_version.template_type == "str":
-        assert isinstance(orm_prompt_version.template, str)
-        return PromptStringTemplate(template=orm_prompt_version.template)
+        return to_gql_prompt_string_template_from_orm(orm_prompt_version)
     elif orm_prompt_version.template_type == "chat":
         return to_gql_prompt_chat_template_from_orm(orm_prompt_version)
     else:

@@ -30,6 +30,11 @@ class PromptChatTemplateV1(BaseModel):
     template: list[Union[TextPromptMessage, JSONPromptMessage]]
 
 
+class PromptStringTemplateV1(BaseModel):
+    _version: str = "string-v1"
+    template: str
+
+
 class PromptToolDefinition(BaseModel):
     definition: JSONSerializable
 

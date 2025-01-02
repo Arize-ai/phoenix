@@ -10,7 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate, template_from_orm
+from phoenix.server.api.types.PromptVersionTemplate import PromptTemplate, to_gql_template_from_orm
 
 from .JSONSchema import JSONSchema
 from .PromptVersionTag import PromptVersionTag
@@ -68,7 +68,7 @@ def to_gql_prompt_version_from_orm(orm_model: ORMPromptVersion) -> PromptVersion
         description=orm_model.description,
         template_type=PromptTemplateType(orm_model.template_type),
         template_format=PromptTemplateFormat(orm_model.template_format),
-        template=template_from_orm(orm_model),
+        template=to_gql_template_from_orm(orm_model),
         invocation_parameters=orm_model.invocation_parameters,
         tools=to_gql_tool_definitions_from_orm(orm_model),
         output_schema=JSONSchema(schema=orm_model.output_schema)
