@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e76ec250e8c9ef2f02b841a2ef8f5609>>
+ * @generated SignedSource<<8249029b94bcff9dd99d3975ce59011d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type promptVersionLoaderQuery$variables = {
 export type promptVersionLoaderQuery$data = {
   readonly promptVersion: {
     readonly __typename: string;
-    readonly description?: string;
+    readonly description?: string | null;
     readonly id: string;
     readonly invocationParameters?: any | null;
     readonly modelName?: string;

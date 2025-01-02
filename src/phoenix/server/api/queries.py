@@ -27,7 +27,6 @@ from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.models import PromptMessageRole
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
@@ -51,23 +50,16 @@ from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.JSONSchema import JSONSchema
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
-from phoenix.server.api.types.Prompt import Prompt
-from phoenix.server.api.types.PromptVersion import (
-    PromptTemplateFormat,
-    PromptTemplateType,
-    PromptVersion,
-)
-from phoenix.server.api.types.PromptVersionTemplate import PromptChatTemplate, TextPromptMessage
+from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.ToolDefinition import ToolDefinition
 from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
@@ -543,84 +535,13 @@ class Query:
                 created_at=datetime.now(),
             )
         elif type_name == PromptVersion.__name__:
-            template = PromptChatTemplate(
-                messages=[
-                    TextPromptMessage(
-                        role=PromptMessageRole.USER,
-                        content="Hello what's the weather in Antarctica like?",
-                    )
-                ]
-            )
-
-            if node_id == 2:
-                return PromptVersion(
-                    id_attr=2,
-                    user="alice",
-                    description="A dummy prompt version",
-                    template_type=PromptTemplateType.CHAT,
-                    template_format=PromptTemplateFormat.MUSTACHE,
-                    template=template,
-                    invocation_parameters={"temperature": 0.5},
-                    tools=[
-                        ToolDefinition(
-                            definition={
-                                "type": "function",
-                                "function": {
-                                    "name": "get_current_weather",
-                                    "description": "Get the current weather in a given location",
-                                    "parameters": {
-                                        "type": "object",
-                                        "properties": {
-                                            "location": {
-                                                "type": "string",
-                                                "description": "A location in the world",
-                                            },
-                                            "unit": {
-                                                "type": "string",
-                                                "enum": ["celsius", "fahrenheit"],
-                                                "default": "fahrenheit",
-                                                "description": "The unit of temperature",
-                                            },
-                                        },
-                                        "required": ["location"],
-                                    },
-                                },
-                            }
-                        )
-                    ],
-                    output_schema=JSONSchema(
-                        schema={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "temperature": {"type": "number"},
-                                    "location": {"type": "string"},
-                                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
-                                },
-                                "required": ["temperature", "location", "unit"],
-                            },
-                        },
-                    ),
-                    model_name="gpt-4o",
-                    model_provider="openai",
-                )
-            elif node_id == 1:
-                return PromptVersion(
-                    id_attr=1,
-                    user="alice",
-                    description="A dummy prompt version",
-                    template_type=PromptTemplateType.CHAT,
-                    template_format=PromptTemplateFormat.MUSTACHE,
-                    template=template,
-                    invocation_parameters=None,
-                    tools=[],
-                    output_schema=None,
-                    model_name="gpt-4o",
-                    model_provider="openai",
-                )
-            else:
-                raise NotFound(f"Unknown prompt version: {id}")
+            async with info.context.db() as session:
+                if orm_prompt_version := await session.scalar(
+                    select(models.PromptVersion).where(models.PromptVersion.id == node_id)
+                ):
+                    return to_gql_prompt_version(orm_prompt_version)
+                else:
+                    raise NotFound(f"Unknown prompt version: {id}")
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -658,23 +579,14 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        return connection_from_list(
-            data=[
-                Prompt(
-                    id_attr=1,
-                    name="prompt-1",
-                    description="The first prompt",
-                    created_at=datetime.now(),
-                ),
-                Prompt(
-                    id_attr=2,
-                    name="prompt-2",
-                    description="The second prompt",
-                    created_at=datetime.now(),
-                ),
-            ],
-            args=args,
-        )
+        stmt = select(models.Prompt)
+        async with info.context.db() as session:
+            orm_prompts = await session.stream_scalars(stmt)
+            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
 
     @strawberry.field
     def clusters(
