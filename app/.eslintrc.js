@@ -55,6 +55,11 @@ module.exports = {
     "deprecate/import": [
       "error",
       {
+        name: "Accordion",
+        module: "@arizeai/components",
+        use: "import { DisclosureGroup, Disclosure, DisclosureTrigger, DisclosurePanel } from '@phoenix/components'",
+      },
+      {
         name: "Button",
         module: "@arizeai/components",
         use: "@phoenix/components",

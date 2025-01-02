@@ -15,6 +15,7 @@ export * from "./ViewSummaryAside";
 export * from "./CopyToClipboardButton";
 
 // design system based components
+export * from "./disclosure";
 export * from "./combobox";
 export * from "./button";
 export * from "./icon";
