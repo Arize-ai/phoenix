@@ -1331,7 +1331,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     `}
                   >
                     {toolCall?.function?.name as string}(
-                    {toolCall?.function?.arguments
+                    {typeof toolCall?.function?.arguments === "string"
                       ? JSON.stringify(
                           JSON.parse(toolCall?.function?.arguments as string),
                           null,
