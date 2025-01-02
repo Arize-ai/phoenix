@@ -1,29 +1,43 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Label, Tag, TagGroup, TagList, TagProps } from "@phoenix/components";
+import {
+  Label,
+  Tag,
+  TagGroup,
+  TagGroupProps,
+  TagList,
+} from "@phoenix/components";
 
 import { ThemeWrapper } from "./components/ThemeWrapper";
 
 const meta: Meta = {
   title: "TagGroup",
-  component: Tag,
+  component: TagGroup,
   parameters: {
     controls: { expanded: true },
+  },
+  argTypes: {
+    selectionMode: {
+      options: ["none", "single", "multiple"],
+      control: {
+        type: "radio",
+      },
+    },
   },
 };
 
 export default meta;
 
-const Template: StoryFn<TagProps> = (args) => (
+const Template: StoryFn<TagGroupProps> = (args) => (
   <ThemeWrapper>
-    <TagGroup selectionMode="multiple">
+    <TagGroup {...args}>
       <Label>Categories</Label>
       <TagList>
-        <Tag {...args}>News</Tag>
-        <Tag {...args}>Travel</Tag>
-        <Tag {...args}>Gaming</Tag>
-        <Tag {...args}>Shopping</Tag>
+        <Tag>News</Tag>
+        <Tag>Travel</Tag>
+        <Tag>Gaming</Tag>
+        <Tag>Shopping</Tag>
       </TagList>
     </TagGroup>
   </ThemeWrapper>
@@ -32,5 +46,5 @@ const Template: StoryFn<TagProps> = (args) => (
 export const Default = Template.bind({});
 
 Default.args = {
-  children: "Button",
+  selectionMode: "multiple",
 };

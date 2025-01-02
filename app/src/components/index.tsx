@@ -13,6 +13,7 @@ export type {
   LabelProps,
   FieldErrorProps,
   TagProps,
+  TagGroupProps,
 } from "react-aria-components";
 
 export * from "./Link";
