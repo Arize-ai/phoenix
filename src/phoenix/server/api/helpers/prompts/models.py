@@ -1,11 +1,10 @@
 from enum import Enum
-from typing import Any, Literal, TypeVar, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeAlias
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
-PromptModel = TypeVar("PromptModel", bound="BasePromptModel")
 
 
 class PromptTemplateType(str, Enum):
@@ -26,28 +25,28 @@ class PromptTemplateFormat(str, Enum):
     NONE = "none"
 
 
-class BasePromptModel(BaseModel):
+class PromptModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
     )
 
 
-class TextPromptMessage(BasePromptModel):
+class TextPromptMessage(PromptModel):
     role: PromptMessageRole
     content: str
 
 
-class JSONPromptMessage(BasePromptModel):
+class JSONPromptMessage(PromptModel):
     role: PromptMessageRole
     content: JSONSerializable
 
 
-class PromptChatTemplateV1(BasePromptModel):
+class PromptChatTemplateV1(PromptModel):
     _version: str = "messages-v1"
     messages: list[Union[TextPromptMessage, JSONPromptMessage]]
 
 
-class PromptStringTemplateV1(BasePromptModel):
+class PromptStringTemplateV1(PromptModel):
     _version: str = "string-v1"
     template: str
 
@@ -61,10 +60,10 @@ class PromptJSONSchema(BaseModel):
     definition: dict[str, Any]
 
 
-class PromptToolDefinition(BasePromptModel):
+class PromptToolDefinition(PromptModel):
     definition: dict[str, Any]
 
 
-class PromptToolsV1(BasePromptModel):
+class PromptToolsV1(PromptModel):
     version: Literal["tools-v1"] = "tools-v1"
     tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
