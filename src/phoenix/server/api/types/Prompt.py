@@ -1,19 +1,25 @@
 # Part of the Phoenix PromptHub feature set
-
 from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy.sql import select
+from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 
-from .PromptVersion import PromptVersion, to_gql_prompt_version
+from .PromptVersion import (
+    PromptVersion,
+    to_gql_prompt_version,
+)
 
 
 @strawberry.type
