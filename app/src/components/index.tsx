@@ -22,3 +22,4 @@ export * from "./view";
 export * from "./layout";
 export * from "./content";
 export * from "./textfield";
+export * from "./tag";
