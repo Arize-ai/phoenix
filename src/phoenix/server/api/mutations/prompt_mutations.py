@@ -46,7 +46,9 @@ class PromptMutationMixin:
                 if input.prompt_version.output_schema is not None
                 else None
             )
-            template = PromptChatTemplateV1.model_validate(input.prompt_version.template).dict()
+            template = PromptChatTemplateV1.model_validate(
+                strawberry.asdict(input.prompt_version.template)
+            ).dict()
         except ValidationError as error:
             raise BadRequest(str(error))
         async with info.context.db() as session:

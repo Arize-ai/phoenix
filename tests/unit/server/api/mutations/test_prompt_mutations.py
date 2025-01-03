@@ -58,7 +58,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
-                            "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
@@ -78,7 +78,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
-                            "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
@@ -99,7 +99,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
-                            "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
@@ -163,7 +163,7 @@ class TestPromptMutations:
                     "description": "prompt-version-description",
                     "templateType": "CHAT",
                     "templateFormat": "MUSTACHE",
-                    "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                    "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                     "invocationParameters": {"temperature": 0.4},
                     "modelProvider": "openai",
                     "modelName": "o1-mini",
@@ -186,40 +186,13 @@ class TestPromptMutations:
             pytest.param(
                 {
                     "input": {
-                        "name": "another-prompt-name",
-                        "description": "prompt-description",
-                        "promptVersion": {
-                            "description": "prompt-version-description",
-                            "templateType": "CHAT",
-                            "templateFormat": "MUSTACHE",
-                            "template": {
-                                "messages": [
-                                    {
-                                        "role": "user",
-                                        "content": "hello world",
-                                        "extra_key": "test_value",
-                                    }
-                                ]
-                            },
-                            "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
-                            "modelName": "o1-mini",
-                        },
-                    }
-                },
-                "extra_key",
-                id="extra-key-in-message",
-            ),
-            pytest.param(
-                {
-                    "input": {
                         "name": "prompt-name",
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
                             "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
-                            "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
@@ -241,7 +214,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
-                            "template": {"messages": [{"role": "user", "content": "hello world"}]},
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
