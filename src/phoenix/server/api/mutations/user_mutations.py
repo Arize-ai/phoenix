@@ -1,12 +1,13 @@
 import secrets
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import strawberry
 from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
-from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -108,7 +109,7 @@ class UserMutationMixin:
             session.add(user)
             try:
                 await session.flush()
-            except IntegrityError as error:
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error))
         return UserMutationPayload(user=to_gql_user(user))
 
@@ -148,7 +149,7 @@ class UserMutationMixin:
             assert user in session.dirty
             try:
                 await session.flush()
-            except IntegrityError as error:
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error, "modify"))
         assert user
         if input.new_password:
@@ -186,7 +187,7 @@ class UserMutationMixin:
             user.updated_at = datetime.now(timezone.utc)
             try:
                 await session.flush()
-            except IntegrityError as error:
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error, "modify"))
         assert user
         if input.new_password:
@@ -313,7 +314,7 @@ def _select_user_by_id(user_id: int) -> Select[tuple[models.User]]:
 
 
 def _user_operation_error_message(
-    error: IntegrityError,
+    error: Union[PostgreSQLIntegrityError, SQLiteIntegrityError],
     operation: Literal["create", "modify"] = "create",
 ) -> str:
     """

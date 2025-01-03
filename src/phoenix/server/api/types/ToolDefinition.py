@@ -14,4 +14,4 @@ class ToolDefinition:
 
 def to_gql_tool_definitions_from_orm(orm_prompt_version: ORMPromptVersion) -> list[ToolDefinition]:
     prompt_tools = PromptToolsV1.model_validate(orm_prompt_version.tools)
-    return [ToolDefinition(definition=tool) for tool in prompt_tools]
+    return [ToolDefinition(definition=definition) for definition in prompt_tools]

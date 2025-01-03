@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8249029b94bcff9dd99d3975ce59011d>>
+ * @generated SignedSource<<7f7fc88379eb7364e4fbc58aca628032>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -82,32 +82,33 @@ v6 = {
   "name": "modelName",
   "storageKey": null
 },
-v7 = {
+v7 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "definition",
+    "storageKey": null
+  }
+],
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "definition",
-      "storageKey": null
-    }
-  ],
+  "selections": (v7/*: any*/),
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "user",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -152,8 +153,8 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/)
+              (v8/*: any*/),
+              (v9/*: any*/)
             ],
             "type": "PromptVersion",
             "abstractKey": null
@@ -209,7 +210,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "alias": "jsonContent",
                                 "args": null,
@@ -224,7 +225,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -289,20 +290,12 @@ return {
                 "kind": "LinkedField",
                 "name": "outputSchema",
                 "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "schema",
-                    "storageKey": null
-                  }
-                ],
+                "selections": (v7/*: any*/),
                 "storageKey": null
               },
-              (v7/*: any*/),
+              (v8/*: any*/),
               (v4/*: any*/),
-              (v8/*: any*/)
+              (v9/*: any*/)
             ],
             "type": "PromptVersion",
             "abstractKey": null
@@ -313,12 +306,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca612db6a8c270e44675d56c67a78f04",
+    "cacheID": "57793b4eec0ac66f6819c7e0e0913fe4",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      ...PromptCodeExportCard__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    schema\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      ...PromptCodeExportCard__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      user\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
   }
 };
 })();
