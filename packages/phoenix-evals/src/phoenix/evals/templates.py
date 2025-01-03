@@ -137,8 +137,7 @@ class ClassificationTemplate(PromptTemplate):
             )
         self.rails = rails
         self.template = self._normalize_template(template)
-        if explanation_template:
-            self.explanation_template = self._normalize_template(explanation_template)
+        self.explanation_template = self._normalize_template(explanation_template)
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
