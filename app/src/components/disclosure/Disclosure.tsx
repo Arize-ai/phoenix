@@ -31,7 +31,7 @@ export const DisclosureGroup = ({
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
-      className={classNames("rac-disclosure-group", className)}
+      className={classNames("ac-disclosure-group", className)}
       css={disclosureGroupCSS}
       {...props}
     />
@@ -48,7 +48,7 @@ export type DisclosureProps = AriaDisclosureProps & SizingProps;
 export const Disclosure = ({ size, className, ...props }: DisclosureProps) => {
   return (
     <AriaDisclosure
-      className={classNames("rac-disclosure", className)}
+      className={classNames("ac-disclosure", className)}
       css={disclosureCSS}
       data-size={size}
       defaultExpanded
@@ -70,7 +70,7 @@ export const DisclosurePanel = ({
 }: DisclosurePanelProps) => {
   return (
     <AriaDisclosurePanel
-      className={classNames("rac-disclosure-panel", className)}
+      className={classNames("ac-disclosure-panel", className)}
       {...props}
     />
   );
