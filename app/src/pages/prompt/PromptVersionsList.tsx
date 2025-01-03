@@ -3,7 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { Flex, Tag, TagGroup, TagList, Text, View } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import {
@@ -60,19 +60,24 @@ export const PromptVersionItem = ({
   active,
 }: PromptVersionItemProps) => {
   const styles = useMemo(() => promptVersionItemCSS({ active }), [active]);
+  const tags = version.tags.map((tag) => ({
+    id: tag.name,
+    name: tag.name,
+  }));
   return (
     <div css={styles}>
       <Link to={`${version.id}`}>
-        <Flex width="100%" height={96} direction="row">
-          <View width="100%" padding="size-200">
-            <Flex direction="column">
-              <Text>{version.id}</Text>
-              <Truncate maxWidth={"100%"}>
-                <Text>{version.description}</Text>
-              </Truncate>
-            </Flex>
-          </View>
-        </Flex>
+        <View width="100%" padding="size-200">
+          <Flex direction="column" gap="size-100">
+            <Text>{version.id}</Text>
+            <Truncate maxWidth={"100%"}>
+              <Text>{version.description}</Text>
+            </Truncate>
+            <TagGroup>
+              <TagList items={tags}>{(tag) => <Tag>{tag.name}</Tag>}</TagList>
+            </TagGroup>
+          </Flex>
+        </View>
       </Link>
     </div>
   );
@@ -102,6 +107,9 @@ export const PromptVersionsList = ({
               ... on PromptVersion {
                 id
                 description
+                tags {
+                  name
+                }
               }
             }
           }
