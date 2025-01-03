@@ -10,7 +10,9 @@ import {
   Heading,
 } from "react-aria-components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
+
+import { FlexStyleProps } from "../types";
 
 import { disclosureCss, disclosureGroupCss } from "./styles";
 
@@ -23,7 +25,13 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps;
  * AKA Accordion with one or more items
  */
 export const DisclosureGroup = (props: DisclosureGroupProps) => {
-  return <AriaDisclosureGroup css={disclosureGroupCss} {...props} />;
+  return (
+    <AriaDisclosureGroup
+      allowsMultipleExpanded
+      css={disclosureGroupCss}
+      {...props}
+    />
+  );
 };
 
 export type DisclosureProps = AriaDisclosureProps;
@@ -34,7 +42,7 @@ export type DisclosureProps = AriaDisclosureProps;
  * AKA Accordion (with a single item) / Accordion Item
  */
 export const Disclosure = (props: DisclosureProps) => {
-  return <AriaDisclosure css={disclosureCss} {...props} />;
+  return <AriaDisclosure css={disclosureCss} defaultExpanded {...props} />;
 };
 
 export type DisclosurePanelProps = AriaDisclosurePanelProps;
@@ -48,16 +56,32 @@ export const DisclosurePanel = (props: DisclosurePanelProps) => {
   return <AriaDisclosurePanel {...props} />;
 };
 
+export type DisclosureTriggerProps = PropsWithChildren<{
+  arrowPosition?: "start" | "end";
+  justifyContent?: FlexStyleProps["justifyContent"];
+}>;
+
 /**
  * A DisclosureTrigger is a component that triggers the Disclosure.
  *
  * AKA Accordion Title
  */
-export const DisclosureTrigger = ({ children }: PropsWithChildren) => {
+export const DisclosureTrigger = ({
+  children,
+  arrowPosition,
+  justifyContent,
+}: DisclosureTriggerProps) => {
   return (
     <Heading>
-      <Button slot="trigger">
-        {children}
+      <Button slot="trigger" data-arrow-position={arrowPosition}>
+        <Flex
+          justifyContent={justifyContent}
+          alignItems="center"
+          width="100%"
+          gap="size-100"
+        >
+          {children}
+        </Flex>
         <Icon svg={<Icons.ArrowIosForwardOutline />} />
       </Button>
     </Heading>

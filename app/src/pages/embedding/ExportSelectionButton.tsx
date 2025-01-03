@@ -6,8 +6,6 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Accordion,
-  AccordionItem,
   Alert,
   Dialog,
   DialogContainer,
@@ -16,7 +14,17 @@ import {
   ListItem,
 } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
+import {
+  Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Icon,
+  Icons,
+  Loading,
+  View,
+} from "@phoenix/components";
 import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
@@ -147,13 +155,16 @@ export function ExportSelectionButton() {
                 <CodeBlock value={EXPORTS_CODE_SNIPPET} />
               </View>
             </div>
-            <Accordion>
-              <AccordionItem id="all-exports" title="Latest Exports">
-                <Suspense fallback={<Loading />}>
-                  <ExportsList />
-                </Suspense>
-              </AccordionItem>
-            </Accordion>
+            <DisclosureGroup defaultExpandedKeys={["all-exports"]}>
+              <Disclosure id="all-exports">
+                <DisclosureTrigger>Latest Exports</DisclosureTrigger>
+                <DisclosurePanel>
+                  <Suspense fallback={<Loading />}>
+                    <ExportsList />
+                  </Suspense>
+                </DisclosurePanel>
+              </Disclosure>
+            </DisclosureGroup>
           </Dialog>
         )}
       </DialogContainer>

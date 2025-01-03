@@ -36,11 +36,13 @@ export const disclosureCss = css`
     color: var(--ac-global-text-color-900);
     border-bottom: 1px solid var(--ac-global-border-color-default);
     outline: none;
-
     background-color: transparent;
-    &:hover:not([disabled]),
-    &:focus:not([disabled]) {
+    &:hover:not([disabled]) {
       background-color: var(--ac-global-input-field-background-color-active);
+    }
+    &[data-focus-visible] {
+      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline-offset: -1px;
     }
     &:not([disabled]) {
       transition: all 0.2s ease-in-out;
@@ -51,13 +53,17 @@ export const disclosureCss = css`
     }
 
     // style trigger icon
-    svg,
-    i {
+    > svg,
+    > i {
       rotate: 0deg;
       transition: rotate 200ms;
       width: 1em;
       height: 1em;
       fill: currentColor;
+    }
+
+    &[data-arrow-position="start"] {
+      flex-direction: row-reverse;
     }
   }
 

@@ -14,6 +14,7 @@ import {
   DisclosurePanel,
   DisclosureProps,
   DisclosureTrigger,
+  DisclosureTriggerProps,
   Flex,
   Heading,
   Text,
@@ -77,13 +78,64 @@ export const SingleItem: Meta<typeof SingleItemStory> = {
   },
 };
 
+const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
+  <ThemeWrapper>
+    <View height="600px" width="600px">
+      <DisclosureGroup>
+        <Disclosure id="content" {...args}>
+          <DisclosureTrigger {...args}>
+            Content Title
+            <span
+              style={{
+                color: "var(--ac-global-text-color-500)",
+                border: "1px solid var(--ac-global-text-color-500)",
+                borderRadius: "12px",
+                padding: "var(--ac-global-dimension-static-size-100)",
+                height: "8px",
+                width: "16px",
+                lineHeight: "0px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              1
+            </span>
+          </DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </View>
+  </ThemeWrapper>
+);
+
+export const ExtraTitleContent: Meta<typeof ExtraTitleContentStory> = {
+  render: ExtraTitleContentStory,
+  args: {
+    justifyContent: "start",
+    arrowPosition: "end",
+  },
+  argTypes: {
+    arrowPosition: {
+      control: { type: "radio" },
+      options: ["start", "end"],
+    },
+    justifyContent: {
+      control: { type: "radio" },
+      options: ["space-between", "start"],
+    },
+  },
+};
+
 const MigrationStory: StoryFn<DisclosureGroupProps> = (args) => (
   <ThemeWrapper>
     <View height="600px">
       <Flex direction="column" gap="size-400" alignItems="baseline">
         <Heading level={2}>Disclosure</Heading>
         <DisclosureGroup {...args}>
-          <Disclosure id="content" defaultExpanded>
+          <Disclosure id="content">
             <DisclosureTrigger>Content Title</DisclosureTrigger>
             <DisclosurePanel>
               <Text>Content</Text>
@@ -118,8 +170,8 @@ const MigrationStory: StoryFn<DisclosureGroupProps> = (args) => (
 export const Migration: Meta<typeof MigrationStory> = {
   render: MigrationStory,
   args: {
+    defaultExpandedKeys: ["content", "content-2"],
     allowsMultipleExpanded: true,
     isDisabled: false,
-    defaultExpandedKeys: ["content", "content-2"],
   },
 };

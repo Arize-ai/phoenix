@@ -6,8 +6,12 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Accordion, AccordionItem } from "@arizeai/components";
-
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+} from "@phoenix/components";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -128,14 +132,20 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
   }, [data.spanAnnotations]);
   const hasAnnotations = data.spanAnnotations.length > 0;
   return hasAnnotations ? (
-    <Accordion>
-      <AccordionItem id={"evaluations"} title={"Evaluations"}>
-        <SpanAnnotationsTable annotations={llmAnnotations} />
-      </AccordionItem>
-      <AccordionItem id={"human"} title={"Human Annotations"}>
-        <SpanAnnotationsTable annotations={humanAnnotations} />
-      </AccordionItem>
-    </Accordion>
+    <DisclosureGroup defaultExpandedKeys={["evaluations", "human"]}>
+      <Disclosure id="evaluations">
+        <DisclosureTrigger>Evaluations</DisclosureTrigger>
+        <DisclosurePanel>
+          <SpanAnnotationsTable annotations={llmAnnotations} />
+        </DisclosurePanel>
+      </Disclosure>
+      <Disclosure id="human">
+        <DisclosureTrigger>Human Annotations</DisclosureTrigger>
+        <DisclosurePanel>
+          <SpanAnnotationsTable annotations={humanAnnotations} />
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
   ) : (
     <SpanAnnotationsEmpty />
   );
