@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.2...arize-phoenix-v7.4.0) (2025-01-02)
+
+
+### Features
+
+* **components:** TextField ([#5850](https://github.com/Arize-ai/phoenix/issues/5850)) ([e91408d](https://github.com/Arize-ai/phoenix/commit/e91408d6ce07d08c2fef09415803c234ca728106))
+* **docs:** add support links ([#5829](https://github.com/Arize-ai/phoenix/issues/5829)) ([dd8ae20](https://github.com/Arize-ai/phoenix/commit/dd8ae2034cd96029a31ff80ea3bf6852fe1a5112))
+* show a breakdown of tokens in the project header ([#5876](https://github.com/Arize-ai/phoenix/issues/5876)) ([179859b](https://github.com/Arize-ai/phoenix/commit/179859bde2986ceb046d3bc318966a6867346746))
+
+
+### Bug Fixes
+
+* skip json parse if tool call function arguments attribute doesn't exist ([#5874](https://github.com/Arize-ai/phoenix/issues/5874)) ([878f1c1](https://github.com/Arize-ai/phoenix/commit/878f1c1feed8f3d4903601b8722e37a92efea556))
+
 ## [7.3.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.1...arize-phoenix-v7.3.2) (2024-12-24)
 
 
