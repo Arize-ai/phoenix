@@ -10,6 +10,13 @@ export const disclosureGroupCSS = css`
       }
     }
   }
+
+  // add border between items, only when child is expanded
+  > *:not(:last-child) {
+    &[data-expanded] {
+      border-bottom: 1px solid var(--ac-global-border-color-default);
+    }
+  }
 `;
 
 export const disclosureCSS = css`
