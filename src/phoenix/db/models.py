@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     MetaData,
+    Null,
     String,
     TypeDecorator,
     UniqueConstraint,
@@ -909,12 +910,10 @@ class PromptVersion(Base):
         nullable=False,
     )
     template: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
-    invocation_parameters: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JsonDict, default=None, nullable=True
-    )
-    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=None, nullable=True)
+    invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=Null(), nullable=True)
     output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JsonDict, default=None, nullable=True
+        JsonDict, default=Null(), nullable=True
     )
     model_provider: Mapped[str]
     model_name: Mapped[str]
