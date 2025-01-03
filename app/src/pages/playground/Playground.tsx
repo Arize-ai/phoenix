@@ -162,13 +162,13 @@ const playgroundPromptPanelContentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  & > .ac-accordion {
+  & > .ac-disclosure-group {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
     flex: 1 1 auto;
-    & > .ac-accordion-item {
+    & > .ac-disclosure {
       height: 100%;
       display: flex;
       flex-direction: column;
@@ -181,7 +181,7 @@ const playgroundPromptPanelContentCSS = css`
       & > #prompts-heading {
         flex: 0 0 auto;
       }
-      .ac-accordion-itemContent {
+      .ac-disclosure-panel {
         height: 100%;
         overflow: hidden;
         flex: 1 1 auto;

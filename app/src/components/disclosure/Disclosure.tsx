@@ -10,7 +10,7 @@ import {
   Heading,
 } from "react-aria-components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { classNames, Flex, Icon, Icons } from "@phoenix/components";
 
 import { FlexStyleProps, SizingProps } from "../types";
 
@@ -24,10 +24,14 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps;
  *
  * AKA Accordion with one or more items
  */
-export const DisclosureGroup = (props: DisclosureGroupProps) => {
+export const DisclosureGroup = ({
+  className,
+  ...props
+}: DisclosureGroupProps) => {
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
+      className={classNames("ac-disclosure-group", className)}
       css={disclosureGroupCSS}
       {...props}
     />
@@ -41,9 +45,10 @@ export type DisclosureProps = AriaDisclosureProps & SizingProps;
  *
  * AKA Accordion (with a single item) / Accordion Item
  */
-export const Disclosure = ({ size, ...props }: DisclosureProps) => {
+export const Disclosure = ({ size, className, ...props }: DisclosureProps) => {
   return (
     <AriaDisclosure
+      className={classNames("ac-disclosure", className)}
       css={disclosureCSS}
       data-size={size}
       defaultExpanded
@@ -59,8 +64,16 @@ export type DisclosurePanelProps = AriaDisclosurePanelProps;
  *
  * AKA Accordion Content
  */
-export const DisclosurePanel = (props: DisclosurePanelProps) => {
-  return <AriaDisclosurePanel {...props} />;
+export const DisclosurePanel = ({
+  className,
+  ...props
+}: DisclosurePanelProps) => {
+  return (
+    <AriaDisclosurePanel
+      className={classNames("ac-disclosure-panel", className)}
+      {...props}
+    />
+  );
 };
 
 export type DisclosureTriggerProps = PropsWithChildren<{

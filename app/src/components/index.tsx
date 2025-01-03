@@ -5,6 +5,7 @@ export type {
   LabelProps,
   FieldErrorProps,
 } from "react-aria-components";
+export { classNames } from "@arizeai/components";
 
 export * from "./Link";
 export * from "./LinkButton";
