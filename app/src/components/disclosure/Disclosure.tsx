@@ -12,7 +12,7 @@ import {
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 
-import { FlexStyleProps } from "../types";
+import { FlexStyleProps, SizingProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
@@ -34,15 +34,22 @@ export const DisclosureGroup = (props: DisclosureGroupProps) => {
   );
 };
 
-export type DisclosureProps = AriaDisclosureProps;
+export type DisclosureProps = AriaDisclosureProps & SizingProps;
 
 /**
  * A Disclosure is a component that allows for a single item to be expanded.
  *
  * AKA Accordion (with a single item) / Accordion Item
  */
-export const Disclosure = (props: DisclosureProps) => {
-  return <AriaDisclosure css={disclosureCSS} defaultExpanded {...props} />;
+export const Disclosure = ({ size, ...props }: DisclosureProps) => {
+  return (
+    <AriaDisclosure
+      css={disclosureCSS}
+      data-size={size}
+      defaultExpanded
+      {...props}
+    />
+  );
 };
 
 export type DisclosurePanelProps = AriaDisclosurePanelProps;

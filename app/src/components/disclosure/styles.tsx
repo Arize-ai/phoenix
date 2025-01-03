@@ -78,6 +78,11 @@ export const disclosureCSS = css`
     }
   }
 
+  &[data-size="L"] .react-aria-Button[slot="trigger"] {
+    height: 48px;
+    max-height: 48px;
+  }
+
   &[data-expanded] .react-aria-Button[slot="trigger"] {
     > svg,
     > i {

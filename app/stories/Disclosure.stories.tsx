@@ -70,10 +70,19 @@ const SingleItemStory: StoryFn<DisclosureProps> = (args) => (
 
 export const SingleItem: Meta<typeof SingleItemStory> = {
   render: SingleItemStory,
-  args: { defaultExpanded: true, isExpanded: undefined, isDisabled: false },
+  args: {
+    defaultExpanded: true,
+    isExpanded: undefined,
+    isDisabled: false,
+    size: "L",
+  },
   argTypes: {
     isExpanded: {
       control: { type: "boolean" },
+    },
+    size: {
+      control: { type: "radio" },
+      options: ["M", "L"],
     },
   },
 };

@@ -258,7 +258,7 @@ function PlaygroundContent() {
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
             <DisclosureGroup defaultExpandedKeys={["prompts"]}>
-              <Disclosure id="prompts">
+              <Disclosure id="prompts" size="L">
                 <DisclosureTrigger
                   arrowPosition="start"
                   justifyContent="space-between"
@@ -303,7 +303,7 @@ function PlaygroundContent() {
             <div css={playgroundInputOutputPanelContentCSS}>
               <DisclosureGroup defaultExpandedKeys={["input", "output"]}>
                 {templateLanguage !== TemplateLanguages.NONE ? (
-                  <Disclosure id="input">
+                  <Disclosure id="input" size="L">
                     <DisclosureTrigger arrowPosition="start">
                       Inputs
                     </DisclosureTrigger>
@@ -314,7 +314,7 @@ function PlaygroundContent() {
                     </DisclosurePanel>
                   </Disclosure>
                 ) : null}
-                <Disclosure id="output">
+                <Disclosure id="output" size="L">
                   <DisclosureTrigger arrowPosition="start">
                     Output
                   </DisclosureTrigger>
