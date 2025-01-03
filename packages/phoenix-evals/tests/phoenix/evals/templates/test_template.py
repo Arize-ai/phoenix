@@ -36,7 +36,7 @@ def test_classification_template_can_beinstantiated_with_no_explanation_template
     assert template.explanation_template is None
 
     explanation_options = PromptOptions(provide_explanation=True)
-    assert template.prompt(options=explanation_options) == template.explanation_template
+    assert template.prompt(options=explanation_options)[0].template == "is this irrelevant?"
 
 
 def test_template_with_default_delimiters_uses_python_string_formatting():

@@ -137,6 +137,7 @@ class ClassificationTemplate(PromptTemplate):
             )
         self.rails = rails
         self.template = self._normalize_template(template)
+        self.explanation_template: Optional[List[PromptPartTemplate]]
         if explanation_template:
             self.explanation_template = self._normalize_template(explanation_template)
         else:
