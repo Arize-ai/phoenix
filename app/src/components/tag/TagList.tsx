@@ -9,7 +9,7 @@ const tagListCSS = css`
   gap: var(--ac-global-dimension-size-50);
   height: 28px;
 `;
-function TagList<T extends object>(
+function TagList<T extends Record<string, unknown>>(
   props: TagListProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
