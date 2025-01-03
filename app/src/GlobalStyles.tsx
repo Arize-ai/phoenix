@@ -1,8 +1,6 @@
 import React from "react";
 import { css, Global } from "@emotion/react";
 
-import { tagGlobalStylesCSS } from "./components/tag/globalStyles";
-
 const baseGlobalStylesCSS = css`
   body {
     background-color: var(--ac-global-color-grey-75);
@@ -118,5 +116,5 @@ const baseGlobalStylesCSS = css`
 `;
 
 export function GlobalStyles() {
-  return <Global styles={css(baseGlobalStylesCSS, tagGlobalStylesCSS)} />;
+  return <Global styles={baseGlobalStylesCSS} />;
 }
