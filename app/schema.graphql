@@ -1456,17 +1456,17 @@ enum PromptTemplateType {
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  invocationParameters: JSON
-  tags: [PromptVersionTag!]!
   user: String
   description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
+  invocationParameters: JSON
   tools: [ToolDefinition!]!
   outputSchema: JSONSchema
   modelName: String!
   modelProvider: String!
+  tags: [PromptVersionTag!]!
 }
 
 """A connection to a list of items."""
