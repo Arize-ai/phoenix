@@ -4,7 +4,6 @@
 from typing import Annotated, Any, Union
 
 import strawberry
-from pydantic import Field
 from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
@@ -19,12 +18,6 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    PromptToolDefinition as PromptToolDefinitionModelModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    PromptToolsV1 as PromptToolsModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
     TextPromptMessage as TextPromptMessageModel,
@@ -91,17 +84,6 @@ PromptTemplate: TypeAlias = Annotated[
     Union[PromptStringTemplate, PromptChatTemplate],
     strawberry.union("PromptTemplate"),
 ]
-
-
-@strawberry.experimental.pydantic.type(PromptToolDefinitionModelModel)
-class PromptToolDefinition:
-    definition: JSON
-
-
-@strawberry.experimental.pydantic.type(PromptToolsModel)
-class PromptTools:
-    version: strawberry.auto
-    tool_definitions: list[PromptToolDefinition] = Field(default_factory=list)
 
 
 def to_gql_prompt_template(
