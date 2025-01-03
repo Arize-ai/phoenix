@@ -15,7 +15,7 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
-    to_gql_prompt_template,
+    to_gql_template_from_orm,
 )
 
 from .JSONSchema import JSONSchema, to_gql_json_schema_from_pydantic
@@ -56,7 +56,7 @@ class PromptVersion(Node):
 
 def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
-    prompt_template = to_gql_prompt_template(prompt_version.template, prompt_template_type)
+    prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     if prompt_version.tools is not None:
         prompt_tools = PromptToolsV1.model_validate(prompt_version.tools)

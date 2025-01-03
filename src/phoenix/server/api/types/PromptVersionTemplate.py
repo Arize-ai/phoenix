@@ -1,7 +1,7 @@
 # Part of the Phoenix PromptHub feature set
 
 
-from typing import Annotated, Any, Union
+from typing import Annotated, Union
 
 import strawberry
 from strawberry.scalars import JSON
@@ -52,12 +52,12 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
     template = PromptChatTemplateV1.model_validate(orm_model.template)
     messages: list[PromptTemplateMessage] = []
     for msg in template.messages:
-        if isinstance(msg.content, TextPromptMessageModel):
+        if isinstance(msg, TextPromptMessageModel):
             messages.append(TextPromptMessage(role=msg.role, content=msg.content))
-        elif isinstance(msg.content, JSONPromptMessageModel):
+        elif isinstance(msg, JSONPromptMessageModel):
             messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
         else:
-            raise ValueError(f"Unknown message type: {msg}")
+            assert_never(msg)
     return PromptChatTemplate(messages=messages)
 
 
@@ -72,38 +72,15 @@ def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "Pr
 
 
 def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
-    if orm_prompt_version.template_type == "str":
+    template_type = PromptTemplateType(orm_prompt_version.template_type)
+    if template_type is PromptTemplateType.STRING:
         return to_gql_prompt_string_template_from_orm(orm_prompt_version)
-    elif orm_prompt_version.template_type == "chat":
+    elif template_type is PromptTemplateType.CHAT:
         return to_gql_prompt_chat_template_from_orm(orm_prompt_version)
-    else:
-        raise ValueError(f"Unknown template type: {orm_prompt_version.template_type}")
+    assert_never(template_type)
 
 
 PromptTemplate: TypeAlias = Annotated[
     Union[PromptStringTemplate, PromptChatTemplate],
     strawberry.union("PromptTemplate"),
 ]
-
-
-def to_gql_prompt_template(
-    template: dict[str, Any], prompt_template_type: "PromptTemplateType"
-) -> PromptTemplate:
-    if prompt_template_type == PromptTemplateType.STRING:
-        return to_gql_prompt_string_template(template)
-    elif prompt_template_type == PromptTemplateType.CHAT:
-        return to_gql_prompt_chat_template(template)
-    assert_never(prompt_template_type)
-
-
-def to_gql_prompt_chat_template(template: dict[str, Any]) -> PromptChatTemplate:
-    messages: list[PromptTemplateMessage] = []
-    for message in template.get("messages", []):
-        role = message["role"]
-        content = message["content"]
-        messages.append(TextPromptMessage(role=role, content=content))
-    return PromptChatTemplate(messages=messages)
-
-
-def to_gql_prompt_string_template(template: dict[str, Any]) -> PromptStringTemplate:
-    raise NotImplementedError
