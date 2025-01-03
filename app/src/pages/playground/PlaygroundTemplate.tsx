@@ -53,7 +53,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PromptComboBox
               promptId={promptId}
               onChange={(nextPromptId) => {
-                navigate(`/prompt/${nextPromptId}/playground`);
+                navigate(`/prompts/${nextPromptId}/playground`);
               }}
             />
           </Flex>

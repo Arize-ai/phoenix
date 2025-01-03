@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
   createPlaygroundInstance,
   generateMessageId,
@@ -10,7 +11,10 @@ import {
 import { Mutable } from "@phoenix/typeUtils";
 
 import { Playground } from "../playground/Playground";
-import { getChatRole } from "../playground/playgroundUtils";
+import {
+  getChatRole,
+  openInferenceModelProviderToPhoenixModelProvider,
+} from "../playground/playgroundUtils";
 
 import {
   PromptPlaygroundPage__main$data,
@@ -81,7 +85,10 @@ export function PromptPlaygroundPage() {
       model: {
         ...instance.model,
         modelName: latestPromptVersion.modelName,
-        provider: latestPromptVersion.modelProvider as ModelProvider,
+        provider:
+          openInferenceModelProviderToPhoenixModelProvider(
+            latestPromptVersion.modelProvider
+          ) || DEFAULT_MODEL_PROVIDER,
       },
       template: {
         __type: "chat",
@@ -90,7 +97,7 @@ export function PromptPlaygroundPage() {
             ? latestPromptVersion.template.messages.map((m) => ({
                 ...m,
                 id: generateMessageId(),
-                role: getChatRole(m.role as string),
+                role: getChatRole(m.role?.toLocaleLowerCase() as string),
               }))
             : [],
       },
@@ -98,6 +105,7 @@ export function PromptPlaygroundPage() {
         id: generateToolId(),
         definition: t.definition,
       })),
+      // @TODO(apowell): Parse invocation parameters from the prompt version
       prompt: {
         id: prompt.id,
       },
