@@ -31,7 +31,8 @@ class DotKeyFormatter(Formatter):
 
 class PromptPartContentType(str, Enum):
     TEXT = "text"
-    AUDIO_URL = "audio_url"
+    TEXT_DATA = "text_data"
+    AUDIO = "audio"
 
 
 @dataclass
@@ -40,6 +41,7 @@ class PromptPart:
     content: str
 
 
+# TODO: ask about rename to PromptTemplatePart
 @dataclass
 class PromptPartTemplate:
     content_type: PromptPartContentType
@@ -118,6 +120,19 @@ class PromptTemplate:
         if isinstance(template, str):
             return [PromptPartTemplate(content_type=PromptPartContentType.TEXT, template=template)]
         return template
+
+    def get_data_template_variable(self) -> Union[str, None]:
+        if isinstance(self.template, str):
+            return None
+
+        for template_message in self.template:
+            if (
+                template_message.content_type == PromptPartContentType.AUDIO
+                or template_message.content_type == PromptPartContentType.TEXT_DATA
+            ):
+                return template_message.template.strip("{}")
+
+        return None
 
 
 class ClassificationTemplate(PromptTemplate):

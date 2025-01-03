@@ -1,3 +1,4 @@
+import base64
 import json
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
@@ -6,6 +7,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
+from filetype import guess
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
@@ -174,3 +176,23 @@ def _default_openai_function(
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
         tqdm.write(*args, **kwargs)
+
+
+def get_audio_format_from_base64(enc_str: str) -> str:
+    """
+    Determines the audio format from a Base64 encoded string.
+
+    Args:
+        enc_str (str): The Base64 encoded audio data.
+
+    Returns:
+        str: The audio format ('wav', 'mp3', 'flac', 'ogg', 'aac', or 'unknown').
+    """
+    # Decode the Base64 string back to bytes and guess the file type
+    audio_bytes = base64.b64decode(enc_str)
+
+    kind = guess(audio_bytes)
+    if kind is None:
+        return "pcm"
+
+    return kind.extension
