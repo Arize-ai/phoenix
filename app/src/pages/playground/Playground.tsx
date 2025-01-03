@@ -259,7 +259,10 @@ function PlaygroundContent() {
           <div css={playgroundPromptPanelContentCSS}>
             <DisclosureGroup defaultExpandedKeys={["prompts"]}>
               <Disclosure id="prompts">
-                <DisclosureTrigger arrowPosition="start">
+                <DisclosureTrigger
+                  arrowPosition="start"
+                  justifyContent="space-between"
+                >
                   Prompts
                   <StopPropagation>
                     <Flex direction="row" gap="size-100" alignItems="center">
@@ -298,7 +301,7 @@ function PlaygroundContent() {
             </Suspense>
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
-              <DisclosureGroup expandedKeys={["input", "output"]}>
+              <DisclosureGroup defaultExpandedKeys={["input", "output"]}>
                 {templateLanguage !== TemplateLanguages.NONE ? (
                   <Disclosure id="input">
                     <DisclosureTrigger arrowPosition="start">
