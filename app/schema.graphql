@@ -1474,6 +1474,7 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
+  createPrompt(input: CreatePromptInput!): Prompt!
   createSpanAnnotations(
     input: [CreateSpanAnnotationInput!]!
   ): SpanAnnotationMutationPayload!
@@ -2373,12 +2374,12 @@ input TimeRange {
   """
   The start of the time range
   """
-  start: DateTime
+  start: DateTime!
 
   """
   The end of the time range. Right exclusive.
   """
-  end: DateTime
+  end: DateTime!
 }
 
 interface TimeSeries {
