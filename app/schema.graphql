@@ -273,6 +273,12 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreatePromptInput {
+  name: String!
+  description: String = null
+  promptVersion: PromptVersionInput!
+}
+
 input CreateSpanAnnotationInput {
   spanId: GlobalID!
   name: String!
@@ -1348,7 +1354,11 @@ type JSONPromptMessage {
 }
 
 type JSONSchema {
-  schema: JSON!
+  definition: JSON!
+}
+
+input JSONSchemaInput {
+  definition: JSON!
 }
 
 type LabelFraction {
@@ -1773,7 +1783,6 @@ type Prompt implements Node {
 }
 
 type PromptChatTemplate {
-  Version: String!
   messages: [PromptTemplateMessage!]!
 }
 
@@ -1891,6 +1900,18 @@ type PromptVersionEdge {
   The item at the end of the edge
   """
   node: PromptVersion!
+}
+
+input PromptVersionInput {
+  description: String = null
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: JSON!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  outputSchema: JSONSchemaInput = null
+  modelProvider: String!
+  modelName: String!
 }
 
 type PromptVersionTag implements Node {
@@ -2371,6 +2392,10 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
 }
 
 type ToolDefinition {
+  definition: JSON!
+}
+
+input ToolDefinitionInput {
   definition: JSON!
 }
 
