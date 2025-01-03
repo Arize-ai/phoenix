@@ -1,58 +1,69 @@
 # Part of the Phoenix PromptHub feature set
 
 
+from typing import Annotated, Union
+
 import strawberry
 from strawberry.scalars import JSON
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import JSONPromptMessage as JSONPromptMessageModel
+from phoenix.server.api.helpers.prompts.models import (
+    JSONPromptMessage as JSONPromptMessageModel,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
-    PromptMessageRole,
     PromptStringTemplateV1,
+    PromptTemplateType,
 )
-from phoenix.server.api.helpers.prompts.models import TextPromptMessage as TextPromptMessageModel
+from phoenix.server.api.helpers.prompts.models import (
+    PromptStringTemplateV1 as PromptStringTemplateModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    TextPromptMessage as TextPromptMessageModel,
+)
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(TextPromptMessageModel)
 class TextPromptMessage:
-    role: PromptMessageRole
-    content: str
+    role: strawberry.auto
+    content: strawberry.auto
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(JSONPromptMessageModel)
 class JSONPromptMessage:
-    role: PromptMessageRole
+    role: strawberry.auto
     content: JSON
 
 
-PromptTemplateMessage = strawberry.union(
-    "PromptTemplateMessage", (TextPromptMessage, JSONPromptMessage)
-)
+PromptTemplateMessage: TypeAlias = Annotated[
+    Union[TextPromptMessage, JSONPromptMessage],
+    strawberry.union("PromptTemplateMessage"),
+]
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(PromptChatTemplateV1)
 class PromptChatTemplate:
-    _version: str = "messages-v1"
+    _version: strawberry.Private[str] = "messages-v1"
     messages: list[PromptTemplateMessage]
 
 
 def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
-    model = PromptChatTemplateV1.model_validate(orm_model.template)
+    template = PromptChatTemplateV1.model_validate(orm_model.template)
     messages: list[PromptTemplateMessage] = []
-    for msg in model.template:
-        if isinstance(msg.content, TextPromptMessageModel):
+    for msg in template.messages:
+        if isinstance(msg, TextPromptMessageModel):
             messages.append(TextPromptMessage(role=msg.role, content=msg.content))
-        elif isinstance(msg.content, JSONPromptMessageModel):
+        elif isinstance(msg, JSONPromptMessageModel):
             messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
         else:
-            raise ValueError(f"Unknown message type: {msg}")
+            assert_never(msg)
     return PromptChatTemplate(messages=messages)
 
 
-@strawberry.type
+@strawberry.experimental.pydantic.type(PromptStringTemplateModel)
 class PromptStringTemplate:
-    template: str
+    template: strawberry.auto
 
 
 def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
@@ -61,12 +72,15 @@ def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "Pr
 
 
 def to_gql_template_from_orm(orm_prompt_version: "ORMPromptVersion") -> "PromptTemplate":
-    if orm_prompt_version.template_type == "str":
+    template_type = PromptTemplateType(orm_prompt_version.template_type)
+    if template_type is PromptTemplateType.STRING:
         return to_gql_prompt_string_template_from_orm(orm_prompt_version)
-    elif orm_prompt_version.template_type == "chat":
+    elif template_type is PromptTemplateType.CHAT:
         return to_gql_prompt_chat_template_from_orm(orm_prompt_version)
-    else:
-        raise ValueError(f"Unknown template type: {orm_prompt_version.template_type}")
+    assert_never(template_type)
 
 
-PromptTemplate = strawberry.union("PromptTemplate", (PromptStringTemplate, PromptChatTemplate))
+PromptTemplate: TypeAlias = Annotated[
+    Union[PromptStringTemplate, PromptChatTemplate],
+    strawberry.union("PromptTemplate"),
+]

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4955a8471cbd8cc7ab7fd47d6329c9a3>>
+ * @generated SignedSource<<0ea4d274012f8fedab56ef94361c02b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type PromptCodeExportCard__main$data = {
   readonly modelName: string;
   readonly modelProvider: string;
   readonly outputSchema: {
-    readonly schema: any;
+    readonly definition: any;
   } | null;
   readonly template: {
     readonly __typename: "PromptChatTemplate";
@@ -48,7 +48,16 @@ export type PromptCodeExportCard__main$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "definition",
+    "storageKey": null
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -89,15 +98,7 @@ return {
       "kind": "LinkedField",
       "name": "outputSchema",
       "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "schema",
-          "storageKey": null
-        }
-      ],
+      "selections": (v0/*: any*/),
       "storageKey": null
     },
     {
@@ -107,15 +108,7 @@ return {
       "kind": "LinkedField",
       "name": "tools",
       "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "definition",
-          "storageKey": null
-        }
-      ],
+      "selections": (v0/*: any*/),
       "storageKey": null
     },
     {
@@ -147,7 +140,7 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
+                    (v1/*: any*/),
                     {
                       "alias": "jsonContent",
                       "args": null,
@@ -162,7 +155,7 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/),
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -218,6 +211,6 @@ return {
 };
 })();
 
-(node as any).hash = "f6305f2188d6170391baf5bce0277c69";
+(node as any).hash = "750e2171bf618a35e3490f869c99d397";
 
 export default node;
