@@ -1,9 +1,16 @@
 import React from "react";
 import { useLoaderData } from "react-router";
 
-import { Accordion, AccordionItem, Card } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  View,
+} from "@phoenix/components";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptChatMessages } from "./PromptChatMessages";
@@ -37,14 +44,14 @@ function PromptVersionDetailsPageContent({
           variant="compact"
           bodyStyle={{ padding: 0 }}
         >
-          <Accordion size="M">
-            <AccordionItem
-              title="Invocation Parameters"
-              id="invocation-parameters"
-            >
-              <PromptInvocationParameters promptVersion={promptVersion} />
-            </AccordionItem>
-          </Accordion>
+          <DisclosureGroup defaultExpandedKeys={["invocation-parameters"]}>
+            <Disclosure id="invocation-parameters">
+              <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
+              <DisclosurePanel>
+                <PromptInvocationParameters promptVersion={promptVersion} />
+              </DisclosurePanel>
+            </Disclosure>
+          </DisclosureGroup>
         </Card>
         <PromptCodeExportCard promptVersion={promptVersion} />
       </Flex>
