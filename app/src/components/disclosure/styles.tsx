@@ -37,7 +37,7 @@ export const disclosureCSS = css`
     justify-content: space-between;
     gap: 8px;
     padding: var(--ac-global-dimension-static-size-100)
-      var(--ac-global-dimension-static-size-100);
+      var(--ac-global-dimension-static-size-200);
 
     // style trigger
     color: var(--ac-global-text-color-900);
