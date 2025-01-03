@@ -14,7 +14,7 @@ import { Flex, Icon, Icons } from "@phoenix/components";
 
 import { FlexStyleProps } from "../types";
 
-import { disclosureCss, disclosureGroupCss } from "./styles";
+import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
 export type DisclosureGroupProps = AriaDisclosureGroupProps;
 
@@ -28,7 +28,7 @@ export const DisclosureGroup = (props: DisclosureGroupProps) => {
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
-      css={disclosureGroupCss}
+      css={disclosureGroupCSS}
       {...props}
     />
   );
@@ -42,7 +42,7 @@ export type DisclosureProps = AriaDisclosureProps;
  * AKA Accordion (with a single item) / Accordion Item
  */
 export const Disclosure = (props: DisclosureProps) => {
-  return <AriaDisclosure css={disclosureCss} defaultExpanded {...props} />;
+  return <AriaDisclosure css={disclosureCSS} defaultExpanded {...props} />;
 };
 
 export type DisclosurePanelProps = AriaDisclosurePanelProps;

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-export const disclosureGroupCss = css`
+export const disclosureGroupCSS = css`
   & > * {
     width: 100%;
     .react-aria-Heading {
@@ -12,7 +12,7 @@ export const disclosureGroupCss = css`
   }
 `;
 
-export const disclosureCss = css`
+export const disclosureCSS = css`
   .react-aria-Heading {
     margin: 0;
   }
@@ -55,7 +55,7 @@ export const disclosureCss = css`
     // style trigger icon
     > svg,
     > i {
-      rotate: 0deg;
+      rotate: 90deg;
       transition: rotate 200ms;
       width: 1em;
       height: 1em;
@@ -64,11 +64,24 @@ export const disclosureCss = css`
 
     &[data-arrow-position="start"] {
       flex-direction: row-reverse;
+      > svg,
+      > i {
+        rotate: 0deg;
+      }
     }
   }
 
-  &[data-expanded] .react-aria-Button[slot="trigger"] svg,
-  &[data-expanded] .react-aria-Button[slot="trigger"] i {
-    rotate: 45deg;
+  &[data-expanded] .react-aria-Button[slot="trigger"] {
+    > svg,
+    > i {
+      rotate: -90deg;
+    }
+
+    &[data-arrow-position="start"] {
+      > svg,
+      > i {
+        rotate: 90deg;
+      }
+    }
   }
 `;
