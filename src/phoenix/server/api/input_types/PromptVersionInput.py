@@ -34,7 +34,7 @@ class PromptChatTemplateInput:
 
 
 @strawberry.input
-class PromptVersionInput:
+class ChatPromptVersionInput:
     description: Optional[str] = None
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat

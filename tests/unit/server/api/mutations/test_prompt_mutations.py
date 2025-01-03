@@ -8,8 +8,8 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestPromptMutations:
     MUTATION = """
-      mutation CreatePromptMutation($input: CreatePromptInput!) {
-        createPrompt(input: $input) {
+      mutation CreateChatPromptMutation($input: CreateChatPromptInput!) {
+        createChatPrompt(input: $input) {
           name
           description
           createdAt
@@ -113,7 +113,7 @@ class TestPromptMutations:
             ),
         ],
     )
-    async def test_create_prompt_succeeds_with_valid_input(
+    async def test_create_chat_prompt_succeeds_with_valid_input(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -124,7 +124,7 @@ class TestPromptMutations:
         result = await gql_client.execute(self.MUTATION, variables)
         assert not result.errors
         assert result.data is not None
-        data = result.data["createPrompt"]
+        data = result.data["createChatPrompt"]
         assert data.pop("name") == "prompt-name"
         assert data.pop("description") == "prompt-description"
         assert isinstance(data.pop("createdAt"), str)
@@ -152,7 +152,7 @@ class TestPromptMutations:
         assert not template["messages"][0]
         assert not prompt_version
 
-    async def test_create_prompt_fails_on_name_conflict(
+    async def test_create_chat_prompt_fails_on_name_conflict(
         self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
     ) -> None:
         variables: dict[str, Any] = {
@@ -229,7 +229,7 @@ class TestPromptMutations:
             ),
         ],
     )
-    async def test_create_prompt_fails_with_invalid_input(
+    async def test_create_chat_prompt_fails_with_invalid_input(
         self, gql_client: AsyncGraphQLClient, variables: dict[str, Any], expected_error: str
     ) -> None:
         result = await gql_client.execute(self.MUTATION, variables)

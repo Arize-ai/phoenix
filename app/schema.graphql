@@ -196,6 +196,18 @@ type ChatCompletionToolCall {
   function: ChatCompletionFunctionCall!
 }
 
+input ChatPromptVersionInput {
+  description: String = null
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptChatTemplateInput!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  outputSchema: JSONSchemaInput = null
+  modelProvider: String!
+  modelName: String!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -238,16 +250,16 @@ input CreateApiKeyInput {
   expiresAt: DateTime
 }
 
+input CreateChatPromptInput {
+  name: String!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
-}
-
-input CreatePromptInput {
-  name: String!
-  description: String = null
-  promptVersion: PromptVersionInput!
 }
 
 input CreateSpanAnnotationInput {
@@ -1179,7 +1191,7 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
-  createPrompt(input: CreatePromptInput!): Prompt!
+  createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1489,18 +1501,6 @@ type PromptVersionEdge {
 
   """The item at the end of the edge"""
   node: PromptVersion!
-}
-
-input PromptVersionInput {
-  description: String = null
-  templateType: PromptTemplateType!
-  templateFormat: PromptTemplateFormat!
-  template: PromptChatTemplateInput!
-  invocationParameters: JSON! = {}
-  tools: [ToolDefinitionInput!]! = []
-  outputSchema: JSONSchemaInput = null
-  modelProvider: String!
-  modelName: String!
 }
 
 type PromptVersionTag implements Node {
