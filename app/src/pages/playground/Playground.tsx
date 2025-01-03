@@ -10,10 +10,12 @@ import {
 } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Accordion, AccordionItem } from "@arizeai/components";
-
 import {
   Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
   Heading,
   Icon,
@@ -23,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import {
   PlaygroundProvider,
@@ -254,35 +257,40 @@ function PlaygroundContent() {
       >
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
-            <Accordion arrowPosition="start" size="L">
-              <AccordionItem
-                title="Prompts"
-                id="prompts"
-                extra={
-                  <Flex direction="row" gap="size-100" alignItems="center">
-                    <TemplateLanguageRadioGroup />
-                    <AddPromptButton />
-                  </Flex>
-                }
-              >
-                <div css={promptsWrapCSS}>
-                  <Flex direction="row" gap="size-200" maxWidth="100%">
-                    {instances.map((instance) => (
-                      <View
-                        flex="1 1 0px"
-                        key={instance.id}
-                        minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
-                      >
-                        <PlaygroundTemplate
+            <DisclosureGroup defaultExpandedKeys={["prompts"]}>
+              <Disclosure id="prompts" size="L">
+                <DisclosureTrigger
+                  arrowPosition="start"
+                  justifyContent="space-between"
+                >
+                  Prompts
+                  <StopPropagation>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <TemplateLanguageRadioGroup />
+                      <AddPromptButton />
+                    </Flex>
+                  </StopPropagation>
+                </DisclosureTrigger>
+                <DisclosurePanel>
+                  <div css={promptsWrapCSS}>
+                    <Flex direction="row" gap="size-200" maxWidth="100%">
+                      {instances.map((instance) => (
+                        <View
+                          flex="1 1 0px"
                           key={instance.id}
-                          playgroundInstanceId={instance.id}
-                        />
-                      </View>
-                    ))}
-                  </Flex>
-                </div>
-              </AccordionItem>
-            </Accordion>
+                          minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
+                        >
+                          <PlaygroundTemplate
+                            key={instance.id}
+                            playgroundInstanceId={instance.id}
+                          />
+                        </View>
+                      ))}
+                    </Flex>
+                  </div>
+                </DisclosurePanel>
+              </Disclosure>
+            </DisclosureGroup>
           </div>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
@@ -293,29 +301,39 @@ function PlaygroundContent() {
             </Suspense>
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
-              <Accordion arrowPosition="start" size="L">
+              <DisclosureGroup defaultExpandedKeys={["input", "output"]}>
                 {templateLanguage !== TemplateLanguages.NONE ? (
-                  <AccordionItem title="Inputs" id="input">
-                    <View padding="size-200" height={"100%"}>
-                      <PlaygroundInput />
-                    </View>
-                  </AccordionItem>
+                  <Disclosure id="input" size="L">
+                    <DisclosureTrigger arrowPosition="start">
+                      Inputs
+                    </DisclosureTrigger>
+                    <DisclosurePanel>
+                      <View padding="size-200" height={"100%"}>
+                        <PlaygroundInput />
+                      </View>
+                    </DisclosurePanel>
+                  </Disclosure>
                 ) : null}
-                <AccordionItem title="Output" id="output">
-                  <View padding="size-200" height="100%">
-                    <Flex direction="row" gap="size-200">
-                      {instances.map((instance, i) => (
-                        <View key={i} flex="1 1 0px">
-                          <PlaygroundOutput
-                            key={i}
-                            playgroundInstanceId={instance.id}
-                          />
-                        </View>
-                      ))}
-                    </Flex>
-                  </View>
-                </AccordionItem>
-              </Accordion>
+                <Disclosure id="output" size="L">
+                  <DisclosureTrigger arrowPosition="start">
+                    Output
+                  </DisclosureTrigger>
+                  <DisclosurePanel>
+                    <View padding="size-200" height="100%">
+                      <Flex direction="row" gap="size-200">
+                        {instances.map((instance, i) => (
+                          <View key={i} flex="1 1 0px">
+                            <PlaygroundOutput
+                              key={i}
+                              playgroundInstanceId={instance.id}
+                            />
+                          </View>
+                        ))}
+                      </Flex>
+                    </View>
+                  </DisclosurePanel>
+                </Disclosure>
+              </DisclosureGroup>
             </div>
           )}
         </Panel>

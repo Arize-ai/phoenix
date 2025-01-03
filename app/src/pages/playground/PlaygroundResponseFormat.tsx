@@ -1,11 +1,15 @@
 import React, { useCallback, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
-import { Accordion, AccordionItem, Card } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
   Button,
   CopyToClipboardButton,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
   Icon,
   Icons,
@@ -84,45 +88,50 @@ export function PlaygroundResponseFormat({
   );
 
   return (
-    <Accordion arrowPosition="start">
-      <AccordionItem id="response-format" title="Output Schema">
-        <View padding="size-200">
-          <Card
-            variant="compact"
-            title="Schema"
-            bodyStyle={{ padding: 0 }}
-            extra={
-              <Flex direction="row" gap="size-100">
-                <CopyToClipboardButton text={responseFormatDefinition} />
-                <Button
-                  aria-label="Delete Output Schema"
-                  icon={<Icon svg={<Icons.TrashOutline />} />}
-                  size="S"
-                  onPress={() => {
-                    deleteInvocationParameterInput({
-                      instanceId: playgroundInstanceId,
-                      invocationParameterInputInvocationName:
-                        RESPONSE_FORMAT_PARAM_NAME,
-                    });
-                  }}
-                />
-              </Flex>
-            }
-          >
-            <LazyEditorWrapper
-              preInitializationMinHeight={
-                RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
+    <DisclosureGroup defaultExpandedKeys={["response-format"]}>
+      <Disclosure id="response-format">
+        <DisclosureTrigger arrowPosition="start">
+          Output Schema
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <View padding="size-200">
+            <Card
+              variant="compact"
+              title="Schema"
+              bodyStyle={{ padding: 0 }}
+              extra={
+                <Flex direction="row" gap="size-100">
+                  <CopyToClipboardButton text={responseFormatDefinition} />
+                  <Button
+                    aria-label="Delete Output Schema"
+                    icon={<Icon svg={<Icons.TrashOutline />} />}
+                    size="S"
+                    onPress={() => {
+                      deleteInvocationParameterInput({
+                        instanceId: playgroundInstanceId,
+                        invocationParameterInputInvocationName:
+                          RESPONSE_FORMAT_PARAM_NAME,
+                      });
+                    }}
+                  />
+                </Flex>
               }
             >
-              <JSONEditor
-                value={responseFormatDefinition}
-                onChange={onChange}
-                jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
-              />
-            </LazyEditorWrapper>
-          </Card>
-        </View>
-      </AccordionItem>
-    </Accordion>
+              <LazyEditorWrapper
+                preInitializationMinHeight={
+                  RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
+                }
+              >
+                <JSONEditor
+                  value={responseFormatDefinition}
+                  onChange={onChange}
+                  jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
+                />
+              </LazyEditorWrapper>
+            </Card>
+          </View>
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
   );
 }

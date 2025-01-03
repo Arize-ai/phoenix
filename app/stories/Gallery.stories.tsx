@@ -5,6 +5,10 @@ import { Item, Picker } from "@arizeai/components";
 
 import {
   Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
   Input,
   Label,
@@ -37,6 +41,7 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
       borderColor="dark"
       padding="size-200"
       borderRadius="medium"
+      marginTop="size-800"
     >
       <Flex direction="row" gap="size-200" alignItems="center">
         <ComboBox label="Ice cream flavor" description={"pick a flavor"}>
@@ -148,6 +153,22 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
           <Item key="vanilla">Vanilla</Item>
         </Picker>
       </Flex>
+    </View>
+    <View
+      padding="size-200"
+      borderWidth="thin"
+      borderColor="dark"
+      borderRadius="medium"
+      marginTop="size-200"
+    >
+      <DisclosureGroup>
+        <Disclosure id="content">
+          <DisclosureTrigger>Nutrition Facts</DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Ice cream is sooooo good for you!</Text>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
     </View>
   </ThemeWrapper>
 );

@@ -1,8 +1,15 @@
 import React, { useMemo } from "react";
 
-import { Accordion, AccordionItem, Counter, Form } from "@arizeai/components";
+import { Counter, Form } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  View,
+} from "@phoenix/components";
 import { ToolChoicePicker } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -37,42 +44,44 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   );
 
   return (
-    <Accordion arrowPosition="start">
-      <AccordionItem
-        id="tools"
-        title="Tools"
-        titleExtra={<Counter variant="light">{tools.length}</Counter>}
-      >
-        <View padding="size-200">
-          <Flex direction="column">
-            <Form>
-              <ToolChoicePicker
-                choice={instance.toolChoice}
-                onChange={(choice) => {
-                  updateInstance({
-                    instanceId,
-                    patch: {
-                      toolChoice: choice,
-                    },
-                  });
-                }}
-                toolNames={toolNames}
-              />
-            </Form>
-            <Flex direction={"column"} gap="size-200">
-              {tools.map((tool) => {
-                return (
-                  <PlaygroundTool
-                    key={tool.id}
-                    playgroundInstanceId={instanceId}
-                    toolId={tool.id}
-                  />
-                );
-              })}
+    <DisclosureGroup defaultExpandedKeys={["tools"]}>
+      <Disclosure id="tools">
+        <DisclosureTrigger arrowPosition="start">
+          Tools
+          <Counter variant="light">{tools.length}</Counter>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <View padding="size-200">
+            <Flex direction="column">
+              <Form>
+                <ToolChoicePicker
+                  choice={instance.toolChoice}
+                  onChange={(choice) => {
+                    updateInstance({
+                      instanceId,
+                      patch: {
+                        toolChoice: choice,
+                      },
+                    });
+                  }}
+                  toolNames={toolNames}
+                />
+              </Form>
+              <Flex direction={"column"} gap="size-200">
+                {tools.map((tool) => {
+                  return (
+                    <PlaygroundTool
+                      key={tool.id}
+                      playgroundInstanceId={instanceId}
+                      toolId={tool.id}
+                    />
+                  );
+                })}
+              </Flex>
             </Flex>
-          </Flex>
-        </View>
-      </AccordionItem>
-    </Accordion>
+          </View>
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
   );
 }
