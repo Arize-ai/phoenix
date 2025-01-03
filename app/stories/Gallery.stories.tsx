@@ -12,6 +12,9 @@ import {
   Flex,
   Input,
   Label,
+  Tag,
+  TagGroup,
+  TagList,
   Text,
   TextField,
   View,
@@ -58,6 +61,18 @@ const Template: StoryFn<ComboBoxProps<object>> = () => (
             Vanilla
           </ComboBoxItem>
         </ComboBox>
+        <View minWidth="270px">
+          <TagGroup selectionMode="multiple">
+            <Label>Categories</Label>
+            <TagList>
+              <Tag>News</Tag>
+              <Tag>Travel</Tag>
+              <Tag>Gaming</Tag>
+              <Tag>Shopping</Tag>
+            </TagList>
+            <Text slot="description">Choose your own category</Text>
+          </TagGroup>
+        </View>
         <Picker label="Toppings" size="compact" description={"pick a flavor"}>
           <Item key="chocolate">Chocolate</Item>
           <Item key="mint">Mint</Item>
