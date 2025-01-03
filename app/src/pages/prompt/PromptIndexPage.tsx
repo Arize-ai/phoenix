@@ -1,10 +1,16 @@
 import React from "react";
-import { Heading } from "react-aria-components";
+import { DisclosurePanel, Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Accordion, AccordionItem, Card } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Flex, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosureTrigger,
+  Flex,
+  View,
+} from "@phoenix/components";
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
@@ -68,17 +74,20 @@ export function PromptIndexPageContent({
               variant="compact"
               bodyStyle={{ padding: 0 }}
             >
-              <Accordion size="M">
-                <AccordionItem
-                  title="Invocation Parameters"
-                  id="invocation-parameters"
-                >
+              <DisclosureGroup
+                defaultExpandedKeys={["invocation-parameters", "tools"]}
+              >
+                <Disclosure id="invocation-parameters">
+                  <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
                   <PromptInvocationParameters promptVersion={latestVersion} />
-                </AccordionItem>
-                <AccordionItem title="Tools" id="model-tools">
-                  <View padding="size-200">No Tools Specified</View>
-                </AccordionItem>
-              </Accordion>
+                </Disclosure>
+                <Disclosure id="tools">
+                  <DisclosureTrigger>Tools</DisclosureTrigger>
+                  <DisclosurePanel>
+                    <View padding="size-200">No Tools Specified</View>
+                  </DisclosurePanel>
+                </Disclosure>
+              </DisclosureGroup>
             </Card>
             <PromptCodeExportCard promptVersion={latestVersion} />
           </Flex>
