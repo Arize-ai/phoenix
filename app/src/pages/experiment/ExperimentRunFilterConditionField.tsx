@@ -18,20 +18,15 @@ import { css } from "@emotion/react";
 
 import {
   AddonBefore,
-  Button,
   Field,
-  Flex,
   Form,
   HelpTooltip,
-  Icon,
-  Icons,
   PopoverTrigger,
-  Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -445,9 +440,9 @@ function FilterConditionSnippet(props: {
           />
         </div>
         <Button
-          title="Add to filter condition"
+          aria-label="Add to filter condition"
           variant="default"
-          onClick={() => onAddFilterConditionSnippet(snippet)}
+          onPress={() => onAddFilterConditionSnippet(snippet)}
           icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
