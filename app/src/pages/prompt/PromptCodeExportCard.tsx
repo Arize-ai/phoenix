@@ -1,10 +1,18 @@
 import React, { useMemo, useState } from "react";
+import { DisclosureGroup } from "react-aria-components";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Accordion, AccordionItem, Card } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Disclosure,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  View,
+} from "@phoenix/components";
 import {
   CodeLanguage,
   CodeLanguageRadioGroup,
@@ -73,17 +81,20 @@ export function PromptCodeExportCard({
         </Flex>
       }
     >
-      <Accordion>
-        <AccordionItem title="Snippet" id="snippet">
-          <View padding="size-100">
-            {language === "Python" ? (
-              <PythonBlock value={snippet} />
-            ) : language === "TypeScript" ? (
-              <TypeScriptBlock value={snippet} />
-            ) : null}
-          </View>
-        </AccordionItem>
-      </Accordion>
+      <DisclosureGroup defaultExpandedKeys={["snippet"]}>
+        <Disclosure id="snippet">
+          <DisclosureTrigger>Code Snippet</DisclosureTrigger>
+          <DisclosurePanel>
+            <View padding="size-100">
+              {language === "Python" ? (
+                <PythonBlock value={snippet} />
+              ) : language === "TypeScript" ? (
+                <TypeScriptBlock value={snippet} />
+              ) : null}
+            </View>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
     </Card>
   );
 }
