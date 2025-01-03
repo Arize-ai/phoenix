@@ -275,11 +275,4 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
-  /**
-   * Update the prompt details for an instance
-   */
-  updateInstancePrompt: (params: {
-    instanceId: number;
-    patch: Partial<PlaygroundInstancePrompt> | null;
-  }) => void;
 }

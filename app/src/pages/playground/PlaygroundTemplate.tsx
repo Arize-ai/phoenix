@@ -1,4 +1,5 @@
 import React, { Suspense, useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -24,6 +25,7 @@ import { PlaygroundInstanceProps } from "./types";
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
+  const navigate = useNavigate();
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
   const instances = usePlaygroundContext((state) => state.instances);
@@ -31,13 +33,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
-  const updateInstancePrompt = usePlaygroundContext(
-    (state) => state.updateInstancePrompt
-  );
-
-  // TODO(apowell): Sync instance state with promptId + version (or latest if unset)
-  // If it exists, and we can fetch it from gql, replace the instance with it
-  // If it doesn't exist, or we can't fetch it from gql, set the promptId to null
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
@@ -58,10 +53,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             <PromptComboBox
               promptId={promptId}
               onChange={(nextPromptId) => {
-                updateInstancePrompt({
-                  instanceId,
-                  patch: nextPromptId ? { id: nextPromptId } : null,
-                });
+                navigate(`/prompt/${nextPromptId}/playground`);
               }}
             />
           </Flex>
