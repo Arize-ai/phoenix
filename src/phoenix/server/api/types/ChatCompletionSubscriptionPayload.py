@@ -10,6 +10,7 @@ from .Span import Span
 
 @strawberry.interface
 class ChatCompletionSubscriptionPayload:
+    config_index: Optional[int] = None
     dataset_example_id: Optional[GlobalID] = None
 
 
