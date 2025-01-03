@@ -13,6 +13,7 @@ export function PrettyText({ children }: { children: string }) {
         css={css`
           white-space: pre-wrap;
           text-wrap: wrap;
+          overflow-wrap: anywhere;
           margin: 0;
         `}
       >
