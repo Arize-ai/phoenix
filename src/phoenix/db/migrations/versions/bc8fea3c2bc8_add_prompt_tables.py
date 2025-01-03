@@ -135,7 +135,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("template", JSON_, nullable=False),
-        sa.Column("invocation_parameters", JSON_, nullable=True),
+        sa.Column("invocation_parameters", JSON_, nullable=False),
         sa.Column("tools", JSON_, nullable=True),
         sa.Column("output_schema", JSON_, nullable=True),
         sa.Column("model_provider", sa.String, nullable=False),

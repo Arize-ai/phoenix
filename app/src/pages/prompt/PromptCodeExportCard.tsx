@@ -28,7 +28,7 @@ export function PromptCodeExportCard({
         modelName
         modelProvider
         outputSchema {
-          schema
+          definition
         }
         tools {
           definition
