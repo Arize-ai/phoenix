@@ -13,9 +13,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
     PromptToolsV1,
 )
-from phoenix.server.api.helpers.prompts.models import (
-    PromptVersion as PromptVersionModel,
-)
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_prompt_template,
@@ -26,19 +23,19 @@ from .PromptVersionTag import PromptVersionTag
 from .ToolDefinition import ToolDefinition
 
 
-@strawberry.experimental.pydantic.type(PromptVersionModel)
+@strawberry.type
 class PromptVersion(Node):
     id_attr: NodeID[int]
-    user: strawberry.auto
-    description: strawberry.auto
-    template_type: strawberry.auto
-    template_format: strawberry.auto
+    user: Optional[str] = None
+    description: Optional[str]
+    template_type: PromptTemplateType
+    template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
     tools: list[ToolDefinition]
     output_schema: Optional[JSONSchema] = None
-    model_name: strawberry.auto
-    model_provider: strawberry.auto
+    model_name: str
+    model_provider: str
 
     @strawberry.field
     def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:

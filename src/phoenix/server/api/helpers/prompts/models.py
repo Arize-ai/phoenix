@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, Optional, TypeVar, Union
+from typing import Any, Literal, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeAlias
@@ -68,15 +68,3 @@ class PromptToolDefinition(BasePromptModel):
 class PromptToolsV1(BasePromptModel):
     version: Literal["tools-v1"] = "tools-v1"
     tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
-
-
-class PromptVersion(BasePromptModel):
-    user: Optional[str] = None
-    description: Optional[str] = None
-    template_type: PromptTemplateType
-    template_format: PromptTemplateFormat
-    template: PromptTemplate
-    tools: list[PromptToolDefinition]
-    output_schema: Optional[dict[str, Any]] = None
-    model_name: str
-    model_provider: str

@@ -256,7 +256,7 @@ class TestPromptMutations:
             ),
         ],
     )
-    async def test_create_prompt_with_invalid_input(
+    async def test_create_prompt_fails_with_invalid_input(
         self, gql_client: AsyncGraphQLClient, variables: dict[str, Any], expected_error: str
     ) -> None:
         result = await gql_client.execute(self.MUTATION, variables)
