@@ -288,9 +288,9 @@ class OpenAIModel(BaseModel):
                 messages.append({"role": "system", "content": part.content})
             elif part.content_type == PromptPartContentType.AUDIO:
                 messages.append(
-                    {  # type: ignore
+                    {
                         "role": "user",
-                        "content": [
+                        "content": [  # type: ignore
                             {
                                 "type": "input_audio",
                                 "input_audio": {

@@ -6,8 +6,8 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
 
-import filetype
 import pandas as pd
+from filetype import guess
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
@@ -191,7 +191,7 @@ def get_audio_format_from_base64(enc_str: str) -> str:
     # Decode the Base64 string back to bytes and guess the file type
     audio_bytes = base64.b64decode(enc_str)
 
-    kind = filetype.guess(audio_bytes)
+    kind = guess(audio_bytes)
     if kind is None:
         return "pcm"
 

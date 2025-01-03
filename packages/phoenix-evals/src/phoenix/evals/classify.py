@@ -159,7 +159,10 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    data_var_name = template.get_data_template_variable()
+    data_var_name = None
+
+    if isinstance(template, (ClassificationTemplate, PromptTemplate)):
+        data_var_name = template.get_data_template_variable()
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -226,10 +229,11 @@ def llm_classify(
                     raise ValueError("data_processor must be an asynchronous function")
 
                 # Process audio element and replace with template variable corresponding to data
-                input_data.loc[data_var_name] = await data_processor(input_data.loc[data_var_name])
-                input_data.index = [
-                    data_var_name if idx == data_var_name else idx for idx in input_data.index
-                ]
+                processed_data = await data_processor(input_data.loc[data_var_name])
+                input_data.loc[data_var_name] = processed_data  # type: ignore
+                input_data.index = pd.Index(
+                    [data_var_name if idx == data_var_name else idx for idx in input_data.index]
+                )
 
             prompt = _map_template(input_data)
             response = await verbose_model._async_generate(
@@ -245,10 +249,11 @@ def llm_classify(
                     raise ValueError("data_processor must be a synchronous function")
 
                 # Process audio element and replace with template variable corresponding to data
-                input_data.loc[data_var_name] = data_processor(input_data.loc[data_var_name])
-                input_data.index = [
-                    data_var_name if idx == data_var_name else idx for idx in input_data.index
-                ]
+                processed_data = data_processor(input_data.loc[data_var_name])
+                input_data.loc[data_var_name] = processed_data  # type: ignore
+                input_data.index = pd.Index(
+                    [data_var_name if idx == data_var_name else idx for idx in input_data.index]
+                )
 
             prompt = _map_template(input_data)
             response = verbose_model._generate(

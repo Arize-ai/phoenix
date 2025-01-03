@@ -132,6 +132,8 @@ class PromptTemplate:
             ):
                 return template_message.template.strip("{}")
 
+        return None
+
 
 class ClassificationTemplate(PromptTemplate):
     def __init__(
