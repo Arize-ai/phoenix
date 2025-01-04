@@ -215,6 +215,18 @@ type ChatCompletionToolCall {
   function: ChatCompletionFunctionCall!
 }
 
+input ChatPromptVersionInput {
+  description: String = null
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptChatTemplateInput!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  outputSchema: JSONSchemaInput = null
+  modelProvider: String!
+  modelName: String!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
@@ -267,16 +279,16 @@ input CreateApiKeyInput {
   expiresAt: DateTime
 }
 
+input CreateChatPromptInput {
+  name: String!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
-}
-
-input CreatePromptInput {
-  name: String!
-  description: String = null
-  promptVersion: PromptVersionInput!
 }
 
 input CreateSpanAnnotationInput {
@@ -1493,6 +1505,25 @@ type Mutation {
   deleteTraceAnnotations(
     input: DeleteAnnotationsInput!
   ): TraceAnnotationMutationPayload!
+  createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createSpanAnnotations(
+    input: [CreateSpanAnnotationInput!]!
+  ): SpanAnnotationMutationPayload!
+  patchSpanAnnotations(
+    input: [PatchAnnotationInput!]!
+  ): SpanAnnotationMutationPayload!
+  deleteSpanAnnotations(
+    input: DeleteAnnotationsInput!
+  ): SpanAnnotationMutationPayload!
+  createTraceAnnotations(
+    input: [CreateTraceAnnotationInput!]!
+  ): TraceAnnotationMutationPayload!
+  patchTraceAnnotations(
+    input: [PatchAnnotationInput!]!
+  ): TraceAnnotationMutationPayload!
+  deleteTraceAnnotations(
+    input: DeleteAnnotationsInput!
+  ): TraceAnnotationMutationPayload!
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
@@ -1798,6 +1829,10 @@ type PromptChatTemplate {
   messages: [PromptTemplateMessage!]!
 }
 
+input PromptChatTemplateInput {
+  messages: [TextPromptMessageInput!]!
+}
+
 """
 A connection to a list of items.
 """
@@ -1912,18 +1947,6 @@ type PromptVersionEdge {
   The item at the end of the edge
   """
   node: PromptVersion!
-}
-
-input PromptVersionInput {
-  description: String = null
-  templateType: PromptTemplateType!
-  templateFormat: PromptTemplateFormat!
-  template: JSON!
-  invocationParameters: JSON! = {}
-  tools: [ToolDefinitionInput!]! = []
-  outputSchema: JSONSchemaInput = null
-  modelProvider: String!
-  modelName: String!
 }
 
 type PromptVersionTag implements Node {
@@ -2366,6 +2389,11 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
 }
 
 type TextPromptMessage {
+  role: PromptMessageRole!
+  content: String!
+}
+
+input TextPromptMessageInput {
   role: PromptMessageRole!
   content: String!
 }
