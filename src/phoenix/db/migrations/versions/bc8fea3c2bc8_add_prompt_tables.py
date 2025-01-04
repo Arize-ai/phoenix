@@ -120,7 +120,7 @@ def upgrade() -> None:
             "template_type",
             sa.String,
             sa.CheckConstraint(
-                "template_type IN ('chat', 'str')",
+                "template_type IN ('CHAT', 'STR')",
                 name="template_type",
             ),
             nullable=False,
@@ -129,7 +129,7 @@ def upgrade() -> None:
             "template_format",
             sa.String,
             sa.CheckConstraint(
-                "template_format IN ('fstring', 'mustache', 'none')",
+                "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')",
                 name="template_format",
             ),
             nullable=False,

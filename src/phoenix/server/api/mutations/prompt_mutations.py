@@ -14,21 +14,23 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptJSONSchema,
     PromptToolsV1,
 )
-from phoenix.server.api.input_types.PromptVersionInput import PromptVersionInput
+from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 
 
 @strawberry.input
-class CreatePromptInput:
+class CreateChatPromptInput:
     name: str
     description: Optional[str] = None
-    prompt_version: PromptVersionInput
+    prompt_version: ChatPromptVersionInput
 
 
 @strawberry.type
 class PromptMutationMixin:
     @strawberry.mutation
-    async def create_prompt(self, info: Info[Context, None], input: CreatePromptInput) -> Prompt:
+    async def create_chat_prompt(
+        self, info: Info[Context, None], input: CreateChatPromptInput
+    ) -> Prompt:
         try:
             tool_definitions = []
             for tool in input.prompt_version.tools:
@@ -46,7 +48,9 @@ class PromptMutationMixin:
                 if input.prompt_version.output_schema is not None
                 else None
             )
-            template = PromptChatTemplateV1.model_validate(input.prompt_version.template).dict()
+            template = PromptChatTemplateV1.model_validate(
+                strawberry.asdict(input.prompt_version.template)
+            ).dict()
         except ValidationError as error:
             raise BadRequest(str(error))
         async with info.context.db() as session:

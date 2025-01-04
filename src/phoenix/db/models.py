@@ -888,13 +888,13 @@ class PromptVersion(Base):
     )
     template_type: Mapped[str] = mapped_column(
         String,
-        CheckConstraint("template_type IN ('chat', 'str')", name="template_type"),
+        CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
         nullable=False,
     )
     template_format: Mapped[str] = mapped_column(
         String,
         CheckConstraint(
-            "template_format IN ('fstring', 'mustache', 'none')", name="template_format"
+            "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')", name="template_format"
         ),
         nullable=False,
     )
