@@ -14,6 +14,9 @@ import { promptLoaderQuery } from "./__generated__/promptLoaderQuery.graphql";
  */
 export async function promptLoader(args: LoaderFunctionArgs) {
   const { promptId } = args.params;
+  // @TODO: fragments fetch _all_ prompt versions, without pagination.
+  // We should probably figure out how to paginate across fragments because
+  // some of them only need the latest prompt version, some need first 5, some need all, etc.
   return await fetchQuery<promptLoaderQuery>(
     RelayEnvironment,
     graphql`
@@ -26,6 +29,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
             ...PromptIndexPage__main
             ...PromptVersionsPageContent__main
             ...PromptLayout__main
+            ...PromptPlaygroundPage__main
           }
         }
       }
