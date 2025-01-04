@@ -7,7 +7,6 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
-from filetype import guess
 from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
@@ -189,10 +188,35 @@ def get_audio_format_from_base64(enc_str: str) -> str:
         str: The audio format ('wav', 'mp3', 'flac', 'ogg', 'aac', or 'unknown').
     """
     # Decode the Base64 string back to bytes and guess the file type
+    # This code is vendored by the filetype library, which is licensed under the MIT License
     audio_bytes = base64.b64decode(enc_str)
 
-    kind = guess(audio_bytes)
-    if kind is None:
-        return "pcm"
+    if len(audio_bytes) > 2:
+        if audio_bytes[0] == 0x49 and audio_bytes[1] == 0x44 and audio_bytes[2] == 0x33:
+            return "mp3"
+    elif audio_bytes[0] == 0xFF:
+        if (
+            audio_bytes[1] == 0xE2  # MPEG 2.5 with error protection
+            or audio_bytes[1] == 0xE3  # MPEG 2.5 w/o error protection
+            or audio_bytes[1] == 0xF2  # MPEG 2 with error protection
+            or audio_bytes[1] == 0xF3  # MPEG 2 w/o error protection
+            or audio_bytes[1] == 0xFA  # MPEG 1 with error protection
+            or audio_bytes[1] == 0xFB  # MPEG 1 w/o error protection
+        ):
+            return "mp3"
 
-    return kind.extension
+    elif (
+        len(audio_bytes) > 11
+        and audio_bytes[0] == 0x52
+        and audio_bytes[1] == 0x49
+        and audio_bytes[2] == 0x46
+        and audio_bytes[3] == 0x46
+        and audio_bytes[8] == 0x57
+        and audio_bytes[9] == 0x41
+        and audio_bytes[10] == 0x56
+        and audio_bytes[11] == 0x45
+    ):
+        return "wav"
+
+    else:
+        raise ValueError("Only wav and mp3 audio formats supported")

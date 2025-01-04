@@ -1,3 +1,8 @@
+import base64
+import io
+
+from pydub import AudioSegment
+
 from phoenix.evals.utils import NOT_PARSABLE, get_audio_format_from_base64, snap_to_rail
 
 
@@ -19,38 +24,22 @@ def test_snap_to_rail():
 
 
 def test_get_audio_format_from_base64():
-    samples = [
-        {
-            "enc_data": "UklGRiSaCABXQVZFZm10IBAAAAABAAIARKwAABCxAgAEABAAZGF0YQCaCABy+HL4BPsE+w//D"
-            "/9WAlYCGgEaAfIA8gA6AToB0ADQ",
-            "format": "wav",
-        },
-        {
-            "enc_data": "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU3LjgzLjEwMAAAAAAAAAAAAAAA"
-            "//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            "format": "mp3",
-        },
-        {
-            "enc_data": "T2dnUwACAAAAAAAAAABdwLNHAAAAANYQEycBHgF2b3JiaXMAAAAAAkSsAAAAAAAAA3ECAAAA"
-            "AAC4AU9nZ1MAAAAAAAAAAAAAXcCz",
-            "format": "ogg",
-        },
-        {
-            "enc_data": "ZkxhQwAAACISABIAAAkBADcsCsRC8ABHLQsq7uacAVPLZSxxjf3w6f8tBAAALg0AAABMYXZm"
-            "NTcuODMuMTAwAQAAABUAAABlbmNv",
-            "format": "flac",
-        },
-        {
-            "enc_data": "//FQgAP//N4EAExhdmM1Ny4xMDcuMTAwAEIgCMEYOP/xUIBxH/whKwwBNFoeYDeQgCQQEQQC"
-            "gQCw7jBLFAWFQ2EiTzU874zjjPP3",
-            "format": "aac",
-        },
-        {
-            "enc_data": "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
-            "LPLZ9dn1AvoC+vn3+fdy+XL5K/cr",
-            "format": "pcm",
-        },
-    ]
+    pcm_enc_str = "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
+    "LPLZ9dn1AvoC+vn3+fdy+XL5K/cr"
 
-    for sample in samples:
-        assert get_audio_format_from_base64(sample["enc_data"]) == sample["format"]
+    pcm_bytes = base64.b64decode(pcm_enc_str)
+    # 16 bit PCM audio, 44.1 kHz sample rate, mono
+    audio_segment = AudioSegment(data=pcm_bytes, sample_width=2, frame_rate=44100, channels=1)
+
+    # Only mp3 and wav formats are currently supported by OpenAI's audio-preview model
+    formats = ["mp3", "wav"]
+    encoded_audio = {}
+
+    for fmt in formats:
+        audio_io = io.BytesIO()
+        audio_segment.export(audio_io, format=fmt)
+        audio_bytes = audio_io.getvalue()
+        encoded_audio[fmt] = base64.b64encode(audio_bytes).decode("utf-8")
+
+    for fmt, enc_str in encoded_audio.items():
+        assert fmt == get_audio_format_from_base64(enc_str)

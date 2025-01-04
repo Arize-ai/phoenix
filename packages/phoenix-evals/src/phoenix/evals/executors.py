@@ -279,6 +279,7 @@ class AsyncExecutor(Executor):
         return outputs, execution_details
 
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
+        print(inputs)
         return asyncio.run(self.execute(inputs))
 
 

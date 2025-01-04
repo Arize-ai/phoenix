@@ -66,7 +66,7 @@ class ClassificationStatus(Enum):
 
 
 def llm_classify(
-    dataframe: pd.DataFrame,
+    dataframe: Union[pd.DataFrame, List[Tuple], List[str]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -159,10 +159,10 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    data_var_name = None
+    data_variable = None
 
     if isinstance(template, (ClassificationTemplate, PromptTemplate)):
-        data_var_name = template.get_data_template_variable()
+        data_variable = template.get_data_template_variable()
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -222,37 +222,47 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(input_data: pd.Series[Any]) -> ParsedLLMResponse:
+    async def _run_llm_classification_async(
+        input_data: Union[str, Tuple, pd.Series[Any]],
+    ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
-                if not inspect.iscoroutinefunction(data_processor):
-                    raise ValueError("data_processor must be an asynchronous function")
+                if inspect.iscoroutinefunction(data_processor):
+                    processed_data = await data_processor(input_data)
+                else:
+                    processed_data = data_processor(input_data)
 
-                # Process audio element and replace with template variable corresponding to data
-                processed_data = await data_processor(input_data.loc[data_var_name])
-                input_data.loc[data_var_name] = processed_data  # type: ignore
-                input_data.index = pd.Index(
-                    [data_var_name if idx == data_var_name else idx for idx in input_data.index]
+            # Transform input data into a pandas Series if it's a str or Tuple
+            if isinstance(input_data, Tuple):
+                series_data = pd.Series(
+                    {
+                        template_var: input_val
+                        for template_var, input_val in zip(eval_template.variables, processed_data)
+                    }
                 )
+            elif isinstance(input_data, str):
+                series_data = pd.Series({eval_template.variables[0]: processed_data})
 
-            prompt = _map_template(input_data)
+            prompt = _map_template(series_data)
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response, str(prompt)
 
-    def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(
+        input_data: Union[str, Tuple, pd.Series[Any]],
+    ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
                 if inspect.iscoroutinefunction(data_processor):
                     raise ValueError("data_processor must be a synchronous function")
 
                 # Process audio element and replace with template variable corresponding to data
-                processed_data = data_processor(input_data.loc[data_var_name])
-                input_data.loc[data_var_name] = processed_data  # type: ignore
+                processed_data = data_processor(input_data.loc[data_variable])
+                input_data.loc[data_variable] = processed_data  # type: ignore
                 input_data.index = pd.Index(
-                    [data_var_name if idx == data_var_name else idx for idx in input_data.index]
+                    [data_variable if idx == data_variable else idx for idx in input_data.index]
                 )
 
             prompt = _map_template(input_data)
@@ -275,7 +285,17 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    if isinstance(dataframe, pd.DataFrame):
+        list_of_inputs = [row_tuple[1] for row_tuple in dataframe.iterrows()]
+        dataframe_index = dataframe.index
+    # Data is list of strings or tuples
+    elif isinstance(dataframe, list):
+        list_of_inputs = dataframe
+        dataframe_index = range(len(dataframe))
+    else:
+        raise ValueError("dataframe must be a pandas DataFrame or a list of tuples or strings")
+
+    results, execution_details = executor.run(list_of_inputs)
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
@@ -297,7 +317,7 @@ def llm_classify(
             **({"execution_status": [status.value for status in classification_statuses]}),
             **({"execution_seconds": [runtime for runtime in execution_times]}),
         },
-        index=dataframe.index,
+        index=dataframe_index,
     )
 
 
