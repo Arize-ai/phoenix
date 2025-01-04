@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6685499b664d608581ac492b3a4de03>>
+ * @generated SignedSource<<193e2f1f63640ee187e2f9d4845efb22>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,10 +11,10 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateType = "CHAT" | "STRING";
-export type usePlaygroundPromptQuery$variables = {
+export type fetchPlaygroundPromptQuery$variables = {
   promptId: string;
 };
-export type usePlaygroundPromptQuery$data = {
+export type fetchPlaygroundPromptQuery$data = {
   readonly prompt: {
     readonly createdAt?: string;
     readonly description?: string | null;
@@ -49,9 +49,9 @@ export type usePlaygroundPromptQuery$data = {
     };
   };
 };
-export type usePlaygroundPromptQuery = {
-  response: usePlaygroundPromptQuery$data;
-  variables: usePlaygroundPromptQuery$variables;
+export type fetchPlaygroundPromptQuery = {
+  response: fetchPlaygroundPromptQuery$data;
+  variables: fetchPlaygroundPromptQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -184,7 +184,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "usePlaygroundPromptQuery",
+    "name": "fetchPlaygroundPromptQuery",
     "selections": [
       {
         "alias": "prompt",
@@ -287,7 +287,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "usePlaygroundPromptQuery",
+    "name": "fetchPlaygroundPromptQuery",
     "selections": [
       {
         "alias": "prompt",
@@ -391,16 +391,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "703b5f4b660e7360023773b6e55c609f",
+    "cacheID": "53e2961f9d90a11c9141240a1f3fc996",
     "id": null,
     "metadata": {},
-    "name": "usePlaygroundPromptQuery",
+    "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query usePlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  __typename\n                  ... on TextPromptMessage {\n                    content\n                    role\n                  }\n                }\n              }\n            }\n            tools {\n              __typename\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  __typename\n                  ... on TextPromptMessage {\n                    content\n                    role\n                  }\n                }\n              }\n            }\n            tools {\n              __typename\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4e3a64e25f78558e5745a8d385ee8134";
+(node as any).hash = "80a54bff7cda3621b726e48b2a416f12";
 
 export default node;

@@ -13,7 +13,7 @@ import {
 import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { PlaygroundPromptFetcher } from "@phoenix/pages/playground/PlaygroundPromptFetcher";
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
@@ -35,13 +35,22 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const promptId = prompt?.id;
 
   const onChangePrompt = useCallback(
-    (promptId: string | null) => {
+    async (promptId: string | null) => {
       updateInstance({
         instanceId,
         patch: {
           prompt: promptId ? { id: promptId } : null,
         },
       });
+      const newInstance = await fetchPlaygroundPromptAsInstance(promptId);
+      if (newInstance) {
+        updateInstance({
+          instanceId,
+          patch: {
+            ...newInstance,
+          },
+        });
+      }
     },
     [instanceId, updateInstance]
   );
@@ -80,9 +89,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               {/* As long as this component mounts, it will sync the supported
               invocation parameters for the model to the instance in the store */}
               <ModelSupportedParamsFetcher instanceId={instanceId} />
-              {/* As long as this component mounts, it will sync the prompt id from the instance, 
-              into template state in the store */}
-              <PlaygroundPromptFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
             <SaveButton instanceId={instanceId} setDialog={setDialog} />

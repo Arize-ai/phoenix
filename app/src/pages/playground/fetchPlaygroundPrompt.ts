@@ -1,15 +1,14 @@
-import { useEffect } from "react";
-import { graphql, usePreloadedQuery, useQueryLoader } from "react-relay";
+import { fetchQuery, graphql } from "react-relay";
 
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   getChatRole,
   openInferenceModelProviderToPhoenixModelProvider,
 } from "@phoenix/pages/playground/playgroundUtils";
+import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
@@ -19,15 +18,20 @@ import {
 import { Mutable } from "@phoenix/typeUtils";
 
 import {
+  fetchPlaygroundPromptQuery,
+  fetchPlaygroundPromptQuery$data,
   PromptMessageRole,
-  usePlaygroundPromptQuery,
-  usePlaygroundPromptQuery$data,
-} from "./__generated__/usePlaygroundPromptQuery.graphql";
+} from "./__generated__/fetchPlaygroundPromptQuery.graphql";
 
 type PromptVersion = NonNullable<
-  usePlaygroundPromptQuery$data["prompt"]["promptVersions"]
+  fetchPlaygroundPromptQuery$data["prompt"]["promptVersions"]
 >["edges"][0]["promptVersion"];
 
+/**
+ * Converts a playground chat message role to a prompt message role
+ * @param role - The playground chat message role
+ * @returns The prompt message role
+ */
 export const chatMessageRoleToPromptMessageRole = (
   role: ChatMessageRole
 ): PromptMessageRole => {
@@ -45,10 +49,22 @@ export const chatMessageRoleToPromptMessageRole = (
   }
 };
 
-export const promptVersionToInstance = (promptVersion: PromptVersion) => {
+/**
+ * Converts a prompt version to a playground instance.
+ *
+ * The playground instance is missing an id, it will need to be generated before usage.
+ *
+ * @param promptId - The prompt ID
+ * @param promptVersion - The prompt version
+ * @returns The playground instance
+ */
+export const promptVersionToInstance = (
+  promptId: string,
+  promptVersion: PromptVersion
+) => {
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
-    prompt: { id: promptVersion.id },
+    prompt: { id: promptId },
   } satisfies Partial<PlaygroundInstance>;
 
   return {
@@ -79,6 +95,14 @@ export const promptVersionToInstance = (promptVersion: PromptVersion) => {
   } satisfies Partial<PlaygroundInstance>;
 };
 
+/**
+ * Converts a playground instance to a prompt version.
+ *
+ * @todo(apowell): The output may be better suited as PromptCreateInput
+ *
+ * @param instance - The playground instance
+ * @returns The prompt version
+ */
 export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   if (!instance.prompt) {
     return null;
@@ -111,7 +135,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
 };
 
 const getLatestPromptVersion = (
-  prompt: usePlaygroundPromptQuery$data["prompt"]
+  prompt?: fetchPlaygroundPromptQuery$data["prompt"]
 ) => {
   if (!prompt) {
     return null;
@@ -121,7 +145,7 @@ const getLatestPromptVersion = (
 };
 
 const query = graphql`
-  query usePlaygroundPromptQuery($promptId: GlobalID!) {
+  query fetchPlaygroundPromptQuery($promptId: GlobalID!) {
     prompt: node(id: $promptId) {
       ... on Prompt {
         id
@@ -160,52 +184,35 @@ const query = graphql`
   }
 `;
 
-export const usePlaygroundPromptReference = (instanceId: number) => {
-  const instances = usePlaygroundContext((state) => state.instances);
-  const instance = instances.find((instance) => instance.id === instanceId);
-  if (!instance) {
-    throw new Error(`Instance ${instanceId} not found`);
-  }
-  const promptId = instance.prompt?.id;
-  const [queryReference, loadQuery, disposeQuery] =
-    useQueryLoader<usePlaygroundPromptQuery>(query);
-
-  useEffect(() => {
-    if (promptId) {
-      loadQuery({ promptId: promptId });
-      return () => disposeQuery();
-    }
-  }, [disposeQuery, loadQuery, promptId]);
-
-  return queryReference;
+/**
+ * Fetches a prompt by ID.
+ *
+ * @param promptId - The prompt ID
+ * @returns The prompt
+ */
+export const fetchPlaygroundPrompt = async (promptId: string) => {
+  return fetchQuery<fetchPlaygroundPromptQuery>(RelayEnvironment, query, {
+    promptId,
+  }).toPromise();
 };
 
-export type PromptQueryReference = NonNullable<
-  ReturnType<typeof useQueryLoader<usePlaygroundPromptQuery>>[0]
->;
-
-export const usePlaygroundPrompt = (
-  instanceId: number,
-  queryReference: PromptQueryReference
+/**
+ * Fetches a prompt by ID and converts it to a playground instance.
+ *
+ * @param promptId - The prompt ID
+ * @returns The playground instance
+ */
+export const fetchPlaygroundPromptAsInstance = async (
+  promptId?: string | null
 ) => {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const instances = usePlaygroundContext((state) => state.instances);
-  const instance = instances.find((instance) => instance.id === instanceId);
-  if (!instance) {
-    throw new Error(`Instance ${instanceId} not found`);
+  if (!promptId) {
+    return null;
   }
-  const { prompt } = usePreloadedQuery(query, queryReference);
-
-  useEffect(() => {
-    const latestPromptVersion = getLatestPromptVersion(prompt);
-    if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
-      const newInstance = promptVersionToInstance(latestPromptVersion);
-      updateInstance({
-        instanceId,
-        patch: {
-          ...newInstance,
-        },
-      });
-    }
-  }, [instanceId, prompt, updateInstance]);
+  const response = await fetchPlaygroundPrompt(promptId);
+  const latestPromptVersion = getLatestPromptVersion(response?.prompt);
+  if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
+    const newInstance = promptVersionToInstance(promptId, latestPromptVersion);
+    return newInstance;
+  }
+  return null;
 };
