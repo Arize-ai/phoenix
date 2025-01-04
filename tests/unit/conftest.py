@@ -21,6 +21,7 @@ from psycopg import Connection
 from pytest import FixtureRequest
 from pytest_postgresql import factories
 from sqlalchemy import URL, make_url
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
 
@@ -131,6 +132,16 @@ async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture(params=["sqlite", "postgresql"])
 def dialect(request: SubRequest) -> str:
     return str(request.param)
+
+
+@pytest.fixture
+def sqlalchemy_dialect(dialect: str) -> Any:
+    if dialect == "sqlite":
+        return sqlite.dialect()  # type: ignore[no-untyped-call]
+    elif dialect == "postgresql":
+        return postgresql.dialect()  # type: ignore[no-untyped-call]
+    else:
+        raise ValueError(f"Unsupported dialect: {dialect}")
 
 
 @pytest.fixture(scope="function")
