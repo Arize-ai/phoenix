@@ -8,21 +8,21 @@ JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
 
 class PromptTemplateType(str, Enum):
-    STRING = "str"
-    CHAT = "chat"
+    STRING = "STR"
+    CHAT = "CHAT"
 
 
 class PromptMessageRole(str, Enum):
-    USER = "user"
-    SYSTEM = "system"  # e.g. the OpenAI developer role or an Anthropic system instruction
-    AI = "ai"  # E.g. the assistant. Normalize to AI for consistency.
-    TOOL = "tool"
+    USER = "USER"
+    SYSTEM = "SYSTEM"  # e.g. the OpenAI developer role or an Anthropic system instruction
+    AI = "AI"  # E.g. the assistant. Normalize to AI for consistency.
+    TOOL = "TOOL"
 
 
 class PromptTemplateFormat(str, Enum):
-    MUSTACHE = "mustache"
-    FSTRING = "fstring"
-    NONE = "none"
+    MUSTACHE = "MUSTACHE"
+    FSTRING = "FSTRING"
+    NONE = "NONE"
 
 
 class PromptModel(BaseModel):

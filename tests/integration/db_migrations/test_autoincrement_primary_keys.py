@@ -20,8 +20,8 @@ def test_prompt_versions(
     values = dict(
         prompt_id=prompt.id,
         template={},
-        template_type="chat",
-        template_format="mustache",
+        template_type="CHAT",
+        template_format="MUSTACHE",
         model_provider=token_hex(16),
         model_name=token_hex(16),
     )
