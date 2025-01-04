@@ -1,7 +1,9 @@
 import ast
 import sys
+from typing import Any
 
 import pytest
+from sqlalchemy.dialects import postgresql, sqlite
 from syrupy.assertion import SnapshotAssertion
 
 from phoenix.server.api.helpers.experiment_run_filters import (
@@ -10,6 +12,16 @@ from phoenix.server.api.helpers.experiment_run_filters import (
     SQLAlchemyTransformer,
     compile_sqlalchemy_filter_condition,
 )
+
+
+@pytest.fixture
+def sqlalchemy_dialect(dialect: str) -> Any:
+    if dialect == "sqlite":
+        return sqlite.dialect()  # type: ignore[no-untyped-call]
+    elif dialect == "postgresql":
+        return postgresql.dialect()  # type: ignore[no-untyped-call]
+    else:
+        raise ValueError(f"Unsupported dialect: {dialect}")
 
 
 @pytest.mark.parametrize(
@@ -284,14 +296,18 @@ from phoenix.server.api.helpers.experiment_run_filters import (
     ),
 )
 def test_sqlalchemy_transformer_correctly_compiles(
-    filter_condition: str, dialect: str, snapshot: SnapshotAssertion
+    filter_condition: str, sqlalchemy_dialect: Any, snapshot: SnapshotAssertion
 ) -> None:
     tree = ast.parse(filter_condition, mode="eval")
     transformer = SQLAlchemyTransformer([0, 1, 2])
     transformed_tree = transformer.visit(tree)
     node = transformed_tree.body
     sqlalchemy_filter_condition = node.compile()
-    sql = str(sqlalchemy_filter_condition.compile(compile_kwargs={"literal_binds": True}))
+    sql = str(
+        sqlalchemy_filter_condition.compile(
+            compile_kwargs={"literal_binds": True}, dialect=sqlalchemy_dialect
+        )
+    )
     snapshot.assert_match(
         {
             "filter_condition": filter_condition,
@@ -338,13 +354,17 @@ def test_sqlalchemy_transformer_correctly_compiles(
     ),
 )
 def test_compile_sqlalchemy_filter_condition_correctly_compiles(
-    filter_condition: str, dialect: str, snapshot: SnapshotAssertion
+    filter_condition: str, sqlalchemy_dialect: Any, snapshot: SnapshotAssertion
 ) -> None:
     sqlalchemy_filter_condition, _ = compile_sqlalchemy_filter_condition(
         filter_condition=filter_condition,
         experiment_ids=[0, 1],
     )
-    sql = str(sqlalchemy_filter_condition.compile(compile_kwargs={"literal_binds": True}))
+    sql = str(
+        sqlalchemy_filter_condition.compile(
+            compile_kwargs={"literal_binds": True}, dialect=sqlalchemy_dialect
+        )
+    )
     snapshot.assert_match(
         {
             "filter_condition": filter_condition,
