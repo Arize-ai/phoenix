@@ -3,7 +3,6 @@ import sys
 from typing import Any
 
 import pytest
-from sqlalchemy.dialects import postgresql, sqlite
 from syrupy.assertion import SnapshotAssertion
 
 from phoenix.server.api.helpers.experiment_run_filters import (
@@ -12,16 +11,6 @@ from phoenix.server.api.helpers.experiment_run_filters import (
     SQLAlchemyTransformer,
     compile_sqlalchemy_filter_condition,
 )
-
-
-@pytest.fixture
-def sqlalchemy_dialect(dialect: str) -> Any:
-    if dialect == "sqlite":
-        return sqlite.dialect()  # type: ignore[no-untyped-call]
-    elif dialect == "postgresql":
-        return postgresql.dialect()  # type: ignore[no-untyped-call]
-    else:
-        raise ValueError(f"Unsupported dialect: {dialect}")
 
 
 @pytest.mark.parametrize(
