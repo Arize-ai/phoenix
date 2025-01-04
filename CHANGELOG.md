@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.0...arize-phoenix-v7.5.1) (2025-01-04)
+
+
+### Bug Fixes
+
+* default prompt / completion tokens to 0 ([#5897](https://github.com/Arize-ai/phoenix/issues/5897)) ([8cfc138](https://github.com/Arize-ai/phoenix/commit/8cfc138ace0ec05794f0efb1dc1ed0f93ea8d298))
+
 ## [7.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.4.0...arize-phoenix-v7.5.0) (2025-01-03)
 
 
