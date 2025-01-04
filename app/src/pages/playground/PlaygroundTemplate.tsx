@@ -36,12 +36,16 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   const onChangePrompt = useCallback(
     async (promptId: string | null) => {
-      updateInstance({
-        instanceId,
-        patch: {
-          prompt: promptId ? { id: promptId } : null,
-        },
-      });
+      if (!promptId) {
+        updateInstance({
+          instanceId,
+          patch: {
+            prompt: null,
+          },
+        });
+        return;
+      }
+
       const newInstance = await fetchPlaygroundPromptAsInstance(promptId);
       if (newInstance) {
         updateInstance({
