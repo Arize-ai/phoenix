@@ -102,10 +102,8 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   prompt: "{{question}}",
 };
 
-export function createPlaygroundInstance(): PlaygroundInstance {
-  return {
-    id: generateInstanceId(),
-    template: generateChatCompletionTemplate(),
+export const DEFAULT_INSTANCE_PARAMS = () =>
+  ({
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
@@ -118,6 +116,13 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
+  }) satisfies Partial<PlaygroundInstance>;
+
+export function createPlaygroundInstance(): PlaygroundInstance {
+  return {
+    id: generateInstanceId(),
+    template: generateChatCompletionTemplate(),
+    ...DEFAULT_INSTANCE_PARAMS(),
   };
 }
 

@@ -124,7 +124,7 @@ export interface PlaygroundInstance {
   /**
    * Details about the prompt hub prompt associated with the instance, if any
    */
-  prompt?: PlaygroundInstancePrompt;
+  prompt?: PlaygroundInstancePrompt | null;
 }
 
 /**

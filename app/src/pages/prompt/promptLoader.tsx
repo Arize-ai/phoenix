@@ -29,7 +29,6 @@ export async function promptLoader(args: LoaderFunctionArgs) {
             ...PromptIndexPage__main
             ...PromptVersionsPageContent__main
             ...PromptLayout__main
-            ...PromptPlaygroundPage__main
           }
         }
       }

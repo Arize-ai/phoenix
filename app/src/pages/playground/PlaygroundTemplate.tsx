@@ -1,5 +1,4 @@
 import React, { Suspense, useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -14,6 +13,7 @@ import {
 import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { PlaygroundPromptFetcher } from "@phoenix/pages/playground/PlaygroundPromptFetcher";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
@@ -25,14 +25,26 @@ import { PlaygroundInstanceProps } from "./types";
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
-  const navigate = useNavigate();
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
+
+  const onChangePrompt = useCallback(
+    (promptId: string | null) => {
+      updateInstance({
+        instanceId,
+        patch: {
+          prompt: promptId ? { id: promptId } : null,
+        },
+      });
+    },
+    [instanceId, updateInstance]
+  );
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
@@ -50,12 +62,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             marginEnd="size-100"
           >
             <AlphabeticIndexIcon index={index} />
-            <PromptComboBox
-              promptId={promptId}
-              onChange={(nextPromptId) => {
-                navigate(`/prompts/${nextPromptId}/playground`);
-              }}
-            />
+            <PromptComboBox promptId={promptId} onChange={onChangePrompt} />
           </Flex>
         }
         collapsible
@@ -73,6 +80,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               {/* As long as this component mounts, it will sync the supported
               invocation parameters for the model to the instance in the store */}
               <ModelSupportedParamsFetcher instanceId={instanceId} />
+              {/* As long as this component mounts, it will sync the prompt id from the instance, 
+              into template state in the store */}
+              <PlaygroundPromptFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
             <SaveButton instanceId={instanceId} setDialog={setDialog} />
