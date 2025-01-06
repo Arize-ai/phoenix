@@ -82,7 +82,7 @@ async def get_prompt_version_by_tag_name(
             try:
                 prompt_id = from_global_id_with_expected_type(prompt_gid, PROMPT_NODE_NAME)
             except ValueError:
-                raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt identifier")
+                prompt_name = prompt_identifier
     else:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt identifier")
     assert prompt_id is not None or prompt_name is not None
