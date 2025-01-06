@@ -100,8 +100,7 @@ def _parse_prompt_identifier(
         )
     except ValueError:
         return _PromptName(prompt_identifier)
-    else:
-        return _PromptId(prompt_id)
+    return _PromptId(prompt_id)
 
 
 def _filter_by_prompt_identifier(
