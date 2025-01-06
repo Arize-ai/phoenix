@@ -15,7 +15,6 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
-    Sequence,
     Tuple,
     Union,
 )
@@ -67,7 +66,7 @@ class ClassificationStatus(Enum):
 
 
 def llm_classify(
-    dataframe: Union[pd.DataFrame, pd.Series, Sequence[Any]],
+    dataframe: Union[pd.DataFrame, pd.Series[Any], List[Any], Tuple[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -92,8 +91,8 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
-        dataframe (Union[pd.DataFrame, pd.Series, Sequence[Any]]): A collection of data which can
-            contain template variables and other information necessary to generation evaluations.
+        dataframe (Union[pd.DataFrame, pd.Series, List[Any], Tuple[Any]): A collection of data which
+            can contain template variables and other information necessary to generate evaluations.
 
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
@@ -217,8 +216,8 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    def _transform_to_series(data: Union[str, Tuple, List, pd.Series[Any]]) -> pd.Series[Any]:
-        if isinstance(data, Tuple) or isinstance(data, List):
+    def _normalize_to_series(data: Union[str, list, tuple, pd.Series[Any]]) -> pd.Series[Any]:
+        if isinstance(data, (list, tuple)):
             return pd.Series(
                 {
                     template_var: input_val
@@ -231,7 +230,7 @@ def llm_classify(
                     "Multiple template variables present but only one list passed through."
                 )
             return pd.Series({eval_template.variables[0]: data})
-        else:
+        elif isinstance(data, pd.Series):
             return data
 
     async def _run_llm_classification_async(
@@ -246,7 +245,7 @@ def llm_classify(
             else:
                 processed_data = input_data
 
-            prompt = _map_template(_transform_to_series(processed_data))
+            prompt = _map_template(_normalize_to_series(processed_data))
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
@@ -260,15 +259,11 @@ def llm_classify(
             if data_processor:
                 if inspect.iscoroutinefunction(data_processor):
                     raise ValueError("data_processor must be a synchronous function")
+                processed_data = data_processor(input_data)
+            else:
+                processed_data = input_data
 
-                # # Process audio element and replace with template variable corresponding to data
-                # processed_data = data_processor(input_data.loc[data_variable])
-                # input_data.loc[data_variable] = processed_data  # type: ignore
-                # input_data.index = pd.Index(
-                #     [data_variable if idx == data_variable else idx for idx in input_data.index]
-                # )
-
-            prompt = _map_template(input_data)
+            prompt = _map_template(_normalize_to_series(processed_data))
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
@@ -291,12 +286,15 @@ def llm_classify(
     if isinstance(dataframe, pd.DataFrame):
         list_of_inputs = [row_tuple[1] for row_tuple in dataframe.iterrows()]
         dataframe_index = dataframe.index
+    elif isinstance(dataframe, pd.Series):
+        list_of_inputs = dataframe.values
+        dataframe_index = dataframe.index
     # Data is list of strings or tuples
-    elif isinstance(dataframe, list):
+    elif isinstance(dataframe, (list, tuple)):
         list_of_inputs = dataframe
-        dataframe_index = range(len(dataframe))
+        dataframe_index = pd.Index(range(len(dataframe)))
     else:
-        raise ValueError("dataframe must be a pandas DataFrame or a list of tuples or strings")
+        raise ValueError("dataframe must be a pandas DataFrame, pandas Series, list, or tuple")
 
     results, execution_details = executor.run(list_of_inputs)
     labels, explanations, responses, prompts = zip(*results)

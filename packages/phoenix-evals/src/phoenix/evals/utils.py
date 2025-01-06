@@ -177,7 +177,7 @@ def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
         tqdm.write(*args, **kwargs)
 
 
-def get_audio_format_from_base64(enc_str) -> str:
+def get_audio_format_from_base64(enc_str: str) -> str:
     audio_bytes = base64.b64decode(enc_str)
 
     if len(audio_bytes) >= 3:
