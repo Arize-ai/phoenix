@@ -1191,6 +1191,81 @@
           }
         }
       }
+    },
+    "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get prompt by tag name",
+        "operationId": "getPromptVersionByTagName",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The tag of the prompt version",
+              "title": "Tag Name"
+            },
+            "description": "The tag of the prompt version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1558,6 +1633,18 @@
         ],
         "title": "GetExperimentResponseBody"
       },
+      "GetPromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1584,6 +1671,47 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
+      },
+      "JSONPromptMessage": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/PromptMessageRole"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "JSONPromptMessage"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -1695,6 +1823,195 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "PromptChatTemplateV1": {
+        "properties": {
+          "messages": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextPromptMessage"
+                },
+                {
+                  "$ref": "#/components/schemas/JSONPromptMessage"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "PromptChatTemplateV1"
+      },
+      "PromptJSONSchema": {
+        "properties": {
+          "definition": {
+            "type": "object",
+            "title": "Definition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "definition"
+        ],
+        "title": "PromptJSONSchema",
+        "description": "A JSON schema definition used to guide an LLM's output"
+      },
+      "PromptMessageRole": {
+        "type": "string",
+        "enum": [
+          "USER",
+          "SYSTEM",
+          "AI",
+          "TOOL"
+        ],
+        "title": "PromptMessageRole"
+      },
+      "PromptStringTemplateV1": {
+        "properties": {
+          "template": {
+            "type": "string",
+            "title": "Template"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template"
+        ],
+        "title": "PromptStringTemplateV1"
+      },
+      "PromptTemplateFormat": {
+        "type": "string",
+        "enum": [
+          "MUSTACHE",
+          "FSTRING",
+          "NONE"
+        ],
+        "title": "PromptTemplateFormat"
+      },
+      "PromptTemplateType": {
+        "type": "string",
+        "enum": [
+          "STR",
+          "CHAT"
+        ],
+        "title": "PromptTemplateType"
+      },
+      "PromptToolDefinition": {
+        "properties": {
+          "definition": {
+            "type": "object",
+            "title": "Definition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definition"
+        ],
+        "title": "PromptToolDefinition"
+      },
+      "PromptToolsV1": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "tools-v1",
+            "title": "Version",
+            "default": "tools-v1"
+          },
+          "tool_definitions": {
+            "items": {
+              "$ref": "#/components/schemas/PromptToolDefinition"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Tool Definitions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_definitions"
+        ],
+        "title": "PromptToolsV1"
+      },
+      "PromptVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "model_provider": {
+            "type": "string",
+            "title": "Model Provider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "template": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptChatTemplateV1"
+              },
+              {
+                "$ref": "#/components/schemas/PromptStringTemplateV1"
+              }
+            ],
+            "title": "Template"
+          },
+          "template_type": {
+            "$ref": "#/components/schemas/PromptTemplateType",
+            "default": "CHAT"
+          },
+          "template_format": {
+            "$ref": "#/components/schemas/PromptTemplateFormat",
+            "default": "MUSTACHE"
+          },
+          "invocation_parameters": {
+            "type": "object",
+            "title": "Invocation Parameters"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptToolsV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptJSONSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "model_provider",
+          "model_name",
+          "template"
+        ],
+        "title": "PromptVersion"
+      },
       "SpanAnnotation": {
         "properties": {
           "span_id": {
@@ -1789,6 +2106,24 @@
         },
         "type": "object",
         "title": "SpanAnnotationResult"
+      },
+      "TextPromptMessage": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/PromptMessageRole"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "TextPromptMessage"
       },
       "UploadDatasetData": {
         "properties": {
