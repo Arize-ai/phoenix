@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router-dom";
+import { formatRelative } from "date-fns";
 import { css } from "@emotion/react";
 
 import { Flex, Tag, TagGroup, TagList, Text, View } from "@phoenix/components";
@@ -19,34 +20,18 @@ export type PromptVersionItemProps = {
 type PromptVersion =
   PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
 
-const promptVersionItemCSS = ({ active }: { active?: boolean }) => css`
-  & {
-    border-bottom: 1px solid var(--ac-global-color-grey-300);
-    transition: background-color 0.1s ease-in;
+const promptVersionItemCSS = css`
+  border-bottom: 1px solid var(--ac-global-color-grey-300);
+  transition: background-color 0.1s ease-in;
+
+  &[data-active="true"],
+  &:hover {
+    background-color: var(--ac-global-color-grey-200);
   }
 
   & > a {
-    height: 100%;
-    width: 100%;
-    justify-content: flex-start;
-    padding: 0;
-    border-radius: 0;
-    border: none;
     text-decoration: none;
-    background-opacity: 0;
-    & > * {
-      background-color: ${active ? "var(--ac-global-color-grey-200)" : "auto"};
-    }
-    &:hover,
-    &:focus-visible {
-      outline: none;
-      & > * {
-        outline: none;
-        background-color: ${active
-          ? "var(--ac-global-color-grey-200)"
-          : "var(--ac-global-color-grey-100)"};
-      }
-    }
+    color: inherit;
   }
 `;
 
@@ -59,19 +44,29 @@ export const PromptVersionItem = ({
   version,
   active,
 }: PromptVersionItemProps) => {
-  const styles = useMemo(() => promptVersionItemCSS({ active }), [active]);
   const tags = version.tags.map((tag) => ({
     id: tag.name,
     name: tag.name,
   }));
   return (
-    <div css={styles}>
+    <div css={promptVersionItemCSS} data-active={active}>
       <Link to={`${version.id}`}>
-        <View width="100%" padding="size-200">
-          <Flex direction="column" gap="size-100">
-            <Text>{version.id}</Text>
+        <View width="100%" paddingY="size-100" paddingX="size-200">
+          <Flex direction="column" gap="size-50">
+            <View width="100%">
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <span>{version.id}</span>
+                <Text color="text-300">
+                  {formatRelative(version.createdAt, Date.now())}
+                </Text>
+              </Flex>
+            </View>
             <Truncate maxWidth={"100%"}>
-              <Text>{version.description}</Text>
+              <Text color="text-700">{version.description}</Text>
             </Truncate>
             <TagGroup>
               <TagList items={tags}>{(tag) => <Tag>{tag.name}</Tag>}</TagList>
@@ -88,7 +83,7 @@ type PromptVersionsListProps = {
   itemActive?: (version: PromptVersion) => boolean;
 };
 
-const PROMPT_VERSIONS_LIST_WIDTH = 300;
+const PROMPT_VERSIONS_LIST_WIDTH = 350;
 
 /**
  * Full height, scrollable, list of prompt versions
@@ -107,6 +102,7 @@ export const PromptVersionsList = ({
               ... on PromptVersion {
                 id
                 description
+                createdAt
                 tags {
                   name
                 }
