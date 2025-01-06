@@ -1413,6 +1413,7 @@ type Prompt implements Node {
   name: String!
   description: String
   createdAt: DateTime!
+  versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
 }
 
