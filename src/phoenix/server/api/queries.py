@@ -56,10 +56,7 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
-from phoenix.server.api.types.PromptVersion import (
-    PromptVersion,
-    to_gql_prompt_version,
-)
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -531,12 +528,13 @@ class Query:
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_project_session(project_session)
         elif type_name == Prompt.__name__:
-            return Prompt(
-                id_attr=node_id,
-                name="Prompt " + str(node_id),
-                description="description",
-                created_at=datetime.now(),
-            )
+            async with info.context.db() as session:
+                if orm_prompt := await session.scalar(
+                    select(models.Prompt).where(models.Prompt.id == node_id)
+                ):
+                    return to_gql_prompt_from_orm(orm_prompt)
+                else:
+                    raise NotFound(f"Unknown prompt: {id}")
         elif type_name == PromptVersion.__name__:
             async with info.context.db() as session:
                 if orm_prompt_version := await session.scalar(

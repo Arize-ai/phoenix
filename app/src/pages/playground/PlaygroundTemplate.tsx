@@ -13,6 +13,7 @@ import {
 import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
@@ -26,18 +27,37 @@ interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
+  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
-  const updateInstancePrompt = usePlaygroundContext(
-    (state) => state.updateInstancePrompt
-  );
 
-  // TODO(apowell): Sync instance state with promptId + version (or latest if unset)
-  // If it exists, and we can fetch it from gql, replace the instance with it
-  // If it doesn't exist, or we can't fetch it from gql, set the promptId to null
+  const onChangePrompt = useCallback(
+    async (promptId: string | null) => {
+      if (!promptId) {
+        updateInstance({
+          instanceId,
+          patch: {
+            prompt: null,
+          },
+        });
+        return;
+      }
+
+      const newInstance = await fetchPlaygroundPromptAsInstance(promptId);
+      if (newInstance) {
+        updateInstance({
+          instanceId,
+          patch: {
+            ...newInstance,
+          },
+        });
+      }
+    },
+    [instanceId, updateInstance]
+  );
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
@@ -55,15 +75,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
             marginEnd="size-100"
           >
             <AlphabeticIndexIcon index={index} />
-            <PromptComboBox
-              promptId={promptId}
-              onChange={(nextPromptId) => {
-                updateInstancePrompt({
-                  instanceId,
-                  patch: nextPromptId ? { id: nextPromptId } : null,
-                });
-              }}
-            />
+            <PromptComboBox promptId={promptId} onChange={onChangePrompt} />
           </Flex>
         }
         collapsible
