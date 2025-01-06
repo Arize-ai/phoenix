@@ -3,7 +3,7 @@ import { Tag as AriaTag, TagProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
 const tagCSS = css`
-  border: 1px solid var(--ac-global-border-color-dark);
+  border: 1px solid var(--ac-global-border-color-light);
   forced-color-adjust: none;
   border-radius: var(--ac-global-rounding-small);
   padding: var(--ac-global-dimension-size-50)
@@ -17,7 +17,7 @@ const tagCSS = css`
   transition: all 200ms;
 
   &[data-hovered] {
-    border-color: var(--ac-global-border-color-light);
+    border-color: var(--ac-global-border-color-dark);
   }
 
   &[data-focus-visible] {
