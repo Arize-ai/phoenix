@@ -47,7 +47,7 @@ class Prompt(Node):
         stmt = (
             select(models.PromptVersion)
             .where(models.PromptVersion.prompt_id == self.id_attr)
-            .order_by(models.PromptVersion.created_at.desc())
+            .order_by(models.PromptVersion.id.desc())
         )
         async with info.context.db() as session:
             orm_prompt_versions = await session.stream_scalars(stmt)
