@@ -4,11 +4,20 @@ import {
   ButtonProps as AriaButtonProps,
 } from "react-aria-components";
 
-import { SizingProps, VarianceProps } from "@phoenix/components/types";
+import {
+  SizingProps,
+  StyleProps,
+  VarianceProps,
+} from "@phoenix/components/types";
+import { useStyleProps } from "@phoenix/components/utils";
 
 import { buttonCSS } from "./styles";
 
-interface ButtonProps extends AriaButtonProps, SizingProps, VarianceProps {
+interface ButtonProps
+  extends Omit<AriaButtonProps, "className">,
+    SizingProps,
+    VarianceProps,
+    StyleProps {
   /**
    * An optional prefixed icon for the button
    */
@@ -23,6 +32,7 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
     children,
     ...otherProps
   } = props;
+  const { styleProps } = useStyleProps<StyleProps>(otherProps);
   return (
     <AriaButton
       {...otherProps}
@@ -31,6 +41,7 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-variant={variant}
       data-childless={!children}
       css={buttonCSS}
+      style={styleProps.style}
     >
       {icon}
       <>{children}</>

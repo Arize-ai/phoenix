@@ -83,7 +83,7 @@ export function PromptCodeExportCard({
     >
       <DisclosureGroup defaultExpandedKeys={["snippet"]}>
         <Disclosure id="snippet">
-          <DisclosureTrigger>Code Snippet</DisclosureTrigger>
+          <DisclosureTrigger>Code</DisclosureTrigger>
           <DisclosurePanel>
             <View padding="size-100">
               {language === "Python" ? (
