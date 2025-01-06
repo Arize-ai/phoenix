@@ -11,7 +11,7 @@ import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLo
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
-import { loader as promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
+import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
 import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";

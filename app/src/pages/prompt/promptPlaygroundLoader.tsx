@@ -2,7 +2,9 @@ import { LoaderFunctionArgs } from "react-router-dom";
 
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 
-export const loader = async ({ params }: LoaderFunctionArgs) => {
+export const promptPlaygroundLoader = async ({
+  params,
+}: LoaderFunctionArgs) => {
   const { promptId } = params;
   if (!promptId) {
     throw new Error("Prompt ID is required");
@@ -11,4 +13,6 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   return { instanceWithPrompt };
 };
 
-export type PromptPlaygroundLoaderData = Awaited<ReturnType<typeof loader>>;
+export type PromptPlaygroundLoaderData = Awaited<
+  ReturnType<typeof promptPlaygroundLoader>
+>;
