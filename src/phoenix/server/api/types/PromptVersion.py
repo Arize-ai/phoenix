@@ -1,10 +1,10 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from datetime import datetime
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
