@@ -79,8 +79,6 @@ async def get_prompt_version_by_tag_name(
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
     tag_name: str = Path(description="The tag of the prompt version"),
 ) -> GetPromptResponseBody:
-    if not tag_name:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid tag")
     stmt = (
         select(models.PromptVersion)
         .join_from(models.PromptVersion, models.PromptVersionTag)
