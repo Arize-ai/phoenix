@@ -9,6 +9,7 @@ import {
   ListBox,
   ListBoxItem,
   ListBoxItemProps as AriaListBoxItemProps,
+  ListBoxProps,
   Popover,
   Text,
   ValidationResult,
@@ -22,7 +23,8 @@ import { SizingProps } from "@phoenix/components/types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children">,
-    SizingProps {
+    SizingProps,
+    Pick<ListBoxProps<T>, "renderEmptyState"> {
   label?: string;
   placeholder?: string;
   description?: string | null;
@@ -64,6 +66,7 @@ export function ComboBox<T extends object>({
   size = "M",
   width,
   stopPropagation,
+  renderEmptyState,
   ...props
 }: ComboBoxProps<T>) {
   return (
@@ -92,7 +95,7 @@ export function ComboBox<T extends object>({
       {description && <Text slot="description">{description}</Text>}
       <FieldError>{errorMessage}</FieldError>
       <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
-        <ListBox>{children}</ListBox>
+        <ListBox renderEmptyState={renderEmptyState}>{children}</ListBox>
       </Popover>
     </AriaComboBox>
   );

@@ -24,7 +24,6 @@ import {
   InitialPlaygroundState,
   PlaygroundChatTemplate,
   PlaygroundInstance,
-  PlaygroundInstancePrompt,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -103,10 +102,8 @@ const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   prompt: "{{question}}",
 };
 
-export function createPlaygroundInstance(): PlaygroundInstance {
-  return {
-    id: generateInstanceId(),
-    template: generateChatCompletionTemplate(),
+export const DEFAULT_INSTANCE_PARAMS = () =>
+  ({
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
@@ -119,6 +116,13 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     output: undefined,
     spanId: null,
     activeRunId: null,
+  }) satisfies Partial<PlaygroundInstance>;
+
+export function createPlaygroundInstance(): PlaygroundInstance {
+  return {
+    id: generateInstanceId(),
+    template: generateChatCompletionTemplate(),
+    ...DEFAULT_INSTANCE_PARAMS(),
   };
 }
 
@@ -523,29 +527,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
                       invocationParameterInputInvocationName
                   ),
               },
-            };
-          }
-          return instance;
-        }),
-      });
-    },
-    updateInstancePrompt: ({ instanceId, patch }) => {
-      const instances = get().instances;
-      set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            const prompt = patch ? { ...instance.prompt, ...patch } : undefined;
-            // delete the prompt state if there is no id in the patch, or on the instance already
-            if (!prompt?.id) {
-              return {
-                ...instance,
-                prompt: undefined,
-              };
-            }
-            return {
-              ...instance,
-              // we have ensured a prompt id in the patch, so we can safely cast to the type
-              prompt: prompt as PlaygroundInstancePrompt,
             };
           }
           return instance;
