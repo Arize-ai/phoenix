@@ -267,12 +267,6 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
-input CreatePromptVersionTagInput {
-  name: String!
-  description: String = null
-  promptId: GlobalID!
-}
-
 input CreateSpanAnnotationInput {
   spanId: GlobalID!
   name: String!
@@ -1204,8 +1198,7 @@ type Mutation {
   clearProject(input: ClearProjectInput!): Query!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
-  createPromptVersionTag(input: CreatePromptVersionTagInput!): PromptVersionTagMutationPayload!
-  patchPromptVersionTag(input: PatchPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1271,12 +1264,6 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
-}
-
-input PatchPromptVersionTagInput {
-  versionTagId: GlobalID!
-  name: String
-  description: String
 }
 
 input PatchUserInput {
@@ -1528,12 +1515,13 @@ type PromptVersionEdge {
 type PromptVersionTag implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  promptVersionId: GlobalID!
   name: String!
   description: String
 }
 
 type PromptVersionTagMutationPayload {
-  promptVersionTag: [PromptVersionTag!]!
+  promptVersionTag: PromptVersionTag!
   query: Query!
 }
 
@@ -1608,6 +1596,12 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptVersionTagInput {
+  promptVersionId: GlobalID!
+  name: String!
+  description: String = null
 }
 
 enum SortDir {

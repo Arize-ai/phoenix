@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
@@ -14,6 +14,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
     PromptToolsV1,
 )
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
@@ -21,9 +22,6 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 
 from .JSONSchema import JSONSchema, to_gql_json_schema_from_pydantic
 from .ToolDefinition import ToolDefinition
-
-if TYPE_CHECKING:
-    from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 
 
 @strawberry.type
