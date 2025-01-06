@@ -36,7 +36,7 @@ Below is an example of logging conversations:
 First make sure you have the required dependancies installed
 
 ```sh
-pip install openinfernce-instrumentation
+pip install openinference-instrumentation
 ```
 
 Below is an example of how to use `openinference.instrumentation` to the traces created.
