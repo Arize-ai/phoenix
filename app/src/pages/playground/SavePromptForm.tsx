@@ -53,8 +53,7 @@ export function SavePromptForm({
     selectedPrompt?.node?.name ?? ""
   );
 
-  const mode: "create" | "update" =
-    selectedPromptId && selectedPrompt ? "update" : "create";
+  const mode: "create" | "update" = selectedPrompt ? "update" : "create";
   const submitButtonText =
     mode === "create" ? "Create Prompt" : "Update Prompt";
   const {
@@ -63,6 +62,7 @@ export function SavePromptForm({
     formState: { isDirty, isValid, errors },
   } = useForm<SavePromptFormParams>({
     values: {
+      promptId: selectedPromptId ?? undefined,
       name:
         mode === "update" && selectedPrompt
           ? selectedPrompt?.node?.name
@@ -163,6 +163,7 @@ export function SavePromptForm({
               variant={isDirty ? "primary" : "default"}
               size="S"
               isDisabled={isSubmitting || !isValid}
+              type="submit"
             >
               {submitButtonText}
             </Button>

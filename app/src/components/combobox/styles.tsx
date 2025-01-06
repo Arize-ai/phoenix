@@ -9,6 +9,8 @@ export const comboBoxCSS = css`
     --combobox-vertical-padding: 10px;
     --combobox-horizontal-padding: var(--ac-global-dimension-static-size-200);
   }
+  display: flex;
+  flex-direction: column;
   color: var(--ac-global-text-color-900);
   &[data-required] {
     .react-aria-Label {

@@ -7,7 +7,8 @@ import { Dialog } from "@arizeai/components";
 import { Loading } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { UpsertPromptFromTemplateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateMutation.graphql";
+import { UpsertPromptFromTemplateCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateCreateMutation.graphql";
+import { UpsertPromptFromTemplateUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateUpdateMutation.graphql";
 import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import {
   SavePromptForm,
@@ -20,6 +21,24 @@ type UpsertPromptFromTemplateProps = {
   currentPromptId?: string;
 };
 
+const getInstancePromptParamsFromStore = (
+  instanceId: number,
+  store: ReturnType<typeof usePlaygroundStore>
+) => {
+  const state = store.getState();
+  const instance = state.instances.find(
+    (instance) => instance.id === instanceId
+  );
+  if (!instance) {
+    throw new Error(`Instance ${instanceId} not found`);
+  }
+  const promptInput = instanceToPromptVersion(instance, state.templateLanguage);
+  if (!promptInput) {
+    throw new Error(`Could not convert instance ${instanceId} to prompt`);
+  }
+  return { promptInput };
+};
+
 export const UpsertPromptFromTemplate = ({
   instanceId,
   setDialog,
@@ -30,8 +49,8 @@ export const UpsertPromptFromTemplate = ({
   const notifyError = useNotifyError();
   const store = usePlaygroundStore();
   const [createPrompt, isCreatePending] =
-    useMutation<UpsertPromptFromTemplateMutation>(graphql`
-      mutation UpsertPromptFromTemplateMutation(
+    useMutation<UpsertPromptFromTemplateCreateMutation>(graphql`
+      mutation UpsertPromptFromTemplateCreateMutation(
         $input: CreateChatPromptInput!
       ) {
         createChatPrompt(input: $input) {
@@ -40,22 +59,23 @@ export const UpsertPromptFromTemplate = ({
         }
       }
     `);
+  const [updatePrompt, isUpdatePending] =
+    useMutation<UpsertPromptFromTemplateUpdateMutation>(graphql`
+      mutation UpsertPromptFromTemplateUpdateMutation(
+        $input: CreateChatPromptVersionInput!
+      ) {
+        createChatPromptVersion(input: $input) {
+          id
+          name
+        }
+      }
+    `);
   const onCreate: SavePromptSubmitHandler = useCallback(
     (params) => {
-      const state = store.getState();
-      const instance = state.instances.find(
-        (instance) => instance.id === instanceId
+      const { promptInput } = getInstancePromptParamsFromStore(
+        instanceId,
+        store
       );
-      if (!instance) {
-        throw new Error(`Instance ${instanceId} not found`);
-      }
-      const promptInput = instanceToPromptVersion(
-        instance,
-        state.templateLanguage
-      );
-      if (!promptInput) {
-        throw new Error(`Could not convert instance ${instanceId} to prompt`);
-      }
       createPrompt({
         variables: {
           input: {
@@ -87,13 +107,64 @@ export const UpsertPromptFromTemplate = ({
       });
     },
     [
-      instanceId,
-      store,
       createPrompt,
+      instanceId,
       navigate,
-      notifySuccess,
       notifyError,
+      notifySuccess,
       setDialog,
+      store,
+    ]
+  );
+  const onUpdate: SavePromptSubmitHandler = useCallback(
+    (params) => {
+      if (!params.promptId) {
+        throw new Error("Prompt ID is required");
+      }
+      const { promptInput } = getInstancePromptParamsFromStore(
+        instanceId,
+        store
+      );
+      updatePrompt({
+        variables: {
+          input: {
+            promptId: params.promptId,
+            promptVersion: {
+              ...promptInput,
+              description: params.description,
+            },
+          },
+        },
+        onCompleted: (response) => {
+          notifySuccess({
+            title: `Prompt successfully updated`,
+            action: {
+              text: "View Prompt",
+              onClick: () => {
+                navigate(`/prompts/${response.createChatPromptVersion.id}`);
+              },
+            },
+          });
+          setDialog(null);
+        },
+        onError: (error) => {
+          // eslint-disable-next-line no-console
+          console.error(error);
+          notifyError({
+            title: "Error updating prompt",
+          });
+          setDialog(null);
+        },
+      });
+    },
+    [
+      instanceId,
+      navigate,
+      notifyError,
+      notifySuccess,
+      setDialog,
+      store,
+      updatePrompt,
     ]
   );
   return (
@@ -101,9 +172,8 @@ export const UpsertPromptFromTemplate = ({
       <Suspense fallback={<Loading />}>
         <SavePromptForm
           onCreate={onCreate}
-          // TODO(apowell): Implement update mutation
-          onUpdate={() => {}}
-          isSubmitting={isCreatePending}
+          onUpdate={onUpdate}
+          isSubmitting={isCreatePending || isUpdatePending}
           currentPromptId={currentPromptId}
         />
       </Suspense>
