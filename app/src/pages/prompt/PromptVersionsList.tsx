@@ -73,7 +73,7 @@ export const PromptVersionItem = ({
             <Truncate maxWidth={"100%"}>
               <Text>{version.description}</Text>
             </Truncate>
-            <TagGroup>
+            <TagGroup aria-label="Prompt Version Tags">
               <TagList items={tags}>{(tag) => <Tag>{tag.name}</Tag>}</TagList>
             </TagGroup>
           </Flex>
