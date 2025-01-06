@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, TypeAlias, Union
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import Field
@@ -8,7 +8,7 @@ from sqlalchemy.sql import Select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.server.api.helpers.prompts.models import (
@@ -25,16 +25,8 @@ from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_resp
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
 from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag as PromptVersionTagNodeType
 
 logger = logging.getLogger(__name__)
-
-PROMPT_NODE_NAME = PromptNodeType.__name__
-PROMPT_VERSION_NODE_NAME = PromptVersionNodeType.__name__
-PROMPT_VERSION_TAG_NODE_NAME = PromptVersionTagNodeType.__name__
-
-
-router = APIRouter(tags=["prompts"])
 
 
 class PromptVersion(V1RoutesBaseModel):
@@ -54,13 +46,7 @@ class GetPromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
-class _PromptId(int): ...
-
-
-class _PromptName(str): ...
-
-
-_PromptIdentifier: TypeAlias = Union[_PromptId, _PromptName]
+router = APIRouter(tags=["prompts"])
 
 
 @router.get(
@@ -93,13 +79,24 @@ async def get_prompt_version_by_tag_name(
     return _prompt_version_response_body(prompt_version)
 
 
-def _parse_prompt_identifier(prompt_identifier: str) -> _PromptIdentifier:
+class _PromptId(int): ...
+
+
+class _PromptName(str): ...
+
+
+_PromptIdentifier: TypeAlias = Union[_PromptId, _PromptName]
+
+
+def _parse_prompt_identifier(
+    prompt_identifier: str,
+) -> _PromptIdentifier:
     if not prompt_identifier:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt identifier")
     try:
-        prompt_id: int = from_global_id_with_expected_type(
+        prompt_id = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_identifier),
-            PROMPT_NODE_NAME,
+            PromptNodeType.__name__,
         )
     except ValueError:
         return _PromptName(prompt_identifier)
@@ -143,7 +140,7 @@ def _prompt_version_response_body(
     )
     return GetPromptResponseBody(
         data=PromptVersion(
-            id=str(GlobalID(PROMPT_VERSION_NODE_NAME, str(prompt_version.id))),
+            id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
             description=prompt_version.description or "",
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
