@@ -1,5 +1,25 @@
 # Changelog
 
+## [7.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.0...arize-phoenix-v7.5.1) (2025-01-04)
+
+
+### Bug Fixes
+
+* default prompt / completion tokens to 0 ([#5897](https://github.com/Arize-ai/phoenix/issues/5897)) ([8cfc138](https://github.com/Arize-ai/phoenix/commit/8cfc138ace0ec05794f0efb1dc1ed0f93ea8d298))
+
+## [7.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.4.0...arize-phoenix-v7.5.0) (2025-01-03)
+
+
+### Features
+
+* **components:** Disclosure (fka Accordion) ([#5873](https://github.com/Arize-ai/phoenix/issues/5873)) ([ea8a7c7](https://github.com/Arize-ai/phoenix/commit/ea8a7c7fba24c289c8009ea3f795cf463557d63a))
+
+
+### Bug Fixes
+
+* **components:** Add class names to Disclosure for backwards compatibility with Accordion ([#5889](https://github.com/Arize-ai/phoenix/issues/5889)) ([8c8271e](https://github.com/Arize-ai/phoenix/commit/8c8271e1bd22b71e4f3b98fd5ac372d3afb00170))
+* **graphql:** coerce to string when output.value is not None (e.g. bool) ([#5892](https://github.com/Arize-ai/phoenix/issues/5892)) ([5c7e6d3](https://github.com/Arize-ai/phoenix/commit/5c7e6d3ebcd63e98586060732f3cf974a6f8c7aa))
+
 ## [7.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.2...arize-phoenix-v7.4.0) (2025-01-02)
 
 

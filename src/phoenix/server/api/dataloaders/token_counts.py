@@ -99,9 +99,9 @@ def _get_stmt(
     *params: Param,
 ) -> Select[Any]:
     (start_time, end_time), filter_condition = segment
-    prompt = func.sum(models.Span.llm_token_count_prompt)
-    completion = func.sum(models.Span.llm_token_count_completion)
-    total = coalesce(prompt, 0) + coalesce(completion, 0)
+    prompt = coalesce(func.sum(models.Span.llm_token_count_prompt), 0)
+    completion = coalesce(func.sum(models.Span.llm_token_count_completion), 0)
+    total = prompt + completion
     pid = models.Trace.project_rowid
     stmt: Select[Any] = (
         select(
