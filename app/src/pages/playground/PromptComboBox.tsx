@@ -67,6 +67,7 @@ function PromptComboBoxComponent({
       container={container}
       defaultItems={items}
       placeholder="Select a prompt..."
+      renderEmptyState={() => <div>No prompts found</div>}
       onSelectionChange={(key) => {
         if (typeof key !== "string" && key != null) {
           return;
