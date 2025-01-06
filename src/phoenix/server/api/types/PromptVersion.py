@@ -22,12 +22,13 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 from .JSONSchema import JSONSchema, to_gql_json_schema_from_pydantic
 from .PromptVersionTag import PromptVersionTag
 from .ToolDefinition import ToolDefinition
+from .User import User, to_gql_user
 
 
 @strawberry.type
 class PromptVersion(Node):
     id_attr: NodeID[int]
-    user: Optional[str] = None
+    user_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
@@ -55,6 +56,12 @@ class PromptVersion(Node):
             ),
         ]
 
+    @strawberry.field
+    async def user(self, info: Info[Context, None]) -> Optional[User]:
+        async with info.context.db() as session:
+            user = await session.get(models.User, self.user_id)
+        return to_gql_user(user) if user is not None else None
+
 
 def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
@@ -76,6 +83,7 @@ def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion
     )
     return PromptVersion(
         id_attr=prompt_version.id,
+        user_id=prompt_version.user_id,
         description=prompt_version.description,
         template_type=prompt_template_type,
         template_format=prompt_template_format,

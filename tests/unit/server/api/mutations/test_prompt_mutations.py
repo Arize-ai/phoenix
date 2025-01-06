@@ -19,6 +19,9 @@ class TestPromptMutations:
               promptVersion: node {
                 id
                 description
+                user {
+                  id
+                }
                 templateType
                 templateFormat
                 template {
@@ -56,6 +59,9 @@ class TestPromptMutations:
               promptVersion: node {
                 id
                 description
+                user {
+                  id
+                }
                 templateType
                 templateFormat
                 template {
@@ -171,6 +177,7 @@ class TestPromptMutations:
 
         # Verify prompt version
         assert prompt_version.pop("description") == "prompt-version-description"
+        assert prompt_version.pop("user") is None
         assert prompt_version.pop("templateType") == "CHAT"
         assert prompt_version.pop("templateFormat") == "MUSTACHE"
         assert prompt_version.pop("modelProvider") == "openai"
@@ -381,6 +388,7 @@ class TestPromptMutations:
 
         # Verify prompt version
         assert latest_prompt_version.pop("description") == "prompt-version-description"
+        assert latest_prompt_version.pop("user") is None
         assert latest_prompt_version.pop("templateType") == "CHAT"
         assert latest_prompt_version.pop("templateFormat") == "MUSTACHE"
         assert latest_prompt_version.pop("modelProvider") == "openai"
