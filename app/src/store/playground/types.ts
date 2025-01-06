@@ -125,7 +125,7 @@ export interface PlaygroundInstance {
   /**
    * Details about the prompt hub prompt associated with the instance, if any
    */
-  prompt?: PlaygroundInstancePrompt;
+  prompt?: PlaygroundInstancePrompt | null;
 }
 
 /**
@@ -276,11 +276,4 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
-  /**
-   * Update the prompt details for an instance
-   */
-  updateInstancePrompt: (params: {
-    instanceId: number;
-    patch: Partial<PlaygroundInstancePrompt> | null;
-  }) => void;
 }
