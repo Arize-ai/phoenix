@@ -1,5 +1,11 @@
 // Re-export parts of react-aria-components
-export { FieldError, Input, Label } from "react-aria-components";
+export {
+  FieldError,
+  Input,
+  Label,
+  Dialog,
+  DialogTrigger,
+} from "react-aria-components";
 export type {
   InputProps,
   LabelProps,
@@ -25,3 +31,4 @@ export * from "./layout";
 export * from "./content";
 export * from "./textfield";
 export * from "./tag";
+export * from "./overlay";
