@@ -33,7 +33,7 @@ export function SavePromptForm({
       query SavePromptFormQuery {
         prompts {
           edges {
-            node {
+            prompt: node {
               id
               name
             }
@@ -41,16 +41,17 @@ export function SavePromptForm({
         }
       }
     `,
-    {}
+    {},
+    { fetchPolicy: "network-only" }
   );
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(
     currentPromptId ?? null
   );
   const selectedPrompt = prompts?.prompts?.edges?.find(
-    (edge) => edge?.node?.id === selectedPromptId
+    (edge) => edge?.prompt?.id === selectedPromptId
   );
   const [promptInputValue, setPromptInputValue] = useState<string>(
-    selectedPrompt?.node?.name ?? ""
+    selectedPrompt?.prompt?.name ?? ""
   );
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
@@ -65,7 +66,7 @@ export function SavePromptForm({
       promptId: selectedPromptId ?? undefined,
       name:
         mode === "update" && selectedPrompt
-          ? selectedPrompt?.node?.name
+          ? selectedPrompt?.prompt?.name
           : promptInputValue,
     },
     defaultValues: {

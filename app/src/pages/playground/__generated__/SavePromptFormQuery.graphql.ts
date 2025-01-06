@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a89a0535c9c3be12c9b5c488439754f3>>
+ * @generated SignedSource<<3137f8fe8ac50457a669ea419555654d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type SavePromptFormQuery$variables = Record<PropertyKey, never>;
 export type SavePromptFormQuery$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
-      readonly node: {
+      readonly prompt: {
         readonly id: string;
         readonly name: string;
       };
@@ -44,7 +44,7 @@ var v0 = [
         "plural": true,
         "selections": [
           {
-            "alias": null,
+            "alias": "prompt",
             "args": null,
             "concreteType": "Prompt",
             "kind": "LinkedField",
@@ -93,16 +93,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "c477c2f114ca588e15096d56a05185f4",
+    "cacheID": "654725a48bf8fb568b8e05fd37696920",
     "id": null,
     "metadata": {},
     "name": "SavePromptFormQuery",
     "operationKind": "query",
-    "text": "query SavePromptFormQuery {\n  prompts {\n    edges {\n      node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query SavePromptFormQuery {\n  prompts {\n    edges {\n      prompt: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b4979c4fe9afc41225211338d7709997";
+(node as any).hash = "a9d184ea6bad7c7ff3b15460ce72b9fd";
 
 export default node;

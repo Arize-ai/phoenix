@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d47903134359995e918ddac31b19387d>>
+ * @generated SignedSource<<75fb5bba9879d1a5181292484bffcb6d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type PromptComboBoxQuery$variables = {
-  first?: number | null;
-};
+export type PromptComboBoxQuery$variables = Record<PropertyKey, never>;
 export type PromptComboBoxQuery$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
@@ -31,21 +29,8 @@ export type PromptComboBoxQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": 100,
-    "kind": "LocalArgument",
-    "name": "first"
-  }
-],
-v1 = [
-  {
     "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "first",
-        "variableName": "first"
-      }
-    ],
+    "args": null,
     "concreteType": "PromptConnection",
     "kind": "LinkedField",
     "name": "prompts",
@@ -100,32 +85,32 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "PromptComboBoxQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "PromptComboBoxQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "ffacaa27e41821aa3af1b8de8e1b4dc3",
+    "cacheID": "72f4804265380881fdc62b5d8e66bb8b",
     "id": null,
     "metadata": {},
     "name": "PromptComboBoxQuery",
     "operationKind": "query",
-    "text": "query PromptComboBoxQuery(\n  $first: Int = 100\n) {\n  prompts(first: $first) {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query PromptComboBoxQuery {\n  prompts {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7c2752fa4e372fc9b89638eb208d64f2";
+(node as any).hash = "1acc413e40da1ea527fb431f10b46cf2";
 
 export default node;

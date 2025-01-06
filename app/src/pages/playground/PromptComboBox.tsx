@@ -1,16 +1,9 @@
-import React, { useEffect, useMemo } from "react";
-import {
-  graphql,
-  PreloadedQuery,
-  usePreloadedQuery,
-  useQueryLoader,
-} from "react-relay";
+import React, { useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { ComboBox, ComboBoxItem, ComboBoxProps } from "@phoenix/components";
 
-import promptComboBoxQuery, {
-  PromptComboBoxQuery,
-} from "./__generated__/PromptComboBoxQuery.graphql";
+import { PromptComboBoxQuery } from "./__generated__/PromptComboBoxQuery.graphql";
 
 export type PromptItem =
   PromptComboBoxQuery["response"]["prompts"]["edges"][number]["prompt"];
@@ -23,19 +16,16 @@ type PromptComboBoxProps = {
   "children" | "onSelectionChange" | "defaultSelectedKey"
 >;
 
-function PromptComboBoxComponent({
+export function PromptComboBox({
   onChange,
   container,
   promptId,
-  queryReference,
   ...comboBoxProps
-}: PromptComboBoxProps & {
-  queryReference: PreloadedQuery<PromptComboBoxQuery>;
-}) {
-  const data = usePreloadedQuery(
+}: PromptComboBoxProps) {
+  const data = useLazyLoadQuery<PromptComboBoxQuery>(
     graphql`
-      query PromptComboBoxQuery($first: Int = 100) {
-        prompts(first: $first) {
+      query PromptComboBoxQuery {
+        prompts {
           edges {
             prompt: node {
               __typename
@@ -48,11 +38,13 @@ function PromptComboBoxComponent({
         }
       }
     `,
-    queryReference
+    {},
+    { fetchPolicy: "network-only" }
   );
-  const items = useMemo((): PromptItem[] => {
-    return data.prompts.edges.map((edge) => edge.prompt);
-  }, [data.prompts.edges]);
+  const prompts = data.prompts.edges;
+  const items = useMemo(() => {
+    return prompts.map((edge) => edge.prompt);
+  }, [prompts]);
 
   return (
     <ComboBox
@@ -88,23 +80,4 @@ function PromptComboBoxComponent({
       }}
     </ComboBox>
   );
-}
-
-function PromptComboBoxLoader(props: PromptComboBoxProps) {
-  const [queryReference, loadQuery, disposeQuery] =
-    useQueryLoader<PromptComboBoxQuery>(promptComboBoxQuery);
-
-  useEffect(() => {
-    // TODO(apowell): Paginate and filter in query
-    loadQuery({ first: 100 });
-    return () => disposeQuery();
-  }, [disposeQuery, loadQuery]);
-
-  return queryReference != null ? (
-    <PromptComboBoxComponent queryReference={queryReference} {...props} />
-  ) : null;
-}
-
-export function PromptComboBox(props: PromptComboBoxProps) {
-  return <PromptComboBoxLoader {...props} />;
 }
