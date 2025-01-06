@@ -135,6 +135,5 @@ class PromptMutationMixin:
                 model_name=input.prompt_version.model_name,
             )
             session.add(prompt_version)
-            await session.flush()
 
         return to_gql_prompt_from_orm(prompt)
