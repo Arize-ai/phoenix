@@ -257,6 +257,11 @@ input CreateChatPromptInput {
   promptVersion: ChatPromptVersionInput!
 }
 
+input CreateChatPromptVersionInput {
+  promptId: GlobalID!
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -1193,6 +1198,7 @@ type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
