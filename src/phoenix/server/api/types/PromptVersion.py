@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -20,8 +20,10 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 )
 
 from .JSONSchema import JSONSchema, to_gql_json_schema_from_pydantic
-from .PromptVersionTag import PromptVersionTag
 from .ToolDefinition import ToolDefinition
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
 
 
 @strawberry.type
@@ -40,18 +42,19 @@ class PromptVersion(Node):
     created_at: datetime
 
     @strawberry.field
-    def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        # TODO fill out details
+    def tags(self, info: Info[Context, None]) -> list["PromptVersionTag"]:
         return [
             PromptVersionTag(
                 id_attr=1,
                 name="tag 1",
                 description="tag 1 description",
+                prompt_version_id=GlobalID(PromptVersion.__name__, str(self.id_attr)),
             ),
             PromptVersionTag(
                 id_attr=2,
                 name="tag 2",
                 description="tag 2 description",
+                prompt_version_id=GlobalID(PromptVersion.__name__, str(self.id_attr)),
             ),
         ]
 
