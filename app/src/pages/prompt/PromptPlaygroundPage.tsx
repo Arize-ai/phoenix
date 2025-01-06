@@ -1,24 +1,23 @@
 import React, { useMemo } from "react";
+import { useLoaderData } from "react-router";
 
+import { PromptPlaygroundLoaderData } from "@phoenix/pages/prompt/promptPlaygroundLoader";
 import { createPlaygroundInstance } from "@phoenix/store";
 
 import { Playground } from "../playground/Playground";
 
-import { usePromptIdLoader } from "./usePromptIdLoader";
-
 export function PromptPlaygroundPage() {
-  const { prompt } = usePromptIdLoader();
+  const { instanceWithPrompt } = useLoaderData() as PromptPlaygroundLoaderData;
 
   // create a playground instance with the prompt details configured
   // When the playground component mounts and sees the prompt id in the instance,
-  // it should automatically load the prompt into the instance
+  // it will automatically load the latest prompt version into the instance
   const playgroundInstance = useMemo(() => {
-    const instance = createPlaygroundInstance();
-    instance.prompt = {
-      id: prompt.id,
+    return {
+      ...createPlaygroundInstance(),
+      ...instanceWithPrompt,
     };
-    return instance;
-  }, [prompt]);
+  }, [instanceWithPrompt]);
 
   return <Playground instances={[playgroundInstance]} />;
 }
