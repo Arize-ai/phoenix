@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+import { formatRelative } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 import { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
 
@@ -23,6 +24,7 @@ export function PromptLatestVersionsList(props: {
               id
               ... on PromptVersion {
                 description
+                createdAt
               }
             }
           }
@@ -46,8 +48,19 @@ export function PromptLatestVersionsList(props: {
           <li key={version.id} css={versionListItemCSS}>
             <Flex direction="row" gap="size-200" alignItems="start">
               <Icon svg={<Icons.Commit />} />
-              <Flex direction="column">
-                <span>{version.id}</span>
+              <Flex direction="column" width="100%" gap="size-50">
+                <View width="100%">
+                  <Flex
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <span>{version.id}</span>
+                    <Text color="text-300">
+                      {formatRelative(version.createdAt, Date.now())}
+                    </Text>
+                  </Flex>
+                </View>
                 <Text color="text-700">{version.description}</Text>
               </Flex>
             </Flex>
