@@ -16,6 +16,7 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
+    TypeVar,
     Union,
 )
 
@@ -64,13 +65,14 @@ class ClassificationStatus(Enum):
     FAILED = ExecutionStatus.FAILED.value
     MISSING_INPUT = "MISSING INPUT"
 
+T = TypeVar('T')
 
 def llm_classify(
     dataframe: Union[pd.DataFrame, pd.Series[Any], List[Any], Tuple[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
-    data_processor: Optional[Callable[[Any], str]] = None,
+    data_processor: Optional[Callable[[T], T]] = None,  # input and output are the same type
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -104,7 +106,7 @@ def llm_classify(
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
 
-        data_processor (Optional[Callable[[Any], str]]): An optional general-purpose function which
+        data_processor (Optional[Callable[[T], T]]): An optional general-purpose function which
             can be run as a coroutine to process the data before it is passed to the model.
 
         system_instruction (Optional[str], optional): An optional system message.
@@ -216,7 +218,7 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    def _normalize_to_series(data: Union[str, list, tuple, pd.Series[Any]]) -> pd.Series[Any]:
+    def _normalize_to_series(data: Union[str, List[Any], Tuple[Any], pd.Series[Any]]) -> pd.Series[Any]:
         if isinstance(data, (list, tuple)):
             return pd.Series(
                 {
@@ -232,9 +234,11 @@ def llm_classify(
             return pd.Series({eval_template.variables[0]: data})
         elif isinstance(data, pd.Series):
             return data
+        else:
+            raise ValueError("Unsupported data type")
 
     async def _run_llm_classification_async(
-        input_data: Any,
+        input_data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
@@ -253,7 +257,7 @@ def llm_classify(
         return inference, explanation, response, str(prompt)
 
     def _run_llm_classification_sync(
-        input_data: Union[str, Tuple, pd.Series[Any]],
+        input_data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
@@ -283,11 +287,12 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
+    list_of_inputs: List
     if isinstance(dataframe, pd.DataFrame):
         list_of_inputs = [row_tuple[1] for row_tuple in dataframe.iterrows()]
         dataframe_index = dataframe.index
     elif isinstance(dataframe, pd.Series):
-        list_of_inputs = dataframe.values
+        list_of_inputs = dataframe.to_list()
         dataframe_index = dataframe.index
     # Data is list of strings or tuples
     elif isinstance(dataframe, (list, tuple)):
