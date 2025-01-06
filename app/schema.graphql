@@ -285,6 +285,11 @@ input CreateChatPromptInput {
   promptVersion: ChatPromptVersionInput!
 }
 
+input CreateChatPromptVersionInput {
+  promptId: GlobalID!
+  promptVersion: ChatPromptVersionInput!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -1506,6 +1511,7 @@ type Mutation {
     input: DeleteAnnotationsInput!
   ): TraceAnnotationMutationPayload!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   createSpanAnnotations(
     input: [CreateSpanAnnotationInput!]!
   ): SpanAnnotationMutationPayload!
