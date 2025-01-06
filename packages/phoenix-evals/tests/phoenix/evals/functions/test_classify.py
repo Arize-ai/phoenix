@@ -22,7 +22,6 @@ from phoenix.evals.classify import (
     run_evals,
 )
 from phoenix.evals.default_templates import (
-    AUDIO_SENTIMENT_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
@@ -145,26 +144,34 @@ def test_llm_classify(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_llm_classify_audio(
+def test_llm_classify_data_processor_dataframe(
     openai_api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
 ):
-    dataframe = pd.DataFrame(
-        [
-            {
-                "input": "/AAABAAgABwADAAwACAAOABAACgAQABIAFQASABkCAAGAPACMAGgAcACAAFwAmACcAHQAuA=",
-            },
-        ]
-    )
-    keys = list(dataframe["input"])
-    responses = ["neutral"]
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def row_empty_processor(row_series: pd.Series) -> pd.Series:
+        return pd.Series(
+            {
+                "input": "",
+                "reference": "",
+            }
+        )
 
     for (query, reference), response in response_mapping.items():
         matcher = M(content__contains=query) & M(content__contains=reference)
         payload = {
-            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
@@ -172,13 +179,143 @@ def test_llm_classify_audio(
 
     result = llm_classify(
         dataframe=dataframe,
-        template=AUDIO_SENTIMENT_PROMPT_TEMPLATE,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["positive", "neutral", "negative"],
+        rails=["relevant", "unrelated"],
+        data_processor=row_empty_processor,
+        verbose=True,
+        include_prompt=True,
+    )
+
+    # Ensuring the processor is working as expected
+    for p in result["prompt"]:
+        assert p == RAG_RELEVANCY_PROMPT_TEMPLATE.format(
+            input="",
+            reference="",
+        )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_data_processor_list_of_tuples(
+    openai_api_key: str,
+    classification_dataframe: DataFrame,
+    respx_mock: respx.mock,
+):
+    dataframe = [
+        ("What is Python?", "Python is a programming language."),
+        ("What is Python?", "Ruby is a programming language."),
+        ("What is C++?", "C++ is a programming language."),
+        ("What is C++?", "unrelated"),
+    ]
+    keys = dataframe
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def tuple_empty_processor(row_tuple: tuple) -> tuple:
+        return "", ""
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "unrelated"],
+        data_processor=tuple_empty_processor,
+        verbose=True,
+        include_prompt=True,
+    )
+
+    # Ensuring the processor is working as expected
+    for p in result["prompt"]:
+        assert p == RAG_RELEVANCY_PROMPT_TEMPLATE.format(
+            input="",
+            reference="",
+        )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_data_processor_list_of_strings(
+    openai_api_key: str,
+    classification_dataframe: DataFrame,
+    respx_mock: respx.mock,
+):
+    dataframe = [
+        "Python is a programming langauge.",
+        "Your opinion is irrelevant and you should leave",
+        "C++ is a programming language",
+        "",
+    ]
+    keys = (dataframe,)
+    responses = ["unparsable", "unparsable", "unparsable", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def string_empty_processor(value: str) -> str:
+        return ""
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=TOXICITY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["toxic", "non-toxic"],
+        data_processor=string_empty_processor,
+        include_prompt=True,
         verbose=True,
     )
 
-    expected_labels = ["neutral"]
+    # Ensuring the processor is working as expected
+    for p in result["prompt"]:
+        assert p == TOXICITY_PROMPT_TEMPLATE.format(
+            input="",
+        )
+
+    expected_labels = [NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result[["label"]],

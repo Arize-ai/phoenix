@@ -177,46 +177,20 @@ def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
         tqdm.write(*args, **kwargs)
 
 
-def get_audio_format_from_base64(enc_str: str) -> str:
-    """
-    Determines the audio format from a Base64 encoded string.
-
-    Args:
-        enc_str (str): The Base64 encoded audio data.
-
-    Returns:
-        str: The audio format ('wav', 'mp3', 'flac', 'ogg', 'aac', or 'unknown').
-    """
-    # Decode the Base64 string back to bytes and guess the file type
-    # This code is vendored by the filetype library, which is licensed under the MIT License
+def get_audio_format_from_base64(enc_str) -> str:
     audio_bytes = base64.b64decode(enc_str)
 
-    if len(audio_bytes) > 2:
-        if audio_bytes[0] == 0x49 and audio_bytes[1] == 0x44 and audio_bytes[2] == 0x33:
+    if len(audio_bytes) >= 3:
+        # Check for MP3 (ID3 tag or frame sync bytes)
+        if audio_bytes[0:3] == b"ID3":
             return "mp3"
-    elif audio_bytes[0] == 0xFF:
-        if (
-            audio_bytes[1] == 0xE2  # MPEG 2.5 with error protection
-            or audio_bytes[1] == 0xE3  # MPEG 2.5 w/o error protection
-            or audio_bytes[1] == 0xF2  # MPEG 2 with error protection
-            or audio_bytes[1] == 0xF3  # MPEG 2 w/o error protection
-            or audio_bytes[1] == 0xFA  # MPEG 1 with error protection
-            or audio_bytes[1] == 0xFB  # MPEG 1 w/o error protection
-        ):
+        elif audio_bytes[0] == 0xFF and (audio_bytes[1] & 0xE0 == 0xE0):  # MPEG sync
             return "mp3"
 
-    elif (
-        len(audio_bytes) > 11
-        and audio_bytes[0] == 0x52
-        and audio_bytes[1] == 0x49
-        and audio_bytes[2] == 0x46
-        and audio_bytes[3] == 0x46
-        and audio_bytes[8] == 0x57
-        and audio_bytes[9] == 0x41
-        and audio_bytes[10] == 0x56
-        and audio_bytes[11] == 0x45
-    ):
-        return "wav"
+    if len(audio_bytes) >= 12:
+        # Check for WAV (RIFF header with WAVE format)
+        if audio_bytes[0:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
+            return "wav"
 
-    else:
-        raise ValueError("Only wav and mp3 audio formats supported")
+    # If no match, raise an error
+    raise ValueError("Unsupported audio format. Only wav and mp3 are supported.")

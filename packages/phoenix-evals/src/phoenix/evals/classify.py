@@ -15,6 +15,7 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
     Union,
 )
@@ -66,7 +67,7 @@ class ClassificationStatus(Enum):
 
 
 def llm_classify(
-    dataframe: Union[pd.DataFrame, List[Tuple], List[str]],
+    dataframe: Union[pd.DataFrame, pd.Series, Sequence[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -91,9 +92,8 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents
-            a record to be classified. All template variable names must appear as column
-            names in the dataframe (extra columns unrelated to the template are permitted).
+        dataframe (Union[pd.DataFrame, pd.Series, Sequence[Any]]): A collection of data which can
+            contain template variables and other information necessary to generation evaluations.
 
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
@@ -159,11 +159,6 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    data_variable = None
-
-    if isinstance(template, (ClassificationTemplate, PromptTemplate)):
-        data_variable = template.get_data_template_variable()
-
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -222,8 +217,25 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
+    def _transform_to_series(data: Union[str, Tuple, List, pd.Series[Any]]) -> pd.Series[Any]:
+        if isinstance(data, Tuple) or isinstance(data, List):
+            return pd.Series(
+                {
+                    template_var: input_val
+                    for template_var, input_val in zip(eval_template.variables, data)
+                }
+            )
+        elif isinstance(data, str):
+            if len(eval_template.variables) > 1:
+                raise ValueError(
+                    "Multiple template variables present but only one list passed through."
+                )
+            return pd.Series({eval_template.variables[0]: data})
+        else:
+            return data
+
     async def _run_llm_classification_async(
-        input_data: Union[str, Tuple, pd.Series[Any]],
+        input_data: Any,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
@@ -231,19 +243,10 @@ def llm_classify(
                     processed_data = await data_processor(input_data)
                 else:
                     processed_data = data_processor(input_data)
+            else:
+                processed_data = input_data
 
-            # Transform input data into a pandas Series if it's a str or Tuple
-            if isinstance(input_data, Tuple):
-                series_data = pd.Series(
-                    {
-                        template_var: input_val
-                        for template_var, input_val in zip(eval_template.variables, processed_data)
-                    }
-                )
-            elif isinstance(input_data, str):
-                series_data = pd.Series({eval_template.variables[0]: processed_data})
-
-            prompt = _map_template(series_data)
+            prompt = _map_template(_transform_to_series(processed_data))
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
@@ -258,12 +261,12 @@ def llm_classify(
                 if inspect.iscoroutinefunction(data_processor):
                     raise ValueError("data_processor must be a synchronous function")
 
-                # Process audio element and replace with template variable corresponding to data
-                processed_data = data_processor(input_data.loc[data_variable])
-                input_data.loc[data_variable] = processed_data  # type: ignore
-                input_data.index = pd.Index(
-                    [data_variable if idx == data_variable else idx for idx in input_data.index]
-                )
+                # # Process audio element and replace with template variable corresponding to data
+                # processed_data = data_processor(input_data.loc[data_variable])
+                # input_data.loc[data_variable] = processed_data  # type: ignore
+                # input_data.index = pd.Index(
+                #     [data_variable if idx == data_variable else idx for idx in input_data.index]
+                # )
 
             prompt = _map_template(input_data)
             response = verbose_model._generate(

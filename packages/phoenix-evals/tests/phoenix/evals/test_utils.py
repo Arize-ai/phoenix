@@ -32,7 +32,7 @@ def test_get_audio_format_from_base64():
     audio_segment = AudioSegment(data=pcm_bytes, sample_width=2, frame_rate=44100, channels=1)
 
     # Only mp3 and wav formats are currently supported by OpenAI's audio-preview model
-    formats = ["mp3", "wav"]
+    formats = ["mp3", "wav", "ogg"]
     encoded_audio = {}
 
     for fmt in formats:
@@ -43,3 +43,11 @@ def test_get_audio_format_from_base64():
 
     for fmt, enc_str in encoded_audio.items():
         assert fmt == get_audio_format_from_base64(enc_str)
+
+    assert get_audio_format_from_base64(encoded_audio["mp3"]) == "mp3"
+    assert get_audio_format_from_base64(encoded_audio["wav"]) == "wav"
+
+    try:
+        assert get_audio_format_from_base64(encoded_audio["ogg"]) is None
+    except ValueError as e:
+        assert str(e) == "Unsupported audio format. Only wav and mp3 are supported."
