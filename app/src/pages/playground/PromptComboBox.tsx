@@ -18,7 +18,6 @@ export type PromptItem =
 type PromptComboBoxProps = {
   onChange: (promptId: string | null) => void;
   promptId?: string | null;
-  container?: HTMLElement;
 } & Omit<
   ComboBoxProps<PromptItem>,
   "children" | "onSelectionChange" | "defaultSelectedKey"
