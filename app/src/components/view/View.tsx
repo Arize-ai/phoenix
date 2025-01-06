@@ -35,6 +35,7 @@ function View(props: ViewProps, ref: Ref<HTMLElement>) {
       ref={ref}
       css={css`
         overflow: hidden;
+        box-sizing: border-box;
       `}
       className="ac-view"
     >

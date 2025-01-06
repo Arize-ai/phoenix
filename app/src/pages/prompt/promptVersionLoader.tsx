@@ -29,6 +29,9 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
             tools {
               definition
             }
+            tags {
+              name
+            }
             user
           }
         }
