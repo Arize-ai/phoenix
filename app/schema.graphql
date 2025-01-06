@@ -1489,6 +1489,7 @@ type PromptVersion implements Node {
   outputSchema: JSONSchema
   modelName: String!
   modelProvider: String!
+  createdAt: DateTime!
   tags: [PromptVersionTag!]!
 }
 

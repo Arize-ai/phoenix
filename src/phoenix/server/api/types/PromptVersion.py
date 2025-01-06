@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -36,6 +37,7 @@ class PromptVersion(Node):
     output_schema: Optional[JSONSchema] = None
     model_name: str
     model_provider: str
+    created_at: datetime
 
     @strawberry.field
     def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
@@ -83,4 +85,5 @@ def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion
         output_schema=output_schema,
         model_name=prompt_version.model_name,
         model_provider=prompt_version.model_provider,
+        created_at=prompt_version.created_at,
     )
