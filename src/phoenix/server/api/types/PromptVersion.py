@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from strawberry.relay import GlobalID, Node, NodeID
+from sqlalchemy import select
+from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -14,7 +15,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
     PromptToolsV1,
 )
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
@@ -40,21 +41,14 @@ class PromptVersion(Node):
     created_at: datetime
 
     @strawberry.field
-    def tags(self, info: Info[Context, None]) -> list["PromptVersionTag"]:
-        return [
-            PromptVersionTag(
-                id_attr=1,
-                name="tag 1",
-                description="tag 1 description",
-                prompt_version_id=GlobalID(PromptVersion.__name__, str(self.id_attr)),
-            ),
-            PromptVersionTag(
-                id_attr=2,
-                name="tag 2",
-                description="tag 2 description",
-                prompt_version_id=GlobalID(PromptVersion.__name__, str(self.id_attr)),
-            ),
-        ]
+    async def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
+        async with info.context.db() as session:
+            stmt = select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_version_id == self.id_attr
+            )
+            return [
+                to_gql_prompt_version_tag(tag) async for tag in await session.stream_scalars(stmt)
+            ]
 
 
 def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion:
