@@ -6,7 +6,7 @@ from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
-from strawberry.relay import GlobalID, GlobalIDValueError
+from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -75,14 +75,12 @@ async def get_prompt_version_by_tag_name(
     prompt_name: Optional[str] = None
     if prompt_identifier:
         try:
-            prompt_gid = GlobalID.from_id(prompt_identifier)
-        except GlobalIDValueError:
+            prompt_id = from_global_id_with_expected_type(
+                GlobalID.from_id(prompt_identifier),
+                PROMPT_NODE_NAME,
+            )
+        except ValueError:
             prompt_name = prompt_identifier
-        else:
-            try:
-                prompt_id = from_global_id_with_expected_type(prompt_gid, PROMPT_NODE_NAME)
-            except ValueError:
-                prompt_name = prompt_identifier
     else:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt identifier")
     assert prompt_id is not None or prompt_name is not None

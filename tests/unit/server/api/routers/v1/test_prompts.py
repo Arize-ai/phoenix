@@ -10,7 +10,7 @@ from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.types import DbSessionFactory
 
 
-class TestPromptsEndpoint:
+class TestPrompts:
     async def test_get_prompt_version_by_tag_name(
         self,
         httpx_client: httpx.AsyncClient,
@@ -21,6 +21,7 @@ class TestPromptsEndpoint:
         model_provider = token_hex(16)
         model_name = token_hex(16)
         prompt_versions = []
+
         async with db() as session:
             prompt = models.Prompt(name=prompt_name)
             session.add(prompt)
@@ -38,15 +39,16 @@ class TestPromptsEndpoint:
                     )
                 )
             session.add_all(prompt_versions)
-            await session.flush()
+
+        prompt_version = prompt_versions[1]
+        async with db() as session:
             prompt_version_tag = models.PromptVersionTag(
                 prompt_id=prompt.id,
-                prompt_version_id=prompt_versions[1].id,
+                prompt_version_id=prompt_version.id,
                 name=tag_name,
             )
             session.add(prompt_version_tag)
 
-        prompt_version = prompt_versions[1]
         for prompts_identifier in GlobalID(Prompt.__name__, str(prompt.id)), prompt_name:
             response = await httpx_client.get(
                 f"/v1/prompts/{prompts_identifier}/tags/{tag_name}",
