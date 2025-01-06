@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b90f887419819663254b45a07d6597d9>>
+ * @generated SignedSource<<31e402c4eceae4679cae3a3c0e9eb272>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type PromptLatestVersionsListFragment$data = {
   readonly latestVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
+        readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
       };
@@ -75,6 +76,13 @@ const node: ReaderFragment = {
                   "kind": "ScalarField",
                   "name": "description",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "createdAt",
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -90,6 +98,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "87e8c1a015201c696ee01c008ec310f3";
+(node as any).hash = "5442dc979627471880a0ee9b6f089a21";
 
 export default node;
