@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { DisclosureGroup } from "react-aria-components";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
@@ -8,6 +7,7 @@ import { Card } from "@arizeai/components";
 import {
   CopyToClipboardButton,
   Disclosure,
+  DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
