@@ -50,6 +50,36 @@ router = APIRouter(tags=["prompts"])
 
 
 @router.get(
+    "/prompt_versions/{prompt_version_id}",
+    operation_id="getPromptVersionByPromptVersionId",
+    summary="Get prompt by prompt version ID",
+    responses=add_errors_to_responses(
+        [
+            HTTP_404_NOT_FOUND,
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+)
+async def get_prompt_version_by_prompt_version_id(
+    request: Request,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+) -> GetPromptResponseBody:
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+    stmt = select(models.PromptVersion).filter_by(id=id_)
+    async with request.app.state.db() as session:
+        prompt_version: models.PromptVersion = await session.scalar(stmt)
+        if prompt_version is None:
+            raise HTTPException(HTTP_404_NOT_FOUND)
+    return _prompt_version_response_body(prompt_version)
+
+
+@router.get(
     "/prompts/{prompt_identifier}/tags/{tag_name}",
     operation_id="getPromptVersionByTagName",
     summary="Get prompt by tag name",
