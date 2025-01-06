@@ -5,6 +5,7 @@ export const buttonCSS = css`
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
+
   display: flex;
   justify-content: center;
   align-items: center;
