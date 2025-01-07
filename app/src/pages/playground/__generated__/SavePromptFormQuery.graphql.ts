@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75fb5bba9879d1a5181292484bffcb6d>>
+ * @generated SignedSource<<3137f8fe8ac50457a669ea419555654d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,21 +9,20 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type PromptComboBoxQuery$variables = Record<PropertyKey, never>;
-export type PromptComboBoxQuery$data = {
+export type SavePromptFormQuery$variables = Record<PropertyKey, never>;
+export type SavePromptFormQuery$data = {
   readonly prompts: {
     readonly edges: ReadonlyArray<{
       readonly prompt: {
-        readonly __typename: "Prompt";
         readonly id: string;
         readonly name: string;
       };
     }>;
   };
 };
-export type PromptComboBoxQuery = {
-  response: PromptComboBoxQuery$data;
-  variables: PromptComboBoxQuery$variables;
+export type SavePromptFormQuery = {
+  response: SavePromptFormQuery$data;
+  variables: SavePromptFormQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -56,13 +55,6 @@ var v0 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "__typename",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
                 "name": "id",
                 "storageKey": null
               },
@@ -88,7 +80,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "PromptComboBoxQuery",
+    "name": "SavePromptFormQuery",
     "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -97,20 +89,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "PromptComboBoxQuery",
+    "name": "SavePromptFormQuery",
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "72f4804265380881fdc62b5d8e66bb8b",
+    "cacheID": "654725a48bf8fb568b8e05fd37696920",
     "id": null,
     "metadata": {},
-    "name": "PromptComboBoxQuery",
+    "name": "SavePromptFormQuery",
     "operationKind": "query",
-    "text": "query PromptComboBoxQuery {\n  prompts {\n    edges {\n      prompt: node {\n        __typename\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query SavePromptFormQuery {\n  prompts {\n    edges {\n      prompt: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1acc413e40da1ea527fb431f10b46cf2";
+(node as any).hash = "a9d184ea6bad7c7ff3b15460ce72b9fd";
 
 export default node;
