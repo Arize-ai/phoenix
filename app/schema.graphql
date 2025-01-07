@@ -1479,7 +1479,6 @@ enum PromptTemplateType {
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  user: String
   description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
@@ -1491,6 +1490,7 @@ type PromptVersion implements Node {
   modelProvider: String!
   createdAt: DateTime!
   tags: [PromptVersionTag!]!
+  user: User
 }
 
 """A connection to a list of items."""

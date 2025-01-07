@@ -1,6 +1,7 @@
 from typing import Optional
 
 import strawberry
+from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -18,6 +19,7 @@ from phoenix.server.api.helpers.prompts.models import (
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.bearer_auth import PhoenixUser
 
 
 @strawberry.input
@@ -61,9 +63,16 @@ class PromptMutationMixin:
             ).dict()
         except ValidationError as error:
             raise BadRequest(str(error))
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
         async with info.context.db() as session:
             prompt_version = models.PromptVersion(
                 description=input.prompt_version.description,
+                user_id=user_id,
                 template_type=input.prompt_version.template_type.value,
                 template_format=input.prompt_version.template_format.value,
                 template=template,
@@ -114,6 +123,11 @@ class PromptMutationMixin:
         except ValidationError as error:
             raise BadRequest(str(error))
 
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
@@ -124,6 +138,7 @@ class PromptMutationMixin:
 
             prompt_version = models.PromptVersion(
                 prompt_id=prompt_id,
+                user_id=user_id,
                 description=input.prompt_version.description,
                 template_type=input.prompt_version.template_type.value,
                 template_format=input.prompt_version.template_format.value,
