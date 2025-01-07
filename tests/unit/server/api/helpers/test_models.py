@@ -694,6 +694,32 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
             },
             id="string-property-with-priority-enum",
         ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "select_color",
+                    "description": "Select a color from the available options",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "color": {
+                                "type": "string",
+                                "enum": [
+                                    "red",
+                                    "blue",
+                                    "red",  # duplicate enum value
+                                ],
+                                "description": "The color to select",
+                            }
+                        },
+                        "required": ["color"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="duplicate-enum-values",
+        ),
     ],
 )
 def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict[str, Any]) -> None:

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
@@ -127,6 +127,14 @@ class JSONSchemaStringProperty(PromptModel):
     type: Literal["string"]
     description: str = UNDEFINED
     enum: list[str] = UNDEFINED
+
+    @field_validator("enum")
+    def ensure_unique_enum_values(cls, enum_values: list[str]) -> list[str]:
+        if enum_values is UNDEFINED:
+            return enum_values
+        if len(enum_values) != len(set(enum_values)):
+            raise ValueError("Enum values must be unique")
+        return enum_values
 
 
 class JSONSchemaArrayProperty(PromptModel):
