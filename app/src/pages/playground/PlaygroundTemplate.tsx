@@ -158,7 +158,7 @@ function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
       <UpsertPromptFromTemplateDialog
         instanceId={instanceId}
         setDialog={setDialog}
-        currentPromptId={instance.prompt?.id}
+        selectedPromptId={instance.prompt?.id}
       />
     );
   };

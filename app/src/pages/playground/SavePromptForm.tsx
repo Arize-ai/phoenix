@@ -20,12 +20,12 @@ export function SavePromptForm({
   onCreate,
   onUpdate,
   isSubmitting = false,
-  currentPromptId,
+  defaultSelectedPromptId,
 }: {
   onCreate: SavePromptSubmitHandler;
   onUpdate: SavePromptSubmitHandler;
   isSubmitting?: boolean;
-  currentPromptId?: string;
+  defaultSelectedPromptId?: string;
 }) {
   const flexContainer = useRef<HTMLDivElement>(null);
   const prompts = useLazyLoadQuery<SavePromptFormQuery>(
@@ -45,7 +45,7 @@ export function SavePromptForm({
     { fetchPolicy: "network-only" }
   );
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(
-    currentPromptId ?? null
+    defaultSelectedPromptId ?? null
   );
   const selectedPrompt = prompts?.prompts?.edges?.find(
     (edge) => edge?.prompt?.id === selectedPromptId

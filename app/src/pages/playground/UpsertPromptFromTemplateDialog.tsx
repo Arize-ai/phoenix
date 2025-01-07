@@ -18,7 +18,7 @@ import {
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
   setDialog: (dialog: React.ReactNode) => void;
-  currentPromptId?: string;
+  selectedPromptId?: string;
 };
 
 const getInstancePromptParamsFromStore = (
@@ -51,7 +51,7 @@ const getInstancePromptParamsFromStore = (
 export const UpsertPromptFromTemplateDialog = ({
   instanceId,
   setDialog,
-  currentPromptId,
+  selectedPromptId,
 }: UpsertPromptFromTemplateProps) => {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
@@ -187,7 +187,7 @@ export const UpsertPromptFromTemplateDialog = ({
           onCreate={onCreate}
           onUpdate={onUpdate}
           isSubmitting={isCreatePending || isUpdatePending}
-          currentPromptId={currentPromptId}
+          defaultSelectedPromptId={selectedPromptId}
         />
       </Suspense>
     </Dialog>
