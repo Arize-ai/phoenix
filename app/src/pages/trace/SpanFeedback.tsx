@@ -109,6 +109,7 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
     graphql`
       fragment SpanFeedback_annotations on Span {
         spanAnnotations {
+          id
           name
           label
           score

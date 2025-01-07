@@ -89,6 +89,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountPrompt
                     tokenCountCompletion
                     spanAnnotations {
+                      id
                       name
                       label
                       score
