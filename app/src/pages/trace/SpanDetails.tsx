@@ -198,6 +198,7 @@ export function SpanDetails({
               explanation
             }
             spanAnnotations {
+              id
               name
             }
             ...SpanFeedback_annotations
