@@ -5,8 +5,16 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  TOOL_CHOICE_PARAM_NAME,
+} from "@phoenix/pages/playground/constants";
+import {
+  areInvocationParamsEqual,
   getChatRole,
   openInferenceModelProviderToPhoenixModelProvider,
+  toCamelCase,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
@@ -47,6 +55,54 @@ export const chatMessageRoleToPromptMessageRole = (
     default:
       return "USER";
   }
+};
+
+/**
+ * Converts an arbitrary object into a list of invocation parameters.
+ *
+ * Incoming invocation parameters are expecting to be provided alongside supported invocation parameters
+ * to ensure that the invocation parameters are valid for the model of the instance, and so that we can
+ * coerce the incoming invocation parameters to the expected format (e.g. {temperature: 0.5} -> {invocationName: "temperature", valueFloat: 0.5}).
+ *
+ * @param invocationParameters - The invocation parameters to convert
+ * @param supportedInvocationParameters - The supported invocation parameters for the model of the instance
+ * @returns The invocation parameters as a list
+ */
+export const objectToInvocationParameters = (
+  invocationParameters: Record<string, unknown>,
+  supportedInvocationParameters: PlaygroundInstance["model"]["supportedInvocationParameters"]
+): PlaygroundInstance["model"]["invocationParameters"] => {
+  // build a lookup map of incoming invocation parameters to the closest matching supported invocation parameter
+  // we won't have canonical names at this point, because we don't know where the invocation parameters are coming from
+  // so we'll use the invocation name as the key
+  const invocationParameterDefinitionMap =
+    supportedInvocationParameters.length > 0
+      ? supportedInvocationParameters.reduce(
+          (acc, curr) => {
+            if (curr.invocationName) {
+              acc[curr.invocationName] = curr;
+            }
+            return acc;
+          },
+          {} as Record<string, (typeof supportedInvocationParameters)[number]>
+        )
+      : {};
+  // now we'll map the incoming invocation parameters to the supported invocation parameters
+  // we'll use the invocation name as the key
+  return Object.entries(invocationParameters).map(([key, value]) => {
+    const definition = invocationParameterDefinitionMap[key];
+    if (!definition || !definition.invocationInputField) {
+      return {
+        invocationName: key,
+        valueJson: value,
+      };
+    }
+    return {
+      invocationName: key,
+      canonicalName: definition.canonicalName,
+      [toCamelCase(definition.invocationInputField)]: value,
+    };
+  });
 };
 
 /**
@@ -96,6 +152,65 @@ export const promptVersionToInstance = (
 };
 
 /**
+ * Converts invocation parameters to an object of key-value pairs, where the key is the invocation parameter name
+ * and the value is the value of the invocation parameter.
+ *
+ * @param invocationParameters - The invocation parameters set in the instance
+ * @param supportedInvocationParameters - The supported invocation parameters for the model of the instance
+ *
+ * @returns The invocation parameters as an object, constrained to the supported invocation parameters
+ */
+export const invocationParametersToObject = (
+  invocationParameters: PlaygroundInstance["model"]["invocationParameters"],
+  supportedInvocationParameters: PlaygroundInstance["model"]["supportedInvocationParameters"]
+) => {
+  const invocationParameterDefinitionMap =
+    supportedInvocationParameters.length > 0
+      ? supportedInvocationParameters.reduce(
+          (acc, curr) => {
+            if (curr.canonicalName || curr.invocationName) {
+              acc[(curr.canonicalName || curr.invocationName) as string] = curr;
+            }
+            return acc;
+          },
+          {} as Record<string, (typeof supportedInvocationParameters)[number]>
+        )
+      : {};
+  return invocationParameters.reduce(
+    (acc, curr) => {
+      const definition =
+        invocationParameterDefinitionMap[
+          curr.canonicalName || curr.invocationName
+        ];
+      if (definition) {
+        acc[curr.invocationName] =
+          curr[
+            toCamelCase(
+              definition.invocationInputField as string
+            ) as keyof typeof curr
+          ];
+      }
+      return acc;
+    },
+    {} as Record<
+      string,
+      string | number | boolean | null | Record<string, unknown> | unknown[]
+    >
+  );
+};
+
+const HIDDEN_INVOCATION_PARAMETERS = [
+  {
+    invocationName: TOOL_CHOICE_PARAM_NAME,
+    canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+  },
+  {
+    invocationName: RESPONSE_FORMAT_PARAM_NAME,
+    canonicalName: RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  },
+] as const;
+
+/**
  * Converts a playground instance to a prompt version.
  *
  * @todo(apowell): The output may be better suited as PromptCreateInput
@@ -111,6 +226,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     );
     return null;
   }
+
   return {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
@@ -124,7 +240,26 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     tools: instance.tools.map((t) => ({
       definition: t.definition,
     })),
-    // @TODO(apowell): Add description and invocationParameters
+    outputSchema:
+      instance.model.invocationParameters
+        .filter(
+          (i) =>
+            i.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+            i.invocationName === RESPONSE_FORMAT_PARAM_NAME
+        )
+        .map((i) => ({
+          definition: i.valueJson,
+        }))
+        .at(0) || undefined,
+    invocationParameters: invocationParametersToObject(
+      instance.model.invocationParameters.filter(
+        (i) =>
+          !HIDDEN_INVOCATION_PARAMETERS.some((hidden) =>
+            areInvocationParamsEqual(hidden, i)
+          )
+      ),
+      instance.model.supportedInvocationParameters
+    ),
   } satisfies Omit<Partial<PromptVersion>, "template" | "tools"> & {
     template: Omit<Partial<PromptVersion["template"]>, "__typename">;
   } & { tools: Omit<Partial<PromptVersion["tools"]>[number], "__typename"> };
@@ -158,6 +293,9 @@ const query = graphql`
               invocationParameters
               templateType
               templateFormat
+              outputSchema {
+                definition
+              }
               template {
                 __typename
                 ... on PromptChatTemplate {
@@ -170,7 +308,6 @@ const query = graphql`
                 }
               }
               tools {
-                __typename
                 definition
               }
             }
@@ -209,7 +346,7 @@ export const fetchPlaygroundPromptAsInstance = async (
   const latestPromptVersion = getLatestPromptVersion(response?.prompt);
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
     const newInstance = promptVersionToInstance(promptId, latestPromptVersion);
-    return newInstance;
+    return { instance: newInstance, promptVersion: latestPromptVersion };
   }
   return null;
 };
