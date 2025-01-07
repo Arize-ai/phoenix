@@ -613,6 +613,14 @@ input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
 }
 
+input DeletePromptInput {
+  promptId: GlobalID!
+}
+
+input DeletePromptVersionTagInput {
+  promptVersionTagId: GlobalID!
+}
+
 input DeleteUsersInput {
   userIds: [GlobalID!]!
 }
@@ -1512,6 +1520,10 @@ type Mutation {
   ): TraceAnnotationMutationPayload!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
+  deletePrompt(input: DeletePromptInput!): Query!
+  deletePromptVersionTag(
+    input: DeletePromptVersionTagInput!
+  ): PromptVersionTagMutationPayload!
   setPromptVersionTag(
     input: SetPromptVersionTagInput!
   ): PromptVersionTagMutationPayload!
@@ -1971,7 +1983,7 @@ type PromptVersionTag implements Node {
 }
 
 type PromptVersionTagMutationPayload {
-  promptVersionTag: PromptVersionTag!
+  promptVersionTag: PromptVersionTag
   query: Query!
 }
 

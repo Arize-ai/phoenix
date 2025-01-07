@@ -3,6 +3,7 @@ from typing import Optional
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
+from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
@@ -17,6 +18,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolsV1,
 )
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.bearer_auth import PhoenixUser
@@ -33,6 +35,11 @@ class CreateChatPromptInput:
 class CreateChatPromptVersionInput:
     prompt_id: GlobalID
     prompt_version: ChatPromptVersionInput
+
+
+@strawberry.input
+class DeletePromptInput:
+    prompt_id: GlobalID
 
 
 @strawberry.type
@@ -152,3 +159,18 @@ class PromptMutationMixin:
             session.add(prompt_version)
 
         return to_gql_prompt_from_orm(prompt)
+
+    @strawberry.mutation
+    async def delete_prompt(self, info: Info[Context, None], input: DeletePromptInput) -> Query:
+        prompt_id = from_global_id_with_expected_type(
+            global_id=input.prompt_id, expected_type_name=Prompt.__name__
+        )
+        async with info.context.db() as session:
+            stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
+            result = await session.execute(stmt)
+
+            if result.rowcount == 0:
+                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+
+            await session.commit()
+        return Query()
