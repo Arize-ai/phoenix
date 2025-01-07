@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6783cd06e109ba90663c87f34e2c0736>>
+ * @generated SignedSource<<bbe52578863d934988bed1b0f90758f0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,18 +41,18 @@ export type ToolDefinitionInput = {
 export type JSONSchemaInput = {
   definition: any;
 };
-export type UpsertPromptFromTemplateCreateMutation$variables = {
+export type UpsertPromptFromTemplateDialogCreateMutation$variables = {
   input: CreateChatPromptInput;
 };
-export type UpsertPromptFromTemplateCreateMutation$data = {
+export type UpsertPromptFromTemplateDialogCreateMutation$data = {
   readonly createChatPrompt: {
     readonly id: string;
     readonly name: string;
   };
 };
-export type UpsertPromptFromTemplateCreateMutation = {
-  response: UpsertPromptFromTemplateCreateMutation$data;
-  variables: UpsertPromptFromTemplateCreateMutation$variables;
+export type UpsertPromptFromTemplateDialogCreateMutation = {
+  response: UpsertPromptFromTemplateDialogCreateMutation$data;
+  variables: UpsertPromptFromTemplateDialogCreateMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -101,7 +101,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "UpsertPromptFromTemplateCreateMutation",
+    "name": "UpsertPromptFromTemplateDialogCreateMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -110,20 +110,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "UpsertPromptFromTemplateCreateMutation",
+    "name": "UpsertPromptFromTemplateDialogCreateMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "53121a20a84375a23093c91dd0e041d8",
+    "cacheID": "73d9d27e0df3bc27e4af4dd3d77f41fb",
     "id": null,
     "metadata": {},
-    "name": "UpsertPromptFromTemplateCreateMutation",
+    "name": "UpsertPromptFromTemplateDialogCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation UpsertPromptFromTemplateCreateMutation(\n  $input: CreateChatPromptInput!\n) {\n  createChatPrompt(input: $input) {\n    id\n    name\n  }\n}\n"
+    "text": "mutation UpsertPromptFromTemplateDialogCreateMutation(\n  $input: CreateChatPromptInput!\n) {\n  createChatPrompt(input: $input) {\n    id\n    name\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e0739fe8e756c744fe87961bae3a2c52";
+(node as any).hash = "fa52cba6c2bfaa6298a5360253dc9bc5";
 
 export default node;

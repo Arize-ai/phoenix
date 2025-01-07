@@ -7,8 +7,8 @@ import { Dialog } from "@arizeai/components";
 import { Loading } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { UpsertPromptFromTemplateCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateCreateMutation.graphql";
-import { UpsertPromptFromTemplateUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateUpdateMutation.graphql";
+import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
+import { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
 import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import {
   SavePromptForm,
@@ -39,7 +39,7 @@ const getInstancePromptParamsFromStore = (
   return { promptInput };
 };
 
-export const UpsertPromptFromTemplate = ({
+export const UpsertPromptFromTemplateDialog = ({
   instanceId,
   setDialog,
   currentPromptId,
@@ -49,8 +49,8 @@ export const UpsertPromptFromTemplate = ({
   const notifyError = useNotifyError();
   const store = usePlaygroundStore();
   const [createPrompt, isCreatePending] =
-    useMutation<UpsertPromptFromTemplateCreateMutation>(graphql`
-      mutation UpsertPromptFromTemplateCreateMutation(
+    useMutation<UpsertPromptFromTemplateDialogCreateMutation>(graphql`
+      mutation UpsertPromptFromTemplateDialogCreateMutation(
         $input: CreateChatPromptInput!
       ) {
         createChatPrompt(input: $input) {
@@ -60,8 +60,8 @@ export const UpsertPromptFromTemplate = ({
       }
     `);
   const [updatePrompt, isUpdatePending] =
-    useMutation<UpsertPromptFromTemplateUpdateMutation>(graphql`
-      mutation UpsertPromptFromTemplateUpdateMutation(
+    useMutation<UpsertPromptFromTemplateDialogUpdateMutation>(graphql`
+      mutation UpsertPromptFromTemplateDialogUpdateMutation(
         $input: CreateChatPromptVersionInput!
       ) {
         createChatPromptVersion(input: $input) {

@@ -13,7 +13,7 @@ import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { UpsertPromptFromTemplate } from "@phoenix/pages/playground/UpsertPromptFromTemplate";
+import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
@@ -155,7 +155,7 @@ function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
 
   const onSave = () => {
     setDialog(
-      <UpsertPromptFromTemplate
+      <UpsertPromptFromTemplateDialog
         instanceId={instanceId}
         setDialog={setDialog}
         currentPromptId={instance.prompt?.id}
