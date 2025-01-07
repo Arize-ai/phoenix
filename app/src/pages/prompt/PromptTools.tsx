@@ -4,10 +4,10 @@ import { graphql, useFragment } from "react-relay";
 import {
   Disclosure,
   DisclosureGroup,
-  DisclosureHeading,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
+  SectionHeading,
   Text,
   View,
 } from "@phoenix/components";
@@ -55,7 +55,7 @@ export function PromptTools({
   if (items.length === 0) {
     return (
       <Flex direction="column">
-        <DisclosureHeading>Tools</DisclosureHeading>
+        <SectionHeading>Tools</SectionHeading>
         <View padding="size-200">
           <Flex justifyContent="center" alignItems="center">
             <Text>No tools specified for this prompt</Text>
@@ -67,7 +67,7 @@ export function PromptTools({
 
   return (
     <Flex direction="column">
-      <DisclosureHeading>Tools</DisclosureHeading>
+      <SectionHeading>Tools</SectionHeading>
       <DisclosureGroup>
         {items.map((item, i) => (
           <Disclosure key={`${item.name}-${i}`} id={`tool-${i}`}>
