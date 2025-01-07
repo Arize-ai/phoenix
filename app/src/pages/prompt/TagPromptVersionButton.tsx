@@ -101,7 +101,6 @@ function TagList({
   fetchKey: number;
   onTagSet: (tagName: string) => void;
 }) {
-  console.log("fetchKey", fetchKey);
   const data = useLazyLoadQuery<TagPromptVersionButtonTagsQuery>(
     graphql`
       query TagPromptVersionButtonTagsQuery(
