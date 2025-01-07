@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b89d432a7952db1e4e7ef95c3193505>>
+ * @generated SignedSource<<18139b76d061fc90f7482e4ab90e7a01>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,7 @@ export type promptVersionLoaderQuery$data = {
     readonly tools?: ReadonlyArray<{
       readonly definition: any;
     }>;
-    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessages__main" | "PromptCodeExportCard__main" | "PromptInvocationParameters__main">;
+    readonly " $fragmentSpreads": FragmentRefs<"PromptChatMessagesCard__main" | "PromptCodeExportCard__main" | "PromptInvocationParameters__main" | "PromptModelConfigurationCard__main">;
   };
 };
 export type promptVersionLoaderQuery = {
@@ -156,12 +156,17 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "PromptChatMessages__main"
+                "name": "PromptChatMessagesCard__main"
               },
               {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "PromptCodeExportCard__main"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "PromptModelConfigurationCard__main"
               },
               (v4/*: any*/),
               (v5/*: any*/),
@@ -319,16 +324,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4de45b4ffc637304e62c154bf39961a1",
+    "cacheID": "481bc3eeaaf85382d4a71e3b05296722",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessages__main\n      ...PromptCodeExportCard__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      tags {\n        name\n      }\n    }\n  }\n}\n\nfragment PromptChatMessages__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      tags {\n        name\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        __typename\n        ... on JSONPromptMessage {\n          role\n          jsonContent: content\n        }\n        ... on TextPromptMessage {\n          role\n          content\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    definition\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "951a336ecbf95257a2311b9c86efd447";
+(node as any).hash = "003664064a93ceef77fd1516e8f8d962";
 
 export default node;
