@@ -32,7 +32,6 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
             tags {
               name
             }
-            user
           }
         }
       }
