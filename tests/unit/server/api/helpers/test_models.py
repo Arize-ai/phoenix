@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from phoenix.server.api.helpers.prompts.models import OpenAIToolDefinition
 
@@ -495,7 +496,203 @@ from phoenix.server.api.helpers.prompts.models import OpenAIToolDefinition
             },
             id="pick-tshirt-size-function",
         ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "test_primitives",
+                    "description": "Test all primitive types",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "string_field": {"type": "string", "description": "A string field"},
+                            "number_field": {"type": "number", "description": "A number field"},
+                            "integer_field": {"type": "integer", "description": "An integer field"},
+                            "boolean_field": {"type": "boolean", "description": "A boolean field"},
+                            "null_field": {"type": "null", "description": "A null field"},
+                        },
+                        "required": [
+                            "string_field",
+                            "number_field",
+                            "integer_field",
+                            "boolean_field",
+                            "null_field",
+                        ],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="primitive-types-function",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_user_profile",
+                    "description": "Updates a user's profile information",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "user_id": {
+                                "type": "string",
+                                "description": "The ID of the user to update",
+                            },
+                            "nickname": {
+                                "description": "Optional nickname that can be null or a string",
+                                "anyOf": [{"type": "string"}, {"type": "null"}],
+                            },
+                        },
+                        "required": ["user_id"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="optional-anyof-parameter",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "process_user_preferences",
+                    "description": "Process optional user preferences",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "email_notifications": {
+                                "description": "Email notification preferences that can be null or boolean",  # noqa: E501
+                                "anyOf": [{"type": "boolean"}, {"type": "null"}],
+                            },
+                            "display_name": {
+                                "description": "Display name that can be null or string",
+                                "anyOf": [{"type": "string"}, {"type": "null"}],
+                            },
+                            "age": {
+                                "description": "Age that can be null or integer",
+                                "anyOf": [{"type": "integer"}, {"type": "null"}],
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="array-of-optional-parameters",
+        ),
     ],
 )
 def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[str, Any]) -> None:
     OpenAIToolDefinition.model_validate(tool_definition)
+
+
+@pytest.mark.parametrize(
+    "tool_definition",
+    [
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "pick_tshirt_size",
+                    "description": "Call this if the user specifies which size t-shirt they want",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "size": {
+                                "type": "invalid_type",
+                                "enum": ["s", "m", "l"],
+                                "description": "The size of the t-shirt that the user would like to order",  # noqa: E501
+                            }
+                        },
+                        "required": ["size"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="invalid-data-type",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_temperature",
+                    "description": "Sets the temperature for the thermostat",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "temp": {
+                                "type": "number",
+                                "enum": ["70", "72", "74"],  # only string properties can have enums
+                                "description": "The temperature to set in Fahrenheit",
+                            }
+                        },
+                        "required": ["temp"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="number-property-with-invalid-enum",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"location": {"type": "string"}},
+                        "extra": "extra",  # extra properties are not allowed
+                    },
+                },
+            },
+            id="extra-properties",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_user",
+                    "description": "Updates user information",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                        },
+                        "required": [
+                            "name",
+                            "email",  # email is not in properties
+                        ],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="required-field-not-in-properties",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_preferences",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "priority": {
+                                "type": "string",
+                                "enum": [
+                                    0,  # integer enum values not allowed
+                                    "low",
+                                    "medium",
+                                    "high",
+                                ],
+                                "description": "The priority level to set",
+                            }
+                        },
+                        "required": ["priority"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="string-property-with-priority-enum",
+        ),
+    ],
+)
+def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        OpenAIToolDefinition.model_validate(tool_definition)
