@@ -1,15 +1,17 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
+import { Card } from "@arizeai/components";
+
 import { Flex, Text } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 
 import {
-  PromptChatMessages__main$data,
-  PromptChatMessages__main$key,
+  PromptChatMessagesCard__main$data,
+  PromptChatMessagesCard__main$key,
   PromptTemplateFormat,
-} from "./__generated__/PromptChatMessages__main.graphql";
+} from "./__generated__/PromptChatMessagesCard__main.graphql";
 import { ChatTemplateMessage } from "./ChatTemplateMessage";
 
 const convertTemplateFormat = (
@@ -26,11 +28,11 @@ const convertTemplateFormat = (
 export function PromptChatMessages({
   promptVersion,
 }: {
-  promptVersion: PromptChatMessages__main$key;
+  promptVersion: PromptChatMessagesCard__main$key;
 }) {
   const { template, templateFormat } = useFragment(
     graphql`
-      fragment PromptChatMessages__main on PromptVersion {
+      fragment PromptChatMessagesCard__main on PromptVersion {
         template {
           __typename
           ... on PromptChatTemplate {
@@ -77,7 +79,7 @@ function ChatMessages({
   templateFormat,
 }: {
   template: Extract<
-    PromptChatMessages__main$data["template"],
+    PromptChatMessagesCard__main$data["template"],
     { __typename: "PromptChatTemplate" }
   >;
   templateFormat: TemplateLanguage;
@@ -95,5 +97,19 @@ function ChatMessages({
         />
       ))}
     </Flex>
+  );
+}
+
+export function PromptChatMessagesCard({
+  title = "Prompt",
+  promptVersion,
+}: {
+  title?: string;
+  promptVersion: PromptChatMessagesCard__main$key;
+}) {
+  return (
+    <Card title={title} variant="compact">
+      <PromptChatMessages promptVersion={promptVersion} />
+    </Card>
   );
 }

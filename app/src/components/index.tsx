@@ -20,6 +20,7 @@ export * from "./LoadingMask";
 export * from "./Loading";
 export * from "./ViewSummaryAside";
 export * from "./CopyToClipboardButton";
+export * from "./SectionHeading";
 
 // design system based components
 export * from "./disclosure";
