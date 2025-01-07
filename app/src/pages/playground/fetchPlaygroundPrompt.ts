@@ -1,6 +1,5 @@
 import { fetchQuery, graphql } from "react-relay";
 
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -104,10 +103,7 @@ export const promptVersionToInstance = (
  * @param instance - The playground instance
  * @returns The prompt version
  */
-export const instanceToPromptVersion = (
-  instance: PlaygroundInstance,
-  templateLanguage: TemplateLanguage
-) => {
+export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   if (instance.template.__type === "text_completion") {
     // eslint-disable-next-line no-console
     console.warn(
@@ -119,12 +115,6 @@ export const instanceToPromptVersion = (
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
     templateType: "CHAT",
-    templateFormat:
-      templateLanguage === "F_STRING"
-        ? "FSTRING"
-        : templateLanguage === "MUSTACHE"
-          ? "MUSTACHE"
-          : "NONE",
     template: {
       messages: instance.template.messages.map((m) => ({
         content: m.content || "",

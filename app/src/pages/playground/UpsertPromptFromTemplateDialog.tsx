@@ -32,11 +32,20 @@ const getInstancePromptParamsFromStore = (
   if (!instance) {
     throw new Error(`Instance ${instanceId} not found`);
   }
-  const promptInput = instanceToPromptVersion(instance, state.templateLanguage);
+  const promptInput = instanceToPromptVersion(instance);
   if (!promptInput) {
     throw new Error(`Could not convert instance ${instanceId} to prompt`);
   }
-  return { promptInput };
+  const templateFormat: "FSTRING" | "MUSTACHE" | "NONE" =
+    state.templateLanguage === "F_STRING"
+      ? "FSTRING"
+      : state.templateLanguage === "MUSTACHE"
+        ? "MUSTACHE"
+        : "NONE";
+  return {
+    promptInput,
+    templateFormat,
+  };
 };
 
 export const UpsertPromptFromTemplateDialog = ({
@@ -72,7 +81,7 @@ export const UpsertPromptFromTemplateDialog = ({
     `);
   const onCreate: SavePromptSubmitHandler = useCallback(
     (params) => {
-      const { promptInput } = getInstancePromptParamsFromStore(
+      const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
         instanceId,
         store
       );
@@ -81,7 +90,10 @@ export const UpsertPromptFromTemplateDialog = ({
           input: {
             name: params.name,
             description: params.description,
-            promptVersion: promptInput,
+            promptVersion: {
+              ...promptInput,
+              templateFormat,
+            },
           },
         },
         onCompleted: (response) => {
@@ -121,7 +133,7 @@ export const UpsertPromptFromTemplateDialog = ({
       if (!params.promptId) {
         throw new Error("Prompt ID is required");
       }
-      const { promptInput } = getInstancePromptParamsFromStore(
+      const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
         instanceId,
         store
       );
@@ -131,6 +143,7 @@ export const UpsertPromptFromTemplateDialog = ({
             promptId: params.promptId,
             promptVersion: {
               ...promptInput,
+              templateFormat,
               description: params.description,
             },
           },
