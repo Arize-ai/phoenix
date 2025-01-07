@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<22c7cb14b9e38c3546d196c0aa711283>>
+ * @generated SignedSource<<1df5dc81b46e31805c9fe34ad88f02a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,9 +17,7 @@ export type PromptVersionsList__main$data = {
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
-        readonly tags: ReadonlyArray<{
-          readonly name: string;
-        }>;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsList_data">;
       };
     }>;
   };
@@ -82,22 +80,9 @@ const node: ReaderFragment = {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
                   "args": null,
-                  "concreteType": "PromptVersionTag",
-                  "kind": "LinkedField",
-                  "name": "tags",
-                  "plural": true,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    }
-                  ],
-                  "storageKey": null
+                  "kind": "FragmentSpread",
+                  "name": "PromptVersionTagsList_data"
                 }
               ],
               "storageKey": null
@@ -113,6 +98,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "5faad1693ba9af82609129d06598dec7";
+(node as any).hash = "380ac9d926f313c14e1d3fd421f9896e";
 
 export default node;

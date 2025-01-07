@@ -15,6 +15,7 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
+import { PromptVersionTagsList } from "./PromptVersionTagsList";
 import { TagPromptVersionButton } from "./TagPromptVersionButton";
 
 export function PromptVersionDetailsPage() {
@@ -27,8 +28,6 @@ function PromptVersionDetailsPageContent({
 }: {
   promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
-  const tags =
-    promptVersion?.tags?.map((tag) => ({ id: tag.name, ...tag })) || [];
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View
@@ -40,11 +39,7 @@ function PromptVersionDetailsPageContent({
         <Flex direction="row" justifyContent="space-between">
           <Flex direction="row" gap="size-100">
             <Heading level={2}>{`Version: ${promptVersion.id}`}</Heading>
-            <TagGroup aria-label="Prompt Version Tags">
-              <TagList items={tags}>
-                {(tag) => <Tag key={tag.name}>{tag.name}</Tag>}
-              </TagList>
-            </TagGroup>
+            <PromptVersionTagsList promptVersion={promptVersion} />
           </Flex>
           <Flex direction="row" gap="size-100">
             <CopyToClipboardButton text={promptVersion.id}>
