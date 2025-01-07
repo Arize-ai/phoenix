@@ -13,6 +13,19 @@ from phoenix.server.types import DbSessionFactory
 
 
 class TestPrompts:
+    async def test_get_prompt_version_by_prompt_version_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[1]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = f"/v1/prompt_versions/{quote_plus(prompt_version_id)}"
+        assert (response := await httpx_client.get(url)).is_success
+        assert isinstance((data := response.json()["data"]), dict)
+        self._compare_prompt_version(data, prompt_version)
+
     async def test_get_prompt_version_by_tag_name(
         self,
         httpx_client: httpx.AsyncClient,
