@@ -38,6 +38,8 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 # Symbolic links
 # Note that this can affect hatch build for those packages. That's why
 # we need to un-ignore it if it's an actual folder (i.e. with the trailing /).
+/src/phoenix/client
+!src/phoenix/client/
 /src/phoenix/evals
 !src/phoenix/evals/
 /src/phoenix/otel
