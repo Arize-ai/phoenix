@@ -13,7 +13,7 @@ import {
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
-import { PromptChatMessagesCard } from "./PromptChatMessages";
+import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { TagPromptVersionButton } from "./TagPromptVersionButton";
 

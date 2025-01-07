@@ -7,7 +7,7 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
-import { PromptChatMessagesCard } from "./PromptChatMessages";
+import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
@@ -29,7 +29,7 @@ export function PromptIndexPageContent({
           edges {
             node {
               ...PromptInvocationParameters__main
-              ...PromptChatMessages__main
+              ...PromptChatMessagesCard__main
               ...PromptCodeExportCard__main
               ...PromptModelConfigurationCard__main
             }
