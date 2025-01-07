@@ -580,6 +580,52 @@ from phoenix.server.api.helpers.prompts.models import OpenAIToolDefinition
             },
             id="array-of-optional-enums",
         ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_temperature",
+                    "description": "Set temperature within valid range",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "temp": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100,
+                                "description": "Temperature in Fahrenheit (0-100)",
+                            }
+                        },
+                        "required": ["temp"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="integer-min-max-constraints",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_temperature",
+                    "description": "Set temperature within valid range",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "temp": {
+                                "type": "number",
+                                "minimum": 0.5,  # float min
+                                "maximum": 100,  # integer max
+                                "description": "Temperature in Fahrenheit (0-100)",
+                            }
+                        },
+                        "required": ["temp"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="number-min-max-constraints",
+        ),
     ],
 )
 def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[str, Any]) -> None:
@@ -719,6 +765,74 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
                 },
             },
             id="duplicate-enum-values",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_temperature",
+                    "description": "Set temperature with invalid range",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "temp": {
+                                "type": "integer",
+                                "minimum": 100,
+                                "maximum": 0,  # min > max
+                                "description": "Temperature in Celsius",
+                            }
+                        },
+                        "required": ["temp"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="integer-min-max-range",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_count",
+                    "description": "Set an integer count with float bounds",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "count": {
+                                "type": "integer",
+                                "minimum": 1.4,  # float not allowed for integer property
+                                "description": "Count value",
+                            }
+                        },
+                        "required": ["count"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="integer-float-bounds",
+        ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "set_temperature",
+                    "description": "Set temperature with invalid range",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "temp": {
+                                "type": "number",
+                                "minimum": 100,
+                                "maximum": 0,  # min > max
+                                "description": "Temperature in Celsius",
+                            }
+                        },
+                        "required": ["temp"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            id="number-min-max-range",
         ),
     ],
 )

@@ -87,10 +87,10 @@ class PromptToolsV1(PromptModel):
 
 # JSON schema
 JSONSchemaPrimitiveProperty: TypeAlias = Union[
+    "JSONSchemaIntegerProperty",
     "JSONSchemaNumberProperty",
     "JSONSchemaBooleanProperty",
     "JSONSchemaNullProperty",
-    "JSONSchemaIntegerProperty",
     "JSONSchemaStringProperty",
 ]
 JSONSchemaContainerProperty: TypeAlias = Union[
@@ -103,9 +103,38 @@ JSONSchemaProperty: TypeAlias = Union[
 ]
 
 
+class JSONSchemaIntegerProperty(PromptModel):
+    type: Literal["integer"]
+    description: str = UNDEFINED
+    minimum: int = UNDEFINED
+    maximum: int = UNDEFINED
+
+    @model_validator(mode="after")
+    def ensure_minimum_lte_maximum(self) -> "JSONSchemaIntegerProperty":
+        if (
+            self.minimum is not UNDEFINED
+            and self.maximum is not UNDEFINED
+            and self.minimum > self.maximum
+        ):
+            raise ValueError("minimum must be less than or equal to maximum")
+        return self
+
+
 class JSONSchemaNumberProperty(PromptModel):
     type: Literal["number"]
     description: str = UNDEFINED
+    minimum: float = UNDEFINED
+    maximum: float = UNDEFINED
+
+    @model_validator(mode="after")
+    def ensure_minimum_lte_maximum(self) -> "JSONSchemaNumberProperty":
+        if (
+            self.minimum is not UNDEFINED
+            and self.maximum is not UNDEFINED
+            and self.minimum > self.maximum
+        ):
+            raise ValueError("minimum must be less than or equal to maximum")
+        return self
 
 
 class JSONSchemaBooleanProperty(PromptModel):
@@ -115,11 +144,6 @@ class JSONSchemaBooleanProperty(PromptModel):
 
 class JSONSchemaNullProperty(PromptModel):
     type: Literal["null"]
-    description: str = UNDEFINED
-
-
-class JSONSchemaIntegerProperty(PromptModel):
-    type: Literal["integer"]
     description: str = UNDEFINED
 
 
