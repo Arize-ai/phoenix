@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
@@ -17,9 +17,9 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
 import {
-  SpanFeedback_annotations$data,
-  SpanFeedback_annotations$key,
-} from "./__generated__/SpanFeedback_annotations.graphql";
+  SpanFeedbackQuery,
+  SpanFeedbackQuery$data,
+} from "./__generated__/SpanFeedbackQuery.graphql";
 import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
 const columns = [
@@ -49,7 +49,9 @@ const columns = [
 function SpanAnnotationsTable({
   annotations,
 }: {
-  annotations: SpanFeedback_annotations$data["spanAnnotations"];
+  annotations: NonNullable<
+    NonNullable<SpanFeedbackQuery$data["span"]>["spanAnnotations"]
+  >;
 }) {
   const tableData = useMemo(() => [...annotations], [annotations]);
   const table = useReactTable({
@@ -104,33 +106,39 @@ function SpanAnnotationsTable({
   );
 }
 
-export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
-  const data = useFragment(
+export function SpanFeedback({ spanId }: { spanId: string }) {
+  const data = useLazyLoadQuery<SpanFeedbackQuery>(
     graphql`
-      fragment SpanFeedback_annotations on Span {
-        spanAnnotations {
-          name
-          label
-          score
-          explanation
-          annotatorKind
+      query SpanFeedbackQuery($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            spanAnnotations {
+              name
+              label
+              score
+              explanation
+              annotatorKind
+            }
+          }
         }
       }
     `,
-    span
+    { spanId }
   );
 
+  const annotations = useMemo(() => data?.span?.spanAnnotations || [], [data]);
+
   const humanAnnotations = useMemo(() => {
-    return data.spanAnnotations.filter(
+    return annotations.filter(
       (annotation) => annotation.annotatorKind === "HUMAN"
     );
-  }, [data.spanAnnotations]);
+  }, [annotations]);
   const llmAnnotations = useMemo(() => {
-    return data.spanAnnotations.filter(
+    return annotations.filter(
       (annotation) => annotation.annotatorKind === "LLM"
     );
-  }, [data.spanAnnotations]);
-  const hasAnnotations = data.spanAnnotations.length > 0;
+  }, [annotations]);
+  const hasAnnotations = annotations.length > 0;
   return hasAnnotations ? (
     <DisclosureGroup defaultExpandedKeys={["evaluations", "human"]}>
       <Disclosure id="evaluations">

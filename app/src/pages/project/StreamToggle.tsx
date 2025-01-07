@@ -1,5 +1,6 @@
 import React, { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { useMatch } from "react-router";
 
 import { Switch } from "@arizeai/components";
 
@@ -14,8 +15,10 @@ import { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql
 const REFRESH_INTERVAL_MS = 2000;
 
 export function StreamToggle(props: { project: StreamToggle_data$key }) {
+  const matchesProjectRoute = useMatch("/projects/:projectId");
   const { isStreaming, setIsStreaming, setFetchKey } = useStreamState();
-
+  // We only want streaming to occur wen you are viewing the project page, not in a detailed view
+  const isStreamingActive = isStreaming && matchesProjectRoute;
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
       fragment StreamToggle_data on Project
@@ -32,12 +35,12 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
 
   // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes
   const refetchCountsIfStreaming = useCallback(() => {
-    if (isStreaming) {
+    if (isStreamingActive) {
       startTransition(() => {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     }
-  }, [isStreaming, refetchLastUpdatedAt]);
+  }, [isStreamingActive, refetchLastUpdatedAt]);
 
   // We want to refetch higher up the render tree when lastUpdatedAt changes
   const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;

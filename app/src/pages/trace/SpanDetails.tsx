@@ -51,6 +51,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Loading,
   Text,
   View,
   ViewProps,
@@ -200,7 +201,6 @@ export function SpanDetails({
             spanAnnotations {
               name
             }
-            ...SpanFeedback_annotations
             ...SpanAside_span
           }
         }
@@ -302,7 +302,17 @@ export function SpanDetails({
           }
         >
           {(selected) => {
-            return selected ? <SpanFeedback span={span} /> : null;
+            return selected ? (
+              <Suspense
+                fallback={
+                  <View padding="size-200">
+                    <Loading />
+                  </View>
+                }
+              >
+                <SpanFeedback spanId={span.id} />
+              </Suspense>
+            ) : null;
           }}
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">

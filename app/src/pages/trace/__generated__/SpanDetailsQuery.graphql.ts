@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15286f0446f997087c2392d071de7a69>>
+ * @generated SignedSource<<e4337f45e29489bf373033ccfab42072>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -64,7 +64,7 @@ export type SpanDetailsQuery$data = {
     readonly tokenCountCompletion: number | null;
     readonly tokenCountPrompt: number | null;
     readonly tokenCountTotal: number | null;
-    readonly " $fragmentSpreads": FragmentRefs<"SpanAside_span" | "SpanFeedback_annotations">;
+    readonly " $fragmentSpreads": FragmentRefs<"SpanAside_span">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -325,13 +325,6 @@ v22 = {
 v23 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "explanation",
-  "storageKey": null
-},
-v24 = {
-  "alias": null,
-  "args": null,
   "concreteType": "DocumentEvaluation",
   "kind": "LinkedField",
   "name": "documentEvaluations",
@@ -347,7 +340,13 @@ v24 = {
     (v5/*: any*/),
     (v21/*: any*/),
     (v22/*: any*/),
-    (v23/*: any*/)
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "explanation",
+      "storageKey": null
+    }
   ],
   "storageKey": null
 };
@@ -392,7 +391,7 @@ return {
                 "path": "span.events"
               },
               (v20/*: any*/),
-              (v24/*: any*/),
+              (v23/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -404,11 +403,6 @@ return {
                   (v5/*: any*/)
                 ],
                 "storageKey": null
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "SpanFeedback_annotations"
               },
               {
                 "args": null,
@@ -465,7 +459,7 @@ return {
               (v18/*: any*/),
               (v19/*: any*/),
               (v20/*: any*/),
-              (v24/*: any*/),
+              (v23/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -475,9 +469,8 @@ return {
                 "plural": true,
                 "selections": [
                   (v5/*: any*/),
+                  (v3/*: any*/),
                   (v21/*: any*/),
-                  (v22/*: any*/),
-                  (v23/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -485,7 +478,7 @@ return {
                     "name": "annotatorKind",
                     "storageKey": null
                   },
-                  (v3/*: any*/)
+                  (v22/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -513,16 +506,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b1a80a0108c40baebf6e64b811ca0202",
+    "cacheID": "203f55616dd8ba2da180329c7a4ee082",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      context {\n        spanId\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        name\n      }\n      ...SpanFeedback_annotations\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  spanAnnotations {\n    name\n    label\n    score\n    explanation\n    annotatorKind\n  }\n}\n"
+    "text": "query SpanDetailsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      context {\n        spanId\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        name\n      }\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eaf52d9b37b1f5a29cae360a05b7c975";
+(node as any).hash = "42bc1237b2c1f3deb9a6554f4294c5f9";
 
 export default node;
