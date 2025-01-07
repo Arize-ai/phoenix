@@ -58,6 +58,8 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def user(self, info: Info[Context, None]) -> Optional[User]:
+        if self.user_id is None:
+            return None
         async with info.context.db() as session:
             user = await session.get(models.User, self.user_id)
         return to_gql_user(user) if user is not None else None
