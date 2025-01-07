@@ -1,4 +1,4 @@
-name: OpenAPI Schema Backward Compatibility Check
+name: OpenAPI Schema Backward Compatibility
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - 'schemas/openapi.json'
 
 jobs:
-  openapi-schema-backward-compatibility-check:
+  openapi-schema-backward-compatibility:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
