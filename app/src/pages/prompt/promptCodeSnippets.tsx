@@ -233,9 +233,12 @@ export const mapPromptToSnippet = ({
   promptVersion: PromptVersion;
   language: CodeLanguage;
 }) => {
-  const generator = promptCodeSnippets[language][promptVersion.modelProvider];
+  const generator =
+    promptCodeSnippets[language][
+      promptVersion.modelProvider?.toLocaleLowerCase()
+    ];
   if (!generator) {
-    return `We do not have a code snippet for ${language} and ${promptVersion.modelProvider}`;
+    return `We do not have a code snippet for ${language} + ${promptVersion.modelProvider}`;
   }
   return generator(promptVersion);
 };

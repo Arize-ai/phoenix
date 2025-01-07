@@ -46,7 +46,7 @@ function PromptVersionDetailsPageContent({
         <Flex direction="row" justifyContent="space-between">
           <Flex direction="row" gap="size-100">
             <Heading level={2}>{`Version: ${promptVersion.id}`}</Heading>
-            <TagGroup>
+            <TagGroup aria-label="Prompt Version Tags">
               <TagList items={tags}>
                 {(tag) => <Tag key={tag.name}>{tag.name}</Tag>}
               </TagList>

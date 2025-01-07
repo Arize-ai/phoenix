@@ -3,7 +3,6 @@ import React, { Suspense, useCallback, useState } from "react";
 import {
   Card,
   Content,
-  Dialog,
   DialogContainer,
   Tooltip,
   TooltipTrigger,
@@ -14,12 +13,12 @@ import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PromptComboBox } from "./PromptComboBox";
-import { SavePromptForm, SavePromptSubmitHandler } from "./SavePromptForm";
 import { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
@@ -153,21 +152,17 @@ function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
   if (!instance) {
     throw new Error(`Instance ${instanceId} not found`);
   }
-  const prompt = instance.prompt;
-  const onSubmit: SavePromptSubmitHandler = useCallback(
-    (params) => {
-      // eslint-disable-next-line no-console
-      console.log("saving prompt", instanceId, params);
-    },
-    [instanceId]
-  );
+
   const onSave = () => {
     setDialog(
-      <Dialog title={prompt?.id ? "Update Prompt" : "Save Prompt"}>
-        <SavePromptForm onSubmit={onSubmit} />
-      </Dialog>
+      <UpsertPromptFromTemplateDialog
+        instanceId={instanceId}
+        setDialog={setDialog}
+        selectedPromptId={instance.prompt?.id}
+      />
     );
   };
+
   return (
     <>
       <TooltipTrigger delay={100}>
