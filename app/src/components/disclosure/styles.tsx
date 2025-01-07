@@ -13,8 +13,16 @@ export const disclosureGroupCSS = css`
 
   // add border between items, only when child is expanded
   > *:not(:last-child) {
-    &[data-expanded] {
+    &[data-expanded="true"] {
       border-bottom: 1px solid var(--ac-global-border-color-default);
+    }
+  }
+
+  &[data-as-sibling="true"] {
+    > * {
+      &[data-expanded="true"] {
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+      }
     }
   }
 `;

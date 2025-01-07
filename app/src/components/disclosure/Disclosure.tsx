@@ -16,7 +16,10 @@ import { FlexStyleProps, SizingProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
-export type DisclosureGroupProps = AriaDisclosureGroupProps;
+export type DisclosureGroupProps = AriaDisclosureGroupProps & {
+  /** If true, the DisclosureGroup will render borders between items, even the last item */
+  asSibling?: boolean;
+};
 
 /**
  * Wrap multiple Disclosure components in a DisclosureGroup to control
@@ -26,6 +29,7 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps;
  */
 export const DisclosureGroup = ({
   className,
+  asSibling,
   ...props
 }: DisclosureGroupProps) => {
   return (
@@ -33,6 +37,7 @@ export const DisclosureGroup = ({
       allowsMultipleExpanded
       className={classNames("ac-disclosure-group", className)}
       css={disclosureGroupCSS}
+      data-as-sibling={asSibling}
       {...props}
     />
   );

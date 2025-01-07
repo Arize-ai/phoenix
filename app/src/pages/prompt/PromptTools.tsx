@@ -54,21 +54,23 @@ export function PromptTools({
 
   if (items.length === 0) {
     return (
-      <Flex direction="column">
-        <SectionHeading>Tools</SectionHeading>
-        <View padding="size-200">
-          <Flex justifyContent="center" alignItems="center">
-            <Text>No tools specified for this prompt</Text>
-          </Flex>
-        </View>
-      </Flex>
+      <Disclosure id="tools">
+        <DisclosureTrigger>Tools</DisclosureTrigger>
+        <DisclosurePanel>
+          <View padding="size-200">
+            <Flex justifyContent="center" alignItems="center">
+              <Text>No tools specified for this prompt</Text>
+            </Flex>
+          </View>
+        </DisclosurePanel>
+      </Disclosure>
     );
   }
 
   return (
     <Flex direction="column">
-      <SectionHeading>Tools</SectionHeading>
-      <DisclosureGroup>
+      <SectionHeading bordered={false}>Tools</SectionHeading>
+      <DisclosureGroup asSibling>
         {items.map((item, i) => (
           <Disclosure key={`${item.name}-${i}`} id={`tool-${i}`}>
             <DisclosureTrigger
