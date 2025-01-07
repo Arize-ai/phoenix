@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04864df3836436b2353a89b3e6ec6818>>
+ * @generated SignedSource<<c870e6e89e5fff9314f507d68cb72a39>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type NewPromptVersionTagDialogMutation$data = {
   readonly setPromptVersionTag: {
     readonly promptVersionTag: {
       readonly id: string;
-    };
+    } | null;
   };
 };
 export type NewPromptVersionTagDialogMutation = {
