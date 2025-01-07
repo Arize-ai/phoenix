@@ -71,9 +71,8 @@ async def get_prompt_version_by_prompt_version_id(
         )
     except ValueError:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
-    stmt = select(models.PromptVersion).filter_by(id=id_)
     async with request.app.state.db() as session:
-        prompt_version: models.PromptVersion = await session.scalar(stmt)
+        prompt_version = await session.get(models.PromptVersion, id_)
         if prompt_version is None:
             raise HTTPException(HTTP_404_NOT_FOUND)
     return _prompt_version_response_body(prompt_version)
