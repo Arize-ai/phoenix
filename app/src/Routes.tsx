@@ -217,6 +217,9 @@ const router = createBrowserRouter(
             <Route
               path=":promptId"
               loader={promptLoader}
+              // force this route to always revalidate, preventing stale versions from being
+              // displayed when navigating back to the prompt page after gql mutation
+              shouldRevalidate={() => true}
               handle={{
                 crumb: (data: promptLoaderQuery$data) => {
                   if (data.prompt.__typename === "Prompt") {
