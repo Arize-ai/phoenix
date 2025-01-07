@@ -7,6 +7,22 @@ from typing_extensions import TypeAlias
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
 
+class Undefined:
+    """
+    A singleton class that represents an unset or undefined value. Needed since Pydantic
+    can't natively distinguish between an undefined value and a value that is set to
+    None.
+    """
+
+    def __new__(cls) -> Any:
+        if not hasattr(cls, "_instance"):
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+
+UNDEFINED: Any = Undefined()
+
+
 class PromptTemplateType(str, Enum):
     STRING = "STR"
     CHAT = "CHAT"
@@ -69,46 +85,69 @@ class PromptToolsV1(PromptModel):
     tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
 
 
-# Tool models
-JSONSchemaDataType = Literal["string", "number", "boolean", "object", "array", "null", "integer"]
+# JSON schema models
+JSONSchemaPrimitiveProperty: TypeAlias = Union[
+    "JSONSchemaNumberProperty",
+    "JSONSchemaBooleanProperty",
+    "JSONSchemaNullProperty",
+    "JSONSchemaIntegerProperty",
+    "JSONSchemaStringProperty",
+]
+JSONSchemaContainerProperty: TypeAlias = Union[
+    "JSONSchemaArrayProperty",
+    "JSONSchemaObjectProperty",
+]
+JSONSchemaPropertyType: TypeAlias = Union[
+    "JSONSchemaPrimitiveProperty",
+    "JSONSchemaContainerProperty",
+    "JSONSchemaUnionProperty",
+]
 
 
-class Undefined:
-    """
-    A singleton class that represents an unset or undefined value. Needed since Pydantic
-    can't natively distinguish between an undefined value and a value that is set to
-    None.
-    """
-
-    def __new__(cls) -> Any:
-        if not hasattr(cls, "_instance"):
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-
-UNDEFINED: Any = Undefined()
-
-
-JSONSchemaPropertyType = Union["JSONSchema", "JSONSchemaProperty", "JSONSchemaPropertyUnion"]
-
-
-class JSONSchemaProperty(PromptModel):
-    type: JSONSchemaDataType
+class JSONSchemaNumberProperty(PromptModel):
+    type: Literal["number"]
     description: str = UNDEFINED
-    items: JSONSchemaPropertyType = UNDEFINED
+
+
+class JSONSchemaBooleanProperty(PromptModel):
+    type: Literal["boolean"]
+    description: str = UNDEFINED
+
+
+class JSONSchemaNullProperty(PromptModel):
+    type: Literal["null"]
+    description: str = UNDEFINED
+
+
+class JSONSchemaIntegerProperty(PromptModel):
+    type: Literal["integer"]
+    description: str = UNDEFINED
+
+
+class JSONSchemaStringProperty(PromptModel):
+    type: Literal["string"]
+    description: str = UNDEFINED
     enum: list[str] = UNDEFINED
 
 
-class JSONSchemaPropertyUnion(PromptModel):
-    any_of: list[Union["JSONSchema", "JSONSchemaProperty"]] = Field(UNDEFINED, alias="anyOf")
+class JSONSchemaArrayProperty(PromptModel):
+    type: Literal["array"]
+    description: str = UNDEFINED
+    items: JSONSchemaPropertyType = UNDEFINED
 
 
-class JSONSchema(PromptModel):
-    type: JSONSchemaDataType
+class JSONSchemaObjectProperty(PromptModel):
+    type: Literal["object"]
     description: str = UNDEFINED
     properties: dict[str, JSONSchemaPropertyType] = UNDEFINED
     required: list[str] = UNDEFINED
     additional_properties: bool = Field(UNDEFINED, alias="additionalProperties")
+
+
+class JSONSchemaUnionProperty(PromptModel):
+    any_of: list[Union["JSONSchemaPrimitiveProperty", "JSONSchemaContainerProperty"]] = Field(
+        ..., alias="anyOf"
+    )
 
 
 class OpenAIFunctionDefinition(PromptModel):
@@ -118,7 +157,7 @@ class OpenAIFunctionDefinition(PromptModel):
 
     name: str
     description: str = UNDEFINED
-    parameters: JSONSchema = UNDEFINED
+    parameters: JSONSchemaObjectProperty = UNDEFINED
     strict: Optional[bool] = UNDEFINED
 
 
