@@ -994,9 +994,6 @@ class TestPrompts:
               mutation CreateChatPromptMutation($input: CreateChatPromptInput!) {
                 createChatPrompt(input: $input) {
                   id
-                  name
-                  description
-                  createdAt
                   promptVersions {
                     edges {
                       promptVersion: node {
