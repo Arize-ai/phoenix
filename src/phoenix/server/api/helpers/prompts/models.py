@@ -1,5 +1,6 @@
+from abc import ABC
 from enum import Enum
-from typing import Any, Literal, Optional, Union
+from typing import Any, Generic, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeAlias
@@ -85,7 +86,7 @@ class PromptToolsV1(PromptModel):
     tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
 
 
-# JSON schema models
+# JSON schema
 JSONSchemaPrimitiveProperty: TypeAlias = Union[
     "JSONSchemaNumberProperty",
     "JSONSchemaBooleanProperty",
@@ -97,59 +98,57 @@ JSONSchemaContainerProperty: TypeAlias = Union[
     "JSONSchemaArrayProperty",
     "JSONSchemaObjectProperty",
 ]
-JSONSchemaPropertyType: TypeAlias = Union[
+JSONSchemaProperty: TypeAlias = Union[
     "JSONSchemaPrimitiveProperty",
     "JSONSchemaContainerProperty",
-    "JSONSchemaUnionProperty",
 ]
+JSONSchemaDataType = TypeVar(
+    "JSONSchemaDataType",
+    bound=Literal["number", "boolean", "null", "integer", "string", "array", "object"],
+)
 
 
-class JSONSchemaNumberProperty(PromptModel):
-    type: Literal["number"]
+class BaseJSONSchemaProperty(ABC, Generic[JSONSchemaDataType], PromptModel):
+    type: JSONSchemaDataType
     description: str = UNDEFINED
 
 
-class JSONSchemaBooleanProperty(PromptModel):
-    type: Literal["boolean"]
-    description: str = UNDEFINED
+class JSONSchemaNumberProperty(BaseJSONSchemaProperty[Literal["number"]]):
+    pass
 
 
-class JSONSchemaNullProperty(PromptModel):
-    type: Literal["null"]
-    description: str = UNDEFINED
+class JSONSchemaBooleanProperty(BaseJSONSchemaProperty[Literal["boolean"]]):
+    pass
 
 
-class JSONSchemaIntegerProperty(PromptModel):
-    type: Literal["integer"]
-    description: str = UNDEFINED
+class JSONSchemaNullProperty(BaseJSONSchemaProperty[Literal["null"]]):
+    pass
 
 
-class JSONSchemaStringProperty(PromptModel):
-    type: Literal["string"]
-    description: str = UNDEFINED
+class JSONSchemaIntegerProperty(BaseJSONSchemaProperty[Literal["integer"]]):
+    pass
+
+
+class JSONSchemaStringProperty(BaseJSONSchemaProperty[Literal["string"]]):
     enum: list[str] = UNDEFINED
 
 
-class JSONSchemaArrayProperty(PromptModel):
-    type: Literal["array"]
-    description: str = UNDEFINED
-    items: JSONSchemaPropertyType = UNDEFINED
+class JSONSchemaArrayProperty(BaseJSONSchemaProperty[Literal["array"]]):
+    items: Union[JSONSchemaProperty, "JSONSchemaAnyOf"] = UNDEFINED
 
 
-class JSONSchemaObjectProperty(PromptModel):
-    type: Literal["object"]
-    description: str = UNDEFINED
-    properties: dict[str, JSONSchemaPropertyType] = UNDEFINED
+class JSONSchemaObjectProperty(BaseJSONSchemaProperty[Literal["object"]]):
+    properties: dict[str, Union[JSONSchemaProperty, "JSONSchemaAnyOf"]] = UNDEFINED
     required: list[str] = UNDEFINED
     additional_properties: bool = Field(UNDEFINED, alias="additionalProperties")
 
 
-class JSONSchemaUnionProperty(PromptModel):
-    any_of: list[Union["JSONSchemaPrimitiveProperty", "JSONSchemaContainerProperty"]] = Field(
-        ..., alias="anyOf"
-    )
+class JSONSchemaAnyOf(PromptModel):
+    description: str = UNDEFINED
+    any_of: list[JSONSchemaProperty] = Field(..., alias="anyOf")
 
 
+# OpenAI tool definitions
 class OpenAIFunctionDefinition(PromptModel):
     """
     Based on https://github.com/openai/openai-python/blob/1e07c9d839e7e96f02d0a4b745f379a43086334c/src/openai/types/shared_params/function_definition.py#L13
