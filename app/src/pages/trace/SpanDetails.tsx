@@ -199,6 +199,7 @@ export function SpanDetails({
               explanation
             }
             spanAnnotations {
+              id
               name
             }
             ...SpanAside_span
