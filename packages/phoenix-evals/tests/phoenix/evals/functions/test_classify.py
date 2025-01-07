@@ -22,8 +22,10 @@ from phoenix.evals.classify import (
     run_evals,
 )
 from phoenix.evals.default_templates import (
+    RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
+    TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
 )
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import ExecutionStatus
@@ -150,9 +152,23 @@ def test_llm_classify_data_processor_dataframe(
     respx_mock: respx.mock,
 ):
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
+    empty_dataframe = pd.DataFrame(
+        [
+            {
+                "input": "",
+                "reference": "",
+            },
+            {
+                "input": "",
+                "reference": "",
+            },
+            {"input": "", "reference": ""},
+            {"input": "", "reference": ""},
+        ],
+    )
+    responses = ["unparsable", "unparsable", "unparsable", "unparsable"]
+    empty_keys = list(zip(empty_dataframe["input"], empty_dataframe["reference"]))
+    empty_mapping = {key: response for key, response in zip(empty_keys, responses)}
 
     def row_empty_processor(row_series: pd.Series) -> pd.Series:
         return pd.Series(
@@ -162,7 +178,7 @@ def test_llm_classify_data_processor_dataframe(
             }
         )
 
-    for (query, reference), response in response_mapping.items():
+    for (query, reference), response in empty_mapping.items():
         matcher = M(content__contains=query) & M(content__contains=reference)
         payload = {
             "choices": [
@@ -189,12 +205,12 @@ def test_llm_classify_data_processor_dataframe(
 
     # Ensuring the processor is working as expected
     for p in result["prompt"]:
-        assert p == RAG_RELEVANCY_PROMPT_TEMPLATE.format(
+        assert p == RAG_RELEVANCY_PROMPT_BASE_TEMPLATE.format(
             input="",
             reference="",
         )
 
-    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    expected_labels = [NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result[["label"]],
@@ -216,14 +232,20 @@ def test_llm_classify_data_processor_list_of_tuples(
         ("What is C++?", "C++ is a programming language."),
         ("What is C++?", "unrelated"),
     ]
-    keys = dataframe
-    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
+    empty_dataframe = [
+        ("", ""),
+        ("", ""),
+        ("", ""),
+        ("", ""),
+    ]
+    responses = ["unparsable", "unparsable", "unparsable", "unparsable"]
+    empty_keys = empty_dataframe
+    empty_mapping = {key: response for key, response in zip(empty_keys, responses)}
 
     def tuple_empty_processor(row_tuple: tuple) -> tuple:
         return "", ""
 
-    for (query, reference), response in response_mapping.items():
+    for (query, reference), response in empty_mapping.items():
         matcher = M(content__contains=query) & M(content__contains=reference)
         payload = {
             "choices": [
@@ -250,12 +272,12 @@ def test_llm_classify_data_processor_list_of_tuples(
 
     # Ensuring the processor is working as expected
     for p in result["prompt"]:
-        assert p == RAG_RELEVANCY_PROMPT_TEMPLATE.format(
+        assert p == RAG_RELEVANCY_PROMPT_BASE_TEMPLATE.format(
             input="",
             reference="",
         )
 
-    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    expected_labels = [NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE, NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result[["label"]],
@@ -277,15 +299,21 @@ def test_llm_classify_data_processor_list_of_strings(
         "C++ is a programming language",
         "",
     ]
-    keys = (dataframe,)
+    empty_dataframe = [
+        "",
+        "",
+        "",
+        "",
+    ]
     responses = ["unparsable", "unparsable", "unparsable", "unparsable"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
+    empty_keys = empty_dataframe
+    empty_mapping = {key: response for key, response in zip(empty_keys, responses)}
 
     def string_empty_processor(value: str) -> str:
         return ""
 
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
+    for query, response in empty_mapping.items():
+        matcher = M(content__contains=query)
         payload = {
             "choices": [
                 {
@@ -311,7 +339,7 @@ def test_llm_classify_data_processor_list_of_strings(
 
     # Ensuring the processor is working as expected
     for p in result["prompt"]:
-        assert p == TOXICITY_PROMPT_TEMPLATE.format(
+        assert p == TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE.format(
             input="",
         )
 

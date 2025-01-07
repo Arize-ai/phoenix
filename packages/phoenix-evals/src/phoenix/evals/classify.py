@@ -231,10 +231,6 @@ def llm_classify(
                 }
             )
         elif isinstance(data, str):
-            if len(eval_template.variables) > 1:
-                raise ValueError(
-                    "Multiple template variables present but only one list passed through."
-                )
             return pd.Series({eval_template.variables[0]: data})
         elif isinstance(data, pd.Series):
             return data
