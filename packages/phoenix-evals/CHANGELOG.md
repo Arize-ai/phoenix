@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.0...arize-phoenix-evals-v0.18.1) (2025-01-07)
+
+
+### Bug Fixes
+
+* Allow ClassificationTemplate w/o explanation template ([#5877](https://github.com/Arize-ai/phoenix/issues/5877)) ([d2df7ad](https://github.com/Arize-ai/phoenix/commit/d2df7ad8792df3d0637c003ba367dc483f6ad40d))
+
 ## [0.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.5...arize-phoenix-evals-v0.18.0) (2024-12-20)
 
 
