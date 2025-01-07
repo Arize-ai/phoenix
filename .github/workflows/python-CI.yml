@@ -32,7 +32,6 @@ jobs:
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
-      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
     steps:
@@ -52,9 +51,6 @@ jobs:
               - "tests/**"
               - "tutorials/**"
               - "pyproject.toml"
-              - "tox.ini"
-            phoenix_client:
-              - "packages/phoenix-client/**"
               - "tox.ini"
             phoenix_evals:
               - "packages/phoenix-evals/**"
@@ -82,29 +78,6 @@ jobs:
       - name: Check notebooks have cleaned output and metadata
         run: hatch run notebooks:clean
       - run: git diff --exit-code
-
-  phoenix-client:
-    name: Phoenix Client
-    runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
-    strategy:
-      matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            requirements/
-            packages/phoenix-client/
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v4
-        with:
-          version: 0.5.8
-      - run: uvx --with tox-uv tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
     name: Phoenix Evals
