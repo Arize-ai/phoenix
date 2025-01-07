@@ -33,18 +33,15 @@ export function PromptModelConfigurationCard({
       variant="compact"
       bodyStyle={{ padding: 0 }}
     >
-      <DisclosureGroup defaultExpandedKeys={["invocation-parameters", "tools"]}>
+      <DisclosureGroup defaultExpandedKeys={["invocation-parameters"]}>
         <Disclosure id="invocation-parameters">
           <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
-          <PromptInvocationParameters promptVersion={promptVersion} />
-        </Disclosure>
-        <Disclosure id="tools">
-          <DisclosureTrigger>Tools</DisclosureTrigger>
           <DisclosurePanel>
-            <PromptTools promptVersion={promptVersion} />
+            <PromptInvocationParameters promptVersion={promptVersion} />
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
+      <PromptTools promptVersion={promptVersion} />
     </Card>
   );
 }

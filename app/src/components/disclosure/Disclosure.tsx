@@ -9,6 +9,7 @@ import {
   type DisclosureProps as AriaDisclosureProps,
   Heading,
 } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import { classNames, Flex, Icon, Icons } from "@phoenix/components";
 
@@ -79,6 +80,7 @@ export const DisclosurePanel = ({
 export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end";
   justifyContent?: FlexStyleProps["justifyContent"];
+  asHeading?: boolean;
 }>;
 
 /**
@@ -105,5 +107,31 @@ export const DisclosureTrigger = ({
         <Icon svg={<Icons.ArrowIosForwardOutline />} />
       </Button>
     </Heading>
+  );
+};
+
+/**
+ * A DisclosureHeading is a component that displays a heading for a Disclosure or DisclosureGroup.
+ *
+ * It takes the same appearance as a DisclosureTrigger, but is not interactive.
+ */
+export const DisclosureHeading = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      css={css`
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-200);
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 24px;
+        border-top: 1px solid var(--ac-global-border-color-default);
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+      `}
+    >
+      {children}
+    </div>
   );
 };

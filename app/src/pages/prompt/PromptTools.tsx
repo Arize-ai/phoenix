@@ -1,9 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Dialog, DialogContainer, List, ListItem } from "@arizeai/components";
-
-import { CopyToClipboardButton, Flex, Text, View } from "@phoenix/components";
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosureHeading,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  Text,
+  View,
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { PromptTools__main$key } from "@phoenix/pages/prompt/__generated__/PromptTools__main.graphql";
 import {
@@ -18,23 +25,11 @@ type ToolDefinitionItem = {
   definition: string;
 };
 
-function ToolDefinitionItem({ name, description }: ToolDefinitionItem) {
-  return (
-    <View paddingStart="size-100" paddingEnd="size-100">
-      <Flex direction="row" justifyContent="space-between">
-        <Text weight="heavy">{name}</Text>
-        <Text>{description}</Text>
-      </Flex>
-    </View>
-  );
-}
-
 export function PromptTools({
   promptVersion,
 }: {
   promptVersion: PromptTools__main$key;
 }) {
-  const [dialog, setDialog] = useState<ToolDefinitionItem | null>(null);
   const { tools } = useFragment<PromptTools__main$key>(
     graphql`
       fragment PromptTools__main on PromptVersion {
@@ -59,45 +54,36 @@ export function PromptTools({
 
   if (items.length === 0) {
     return (
-      <View padding="size-200">
-        <Flex justifyContent="center" alignItems="center">
-          <Text>No tools specified for this prompt</Text>
-        </Flex>
-      </View>
+      <Flex direction="column">
+        <DisclosureHeading>Tools</DisclosureHeading>
+        <View padding="size-200">
+          <Flex justifyContent="center" alignItems="center">
+            <Text>No tools specified for this prompt</Text>
+          </Flex>
+        </View>
+      </Flex>
     );
   }
 
   return (
-    <>
-      <List listSize="small">
+    <Flex direction="column">
+      <DisclosureHeading>Tools</DisclosureHeading>
+      <DisclosureGroup>
         {items.map((item, i) => (
-          <ListItem
-            key={`${item.name}-${i}`}
-            interactive
-            onClick={() => setDialog(item)}
-          >
-            <ToolDefinitionItem {...item} />
-          </ListItem>
-        ))}
-      </List>
-      <DialogContainer isDismissable onDismiss={() => setDialog(null)}>
-        {dialog ? (
-          <Dialog
-            title={dialog.name}
-            extra={<CopyToClipboardButton text={dialog.definition} />}
-            size="M"
-          >
-            <View
-              padding="size-100"
-              minHeight={350}
-              maxHeight={500}
-              overflow={"auto"}
+          <Disclosure key={`${item.name}-${i}`} id={`tool-${i}`}>
+            <DisclosureTrigger
+              arrowPosition="start"
+              justifyContent="space-between"
             >
-              <JSONBlock value={dialog.definition} />
-            </View>
-          </Dialog>
-        ) : null}
-      </DialogContainer>
-    </>
+              <Text>{item.name}</Text>
+              <Text>{item.description}</Text>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <JSONBlock value={item.definition} />
+            </DisclosurePanel>
+          </Disclosure>
+        ))}
+      </DisclosureGroup>
+    </Flex>
   );
 }
