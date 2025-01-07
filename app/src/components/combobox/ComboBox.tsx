@@ -92,7 +92,9 @@ export function ComboBox<T extends object>({
           <Icon svg={<Icons.ArrowIosDownwardOutline />} />
         </Button>
       </div>
-      {description && <Text slot="description">{description}</Text>}
+      {description && !errorMessage ? (
+        <Text slot="description">{description}</Text>
+      ) : null}
       <FieldError>{errorMessage}</FieldError>
       <Popover css={comboBoxPopoverCSS} UNSTABLE_portalContainer={container}>
         <ListBox renderEmptyState={renderEmptyState}>{children}</ListBox>

@@ -104,9 +104,6 @@ export const promptVersionToInstance = (
  * @returns The prompt version
  */
 export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
-  if (!instance.prompt) {
-    return null;
-  }
   if (instance.template.__type === "text_completion") {
     // eslint-disable-next-line no-console
     console.warn(
@@ -115,23 +112,22 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     return null;
   }
   return {
-    id: instance.prompt.id,
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
     templateType: "CHAT",
     template: {
-      __typename: "PromptChatTemplate",
       messages: instance.template.messages.map((m) => ({
-        content: m.content,
+        content: m.content || "",
         role: chatMessageRoleToPromptMessageRole(m.role),
       })),
     },
     tools: instance.tools.map((t) => ({
-      __typename: "ToolDefinition",
       definition: t.definition,
     })),
     // @TODO(apowell): Add description and invocationParameters
-  } satisfies Partial<PromptVersion>;
+  } satisfies Omit<Partial<PromptVersion>, "template" | "tools"> & {
+    template: Omit<Partial<PromptVersion["template"]>, "__typename">;
+  } & { tools: Omit<Partial<PromptVersion["tools"]>[number], "__typename"> };
 };
 
 const getLatestPromptVersion = (
@@ -161,6 +157,7 @@ const query = graphql`
               modelProvider
               invocationParameters
               templateType
+              templateFormat
               template {
                 __typename
                 ... on PromptChatTemplate {
