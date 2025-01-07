@@ -8,6 +8,9 @@
             "exclude-paths": [
               ".github",
               ".tours",
+              ".release-please-manifest.json",
+              "release-please-config.json",
+              "tox.ini",
               "api_reference",
               "docs",
               "examples",
