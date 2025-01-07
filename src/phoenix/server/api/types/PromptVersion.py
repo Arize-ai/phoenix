@@ -60,6 +60,30 @@ class PromptVersion(Node):
         return to_gql_user(user) if user is not None else None
 
 
+    @strawberry.field
+    async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
+        async with info.context.db() as session:
+            current_version = await session.get(models.PromptVersion, self.id_attr)
+            if current_version is None:
+                return None
+
+            prompt_id = current_version.prompt_id
+            created_at = current_version.created_at
+
+            stmt = (
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == prompt_id)
+                .where(models.PromptVersion.created_at < created_at)
+                .order_by(models.PromptVersion.created_at.desc())
+                .limit(1)
+            )
+            previous_version = await session.scalar(stmt)
+
+            if previous_version is not None:
+                return to_gql_prompt_version(prompt_version=previous_version)
+            return None
+
+
 def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
