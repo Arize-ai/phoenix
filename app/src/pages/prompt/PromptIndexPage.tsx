@@ -1,22 +1,14 @@
 import React from "react";
-import { DisclosurePanel, Heading } from "react-aria-components";
+import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Card } from "@arizeai/components";
-
-import {
-  Disclosure,
-  DisclosureGroup,
-  DisclosureTrigger,
-  Flex,
-  View,
-} from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
+import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
-import { PromptChatMessages } from "./PromptChatMessages";
+import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
-import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
@@ -37,8 +29,9 @@ export function PromptIndexPageContent({
           edges {
             node {
               ...PromptInvocationParameters__main
-              ...PromptChatMessages__main
+              ...PromptChatMessagesCard__main
               ...PromptCodeExportCard__main
+              ...PromptModelConfigurationCard__main
             }
           }
         }
@@ -66,29 +59,11 @@ export function PromptIndexPageContent({
             marginEnd="auto"
             maxWidth={900}
           >
-            <Card title="Prompt Template" variant="compact">
-              <PromptChatMessages promptVersion={latestVersion} />
-            </Card>
-            <Card
-              title="Model Configuration"
-              variant="compact"
-              bodyStyle={{ padding: 0 }}
-            >
-              <DisclosureGroup
-                defaultExpandedKeys={["invocation-parameters", "tools"]}
-              >
-                <Disclosure id="invocation-parameters">
-                  <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
-                  <PromptInvocationParameters promptVersion={latestVersion} />
-                </Disclosure>
-                <Disclosure id="tools">
-                  <DisclosureTrigger>Tools</DisclosureTrigger>
-                  <DisclosurePanel>
-                    <View padding="size-200">No Tools Specified</View>
-                  </DisclosurePanel>
-                </Disclosure>
-              </DisclosureGroup>
-            </Card>
+            <PromptChatMessagesCard
+              title="Prompt Template"
+              promptVersion={latestVersion}
+            />
+            <PromptModelConfigurationCard promptVersion={latestVersion} />
             <PromptCodeExportCard promptVersion={latestVersion} />
           </Flex>
         </View>
