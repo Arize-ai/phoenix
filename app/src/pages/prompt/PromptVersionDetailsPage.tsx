@@ -1,14 +1,8 @@
 import React from "react";
 import { useLoaderData } from "react-router";
 
-import { Card } from "@arizeai/components";
-
 import {
   CopyToClipboardButton,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
   Heading,
   Tag,
@@ -16,11 +10,11 @@ import {
   TagList,
   View,
 } from "@phoenix/components";
+import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import { promptVersionLoaderQuery$data } from "./__generated__/promptVersionLoaderQuery.graphql";
-import { PromptChatMessages } from "./PromptChatMessages";
+import { PromptChatMessagesCard } from "./PromptChatMessages";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
-import { PromptInvocationParameters } from "./PromptInvocationParameters";
 import { TagPromptVersionButton } from "./TagPromptVersionButton";
 
 export function PromptVersionDetailsPage() {
@@ -68,23 +62,8 @@ function PromptVersionDetailsPageContent({
           marginStart="auto"
           marginEnd="auto"
         >
-          <Card title="Prompt" variant="compact">
-            <PromptChatMessages promptVersion={promptVersion} />
-          </Card>
-          <Card
-            title="Model Configuration"
-            variant="compact"
-            bodyStyle={{ padding: 0 }}
-          >
-            <DisclosureGroup defaultExpandedKeys={["invocation-parameters"]}>
-              <Disclosure id="invocation-parameters">
-                <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
-                <DisclosurePanel>
-                  <PromptInvocationParameters promptVersion={promptVersion} />
-                </DisclosurePanel>
-              </Disclosure>
-            </DisclosureGroup>
-          </Card>
+          <PromptChatMessagesCard promptVersion={promptVersion} />
+          <PromptModelConfigurationCard promptVersion={promptVersion} />
           <PromptCodeExportCard promptVersion={promptVersion} />
         </Flex>
       </View>

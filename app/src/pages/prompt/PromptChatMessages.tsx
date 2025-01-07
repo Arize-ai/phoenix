@@ -1,6 +1,8 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
+import { Card } from "@arizeai/components";
+
 import { Flex, Text } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
@@ -95,5 +97,19 @@ function ChatMessages({
         />
       ))}
     </Flex>
+  );
+}
+
+export function PromptChatMessagesCard({
+  title = "Prompt",
+  promptVersion,
+}: {
+  title?: string;
+  promptVersion: PromptChatMessages__main$key;
+}) {
+  return (
+    <Card title={title} variant="compact">
+      <PromptChatMessages promptVersion={promptVersion} />
+    </Card>
   );
 }
