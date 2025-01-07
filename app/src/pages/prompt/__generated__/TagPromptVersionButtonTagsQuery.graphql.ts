@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cee7c2adddc62ddcfee89f8cf89ea117>>
+ * @generated SignedSource<<c3ed877b3839b33b10be45497263b4b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,11 +16,13 @@ export type TagPromptVersionButtonTagsQuery$variables = {
 export type TagPromptVersionButtonTagsQuery$data = {
   readonly prompt: {
     readonly versionTags?: ReadonlyArray<{
+      readonly id: string;
       readonly name: string;
     }>;
   };
   readonly promptVersion: {
     readonly tags?: ReadonlyArray<{
+      readonly id: string;
       readonly name: string;
     }>;
   };
@@ -50,7 +52,15 @@ v1 = [
     "variableName": "promptId"
   }
 ],
-v2 = [
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = [
+  (v2/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -59,7 +69,7 @@ v2 = [
     "storageKey": null
   }
 ],
-v3 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -69,21 +79,21 @@ v3 = {
       "kind": "LinkedField",
       "name": "versionTags",
       "plural": true,
-      "selections": (v2/*: any*/),
+      "selections": (v3/*: any*/),
       "storageKey": null
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 },
-v4 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "versionId"
   }
 ],
-v5 = {
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -93,30 +103,23 @@ v5 = {
       "kind": "LinkedField",
       "name": "tags",
       "plural": true,
-      "selections": (v2/*: any*/),
+      "selections": (v3/*: any*/),
       "storageKey": null
     }
   ],
   "type": "PromptVersion",
   "abstractKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "kind": "TypeDiscriminator",
   "abstractKey": "__isNode"
-},
-v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -133,19 +136,19 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/)
+          (v4/*: any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "promptVersion",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -167,41 +170,41 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
-          (v3/*: any*/),
           (v7/*: any*/),
-          (v8/*: any*/)
+          (v4/*: any*/),
+          (v8/*: any*/),
+          (v2/*: any*/)
         ],
         "storageKey": null
       },
       {
         "alias": "promptVersion",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
-          (v5/*: any*/),
           (v7/*: any*/),
-          (v8/*: any*/)
+          (v6/*: any*/),
+          (v8/*: any*/),
+          (v2/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "b48470da2466dee71014e5298fe3c154",
+    "cacheID": "51965c86ef2f0e2192aed200cd90bef9",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonTagsQuery",
     "operationKind": "query",
-    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: GlobalID!\n  $versionId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  promptVersion: node(id: $versionId) {\n    __typename\n    ... on PromptVersion {\n      tags {\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: GlobalID!\n  $versionId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        id\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  promptVersion: node(id: $versionId) {\n    __typename\n    ... on PromptVersion {\n      tags {\n        id\n        name\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cf7f23baada0854d6f6fd67fb234239f";
+(node as any).hash = "62f9ce0c869fb321ed64215c26ee5e56";
 
 export default node;
