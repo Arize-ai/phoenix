@@ -7,13 +7,10 @@ import {
   ActionMenuProps,
   Dialog,
   DialogContainer,
-  Flex,
-  Icon,
-  Icons,
   Item,
-  Text,
 } from "@arizeai/components";
 
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";

@@ -72,13 +72,13 @@ export function ClusterSortPicker() {
   const selectedSortKey = getSortKey(sort);
   return (
     <div
-      css={(theme) => css`
+      css={css`
         .ac-action-button {
           background: none;
           border: none;
           color: ${"var(--ac-global-text-color-700)"};
-          font-size: ${theme.typography.sizes.small.fontSize}px;
-          line-height: ${theme.typography.sizes.small.lineHeight}px;
+          font-size: var(--ac-global-font-size-xs);
+          line-height: var(--ac-global-line-height-xs);
           cursor: pointer;
           outline: none;
           &:hover {
@@ -99,7 +99,7 @@ export function ClusterSortPicker() {
             aria-hidden
             data-testid="dropdown-caret"
             css={css`
-              margin-left: var(--px-spacing-sm);
+              margin-left: var(--ac-global-dimension-static-size-50);
               border-bottom-color: #0000;
               border-left-color: #0000;
               border-right-color: #0000;

@@ -1,15 +1,18 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
+import { Form, TextArea } from "@arizeai/components";
+
 import {
   Button,
+  FieldError,
   Flex,
-  Form,
-  TextArea,
+  Input,
+  Label,
+  Text,
   TextField,
   View,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -62,14 +65,19 @@ export function DatasetForm({
             fieldState: { invalid, error },
           }) => (
             <TextField
-              label="Dataset Name"
-              description={`The name of the dataset`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
               value={value.toString()}
-            />
+            >
+              <Label>Dataset Name</Label>
+              <Input placeholder="e.x. Golden Dataset" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The name of the dataset</Text>
+              )}
+            </TextField>
           )}
         />
         <Controller
@@ -129,11 +137,14 @@ export function DatasetForm({
           <Button
             // Only allow submission if the form is dirty for edits
             // When creating allow the user to click create without any changes as the form will be prefilled with valid values
-            disabled={formMode === "edit" ? !isDirty : false}
+            isDisabled={
+              (formMode === "edit" ? !isDirty : false) || isSubmitting
+            }
             variant={isDirty ? "primary" : "default"}
-            size="compact"
-            loading={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
+            size="S"
+            onPress={() => {
+              handleSubmit(onSubmit)();
+            }}
           >
             {submitButtonText}
           </Button>

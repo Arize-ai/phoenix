@@ -27,6 +27,8 @@ from sklearn import metrics as sk
 from sklearn.utils.multiclass import check_classification_targets
 from wrapt import PartialCallableObjectProxy
 
+from phoenix.config import SKLEARN_VERSION
+
 
 class Eval(PartialCallableObjectProxy, ABC):  # type: ignore
     def __call__(
@@ -232,5 +234,9 @@ class SkEval(Enum):
     r2_score = RegressionEval(sk.r2_score)
     recall_score = ClassificationEval(sk.recall_score)
     roc_auc_score = ScoredClassificationEval(sk.roc_auc_score)
-    root_mean_squared_error = RegressionEval(sk.mean_squared_error, squared=False)
+    root_mean_squared_error = (
+        RegressionEval(sk.mean_squared_error, squared=False)
+        if SKLEARN_VERSION < (1, 6)
+        else RegressionEval(sk.root_mean_squared_error)
+    )
     zero_one_loss = ClassificationEval(sk.zero_one_loss)

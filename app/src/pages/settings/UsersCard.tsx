@@ -1,16 +1,9 @@
 import React, { ReactNode, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import {
-  Button,
-  Card,
-  DialogContainer,
-  Icon,
-  Icons,
-  View,
-} from "@arizeai/components";
+import { Card, DialogContainer } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
@@ -44,7 +37,7 @@ export function UsersCard() {
       bodyStyle={{ padding: 0, overflowX: "auto" }}
       extra={
         <Button
-          onClick={() => {
+          onPress={() => {
             setDialog(
               <NewUserDialog
                 onDismiss={() => {
@@ -67,8 +60,7 @@ export function UsersCard() {
               />
             );
           }}
-          variant="default"
-          size="compact"
+          size="S"
           icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         >
           Add User

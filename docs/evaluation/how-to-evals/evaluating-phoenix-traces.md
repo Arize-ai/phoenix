@@ -6,10 +6,9 @@ This process is similar to the [evaluation quickstart guide](https://docs.arize.
 
 ### Install dependencies & Set environment variables
 
-```
-%%bash
+```bash
 pip install -q "arize-phoenix>=4.29.0"
-pip install -q openai
+pip install -q openai 'httpx<0.28'
 ```
 
 ```python
@@ -160,7 +159,7 @@ We now have a DataFrame with a column for whether each joke is a repeat of a pre
 Our evals\_df has a column for the span\_id and a column for the evaluation result. The span\_id is what allows us to connect the evaluation to the correct trace in Phoenix. Phoenix will also automatically look for columns named "label" and "score" to display in the UI.
 
 ```python
-eval_df["score"] = eval_df["label"].astype(int)
+eval_df["score"] = eval_df["score"].astype(int)
 eval_df["label"] = eval_df["label"].astype(str)
 ```
 

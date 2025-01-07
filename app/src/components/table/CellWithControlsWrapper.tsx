@@ -14,7 +14,7 @@ const cellWithControlsWrapCSS = css`
     opacity: 1;
     display: flex;
     // make them stand out
-    .ac-button {
+    button {
       border-color: var(--ac-global-color-primary);
     }
   }

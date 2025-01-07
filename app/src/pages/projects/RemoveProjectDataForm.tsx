@@ -3,8 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { isValid as dateIsValid, parseISO } from "date-fns";
 
-import { Button, Flex, Text, TextField, View } from "@arizeai/components";
+import { TextField } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
@@ -111,10 +112,12 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
           <Button
             type="submit"
             variant="danger"
-            isDisabled={!isValid}
-            size="compact"
-            loading={isCommitting}
-            onClick={() => {
+            isDisabled={!isValid || isCommitting}
+            size="S"
+            icon={
+              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+            }
+            onPress={() => {
               // TODO: This is a bit of a hack as the form is not working in a dialog for some reason
               // It probably has to do with the nested DOM structure under which it is being mounted
               formRef.current?.requestSubmit();

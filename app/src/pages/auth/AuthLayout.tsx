@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { View } from "@arizeai/components";
+import { View } from "@phoenix/components";
 
 export function AuthLayout({ children }: PropsWithChildren) {
   return (

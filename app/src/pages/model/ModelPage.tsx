@@ -3,14 +3,14 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import {
-  Accordion,
-  AccordionItem,
-  TabbedCard,
-  TabPane,
-  Tabs,
-} from "@arizeai/components";
+import { TabbedCard, TabPane, Tabs } from "@arizeai/components";
 
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+} from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
   ReferenceInferencesTimeRange,
@@ -59,7 +59,7 @@ export function ModelPage(_props: ModelPageProps) {
       </Toolbar>
       <section
         css={css`
-          margin: var(--px-spacing-lg);
+          margin: var(--ac-global-dimension-static-size-200);
         `}
       >
         <TabbedCard
@@ -69,14 +69,22 @@ export function ModelPage(_props: ModelPageProps) {
         >
           <Tabs>
             <TabPane name="All" key="all">
-              <Accordion>
-                <AccordionItem title="Embeddings" id="embeddings">
-                  <ModelEmbeddingsTable model={data} />
-                </AccordionItem>
-                <AccordionItem title="Dimensions" id="dimensions">
-                  <ModelSchemaTable model={data} />
-                </AccordionItem>
-              </Accordion>
+              <DisclosureGroup
+                defaultExpandedKeys={["embeddings", "dimensions"]}
+              >
+                <Disclosure id="embeddings">
+                  <DisclosureTrigger>Embeddings</DisclosureTrigger>
+                  <DisclosurePanel>
+                    <ModelEmbeddingsTable model={data} />
+                  </DisclosurePanel>
+                </Disclosure>
+                <Disclosure id="dimensions">
+                  <DisclosureTrigger>Dimensions</DisclosureTrigger>
+                  <DisclosurePanel>
+                    <ModelSchemaTable model={data} />
+                  </DisclosurePanel>
+                </Disclosure>
+              </DisclosureGroup>
             </TabPane>
             <TabPane name="Embeddings" key="embeddings">
               <ModelEmbeddingsTable model={data} />

@@ -5,17 +5,13 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Flex,
   Form,
-  Heading,
-  Text,
   TextField,
-  View,
 } from "@arizeai/components";
 
+import { Flex, Heading, Text, View } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   OPENAI: "OPENAI_API_KEY",
   ANTHROPIC: "ANTHROPIC_API_KEY",

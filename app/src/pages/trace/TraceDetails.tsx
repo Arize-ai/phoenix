@@ -1,12 +1,18 @@
 import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -64,6 +70,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
+              projectSessionId
               spans(first: 1000) {
                 edges {
                   span: node {
@@ -90,6 +97,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                   }
                 }
               }
+              latencyMs
             }
           }
         }
@@ -100,6 +108,8 @@ export function TraceDetails(props: TraceDetailsProps) {
       fetchPolicy: "store-and-network",
     }
   );
+  const traceLatencyMs =
+    data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const spansList: Span[] = useMemo(() => {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
@@ -113,7 +123,7 @@ export function TraceDetails(props: TraceDetailsProps) {
     return () => {
       setSearchParams(
         (searchParams) => {
-          searchParams.delete("spanNodeId");
+          searchParams.delete(SELECTED_SPAN_NODE_ID_URL_PARAM);
           return searchParams;
         },
         { replace: true }
@@ -131,7 +141,11 @@ export function TraceDetails(props: TraceDetailsProps) {
         flex-direction: column;
       `}
     >
-      <TraceHeader rootSpan={rootSpan} />
+      <TraceHeader
+        rootSpan={rootSpan}
+        latencyMs={traceLatencyMs}
+        sessionId={data.project.trace?.projectSessionId}
+      />
       <PanelGroup
         direction="horizontal"
         autoSaveId="trace-panel-group"
@@ -175,9 +189,17 @@ export function TraceDetails(props: TraceDetailsProps) {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
-  const { latencyMs, statusCode, spanAnnotations } = rootSpan ?? {
-    latencyMs: null,
+function TraceHeader({
+  rootSpan,
+  latencyMs,
+  sessionId,
+}: {
+  rootSpan: Span | null;
+  latencyMs: number | null;
+  sessionId?: string | null;
+}) {
+  const { projectId } = useParams();
+  const { statusCode, spanAnnotations } = rootSpan ?? {
     statusCode: "UNSET",
     spanAnnotations: [],
   };
@@ -185,27 +207,27 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
-      <Flex direction="row" gap="size-400">
+      <Flex direction="row" gap="size-400" alignItems={"center"}>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="M" color="text-700">
             Trace Status
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             <Flex direction="row" gap="size-50" alignItems="center">
               <SpanStatusCodeIcon statusCode={statusCode} />
-              <Text textSize="xlarge" color={statusColor}>
+              <Text size="L" color={statusColor}>
                 {statusCode}
               </Text>
             </Flex>
           </Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="M" color="text-700">
             Latency
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+              <LatencyText latencyMs={latencyMs} size="L" />
             ) : (
               "--"
             )}
@@ -213,7 +235,7 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
         </Flex>
         {hasAnnotations ? (
           <Flex direction="column" gap="size-50">
-            <Text elementType="h3" textSize="medium" color="text-700">
+            <Text elementType="h3" size="M" color="text-700">
               Feedback
             </Text>
             <Flex direction="row" gap="size-50">
@@ -233,6 +255,19 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
             </Flex>
           </Flex>
         ) : null}
+        {sessionId && (
+          <span
+            css={css`
+              margin-left: auto;
+            `}
+          >
+            <Link to={`/projects/${projectId}/sessions/${sessionId}`}>
+              <Flex alignItems={"center"}>
+                View Session <Icon svg={<Icons.ArrowIosForwardOutline />} />
+              </Flex>
+            </Link>
+          </span>
+        )}
       </Flex>
     </View>
   );

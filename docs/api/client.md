@@ -34,13 +34,13 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 ## _**get\_spans\_dataframe**_
 
-\-> Optional\[pandas.DataFrame]
+-> Optional\[pandas.DataFrame]
 
 ```python
 px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
-Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/llm-traces.md) for more about tracing your LLM application.\
+Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/llm-traces/) for more about tracing your LLM application.\
 \
 **Parameters**
 
@@ -52,7 +52,7 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 
 ## _**query\_spans**_
 
-\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
+-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
 \
 Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
 \
@@ -66,7 +66,7 @@ Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md
 
 ## _**get\_evaluations**_
 
-\-> List\[Evaluations]
+-> List\[Evaluations]
 
 ```python
 px.Client(endpoint="http://127.0.0.1:6006").get_evaluations()
@@ -80,7 +80,7 @@ Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.m
 
 ## _**get\_trace\_dataset**_
 
-\-> Optional\[TraceDataset]
+-> Optional\[TraceDataset]
 
 ```python
 px.Client(endpoint="http://127.0.0.1:6006").get_trace_dataset()
@@ -94,7 +94,7 @@ Returns the trace dataset containing spans and evaluations.\
 
 ## _**log\_evaluations**_
 
-\-> None\
+-> None\
 \
 Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
 \
@@ -105,7 +105,7 @@ Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tr
 
 ## _**get\_dataset\_versions**_
 
-\-> pandas.DataFrame\
+-> pandas.DataFrame\
 \
 Get dataset versions as pandas DataFrame.\
 \
@@ -116,7 +116,7 @@ Get dataset versions as pandas DataFrame.\
 
 ## _**upload\_dataset**_
 
-\-> Dataset\
+-> Dataset\
 \
 Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It can upload a pandas dataframe, a CSV text file, or a series of dictionary objects, and only one of these options should be specified.\
 \
@@ -133,9 +133,9 @@ Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It
 * **outputs** (Iterable\[Mapping\[str, Any]]): When uploading a series of dictionary objects, this specifies the list of dictionaries object for inputs.
 * **metadata** (Iterable\[Mapping\[str, Any]]): When uploading a series of dictionary objects, this specifies the list of dictionaries object for inputs.
 
-## _**append\_dataset**_
+## _**append\_to\_dataset**_
 
-\-> Dataset\
+-> Dataset\
 \
 Method signature is identical to that of the _upload\_dataset_ method. If dataset doesn't already exist on the Phoenix server, it will be created.
 

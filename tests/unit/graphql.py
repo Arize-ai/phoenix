@@ -69,7 +69,7 @@ class AsyncGraphQLClient:
         """
         Starts a GraphQL subscription session.
         """
-        async with aconnect_ws(
+        async with aconnect_ws(  # type: ignore[var-annotated,unused-ignore]
             self._gql_url,
             self._httpx_client,
             subprotocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],

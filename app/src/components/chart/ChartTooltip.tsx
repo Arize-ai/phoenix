@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
+import { Text } from "@phoenix/components";
 
 /**
  * Component that renders a small preview of the plot item
@@ -19,11 +19,11 @@ export function ChartTooltip(props: ChartTooltipProps) {
       css={css`
         background-color: var(--ac-global-color-grey-200);
         border: 1px solid var(--ac-global-color-grey-300);
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
         border-radius: var(--ac-global-rounding-medium);
         display: flex;
         flex-direction: column;
-        gap: var(--px-spacing-sm);
+        gap: var(--ac-global-dimension-static-size-50);
         min-width: 200px;
       `}
     >
@@ -62,7 +62,7 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
         css={css`
           display: flex;
           flex-direction: row;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
           align-items: center;
         `}
       >

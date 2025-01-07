@@ -3,14 +3,18 @@ import { Controller, useForm } from "react-hook-form";
 import { Form } from "react-router-dom";
 import { isValid as dateIsValid, parseISO } from "date-fns";
 
+import { Dialog, TextArea } from "@arizeai/components";
+
 import {
   Button,
-  Dialog,
+  FieldError,
   Flex,
-  TextArea,
+  Input,
+  Label,
+  Text,
   TextField,
   View,
-} from "@arizeai/components";
+} from "@phoenix/components";
 
 export type APIKeyFormParams = {
   name: string;
@@ -54,14 +58,19 @@ export function CreateAPIKeyDialog(props: {
               fieldState: { invalid, error },
             }) => (
               <TextField
-                label="Name"
-                description="A short name to identify this key"
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
+                isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
                 value={value.toString()}
-              />
+              >
+                <Label>Name</Label>
+                <Input />
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">A name to identify the key</Text>
+                )}
+              </TextField>
             )}
           />
           <Controller
@@ -104,16 +113,21 @@ export function CreateAPIKeyDialog(props: {
               fieldState: { invalid, error },
             }) => (
               <TextField
-                label="Expires At"
-                type="datetime-local"
-                name={name}
-                description={`The date at which the key will expire. Optional`}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
+                isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                defaultValue={value}
-              />
+                value={value.toString()}
+              >
+                <Label>Expires At</Label>
+                <Input type="datetime-local" name={name} />
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    {"The date at which the key will expire. Optional"}
+                  </Text>
+                )}
+              </TextField>
             )}
           />
         </View>
@@ -129,8 +143,8 @@ export function CreateAPIKeyDialog(props: {
             <Button
               variant={isDirty ? "primary" : "default"}
               type="submit"
-              size="compact"
-              disabled={!isValid || isCommitting}
+              size="S"
+              isDisabled={!isValid || isCommitting}
             >
               {isCommitting ? "Creating..." : "Create Key"}
             </Button>

@@ -1,13 +1,8 @@
 import React from "react";
 
-import {
-  Button,
-  Icon,
-  Icons,
-  Tooltip,
-  TooltipTrigger,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
+import { Button, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   ChatMessage,
@@ -36,12 +31,10 @@ export const PlaygroundOutputMoveButton = ({
   return (
     <TooltipTrigger delay={500} offset={10}>
       <Button
-        variant="default"
-        size="compact"
+        size="S"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Move the output message to the end of the prompt"
-        onClick={(e) => {
-          e.stopPropagation();
+        onPress={() => {
           if (instance.template.__type !== "chat") {
             return;
           }

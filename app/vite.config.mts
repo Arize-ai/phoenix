@@ -5,17 +5,16 @@
 import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
-import { visualizer } from "rollup-plugin-visualizer";
+// Uncomment below to visualize the bundle size after running the build command, also uncomment plugins.push(visualizer());
+// import { visualizer } from "rollup-plugin-visualizer";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
-export default defineConfig(({ command }) => {
+export default defineConfig(() => {
   const plugins = [react(), relay, lezer()];
-  // Development uses the serve command
-  if (command === "serve") {
-    plugins.push(visualizer());
-  }
+  // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
+  // plugins.push(visualizer());
   return {
     root: resolve(__dirname, "src"),
     plugins,
@@ -52,6 +51,9 @@ export default defineConfig(({ command }) => {
               }
               if (id.includes("recharts")) {
                 return "vendor-recharts";
+              }
+              if (id.includes("shiki")) {
+                return "vendor-shiki";
               }
               if (id.includes("codemirror")) {
                 return "vendor-codemirror";

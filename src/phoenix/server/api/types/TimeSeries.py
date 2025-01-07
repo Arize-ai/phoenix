@@ -15,7 +15,10 @@ from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import GqlValueMediator
-from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
+from phoenix.server.api.types.DataQualityMetric import (
+    DATA_QUALITY_METRIC_FACTORIES,
+    DataQualityMetric,
+)
 from phoenix.server.api.types.InferencesRole import InferencesRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
@@ -100,7 +103,7 @@ def get_data_quality_timeseries_data(
     granularity: Granularity,
     inferences_role: InferencesRole,
 ) -> list[TimeSeriesDataPoint]:
-    metric_instance = metric.value()
+    metric_instance = DATA_QUALITY_METRIC_FACTORIES[metric]()
     if isinstance(metric_instance, UnaryOperator):
         metric_instance = replace(
             metric_instance,

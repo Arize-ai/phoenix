@@ -2,16 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Content,
-  ContextualHelp,
-  Form,
-  Heading,
-  Text,
-  TextField,
-} from "@arizeai/components";
+import { Content, ContextualHelp, Form, TextField } from "@arizeai/components";
 
+import { Button, Heading, Text } from "@phoenix/components";
 import {
   MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,
@@ -142,8 +135,9 @@ export function PointCloudParameterSettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--px-spacing-med) var(--px-spacing-med) 0
-            var(--px-spacing-med);
+          padding: var(--ac-global-dimension-static-size-100)
+            var(--ac-global-dimension-static-size-100) 0
+            var(--ac-global-dimension-static-size-100);
         }
       `}
     >
@@ -237,7 +231,7 @@ export function PointCloudParameterSettings() {
             display: flex;
             flex-direction: row;
             justify-content: flex-end;
-            margin-top: var(--px-spacing-med);
+            margin-top: var(--ac-global-dimension-static-size-100);
           `}
         >
           <Button

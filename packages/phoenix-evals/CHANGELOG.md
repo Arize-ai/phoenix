@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.5...arize-phoenix-evals-v0.18.0) (2024-12-20)
+
+
+### Features
+
+* Enable `phoenix.evals` to handle multimodal message templates ([#5522](https://github.com/Arize-ai/phoenix/issues/5522)) ([41a4fc2](https://github.com/Arize-ai/phoenix/commit/41a4fc2ef98b8a06747e5cdd07f07d9bbe5662c3))
+
+
+### Bug Fixes
+
+* spelling errors in prompt templates ([#5571](https://github.com/Arize-ai/phoenix/issues/5571)) ([9646c8e](https://github.com/Arize-ai/phoenix/commit/9646c8ebc7ba81043f4e1a678977a8c6a0fa50c1))
+
+
+### Documentation
+
+* update sessions (GITBOOK-940) ([88dc135](https://github.com/Arize-ai/phoenix/commit/88dc135f99b03697387df0140533a0808454a88e))
+
 ## [0.17.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.17.4...arize-phoenix-evals-v0.17.5) (2024-11-19)
 
 

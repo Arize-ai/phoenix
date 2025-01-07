@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Button, Dialog, Flex, Text, View } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
+import { Button, Flex, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 export function DeleteUserDialog({
@@ -61,15 +62,15 @@ export function DeleteUserDialog({
         borderTopWidth="thin"
       >
         <Flex direction="row" justifyContent="end" gap={"size-100"}>
-          <Button variant="default" onClick={onClose}>
+          <Button variant="default" onPress={onClose}>
             Cancel
           </Button>
           <Button
             variant="danger"
-            onClick={() => {
+            onPress={() => {
               handleDelete();
             }}
-            disabled={isCommitting}
+            isDisabled={isCommitting}
           >
             Delete user
           </Button>

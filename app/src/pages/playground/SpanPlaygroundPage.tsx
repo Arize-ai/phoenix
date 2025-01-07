@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 
-import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
+
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
@@ -20,10 +22,13 @@ export function SpanPlaygroundPage() {
     throw new Error("Span not found");
   }
 
-  const { playgroundInstance, parsingErrors } = useMemo(
+  const { playgroundInstance, parsingErrors, playgroundInput } = useMemo(
     () => transformSpanAttributesToPlaygroundInstance(span),
     [span]
   );
+
+  const additionalProps =
+    playgroundInput != null ? { input: playgroundInput } : {};
 
   return (
     <Flex direction="column" height={"100%"}>
@@ -32,6 +37,7 @@ export function SpanPlaygroundPage() {
         // remount the playground when the span changes, resetting all local state, closing dialogs, etc.
         key={span.id}
         instances={[playgroundInstance]}
+        {...additionalProps}
       />
     </Flex>
   );
@@ -66,9 +72,8 @@ function SpanPlaygroundBanners({
           }}
           extra={
             <Button
-              variant="default"
               icon={<Icon svg={<Icons.ArrowBack />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(
                   `/projects/${span.project.id}/traces/${span.context.traceId}?selectedSpanNodeId=${span.id}`
                 );

@@ -1,7 +1,8 @@
 import React from "react";
 
-import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
+import { Radio, RadioGroup } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 
 /**

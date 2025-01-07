@@ -6,21 +6,23 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { Outlet } from "react-router";
-import { useParams } from "react-router";
+import { Outlet, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, TabPane, Tabs } from "@arizeai/components";
+import { TabPane, Tabs } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useLastNTimeRange,
 } from "@phoenix/components/datetime";
 
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectPageSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageSessionsQuery.graphql";
 import { ProjectPageSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageSpansQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
+import { SessionSearchProvider } from "./SessionSearchContext";
+import { SessionsTable } from "./SessionsTable";
 import { SpanFilterConditionProvider } from "./SpanFilterConditionContext";
 import { SpansTable } from "./SpansTable";
 import { StreamToggle } from "./StreamToggle";
@@ -75,6 +77,14 @@ const ProjectPageSpansQuery = graphql`
   }
 `;
 
+const ProjectPageSessionsQuery = graphql`
+  query ProjectPageSessionsQuery($id: GlobalID!, $timeRange: TimeRange!) {
+    project: node(id: $id) {
+      ...SessionsTable_sessions
+    }
+  }
+`;
+
 export function ProjectPageContent({
   projectId,
   timeRange,
@@ -109,18 +119,35 @@ export function ProjectPageContent({
   );
   const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageSpansQuery);
+  const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
+    useQueryLoader<ProjectPageSessionsQueryType>(ProjectPageSessionsQuery);
   const onTabChange = useCallback(
     (index: number) => {
       if (index === 1) {
+        disposeSessionsQuery();
         loadSpansQuery({
+          id: projectId as string,
+          timeRange: timeRangeVariable,
+        });
+      } else if (index === 2) {
+        disposeSpansQuery();
+        loadSessionsQuery({
           id: projectId as string,
           timeRange: timeRangeVariable,
         });
       } else {
         disposeSpansQuery();
+        disposeSessionsQuery();
       }
     },
-    [disposeSpansQuery, loadSpansQuery, projectId, timeRangeVariable]
+    [
+      disposeSpansQuery,
+      loadSpansQuery,
+      disposeSessionsQuery,
+      loadSessionsQuery,
+      projectId,
+      timeRangeVariable,
+    ]
   );
   return (
     <main css={mainCSS}>
@@ -147,7 +174,7 @@ export function ProjectPageContent({
             );
           }}
         </TabPane>
-        <TabPane name="Spans" title="Spans">
+        <TabPane name="Spans">
           {({ isSelected }) => {
             return (
               isSelected &&
@@ -157,6 +184,22 @@ export function ProjectPageContent({
                     <SpansTabContent queryReference={spansQueryReference} />
                   </Suspense>
                 </SpanFilterConditionProvider>
+              )
+            );
+          }}
+        </TabPane>
+        <TabPane name="Sessions">
+          {({ isSelected }) => {
+            return (
+              isSelected &&
+              sessionsQueryReference && (
+                <SessionSearchProvider>
+                  <Suspense>
+                    <SessionsTabContent
+                      queryReference={sessionsQueryReference}
+                    />
+                  </Suspense>
+                </SessionSearchProvider>
               )
             );
           }}
@@ -176,4 +219,13 @@ function SpansTabContent({
 }) {
   const data = usePreloadedQuery(ProjectPageSpansQuery, queryReference);
   return <SpansTable project={data.project} />;
+}
+
+function SessionsTabContent({
+  queryReference,
+}: {
+  queryReference: PreloadedQuery<ProjectPageSessionsQueryType>;
+}) {
+  const data = usePreloadedQuery(ProjectPageSessionsQuery, queryReference);
+  return <SessionsTable project={data.project} />;
 }

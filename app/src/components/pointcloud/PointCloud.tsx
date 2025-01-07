@@ -1,15 +1,11 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
-import { css } from "@emotion/react";
-import { ThemeContext as EmotionThemeContext } from "@emotion/react";
+import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
-  Button,
-  Heading,
-  Icon,
-  InfoOutline,
   TooltipTrigger,
+  TriggerWrap,
 } from "@arizeai/components";
 import {
   Axes,
@@ -21,6 +17,7 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { Button, Heading, Icon, Icons } from "@phoenix/components";
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   InferencesContext,
@@ -73,7 +70,7 @@ const PointCloudInfo = function PointCloudInfo() {
     <section
       css={css`
         width: 300px;
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
       `}
     >
       <dl css={descriptionListCSS}>
@@ -147,7 +144,7 @@ const descriptionListCSS = css`
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: var(--px-spacing-sm);
+    gap: var(--ac-global-dimension-static-size-50);
   }
 `;
 
@@ -162,13 +159,13 @@ function CanvasTools() {
     <div
       css={css`
         position: absolute;
-        left: var(--px-spacing-med);
-        top: var(--px-spacing-med);
+        left: var(--ac-global-dimension-static-size-100);
+        top: var(--ac-global-dimension-static-size-100);
         z-index: 1;
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />
@@ -184,12 +181,13 @@ function CanvasTools() {
 function CanvasInfo() {
   return (
     <TooltipTrigger placement="bottom left" delay={0}>
-      <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<InfoOutline />} />}
-        aria-label="Information bout the point-cloud display"
-      />
+      <TriggerWrap>
+        <Button
+          size="S"
+          icon={<Icon svg={<Icons.InfoOutline />} />}
+          aria-label="Information bout the point-cloud display"
+        />
+      </TriggerWrap>
       <ActionTooltip title={"Point Cloud Summary"}>
         <PointCloudInfo />
       </ActionTooltip>

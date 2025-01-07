@@ -1,7 +1,9 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Flex, Item, Picker, PickerProps, Text } from "@arizeai/components";
+import { Item, Picker, PickerProps } from "@arizeai/components";
+
+import { Flex, Text } from "@phoenix/components";
 
 import { DatasetPickerQuery } from "./__generated__/DatasetPickerQuery.graphql";
 
@@ -59,7 +61,7 @@ export function DatasetPicker(props: DatasetPickerProps) {
             width={"100%"}
           >
             <Text>{dataset.name}</Text>
-            <Text color="text-700" textSize="small">
+            <Text color="text-700" size="XS">
               {dataset.exampleCount} examples
             </Text>
           </Flex>

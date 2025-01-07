@@ -1,15 +1,9 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  Content,
-  ContextualHelp,
-  Flex,
-  Heading,
-  Text,
-} from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, Flex, Heading, Text } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionDriftStats_dimension$key } from "./__generated__/DimensionDriftStats_dimension.graphql";
@@ -52,12 +46,12 @@ export function DimensionDriftStats(props: {
   return (
     <>
       <Flex direction="row" alignItems="center" gap="size-25">
-        <Text elementType="h3" textSize="small" color="text-700">
+        <Text elementType="h3" size="XS" color="text-700">
           PSI
         </Text>
         {contextualHelp}
       </Flex>
-      <Text textSize="xlarge">{floatFormatter(data.psi)}</Text>
+      <Text size="L">{floatFormatter(data.psi)}</Text>
     </>
   );
 }

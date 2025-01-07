@@ -22,21 +22,13 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Content,
-  ContextualHelp,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  View,
-} from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
+import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
-import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";

@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Button, Icon, Icons } from "@arizeai/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { paginationCSS, tableCSS } from "./styles";
 import { TableEmpty } from "./TableEmpty";
@@ -75,25 +75,24 @@ export function Table<DataRow extends object>({
         </thead>
         {body}
       </table>
-      {/* 
+      {/*
         TODO(mikeldking): style tables
           This is just a very basic UI implementation
         */}
       <div css={paginationCSS}>
         <Button
           variant="default"
-          size="compact"
-          onClick={table.previousPage}
-          disabled={!table.getCanPreviousPage()}
+          size="S"
+          onPress={table.previousPage}
+          isDisabled={!table.getCanPreviousPage()}
           aria-label="Previous Page"
           icon={<Icon svg={<Icons.ArrowIosBackOutline />} />}
         />
 
         <Button
-          variant="default"
-          size="compact"
-          onClick={table.nextPage}
-          disabled={!table.getCanNextPage()}
+          size="S"
+          onPress={table.nextPage}
+          isDisabled={!table.getCanNextPage()}
           aria-label="Next Page"
           icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
         />

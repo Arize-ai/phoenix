@@ -3,17 +3,15 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   CloseOutline,
   CompactSearchField,
   Dialog,
   DialogContainer,
-  Icon,
   TabPane,
   Tabs,
-  Text,
 } from "@arizeai/components";
 
+import { Button, Icon, Text } from "@phoenix/components";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -305,19 +303,18 @@ export function PointSelectionPanelContent() {
         role="toolbar"
         css={css`
           position: absolute;
-          top: var(--px-spacing-med);
-          right: var(--px-spacing-lg);
+          top: var(--ac-global-dimension-static-size-100);
+          right: var(--ac-global-dimension-static-size-200);
           display: flex;
           flex-direction: row-reverse;
-          gap: var(--px-spacing-med);
+          gap: var(--ac-global-dimension-static-size-100);
         `}
       >
         <Button
-          variant="default"
-          size="compact"
+          size="S"
           icon={<Icon svg={<CloseOutline />} />}
           aria-label="Clear selection"
-          onClick={onClose}
+          onPress={onClose}
         />
         <ExportSelectionButton />
       </div>
@@ -407,7 +404,7 @@ function SelectionToolbar({
           css={css`
             display: flex;
             flex-direction: row;
-            gap: var(--px-spacing-med);
+            gap: var(--ac-global-dimension-static-size-100);
           `}
         >
           <CompactSearchField

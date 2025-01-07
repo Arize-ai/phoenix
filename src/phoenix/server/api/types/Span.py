@@ -24,16 +24,15 @@ from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
 )
+from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.api.types.Evaluation import DocumentEvaluation
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
+from phoenix.server.api.types.MimeType import MimeType
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanIOValue import SpanIOValue
 from phoenix.trace.attributes import get_attribute_value
-
-from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from .Evaluation import DocumentEvaluation
-from .ExampleRevisionInterface import ExampleRevision
-from .MimeType import MimeType
-from .SpanAnnotation import SpanAnnotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -69,18 +68,6 @@ class SpanKind(Enum):
 class SpanContext:
     trace_id: ID
     span_id: ID
-
-
-@strawberry.type
-class SpanIOValue:
-    mime_type: MimeType
-    value: str
-
-    @strawberry.field(
-        description="Truncate value up to `chars` characters, appending '...' if truncated.",
-    )  # type: ignore
-    def truncated_value(self, chars: int = 100) -> str:
-        return f"{self.value[: max(0, chars - 3)]}..." if len(self.value) > chars else self.value
 
 
 @strawberry.enum
@@ -303,8 +290,14 @@ class Span(Node):
 
 def to_gql_span(span: models.Span) -> Span:
     events: list[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
-    input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
-    output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
+    input_value = get_attribute_value(span.attributes, INPUT_VALUE)
+    if input_value is not None:
+        input_value = str(input_value)
+    assert input_value is None or isinstance(input_value, str)
+    output_value = get_attribute_value(span.attributes, OUTPUT_VALUE)
+    if output_value is not None:
+        output_value = str(output_value)
+    assert output_value is None or isinstance(output_value, str)
     retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(

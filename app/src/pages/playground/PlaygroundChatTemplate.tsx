@@ -15,19 +15,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
+import { Card, Field, Form, TextField } from "@arizeai/components";
+
 import {
   Button,
-  Card,
-  Field,
+  CopyToClipboardButton,
   Flex,
-  Form,
   Icon,
   Icons,
-  TextField,
   View,
-} from "@arizeai/components";
-
-import { CopyToClipboardButton } from "@phoenix/components";
+} from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
 import { DragHandle } from "@phoenix/components/dnd/DragHandle";
 import { TemplateEditor } from "@phoenix/components/templateEditor";
@@ -265,8 +262,12 @@ function MessageEditor({
     <div
       css={css`
         & .cm-content {
-          padding-left: var(--ac-global-dimension-size-250);
-          padding-right: var(--ac-global-dimension-size-250);
+          padding: var(--ac-global-dimension-size-100)
+            var(--ac-global-dimension-size-250);
+        }
+        & .cm-gutter,
+        & .cm-content {
+          min-height: 75px;
         }
         & .cm-line {
           padding-left: 0;
@@ -284,6 +285,13 @@ function MessageEditor({
         aria-label="Message content"
         templateLanguage={templateLanguage}
         onChange={(val) => updateMessage({ content: val })}
+        placeholder={
+          message.role === "system"
+            ? "You are a helpful assistant"
+            : message.role === "ai"
+              ? "Hello, how can I help you today?"
+              : "What is the weather in San Francisco?"
+        }
       />
     </div>
   );
@@ -442,9 +450,8 @@ function SortableMessageItem({
             <Button
               aria-label="Delete message"
               icon={<Icon svg={<Icons.TrashOutline />} />}
-              variant="default"
-              size="compact"
-              onClick={() => {
+              size="S"
+              onPress={() => {
                 updateInstance({
                   instanceId: playgroundInstanceId,
                   patch: {

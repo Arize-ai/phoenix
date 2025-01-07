@@ -1,5 +1,4 @@
-import { ColorValue } from "@arizeai/components";
-
+import { ColorValue } from "@phoenix/components/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { SpanStatusCodeType } from "./types";

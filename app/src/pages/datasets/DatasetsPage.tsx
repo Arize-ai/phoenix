@@ -2,19 +2,9 @@ import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
-import {
-  ActionMenu,
-  Dialog,
-  DialogContainer,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Item,
-  View,
-} from "@arizeai/components";
+import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Heading, Icon, Icons, Loading, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 

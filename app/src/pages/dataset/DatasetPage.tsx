@@ -2,21 +2,17 @@ import React, { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
+import { ActionMenu, Counter, Item, TabPane, Tabs } from "@arizeai/components";
+
 import {
-  ActionMenu,
   Button,
-  Counter,
   Flex,
   Icon,
   Icons,
-  Item,
-  TabPane,
-  Tabs,
+  Loading,
   Text,
   View,
-} from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+} from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   DatasetProvider,
@@ -125,7 +121,7 @@ function DatasetPageContent({
               {/* TODO(datasets): Add an icon here to make the UI cohesive */}
               {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
               <Flex direction="column">
-                <Text elementType="h1" textSize="xlarge" weight="heavy">
+                <Text elementType="h1" size="L" weight="heavy">
                   {dataset.name}
                 </Text>
                 <Text color="text-700">{dataset.description || "--"}</Text>
@@ -164,9 +160,8 @@ function DatasetPageContent({
             <DatasetCodeDropdown />
             <RunExperimentButton />
             <Button
-              variant={"default"}
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(`/playground/datasets/${dataset.id}`);
               }}
             >

@@ -2,8 +2,7 @@ import React from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionQuantilesStats_dimension$key } from "./__generated__/DimensionQuantilesStats_dimension.graphql";
@@ -30,7 +29,7 @@ export function DimensionQuantilesStats(props: {
       css={css`
         display: flex;
         flex-direction: column;
-        gap: var(--px-spacing-sm);
+        gap: var(--ac-global-dimension-static-size-50);
       `}
     >
       {Object.keys(data).map((statName) => {
@@ -44,10 +43,10 @@ export function DimensionQuantilesStats(props: {
               align-items: flex-end;
             `}
           >
-            <Text elementType="h3" textSize="xsmall" color="text-700">
+            <Text elementType="h3" size="XS" color="text-700">
               {statName}
             </Text>
-            <Text textSize="medium" data-raw={stat}>
+            <Text size="S" data-raw={stat}>
               {numberFormatter(stat as number | null)}
             </Text>
           </li>

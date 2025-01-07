@@ -6,22 +6,26 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Accordion,
-  AccordionItem,
   Alert,
-  Button,
   Dialog,
   DialogContainer,
   Download,
-  Icon,
   List,
   ListItem,
-  View,
 } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
-import { useTheme } from "@phoenix/contexts";
-import { usePointCloudContext } from "@phoenix/contexts";
+import {
+  Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Icon,
+  Icons,
+  Loading,
+  View,
+} from "@phoenix/components";
+import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";
@@ -71,7 +75,7 @@ export function ExportSelectionButton() {
     `
   );
   const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
-  const onClick = useCallback(() => {
+  const onPress = useCallback(() => {
     commit({
       variables: {
         eventIds: [...selectedEventIds],
@@ -85,12 +89,17 @@ export function ExportSelectionButton() {
   return (
     <>
       <Button
-        variant="default"
-        size="compact"
-        icon={<Icon svg={<Download />} />}
+        size="S"
+        icon={
+          <Icon
+            svg={
+              isInFlight ? <Icons.LoadingOutline /> : <Icons.DownloadOutline />
+            }
+          />
+        }
         aria-label="Export selection / cluster"
-        loading={isInFlight}
-        onClick={onClick}
+        isDisabled={isInFlight}
+        onPress={onPress}
       >
         {isInFlight ? "Exporting" : "Export"}
       </Button>
@@ -108,8 +117,8 @@ export function ExportSelectionButton() {
               extra={
                 <Button
                   variant="success"
-                  size="compact"
-                  onClick={() => {
+                  size="S"
+                  onPress={() => {
                     window.open(
                       `/exports?filename=${exportInfo.fileName}`,
                       "_self"
@@ -146,13 +155,16 @@ export function ExportSelectionButton() {
                 <CodeBlock value={EXPORTS_CODE_SNIPPET} />
               </View>
             </div>
-            <Accordion>
-              <AccordionItem id="all-exports" title="Latest Exports">
-                <Suspense fallback={<Loading />}>
-                  <ExportsList />
-                </Suspense>
-              </AccordionItem>
-            </Accordion>
+            <DisclosureGroup defaultExpandedKeys={["all-exports"]}>
+              <Disclosure id="all-exports">
+                <DisclosureTrigger>Latest Exports</DisclosureTrigger>
+                <DisclosurePanel>
+                  <Suspense fallback={<Loading />}>
+                    <ExportsList />
+                  </Suspense>
+                </DisclosurePanel>
+              </Disclosure>
+            </DisclosureGroup>
           </Dialog>
         )}
       </DialogContainer>
@@ -190,11 +202,11 @@ function ExportsList() {
           >
             {fileInfo.fileName}
             <Button
-              size="compact"
+              size="S"
               aria-label="Download"
               variant="default"
               icon={<Icon svg={<Download />} />}
-              onClick={() => {
+              onPress={() => {
                 window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
               }}
             />

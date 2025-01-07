@@ -33,18 +33,9 @@ import {
 } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  Text,
-  Tooltip,
-  TooltipTrigger,
-} from "@arizeai/components";
+import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Loading, Text } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
@@ -164,7 +155,7 @@ const cellWithControlsWrapCSS = css`
     opacity: 1;
     display: flex;
     // make them stand out
-    .ac-button {
+    button {
       border-color: var(--ac-global-color-primary);
     }
   }
@@ -274,13 +265,10 @@ function ExampleOutputContent({
           {hasExperimentRun && (
             <TooltipTrigger>
               <Button
-                variant="default"
-                size="compact"
+                size="S"
                 aria-label="View experiment run details"
                 icon={<Icon svg={<Icons.ExpandOutline />} />}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onPress={() => {
                   startTransition(() => {
                     setDialog(
                       <PlaygroundExperimentRunDetailsDialog
@@ -297,13 +285,10 @@ function ExampleOutputContent({
             <>
               <TooltipTrigger>
                 <Button
-                  variant="default"
-                  size="compact"
+                  size="S"
                   aria-label="View run trace"
                   icon={<Icon svg={<Icons.Trace />} />}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                  onPress={() => {
                     startTransition(() => {
                       setDialog(
                         <PlaygroundRunTraceDetailsDialog
@@ -326,7 +311,7 @@ function ExampleOutputContent({
 
   return (
     <CellWithControlsWrap controls={spanControls}>
-      <Flex direction={"column"} gap={"size-200"}>
+      <Flex direction={"column"} gap="size-200">
         {errorMessage != null ? (
           <PlaygroundErrorWrap>{errorMessage}</PlaygroundErrorWrap>
         ) : null}
@@ -807,11 +792,10 @@ export function PlaygroundDatasetExamplesTable({
             controls={
               <TooltipTrigger>
                 <Button
-                  variant="default"
-                  size="compact"
+                  size="S"
                   aria-label="View example details"
                   icon={<Icon svg={<Icons.ExpandOutline />} />}
-                  onClick={() => {
+                  onPress={() => {
                     navigate(
                       `/playground/datasets/${datasetId}/examples/${row.original.id}`
                     );
@@ -906,7 +890,7 @@ export function PlaygroundDatasetExamplesTable({
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table
-        css={(theme) => css(tableCSS(theme), borderedTableCSS)}
+        css={css(tableCSS, borderedTableCSS)}
         style={{
           ...columnSizeVars,
           width: table.getTotalSize(),

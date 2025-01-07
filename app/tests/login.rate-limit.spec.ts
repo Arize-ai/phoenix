@@ -13,7 +13,7 @@ test("that login gets rate limited after too many attempts", async ({
 
   const numberOfAttempts = 10;
   for (let i = 0; i < numberOfAttempts; i++) {
-    await page.getByRole("button", { name: "Login", exact: true }).click();
+    await page.getByRole("button", { name: "Log In", exact: true }).click();
   }
   await expect(
     page.getByText("Too many requests. Please try again later.")

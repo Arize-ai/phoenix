@@ -3,15 +3,9 @@ import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
-import {
-  Flex,
-  HelpTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@arizeai/components";
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
+import { Flex, Text, View } from "@phoenix/components";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
@@ -55,10 +49,10 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
   );
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" textSize="medium" color="text-700">
+      <Text elementType="h3" size="S" color="text-700">
         {annotationName}
       </Text>
-      <Suspense fallback={<Text textSize="xlarge">--</Text>}>
+      <Suspense fallback={<Text size="L">--</Text>}>
         <AnnotationSummaryValue
           annotationName={annotationName}
           project={data.project}
@@ -122,7 +116,7 @@ function AnnotationSummaryValue(props: {
   const hasLabelFractions =
     Array.isArray(labelFractions) && labelFractions.length > 0;
   if (!hasMeanScore && !hasLabelFractions) {
-    return <Text textSize="xlarge">--</Text>;
+    return <Text size="L">--</Text>;
   }
 
   return (
@@ -151,9 +145,7 @@ function AnnotationSummaryValue(props: {
               </Pie>
             </PieChart>
           ) : null}
-          <Text textSize="xlarge">
-            {hasMeanScore ? formatFloat(meanScore) : "--"}
-          </Text>
+          <Text size="L">{hasMeanScore ? formatFloat(meanScore) : "--"}</Text>
         </Flex>
       </TriggerWrap>
       <HelpTooltip>

@@ -52,6 +52,7 @@ from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 if TYPE_CHECKING:
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
+    from openai import AsyncAzureOpenAI, AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
 
@@ -230,46 +231,18 @@ class PlaygroundStreamingClient(ABC):
         return self._attributes
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gpt-4o",
-        "gpt-4o-2024-08-06",
-        "gpt-4o-2024-05-13",
-        "chatgpt-4o-latest",
-        "gpt-4o-mini",
-        "gpt-4o-mini-2024-07-18",
-        "gpt-4-turbo",
-        "gpt-4-turbo-2024-04-09",
-        "gpt-4-turbo-preview",
-        "gpt-4-0125-preview",
-        "gpt-4-1106-preview",
-        "gpt-4",
-        "gpt-4-0613",
-        "gpt-3.5-turbo-0125",
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-1106",
-        "gpt-3.5-turbo-instruct",
-    ],
-)
-class OpenAIStreamingClient(PlaygroundStreamingClient):
+class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
+        *,
+        client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        from openai import AsyncOpenAI
         from openai import RateLimitError as OpenAIRateLimitError
 
-        # todo: check if custom base url is set before raising error to allow
-        # for custom endpoints that don't require an API key
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
-            raise BadRequest("An API key is required for OpenAI models")
         super().__init__(model=model, api_key=api_key)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = client
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
 
@@ -476,10 +449,53 @@ class OpenAIStreamingClient(PlaygroundStreamingClient):
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
-        "o1-preview",
-        "o1-preview-2024-09-12",
+        PROVIDER_DEFAULT,
+        "gpt-4o",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-05-13",
+        "chatgpt-4o-latest",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-4-turbo",
+        "gpt-4-turbo-2024-04-09",
+        "gpt-4-turbo-preview",
+        "gpt-4-0125-preview",
+        "gpt-4-1106-preview",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-3.5-turbo-0125",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-1106",
+        "gpt-3.5-turbo-instruct",
+    ],
+)
+class OpenAIStreamingClient(OpenAIBaseStreamingClient):
+    def __init__(
+        self,
+        model: GenerativeModelInput,
+        api_key: Optional[str] = None,
+    ) -> None:
+        from openai import AsyncOpenAI
+
+        # todo: check if custom base url is set before raising error to allow
+        # for custom endpoints that don't require an API key
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+            raise BadRequest("An API key is required for OpenAI models")
+        client = AsyncOpenAI(api_key=api_key)
+        super().__init__(client=client, model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.OPENAI,
+    model_names=[
+        "o1",
+        "o1-2024-12-17",
         "o1-mini",
         "o1-mini-2024-09-12",
+        "o1-preview",
+        "o1-preview-2024-09-12",
     ],
 )
 class OpenAIO1StreamingClient(OpenAIStreamingClient):
@@ -500,6 +516,11 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 invocation_name="tool_choice",
                 label="Tool Choice",
                 canonical_name=CanonicalParameterName.TOOL_CHOICE,
+            ),
+            JSONInvocationParameter(
+                invocation_name="response_format",
+                label="Response Format",
+                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
             ),
         ]
 
@@ -564,7 +585,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
         PROVIDER_DEFAULT,
     ],
 )
-class AzureOpenAIStreamingClient(OpenAIStreamingClient):
+class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
@@ -572,20 +593,20 @@ class AzureOpenAIStreamingClient(OpenAIStreamingClient):
     ):
         from openai import AsyncAzureOpenAI
 
-        super().__init__(model=model, api_key=api_key)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
         if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
             raise BadRequest("An Azure API key is required for Azure OpenAI models")
         if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
         if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-        self.client = AsyncAzureOpenAI(
+        client = AsyncAzureOpenAI(
             api_key=api_key,
             azure_endpoint=endpoint,
             api_version=api_version,
         )
+        super().__init__(client=client, model=model, api_key=api_key)
+        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
+        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
 
 @register_llm_client(
@@ -772,6 +793,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     provider_key=GenerativeProviderKey.GEMINI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gemini-2.0-flash-exp",
         "gemini-1.5-flash",
         "gemini-1.5-flash-8b",
         "gemini-1.5-pro",

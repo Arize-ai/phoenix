@@ -2,8 +2,6 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import {
-  Icon,
-  Icons,
   Radio,
   RadioGroup,
   Tooltip,
@@ -11,12 +9,13 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { CanvasMode } from "@phoenix/store";
 
 const radioItemCSS = css`
   display: flex;
   flex-direction: row;
-  gap: var(--px-spacing-sm);
+  gap: var(--ac-global-dimension-static-size-50);
 `;
 /**
  * TypeGuard for the canvas mode

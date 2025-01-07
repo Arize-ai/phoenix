@@ -15,8 +15,7 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
-
+import { Icon, Icons, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -37,7 +36,6 @@ import {
 
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
-
 const useColors = () => {
   const { orange300, gray300 } = useChartColors();
   return {
@@ -57,7 +55,7 @@ function TooltipContent({
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -72,12 +70,12 @@ function TooltipContent({
             flex-direction: row;
             align-items: center;
             color: var(--ac-global-color-primary);
-            gap: var(--px-spacing-sm);
+            gap: var(--ac-global-dimension-static-size-50);
 
-            margin-top: var(--px-spacing-sm);
+            margin-top: var(--ac-global-dimension-static-size-50);
           `}
         >
-          <Icon svg={<InfoOutline />} />
+          <Icon svg={<Icons.InfoOutline />} />
           <span>Click to view details</span>
         </div>
       </ChartTooltip>
@@ -205,7 +203,7 @@ export function DimensionDriftTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "PSI",
             angle: -90,
@@ -215,7 +213,7 @@ export function DimensionDriftTimeSeries({
               fill: "var(--ac-global-text-color-900)",
             },
           }}
-          style={{ fill: "var(--ac-global-text-color-700)" }}
+          style={{ fill: "var(--ac-global-color-grey-500)" }}
         />
         <YAxis
           yAxisId="right"
@@ -226,7 +224,7 @@ export function DimensionDriftTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />

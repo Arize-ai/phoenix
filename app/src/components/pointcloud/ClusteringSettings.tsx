@@ -2,16 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Content,
-  ContextualHelp,
-  Form,
-  Heading,
-  Text,
-  TextField,
-} from "@arizeai/components";
+import { Content, ContextualHelp, Form, TextField } from "@arizeai/components";
 
+import { Button, Heading, Text } from "@phoenix/components";
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
 import {
   MIN_CLUSTER_MIN_SAMPLES,
@@ -132,8 +125,9 @@ export default function ClusteringSettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--px-spacing-med) var(--px-spacing-med) 0
-            var(--px-spacing-med);
+          padding: var(--ac-global-dimension-static-size-100)
+            var(--ac-global-dimension-static-size-100) 0
+            var(--ac-global-dimension-static-size-100);
         }
       `}
     >
@@ -236,21 +230,18 @@ export default function ClusteringSettings() {
             display: flex;
             flex-direction: row;
             justify-content: flex-end;
-            margin-top: var(--px-spacing-med);
+            margin-top: var(--ac-global-dimension-static-size-100);
           `}
         >
           <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
-            isDisabled={!isValid}
-            loading={clustersLoading}
+            isDisabled={!isValid || clustersLoading}
             css={css`
               width: 100%;
             `}
           >
-            {clustersLoading
-              ? "Applying parameters"
-              : "Apply Clustering Config"}
+            {clustersLoading ? "Applying..." : "Apply Clustering Config"}
           </Button>
         </div>
       </Form>

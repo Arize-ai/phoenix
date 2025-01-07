@@ -31,7 +31,7 @@ Summary is comprehensive, concise, coherent, and independent relative to the Ori
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 07/4/2024
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L289).
 {% endhint %}
 
 ## Benchmark Results

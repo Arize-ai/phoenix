@@ -1,21 +1,30 @@
 import React, { ReactNode, useState } from "react";
 
-import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
+import { Button, ButtonProps, Icon, Icons } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 
-export function EditSpanAnnotationsButton(props: {
+export function EditSpanAnnotationsButton({
+  spanNodeId,
+  projectId,
+  size = "M",
+}: {
   spanNodeId: string;
   projectId: string;
+  /**
+   * The size of the button
+   * @default M
+   */
+  size?: ButtonProps["size"];
 }) {
-  const { spanNodeId, projectId } = props;
   const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <>
       <Button
-        variant="default"
+        size={size}
         icon={<Icon svg={<Icons.EditOutline />} />}
-        onClick={() =>
+        onPress={() =>
           setDialog(
             <EditSpanAnnotationsDialog
               spanNodeId={spanNodeId}

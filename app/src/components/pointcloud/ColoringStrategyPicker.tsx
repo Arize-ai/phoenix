@@ -1,14 +1,8 @@
 import React from "react";
 
-import {
-  Content,
-  ContextualHelp,
-  Heading,
-  Item,
-  Picker,
-  Text,
-} from "@arizeai/components";
+import { Content, ContextualHelp, Item, Picker } from "@arizeai/components";
 
+import { Heading, Text } from "@phoenix/components";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 
 function isColoringStrategy(strategy: unknown): strategy is ColoringStrategy {

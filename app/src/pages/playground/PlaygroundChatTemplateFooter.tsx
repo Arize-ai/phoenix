@@ -1,7 +1,6 @@
 import React from "react";
 
-import { Button, Flex, Icon, Icons } from "@arizeai/components";
-
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   createOpenAIResponseFormat,
@@ -71,12 +70,11 @@ export function PlaygroundChatTemplateFooter({
     >
       {supportsResponseFormat ? (
         <Button
-          variant="default"
-          size="compact"
+          size="S"
           aria-label="output schema"
           icon={<Icon svg={<Icons.PlusOutline />} />}
-          disabled={hasResponseFormat}
-          onClick={() => {
+          isDisabled={hasResponseFormat}
+          onPress={() => {
             upsertInvocationParameterInput({
               instanceId,
               invocationParameterInput: {
@@ -92,11 +90,10 @@ export function PlaygroundChatTemplateFooter({
       ) : null}
       {supportsToolChoice ? (
         <Button
-          variant="default"
           aria-label="add tool"
-          size="compact"
+          size="S"
           icon={<Icon svg={<Icons.PlusOutline />} />}
-          onClick={() => {
+          onPress={() => {
             const patch: Partial<PlaygroundInstance> = {
               tools: [
                 ...playgroundInstance.tools,
@@ -127,11 +124,10 @@ export function PlaygroundChatTemplateFooter({
         </Button>
       ) : null}
       <Button
-        variant="default"
         aria-label="add message"
-        size="compact"
+        size="S"
         icon={<Icon svg={<Icons.PlusOutline />} />}
-        onClick={() => {
+        onPress={() => {
           updateInstance({
             instanceId,
             patch: {

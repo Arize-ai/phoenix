@@ -1,8 +1,10 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { FALLBACK_COLOR } from "@phoenix/constants/pointCloudConstants";
-import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
+import {
+  ColoringStrategy,
+  FALLBACK_COLOR,
+} from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { useDefaultColorScheme } from "@phoenix/pages/embedding/useDefaultColorScheme";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -81,7 +83,7 @@ export function InferencesVisibilitySettings({
       css={css`
         display: flex;
         flex-direction: column;
-        padding: var(--px-spacing-med);
+        padding: var(--ac-global-dimension-static-size-100);
       `}
     >
       <VisibilityCheckboxField

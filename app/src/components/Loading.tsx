@@ -1,7 +1,9 @@
 import React, { ComponentProps } from "react";
 import { css } from "@emotion/react";
 
-import { ProgressCircle, Text } from "@arizeai/components";
+import { ProgressCircle } from "@arizeai/components";
+
+import { Text } from "@phoenix/components";
 
 type LoadingProps = {
   message?: string;
@@ -17,7 +19,7 @@ export const Loading = ({ message, size }: LoadingProps) => {
         align-items: center;
         width: 100%;
         height: 100%;
-        gap: var(--px-spacing-med);
+        gap: var(--ac-global-dimension-static-size-100);
       `}
     >
       <ProgressCircle isIndeterminate aria-label="loading" size={size} />

@@ -219,31 +219,31 @@ class UserId(_DbId):
 
 
 @dataclass(frozen=True)
-class UserClaimSet(ClaimSet):
+class UserClaimSet(ClaimSet):  # type: ignore[override,unused-ignore]
     subject: Optional[UserId] = None
     attributes: Optional[UserTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class PasswordResetTokenClaims(UserClaimSet):
+class PasswordResetTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
     token_id: Optional[PasswordResetTokenId] = None
     attributes: Optional[PasswordResetTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class AccessTokenClaims(UserClaimSet):
+class AccessTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
     token_id: Optional[AccessTokenId] = None
     attributes: Optional[AccessTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class RefreshTokenClaims(UserClaimSet):
+class RefreshTokenClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
     token_id: Optional[RefreshTokenId] = None
     attributes: Optional[RefreshTokenAttributes] = None
 
 
 @dataclass(frozen=True)
-class ApiKeyClaims(UserClaimSet):
+class ApiKeyClaims(UserClaimSet):  # type: ignore[override,unused-ignore]
     token_id: Optional[ApiKeyId] = None
     attributes: Optional[ApiKeyAttributes] = None
 

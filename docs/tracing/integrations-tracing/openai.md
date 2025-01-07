@@ -12,41 +12,46 @@ Phoenix provides auto-instrumentation for the [OpenAI Python Library](https://gi
 
 ## Launch Phoenix
 
+We have several code samples below on different ways to integrate with OpenAI, based on how you want to use Phoenix.
+
 {% tabs %}
-{% tab title="Notebook" %}
+{% tab title="Phoenix Developer Edition" %}
+**Sign up for Phoenix:**
+
+Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
+
 **Install packages:**
 
 ```bash
-pip install arize-phoenix
+pip install arize-phoenix-otel
 ```
 
-**Launch Phoenix:**
+**Connect your application to your cloud instance:**
 
 ```python
-import phoenix as px
-px.launch_app()
-```
-
-**Connect your notebook to Phoenix:**
-
-```python
+import os
 from phoenix.otel import register
 
+# Add Phoenix API Key for tracing
+PHOENIX_API_KEY = "ADD YOUR API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+
+# configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
+  endpoint="https://app.phoenix.arize.com/v1/traces",
 )
 ```
 
-{% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [persistence.md](../../deployment/persistence.md "mention") or use one of the other deployment options to retain traces.
-{% endhint %}
+Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
 {% endtab %}
 
 {% tab title="Command Line" %}
 **Launch your local Phoenix instance:**
 
 ```bash
-python3 -m phoenix.server.main serve
+pip install arize-phoenix
+phoenix serve
 ```
 
 For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
@@ -106,38 +111,40 @@ tracer_provider = register(
 For more info on using Phoenix with Docker, see [#docker](openai.md#docker "mention")
 {% endtab %}
 
-{% tab title="app.phoenix.arize.com" %}
-If you don't want to host an instance of Phoenix yourself or use a notebook instance, you can use a persistent instance provided on our site. Sign up for an Arize Phoenix account at[https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-
+{% tab title="Notebook" %}
 **Install packages:**
 
 ```bash
-pip install arize-phoenix-otel
+pip install arize-phoenix
 ```
 
-**Connect your application to your cloud instance:**
+**Launch Phoenix:**
 
-<pre class="language-python"><code class="lang-python">import os
+```python
+import phoenix as px
+px.launch_app()
+```
+
+**Connect your notebook to Phoenix:**
+
+```python
 from phoenix.otel import register
 
-# Add Phoenix API Key for tracing
-os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=...:..."
-
-# configure the Phoenix tracer
-<strong>tracer_provider = register(
-</strong>  project_name="my-llm-app", # Default is 'default'
-  endpoint="https://app.phoenix.arize.com/v1/traces",
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
 )
-</code></pre>
+```
 
-Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
+{% hint style="info" %}
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [persistence.md](../../deployment/persistence.md "mention") or use one of the other deployment options to retain traces.
+{% endhint %}
 {% endtab %}
 {% endtabs %}
 
 ## Install
 
 ```bash
-pip install openinference-instrumentation-openai openai
+pip install openinference-instrumentation-openai openai 'httpx<0.28'
 ```
 
 ## Setup
@@ -175,7 +182,6 @@ Now that you have tracing setup, all invocations of OpenAI (completions, chat co
 
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai\_tracing\_tutorial.ipynb)
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_tracing_tutorial.ipynb)
 * [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)
 * [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai/examples)
-

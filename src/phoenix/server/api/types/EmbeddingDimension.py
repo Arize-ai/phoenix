@@ -477,7 +477,7 @@ def _row_indices(
         return
     shuffled_indices = np.arange(start, stop)
     np.random.shuffle(shuffled_indices)
-    yield from shuffled_indices
+    yield from shuffled_indices  # type: ignore[misc,unused-ignore]
 
 
 def to_gql_embedding_dimension(

@@ -6,15 +6,10 @@ import React, {
 } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Button,
-  Dialog,
-  DialogContainer,
-  Flex,
-  Text,
-  View,
-} from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 import { NoticeConfig } from "@arizeai/components/dist/notification/types";
+
+import { Button, Flex, Text, View } from "@phoenix/components";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 import { AnnotationActionMenu } from "./AnnotationActionMenu";
@@ -101,7 +96,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
           <Flex direction="row" justifyContent="end">
             <Button
               variant="danger"
-              onClick={() => {
+              onPress={() => {
                 handleDelete();
                 setConfirmDialog(null);
               }}

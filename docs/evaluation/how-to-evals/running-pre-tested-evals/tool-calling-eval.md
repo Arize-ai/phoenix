@@ -2,7 +2,7 @@
 
 The Agent Function Call eval can be used to determine how well a model selects a tool to use, extracts the right parameters from the user query, and generates the tool call code.
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/b107d9bc848efd38f030a8c72954e89616c43723/tutorials/evals/evaluate_tool_calling.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_tool_calling.ipynb" %}
 
 {% embed url="https://www.youtube.com/watch?v=Rsu-UZ1ZVZU" %}
 Demo
@@ -40,6 +40,10 @@ in the generated question.
     [Tool Definitions]: {tool_definitions}
 """
 ```
+
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span\_templates.py#L189).
+{% endhint %}
 
 **Example Code:**
 

@@ -1,6 +1,8 @@
 import React from "react";
 
-import { ActionMenu, Flex, Icon, Icons, Item, Text } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
+
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
 type AnnotationActionMenuProps = {
   onDelete: () => void;

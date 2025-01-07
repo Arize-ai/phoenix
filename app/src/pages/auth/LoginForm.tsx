@@ -3,11 +3,10 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Button, Form, TextField, View } from "@arizeai/components";
+import { Alert, Form, TextField } from "@arizeai/components";
 
-import { Link } from "@phoenix/components";
-import { prependBasename } from "@phoenix/utils/routingUtils";
-import { getReturnUrl } from "@phoenix/utils/routingUtils";
+import { Button, Icon, Icons, Link, View } from "@phoenix/components";
+import { getReturnUrl, prependBasename } from "@phoenix/utils/routingUtils";
 
 type LoginFormParams = {
   email: string;
@@ -129,10 +128,13 @@ export function LoginForm(props: LoginFormProps) {
         >
           <Button
             variant="primary"
-            loading={isLoading}
-            onClick={handleSubmit(onSubmit)}
+            isDisabled={isLoading}
+            icon={
+              isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+            }
+            onPress={() => handleSubmit(onSubmit)()}
           >
-            Login
+            {isLoading ? "Logging In" : "Log In"}
           </Button>
         </div>
       </Form>

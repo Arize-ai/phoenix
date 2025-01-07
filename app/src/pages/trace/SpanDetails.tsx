@@ -10,13 +10,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { nord } from "@uiw/codemirror-theme-nord";
-import { EditorView } from "@uiw/react-codemirror";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
   Alert,
-  Button,
   Card,
   CardProps,
   Content,
@@ -24,10 +22,6 @@ import {
   Counter,
   DialogContainer,
   EmptyGraphic,
-  Flex,
-  Heading,
-  Icon,
-  Icons,
   Label,
   LabelProps,
   List,
@@ -35,11 +29,8 @@ import {
   TabbedCard,
   TabPane,
   Tabs,
-  Text,
   Tooltip,
   TooltipTrigger,
-  View,
-  ViewProps,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
@@ -52,7 +43,18 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
+import {
+  Button,
+  CopyToClipboardButton,
+  ExternalLink,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Text,
+  View,
+  ViewProps,
+} from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,
@@ -246,8 +248,8 @@ export function SpanDetails({
             <Button
               variant="default"
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              disabled={span.spanKind !== "llm"}
-              onClick={() => {
+              isDisabled={span.spanKind !== "llm"}
+              onPress={() => {
                 navigate(`/playground/spans/${span.id}`);
               }}
             >
@@ -266,7 +268,7 @@ export function SpanDetails({
               <Button
                 variant="default"
                 aria-label="Toggle showing span details"
-                onClick={() => {
+                onPress={() => {
                   setShowSpanAside(!showSpanAside);
                 }}
                 icon={
@@ -310,7 +312,6 @@ export function SpanDetails({
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
               extra={<CopyToClipboardButton text={span.attributes} />}
-              bodyStyle={{ padding: 0 }}
             >
               <JSONBlock>{span.attributes}</JSONBlock>
             </Card>
@@ -382,7 +383,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
       <Button
         variant="default"
         icon={<Icon svg={<Icons.DatabaseOutline />} />}
-        onClick={onAddSpanToDataset}
+        onPress={onAddSpanToDataset}
       >
         Add to Dataset
       </Button>
@@ -590,7 +591,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return (
       <Flex direction="row" gap="size-100" alignItems="center">
         <SpanKindIcon spanKind="llm" />
-        <Text textSize="large" weight="heavy">
+        <Text size="M" weight="heavy">
           {modelName}
         </Text>
       </Flex>
@@ -1237,13 +1238,13 @@ function DocumentItem({
                               <Label color={evalLabelColor} shape="badge">
                                 <Flex direction="row" gap="size-50">
                                   <Text
-                                    textSize="xsmall"
+                                    size="XS"
                                     weight="heavy"
                                     color="inherit"
                                   >
                                     score
                                   </Text>
-                                  <Text textSize="xsmall">
+                                  <Text size="XS">
                                     {formatFloat(documentEvaluation.score)}
                                   </Text>
                                 </Flex>
@@ -1330,11 +1331,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     `}
                   >
                     {toolCall?.function?.name as string}(
-                    {JSON.stringify(
-                      JSON.parse(toolCall?.function?.arguments as string),
-                      null,
-                      2
-                    )}
+                    {typeof toolCall?.function?.arguments === "string"
+                      ? JSON.stringify(
+                          JSON.parse(toolCall?.function?.arguments as string),
+                          null,
+                          2
+                        )
+                      : ""}
                     )
                   </pre>
                 );
@@ -1377,9 +1380,7 @@ function LLMToolSchema({
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text textSize="large" weight="heavy">
-        Tool
-      </Text>
+      <Text weight="heavy">Tool</Text>
     </Flex>
   );
 
@@ -1455,8 +1456,8 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
         return (
           <li key={idx}>
             <View
-              backgroundColor="gray-600"
-              borderColor="gray-400"
+              backgroundColor="grey-100"
+              borderColor="grey-500"
               borderWidth="thin"
               borderRadius="medium"
               padding="size-100"
@@ -1587,7 +1588,6 @@ function SpanIO({ span }: { span: Span }) {
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
-          bodyStyle={{ padding: 0 }}
           extra={<CopyToClipboardButton text={span.attributes} />}
         >
           <JSONBlock>{span.attributes}</JSONBlock>
@@ -1598,9 +1598,6 @@ function SpanIO({ span }: { span: Span }) {
 }
 
 const codeMirrorCSS = css`
-  .cm-content {
-    padding: var(--ac-global-dimension-static-size-200) 0;
-  }
   .cm-editor,
   .cm-gutters {
     background-color: transparent;
@@ -1737,12 +1734,12 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               <View flex="none">
                 <div
                   data-event-type={isException ? "exception" : "info"}
-                  css={(theme) => css`
+                  css={css`
                     &[data-event-type="exception"] {
-                      --px-event-icon-color: ${theme.colors.statusDanger};
+                      --px-event-icon-color: var(--ac-global-color-danger);
                     }
                     &[data-event-type="info"] {
-                      --px-event-icon-color: ${theme.colors.statusInfo};
+                      --px-event-icon-color: var(--ac-global-color-info);
                     }
                     .ac-icon-wrap {
                       color: var(--px-event-icon-color);

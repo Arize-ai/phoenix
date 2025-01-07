@@ -15,16 +15,9 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import {
-  Content,
-  ContextualHelp,
-  Heading,
-  Icon,
-  InfoOutline,
-  Text,
-  theme,
-} from "@arizeai/components";
+import { Content, ContextualHelp } from "@arizeai/components";
 
+import { Heading, Icon, Icons, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipDivider,
@@ -32,8 +25,8 @@ import {
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useChartColors,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
-import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -82,7 +75,7 @@ function TooltipContent({
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -103,12 +96,12 @@ function TooltipContent({
             flex-direction: row;
             align-items: center;
             color: var(--ac-global-color-primary);
-            gap: var(--px-spacing-sm);
+            gap: var(--ac-global-dimension-static-size-50);
 
-            margin-top: var(--px-spacing-sm);
+            margin-top: var(--ac-global-dimension-static-size-50);
           `}
         >
-          <Icon svg={<InfoOutline />} />
+          <Icon svg={<Icons.InfoOutline />} />
           <span>Click to view the point cloud at this time</span>
         </div>
       </ChartTooltip>
@@ -333,13 +326,14 @@ export function MetricTimeSeries({
         flex-direction: column;
         overflow: hidden;
         h3 {
-          padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
-            var(--px-spacing-lg);
+          padding: var(--ac-global-dimension-static-size-100)
+            var(--ac-global-dimension-static-size-200) 0
+            var(--ac-global-dimension-static-size-200);
           flex: none;
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: var(--px-spacing-sm);
+          gap: var(--ac-global-dimension-static-size-50);
         }
         & > div {
           flex: 1 1 auto;
@@ -380,7 +374,7 @@ export function MetricTimeSeries({
               style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <YAxis
-              stroke={theme.colors.gray200}
+              stroke="var(--ac-global-color-grey-500)"
               label={{
                 value: metricShortName,
                 angle: -90,
@@ -408,7 +402,7 @@ export function MetricTimeSeries({
             />
             <CartesianGrid
               strokeDasharray="4 4"
-              stroke={theme.colors.gray200}
+              stroke="var(--ac-global-color-grey-500)"
               strokeOpacity={0.5}
             />
             <Tooltip content={<TooltipContent />} />

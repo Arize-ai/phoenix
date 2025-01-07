@@ -6,6 +6,19 @@ description: >-
 
 # Querying Spans
 
+## Connect to Phoenix
+
+Before accessing px.Client(), be sure you've set the following environment variables:
+
+```python
+import os
+
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+```
+
+If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
+
 ## How to Run a Query
 
 You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md).\

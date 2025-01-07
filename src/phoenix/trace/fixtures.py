@@ -222,6 +222,13 @@ llama_index_rag_fixture = TracesFixture(
     ),
 )
 
+project_sessions_llama_index_rag_arize_docs_fixture = TracesFixture(
+    name="project_sessions_llama_index_rag_arize_docs",
+    project_name="SESSIONS-DEMO",
+    file_name="project_sessions_demo_llama_index_query_engine_arize_docs.parquet",
+    description="RAG queries grouped by session.id and user.id.",
+)
+
 llama_index_calculator_agent_fixture = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
@@ -290,6 +297,7 @@ TRACES_FIXTURES: list[TracesFixture] = [
     llama_index_calculator_agent_fixture,
     vision_fixture,
     anthropic_tools_fixture,
+    project_sessions_llama_index_rag_arize_docs_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
