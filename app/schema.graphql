@@ -1198,6 +1198,7 @@ type Mutation {
   clearProject(input: ClearProjectInput!): Query!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1514,8 +1515,14 @@ type PromptVersionEdge {
 type PromptVersionTag implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  promptVersionId: GlobalID!
   name: String!
   description: String
+}
+
+type PromptVersionTagMutationPayload {
+  promptVersionTag: PromptVersionTag!
+  query: Query!
 }
 
 type Query {
@@ -1589,6 +1596,12 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptVersionTagInput {
+  promptVersionId: GlobalID!
+  name: String!
+  description: String = null
 }
 
 enum SortDir {
