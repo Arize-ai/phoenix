@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypeAlias
@@ -54,7 +54,7 @@ class PromptStringTemplateV1(PromptModel):
 PromptTemplate: TypeAlias = Union[PromptChatTemplateV1, PromptStringTemplateV1]
 
 
-class PromptJSONSchema(BaseModel):
+class PromptJSONSchema(PromptModel):
     """A JSON schema definition used to guide an LLM's output"""
 
     definition: dict[str, Any]
@@ -67,3 +67,65 @@ class PromptToolDefinition(PromptModel):
 class PromptToolsV1(PromptModel):
     version: Literal["tools-v1"] = "tools-v1"
     tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
+
+
+# Tool models
+JSONSchemaDataType = Literal["string", "number", "boolean", "object", "array", "null", "integer"]
+
+
+class Undefined:
+    """
+    A singleton class that represents an unset or undefined value. Needed since Pydantic
+    can't natively distinguish between an undefined value and a value that is set to
+    None.
+    """
+
+    def __new__(cls) -> Any:
+        if not hasattr(cls, "_instance"):
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+
+UNDEFINED: Any = Undefined()
+
+
+JSONSchemaPropertyType = Union["JSONSchema", "JSONSchemaProperty", "JSONSchemaPropertyUnion"]
+
+
+class JSONSchemaProperty(PromptModel):
+    type: JSONSchemaDataType
+    description: str = UNDEFINED
+    items: JSONSchemaPropertyType = UNDEFINED
+    enum: list[str] = UNDEFINED
+
+
+class JSONSchemaPropertyUnion(PromptModel):
+    any_of: list[Union["JSONSchema", "JSONSchemaProperty"]] = Field(UNDEFINED, alias="anyOf")
+
+
+class JSONSchema(PromptModel):
+    type: JSONSchemaDataType
+    description: str = UNDEFINED
+    properties: dict[str, JSONSchemaPropertyType] = UNDEFINED
+    required: list[str] = UNDEFINED
+    additional_properties: bool = Field(UNDEFINED, alias="additionalProperties")
+
+
+class OpenAIFunctionDefinition(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/1e07c9d839e7e96f02d0a4b745f379a43086334c/src/openai/types/shared_params/function_definition.py#L13
+    """
+
+    name: str
+    description: str = UNDEFINED
+    parameters: JSONSchema = UNDEFINED
+    strict: Optional[bool] = UNDEFINED
+
+
+class OpenAIToolDefinition(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/1e07c9d839e7e96f02d0a4b745f379a43086334c/src/openai/types/chat/chat_completion_tool_param.py#L12
+    """
+
+    function: OpenAIFunctionDefinition
+    type: Literal["function"]
