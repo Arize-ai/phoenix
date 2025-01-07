@@ -79,6 +79,7 @@ export const DisclosurePanel = ({
 export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end";
   justifyContent?: FlexStyleProps["justifyContent"];
+  asHeading?: boolean;
 }>;
 
 /**

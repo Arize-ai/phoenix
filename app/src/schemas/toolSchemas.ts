@@ -1,7 +1,7 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
@@ -316,3 +316,50 @@ export function createAnthropicToolDefinition(
     },
   };
 }
+
+export const findToolDefinitionName = (toolDefinition: unknown) => {
+  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
+  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
+    return null;
+  }
+
+  if (
+    "function" in parsed.data &&
+    isObject(parsed.data.function) &&
+    "name" in parsed.data.function &&
+    typeof parsed.data.function.name === "string"
+  ) {
+    return parsed.data.function.name;
+  }
+
+  if ("name" in parsed.data && typeof parsed.data.name === "string") {
+    return parsed.data.name;
+  }
+
+  return null;
+};
+
+export const findToolDefinitionDescription = (toolDefinition: unknown) => {
+  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
+  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
+    return null;
+  }
+
+  if (
+    "function" in parsed.data &&
+    isObject(parsed.data.function) &&
+    "description" in parsed.data.function &&
+    typeof parsed.data.function.description === "string"
+  ) {
+    return parsed.data.function.description;
+  }
+
+  if (
+    "description" in parsed.data &&
+    typeof parsed.data.description === "string"
+  ) {
+    return parsed.data.description;
+  }
+
+  return null;
+};
