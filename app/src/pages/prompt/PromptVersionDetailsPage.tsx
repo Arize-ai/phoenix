@@ -5,9 +5,6 @@ import {
   CopyToClipboardButton,
   Flex,
   Heading,
-  Tag,
-  TagGroup,
-  TagList,
   View,
 } from "@phoenix/components";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
