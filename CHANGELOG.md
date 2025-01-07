@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.1...arize-phoenix-v7.5.2) (2025-01-07)
+
+
+### Bug Fixes
+
+* add id fields to annotations so that relay caches anotations correctly ([#5919](https://github.com/Arize-ai/phoenix/issues/5919)) ([09a4c25](https://github.com/Arize-ai/phoenix/commit/09a4c2537bb384f508f9aaaf04dd7d71ab28195a))
+
 ## [7.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.0...arize-phoenix-v7.5.1) (2025-01-04)
 
 
