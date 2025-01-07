@@ -66,15 +66,15 @@ class ClassificationStatus(Enum):
     MISSING_INPUT = "MISSING INPUT"
 
 
-T = TypeVar("T")
+PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
 
 def llm_classify(
-    dataframe: Union[pd.DataFrame, pd.Series[Any], List[Any], Tuple[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
-    data_processor: Optional[Callable[[T], T]] = None,
+    data: Optional[Union[pd.DataFrame, List[Any], Tuple[Any]]] = None,
+    data_processor: Optional[Callable[[PROCESSOR_TYPE], PROCESSOR_TYPE]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -87,6 +87,7 @@ def llm_classify(
     run_sync: bool = False,
     concurrency: Optional[int] = None,
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -95,9 +96,6 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
-        dataframe (Union[pd.DataFrame, pd.Series, List[Any], Tuple[Any]): A collection of data which
-            can contain template variables and other information necessary to generate evaluations.
-
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
             If a string, the variable names should be surrounded by curly braces so that
@@ -107,6 +105,9 @@ def llm_classify(
 
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
+
+        data (Union[pd.DataFrame, List[Any], Tuple[Any]): A collection of data which
+            can contain template variables and other information necessary to generate evaluations.
 
         data_processor (Optional[Callable[[T], T]]): An optional general-purpose function which
             can be run as a coroutine to process the data before it is passed to the model.
@@ -162,6 +163,12 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
+    dataframe = kwargs.get("dataframe")
+    # If data and dataframe are both provided, _llm_data defaults to data
+    _llm_data = dataframe if data is None else data
+    if _llm_data is None:
+        raise ValueError("either data or dataframe args must be provided")
+
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -180,8 +187,8 @@ def llm_classify(
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
 
-    labels: Iterable[Optional[str]] = [None] * len(dataframe)
-    explanations: Iterable[Optional[str]] = [None] * len(dataframe)
+    labels: Iterable[Optional[str]] = [None] * len(_llm_data)
+    explanations: Iterable[Optional[str]] = [None] * len(_llm_data)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
@@ -221,7 +228,7 @@ def llm_classify(
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
     def _normalize_to_series(
-        data: T,
+        data: PROCESSOR_TYPE,
     ) -> pd.Series[Any]:
         if isinstance(data, (list, tuple)):
             return pd.Series(
@@ -238,14 +245,13 @@ def llm_classify(
             raise ValueError("Unsupported data type")
 
     async def _run_llm_classification_async(
-        input_data: T,
+        input_data: PROCESSOR_TYPE,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
-                if inspect.iscoroutinefunction(data_processor):
-                    processed_data = await data_processor(input_data)
-                else:
-                    processed_data = data_processor(input_data)
+                processed_data = data_processor(input_data)
+                if inspect.isawaitable(processed_data):
+                    processed_data = await processed_data
             else:
                 processed_data = input_data
 
@@ -257,13 +263,13 @@ def llm_classify(
         return inference, explanation, response, str(prompt)
 
     def _run_llm_classification_sync(
-        input_data: T,
+        input_data: PROCESSOR_TYPE,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
-                if inspect.iscoroutinefunction(data_processor):
-                    raise ValueError("data_processor must be a synchronous function")
                 processed_data = data_processor(input_data)
+                if inspect.isawaitable(processed_data):
+                    raise ValueError("data_processor must be a synchronous function")
             else:
                 processed_data = input_data
 
@@ -288,18 +294,14 @@ def llm_classify(
     )
 
     list_of_inputs: Union[Tuple[Any], List[Any]]
-    if isinstance(dataframe, pd.DataFrame):
-        list_of_inputs = [row_tuple[1] for row_tuple in dataframe.iterrows()]
-        dataframe_index = dataframe.index
-    elif isinstance(dataframe, pd.Series):
-        list_of_inputs = dataframe.to_list()
-        dataframe_index = dataframe.index
-    # Data is list of strings or tuples
-    elif isinstance(dataframe, (list, tuple)):
-        list_of_inputs = dataframe
-        dataframe_index = pd.Index(range(len(dataframe)))
+    if isinstance(_llm_data, pd.DataFrame):
+        list_of_inputs = [row_tuple[1] for row_tuple in _llm_data.iterrows()]
+        dataframe_index = _llm_data.index
+    elif isinstance(_llm_data, (list, tuple)):
+        list_of_inputs = _llm_data
+        dataframe_index = pd.Index(range(len(_llm_data)))
     else:
-        raise ValueError("dataframe must be a pandas DataFrame, pandas Series, list, or tuple")
+        raise ValueError("dataframe must be a pandas DataFrame, list, or tuple")
 
     results, execution_details = executor.run(list_of_inputs)
     labels, explanations, responses, prompts = zip(*results)

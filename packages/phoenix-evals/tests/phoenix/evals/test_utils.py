@@ -6,6 +6,15 @@ import lameenc
 
 from phoenix.evals.utils import NOT_PARSABLE, get_audio_format_from_base64, snap_to_rail
 
+PCM_ENC_STR = "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
+"LPLZ9dn1AvoC+vn3+fdy+XL5K/cr"
+PCM_BYTES = base64.b64decode(PCM_ENC_STR)
+
+SAMPLE_RATE = 44100
+CHANNELS = 1
+SAMPLE_WIDTH = 2
+BITRATE = 128
+
 
 def test_snap_to_rail():
     assert snap_to_rail("irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
@@ -24,49 +33,38 @@ def test_snap_to_rail():
     assert snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"
 
 
-def test_get_audio_format_from_base64():
-    pcm_enc_str = "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+735vfkC+AL4EfYR9izy"
-    "LPLZ9dn1AvoC+vn3+fdy+XL5K/cr"
-    pcm_bytes = base64.b64decode(pcm_enc_str)
-
-    sample_rate = 44100
-    channels = 1
-    sample_width = 2
-    bitrate = 128
-
-    # Create a BytesIO buffer to hold the WAV data
+def test_get_audio_format_from_base64_wav():
     buffer = io.BytesIO()
 
-    # Write the WAV header and PCM data
     with wave.open(buffer, "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(sample_width)
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(pcm_bytes)
+        wav_file.setnchannels(CHANNELS)
+        wav_file.setsampwidth(SAMPLE_WIDTH)
+        wav_file.setframerate(SAMPLE_RATE)
+        wav_file.writeframes(PCM_BYTES)
 
-    # Get the WAV bytes and encode them as base64
     wav_bytes = buffer.getvalue()
     wav_base64 = base64.b64encode(wav_bytes).decode("utf-8")
 
     assert get_audio_format_from_base64(wav_base64) == "wav"
 
-    # Create an MP3 encoder using lameenc
+
+def test_get_audio_format_from_base64_mp3():
     encoder = lameenc.Encoder()
-    encoder.set_bit_rate(bitrate)
-    encoder.set_in_sample_rate(sample_rate)
-    encoder.set_channels(channels)
-    encoder.set_quality(2)  # High quality
+    encoder.set_bit_rate(BITRATE)
+    encoder.set_in_sample_rate(SAMPLE_RATE)
+    encoder.set_channels(CHANNELS)
+    encoder.set_quality(2)
 
-    # Encode the PCM bytes into MP3 format
-    mp3_bytes = encoder.encode(pcm_bytes)
-    mp3_bytes += encoder.flush()  # Finish encoding
+    mp3_bytes = encoder.encode(PCM_BYTES)
+    mp3_bytes += encoder.flush()
 
-    # Encode the MP3 bytes as base64
     mp3_base64 = base64.b64encode(mp3_bytes).decode("utf-8")
 
     assert get_audio_format_from_base64(mp3_base64) == "mp3"
 
+
+def test_get_audio_format_from_base64_unsupported():
     try:
-        assert get_audio_format_from_base64(pcm_enc_str) is None
+        assert get_audio_format_from_base64(PCM_ENC_STR) is None
     except ValueError as e:
         assert str(e) == "Unsupported audio format. Only wav and mp3 are supported."

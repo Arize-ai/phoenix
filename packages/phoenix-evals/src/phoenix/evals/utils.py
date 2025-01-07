@@ -1,7 +1,7 @@
 import base64
 import json
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -177,7 +177,7 @@ def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
         tqdm.write(*args, **kwargs)
 
 
-def get_audio_format_from_base64(enc_str: str) -> str:
+def get_audio_format_from_base64(enc_str: str) -> Literal["mp3", "wav"]:
     audio_bytes = base64.b64decode(enc_str)
 
     if len(audio_bytes) >= 3:
