@@ -20,7 +20,7 @@ from .PromptVersion import (
     PromptVersion,
     to_gql_prompt_version,
 )
-from .PromptVersionTag import PromptVersionTag
+from .PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 
 
 @strawberry.type
@@ -32,19 +32,13 @@ class Prompt(Node):
 
     @strawberry.field
     async def version_tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        # TODO fill out details to pull tags from the database for the given prompt
-        return [
-            PromptVersionTag(
-                id_attr=1,
-                name="tag 1",
-                description="tag 1 description",
-            ),
-            PromptVersionTag(
-                id_attr=2,
-                name="tag 2",
-                description="tag 2 description",
-            ),
-        ]
+        async with info.context.db() as session:
+            stmt = select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == self.id_attr
+            )
+            return [
+                to_gql_prompt_version_tag(tag) async for tag in await session.stream_scalars(stmt)
+            ]
 
     @strawberry.field
     async def prompt_versions(
