@@ -59,7 +59,6 @@ class PromptVersion(Node):
             user = await session.get(models.User, self.user_id)
         return to_gql_user(user) if user is not None else None
 
-
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
         async with info.context.db() as session:
