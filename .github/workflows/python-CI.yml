@@ -104,7 +104,7 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           version: 0.5.8
-      - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
+      - run: uvx --with tox-uv tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
     name: Phoenix Evals
