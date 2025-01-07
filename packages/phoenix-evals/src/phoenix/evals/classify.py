@@ -65,7 +65,9 @@ class ClassificationStatus(Enum):
     FAILED = ExecutionStatus.FAILED.value
     MISSING_INPUT = "MISSING INPUT"
 
-T = TypeVar('T')
+
+T = TypeVar("T")
+
 
 def llm_classify(
     dataframe: Union[pd.DataFrame, pd.Series[Any], List[Any], Tuple[Any]],
@@ -218,7 +220,9 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    def _normalize_to_series(data: Union[str, List[Any], Tuple[Any], pd.Series[Any]]) -> pd.Series[Any]:
+    def _normalize_to_series(
+        data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
+    ) -> pd.Series[Any]:
         if isinstance(data, (list, tuple)):
             return pd.Series(
                 {
