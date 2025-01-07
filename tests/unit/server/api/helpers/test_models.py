@@ -553,29 +553,32 @@ from phoenix.server.api.helpers.prompts.models import OpenAIToolDefinition
             {
                 "type": "function",
                 "function": {
-                    "name": "process_user_preferences",
-                    "description": "Process optional user preferences",
+                    "name": "categorize_colors",
+                    "description": "Categorize colors into warm, cool, or neutral tones, with null for uncertain cases",  # noqa: E501
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "email_notifications": {
-                                "description": "Email notification preferences that can be null or boolean",  # noqa: E501
-                                "anyOf": [{"type": "boolean"}, {"type": "null"}],
-                            },
-                            "display_name": {
-                                "description": "Display name that can be null or string",
-                                "anyOf": [{"type": "string"}, {"type": "null"}],
-                            },
-                            "age": {
-                                "description": "Age that can be null or integer",
-                                "anyOf": [{"type": "integer"}, {"type": "null"}],
-                            },
+                            "colors": {
+                                "type": "array",
+                                "description": "List of color categories, with null for uncertain colors",  # noqa: E501
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string",
+                                            "enum": ["warm", "cool", "neutral"],
+                                            "description": "Color category",
+                                        },
+                                        {"type": "null"},
+                                    ]
+                                },
+                            }
                         },
+                        "required": ["colors"],
                         "additionalProperties": False,
                     },
                 },
             },
-            id="array-of-optional-parameters",
+            id="array-of-optional-enums",
         ),
     ],
 )
