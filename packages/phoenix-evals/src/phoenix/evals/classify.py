@@ -74,7 +74,7 @@ def llm_classify(
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
-    data_processor: Optional[Callable[[T], T]] = None,  # input and output are the same type
+    data_processor: Optional[Callable[[T], T]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -221,7 +221,7 @@ def llm_classify(
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
     def _normalize_to_series(
-        data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
+        data: T,
     ) -> pd.Series[Any]:
         if isinstance(data, (list, tuple)):
             return pd.Series(
@@ -242,7 +242,7 @@ def llm_classify(
             raise ValueError("Unsupported data type")
 
     async def _run_llm_classification_async(
-        input_data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
+        input_data: T,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
@@ -261,7 +261,7 @@ def llm_classify(
         return inference, explanation, response, str(prompt)
 
     def _run_llm_classification_sync(
-        input_data: Union[str, List[Any], Tuple[Any], pd.Series[Any]],
+        input_data: T,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
@@ -291,7 +291,7 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    list_of_inputs: List
+    list_of_inputs: Union[Tuple[Any], List[Any]]
     if isinstance(dataframe, pd.DataFrame):
         list_of_inputs = [row_tuple[1] for row_tuple in dataframe.iterrows()]
         dataframe_index = dataframe.index
