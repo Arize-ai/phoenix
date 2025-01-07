@@ -8,10 +8,10 @@ import {
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
-  View,
 } from "@phoenix/components";
 import { PromptModelConfigurationCard__main$key } from "@phoenix/pages/prompt/__generated__/PromptModelConfigurationCard__main.graphql";
 import { PromptInvocationParameters } from "@phoenix/pages/prompt/PromptInvocationParameters";
+import { PromptTools } from "@phoenix/pages/prompt/PromptTools";
 
 export function PromptModelConfigurationCard({
   promptVersion: promptVersionFragment,
@@ -22,6 +22,7 @@ export function PromptModelConfigurationCard({
     graphql`
       fragment PromptModelConfigurationCard__main on PromptVersion {
         ...PromptInvocationParameters__main
+        ...PromptTools__main
       }
     `,
     promptVersionFragment
@@ -40,7 +41,7 @@ export function PromptModelConfigurationCard({
         <Disclosure id="tools">
           <DisclosureTrigger>Tools</DisclosureTrigger>
           <DisclosurePanel>
-            <View padding="size-200">No Tools Specified</View>
+            <PromptTools promptVersion={promptVersion} />
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
