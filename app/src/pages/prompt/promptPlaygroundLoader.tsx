@@ -9,8 +9,12 @@ export const promptPlaygroundLoader = async ({
   if (!promptId) {
     throw new Error("Prompt ID is required");
   }
-  const instanceWithPrompt = await fetchPlaygroundPromptAsInstance(promptId);
-  return { instanceWithPrompt };
+  const response = await fetchPlaygroundPromptAsInstance(promptId);
+  if (!response) {
+    throw new Error("Prompt not found");
+  }
+
+  return { instanceWithPrompt: response.instance };
 };
 
 export type PromptPlaygroundLoaderData = Awaited<
