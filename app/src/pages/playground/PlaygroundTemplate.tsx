@@ -1,12 +1,4 @@
-import React, {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { debounce, pick } from "lodash";
+import React, { Suspense, useCallback, useState } from "react";
 
 import {
   Card,
@@ -19,30 +11,25 @@ import {
 
 import { Button, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import {
-  usePlaygroundContext,
-  usePlaygroundStore,
-} from "@phoenix/contexts/PlaygroundContext";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import { UpsertPromptFromTemplateDialog } from "@phoenix/pages/playground/UpsertPromptFromTemplateDialog";
-import { PlaygroundInstance } from "@phoenix/store";
 
 import { ModelConfigButton } from "./ModelConfigButton";
 import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PromptComboBox } from "./PromptComboBox";
 import { PlaygroundInstanceProps } from "./types";
+import { useDirtyPlaygroundInstance } from "./useDirtyPlaygroundInstance";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
-  const dirtyRef = useRef<null | Partial<PlaygroundInstance>>(null);
-  const [dirty, setDirty] = useState(false);
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
+  const { dirty, resetDirtyState } = useDirtyPlaygroundInstance(instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instances = usePlaygroundContext((state) => state.instances);
-  const store = usePlaygroundStore();
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
@@ -50,14 +37,10 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   const onChangePrompt = useCallback(
     async (promptId: string | null) => {
-      dirtyRef.current = null;
+      resetDirtyState();
       if (!promptId) {
-        updateInstance({
-          instanceId,
-          patch: {
-            prompt: null,
-          },
-        });
+        const patch = { prompt: null };
+        updateInstance({ instanceId, patch });
         return;
       }
 
@@ -71,68 +54,8 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         });
       }
     },
-    [instanceId, updateInstance]
+    [instanceId, updateInstance, resetDirtyState]
   );
-
-  const debounceDirtyCheck = useMemo(
-    () =>
-      // eslint-disable-next-line react-compiler/react-compiler
-      debounce((ref: typeof dirtyRef.current) => {
-        if (!ref) {
-          return false;
-        }
-        const state = store.getState();
-        const instance = state.instances.find(
-          (instance) => instance.id === instanceId
-        );
-        if (!instance) {
-          return false;
-        }
-        const observedKeys: (keyof PlaygroundInstance)[] = [
-          "model",
-          "tools",
-          "toolChoice",
-          "template",
-        ] as const;
-        let original = pick(dirtyRef.current, observedKeys);
-        // delete model.supportedInvocationParameters to avoid diffs on transient field
-        if (original.model) {
-          original = {
-            ...original,
-            model: {
-              ...original.model,
-              supportedInvocationParameters: [],
-              invocationParameters: [],
-            },
-          };
-        }
-        // delete model.supportedInvocationParameters to avoid diffs on transient field
-        let current = pick(instance, observedKeys);
-        if (current.model) {
-          current = {
-            ...current,
-            model: {
-              ...current.model,
-              supportedInvocationParameters: [],
-              invocationParameters: [],
-            },
-          };
-        }
-        const isDirty = JSON.stringify(original) !== JSON.stringify(current);
-        setDirty(isDirty);
-      }, 1000),
-    [store, instanceId]
-  );
-
-  useEffect(() => {
-    if (!instance) {
-      return;
-    }
-    if (!dirtyRef.current) {
-      dirtyRef.current = instance;
-    }
-    debounceDirtyCheck(dirtyRef.current);
-  }, [instance, debounceDirtyCheck]);
 
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
