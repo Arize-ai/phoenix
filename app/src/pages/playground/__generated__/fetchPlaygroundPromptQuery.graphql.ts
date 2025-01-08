@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<030e8d20ae49f09f15af23a50ed20e38>>
+ * @generated SignedSource<<56ed6810e87b841d3a0b7ce001238805>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,6 +29,9 @@ export type fetchPlaygroundPromptQuery$data = {
           readonly invocationParameters: any | null;
           readonly modelName: string;
           readonly modelProvider: string;
+          readonly outputSchema: {
+            readonly definition: any;
+          } | null;
           readonly template: {
             readonly __typename: "PromptChatTemplate";
             readonly messages: ReadonlyArray<{
@@ -43,7 +46,6 @@ export type fetchPlaygroundPromptQuery$data = {
           readonly templateFormat: PromptTemplateFormat;
           readonly templateType: PromptTemplateType;
           readonly tools: ReadonlyArray<{
-            readonly __typename: "ToolDefinition";
             readonly definition: any;
           }>;
         };
@@ -141,14 +143,33 @@ v11 = {
   "name": "templateFormat",
   "storageKey": null
 },
-v12 = {
+v12 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "definition",
+    "storageKey": null
+  }
+],
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "JSONSchema",
+  "kind": "LinkedField",
+  "name": "outputSchema",
+  "plural": false,
+  "selections": (v12/*: any*/),
+  "storageKey": null
+},
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v13 = {
+v15 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -169,23 +190,14 @@ v13 = {
   "type": "TextPromptMessage",
   "abstractKey": null
 },
-v14 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "ToolDefinition",
   "kind": "LinkedField",
   "name": "tools",
   "plural": true,
-  "selections": [
-    (v12/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "definition",
-      "storageKey": null
-    }
-  ],
+  "selections": (v12/*: any*/),
   "storageKey": null
 };
 return {
@@ -241,6 +253,7 @@ return {
                           (v9/*: any*/),
                           (v10/*: any*/),
                           (v11/*: any*/),
+                          (v13/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -249,7 +262,7 @@ return {
                             "name": "template",
                             "plural": false,
                             "selections": [
-                              (v12/*: any*/),
+                              (v14/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -261,7 +274,7 @@ return {
                                     "name": "messages",
                                     "plural": true,
                                     "selections": [
-                                      (v13/*: any*/)
+                                      (v15/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -272,7 +285,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v14/*: any*/)
+                          (v16/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -307,7 +320,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v12/*: any*/),
+          (v14/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -350,6 +363,7 @@ return {
                           (v9/*: any*/),
                           (v10/*: any*/),
                           (v11/*: any*/),
+                          (v13/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -358,7 +372,7 @@ return {
                             "name": "template",
                             "plural": false,
                             "selections": [
-                              (v12/*: any*/),
+                              (v14/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -370,8 +384,8 @@ return {
                                     "name": "messages",
                                     "plural": true,
                                     "selections": [
-                                      (v12/*: any*/),
-                                      (v13/*: any*/)
+                                      (v14/*: any*/),
+                                      (v15/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -382,7 +396,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v14/*: any*/)
+                          (v16/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -402,16 +416,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "03be72e03953edb8dbb0f70d594db5ac",
+    "cacheID": "d094f051ebb25f287d34f6b7c8699595",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  __typename\n                  ... on TextPromptMessage {\n                    content\n                    role\n                  }\n                }\n              }\n            }\n            tools {\n              __typename\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            outputSchema {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  __typename\n                  ... on TextPromptMessage {\n                    content\n                    role\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "be6eabe0f65293dcbf56571eb83e8917";
+(node as any).hash = "54208ec6bb083a2c06f2de3ae897639d";
 
 export default node;
