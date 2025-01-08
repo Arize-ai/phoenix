@@ -1,8 +1,9 @@
-import { Card, View } from "@arizeai/components";
-import { Flex } from "@phoenix/components";
 import React from "react";
-import { promptConfigLoaderQuery$data } from "./__generated__/promptConfigLoaderQuery.graphql";
 import { useLoaderData } from "react-router";
+
+import { Flex, View } from "@phoenix/components";
+
+import { promptConfigLoaderQuery$data } from "./__generated__/promptConfigLoaderQuery.graphql";
 import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 
 export function PromptConfigPage() {

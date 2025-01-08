@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8feae246cdf7a95e617ecf190544ce4c>>
+ * @generated SignedSource<<a00e723f7ba26751cde89d334c9af7fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptVersionTagsConfigCard_data$data = {
+  readonly id: string;
   readonly versionTags: ReadonlyArray<{
     readonly description: string | null;
     readonly id: string;
@@ -23,12 +24,21 @@ export type PromptVersionTagsConfigCard_data$key = {
   readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfigCard_data">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "PromptVersionTagsConfigCard_data",
   "selections": [
+    (v0/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -37,13 +47,7 @@ const node: ReaderFragment = {
       "name": "versionTags",
       "plural": true,
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "id",
-          "storageKey": null
-        },
+        (v0/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -65,7 +69,8 @@ const node: ReaderFragment = {
   "type": "Prompt",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "e080b0dd81d8b1b8e299b2bcd2c3cec2";
+(node as any).hash = "8a904c5cedada821af5fa5ff740261f5";
 
 export default node;

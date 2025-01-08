@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -9,10 +10,11 @@ import {
 
 import { Card } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 
 import { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
+import { DeletePromptVersionTagButton } from "./DeletePromptVersionTagButton";
 
 export function PromptVersionTagsConfigCard({
   prompt,
@@ -22,6 +24,7 @@ export function PromptVersionTagsConfigCard({
   const data = useFragment(
     graphql`
       fragment PromptVersionTagsConfigCard_data on Prompt {
+        id
         versionTags {
           id
           name
@@ -33,7 +36,7 @@ export function PromptVersionTagsConfigCard({
   );
 
   const columns = useMemo(
-    () => [
+    (): ColumnDef<(typeof tableData)[number]>[] => [
       {
         header: "Name",
         accessorKey: "name",
@@ -44,16 +47,15 @@ export function PromptVersionTagsConfigCard({
       },
       {
         id: "actions",
-        cell: () => {
+        header: "",
+        size: 10,
+        accessorKey: "id",
+        cell: ({ row }) => {
           return (
-            <Flex gap="size-100">
-              <Button size="S" icon={<Icon svg={<Icons.EditOutline />} />}>
-                Edit
-              </Button>
-              <Button size="S" icon={<Icon svg={<Icons.TrashOutline />} />}>
-                Delete
-              </Button>
-            </Flex>
+            <DeletePromptVersionTagButton
+              promptVersionTagId={row.original.id}
+              promptId={row.original.promptId}
+            />
           );
         },
       },
@@ -66,6 +68,7 @@ export function PromptVersionTagsConfigCard({
       id: tag.id,
       name: tag.name,
       description: tag.description,
+      promptId: data.id,
     }));
   }, [data]);
 

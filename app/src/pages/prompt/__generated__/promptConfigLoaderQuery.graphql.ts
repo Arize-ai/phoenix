@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<487a64db733a4174b7aa24d7b08fbde2>>
+ * @generated SignedSource<<697fd8162e04f6dbc5b2d8368532a6cd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -101,6 +101,11 @@ return {
             "storageKey": null
           },
           {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
+          },
+          (v2/*: any*/),
+          {
             "kind": "InlineFragment",
             "selections": [
               {
@@ -132,24 +137,19 @@ return {
             ],
             "type": "Prompt",
             "abstractKey": null
-          },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          (v2/*: any*/)
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "237e057234a4937d1a7257c34df93e13",
+    "cacheID": "2245ccefab235f7ff373ef8349f9a687",
     "id": null,
     "metadata": {},
     "name": "promptConfigLoaderQuery",
     "operationKind": "query",
-    "text": "query promptConfigLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  versionTags {\n    id\n    name\n    description\n  }\n}\n"
+    "text": "query promptConfigLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n  }\n}\n"
   }
 };
 })();
