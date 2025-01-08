@@ -7,6 +7,18 @@ import {
 } from "@phoenix/contexts/PlaygroundContext";
 import { PlaygroundInstance } from "@phoenix/store";
 
+/**
+ * Hook to track dirty state of a playground instance
+ *
+ * When mounted, this hook takes a snapshot of the instance and stores it in a ref
+ * When the instance changes, this hook will compare the current instance to the snapshot
+ * and set the dirty state accordingly
+ * You can also manually reset the dirty state by calling resetDirtyState, which will cause
+ * another snapshot to be taken on the next render that the instance is updated
+ *
+ * @param instanceId the instance to track
+ * @returns dirty state and a function to reset the dirty state
+ */
 export function useDirtyPlaygroundInstance(instanceId: number) {
   const dirtyRef = useRef<null | Partial<PlaygroundInstance>>(null);
   const [dirty, setDirty] = useState(false);
