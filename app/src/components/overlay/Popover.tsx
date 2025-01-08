@@ -46,7 +46,7 @@ const popoverCSS = css`
     --origin: translateY(-8px);
 
     &:has(.react-aria-OverlayArrow) {
-      margin-top: 5px;
+      margin-top: 4px;
     }
 
     .react-aria-OverlayArrow svg {
