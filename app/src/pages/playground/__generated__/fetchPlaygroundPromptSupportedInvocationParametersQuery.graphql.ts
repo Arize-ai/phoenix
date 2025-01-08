@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c6e110124aae45d082e313e1d54cc94e>>
+ * @generated SignedSource<<a3f5f9561216e4cc9dd24950753627b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,10 +16,10 @@ export type ModelsInput = {
   modelName?: string | null;
   providerKey?: GenerativeProviderKey | null;
 };
-export type promptPlaygroundLoaderQuery$variables = {
+export type fetchPlaygroundPromptSupportedInvocationParametersQuery$variables = {
   modelsInput: ModelsInput;
 };
-export type promptPlaygroundLoaderQuery$data = {
+export type fetchPlaygroundPromptSupportedInvocationParametersQuery$data = {
   readonly modelInvocationParameters: ReadonlyArray<{
     readonly __typename: string;
     readonly booleanDefaultValue?: boolean | null;
@@ -37,9 +37,9 @@ export type promptPlaygroundLoaderQuery$data = {
     readonly stringListDefaultValue?: ReadonlyArray<string> | null;
   }>;
 };
-export type promptPlaygroundLoaderQuery = {
-  response: promptPlaygroundLoaderQuery$data;
-  variables: promptPlaygroundLoaderQuery$variables;
+export type fetchPlaygroundPromptSupportedInvocationParametersQuery = {
+  response: fetchPlaygroundPromptSupportedInvocationParametersQuery$data;
+  variables: fetchPlaygroundPromptSupportedInvocationParametersQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -237,7 +237,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "promptPlaygroundLoaderQuery",
+    "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
     "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -246,20 +246,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "promptPlaygroundLoaderQuery",
+    "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "25cca2e40770960099cdaa31c50f5f6c",
+    "cacheID": "530366c9a8cc3b47d685ca0600a39bb5",
     "id": null,
     "metadata": {},
-    "name": "promptPlaygroundLoaderQuery",
+    "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
     "operationKind": "query",
-    "text": "query promptPlaygroundLoaderQuery(\n  $modelsInput: ModelsInput!\n) {\n  modelInvocationParameters(input: $modelsInput) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n      label\n    }\n    ... on BooleanInvocationParameter {\n      booleanDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedFloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n      minValue\n      maxValue\n    }\n    ... on FloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on JSONInvocationParameter {\n      jsonDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      stringDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      stringListDefaultValue: defaultValue\n      invocationInputField\n    }\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptSupportedInvocationParametersQuery(\n  $modelsInput: ModelsInput!\n) {\n  modelInvocationParameters(input: $modelsInput) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n      label\n    }\n    ... on BooleanInvocationParameter {\n      booleanDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedFloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n      minValue\n      maxValue\n    }\n    ... on FloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on JSONInvocationParameter {\n      jsonDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      stringDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      stringListDefaultValue: defaultValue\n      invocationInputField\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "00a9d4fe78ebc6fab896abea91f97d14";
+(node as any).hash = "1138fb98386e86196eaa52c12a6bb27c";
 
 export default node;
