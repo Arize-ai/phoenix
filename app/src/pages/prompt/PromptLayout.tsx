@@ -46,6 +46,8 @@ export function PromptLayout() {
   let tabIndex = 0;
   if (pathname.includes("versions")) {
     tabIndex = 1;
+  } else if (pathname.includes("config")) {
+    tabIndex = 2;
   }
 
   const data = useFragment<PromptLayout__main$key>(
@@ -93,6 +95,7 @@ export function PromptLayout() {
         index={tabIndex}
         onChange={(index) => {
           let url: string;
+          alert(index);
           if (index === 1) {
             url = `/prompts/${loaderData.prompt.id}/versions`;
           } else if (index === 2) {

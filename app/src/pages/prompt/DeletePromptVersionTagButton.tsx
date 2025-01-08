@@ -53,7 +53,8 @@ export function DeletePromptVersionTagButton({
             <View paddingBottom="size-100">
               <Text color="danger" size="XS">
                 Are you sure you want to delete this tag? This will make pulling
-                prompts by this tag no longer possiible.
+                prompts by this tag no longer possible. Make sure this tag is
+                not used before deleting.
               </Text>
             </View>
             <Button

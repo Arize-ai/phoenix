@@ -55,6 +55,8 @@ export function PromptVersionTagsConfigCard({
             <DeletePromptVersionTagButton
               promptVersionTagId={row.original.id}
               promptId={row.original.promptId}
+              // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
+              key={row.original.id}
             />
           );
         },
