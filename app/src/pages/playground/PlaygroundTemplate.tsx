@@ -45,12 +45,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
         return;
       }
 
-      const newInstance = await fetchPlaygroundPromptAsInstance(promptId);
-      if (newInstance) {
+      const response = await fetchPlaygroundPromptAsInstance(promptId);
+      if (response) {
         updateInstance({
           instanceId,
           patch: {
-            ...newInstance,
+            ...response.instance,
           },
         });
       }
