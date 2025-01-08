@@ -1502,6 +1502,7 @@ type PromptVersion implements Node {
   createdAt: DateTime!
   tags: [PromptVersionTag!]!
   user: User
+  previousVersion: PromptVersion
 }
 
 """A connection to a list of items."""
