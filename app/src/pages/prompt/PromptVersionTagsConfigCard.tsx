@@ -10,7 +10,7 @@ import {
 
 import { Card } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -49,19 +49,23 @@ export function PromptVersionTagsConfigCard({
       {
         id: "actions",
         header: "",
-        size: 10,
+        size: 5,
         accessorKey: "id",
-        meta: {
-          textAlign: "right",
-        },
         cell: ({ row }) => {
           return (
-            <DeletePromptVersionTagButton
-              promptVersionTagId={row.original.id}
-              promptId={row.original.promptId}
-              // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
-              key={row.original.id}
-            />
+            <Flex
+              direction="row"
+              gap="size-100"
+              justifyContent="end"
+              width="100%"
+            >
+              <DeletePromptVersionTagButton
+                promptVersionTagId={row.original.id}
+                promptId={row.original.promptId}
+                // We set the key here because aria-components will keep the dialog open on the row that replaces it after delete
+                key={row.original.id}
+              />
+            </Flex>
           );
         },
       },
