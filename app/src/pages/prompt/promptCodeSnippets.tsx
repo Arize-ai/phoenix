@@ -135,7 +135,7 @@ export const promptCodeSnippets: Record<
         const invocationArgs = Object.entries(prompt.invocationParameters).map(
           ([key, value]) => `${key}=${value}`
         );
-        args.push(`${invocationArgs.join(",\n")}`);
+        args.push(...invocationArgs);
       }
       // messages are special, they are passed as a kwarg to the provider completion fn
       // but defined in the template as a top level variable first
@@ -155,9 +155,9 @@ export const promptCodeSnippets: Record<
         });
         args.push(`tools=${fmt}`);
       }
-      if (prompt.outputSchema && "schema" in prompt.outputSchema) {
+      if (prompt.outputSchema && "definition" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.schema,
+          json: prompt.outputSchema.definition,
           level: 1,
         });
         args.push(`response_format=${fmt}`);
@@ -185,7 +185,7 @@ export const promptCodeSnippets: Record<
         const invocationArgs = Object.entries(prompt.invocationParameters).map(
           ([key, value]) => `${key}: ${value}`
         );
-        args.push(`${invocationArgs.join(",\n")}`);
+        args.push(...invocationArgs);
       }
       // messages are special, they are passed as a kwarg to the provider completion fn
       // but defined in the template as a top level variable first
@@ -207,9 +207,9 @@ export const promptCodeSnippets: Record<
         });
         args.push(`tools: ${fmt}`);
       }
-      if (prompt.outputSchema && "schema" in prompt.outputSchema) {
+      if (prompt.outputSchema && "definition" in prompt.outputSchema) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.schema,
+          json: prompt.outputSchema.definition,
           level: 1,
           removeKeyQuotes: true,
         });

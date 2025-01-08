@@ -7,7 +7,6 @@ import {
   Button,
   CopyToClipboardButton,
   Disclosure,
-  DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -88,50 +87,46 @@ export function PlaygroundResponseFormat({
   );
 
   return (
-    <DisclosureGroup defaultExpandedKeys={["response-format"]}>
-      <Disclosure id="response-format">
-        <DisclosureTrigger arrowPosition="start">
-          Output Schema
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <View padding="size-200">
-            <Card
-              variant="compact"
-              title="Schema"
-              bodyStyle={{ padding: 0 }}
-              extra={
-                <Flex direction="row" gap="size-100">
-                  <CopyToClipboardButton text={responseFormatDefinition} />
-                  <Button
-                    aria-label="Delete Output Schema"
-                    icon={<Icon svg={<Icons.TrashOutline />} />}
-                    size="S"
-                    onPress={() => {
-                      deleteInvocationParameterInput({
-                        instanceId: playgroundInstanceId,
-                        invocationParameterInputInvocationName:
-                          RESPONSE_FORMAT_PARAM_NAME,
-                      });
-                    }}
-                  />
-                </Flex>
+    <Disclosure id="response-format">
+      <DisclosureTrigger arrowPosition="start">Output Schema</DisclosureTrigger>
+      <DisclosurePanel>
+        <View padding="size-200">
+          <Card
+            variant="compact"
+            title="Schema"
+            bodyStyle={{ padding: 0 }}
+            extra={
+              <Flex direction="row" gap="size-100">
+                <CopyToClipboardButton text={responseFormatDefinition} />
+                <Button
+                  aria-label="Delete Output Schema"
+                  icon={<Icon svg={<Icons.TrashOutline />} />}
+                  size="S"
+                  onPress={() => {
+                    deleteInvocationParameterInput({
+                      instanceId: playgroundInstanceId,
+                      invocationParameterInputInvocationName:
+                        RESPONSE_FORMAT_PARAM_NAME,
+                    });
+                  }}
+                />
+              </Flex>
+            }
+          >
+            <LazyEditorWrapper
+              preInitializationMinHeight={
+                RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
               }
             >
-              <LazyEditorWrapper
-                preInitializationMinHeight={
-                  RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
-                }
-              >
-                <JSONEditor
-                  value={responseFormatDefinition}
-                  onChange={onChange}
-                  jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
-                />
-              </LazyEditorWrapper>
-            </Card>
-          </View>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+              <JSONEditor
+                value={responseFormatDefinition}
+                onChange={onChange}
+                jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
+              />
+            </LazyEditorWrapper>
+          </Card>
+        </View>
+      </DisclosurePanel>
+    </Disclosure>
   );
 }
