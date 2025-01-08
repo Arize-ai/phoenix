@@ -100,23 +100,26 @@ class PromptVersion(PromptModel):
     @model_validator(mode="after")
     def validate_tool_definitions_for_known_model_providers(self) -> "PromptVersion":
         tool_definitions = [tool_def.definition for tool_def in self.tools.tool_definitions]
-        if self.model_provider.lower() == "openai":
+        tool_definition_model = _get_tool_definition_model(self.model_provider)
+        if tool_definition_model:
             for tool_definition_index, tool_definition in enumerate(tool_definitions):
                 try:
-                    OpenAIToolDefinition.model_validate(tool_definition)
-                except ValidationError as e:
+                    tool_definition_model.model_validate(tool_definition)
+                except ValidationError as error:
                     raise ValueError(
-                        f"Invalid OpenAI tool definition at index {tool_definition_index}: {e}"
-                    )
-        if self.model_provider.lower() == "anthropic":
-            for tool_definition_index, tool_definition in enumerate(tool_definitions):
-                try:
-                    AnthropicToolDefinition.model_validate(tool_definition)
-                except ValidationError as e:
-                    raise ValueError(
-                        f"Invalid Anthropic tool definition at index {tool_definition_index}: {e}"
+                        f"Invalid tool definition at index {tool_definition_index}: {error}"
                     )
         return self
+
+
+def _get_tool_definition_model(
+    model_provider: str,
+) -> Optional[Union["OpenAIToolDefinition", "AnthropicToolDefinition"]]:
+    if model_provider.lower() == "openai":
+        return OpenAIToolDefinition
+    if model_provider.lower() == "anthropic":
+        return AnthropicToolDefinition
+    return None
 
 
 # JSON schema
