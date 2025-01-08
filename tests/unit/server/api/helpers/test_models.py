@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from phoenix.server.api.helpers.prompts.models import OpenAIToolDefinition
+from phoenix.server.api.helpers.prompts.models import AnthropicToolDefinition, OpenAIToolDefinition
 
 
 @pytest.mark.parametrize(
@@ -839,3 +839,124 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
 def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         OpenAIToolDefinition.model_validate(tool_definition)
+
+
+@pytest.mark.parametrize(
+    "tool_definition",
+    [
+        pytest.param(
+            {
+                "name": "get_weather",
+                "description": "Get the current weather in a given location",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "unit": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                            "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                        },
+                    },
+                    "required": ["location"],
+                },
+            },
+            id="get-weather-function",
+        ),
+        pytest.param(
+            {
+                "name": "get_time",
+                "description": "Get the current time in a given time zone",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "timezone": {
+                            "type": "string",
+                            "description": "The IANA time zone name, e.g. America/Los_Angeles",
+                        }
+                    },
+                    "required": ["timezone"],
+                },
+            },
+            id="get-time-function",
+        ),
+        pytest.param(
+            {
+                "name": "get_location",
+                "description": "Get the current user location based on their IP address. This tool has no parameters or arguments.",  # noqa: E501
+                "input_schema": {"type": "object", "properties": {}},
+            },
+            id="get-location-function",
+        ),
+        pytest.param(
+            {
+                "name": "record_summary",
+                "description": "Record summary of an image using well-structured JSON.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "key_colors": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "r": {"type": "number", "description": "red value [0.0, 1.0]"},
+                                    "g": {
+                                        "type": "number",
+                                        "description": "green value [0.0, 1.0]",
+                                    },
+                                    "b": {"type": "number", "description": "blue value [0.0, 1.0]"},
+                                    "name": {
+                                        "type": "string",
+                                        "description": 'Human-readable color name in snake_case, e.g. "olive_green" or "turquoise"',  # noqa: E501
+                                    },
+                                },
+                                "required": ["r", "g", "b", "name"],
+                            },
+                            "description": "Key colors in the image. Limit to less then four.",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Image description. One to two sentences max.",
+                        },
+                        "estimated_year": {
+                            "type": "integer",
+                            "description": "Estimated year that the images was taken, if is it a photo. Only set this if the image appears to be non-fictional. Rough estimates are okay!",  # noqa: E501
+                        },
+                    },
+                    "required": ["key_colors", "description"],
+                },
+            },
+            id="record-image-summary",
+        ),
+        pytest.param(
+            {
+                "name": "get_weather",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"location": {"type": "string"}},
+                },
+                "cache_control": {"type": "ephemeral"},
+            },
+            id="get-weather-function-cache-control-ephemeral",
+        ),
+        pytest.param(
+            {
+                "name": "get_weather",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"location": {"type": "string"}},
+                },
+                "cache_control": None,
+            },
+            id="get-weather-function-cache-control-none",
+        ),
+    ],
+)
+def test_anthropic_tool_definition_passes_valid_tool_schemas(
+    tool_definition: dict[str, Any],
+) -> None:
+    AnthropicToolDefinition.model_validate(tool_definition)

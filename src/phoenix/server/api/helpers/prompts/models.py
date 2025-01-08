@@ -234,3 +234,23 @@ class OpenAIToolDefinition(PromptModel):
 
     function: OpenAIFunctionDefinition
     type: Literal["function"]
+
+
+class AnthropicCacheControlEphemeralParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/cache_control_ephemeral_param.py#L10
+    """
+
+    type: Literal["ephemeral"]
+
+
+# Anthropic tool definitions
+class AnthropicToolDefinition(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/tool_param.py#L22
+    """
+
+    input_schema: JSONSchemaObjectProperty
+    name: str
+    cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
+    description: str = UNDEFINED
