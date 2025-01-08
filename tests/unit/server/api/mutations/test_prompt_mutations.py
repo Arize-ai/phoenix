@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from strawberry.relay.types import GlobalID
@@ -91,7 +91,7 @@ class TestPromptMutations:
     """
 
     @pytest.mark.parametrize(
-        "variables,expected_tools,expected_output_schema",
+        "variables",
         [
             pytest.param(
                 {
@@ -109,8 +109,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                None,
                 id="basic-input",
             ),
             pytest.param(
@@ -130,8 +128,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [{"definition": {"foo": "bar"}}],
-                None,
                 id="with-tools",
             ),
             pytest.param(
@@ -164,21 +160,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [
-                    {
-                        "definition": {
-                            "type": "function",
-                            "function": {
-                                "name": "get_weather",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {"location": {"type": "string"}},
-                                },
-                            },
-                        }
-                    }
-                ],
-                None,
                 id="with-valid-openai-tools",
             ),
             pytest.param(
@@ -220,30 +201,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [
-                    {
-                        "definition": {
-                            "name": "get_weather",
-                            "description": "Get the current weather in a given location",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "location": {
-                                        "type": "string",
-                                        "description": "The city and state, e.g. San Francisco, CA",
-                                    },
-                                    "unit": {
-                                        "type": "string",
-                                        "enum": ["celsius", "fahrenheit"],
-                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
-                                    },
-                                },
-                                "required": ["location"],
-                            },
-                        }
-                    }
-                ],
-                None,
                 id="with-valid-anthropic-tools",
             ),
             pytest.param(
@@ -263,8 +220,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                {"definition": {"foo": "bar"}},
                 id="with-output-schema",
             ),
         ],
@@ -274,8 +229,6 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
-        expected_tools: list[dict[str, Any]],
-        expected_output_schema: Optional[dict[str, Any]],
     ) -> None:
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_MUTATION, variables)
         assert not result.errors
@@ -297,7 +250,9 @@ class TestPromptMutations:
         assert prompt_version.pop("modelProvider") == expected_model_provider
         assert prompt_version.pop("modelName") == expected_model_name
         assert prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert prompt_version.pop("tools") == expected_tools
+        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
         assert prompt_version.pop("outputSchema") == expected_output_schema
         assert isinstance(prompt_version.pop("id"), str)
 
@@ -475,7 +430,7 @@ class TestPromptMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
-        "variables,expected_tools,expected_output_schema",
+        "variables",
         [
             pytest.param(
                 {
@@ -492,8 +447,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                None,
                 id="basic-input",
             ),
             pytest.param(
@@ -512,8 +465,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [{"definition": {"foo": "bar"}}],
-                None,
                 id="with-tools",
             ),
             pytest.param(
@@ -545,21 +496,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [
-                    {
-                        "definition": {
-                            "type": "function",
-                            "function": {
-                                "name": "get_weather",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {"location": {"type": "string"}},
-                                },
-                            },
-                        }
-                    }
-                ],
-                None,
                 id="with-valid-openai-tools",
             ),
             pytest.param(
@@ -578,8 +514,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                {"definition": {"foo": "bar"}},
                 id="with-output-schema",
             ),
             pytest.param(
@@ -620,30 +554,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [
-                    {
-                        "definition": {
-                            "name": "get_weather",
-                            "description": "Get the current weather in a given location",
-                            "input_schema": {
-                                "type": "object",
-                                "properties": {
-                                    "location": {
-                                        "type": "string",
-                                        "description": "The city and state, e.g. San Francisco, CA",
-                                    },
-                                    "unit": {
-                                        "type": "string",
-                                        "enum": ["celsius", "fahrenheit"],
-                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
-                                    },
-                                },
-                                "required": ["location"],
-                            },
-                        }
-                    }
-                ],
-                None,
                 id="with-valid-anthropic-tools",
             ),
         ],
@@ -653,8 +563,6 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
-        expected_tools: list[dict[str, Any]],
-        expected_output_schema: Optional[dict[str, Any]],
     ) -> None:
         # Create initial prompt
         create_prompt_result = await gql_client.execute(
@@ -698,7 +606,9 @@ class TestPromptMutations:
         assert latest_prompt_version.pop("modelProvider") == expected_model_provider
         assert latest_prompt_version.pop("modelName") == expected_model_name
         assert latest_prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert latest_prompt_version.pop("tools") == expected_tools
+        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
         assert latest_prompt_version.pop("outputSchema") == expected_output_schema
         assert isinstance(latest_prompt_version.pop("id"), str)
 
