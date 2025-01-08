@@ -20,6 +20,7 @@ import { Card, Field, Form, TextField } from "@arizeai/components";
 import {
   Button,
   CopyToClipboardButton,
+  DisclosureGroup,
   Flex,
   Icon,
   Icons,
@@ -175,8 +176,12 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
           hasResponseFormat={hasResponseFormat}
         />
       </View>
-      {hasTools ? <PlaygroundTools {...props} /> : null}
-      {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
+      {hasTools || hasResponseFormat ? (
+        <DisclosureGroup defaultExpandedKeys={["tools", "response-format"]}>
+          {hasTools ? <PlaygroundTools {...props} /> : null}
+          {hasResponseFormat ? <PlaygroundResponseFormat {...props} /> : null}
+        </DisclosureGroup>
+      ) : null}
     </DndContext>
   );
 }

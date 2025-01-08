@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a11f7156f2273b1dfdc83142e046ca0>>
+ * @generated SignedSource<<89a0965570719eab85a61133888d2666>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptModelConfigurationCard__main$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main" | "PromptTools__main">;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main" | "PromptOutputSchemaFragment" | "PromptTools__main">;
   readonly " $fragmentType": "PromptModelConfigurationCard__main";
 };
 export type PromptModelConfigurationCard__main$key = {
@@ -34,12 +34,17 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "FragmentSpread",
       "name": "PromptTools__main"
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "PromptOutputSchemaFragment"
     }
   ],
   "type": "PromptVersion",
   "abstractKey": null
 };
 
-(node as any).hash = "363ad8a449df09cf846a043e250fa5e0";
+(node as any).hash = "7ec5f9f00217c6d2f622362726028683";
 
 export default node;
