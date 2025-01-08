@@ -114,7 +114,7 @@ class PromptVersion(PromptModel):
 
 def _get_tool_definition_model(
     model_provider: str,
-) -> Optional[Union["OpenAIToolDefinition", "AnthropicToolDefinition"]]:
+) -> Optional[Union[type["OpenAIToolDefinition"], type["AnthropicToolDefinition"]]]:
     if model_provider.lower() == "openai":
         return OpenAIToolDefinition
     if model_provider.lower() == "anthropic":
