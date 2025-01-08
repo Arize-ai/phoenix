@@ -103,7 +103,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
       - run: uvx --with tox-uv tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -126,7 +126,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
       - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -149,7 +149,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
       - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
 
   #  clean-jupyter-notebooks:
@@ -171,7 +171,7 @@ jobs:
   #      - name: Set up `uv`
   #        uses: astral-sh/setup-uv@v4
   #        with:
-  #          version: 0.5.8
+  #          version: 0.5.15
   #          enable-cache: true
   #          cache-dependency-glob: |
   #            pyproject.toml
@@ -200,7 +200,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -229,7 +229,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -257,7 +257,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -285,7 +285,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
       - name: Run `ruff`
         run: uvx --with tox-uv tox run -e ruff
       - run: git diff --exit-code
@@ -315,7 +315,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -350,7 +350,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -389,7 +389,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -431,7 +431,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -492,7 +492,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.8
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
