@@ -24,6 +24,7 @@ export async function promptVersionLoader(args: LoaderFunctionArgs) {
             ...PromptChatMessagesCard__main
             ...PromptCodeExportCard__main
             ...PromptModelConfigurationCard__main
+            ...PromptVersionTagsList_data
             description
             invocationParameters
             modelName
