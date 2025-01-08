@@ -1,26 +1,18 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-
-import { Card, Icons } from "@arizeai/components";
-import {
-  Button,
-  Flex,
-  Heading,
-  Icon,
-  Tag,
-  TagGroup,
-  TagList,
-  View,
-} from "@phoenix/components";
-
-import { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
-import { useReactTable } from "@tanstack/react-table";
+
+import { Card } from "@arizeai/components";
+
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
+
+import { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 
 export function PromptVersionTagsConfigCard({
   prompt,
