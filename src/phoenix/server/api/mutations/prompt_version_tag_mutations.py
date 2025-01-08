@@ -72,22 +72,27 @@ class PromptVersionTagMutationMixin:
 
             prompt_id = prompt_version.prompt_id
 
-            tag_values = {
-                "name": input.name,
-                "description": input.description,
-                "prompt_id": prompt_id,
-                "prompt_version_id": prompt_version_id,
-            }
-
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
-            updated_tag = await session.scalar(
-                insert_on_conflict(
-                    tag_values,
-                    dialect=dialect,
-                    table=models.PromptVersionTag,
-                    unique_by=("name", "prompt_id"),
-                ).returning(models.PromptVersionTag)
+            existing_tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt_id,
+                    models.PromptVersionTag.name == input.name,
+                )
             )
+
+            if existing_tag:
+                existing_tag.prompt_version_id = prompt_version_id
+                if input.description is not None:
+                    existing_tag.description = input.description
+                updated_tag = existing_tag
+            else:
+                new_tag = models.PromptVersionTag(
+                    name=input.name,
+                    description=input.description,
+                    prompt_id=prompt_id,
+                    prompt_version_id=prompt_version_id,
+                )
+                session.add(new_tag)
+                updated_tag = new_tag
 
             if not updated_tag:
                 raise BadRequest("Failed to create or update PromptVersionTag.")
