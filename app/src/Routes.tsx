@@ -9,6 +9,7 @@ import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generat
 import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
+import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
@@ -49,6 +50,7 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  PromptConfigPage,
   promptLoader,
   promptsLoader,
   PromptsPage,
@@ -242,6 +244,11 @@ const router = createBrowserRouter(
                     element={<PromptVersionDetailsPage />}
                   />
                 </Route>
+                <Route
+                  path="config"
+                  element={<PromptConfigPage />}
+                  loader={promptConfigLoader}
+                />
               </Route>
               <Route
                 path="playground"
