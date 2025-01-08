@@ -49,6 +49,7 @@ import {
   ProjectPage,
   ProjectsPage,
   ProjectsRoot,
+  PromptConfigPage,
   promptLoader,
   promptsLoader,
   PromptsPage,
@@ -62,6 +63,7 @@ import {
   TracePage,
   TracingRoot,
 } from "./pages";
+import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -241,6 +243,11 @@ const router = createBrowserRouter(
                     element={<PromptVersionDetailsPage />}
                   />
                 </Route>
+                <Route
+                  path="config"
+                  element={<PromptConfigPage />}
+                  loader={promptConfigLoader}
+                />
               </Route>
               <Route
                 path="playground"

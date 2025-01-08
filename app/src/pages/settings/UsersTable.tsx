@@ -98,7 +98,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     });
   }, [refetch]);
 
-  type TableRow = (typeof tableData)[number];
+  type  TableRow = (typeof tableData)[number];
   const columns = useMemo((): ColumnDef<TableRow>[] => {
     return [
       {

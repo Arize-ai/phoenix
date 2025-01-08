@@ -95,6 +95,8 @@ export function PromptLayout() {
           let url: string;
           if (index === 1) {
             url = `/prompts/${loaderData.prompt.id}/versions`;
+          } else if (index === 2) {
+            url = `/prompts/${loaderData.prompt.id}/config`;
           } else {
             url = `/prompts/${loaderData.prompt.id}`;
           }
@@ -108,6 +110,9 @@ export function PromptLayout() {
           name={"Versions"}
           extra={<Counter>{data.promptVersions.edges.length}</Counter>}
         >
+          <Outlet />
+        </TabPane>
+        <TabPane name={"Config"}>
           <Outlet />
         </TabPane>
       </Tabs>
