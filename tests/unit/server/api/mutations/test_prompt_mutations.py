@@ -124,8 +124,8 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
-                            "modelName": "claude-3-5-sonnet",
+                            "modelProvider": "unknown",
+                            "modelName": "unknown",
                             "tools": [{"definition": {"foo": "bar"}}],
                         },
                     }
@@ -180,6 +180,71 @@ class TestPromptMutations:
                 ],
                 None,
                 id="with-valid-openai-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                [
+                    {
+                        "definition": {
+                            "name": "get_weather",
+                            "description": "Get the current weather in a given location",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "location": {
+                                        "type": "string",
+                                        "description": "The city and state, e.g. San Francisco, CA",
+                                    },
+                                    "unit": {
+                                        "type": "string",
+                                        "enum": ["celsius", "fahrenheit"],
+                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                    },
+                                },
+                                "required": ["location"],
+                            },
+                        }
+                    }
+                ],
+                None,
+                id="with-valid-anthropic-tools",
             ),
             pytest.param(
                 {
@@ -354,6 +419,51 @@ class TestPromptMutations:
                 "function.parameters.type",
                 id="with-invalid-openai-tools",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                        "cache_control": {
+                                            "type": "invalid_type"
+                                        },  # invalid cache control type
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "cache_control.type",
+                id="with-invalid-anthropic-tools",
+            ),
         ],
     )
     async def test_create_chat_prompt_fails_with_invalid_input(
@@ -396,8 +506,8 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
-                            "modelName": "claude-3-5-sonnet",
+                            "modelProvider": "unknown",
+                            "modelName": "unknown",
                             "tools": [{"definition": {"foo": "bar"}}],
                         },
                     }
@@ -471,6 +581,70 @@ class TestPromptMutations:
                 [],
                 {"definition": {"foo": "bar"}},
                 id="with-output-schema",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                [
+                    {
+                        "definition": {
+                            "name": "get_weather",
+                            "description": "Get the current weather in a given location",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "location": {
+                                        "type": "string",
+                                        "description": "The city and state, e.g. San Francisco, CA",
+                                    },
+                                    "unit": {
+                                        "type": "string",
+                                        "enum": ["celsius", "fahrenheit"],
+                                        "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                    },
+                                },
+                                "required": ["location"],
+                            },
+                        }
+                    }
+                ],
+                None,
+                id="with-valid-anthropic-tools",
             ),
         ],
     )
@@ -637,6 +811,50 @@ class TestPromptMutations:
                 },
                 "function.parameters.type",
                 id="with-invalid-openai-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                        "cache_control": {
+                                            "type": "invalid_type"
+                                        },  # invalid cache control type
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "cache_control.type",
+                id="with-invalid-anthropic-tools",
             ),
         ],
     )

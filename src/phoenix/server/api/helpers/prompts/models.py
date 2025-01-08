@@ -108,6 +108,14 @@ class PromptVersion(PromptModel):
                     raise ValueError(
                         f"Invalid OpenAI tool definition at index {tool_definition_index}: {e}"
                     )
+        if self.model_provider.lower() == "anthropic":
+            for tool_definition_index, tool_definition in enumerate(tool_definitions):
+                try:
+                    AnthropicToolDefinition.model_validate(tool_definition)
+                except ValidationError as e:
+                    raise ValueError(
+                        f"Invalid Anthropic tool definition at index {tool_definition_index}: {e}"
+                    )
         return self
 
 
